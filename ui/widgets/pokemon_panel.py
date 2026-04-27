@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QVBoxLayout,
-    QWidget,
 )
 
 from ui.widgets.fast_buttons import FastButtonGroup
@@ -19,6 +18,7 @@ from ui.widgets.fast_buttons import FastButtonGroup
 class PokemonPanel(QFrame):
     def __init__(self, slot_number: int, is_active: bool = False) -> None:
         super().__init__()
+        self.setObjectName("slotFrame")
         self.slot_number = slot_number
         self.is_selected = False
         self._current_hp = 100
@@ -116,10 +116,10 @@ class PokemonPanel(QFrame):
 
     def set_selected(self, selected: bool) -> None:
         self.is_selected = selected
-        border = "2px solid #4A90E2" if selected else "1px solid #D8E0EA"
+        border = "2px solid #FFB800" if selected else "1px solid #DDDDDD"
         self.setStyleSheet(
             f"""
-            PokemonPanel {{
+            QFrame#slotFrame {{
                 background-color: white;
                 border: {border};
                 border-radius: 8px;
@@ -210,9 +210,11 @@ class PokemonPanel(QFrame):
         )
 
 
-class PokemonTeamColumn(QWidget):
+class PokemonTeamColumn(QFrame):
     def __init__(self, title: str, selectable: bool) -> None:
         super().__init__()
+        self.setObjectName("columnFrame")
+        self.is_active = False
         self.panels: list[PokemonPanel] = []
 
         layout = QVBoxLayout(self)
@@ -232,3 +234,19 @@ class PokemonTeamColumn(QWidget):
             layout.addWidget(panel)
 
         layout.addStretch(1)
+
+    def set_active(self, active: bool) -> None:
+        self.is_active = active
+        self.setProperty("active", active)
+        self.setStyleSheet(self._build_stylesheet(active))
+
+    @staticmethod
+    def _build_stylesheet(active: bool) -> str:
+        border = "2px solid #4A90E2" if active else "1px solid #CCCCCC"
+        return f"""
+            QFrame#columnFrame {{
+                background-color: #FFFFFF;
+                border: {border};
+                border-radius: 8px;
+            }}
+        """

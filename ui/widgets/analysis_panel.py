@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QTextEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QTextEdit, QVBoxLayout
 
 
-class AnalysisPanel(QWidget):
+class AnalysisPanel(QFrame):
     def __init__(self) -> None:
         super().__init__()
+        self.setObjectName("analysisPanel")
+        self.is_active = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -56,3 +58,17 @@ class AnalysisPanel(QWidget):
         )
 
         layout.addWidget(self.output_edit, 1)
+
+    def set_active(self, active: bool) -> None:
+        self.is_active = active
+        self.setProperty("active", active)
+        self.setStyleSheet(self._build_stylesheet())
+
+    @staticmethod
+    def _build_stylesheet() -> str:
+        return """
+            QFrame#analysisPanel {
+                background-color: transparent;
+                border: none;
+            }
+        """

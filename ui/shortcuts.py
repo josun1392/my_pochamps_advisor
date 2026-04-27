@@ -50,7 +50,6 @@ class GlobalShortcuts:
     def _focus_next_column(self, target: ShortcutTarget) -> None:
         if self._should_ignore_shortcut():
             return
-        print("단축키 입력: 다음 열로 포커스 이동")
         target.focus_next_column()
 
     def _should_ignore_shortcut(self) -> bool:

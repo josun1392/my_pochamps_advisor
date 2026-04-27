@@ -20,6 +20,13 @@ dist/
 .coverage
 htmlcov/
 
+# Runtime data cache
+data/cache/*
+!data/cache/pokeapi/
+data/cache/pokeapi/*
+!data/cache/pokeapi/.gitkeep
+data/meta/cache_index.json
+
 # Environment files
 .env
 .env.*
