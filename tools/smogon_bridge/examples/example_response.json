@@ -1,0 +1,24 @@
+{
+  "schema_version": "v1",
+  "damage_rolls": [133, 135, 136, 138, 140, 140, 143, 144, 146, 148, 148, 151, 152, 153, 156, 157],
+  "damage_min": 133,
+  "damage_max": 157,
+  "damage_min_pct": 72.3,
+  "damage_max_pct": 85.3,
+  "ko_chance": {
+    "n_hits": 2,
+    "chance": 1.0,
+    "description": "guaranteed 2HKO after Leftovers recovery"
+  },
+  "modifiers": {
+    "stab": 1.5,
+    "weather": 1.5,
+    "type_effectiveness": 0.5,
+    "burn": 1.0,
+    "screens": 1.0,
+    "item": 1.3,
+    "ability_attacker": 1.0,
+    "ability_defender": 1.0
+  },
+  "raw_calc_desc": "252+ SpA Life Orb Charizard-Mega-Y Fire Blast vs. 4 HP / 0 SpD Garchomp in Sun: 133-157 (72.2 - 85.3%) -- guaranteed 2HKO after Leftovers recovery"
+}

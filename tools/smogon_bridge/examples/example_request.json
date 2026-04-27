@@ -1,0 +1,43 @@
+{
+  "schema_version": "v1",
+  "attacker": {
+    "species": "charizard-mega-y",
+    "level": 50,
+    "ability": "drought",
+    "item": "life-orb",
+    "nature": "modest",
+    "evs": {"hp": 0, "atk": 0, "def": 0, "spa": 252, "spd": 4, "spe": 252},
+    "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+    "boosts": {"atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0},
+    "status": null,
+    "tera_type": null,
+    "is_terastallized": false
+  },
+  "defender": {
+    "species": "garchomp",
+    "level": 50,
+    "ability": "rough-skin",
+    "item": "leftovers",
+    "nature": "jolly",
+    "evs": {"hp": 4, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+    "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+    "boosts": {"atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0},
+    "status": null,
+    "tera_type": null,
+    "is_terastallized": false,
+    "current_hp_pct": 100
+  },
+  "move": {
+    "name": "fire-blast",
+    "is_critical": false,
+    "is_z": false,
+    "is_max": false
+  },
+  "field": {
+    "weather": "sun",
+    "terrain": null,
+    "is_gravity": false,
+    "is_trick_room": false,
+    "format": "gen9doubles"
+  }
+}

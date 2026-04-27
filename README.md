@@ -49,3 +49,27 @@ Verify the cache:
 ```powershell
 uv run python scripts/verify_champions_cache.py
 ```
+
+## Parity Bridge
+
+The Python damage engine is validated against `@smogon/calc` through a Node.js subprocess bridge.
+
+Install the Node dependency once:
+
+```powershell
+cd tools/smogon_bridge
+npm install
+cd ../..
+```
+
+Verify the bridge:
+
+```powershell
+uv run python scripts/verify_parity_bridge.py
+```
+
+Run the bridge tests:
+
+```powershell
+uv run pytest tests/test_parity_bridge.py -v
+```

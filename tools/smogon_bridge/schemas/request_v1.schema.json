@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Smogon Bridge Damage Request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "attacker", "defender", "move", "field"],
+  "properties": {
+    "schema_version": {"const": "v1"},
+    "attacker": {"$ref": "#/$defs/pokemon"},
+    "defender": {"$ref": "#/$defs/defender_pokemon"},
+    "move": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "is_critical", "is_z", "is_max"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "is_critical": {"type": "boolean"},
+        "is_z": {"type": "boolean"},
+        "is_max": {"type": "boolean"}
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weather", "terrain", "is_gravity", "is_trick_room", "format"],
+      "properties": {
+        "weather": {"type": ["string", "null"]},
+        "terrain": {"type": ["string", "null"]},
+        "is_gravity": {"type": "boolean"},
+        "is_trick_room": {"type": "boolean"},
+        "format": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hp", "atk", "def", "spa", "spd", "spe"],
+      "properties": {
+        "hp": {"type": "integer"},
+        "atk": {"type": "integer"},
+        "def": {"type": "integer"},
+        "spa": {"type": "integer"},
+        "spd": {"type": "integer"},
+        "spe": {"type": "integer"}
+      }
+    },
+    "boosts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["atk", "def", "spa", "spd", "spe"],
+      "properties": {
+        "atk": {"type": "integer", "minimum": -6, "maximum": 6},
+        "def": {"type": "integer", "minimum": -6, "maximum": 6},
+        "spa": {"type": "integer", "minimum": -6, "maximum": 6},
+        "spd": {"type": "integer", "minimum": -6, "maximum": 6},
+        "spe": {"type": "integer", "minimum": -6, "maximum": 6}
+      }
+    },
+    "pokemon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "species",
+        "level",
+        "ability",
+        "item",
+        "nature",
+        "evs",
+        "ivs",
+        "boosts",
+        "status",
+        "tera_type",
+        "is_terastallized"
+      ],
+      "properties": {
+        "species": {"type": "string", "minLength": 1},
+        "level": {"type": "integer", "minimum": 1, "maximum": 100},
+        "ability": {"type": ["string", "null"]},
+        "item": {"type": ["string", "null"]},
+        "nature": {"type": "string"},
+        "evs": {"$ref": "#/$defs/stats"},
+        "ivs": {"$ref": "#/$defs/stats"},
+        "boosts": {"$ref": "#/$defs/boosts"},
+        "status": {"type": ["string", "null"]},
+        "tera_type": {"type": ["string", "null"]},
+        "is_terastallized": {"type": "boolean"}
+      }
+    },
+    "defender_pokemon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "species",
+        "level",
+        "ability",
+        "item",
+        "nature",
+        "evs",
+        "ivs",
+        "boosts",
+        "status",
+        "tera_type",
+        "is_terastallized",
+        "current_hp_pct"
+      ],
+      "properties": {
+        "species": {"type": "string", "minLength": 1},
+        "level": {"type": "integer", "minimum": 1, "maximum": 100},
+        "ability": {"type": ["string", "null"]},
+        "item": {"type": ["string", "null"]},
+        "nature": {"type": "string"},
+        "evs": {"$ref": "#/$defs/stats"},
+        "ivs": {"$ref": "#/$defs/stats"},
+        "boosts": {"$ref": "#/$defs/boosts"},
+        "status": {"type": ["string", "null"]},
+        "tera_type": {"type": ["string", "null"]},
+        "is_terastallized": {"type": "boolean"},
+        "current_hp_pct": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    }
+  }
+}

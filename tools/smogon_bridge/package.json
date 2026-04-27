@@ -1,0 +1,16 @@
+{
+  "name": "smogon-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "calc": "node calc.js",
+    "test": "node calc.js < examples/example_request.json"
+  },
+  "dependencies": {
+    "@smogon/calc": "0.11.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

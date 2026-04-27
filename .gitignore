@@ -19,6 +19,8 @@ dist/
 .ruff_cache/
 .coverage
 htmlcov/
+tools/smogon_bridge/node_modules/
+tools/smogon_bridge/npm-debug.log*
 
 # Runtime data cache
 data/cache/*
