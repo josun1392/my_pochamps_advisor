@@ -14,7 +14,7 @@ CacheData = dict[str, Any]
 class CacheManager:
     """디스크 캐시의 단일 진입점."""
 
-    CATEGORIES = ("pokemon", "moves", "abilities", "types")
+    CATEGORIES = ("pokemon", "moves", "abilities", "types", "species")
 
     def __init__(self, cache_root: Path = Path("data/cache/pokeapi")) -> None:
         self.cache_root = cache_root

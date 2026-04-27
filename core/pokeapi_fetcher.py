@@ -37,6 +37,9 @@ class PokeAPIFetcher:
     def get_type(self, identifier: int | str) -> JsonDict:
         return self._get_resource("types", "type", identifier, self._normalize_type)
 
+    def get_species(self, identifier: int | str) -> JsonDict:
+        return self._get_resource("species", "pokemon-species", identifier, self._normalize_species)
+
     def _get_resource(
         self,
         category: str,
@@ -112,6 +115,7 @@ class PokeAPIFetcher:
         return {
             "id": raw["id"],
             "name": raw["name"],
+            "names": cls._localized_names(raw),
             "type": cls._named_resource_name(raw.get("type")),
             "damage_class": cls._named_resource_name(raw.get("damage_class")),
             "power": raw.get("power"),
@@ -129,6 +133,7 @@ class PokeAPIFetcher:
         return {
             "id": raw["id"],
             "name": raw["name"],
+            "names": cls._localized_names(raw),
             "effect": effect_entry.get("effect"),
             "short_effect": effect_entry.get("short_effect"),
             "generation": cls._named_resource_name(raw.get("generation")),
@@ -141,6 +146,7 @@ class PokeAPIFetcher:
         return {
             "id": raw["id"],
             "name": raw["name"],
+            "names": cls._localized_names(raw),
             "damage_class": cls._named_resource_name(raw.get("move_damage_class")),
             "damage_relations": {
                 key: [item["name"] for item in relations.get(key, [])]
@@ -154,6 +160,30 @@ class PokeAPIFetcher:
                 )
             },
             "_fetched_at": cls._timestamp(),
+        }
+
+    @classmethod
+    def _normalize_species(cls, raw: JsonDict) -> JsonDict:
+        return {
+            "id": raw["id"],
+            "name": raw["name"],
+            "names": cls._localized_names(raw),
+            "varieties": [
+                {
+                    "name": item["pokemon"]["name"],
+                    "is_default": bool(item.get("is_default", False)),
+                }
+                for item in raw.get("varieties", [])
+            ],
+            "_fetched_at": cls._timestamp(),
+        }
+
+    @staticmethod
+    def _localized_names(raw: JsonDict) -> dict[str, str]:
+        return {
+            item["language"]["name"]: item["name"]
+            for item in raw.get("names", [])
+            if item.get("language", {}).get("name") and isinstance(item.get("name"), str)
         }
 
     @staticmethod
