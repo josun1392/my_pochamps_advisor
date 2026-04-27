@@ -1,0 +1,27 @@
+{
+  "pokemon": {},
+  "forms": {
+    "default": "기본",
+    "alolan-form": "알로라의 모습",
+    "galarian-form": "가라르의 모습",
+    "hisuian-form": "히스이의 모습",
+    "paldean-form-combat-breed": "팔데아의 모습 컴뱃종",
+    "paldean-form-blaze-breed": "팔데아의 모습 블레이즈종",
+    "paldean-form-aqua-breed": "팔데아의 모습 워터종",
+    "mega": "메가",
+    "mega-x": "메가X",
+    "mega-y": "메가Y",
+    "eternal-flower": "영원의 꽃",
+    "male": "수컷",
+    "female": "암컷",
+    "midday-form": "한낮의 모습",
+    "midnight-form": "한밤중의 모습",
+    "dusk-form": "황혼의 모습",
+    "sunny-form": "태양의 모습",
+    "rainy-form": "빗방울의 모습",
+    "snowy-form": "설운의 모습",
+    "blade-forme": "블레이드폼",
+    "hangry-mode": "배고픈 모양",
+    "hero-form": "마이티폼"
+  }
+}

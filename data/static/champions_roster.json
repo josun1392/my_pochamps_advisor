@@ -1,0 +1,6859 @@
+{
+  "format": "champions",
+  "roster_version": "Regular Roster M-A",
+  "valid_until": "2026-06-16",
+  "extracted_at": "2026-04-27",
+  "data_source": {
+    "primary": "https://bulbapedia.bulbagarden.net/wiki/List_of_Pok%C3%A9mon_in_Pok%C3%A9mon_Champions",
+    "cross_check": "https://www.serebii.net/pokemonchampions/pokemon.shtml",
+    "official_reference": "https://champions.pokemon.com/en-us/"
+  },
+  "counts": {
+    "species": 187,
+    "form_variants": 75,
+    "mega_evolutions": 59,
+    "total_battle_entities": 321
+  },
+  "species": [
+    {
+      "national_dex": 3,
+      "name_en": "venusaur",
+      "name_ko": "이상해꽃",
+      "types": [
+        "grass",
+        "poison"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "venusaur",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "poison"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "venusaur-mega",
+          "mega_name_en": "Mega Venusaur",
+          "mega_name_ko": "메가이상해꽃",
+          "types": [
+            "grass",
+            "poison"
+          ],
+          "required_item": "venusaurite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 6,
+      "name_en": "charizard",
+      "name_ko": "리자몽",
+      "types": [
+        "fire",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "charizard",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "charizard-mega-x",
+          "mega_name_en": "Mega Charizard X",
+          "mega_name_ko": "메가리자몽 X",
+          "types": [
+            "fire",
+            "dragon"
+          ],
+          "required_item": "charizardite-x"
+        },
+        {
+          "mega_id": "charizard-mega-y",
+          "mega_name_en": "Mega Charizard Y",
+          "mega_name_ko": "메가리자몽 Y",
+          "types": [
+            "fire",
+            "flying"
+          ],
+          "required_item": "charizardite-y"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 9,
+      "name_en": "blastoise",
+      "name_ko": "거북왕",
+      "types": [
+        "water"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "blastoise",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "blastoise-mega",
+          "mega_name_en": "Mega Blastoise",
+          "mega_name_ko": "메가거북왕",
+          "types": [
+            "water"
+          ],
+          "required_item": "blastoiseite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 15,
+      "name_en": "beedrill",
+      "name_ko": "독침붕",
+      "types": [
+        "bug",
+        "poison"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "beedrill",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "bug",
+            "poison"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "beedrill-mega",
+          "mega_name_en": "Mega Beedrill",
+          "mega_name_ko": "메가독침붕",
+          "types": [
+            "bug",
+            "poison"
+          ],
+          "required_item": "beedrillite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 18,
+      "name_en": "pidgeot",
+      "name_ko": "피죤투",
+      "types": [
+        "normal",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "pidgeot",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "pidgeot-mega",
+          "mega_name_en": "Mega Pidgeot",
+          "mega_name_ko": "메가피죤투",
+          "types": [
+            "normal",
+            "flying"
+          ],
+          "required_item": "pidgeotite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 24,
+      "name_en": "arbok",
+      "name_ko": "아보크",
+      "types": [
+        "poison"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "arbok",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "poison"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 25,
+      "name_en": "pikachu",
+      "name_ko": "피카츄",
+      "types": [
+        "electric"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "pikachu",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 26,
+      "name_en": "raichu",
+      "name_ko": "라이츄",
+      "types": [
+        "electric"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "raichu",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "raichu-alola",
+          "form_name_en": "Alolan Form",
+          "form_name_ko": "Alolan Form",
+          "types": [
+            "electric",
+            "psychic"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 36,
+      "name_en": "clefable",
+      "name_ko": "픽시",
+      "types": [
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "clefable",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "clefable-mega",
+          "mega_name_en": "Mega Clefable",
+          "mega_name_ko": "메가픽시",
+          "types": [
+            "fairy",
+            "flying"
+          ],
+          "required_item": "clefableite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 38,
+      "name_en": "ninetales",
+      "name_ko": "나인테일",
+      "types": [
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "ninetales",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "ninetales-alola",
+          "form_name_en": "Alolan Form",
+          "form_name_ko": "Alolan Form",
+          "types": [
+            "ice",
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 59,
+      "name_en": "arcanine",
+      "name_ko": "윈디",
+      "types": [
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "arcanine",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "arcanine-hisui",
+          "form_name_en": "Hisuian Form",
+          "form_name_ko": "Hisuian Form",
+          "types": [
+            "fire",
+            "rock"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 65,
+      "name_en": "alakazam",
+      "name_ko": "후딘",
+      "types": [
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "alakazam",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "alakazam-mega",
+          "mega_name_en": "Mega Alakazam",
+          "mega_name_ko": "메가후딘",
+          "types": [
+            "psychic"
+          ],
+          "required_item": "alakazamite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 68,
+      "name_en": "machamp",
+      "name_ko": "괴력몬",
+      "types": [
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "machamp",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 71,
+      "name_en": "victreebel",
+      "name_ko": "우츠보트",
+      "types": [
+        "grass",
+        "poison"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "victreebel",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "poison"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "victreebel-mega",
+          "mega_name_en": "Mega Victreebel",
+          "mega_name_ko": "메가우츠보트",
+          "types": [
+            "grass",
+            "poison"
+          ],
+          "required_item": "victreebelite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 80,
+      "name_en": "slowbro",
+      "name_ko": "야도란",
+      "types": [
+        "water",
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "slowbro",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "slowbro-galar",
+          "form_name_en": "Galarian Form",
+          "form_name_ko": "Galarian Form",
+          "types": [
+            "poison",
+            "psychic"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "slowbro-mega",
+          "mega_name_en": "Mega Slowbro",
+          "mega_name_ko": "메가야도란",
+          "types": [
+            "water",
+            "psychic"
+          ],
+          "required_item": "slowbroite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 94,
+      "name_en": "gengar",
+      "name_ko": "팬텀",
+      "types": [
+        "ghost",
+        "poison"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "gengar",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ghost",
+            "poison"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "gengar-mega",
+          "mega_name_en": "Mega Gengar",
+          "mega_name_ko": "메가팬텀",
+          "types": [
+            "ghost",
+            "poison"
+          ],
+          "required_item": "gengarite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 115,
+      "name_en": "kangaskhan",
+      "name_ko": "캥카",
+      "types": [
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "kangaskhan",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "kangaskhan-mega",
+          "mega_name_en": "Mega Kangaskhan",
+          "mega_name_ko": "메가캥카",
+          "types": [
+            "normal"
+          ],
+          "required_item": "kangaskhanite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 121,
+      "name_en": "starmie",
+      "name_ko": "아쿠스타",
+      "types": [
+        "water",
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "starmie",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "starmie-mega",
+          "mega_name_en": "Mega Starmie",
+          "mega_name_ko": "메가아쿠스타",
+          "types": [
+            "water",
+            "psychic"
+          ],
+          "required_item": "starmieite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 127,
+      "name_en": "pinsir",
+      "name_ko": "쁘사이저",
+      "types": [
+        "bug"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "pinsir",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "bug"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "pinsir-mega",
+          "mega_name_en": "Mega Pinsir",
+          "mega_name_ko": "메가쁘사이저",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "required_item": "pinsirite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 128,
+      "name_en": "tauros",
+      "name_ko": "켄타로스",
+      "types": [
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "tauros",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "tauros-paldea-combat-breed",
+          "form_name_en": "Paldean Form Combat Breed",
+          "form_name_ko": "Paldean Form Combat Breed",
+          "types": [
+            "fighting"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "tauros-paldea-blaze-breed",
+          "form_name_en": "Paldean Form Blaze Breed",
+          "form_name_ko": "Paldean Form Blaze Breed",
+          "types": [
+            "fighting",
+            "fire"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "tauros-paldea-aqua-breed",
+          "form_name_en": "Paldean Form Aqua Breed",
+          "form_name_ko": "Paldean Form Aqua Breed",
+          "types": [
+            "fighting",
+            "water"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 130,
+      "name_en": "gyarados",
+      "name_ko": "갸라도스",
+      "types": [
+        "water",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "gyarados",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "gyarados-mega",
+          "mega_name_en": "Mega Gyarados",
+          "mega_name_ko": "메가갸라도스",
+          "types": [
+            "water",
+            "dark"
+          ],
+          "required_item": "gyaradosite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 132,
+      "name_en": "ditto",
+      "name_ko": "메타몽",
+      "types": [
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "ditto",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 134,
+      "name_en": "vaporeon",
+      "name_ko": "샤미드",
+      "types": [
+        "water"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "vaporeon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 135,
+      "name_en": "jolteon",
+      "name_ko": "쥬피썬더",
+      "types": [
+        "electric"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "jolteon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 136,
+      "name_en": "flareon",
+      "name_ko": "부스터",
+      "types": [
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "flareon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 142,
+      "name_en": "aerodactyl",
+      "name_ko": "프테라",
+      "types": [
+        "rock",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "aerodactyl",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "rock",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "aerodactyl-mega",
+          "mega_name_en": "Mega Aerodactyl",
+          "mega_name_ko": "메가프테라",
+          "types": [
+            "rock",
+            "flying"
+          ],
+          "required_item": "aerodactylite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 143,
+      "name_en": "snorlax",
+      "name_ko": "잠만보",
+      "types": [
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "snorlax",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 149,
+      "name_en": "dragonite",
+      "name_ko": "망나뇽",
+      "types": [
+        "dragon",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "dragonite",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dragon",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "dragonite-mega",
+          "mega_name_en": "Mega Dragonite",
+          "mega_name_ko": "메가망나뇽",
+          "types": [
+            "dragon",
+            "flying"
+          ],
+          "required_item": "dragoniteite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 154,
+      "name_en": "meganium",
+      "name_ko": "메가니움",
+      "types": [
+        "grass"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "meganium",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "meganium-mega",
+          "mega_name_en": "Mega nium Mega Meganium",
+          "mega_name_ko": "메가메가니움",
+          "types": [
+            "grass",
+            "fairy"
+          ],
+          "required_item": "meganiumite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 157,
+      "name_en": "typhlosion",
+      "name_ko": "블레이범",
+      "types": [
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "typhlosion",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "typhlosion-hisui",
+          "form_name_en": "Hisuian Form",
+          "form_name_ko": "Hisuian Form",
+          "types": [
+            "fire",
+            "ghost"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 160,
+      "name_en": "feraligatr",
+      "name_ko": "장크로다일",
+      "types": [
+        "water"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "feraligatr",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "feraligatr-mega",
+          "mega_name_en": "Mega Feraligatr",
+          "mega_name_ko": "메가장크로다일",
+          "types": [
+            "water",
+            "dragon"
+          ],
+          "required_item": "feraligatrite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 168,
+      "name_en": "ariados",
+      "name_ko": "아리아도스",
+      "types": [
+        "bug",
+        "poison"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "ariados",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "bug",
+            "poison"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 181,
+      "name_en": "ampharos",
+      "name_ko": "전룡",
+      "types": [
+        "electric"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "ampharos",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "ampharos-mega",
+          "mega_name_en": "Mega Ampharos",
+          "mega_name_ko": "메가전룡",
+          "types": [
+            "electric",
+            "dragon"
+          ],
+          "required_item": "ampharosite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 184,
+      "name_en": "azumarill",
+      "name_ko": "마릴리",
+      "types": [
+        "water",
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "azumarill",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 186,
+      "name_en": "politoed",
+      "name_ko": "왕구리",
+      "types": [
+        "water"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "politoed",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 196,
+      "name_en": "espeon",
+      "name_ko": "에브이",
+      "types": [
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "espeon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 197,
+      "name_en": "umbreon",
+      "name_ko": "블래키",
+      "types": [
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "umbreon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 199,
+      "name_en": "slowking",
+      "name_ko": "야도킹",
+      "types": [
+        "water",
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "slowking",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "slowking-galar",
+          "form_name_en": "Galarian Form",
+          "form_name_ko": "Galarian Form",
+          "types": [
+            "poison",
+            "psychic"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 205,
+      "name_en": "forretress",
+      "name_ko": "쏘콘",
+      "types": [
+        "bug",
+        "steel"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "forretress",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "bug",
+            "steel"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 208,
+      "name_en": "steelix",
+      "name_ko": "강철톤",
+      "types": [
+        "steel",
+        "ground"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "steelix",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "steel",
+            "ground"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "steelix-mega",
+          "mega_name_en": "Mega Steelix",
+          "mega_name_ko": "메가강철톤",
+          "types": [
+            "steel",
+            "ground"
+          ],
+          "required_item": "steelixite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 212,
+      "name_en": "scizor",
+      "name_ko": "핫삼",
+      "types": [
+        "bug",
+        "steel"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "scizor",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "bug",
+            "steel"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "scizor-mega",
+          "mega_name_en": "Mega Scizor",
+          "mega_name_ko": "메가핫삼",
+          "types": [
+            "bug",
+            "steel"
+          ],
+          "required_item": "scizorite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 214,
+      "name_en": "heracross",
+      "name_ko": "헤라크로스",
+      "types": [
+        "bug",
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "heracross",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "bug",
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "heracross-mega",
+          "mega_name_en": "Mega Heracross",
+          "mega_name_ko": "메가헤라크로스",
+          "types": [
+            "bug",
+            "fighting"
+          ],
+          "required_item": "heracrossite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 227,
+      "name_en": "skarmory",
+      "name_ko": "무장조",
+      "types": [
+        "steel",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "skarmory",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "steel",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "skarmory-mega",
+          "mega_name_en": "Mega Skarmory",
+          "mega_name_ko": "메가무장조",
+          "types": [
+            "steel",
+            "flying"
+          ],
+          "required_item": "skarmoryite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 229,
+      "name_en": "houndoom",
+      "name_ko": "헬가",
+      "types": [
+        "dark",
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "houndoom",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dark",
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "houndoom-mega",
+          "mega_name_en": "Mega Houndoom",
+          "mega_name_ko": "메가헬가",
+          "types": [
+            "dark",
+            "fire"
+          ],
+          "required_item": "houndoomite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 248,
+      "name_en": "tyranitar",
+      "name_ko": "마기라스",
+      "types": [
+        "rock",
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "tyranitar",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "rock",
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "tyranitar-mega",
+          "mega_name_en": "Mega Tyranitar",
+          "mega_name_ko": "메가마기라스",
+          "types": [
+            "rock",
+            "dark"
+          ],
+          "required_item": "tyranitarite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 279,
+      "name_en": "pelipper",
+      "name_ko": "패리퍼",
+      "types": [
+        "water",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "pelipper",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 282,
+      "name_en": "gardevoir",
+      "name_ko": "가디안",
+      "types": [
+        "psychic",
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "gardevoir",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "psychic",
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "gardevoir-mega",
+          "mega_name_en": "Mega Gardevoir",
+          "mega_name_ko": "메가가디안",
+          "types": [
+            "psychic",
+            "fairy"
+          ],
+          "required_item": "gardevoirite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 302,
+      "name_en": "sableye",
+      "name_ko": "깜까미",
+      "types": [
+        "dark",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "sableye",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dark",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "sableye-mega",
+          "mega_name_en": "Mega Sableye",
+          "mega_name_ko": "메가깜까미",
+          "types": [
+            "dark",
+            "ghost"
+          ],
+          "required_item": "sableyeite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 306,
+      "name_en": "aggron",
+      "name_ko": "보스로라",
+      "types": [
+        "steel",
+        "rock"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "aggron",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "steel",
+            "rock"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "aggron-mega",
+          "mega_name_en": "Mega Aggron",
+          "mega_name_ko": "메가보스로라",
+          "types": [
+            "steel"
+          ],
+          "required_item": "aggronite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 308,
+      "name_en": "medicham",
+      "name_ko": "요가램",
+      "types": [
+        "fighting",
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "medicham",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fighting",
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "medicham-mega",
+          "mega_name_en": "Mega Medicham",
+          "mega_name_ko": "메가요가램",
+          "types": [
+            "fighting",
+            "psychic"
+          ],
+          "required_item": "medichamite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 310,
+      "name_en": "manectric",
+      "name_ko": "썬더볼트",
+      "types": [
+        "electric"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "manectric",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "manectric-mega",
+          "mega_name_en": "Mega Manectric",
+          "mega_name_ko": "메가썬더볼트",
+          "types": [
+            "electric"
+          ],
+          "required_item": "manectricite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 319,
+      "name_en": "sharpedo",
+      "name_ko": "샤크니아",
+      "types": [
+        "water",
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "sharpedo",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "sharpedo-mega",
+          "mega_name_en": "Mega Sharpedo",
+          "mega_name_ko": "메가샤크니아",
+          "types": [
+            "water",
+            "dark"
+          ],
+          "required_item": "sharpedoite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 323,
+      "name_en": "camerupt",
+      "name_ko": "폭타",
+      "types": [
+        "fire",
+        "ground"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "camerupt",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire",
+            "ground"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "camerupt-mega",
+          "mega_name_en": "Mega Camerupt",
+          "mega_name_ko": "메가폭타",
+          "types": [
+            "fire",
+            "ground"
+          ],
+          "required_item": "cameruptite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 324,
+      "name_en": "torkoal",
+      "name_ko": "코터스",
+      "types": [
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "torkoal",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 334,
+      "name_en": "altaria",
+      "name_ko": "파비코리",
+      "types": [
+        "dragon",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "altaria",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dragon",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "altaria-mega",
+          "mega_name_en": "Mega Altaria",
+          "mega_name_ko": "메가파비코리",
+          "types": [
+            "dragon",
+            "fairy"
+          ],
+          "required_item": "altariaite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 350,
+      "name_en": "milotic",
+      "name_ko": "밀로틱",
+      "types": [
+        "water"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "milotic",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 351,
+      "name_en": "castform",
+      "name_ko": "캐스퐁",
+      "types": [
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "castform",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "castform",
+          "form_name_en": "Sunny Form",
+          "form_name_ko": "Sunny Form",
+          "types": [
+            "fire"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "castform",
+          "form_name_en": "Rainy Form",
+          "form_name_ko": "Rainy Form",
+          "types": [
+            "water"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "castform",
+          "form_name_en": "Snowy Form",
+          "form_name_ko": "Snowy Form",
+          "types": [
+            "ice"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 354,
+      "name_en": "banette",
+      "name_ko": "다크펫",
+      "types": [
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "banette",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "banette-mega",
+          "mega_name_en": "Mega Banette",
+          "mega_name_ko": "메가다크펫",
+          "types": [
+            "ghost"
+          ],
+          "required_item": "banetteite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 358,
+      "name_en": "chimecho",
+      "name_ko": "치렁",
+      "types": [
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "chimecho",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "chimecho-mega",
+          "mega_name_en": "Mega Chimecho",
+          "mega_name_ko": "메가치렁",
+          "types": [
+            "psychic",
+            "steel"
+          ],
+          "required_item": "chimechoite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 359,
+      "name_en": "absol",
+      "name_ko": "앱솔",
+      "types": [
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "absol",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "absol-mega",
+          "mega_name_en": "Mega Absol",
+          "mega_name_ko": "메가앱솔",
+          "types": [
+            "dark"
+          ],
+          "required_item": "absolite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 362,
+      "name_en": "glalie",
+      "name_ko": "얼음귀신",
+      "types": [
+        "ice"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "glalie",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ice"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "glalie-mega",
+          "mega_name_en": "Mega Glalie",
+          "mega_name_ko": "메가얼음귀신",
+          "types": [
+            "ice"
+          ],
+          "required_item": "glalieite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 389,
+      "name_en": "torterra",
+      "name_ko": "토대부기",
+      "types": [
+        "grass",
+        "ground"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "torterra",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "ground"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 392,
+      "name_en": "infernape",
+      "name_ko": "초염몽",
+      "types": [
+        "fire",
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "infernape",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire",
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 395,
+      "name_en": "empoleon",
+      "name_ko": "엠페르트",
+      "types": [
+        "water",
+        "steel"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "empoleon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "steel"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 405,
+      "name_en": "luxray",
+      "name_ko": "렌트라",
+      "types": [
+        "electric"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "luxray",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 407,
+      "name_en": "roserade",
+      "name_ko": "로즈레이드",
+      "types": [
+        "grass",
+        "poison"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "roserade",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "poison"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 409,
+      "name_en": "rampardos",
+      "name_ko": "램펄드",
+      "types": [
+        "rock"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "rampardos",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "rock"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 411,
+      "name_en": "bastiodon",
+      "name_ko": "바리톱스",
+      "types": [
+        "rock",
+        "steel"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "bastiodon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "rock",
+            "steel"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 428,
+      "name_en": "lopunny",
+      "name_ko": "이어롭",
+      "types": [
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "lopunny",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "lopunny-mega",
+          "mega_name_en": "Mega Lopunny",
+          "mega_name_ko": "메가이어롭",
+          "types": [
+            "normal",
+            "fighting"
+          ],
+          "required_item": "lopunnyite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 442,
+      "name_en": "spiritomb",
+      "name_ko": "화강돌",
+      "types": [
+        "ghost",
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "spiritomb",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ghost",
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 445,
+      "name_en": "garchomp",
+      "name_ko": "한카리아스",
+      "types": [
+        "dragon",
+        "ground"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "garchomp",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dragon",
+            "ground"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "garchomp-mega",
+          "mega_name_en": "Mega Garchomp",
+          "mega_name_ko": "메가한카리아스",
+          "types": [
+            "dragon",
+            "ground"
+          ],
+          "required_item": "garchompite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 448,
+      "name_en": "lucario",
+      "name_ko": "루카리오",
+      "types": [
+        "fighting",
+        "steel"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "lucario",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fighting",
+            "steel"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "lucario-mega",
+          "mega_name_en": "Mega Lucario",
+          "mega_name_ko": "메가루카리오",
+          "types": [
+            "fighting",
+            "steel"
+          ],
+          "required_item": "lucarioite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 450,
+      "name_en": "hippowdon",
+      "name_ko": "하마돈",
+      "types": [
+        "ground"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "hippowdon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ground"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 454,
+      "name_en": "toxicroak",
+      "name_ko": "독개굴",
+      "types": [
+        "poison",
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "toxicroak",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "poison",
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 460,
+      "name_en": "abomasnow",
+      "name_ko": "눈설왕",
+      "types": [
+        "grass",
+        "ice"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "abomasnow",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "ice"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "abomasnow-mega",
+          "mega_name_en": "Mega Abomasnow",
+          "mega_name_ko": "메가눈설왕",
+          "types": [
+            "grass",
+            "ice"
+          ],
+          "required_item": "abomasnowite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 461,
+      "name_en": "weavile",
+      "name_ko": "포푸니라",
+      "types": [
+        "dark",
+        "ice"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "weavile",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dark",
+            "ice"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 464,
+      "name_en": "rhyperior",
+      "name_ko": "거대코뿌리",
+      "types": [
+        "ground",
+        "rock"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "rhyperior",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ground",
+            "rock"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 470,
+      "name_en": "leafeon",
+      "name_ko": "리피아",
+      "types": [
+        "grass"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "leafeon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 471,
+      "name_en": "glaceon",
+      "name_ko": "글레이시아",
+      "types": [
+        "ice"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "glaceon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ice"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 472,
+      "name_en": "gliscor",
+      "name_ko": "글라이온",
+      "types": [
+        "ground",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "gliscor",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ground",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 473,
+      "name_en": "mamoswine",
+      "name_ko": "맘모꾸리",
+      "types": [
+        "ice",
+        "ground"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "mamoswine",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ice",
+            "ground"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 475,
+      "name_en": "gallade",
+      "name_ko": "엘레이드",
+      "types": [
+        "psychic",
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "gallade",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "psychic",
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "gallade-mega",
+          "mega_name_en": "Mega Gallade",
+          "mega_name_ko": "메가엘레이드",
+          "types": [
+            "psychic",
+            "fighting"
+          ],
+          "required_item": "galladeite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 478,
+      "name_en": "froslass",
+      "name_ko": "눈여아",
+      "types": [
+        "ice",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "froslass",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ice",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "froslass-mega",
+          "mega_name_en": "Mega Froslass",
+          "mega_name_ko": "메가눈여아",
+          "types": [
+            "ice",
+            "ghost"
+          ],
+          "required_item": "froslassite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 479,
+      "name_en": "rotom",
+      "name_ko": "로토무",
+      "types": [
+        "electric",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "rotom",
+          "form_name_en": "Rotom",
+          "form_name_ko": "Rotom",
+          "types": [
+            "electric",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "rotom-heat",
+          "form_name_en": "Heat Rotom",
+          "form_name_ko": "Heat Rotom",
+          "types": [
+            "electric",
+            "fire"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "rotom-wash",
+          "form_name_en": "Wash Rotom",
+          "form_name_ko": "Wash Rotom",
+          "types": [
+            "electric",
+            "water"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "rotom-frost",
+          "form_name_en": "Frost Rotom",
+          "form_name_ko": "Frost Rotom",
+          "types": [
+            "electric",
+            "ice"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "rotom-fan",
+          "form_name_en": "Fan Rotom",
+          "form_name_ko": "Fan Rotom",
+          "types": [
+            "electric",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "rotom-mow",
+          "form_name_en": "Mow Rotom",
+          "form_name_ko": "Mow Rotom",
+          "types": [
+            "electric",
+            "grass"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 497,
+      "name_en": "serperior",
+      "name_ko": "샤로다",
+      "types": [
+        "grass"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "serperior",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 500,
+      "name_en": "emboar",
+      "name_ko": "염무왕",
+      "types": [
+        "fire",
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "emboar",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire",
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "emboar-mega",
+          "mega_name_en": "Mega Emboar",
+          "mega_name_ko": "메가염무왕",
+          "types": [
+            "fire",
+            "fighting"
+          ],
+          "required_item": "emboarite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 503,
+      "name_en": "samurott",
+      "name_ko": "대검귀",
+      "types": [
+        "water"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "samurott",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "samurott-hisui",
+          "form_name_en": "Hisuian Form",
+          "form_name_ko": "Hisuian Form",
+          "types": [
+            "water",
+            "dark"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 505,
+      "name_en": "watchog",
+      "name_ko": "보르그",
+      "types": [
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "watchog",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 510,
+      "name_en": "liepard",
+      "name_ko": "레파르다스",
+      "types": [
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "liepard",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 512,
+      "name_en": "simisage",
+      "name_ko": "야나키",
+      "types": [
+        "grass"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "simisage",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 514,
+      "name_en": "simisear",
+      "name_ko": "바오키",
+      "types": [
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "simisear",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 516,
+      "name_en": "simipour",
+      "name_ko": "앗차키",
+      "types": [
+        "water"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "simipour",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 530,
+      "name_en": "excadrill",
+      "name_ko": "몰드류",
+      "types": [
+        "ground",
+        "steel"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "excadrill",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ground",
+            "steel"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "excadrill-mega",
+          "mega_name_en": "Mega Excadrill",
+          "mega_name_ko": "메가몰드류",
+          "types": [
+            "ground",
+            "steel"
+          ],
+          "required_item": "excadrillite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 531,
+      "name_en": "audino",
+      "name_ko": "다부니",
+      "types": [
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "audino",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "audino-mega",
+          "mega_name_en": "Mega Audino",
+          "mega_name_ko": "메가다부니",
+          "types": [
+            "normal",
+            "fairy"
+          ],
+          "required_item": "audinoite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 534,
+      "name_en": "conkeldurr",
+      "name_ko": "노보청",
+      "types": [
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "conkeldurr",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 547,
+      "name_en": "whimsicott",
+      "name_ko": "엘풍",
+      "types": [
+        "grass",
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "whimsicott",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 553,
+      "name_en": "krookodile",
+      "name_ko": "악비아르",
+      "types": [
+        "ground",
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "krookodile",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ground",
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 563,
+      "name_en": "cofagrigus",
+      "name_ko": "데스니칸",
+      "types": [
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "cofagrigus",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 569,
+      "name_en": "garbodor",
+      "name_ko": "더스트나",
+      "types": [
+        "poison"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "garbodor",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "poison"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 571,
+      "name_en": "zoroark",
+      "name_ko": "조로아크",
+      "types": [
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "zoroark",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "zoroark-hisui",
+          "form_name_en": "Hisuian Form",
+          "form_name_ko": "Hisuian Form",
+          "types": [
+            "normal",
+            "ghost"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 579,
+      "name_en": "reuniclus",
+      "name_ko": "란쿨루스",
+      "types": [
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "reuniclus",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 584,
+      "name_en": "vanilluxe",
+      "name_ko": "배바닐라",
+      "types": [
+        "ice"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "vanilluxe",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ice"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 587,
+      "name_en": "emolga",
+      "name_ko": "에몽가",
+      "types": [
+        "electric",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "emolga",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 609,
+      "name_en": "chandelure",
+      "name_ko": "샹델라",
+      "types": [
+        "ghost",
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "chandelure",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ghost",
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "chandelure-mega",
+          "mega_name_en": "Mega Chandelure",
+          "mega_name_ko": "메가샹델라",
+          "types": [
+            "ghost",
+            "fire"
+          ],
+          "required_item": "chandelureite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 614,
+      "name_en": "beartic",
+      "name_ko": "툰베어",
+      "types": [
+        "ice"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "beartic",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ice"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 618,
+      "name_en": "stunfisk",
+      "name_ko": "메더",
+      "types": [
+        "ground",
+        "electric"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "stunfisk",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ground",
+            "electric"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "stunfisk-galar",
+          "form_name_en": "Galarian Form",
+          "form_name_ko": "Galarian Form",
+          "types": [
+            "ground",
+            "steel"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 623,
+      "name_en": "golurk",
+      "name_ko": "골루그",
+      "types": [
+        "ground",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "golurk",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ground",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "golurk-mega",
+          "mega_name_en": "Mega Golurk",
+          "mega_name_ko": "메가골루그",
+          "types": [
+            "ground",
+            "ghost"
+          ],
+          "required_item": "golurkite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 635,
+      "name_en": "hydreigon",
+      "name_ko": "삼삼드래",
+      "types": [
+        "dark",
+        "dragon"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "hydreigon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dark",
+            "dragon"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 637,
+      "name_en": "volcarona",
+      "name_ko": "불카모스",
+      "types": [
+        "bug",
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "volcarona",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "bug",
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 652,
+      "name_en": "chesnaught",
+      "name_ko": "브리가론",
+      "types": [
+        "grass",
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "chesnaught",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "chesnaught-mega",
+          "mega_name_en": "Mega Chesnaught",
+          "mega_name_ko": "메가브리가론",
+          "types": [
+            "grass",
+            "fighting"
+          ],
+          "required_item": "chesnaughtite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 655,
+      "name_en": "delphox",
+      "name_ko": "마폭시",
+      "types": [
+        "fire",
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "delphox",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire",
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "delphox-mega",
+          "mega_name_en": "Mega Delphox",
+          "mega_name_ko": "메가마폭시",
+          "types": [
+            "fire",
+            "psychic"
+          ],
+          "required_item": "delphoxite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 658,
+      "name_en": "greninja",
+      "name_ko": "개굴닌자",
+      "types": [
+        "water",
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "greninja",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "greninja-mega",
+          "mega_name_en": "Mega Greninja",
+          "mega_name_ko": "메가개굴닌자",
+          "types": [
+            "water",
+            "dark"
+          ],
+          "required_item": "greninjaite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 660,
+      "name_en": "diggersby",
+      "name_ko": "파르토",
+      "types": [
+        "normal",
+        "ground"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "diggersby",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal",
+            "ground"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 663,
+      "name_en": "talonflame",
+      "name_ko": "파이어로",
+      "types": [
+        "fire",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "talonflame",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 666,
+      "name_en": "vivillon",
+      "name_ko": "비비용",
+      "types": [
+        "bug",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "vivillon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Fancy Pattern",
+          "form_name_ko": "Fancy Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Icy Snow Pattern",
+          "form_name_ko": "Icy Snow Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Polar Pattern",
+          "form_name_ko": "Polar Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Tundra Pattern",
+          "form_name_ko": "Tundra Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Continental Pattern",
+          "form_name_ko": "Continental Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Garden Pattern",
+          "form_name_ko": "Garden Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Elegant Pattern",
+          "form_name_ko": "Elegant Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Meadow Pattern",
+          "form_name_ko": "Meadow Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Modern Pattern",
+          "form_name_ko": "Modern Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Marine Pattern",
+          "form_name_ko": "Marine Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Archipelago Pattern",
+          "form_name_ko": "Archipelago Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "High Plains Pattern",
+          "form_name_ko": "High Plains Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Sandstorm Pattern",
+          "form_name_ko": "Sandstorm Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "River Pattern",
+          "form_name_ko": "River Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Monsoon Pattern",
+          "form_name_ko": "Monsoon Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Savanna Pattern",
+          "form_name_ko": "Savanna Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Sun Pattern",
+          "form_name_ko": "Sun Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Ocean Pattern",
+          "form_name_ko": "Ocean Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Jungle Pattern",
+          "form_name_ko": "Jungle Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "vivillon",
+          "form_name_en": "Poké Ball Pattern",
+          "form_name_ko": "Poké Ball Pattern",
+          "types": [
+            "bug",
+            "flying"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ],
+      "form_availability_note": "Some cosmetic forms are transfer only"
+    },
+    {
+      "national_dex": 670,
+      "name_en": "floette-eternal",
+      "name_ko": "플라엣테",
+      "types": [
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "transfer_only",
+      "forms": [
+        {
+          "form_id": "floette-eternal",
+          "form_name_en": "Eternal Flower",
+          "form_name_ko": "Eternal Flower",
+          "types": [
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "transfer_only",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "floette-mega",
+          "mega_name_en": "Mega Floette",
+          "mega_name_ko": "메가플라엣테",
+          "types": [
+            "fairy"
+          ],
+          "required_item": "floetteite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ],
+      "transfer_note": "Must be transferred from Legends: Z-A through HOME"
+    },
+    {
+      "national_dex": 671,
+      "name_en": "florges",
+      "name_ko": "플라제스",
+      "types": [
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "florges",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "florges",
+          "form_name_en": "Yellow Flower",
+          "form_name_ko": "Yellow Flower",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "florges",
+          "form_name_en": "Orange Flower",
+          "form_name_ko": "Orange Flower",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "florges",
+          "form_name_en": "Blue Flower",
+          "form_name_ko": "Blue Flower",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "florges",
+          "form_name_en": "White Flower",
+          "form_name_ko": "White Flower",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 675,
+      "name_en": "pangoro",
+      "name_ko": "부란다",
+      "types": [
+        "fighting",
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "pangoro",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fighting",
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 676,
+      "name_en": "furfrou",
+      "name_ko": "트리미앙",
+      "types": [
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "furfrou",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "furfrou",
+          "form_name_en": "Heart Trim",
+          "form_name_ko": "Heart Trim",
+          "types": [
+            "normal"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "furfrou",
+          "form_name_en": "Star Trim",
+          "form_name_ko": "Star Trim",
+          "types": [
+            "normal"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "furfrou",
+          "form_name_en": "Diamond Trim",
+          "form_name_ko": "Diamond Trim",
+          "types": [
+            "normal"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "furfrou",
+          "form_name_en": "Debutante Trim",
+          "form_name_ko": "Debutante Trim",
+          "types": [
+            "normal"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "furfrou",
+          "form_name_en": "Matron Trim",
+          "form_name_ko": "Matron Trim",
+          "types": [
+            "normal"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "furfrou",
+          "form_name_en": "Dandy Trim",
+          "form_name_ko": "Dandy Trim",
+          "types": [
+            "normal"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "furfrou",
+          "form_name_en": "La Reine Trim",
+          "form_name_ko": "La Reine Trim",
+          "types": [
+            "normal"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "furfrou",
+          "form_name_en": "Kabuki Trim",
+          "form_name_ko": "Kabuki Trim",
+          "types": [
+            "normal"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "furfrou",
+          "form_name_en": "Pharaoh Trim",
+          "form_name_ko": "Pharaoh Trim",
+          "types": [
+            "normal"
+          ],
+          "is_default": false,
+          "availability": "transfer_only",
+          "pokeapi_supported": false
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ],
+      "form_availability_note": "Some cosmetic forms are transfer only"
+    },
+    {
+      "national_dex": 678,
+      "name_en": "meowstic",
+      "name_ko": "냐오닉스",
+      "types": [
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "meowstic-male",
+          "form_name_en": "Male",
+          "form_name_ko": "Male",
+          "types": [
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "meowstic-female",
+          "form_name_en": "Female",
+          "form_name_ko": "Female",
+          "types": [
+            "psychic"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "meowstic-mega",
+          "mega_name_en": "Mega Meowstic",
+          "mega_name_ko": "메가냐오닉스",
+          "types": [
+            "psychic"
+          ],
+          "required_item": "meowsticite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 681,
+      "name_en": "aegislash",
+      "name_ko": "킬가르도",
+      "types": [
+        "steel",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "aegislash-shield",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "steel",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "aegislash-blade",
+          "form_name_en": "Blade Forme",
+          "form_name_ko": "Blade Forme",
+          "types": [
+            "steel",
+            "ghost"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 683,
+      "name_en": "aromatisse",
+      "name_ko": "프레프티르",
+      "types": [
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "aromatisse",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 685,
+      "name_en": "slurpuff",
+      "name_ko": "나루림",
+      "types": [
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "slurpuff",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 693,
+      "name_en": "clawitzer",
+      "name_ko": "블로스터",
+      "types": [
+        "water"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "clawitzer",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 695,
+      "name_en": "heliolisk",
+      "name_ko": "일레도리자드",
+      "types": [
+        "electric",
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "heliolisk",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric",
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 697,
+      "name_en": "tyrantrum",
+      "name_ko": "견고라스",
+      "types": [
+        "rock",
+        "dragon"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "tyrantrum",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "rock",
+            "dragon"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 699,
+      "name_en": "aurorus",
+      "name_ko": "아마루르가",
+      "types": [
+        "rock",
+        "ice"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "aurorus",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "rock",
+            "ice"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 700,
+      "name_en": "sylveon",
+      "name_ko": "님피아",
+      "types": [
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "sylveon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 701,
+      "name_en": "hawlucha",
+      "name_ko": "루차불",
+      "types": [
+        "fighting",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "hawlucha",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fighting",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "hawlucha-mega",
+          "mega_name_en": "Mega Hawlucha",
+          "mega_name_ko": "메가루차불",
+          "types": [
+            "fighting",
+            "flying"
+          ],
+          "required_item": "hawluchaite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 702,
+      "name_en": "dedenne",
+      "name_ko": "데덴네",
+      "types": [
+        "electric",
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "dedenne",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric",
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 706,
+      "name_en": "goodra",
+      "name_ko": "미끄래곤",
+      "types": [
+        "dragon"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "goodra",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dragon"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "goodra-hisui",
+          "form_name_en": "Hisuian Form",
+          "form_name_ko": "Hisuian Form",
+          "types": [
+            "steel",
+            "dragon"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 707,
+      "name_en": "klefki",
+      "name_ko": "클레피",
+      "types": [
+        "steel",
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "klefki",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "steel",
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 709,
+      "name_en": "trevenant",
+      "name_ko": "대로트",
+      "types": [
+        "ghost",
+        "grass"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "trevenant",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ghost",
+            "grass"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 711,
+      "name_en": "gourgeist",
+      "name_ko": "펌킨인",
+      "types": [
+        "ghost",
+        "grass"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "gourgeist-average",
+          "form_name_en": "Medium Variety",
+          "form_name_ko": "Medium Variety",
+          "types": [
+            "ghost",
+            "grass"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "gourgeist-small",
+          "form_name_en": "Small Variety",
+          "form_name_ko": "Small Variety",
+          "types": [
+            "ghost",
+            "grass"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "gourgeist-large",
+          "form_name_en": "Large Variety",
+          "form_name_ko": "Large Variety",
+          "types": [
+            "ghost",
+            "grass"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "gourgeist-super",
+          "form_name_en": "Jumbo Variety",
+          "form_name_ko": "Jumbo Variety",
+          "types": [
+            "ghost",
+            "grass"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 713,
+      "name_en": "avalugg",
+      "name_ko": "크레베이스",
+      "types": [
+        "ice"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "avalugg",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ice"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "avalugg-hisui",
+          "form_name_en": "Hisuian Form",
+          "form_name_ko": "Hisuian Form",
+          "types": [
+            "ice",
+            "rock"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 715,
+      "name_en": "noivern",
+      "name_ko": "음번",
+      "types": [
+        "flying",
+        "dragon"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "noivern",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "flying",
+            "dragon"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 724,
+      "name_en": "decidueye",
+      "name_ko": "모크나이퍼",
+      "types": [
+        "grass",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "decidueye",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "decidueye-hisui",
+          "form_name_en": "Hisuian Form",
+          "form_name_ko": "Hisuian Form",
+          "types": [
+            "grass",
+            "fighting"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 727,
+      "name_en": "incineroar",
+      "name_ko": "어흥염",
+      "types": [
+        "fire",
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "incineroar",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire",
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 730,
+      "name_en": "primarina",
+      "name_ko": "누리레느",
+      "types": [
+        "water",
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "primarina",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 733,
+      "name_en": "toucannon",
+      "name_ko": "왕큰부리",
+      "types": [
+        "normal",
+        "flying"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "toucannon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal",
+            "flying"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 740,
+      "name_en": "crabominable",
+      "name_ko": "모단단게",
+      "types": [
+        "fighting",
+        "ice"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "crabominable",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fighting",
+            "ice"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "crabominable-mega",
+          "mega_name_en": "Mega Crabominable",
+          "mega_name_ko": "메가모단단게",
+          "types": [
+            "fighting",
+            "ice"
+          ],
+          "required_item": "crabominableite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 745,
+      "name_en": "lycanroc",
+      "name_ko": "루가루암",
+      "types": [
+        "rock"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "lycanroc-midday",
+          "form_name_en": "Midday Form",
+          "form_name_ko": "Midday Form",
+          "types": [
+            "rock"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "lycanroc-midnight",
+          "form_name_en": "Midnight Form",
+          "form_name_ko": "Midnight Form",
+          "types": [
+            "rock"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "lycanroc-dusk",
+          "form_name_en": "Dusk Form",
+          "form_name_ko": "Dusk Form",
+          "types": [
+            "rock"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 748,
+      "name_en": "toxapex",
+      "name_ko": "더시마사리",
+      "types": [
+        "poison",
+        "water"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "toxapex",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "poison",
+            "water"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 750,
+      "name_en": "mudsdale",
+      "name_ko": "만마드",
+      "types": [
+        "ground"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "mudsdale",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ground"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 752,
+      "name_en": "araquanid",
+      "name_ko": "깨비물거미",
+      "types": [
+        "water",
+        "bug"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "araquanid",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "bug"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 758,
+      "name_en": "salazzle",
+      "name_ko": "염뉴트",
+      "types": [
+        "poison",
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "salazzle",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "poison",
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 763,
+      "name_en": "tsareena",
+      "name_ko": "달코퀸",
+      "types": [
+        "grass"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "tsareena",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 765,
+      "name_en": "oranguru",
+      "name_ko": "하랑우탄",
+      "types": [
+        "normal",
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "oranguru",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal",
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 766,
+      "name_en": "passimian",
+      "name_ko": "내던숭이",
+      "types": [
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "passimian",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 778,
+      "name_en": "mimikyu",
+      "name_ko": "따라큐",
+      "types": [
+        "ghost",
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "mimikyu-disguised",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ghost",
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 780,
+      "name_en": "drampa",
+      "name_ko": "할비롱",
+      "types": [
+        "normal",
+        "dragon"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "drampa",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal",
+            "dragon"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "drampa-mega",
+          "mega_name_en": "Mega Drampa",
+          "mega_name_ko": "메가할비롱",
+          "types": [
+            "normal",
+            "dragon"
+          ],
+          "required_item": "drampaite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 784,
+      "name_en": "kommo-o",
+      "name_ko": "짜랑고우거",
+      "types": [
+        "dragon",
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "kommo-o",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dragon",
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 823,
+      "name_en": "corviknight",
+      "name_ko": "아머까오",
+      "types": [
+        "flying",
+        "steel"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "corviknight",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "flying",
+            "steel"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 841,
+      "name_en": "flapple",
+      "name_ko": "애프룡",
+      "types": [
+        "grass",
+        "dragon"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "flapple",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "dragon"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 842,
+      "name_en": "appletun",
+      "name_ko": "단지래플",
+      "types": [
+        "grass",
+        "dragon"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "appletun",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "dragon"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 844,
+      "name_en": "sandaconda",
+      "name_ko": "사다이사",
+      "types": [
+        "ground"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "sandaconda",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ground"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 855,
+      "name_en": "polteageist",
+      "name_ko": "포트데스",
+      "types": [
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "polteageist",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 858,
+      "name_en": "hatterene",
+      "name_ko": "브리무음",
+      "types": [
+        "psychic",
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "hatterene",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "psychic",
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 866,
+      "name_en": "mr-rime",
+      "name_ko": "마임꽁꽁",
+      "types": [
+        "ice",
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "mr-rime",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ice",
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 867,
+      "name_en": "runerigus",
+      "name_ko": "데스판",
+      "types": [
+        "ground",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "runerigus",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "ground",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 869,
+      "name_en": "alcremie",
+      "name_ko": "마휘핑",
+      "types": [
+        "fairy"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "alcremie",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fairy"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "alcremie",
+          "form_name_en": "Ruby Cream",
+          "form_name_ko": "Ruby Cream",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "alcremie",
+          "form_name_en": "Matcha Cream",
+          "form_name_ko": "Matcha Cream",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "alcremie",
+          "form_name_en": "Mint Cream",
+          "form_name_ko": "Mint Cream",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "alcremie",
+          "form_name_en": "Lemon Cream",
+          "form_name_ko": "Lemon Cream",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "alcremie",
+          "form_name_en": "Salted Cream",
+          "form_name_ko": "Salted Cream",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "alcremie",
+          "form_name_en": "Ruby Swirl",
+          "form_name_ko": "Ruby Swirl",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "alcremie",
+          "form_name_en": "Caramel Swirl",
+          "form_name_ko": "Caramel Swirl",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        },
+        {
+          "form_id": "alcremie",
+          "form_name_en": "Rainbow Swirl",
+          "form_name_ko": "Rainbow Swirl",
+          "types": [
+            "fairy"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": false
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 877,
+      "name_en": "morpeko",
+      "name_ko": "모르페코",
+      "types": [
+        "electric",
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "morpeko-full-belly",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric",
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "morpeko-hangry",
+          "form_name_en": "Hangry Mode",
+          "form_name_ko": "Hangry Mode",
+          "types": [
+            "electric",
+            "dark"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 887,
+      "name_en": "dragapult",
+      "name_ko": "드래펄트",
+      "types": [
+        "dragon",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "dragapult",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dragon",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 899,
+      "name_en": "wyrdeer",
+      "name_ko": "신비록",
+      "types": [
+        "normal",
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "wyrdeer",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal",
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 900,
+      "name_en": "kleavor",
+      "name_ko": "사마자르",
+      "types": [
+        "bug",
+        "rock"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "kleavor",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "bug",
+            "rock"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 902,
+      "name_en": "basculegion",
+      "name_ko": "대쓰여너",
+      "types": [
+        "water",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "basculegion-male",
+          "form_name_en": "Male",
+          "form_name_ko": "Male",
+          "types": [
+            "water",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "basculegion-female",
+          "form_name_en": "Female",
+          "form_name_ko": "Female",
+          "types": [
+            "water",
+            "ghost"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 903,
+      "name_en": "sneasler",
+      "name_ko": "포푸니크",
+      "types": [
+        "fighting",
+        "poison"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "sneasler",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fighting",
+            "poison"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 908,
+      "name_en": "meowscarada",
+      "name_ko": "마스카나",
+      "types": [
+        "grass",
+        "dark"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "meowscarada",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "dark"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 911,
+      "name_en": "skeledirge",
+      "name_ko": "라우드본",
+      "types": [
+        "fire",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "skeledirge",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 914,
+      "name_en": "quaquaval",
+      "name_ko": "웨이니발",
+      "types": [
+        "water",
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "quaquaval",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water",
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 923,
+      "name_en": "pawmot",
+      "name_ko": "빠르모트",
+      "types": [
+        "electric",
+        "fighting"
+      ],
+      "version_added": "1.0.2",
+      "availability": "event",
+      "forms": [
+        {
+          "form_id": "pawmot",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric",
+            "fighting"
+          ],
+          "is_default": true,
+          "availability": "event",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 925,
+      "name_en": "maushold",
+      "name_ko": "파밀리쥐",
+      "types": [
+        "normal"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "maushold-family-of-four",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "maushold-family-of-four",
+          "form_name_en": "Family of Four",
+          "form_name_ko": "Family of Four",
+          "types": [
+            "normal"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 934,
+      "name_en": "garganacl",
+      "name_ko": "콜로솔트",
+      "types": [
+        "rock"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "garganacl",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "rock"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 936,
+      "name_en": "armarouge",
+      "name_ko": "카디나르마",
+      "types": [
+        "fire",
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "armarouge",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire",
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 937,
+      "name_en": "ceruledge",
+      "name_ko": "파라블레이즈",
+      "types": [
+        "fire",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "ceruledge",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fire",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 939,
+      "name_en": "bellibolt",
+      "name_ko": "찌리배리",
+      "types": [
+        "electric"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "bellibolt",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "electric"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 952,
+      "name_en": "scovillain",
+      "name_ko": "스코빌런",
+      "types": [
+        "grass",
+        "fire"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "scovillain",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "fire"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "scovillain-mega",
+          "mega_name_en": "Mega Scovillain",
+          "mega_name_ko": "메가스코빌런",
+          "types": [
+            "grass",
+            "fire"
+          ],
+          "required_item": "scovillainite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 956,
+      "name_en": "espathra",
+      "name_ko": "클레스퍼트라",
+      "types": [
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "espathra",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 959,
+      "name_en": "tinkaton",
+      "name_ko": "두드리짱",
+      "types": [
+        "fairy",
+        "steel"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "tinkaton",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "fairy",
+            "steel"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 964,
+      "name_en": "palafin",
+      "name_ko": "돌핀맨",
+      "types": [
+        "water"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "palafin-zero",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "water"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        },
+        {
+          "form_id": "palafin-hero",
+          "form_name_en": "Hero Form",
+          "form_name_ko": "Hero Form",
+          "types": [
+            "water"
+          ],
+          "is_default": false,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 968,
+      "name_en": "orthworm",
+      "name_ko": "꿈트렁",
+      "types": [
+        "steel"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "orthworm",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "steel"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 970,
+      "name_en": "glimmora",
+      "name_ko": "킬라플로르",
+      "types": [
+        "rock",
+        "poison"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "glimmora",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "rock",
+            "poison"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [
+        {
+          "mega_id": "glimmora-mega",
+          "mega_name_en": "Mega Glimmora",
+          "mega_name_ko": "메가킬라플로르",
+          "types": [
+            "rock",
+            "poison"
+          ],
+          "required_item": "glimmoraite"
+        }
+      ],
+      "available_gimmicks": [
+        "mega",
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 981,
+      "name_en": "farigiraf",
+      "name_ko": "키키링",
+      "types": [
+        "normal",
+        "psychic"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "farigiraf",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "normal",
+            "psychic"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 983,
+      "name_en": "kingambit",
+      "name_ko": "대도각참",
+      "types": [
+        "dark",
+        "steel"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "kingambit",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "dark",
+            "steel"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 1013,
+      "name_en": "sinistcha",
+      "name_ko": "그우린차",
+      "types": [
+        "grass",
+        "ghost"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "sinistcha",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "ghost"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 1018,
+      "name_en": "archaludon",
+      "name_ko": "브리두라스",
+      "types": [
+        "steel",
+        "dragon"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "archaludon",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "steel",
+            "dragon"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    },
+    {
+      "national_dex": 1019,
+      "name_en": "hydrapple",
+      "name_ko": "과미드라",
+      "types": [
+        "grass",
+        "dragon"
+      ],
+      "version_added": "1.0.2",
+      "availability": "normal",
+      "forms": [
+        {
+          "form_id": "hydrapple",
+          "form_name_en": "default",
+          "form_name_ko": "기본",
+          "types": [
+            "grass",
+            "dragon"
+          ],
+          "is_default": true,
+          "availability": "normal",
+          "pokeapi_supported": true
+        }
+      ],
+      "mega_evolutions": [],
+      "available_gimmicks": [
+        "tera"
+      ]
+    }
+  ]
+}
