@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -14,8 +17,13 @@ from PySide6.QtWidgets import (
 
 from ui.widgets.fast_buttons import FastButtonGroup
 
+if TYPE_CHECKING:
+    from core.pokemon_repository import PokemonView
+
 
 class PokemonPanel(QFrame):
+    slot_clicked = Signal(int)
+
     def __init__(self, slot_number: int, is_active: bool = False) -> None:
         super().__init__()
         self.setObjectName("slotFrame")
@@ -35,8 +43,40 @@ class PokemonPanel(QFrame):
         top_row = QHBoxLayout()
         top_row.setSpacing(6)
 
-        name_label = QLabel(f"포켓몬 #{slot_number}")
-        name_label.setStyleSheet("font-weight: 700; color: #17202A;")
+        title_column = QVBoxLayout()
+        title_column.setContentsMargins(0, 0, 0, 0)
+        title_column.setSpacing(0)
+
+        self.name_label = QLabel(f"포켓몬 #{slot_number}")
+        self.name_label.setStyleSheet("font-weight: 700; color: #17202A;")
+
+        self.detail_label = QLabel("타입 / 스탯 대기")
+        self.detail_label.setStyleSheet("font-size: 10px; color: #52616F;")
+        title_column.addWidget(self.name_label)
+        title_column.addWidget(self.detail_label)
+
+        self.type_badges: list[QLabel] = []
+        type_row = QHBoxLayout()
+        type_row.setSpacing(3)
+        for _ in range(2):
+            badge = QLabel("")
+            badge.setFixedHeight(16)
+            badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            badge.hide()
+            badge.setStyleSheet(
+                """
+                QLabel {
+                    background-color: #E8F1FB;
+                    color: #243447;
+                    border: 1px solid #CAD6E2;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    padding: 1px 5px;
+                }
+                """
+            )
+            self.type_badges.append(badge)
+            type_row.addWidget(badge)
 
         active_indicator = QLabel("●" if is_active else "○")
         active_indicator.setStyleSheet(
@@ -44,8 +84,9 @@ class PokemonPanel(QFrame):
         )
         active_indicator.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
-        top_row.addWidget(name_label)
+        top_row.addLayout(title_column, 1)
         top_row.addStretch()
+        top_row.addLayout(type_row)
         top_row.addWidget(active_indicator)
         root_layout.addLayout(top_row)
 
@@ -94,6 +135,31 @@ class PokemonPanel(QFrame):
 
         root_layout.addLayout(move_row)
         self.set_selected(False)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        self.slot_clicked.emit(self.slot_number - 1)
+        super().mousePressEvent(event)
+
+    def set_pokemon(self, view: PokemonView) -> None:
+        self.name_label.setText(view.ko)
+        stats = view.base_stats
+        self.detail_label.setText(
+            f"{view.en} · HP{stats['hp']} A{stats['attack']} B{stats['defense']} "
+            f"C{stats['special-attack']} D{stats['special-defense']} S{stats['speed']}"
+        )
+        for index, badge in enumerate(self.type_badges):
+            if index < len(view.types_ko):
+                badge.setText(view.types_ko[index])
+                badge.show()
+            else:
+                badge.hide()
+
+    def clear_pokemon(self) -> None:
+        self.name_label.setText(f"포켓몬 #{self.slot_number}")
+        self.detail_label.setText("타입 / 스탯 대기")
+        for badge in self.type_badges:
+            badge.clear()
+            badge.hide()
 
     def set_hp(self, value: int) -> None:
         value = max(0, min(100, value))
