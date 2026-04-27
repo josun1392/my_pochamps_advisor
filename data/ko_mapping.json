@@ -1,10 +1,16 @@
 {
-  "_built_at": "2026-04-27T10:35:51Z",
-  "_unmapped": {
+  "_built_at": "2026-04-27T10:41:18Z",
+  "_overridden": {
     "abilities": [],
     "moves": [
       "tera-blast"
     ],
+    "pokemon": [],
+    "types": []
+  },
+  "_unmapped": {
+    "abilities": [],
+    "moves": [],
     "pokemon": [],
     "types": []
   },
@@ -102,6 +108,7 @@
     "swords-dance": "칼춤",
     "tackle": "몸통박치기",
     "take-down": "돌진",
+    "tera-blast": "테라버스트",
     "thunder-fang": "번개엄니",
     "toxic": "맹독",
     "twister": "회오리",

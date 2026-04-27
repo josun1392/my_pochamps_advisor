@@ -13,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.cache_manager import CacheManager  # noqa: E402
 from core.ko_form_rules import FORM_SUFFIX_KO, apply_korean_form, split_pokemon_name  # noqa: E402
+from core.ko_manual_overrides import MANUAL_OVERRIDES  # noqa: E402
 from core.pokeapi_fetcher import PokeAPIFetcher  # noqa: E402
 from scripts.prefetch_pokemon import TIER_S_POKEMON  # noqa: E402
 
@@ -74,7 +75,7 @@ def _map_pokemon(mapping: dict[str, Any], fetcher: PokeAPIFetcher, pokemon: dict
     base_name, form_suffix = split_pokemon_name(api_name)
     species_id = _species_identifier(pokemon)
     species = fetcher.get_species(species_id if species_id is not None else base_name)
-    base_ko = _ko_name(species)
+    base_ko = _resolve_ko_name(mapping, "pokemon", api_name, species)
 
     if not base_ko:
         _mark_unmapped(mapping, "pokemon", api_name)
@@ -94,8 +95,8 @@ def _map_cached_category(
     for identifier in _cached_ids(cache, category):
         data = getter(identifier)
         data = _ensure_localized_names(cache, category, identifier, data)
-        ko_name = _ko_name(data)
         en_name = data.get("name")
+        ko_name = _resolve_ko_name(mapping, category, en_name, data) if isinstance(en_name, str) else None
         if isinstance(en_name, str) and ko_name:
             mapping[category][en_name] = ko_name
         elif isinstance(en_name, str):
@@ -137,6 +138,25 @@ def _ko_name(data: dict[str, Any]) -> str | None:
     return None
 
 
+def _resolve_ko_name(
+    mapping: dict[str, Any],
+    category: str,
+    en_name: str | None,
+    data: dict[str, Any],
+) -> str | None:
+    ko_name = _ko_name(data)
+    if ko_name:
+        return ko_name
+    if not en_name:
+        return None
+
+    override = MANUAL_OVERRIDES.get(category, {}).get(en_name)
+    if override:
+        _mark_overridden(mapping, category, en_name)
+        return override
+    return None
+
+
 def _species_identifier(pokemon: dict[str, Any]) -> int | None:
     species_url = pokemon.get("species_url")
     if not isinstance(species_url, str):
@@ -157,6 +177,12 @@ def _mark_unmapped(mapping: dict[str, Any], category: str, name: str) -> None:
         entries.append(name)
 
 
+def _mark_overridden(mapping: dict[str, Any], category: str, name: str) -> None:
+    entries = mapping["_overridden"][category]
+    if name not in entries:
+        entries.append(name)
+
+
 def _empty_mapping() -> dict[str, Any]:
     return {
         "_built_at": None,
@@ -171,6 +197,12 @@ def _empty_mapping() -> dict[str, Any]:
             "abilities": [],
             "types": [],
         },
+        "_overridden": {
+            "pokemon": [],
+            "moves": [],
+            "abilities": [],
+            "types": [],
+        },
     }
 
 
@@ -180,6 +212,7 @@ def _load_mapping() -> dict[str, Any]:
     for category in CATEGORIES:
         mapping.setdefault(category, {})
         mapping.setdefault("_unmapped", {}).setdefault(category, [])
+        mapping.setdefault("_overridden", {}).setdefault(category, [])
     return mapping
 
 

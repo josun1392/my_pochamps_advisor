@@ -6,6 +6,7 @@ from pathlib import Path
 
 from core.ko_form_rules import apply_korean_form, split_pokemon_name
 from core.ko_mapping_loader import KoMappingLoader
+from scripts.build_ko_mapping import _empty_mapping, _resolve_ko_name
 
 
 def test_split_pokemon_name_simple() -> None:
@@ -57,6 +58,33 @@ def test_loader_missing_returns_none(tmp_path: Path) -> None:
     assert loader.get_pokemon_en("없는몬") is None
 
 
+def test_manual_override_applied_when_pokeapi_missing() -> None:
+    mapping = _empty_mapping()
+    data = {
+        "name": "tera-blast",
+        "names": {
+            "en": "Tera Blast",
+        },
+    }
+
+    assert _resolve_ko_name(mapping, "moves", "tera-blast", data) == "테라버스트"
+
+
+def test_manual_override_recorded_in_overridden_field() -> None:
+    mapping = _empty_mapping()
+    data = {
+        "name": "tera-blast",
+        "names": {
+            "en": "Tera Blast",
+        },
+    }
+
+    _resolve_ko_name(mapping, "moves", "tera-blast", data)
+
+    assert mapping["_overridden"]["moves"] == ["tera-blast"]
+    assert mapping["_unmapped"]["moves"] == []
+
+
 def _write_fixture_mapping(tmp_path: Path) -> Path:
     mapping_path = tmp_path / "ko_mapping.json"
     mapping = {
@@ -76,6 +104,12 @@ def _write_fixture_mapping(tmp_path: Path) -> Path:
             "fire": "불꽃",
         },
         "_unmapped": {
+            "pokemon": [],
+            "moves": [],
+            "abilities": [],
+            "types": [],
+        },
+        "_overridden": {
             "pokemon": [],
             "moves": [],
             "abilities": [],
