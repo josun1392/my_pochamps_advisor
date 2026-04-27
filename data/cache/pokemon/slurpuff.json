@@ -1,0 +1,50 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sweet-veil",
+      "name_ko": "스위트베일",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "unburden",
+      "name_ko": "곡예",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 80,
+    "def": 86,
+    "hp": 82,
+    "spa": 85,
+    "spd": 75,
+    "spe": 72
+  },
+  "entity_id": "slurpuff",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 0.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "slurpuff",
+    "ko": "나루림"
+  },
+  "pokeapi_id": 685,
+  "pokeapi_version": "v2",
+  "species": "slurpuff",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/685.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/685.png"
+  },
+  "types": [
+    "fairy"
+  ],
+  "weight_kg": 5.0
+}

@@ -1,0 +1,124 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "intimidate",
+      "name_ko": "위협",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "flash-fire",
+      "name_ko": "타오르는불꽃",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "justified",
+      "name_ko": "정의의마음",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 110,
+    "def": 80,
+    "hp": 90,
+    "spa": 100,
+    "spd": 80,
+    "spe": 95
+  },
+  "entity_id": "arcanine",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "agility",
+      "bite",
+      "crunch",
+      "ember",
+      "extreme-speed",
+      "fire-fang",
+      "flame-wheel",
+      "flamethrower",
+      "flare-blitz",
+      "helping-hand",
+      "howl",
+      "leer",
+      "play-rough",
+      "retaliate",
+      "reversal",
+      "roar",
+      "take-down"
+    ],
+    "machine": [
+      "aerial-ace",
+      "agility",
+      "body-slam",
+      "bulldoze",
+      "charm",
+      "close-combat",
+      "crunch",
+      "curse",
+      "dig",
+      "double-edge",
+      "dragon-pulse",
+      "endure",
+      "facade",
+      "fire-blast",
+      "fire-fang",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "giga-impact",
+      "heat-crash",
+      "heat-wave",
+      "helping-hand",
+      "hyper-beam",
+      "hyper-voice",
+      "iron-head",
+      "outrage",
+      "overheat",
+      "play-rough",
+      "protect",
+      "psychic-fangs",
+      "rest",
+      "reversal",
+      "roar",
+      "scary-face",
+      "scorching-sands",
+      "sleep-talk",
+      "snarl",
+      "solar-beam",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "temper-flare",
+      "tera-blast",
+      "thief",
+      "thunder-fang",
+      "wild-charge",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "arcanine",
+    "ko": "윈디"
+  },
+  "pokeapi_id": 59,
+  "pokeapi_version": "v2",
+  "species": "arcanine",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/59.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/59.png"
+  },
+  "types": [
+    "fire"
+  ],
+  "weight_kg": 155.0
+}

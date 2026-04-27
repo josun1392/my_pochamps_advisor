@@ -1,0 +1,50 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "flower-veil",
+      "name_ko": "플라워베일",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "symbiosis",
+      "name_ko": "공생",
+      "slot": 3
+    }
+  ],
+  "availability": "transfer_only",
+  "base_stats": {
+    "atk": 65,
+    "def": 67,
+    "hp": 74,
+    "spa": 125,
+    "spd": 128,
+    "spe": 92
+  },
+  "entity_id": "floette-eternal",
+  "fetched_at": "2026-04-27T11:51:56Z",
+  "form_type": "default",
+  "height_m": 0.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "floette-eternal",
+    "ko": "플라엣테"
+  },
+  "pokeapi_id": 10061,
+  "pokeapi_version": "v2",
+  "species": "floette-eternal",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10061.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10061.png"
+  },
+  "types": [
+    "fairy"
+  ],
+  "weight_kg": 0.9
+}

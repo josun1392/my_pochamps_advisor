@@ -1,0 +1,117 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "rivalry",
+      "name_ko": "투쟁심",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "intimidate",
+      "name_ko": "위협",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "guts",
+      "name_ko": "근성",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 120,
+    "def": 79,
+    "hp": 80,
+    "spa": 95,
+    "spd": 79,
+    "spe": 70
+  },
+  "entity_id": "luxray",
+  "fetched_at": "2026-04-27T11:51:47Z",
+  "form_type": "default",
+  "height_m": 1.4,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "bite",
+      "charge",
+      "crunch",
+      "discharge",
+      "electric-terrain",
+      "leer",
+      "roar",
+      "scary-face",
+      "spark",
+      "swagger",
+      "tackle",
+      "thunder-shock",
+      "thunder-wave",
+      "volt-switch",
+      "wild-charge"
+    ],
+    "machine": [
+      "agility",
+      "body-slam",
+      "charge",
+      "charge-beam",
+      "confuse-ray",
+      "crunch",
+      "double-edge",
+      "eerie-impulse",
+      "electric-terrain",
+      "electro-ball",
+      "electroweb",
+      "endure",
+      "facade",
+      "fake-tears",
+      "fire-fang",
+      "giga-impact",
+      "helping-hand",
+      "hyper-beam",
+      "ice-fang",
+      "light-screen",
+      "play-rough",
+      "protect",
+      "psychic-fangs",
+      "rain-dance",
+      "rest",
+      "roar",
+      "scary-face",
+      "sleep-talk",
+      "snarl",
+      "substitute",
+      "sunny-day",
+      "supercell-slam",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "thunder",
+      "thunder-fang",
+      "thunder-wave",
+      "thunderbolt",
+      "trailblaze",
+      "volt-switch",
+      "wild-charge"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "luxray",
+    "ko": "렌트라"
+  },
+  "pokeapi_id": 405,
+  "pokeapi_version": "v2",
+  "species": "luxray",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/405.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/405.png"
+  },
+  "types": [
+    "electric"
+  ],
+  "weight_kg": 42.0
+}

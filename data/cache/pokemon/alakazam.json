@@ -1,0 +1,56 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "synchronize",
+      "name_ko": "싱크로",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "inner-focus",
+      "name_ko": "정신력",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "magic-guard",
+      "name_ko": "매직가드",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 50,
+    "def": 45,
+    "hp": 55,
+    "spa": 135,
+    "spd": 95,
+    "spe": 120
+  },
+  "entity_id": "alakazam",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "alakazam",
+    "ko": "후딘"
+  },
+  "pokeapi_id": 65,
+  "pokeapi_version": "v2",
+  "species": "alakazam",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/65.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/65.png"
+  },
+  "types": [
+    "psychic"
+  ],
+  "weight_kg": 48.0
+}

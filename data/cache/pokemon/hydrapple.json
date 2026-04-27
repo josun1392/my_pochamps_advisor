@@ -1,0 +1,126 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "supersweet-syrup",
+      "name_ko": "감미로운꿀",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "regenerator",
+      "name_ko": "재생력",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sticky-hold",
+      "name_ko": "점착",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 80,
+    "def": 110,
+    "hp": 106,
+    "spa": 120,
+    "spd": 80,
+    "spe": 44
+  },
+  "entity_id": "hydrapple",
+  "fetched_at": "2026-04-27T11:52:02Z",
+  "form_type": "default",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [
+      "defense-curl",
+      "double-hit",
+      "infestation",
+      "recycle",
+      "rollout",
+      "sucker-punch",
+      "yawn"
+    ],
+    "level_up": [
+      "astonish",
+      "bullet-seed",
+      "dragon-breath",
+      "dragon-pulse",
+      "dragon-tail",
+      "energy-ball",
+      "fickle-beam",
+      "growth",
+      "power-whip",
+      "protect",
+      "recover",
+      "recycle",
+      "substitute",
+      "sweet-scent",
+      "syrup-bomb",
+      "withdraw"
+    ],
+    "machine": [
+      "body-press",
+      "body-slam",
+      "breaking-swipe",
+      "bug-bite",
+      "bullet-seed",
+      "curse",
+      "double-edge",
+      "draco-meteor",
+      "dragon-cheer",
+      "dragon-pulse",
+      "dragon-tail",
+      "earth-power",
+      "earthquake",
+      "endure",
+      "energy-ball",
+      "facade",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-glide",
+      "grassy-terrain",
+      "gyro-ball",
+      "heavy-slam",
+      "hydro-pump",
+      "hyper-beam",
+      "leaf-storm",
+      "magical-leaf",
+      "nasty-plot",
+      "outrage",
+      "pollen-puff",
+      "pounce",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "seed-bomb",
+      "sleep-talk",
+      "solar-beam",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "tera-blast",
+      "uproar"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "hydrapple",
+    "ko": "과미드라"
+  },
+  "pokeapi_id": 1019,
+  "pokeapi_version": "v2",
+  "species": "hydrapple",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1019.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/1019.png"
+  },
+  "types": [
+    "grass",
+    "dragon"
+  ],
+  "weight_kg": 93.0
+}

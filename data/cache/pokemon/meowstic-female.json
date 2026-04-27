@@ -1,0 +1,126 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "keen-eye",
+      "name_ko": "날카로운눈",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "infiltrator",
+      "name_ko": "틈새포착",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "competitive",
+      "name_ko": "승기",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 48,
+    "def": 76,
+    "hp": 74,
+    "spa": 83,
+    "spd": 81,
+    "spe": 104
+  },
+  "entity_id": "meowstic-female",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "form",
+  "height_m": 0.6,
+  "movepool": {
+    "egg": [
+      "tickle",
+      "yawn"
+    ],
+    "level_up": [
+      "charge-beam",
+      "confusion",
+      "covet",
+      "disarming-voice",
+      "extrasensory",
+      "fake-out",
+      "future-sight",
+      "leer",
+      "light-screen",
+      "magical-leaf",
+      "psybeam",
+      "psychic",
+      "psyshock",
+      "reflect",
+      "role-play",
+      "scratch",
+      "shadow-ball",
+      "stored-power",
+      "sucker-punch"
+    ],
+    "machine": [
+      "alluring-voice",
+      "baton-pass",
+      "calm-mind",
+      "charge-beam",
+      "charm",
+      "dark-pulse",
+      "dig",
+      "disarming-voice",
+      "endure",
+      "energy-ball",
+      "expanding-force",
+      "facade",
+      "fake-tears",
+      "future-sight",
+      "giga-impact",
+      "gravity",
+      "helping-hand",
+      "hyper-beam",
+      "light-screen",
+      "magical-leaf",
+      "nasty-plot",
+      "play-rough",
+      "protect",
+      "psybeam",
+      "psych-up",
+      "psychic",
+      "psychic-noise",
+      "psychic-terrain",
+      "psyshock",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "shadow-ball",
+      "skill-swap",
+      "sleep-talk",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "tera-blast",
+      "thunder-wave",
+      "thunderbolt",
+      "trailblaze",
+      "trick",
+      "trick-room",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "meowstic Female",
+    "ko": "냐오닉스 암컷"
+  },
+  "pokeapi_id": 10025,
+  "pokeapi_version": "v2",
+  "species": "meowstic",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10025.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10025.png"
+  },
+  "types": [
+    "psychic"
+  ],
+  "weight_kg": 8.5
+}

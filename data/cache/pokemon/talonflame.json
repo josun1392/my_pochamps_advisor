@@ -1,0 +1,110 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "flame-body",
+      "name_ko": "불꽃몸",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "gale-wings",
+      "name_ko": "질풍날개",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 81,
+    "def": 71,
+    "hp": 78,
+    "spa": 74,
+    "spd": 69,
+    "spe": 126
+  },
+  "entity_id": "talonflame",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "acrobatics",
+      "aerial-ace",
+      "agility",
+      "brave-bird",
+      "ember",
+      "feint",
+      "flail",
+      "flame-charge",
+      "flare-blitz",
+      "fly",
+      "growl",
+      "peck",
+      "quick-attack",
+      "roost",
+      "steel-wing",
+      "tailwind"
+    ],
+    "machine": [
+      "acrobatics",
+      "aerial-ace",
+      "agility",
+      "air-cutter",
+      "air-slash",
+      "brave-bird",
+      "bulk-up",
+      "double-edge",
+      "dual-wingbeat",
+      "endure",
+      "facade",
+      "feather-dance",
+      "fire-blast",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "fly",
+      "giga-impact",
+      "heat-wave",
+      "hurricane",
+      "hyper-beam",
+      "overheat",
+      "protect",
+      "rain-dance",
+      "rest",
+      "sleep-talk",
+      "solar-beam",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "tailwind",
+      "take-down",
+      "taunt",
+      "temper-flare",
+      "tera-blast",
+      "thief",
+      "u-turn",
+      "upper-hand",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "talonflame",
+    "ko": "파이어로"
+  },
+  "pokeapi_id": 663,
+  "pokeapi_version": "v2",
+  "species": "talonflame",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/663.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/663.png"
+  },
+  "types": [
+    "fire",
+    "flying"
+  ],
+  "weight_kg": 24.5
+}

@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "infiltrator",
+      "name_ko": "틈새포착",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 75,
+    "def": 110,
+    "hp": 60,
+    "spa": 175,
+    "spd": 110,
+    "spe": 90
+  },
+  "entity_id": "chandelure-mega",
+  "fetched_at": "2026-04-27T11:51:42Z",
+  "form_type": "mega",
+  "height_m": 2.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Chandelure",
+    "ko": "메가샹델라"
+  },
+  "pokeapi_id": 10291,
+  "pokeapi_version": "v2",
+  "species": "chandelure",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "ghost",
+    "fire"
+  ],
+  "weight_kg": 69.6
+}

@@ -1,0 +1,126 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "keen-eye",
+      "name_ko": "날카로운눈",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "sturdy",
+      "name_ko": "옹골참",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "weak-armor",
+      "name_ko": "깨어진갑옷",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 80,
+    "def": 140,
+    "hp": 65,
+    "spa": 40,
+    "spd": 70,
+    "spe": 70
+  },
+  "entity_id": "skarmory",
+  "fetched_at": "2026-04-27T11:51:51Z",
+  "form_type": "default",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [
+      "air-cutter",
+      "curse",
+      "feint",
+      "night-slash",
+      "roost",
+      "sky-attack",
+      "whirlwind"
+    ],
+    "level_up": [
+      "agility",
+      "brave-bird",
+      "drill-peck",
+      "fury-attack",
+      "iron-defense",
+      "leer",
+      "metal-claw",
+      "metal-sound",
+      "payback",
+      "peck",
+      "sand-attack",
+      "slash",
+      "spikes",
+      "steel-wing",
+      "wing-attack"
+    ],
+    "machine": [
+      "aerial-ace",
+      "agility",
+      "air-cutter",
+      "air-slash",
+      "body-press",
+      "brave-bird",
+      "curse",
+      "dark-pulse",
+      "drill-run",
+      "dual-wingbeat",
+      "endure",
+      "facade",
+      "flash-cannon",
+      "fly",
+      "giga-impact",
+      "hurricane",
+      "hyper-beam",
+      "icy-wind",
+      "iron-defense",
+      "iron-head",
+      "metal-claw",
+      "metal-sound",
+      "protect",
+      "rest",
+      "reversal",
+      "roar",
+      "rock-slide",
+      "rock-tomb",
+      "sand-tomb",
+      "sandstorm",
+      "sleep-talk",
+      "spikes",
+      "stealth-rock",
+      "steel-beam",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "tailwind",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "skarmory",
+    "ko": "무장조"
+  },
+  "pokeapi_id": 227,
+  "pokeapi_version": "v2",
+  "species": "skarmory",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/227.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/227.png"
+  },
+  "types": [
+    "steel",
+    "flying"
+  ],
+  "weight_kg": 50.5
+}

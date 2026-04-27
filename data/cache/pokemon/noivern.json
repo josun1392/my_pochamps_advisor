@@ -1,0 +1,129 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "frisk",
+      "name_ko": "통찰",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "infiltrator",
+      "name_ko": "틈새포착",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "telepathy",
+      "name_ko": "텔레파시",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 70,
+    "def": 80,
+    "hp": 85,
+    "spa": 97,
+    "spd": 80,
+    "spe": 123
+  },
+  "entity_id": "noivern",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "absorb",
+      "air-cutter",
+      "air-slash",
+      "bite",
+      "boomburst",
+      "double-team",
+      "dragon-pulse",
+      "gust",
+      "hurricane",
+      "moonlight",
+      "roost",
+      "screech",
+      "super-fang",
+      "supersonic",
+      "tackle",
+      "tailwind",
+      "whirlwind",
+      "wing-attack"
+    ],
+    "machine": [
+      "acrobatics",
+      "aerial-ace",
+      "agility",
+      "air-cutter",
+      "air-slash",
+      "body-slam",
+      "breaking-swipe",
+      "brick-break",
+      "dark-pulse",
+      "double-edge",
+      "draco-meteor",
+      "dragon-cheer",
+      "dragon-claw",
+      "dragon-dance",
+      "dragon-pulse",
+      "dragon-tail",
+      "dual-wingbeat",
+      "endure",
+      "facade",
+      "flamethrower",
+      "fly",
+      "focus-blast",
+      "giga-impact",
+      "heat-wave",
+      "hurricane",
+      "hyper-beam",
+      "hyper-voice",
+      "leech-life",
+      "outrage",
+      "protect",
+      "psychic",
+      "psychic-noise",
+      "rest",
+      "scary-face",
+      "shadow-ball",
+      "shadow-claw",
+      "sleep-talk",
+      "solar-beam",
+      "substitute",
+      "sunny-day",
+      "super-fang",
+      "swift",
+      "tailwind",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "u-turn",
+      "uproar",
+      "water-pulse",
+      "wild-charge",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "noivern",
+    "ko": "음번"
+  },
+  "pokeapi_id": 715,
+  "pokeapi_version": "v2",
+  "species": "noivern",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/715.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/715.png"
+  },
+  "types": [
+    "flying",
+    "dragon"
+  ],
+  "weight_kg": 85.0
+}

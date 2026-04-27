@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "iron-fist",
+      "name_ko": "철주먹",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 157,
+    "def": 122,
+    "hp": 97,
+    "spa": 62,
+    "spd": 107,
+    "spe": 33
+  },
+  "entity_id": "crabominable-mega",
+  "fetched_at": "2026-04-27T11:51:43Z",
+  "form_type": "mega",
+  "height_m": 2.6,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Crabominable",
+    "ko": "메가모단단게"
+  },
+  "pokeapi_id": 10315,
+  "pokeapi_version": "v2",
+  "species": "crabominable",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "fighting",
+    "ice"
+  ],
+  "weight_kg": 252.8
+}

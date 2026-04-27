@@ -1,0 +1,120 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "swarm",
+      "name_ko": "벌레의알림",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "sheer-force",
+      "name_ko": "우격다짐",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sharpness",
+      "name_ko": "sharpness",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 135,
+    "def": 95,
+    "hp": 70,
+    "spa": 45,
+    "spd": 70,
+    "spe": 85
+  },
+  "entity_id": "kleavor",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "agility",
+      "double-hit",
+      "double-team",
+      "false-swipe",
+      "focus-energy",
+      "fury-cutter",
+      "leer",
+      "quick-attack",
+      "rock-slide",
+      "slash",
+      "smack-down",
+      "stone-axe",
+      "swords-dance",
+      "x-scissor"
+    ],
+    "machine": [
+      "acrobatics",
+      "aerial-ace",
+      "agility",
+      "air-cutter",
+      "air-slash",
+      "baton-pass",
+      "brick-break",
+      "bug-bite",
+      "bug-buzz",
+      "close-combat",
+      "double-edge",
+      "dual-wingbeat",
+      "endure",
+      "facade",
+      "false-swipe",
+      "giga-impact",
+      "helping-hand",
+      "hyper-beam",
+      "light-screen",
+      "lunge",
+      "pounce",
+      "protect",
+      "rest",
+      "reversal",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sandstorm",
+      "scary-face",
+      "skitter-smack",
+      "sleep-talk",
+      "smack-down",
+      "stealth-rock",
+      "stone-edge",
+      "struggle-bug",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "tailwind",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "trailblaze",
+      "u-turn",
+      "vacuum-wave",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "kleavor",
+    "ko": "사마자르"
+  },
+  "pokeapi_id": 900,
+  "pokeapi_version": "v2",
+  "species": "kleavor",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/900.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/900.png"
+  },
+  "types": [
+    "bug",
+    "rock"
+  ],
+  "weight_kg": 89.0
+}

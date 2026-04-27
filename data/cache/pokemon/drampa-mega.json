@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "berserk",
+      "name_ko": "발끈",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 85,
+    "def": 110,
+    "hp": 78,
+    "spa": 160,
+    "spd": 116,
+    "spe": 36
+  },
+  "entity_id": "drampa-mega",
+  "fetched_at": "2026-04-27T11:51:44Z",
+  "form_type": "mega",
+  "height_m": 3.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Drampa",
+    "ko": "메가할비롱"
+  },
+  "pokeapi_id": 10302,
+  "pokeapi_version": "v2",
+  "species": "drampa",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "normal",
+    "dragon"
+  ],
+  "weight_kg": 240.5
+}

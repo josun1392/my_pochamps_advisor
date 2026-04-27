@@ -1,0 +1,120 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "cheek-pouch",
+      "name_ko": "볼주머니",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "pickup",
+      "name_ko": "픽업",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "plus",
+      "name_ko": "플러스",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 58,
+    "def": 57,
+    "hp": 67,
+    "spa": 81,
+    "spd": 67,
+    "spe": 101
+  },
+  "entity_id": "dedenne",
+  "fetched_at": "2026-04-27T11:51:56Z",
+  "form_type": "default",
+  "height_m": 0.2,
+  "movepool": {
+    "egg": [
+      "covet",
+      "magnet-rise",
+      "tearful-look"
+    ],
+    "level_up": [
+      "charge",
+      "charm",
+      "discharge",
+      "entrainment",
+      "nuzzle",
+      "parabolic-charge",
+      "play-rough",
+      "rest",
+      "snore",
+      "super-fang",
+      "tackle",
+      "tail-whip",
+      "thunder",
+      "thunder-shock",
+      "volt-switch"
+    ],
+    "machine": [
+      "agility",
+      "charge",
+      "charge-beam",
+      "charm",
+      "dazzling-gleam",
+      "dig",
+      "draining-kiss",
+      "eerie-impulse",
+      "electric-terrain",
+      "electro-ball",
+      "electroweb",
+      "endeavor",
+      "endure",
+      "facade",
+      "fling",
+      "giga-impact",
+      "grass-knot",
+      "helping-hand",
+      "hyper-beam",
+      "light-screen",
+      "misty-terrain",
+      "play-rough",
+      "protect",
+      "rain-dance",
+      "rest",
+      "seed-bomb",
+      "sleep-talk",
+      "substitute",
+      "sunny-day",
+      "super-fang",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "thunder",
+      "thunder-punch",
+      "thunder-wave",
+      "thunderbolt",
+      "trailblaze",
+      "u-turn",
+      "volt-switch",
+      "wild-charge"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "dedenne",
+    "ko": "데덴네"
+  },
+  "pokeapi_id": 702,
+  "pokeapi_version": "v2",
+  "species": "dedenne",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/702.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/702.png"
+  },
+  "types": [
+    "electric",
+    "fairy"
+  ],
+  "weight_kg": 2.2
+}

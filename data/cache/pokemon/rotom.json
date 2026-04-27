@@ -1,0 +1,99 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "levitate",
+      "name_ko": "부유",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 50,
+    "def": 77,
+    "hp": 50,
+    "spa": 95,
+    "spd": 77,
+    "spe": 91
+  },
+  "entity_id": "rotom",
+  "fetched_at": "2026-04-27T11:51:50Z",
+  "form_type": "default",
+  "height_m": 0.3,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "astonish",
+      "charge",
+      "confuse-ray",
+      "discharge",
+      "double-team",
+      "electro-ball",
+      "hex",
+      "shock-wave",
+      "substitute",
+      "thunder-shock",
+      "thunder-wave",
+      "trick",
+      "uproar"
+    ],
+    "machine": [
+      "charge",
+      "charge-beam",
+      "confuse-ray",
+      "dark-pulse",
+      "eerie-impulse",
+      "electric-terrain",
+      "electro-ball",
+      "electroweb",
+      "endure",
+      "facade",
+      "foul-play",
+      "helping-hand",
+      "hex",
+      "hyper-voice",
+      "light-screen",
+      "nasty-plot",
+      "night-shade",
+      "pain-split",
+      "poltergeist",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "shadow-ball",
+      "sleep-talk",
+      "spite",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "tera-blast",
+      "thief",
+      "thunder",
+      "thunder-wave",
+      "thunderbolt",
+      "trick",
+      "uproar",
+      "volt-switch",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "rotom",
+    "ko": "로토무"
+  },
+  "pokeapi_id": 479,
+  "pokeapi_version": "v2",
+  "species": "rotom",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/479.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/479.png"
+  },
+  "types": [
+    "electric",
+    "ghost"
+  ],
+  "weight_kg": 0.3
+}

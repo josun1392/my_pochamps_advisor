@@ -1,0 +1,121 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "volt-absorb",
+      "name_ko": "축전",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "quick-feet",
+      "name_ko": "속보",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 65,
+    "def": 60,
+    "hp": 65,
+    "spa": 110,
+    "spd": 95,
+    "spe": 130
+  },
+  "entity_id": "jolteon",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 0.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "agility",
+      "baby-doll-eyes",
+      "baton-pass",
+      "bite",
+      "charm",
+      "copycat",
+      "covet",
+      "discharge",
+      "double-edge",
+      "double-kick",
+      "growl",
+      "helping-hand",
+      "last-resort",
+      "pin-missile",
+      "quick-attack",
+      "sand-attack",
+      "swift",
+      "tackle",
+      "tail-whip",
+      "take-down",
+      "thunder",
+      "thunder-fang",
+      "thunder-shock",
+      "thunder-wave"
+    ],
+    "machine": [
+      "agility",
+      "alluring-voice",
+      "baton-pass",
+      "body-slam",
+      "calm-mind",
+      "charge",
+      "charm",
+      "curse",
+      "dig",
+      "double-edge",
+      "eerie-impulse",
+      "electric-terrain",
+      "electro-ball",
+      "electroweb",
+      "endure",
+      "facade",
+      "fake-tears",
+      "false-swipe",
+      "giga-impact",
+      "helping-hand",
+      "hyper-beam",
+      "hyper-voice",
+      "light-screen",
+      "metal-sound",
+      "mud-slap",
+      "protect",
+      "rain-dance",
+      "rest",
+      "roar",
+      "shadow-ball",
+      "sleep-talk",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "thunder",
+      "thunder-fang",
+      "thunder-wave",
+      "thunderbolt",
+      "trailblaze",
+      "volt-switch",
+      "weather-ball",
+      "wild-charge"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "jolteon",
+    "ko": "쥬피썬더"
+  },
+  "pokeapi_id": 135,
+  "pokeapi_version": "v2",
+  "species": "jolteon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/135.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/135.png"
+  },
+  "types": [
+    "electric"
+  ],
+  "weight_kg": 24.5
+}

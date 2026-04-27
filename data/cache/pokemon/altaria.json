@@ -1,0 +1,122 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "natural-cure",
+      "name_ko": "자연회복",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "cloud-nine",
+      "name_ko": "날씨부정",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 70,
+    "def": 90,
+    "hp": 75,
+    "spa": 70,
+    "spd": 105,
+    "spe": 80
+  },
+  "entity_id": "altaria",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "cotton-guard",
+      "disarming-voice",
+      "dragon-breath",
+      "dragon-pulse",
+      "fury-attack",
+      "growl",
+      "mist",
+      "moonblast",
+      "peck",
+      "perish-song",
+      "pluck",
+      "round",
+      "safeguard",
+      "sing",
+      "sky-attack",
+      "take-down"
+    ],
+    "machine": [
+      "acrobatics",
+      "aerial-ace",
+      "agility",
+      "alluring-voice",
+      "body-slam",
+      "brave-bird",
+      "breaking-swipe",
+      "bulldoze",
+      "dazzling-gleam",
+      "disarming-voice",
+      "double-edge",
+      "draco-meteor",
+      "dragon-cheer",
+      "dragon-claw",
+      "dragon-dance",
+      "dragon-pulse",
+      "dual-wingbeat",
+      "earthquake",
+      "endeavor",
+      "endure",
+      "facade",
+      "feather-dance",
+      "fire-blast",
+      "fire-spin",
+      "flamethrower",
+      "fly",
+      "giga-impact",
+      "haze",
+      "heat-wave",
+      "helping-hand",
+      "hurricane",
+      "hyper-beam",
+      "hyper-voice",
+      "ice-beam",
+      "outrage",
+      "play-rough",
+      "protect",
+      "rain-dance",
+      "rest",
+      "roar",
+      "sleep-talk",
+      "snowscape",
+      "solar-beam",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "tailwind",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "trailblaze",
+      "weather-ball",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "altaria",
+    "ko": "파비코리"
+  },
+  "pokeapi_id": 334,
+  "pokeapi_version": "v2",
+  "species": "altaria",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/334.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/334.png"
+  },
+  "types": [
+    "dragon",
+    "flying"
+  ],
+  "weight_kg": 20.6
+}

@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "no-guard",
+      "name_ko": "노가드",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 137,
+    "def": 100,
+    "hp": 78,
+    "spa": 74,
+    "spd": 93,
+    "spe": 118
+  },
+  "entity_id": "hawlucha-mega",
+  "fetched_at": "2026-04-27T11:51:46Z",
+  "form_type": "mega",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Hawlucha",
+    "ko": "메가루차불"
+  },
+  "pokeapi_id": 10300,
+  "pokeapi_version": "v2",
+  "species": "hawlucha",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "fighting",
+    "flying"
+  ],
+  "weight_kg": 25.0
+}

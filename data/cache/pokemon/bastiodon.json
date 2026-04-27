@@ -1,0 +1,129 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sturdy",
+      "name_ko": "옹골참",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "soundproof",
+      "name_ko": "방음",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 52,
+    "def": 168,
+    "hp": 60,
+    "spa": 47,
+    "spd": 138,
+    "spe": 30
+  },
+  "entity_id": "bastiodon",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 1.3,
+  "movepool": {
+    "egg": [
+      "counter",
+      "fissure",
+      "focus-energy",
+      "guard-split",
+      "headbutt",
+      "screech",
+      "wide-guard"
+    ],
+    "level_up": [
+      "ancient-power",
+      "block",
+      "endure",
+      "heavy-slam",
+      "iron-defense",
+      "iron-head",
+      "metal-burst",
+      "metal-sound",
+      "protect",
+      "swagger",
+      "tackle",
+      "take-down",
+      "taunt"
+    ],
+    "machine": [
+      "avalanche",
+      "blizzard",
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "curse",
+      "dig",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "endure",
+      "facade",
+      "fire-blast",
+      "flamethrower",
+      "flash-cannon",
+      "foul-play",
+      "giga-impact",
+      "hard-press",
+      "heavy-slam",
+      "hyper-beam",
+      "ice-beam",
+      "iron-defense",
+      "iron-head",
+      "metal-sound",
+      "meteor-beam",
+      "mud-slap",
+      "outrage",
+      "power-gem",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "reversal",
+      "roar",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sand-tomb",
+      "sandstorm",
+      "scary-face",
+      "scorching-sands",
+      "sleep-talk",
+      "smack-down",
+      "stealth-rock",
+      "steel-beam",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thunder",
+      "thunderbolt",
+      "trailblaze"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "bastiodon",
+    "ko": "바리톱스"
+  },
+  "pokeapi_id": 411,
+  "pokeapi_version": "v2",
+  "species": "bastiodon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/411.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/411.png"
+  },
+  "types": [
+    "rock",
+    "steel"
+  ],
+  "weight_kg": 149.5
+}

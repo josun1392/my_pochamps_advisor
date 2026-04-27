@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "levitate",
+      "name_ko": "부유",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 50,
+    "def": 110,
+    "hp": 75,
+    "spa": 135,
+    "spd": 120,
+    "spe": 65
+  },
+  "entity_id": "chimecho-mega",
+  "fetched_at": "2026-04-27T11:51:43Z",
+  "form_type": "mega",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Chimecho",
+    "ko": "메가치렁"
+  },
+  "pokeapi_id": 10306,
+  "pokeapi_version": "v2",
+  "species": "chimecho",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "psychic",
+    "steel"
+  ],
+  "weight_kg": 8.0
+}

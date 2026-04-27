@@ -1,0 +1,112 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "chlorophyll",
+      "name_ko": "엽록소",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "gluttony",
+      "name_ko": "먹보",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 105,
+    "def": 65,
+    "hp": 80,
+    "spa": 100,
+    "spd": 70,
+    "spe": 70
+  },
+  "entity_id": "victreebel",
+  "fetched_at": "2026-04-27T11:51:53Z",
+  "form_type": "default",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [
+      "clear-smog",
+      "gastro-acid",
+      "ingrain",
+      "power-whip",
+      "spit-up",
+      "stockpile",
+      "strength-sap",
+      "sucker-punch",
+      "swallow",
+      "synthesis",
+      "tickle",
+      "worry-seed"
+    ],
+    "level_up": [
+      "leaf-blade",
+      "leaf-storm",
+      "razor-leaf",
+      "sleep-powder",
+      "sweet-scent",
+      "vine-whip"
+    ],
+    "machine": [
+      "acid-spray",
+      "body-slam",
+      "bug-bite",
+      "bullet-seed",
+      "encore",
+      "endure",
+      "energy-ball",
+      "facade",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-glide",
+      "grassy-terrain",
+      "hyper-beam",
+      "knock-off",
+      "leaf-storm",
+      "leech-life",
+      "lunge",
+      "magical-leaf",
+      "poison-jab",
+      "pounce",
+      "protect",
+      "reflect",
+      "rest",
+      "scary-face",
+      "seed-bomb",
+      "sleep-talk",
+      "sludge-bomb",
+      "sludge-wave",
+      "solar-beam",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "tera-blast",
+      "thief",
+      "toxic",
+      "trailblaze",
+      "venoshock",
+      "weather-ball"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "victreebel",
+    "ko": "우츠보트"
+  },
+  "pokeapi_id": 71,
+  "pokeapi_version": "v2",
+  "species": "victreebel",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/71.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/71.png"
+  },
+  "types": [
+    "grass",
+    "poison"
+  ],
+  "weight_kg": 15.5
+}

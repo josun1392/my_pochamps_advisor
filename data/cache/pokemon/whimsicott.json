@@ -1,0 +1,123 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "prankster",
+      "name_ko": "짓궂은마음",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "infiltrator",
+      "name_ko": "틈새포착",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "chlorophyll",
+      "name_ko": "엽록소",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 67,
+    "def": 85,
+    "hp": 60,
+    "spa": 77,
+    "spd": 75,
+    "spe": 116
+  },
+  "entity_id": "whimsicott",
+  "fetched_at": "2026-04-27T11:51:54Z",
+  "form_type": "default",
+  "height_m": 0.7,
+  "movepool": {
+    "egg": [
+      "beat-up",
+      "memento",
+      "switcheroo",
+      "tickle",
+      "worry-seed"
+    ],
+    "level_up": [
+      "absorb",
+      "charm",
+      "cotton-guard",
+      "cotton-spore",
+      "endeavor",
+      "energy-ball",
+      "fairy-wind",
+      "giga-drain",
+      "growth",
+      "gust",
+      "helping-hand",
+      "hurricane",
+      "leech-seed",
+      "mega-drain",
+      "memento",
+      "moonblast",
+      "poison-powder",
+      "razor-leaf",
+      "solar-beam",
+      "stun-spore",
+      "sunny-day",
+      "tailwind"
+    ],
+    "machine": [
+      "charm",
+      "dazzling-gleam",
+      "encore",
+      "endeavor",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fake-tears",
+      "fling",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-glide",
+      "grassy-terrain",
+      "helping-hand",
+      "hurricane",
+      "hyper-beam",
+      "light-screen",
+      "misty-terrain",
+      "play-rough",
+      "protect",
+      "psychic",
+      "rest",
+      "seed-bomb",
+      "shadow-ball",
+      "sleep-talk",
+      "solar-beam",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "tailwind",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "trick-room",
+      "u-turn"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "whimsicott",
+    "ko": "엘풍"
+  },
+  "pokeapi_id": 547,
+  "pokeapi_version": "v2",
+  "species": "whimsicott",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/547.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/547.png"
+  },
+  "types": [
+    "grass",
+    "fairy"
+  ],
+  "weight_kg": 6.6
+}

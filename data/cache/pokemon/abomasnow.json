@@ -1,0 +1,120 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "snow-warning",
+      "name_ko": "눈퍼뜨리기",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "soundproof",
+      "name_ko": "방음",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 92,
+    "def": 75,
+    "hp": 90,
+    "spa": 92,
+    "spd": 85,
+    "spe": 60
+  },
+  "entity_id": "abomasnow",
+  "fetched_at": "2026-04-27T11:51:54Z",
+  "form_type": "default",
+  "height_m": 2.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "aurora-veil",
+      "blizzard",
+      "ice-punch",
+      "ice-shard",
+      "icy-wind",
+      "ingrain",
+      "leafage",
+      "leer",
+      "mist",
+      "powder-snow",
+      "razor-leaf",
+      "sheer-cold",
+      "swagger",
+      "wood-hammer"
+    ],
+    "machine": [
+      "avalanche",
+      "blizzard",
+      "body-press",
+      "body-slam",
+      "brick-break",
+      "bulldoze",
+      "bullet-seed",
+      "chilling-water",
+      "curse",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fling",
+      "focus-blast",
+      "focus-punch",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-glide",
+      "hard-press",
+      "helping-hand",
+      "hyper-beam",
+      "ice-beam",
+      "ice-punch",
+      "ice-spinner",
+      "icicle-spear",
+      "icy-wind",
+      "leaf-storm",
+      "low-kick",
+      "magical-leaf",
+      "mud-slap",
+      "outrage",
+      "protect",
+      "rain-dance",
+      "rest",
+      "rock-slide",
+      "rock-tomb",
+      "scary-face",
+      "seed-bomb",
+      "sleep-talk",
+      "snowscape",
+      "solar-beam",
+      "stomping-tantrum",
+      "substitute",
+      "swords-dance",
+      "take-down",
+      "tera-blast",
+      "trailblaze",
+      "water-pulse",
+      "weather-ball"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "abomasnow",
+    "ko": "눈설왕"
+  },
+  "pokeapi_id": 460,
+  "pokeapi_version": "v2",
+  "species": "abomasnow",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/460.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/460.png"
+  },
+  "types": [
+    "grass",
+    "ice"
+  ],
+  "weight_kg": 135.5
+}

@@ -1,0 +1,109 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "toxic-debris",
+      "name_ko": "toxic-debris",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "corrosion",
+      "name_ko": "부식",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 55,
+    "def": 90,
+    "hp": 83,
+    "spa": 130,
+    "spd": 81,
+    "spe": 86
+  },
+  "entity_id": "glimmora",
+  "fetched_at": "2026-04-27T11:51:57Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "acid-armor",
+      "acid-spray",
+      "ancient-power",
+      "harden",
+      "mortal-spin",
+      "power-gem",
+      "rock-polish",
+      "rock-slide",
+      "rock-throw",
+      "sandstorm",
+      "self-destruct",
+      "sludge-wave",
+      "smack-down",
+      "spiky-shield",
+      "stealth-rock",
+      "toxic-spikes",
+      "venoshock"
+    ],
+    "machine": [
+      "acid-spray",
+      "confuse-ray",
+      "dazzling-gleam",
+      "earth-power",
+      "endure",
+      "energy-ball",
+      "facade",
+      "flash-cannon",
+      "giga-impact",
+      "gunk-shot",
+      "hyper-beam",
+      "iron-defense",
+      "light-screen",
+      "meteor-beam",
+      "mud-shot",
+      "power-gem",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sand-tomb",
+      "sandstorm",
+      "sleep-talk",
+      "sludge-bomb",
+      "sludge-wave",
+      "smack-down",
+      "solar-beam",
+      "spikes",
+      "stealth-rock",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "tera-blast",
+      "toxic",
+      "toxic-spikes",
+      "venoshock"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "glimmora",
+    "ko": "킬라플로르"
+  },
+  "pokeapi_id": 970,
+  "pokeapi_version": "v2",
+  "species": "glimmora",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/970.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/970.png"
+  },
+  "types": [
+    "rock",
+    "poison"
+  ],
+  "weight_kg": 45.0
+}

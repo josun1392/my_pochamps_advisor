@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "tangled-feet",
+      "name_ko": "갈지자걸음",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "screen-cleaner",
+      "name_ko": "배리어프리",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "ice-body",
+      "name_ko": "아이스바디",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 85,
+    "def": 75,
+    "hp": 80,
+    "spa": 110,
+    "spd": 100,
+    "spe": 70
+  },
+  "entity_id": "mr-rime",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "mr-rime",
+    "ko": "마임꽁꽁"
+  },
+  "pokeapi_id": 866,
+  "pokeapi_version": "v2",
+  "species": "mr-rime",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/866.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/866.png"
+  },
+  "types": [
+    "ice",
+    "psychic"
+  ],
+  "weight_kg": 58.2
+}

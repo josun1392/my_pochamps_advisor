@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "natural-cure",
+      "name_ko": "자연회복",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "poison-point",
+      "name_ko": "독가시",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "technician",
+      "name_ko": "테크니션",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 70,
+    "def": 65,
+    "hp": 60,
+    "spa": 125,
+    "spd": 105,
+    "spe": 90
+  },
+  "entity_id": "roserade",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 0.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "roserade",
+    "ko": "로즈레이드"
+  },
+  "pokeapi_id": 407,
+  "pokeapi_version": "v2",
+  "species": "roserade",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/407.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/407.png"
+  },
+  "types": [
+    "grass",
+    "poison"
+  ],
+  "weight_kg": 14.5
+}

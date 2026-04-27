@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "stalwart",
+      "name_ko": "굳건한신념",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 140,
+    "def": 110,
+    "hp": 65,
+    "spa": 40,
+    "spd": 100,
+    "spe": 110
+  },
+  "entity_id": "skarmory-mega",
+  "fetched_at": "2026-04-27T11:51:51Z",
+  "form_type": "mega",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Skarmory",
+    "ko": "메가무장조"
+  },
+  "pokeapi_id": 10284,
+  "pokeapi_version": "v2",
+  "species": "skarmory",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "steel",
+    "flying"
+  ],
+  "weight_kg": 40.4
+}

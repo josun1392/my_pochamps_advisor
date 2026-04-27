@@ -1,0 +1,117 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "own-tempo",
+      "name_ko": "마이페이스",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "ice-body",
+      "name_ko": "아이스바디",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sturdy",
+      "name_ko": "옹골참",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 117,
+    "def": 184,
+    "hp": 95,
+    "spa": 44,
+    "spd": 46,
+    "spe": 28
+  },
+  "entity_id": "avalugg",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 2.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "avalanche",
+      "bite",
+      "blizzard",
+      "body-slam",
+      "crunch",
+      "curse",
+      "double-edge",
+      "harden",
+      "ice-fang",
+      "icicle-crash",
+      "icy-wind",
+      "iron-defense",
+      "powder-snow",
+      "protect",
+      "rapid-spin",
+      "recover",
+      "tackle",
+      "take-down",
+      "wide-guard"
+    ],
+    "machine": [
+      "avalanche",
+      "blizzard",
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "chilling-water",
+      "crunch",
+      "curse",
+      "double-edge",
+      "earthquake",
+      "endure",
+      "facade",
+      "flash-cannon",
+      "giga-impact",
+      "gyro-ball",
+      "heavy-slam",
+      "high-horsepower",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-beam",
+      "ice-fang",
+      "ice-spinner",
+      "icicle-spear",
+      "icy-wind",
+      "iron-defense",
+      "iron-head",
+      "protect",
+      "rain-dance",
+      "rest",
+      "rock-slide",
+      "rock-tomb",
+      "scary-face",
+      "sleep-talk",
+      "snowscape",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "surf",
+      "take-down",
+      "tera-blast"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "avalugg",
+    "ko": "크레베이스"
+  },
+  "pokeapi_id": 713,
+  "pokeapi_version": "v2",
+  "species": "avalugg",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/713.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/713.png"
+  },
+  "types": [
+    "ice"
+  ],
+  "weight_kg": 505.0
+}

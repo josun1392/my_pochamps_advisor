@@ -5,9 +5,12 @@ description = "Pokemon battle copilot Phase 1 UI skeleton"
 requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.14.3",
+    "httpx>=0.28.1",
+    "jsonschema>=4.26.0",
     "PySide6>=6.7",
     "rapidfuzz>=3.9.0",
     "requests>=2.31",
+    "tqdm>=4.67.3",
 ]
 
 [dependency-groups]

@@ -1,0 +1,121 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "overgrow",
+      "name_ko": "심록",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "chlorophyll",
+      "name_ko": "엽록소",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 82,
+    "def": 83,
+    "hp": 80,
+    "spa": 100,
+    "spd": 100,
+    "spe": 80
+  },
+  "entity_id": "venusaur",
+  "fetched_at": "2026-04-27T11:51:53Z",
+  "form_type": "default",
+  "height_m": 2.0,
+  "movepool": {
+    "egg": [
+      "curse",
+      "ingrain",
+      "petal-dance",
+      "toxic"
+    ],
+    "level_up": [
+      "growl",
+      "growth",
+      "leech-seed",
+      "petal-blizzard",
+      "petal-dance",
+      "poison-powder",
+      "power-whip",
+      "razor-leaf",
+      "seed-bomb",
+      "sleep-powder",
+      "solar-beam",
+      "sweet-scent",
+      "synthesis",
+      "tackle",
+      "take-down",
+      "vine-whip",
+      "worry-seed"
+    ],
+    "machine": [
+      "acid-spray",
+      "amnesia",
+      "body-slam",
+      "bulldoze",
+      "bullet-seed",
+      "charm",
+      "curse",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "endure",
+      "energy-ball",
+      "facade",
+      "false-swipe",
+      "frenzy-plant",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grass-pledge",
+      "grassy-glide",
+      "grassy-terrain",
+      "helping-hand",
+      "hyper-beam",
+      "knock-off",
+      "leaf-storm",
+      "magical-leaf",
+      "petal-blizzard",
+      "poison-jab",
+      "protect",
+      "rest",
+      "roar",
+      "scary-face",
+      "seed-bomb",
+      "sleep-talk",
+      "sludge-bomb",
+      "solar-beam",
+      "stomping-tantrum",
+      "substitute",
+      "sunny-day",
+      "swords-dance",
+      "take-down",
+      "tera-blast",
+      "toxic",
+      "trailblaze",
+      "venoshock",
+      "weather-ball"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "venusaur",
+    "ko": "이상해꽃"
+  },
+  "pokeapi_id": 3,
+  "pokeapi_version": "v2",
+  "species": "venusaur",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/3.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/3.png"
+  },
+  "types": [
+    "grass",
+    "poison"
+  ],
+  "weight_kg": 100.0
+}

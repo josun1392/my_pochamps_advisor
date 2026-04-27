@@ -1,0 +1,105 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "prankster",
+      "name_ko": "짓궂은마음",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "magician",
+      "name_ko": "매지션",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 80,
+    "def": 91,
+    "hp": 57,
+    "spa": 80,
+    "spd": 87,
+    "spe": 75
+  },
+  "entity_id": "klefki",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 0.2,
+  "movepool": {
+    "egg": [
+      "magnet-rise",
+      "switcheroo"
+    ],
+    "level_up": [
+      "astonish",
+      "draining-kiss",
+      "fairy-lock",
+      "fairy-wind",
+      "flash-cannon",
+      "foul-play",
+      "imprison",
+      "last-resort",
+      "magic-room",
+      "metal-sound",
+      "play-rough",
+      "recycle",
+      "tackle",
+      "torment"
+    ],
+    "machine": [
+      "calm-mind",
+      "dazzling-gleam",
+      "draining-kiss",
+      "endure",
+      "facade",
+      "flash-cannon",
+      "foul-play",
+      "giga-impact",
+      "hyper-beam",
+      "imprison",
+      "iron-defense",
+      "light-screen",
+      "metal-sound",
+      "misty-terrain",
+      "play-rough",
+      "protect",
+      "psych-up",
+      "psychic",
+      "psyshock",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "sandstorm",
+      "skitter-smack",
+      "sleep-talk",
+      "spikes",
+      "steel-beam",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "tera-blast",
+      "thief",
+      "thunder-wave",
+      "trick-room"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "klefki",
+    "ko": "클레피"
+  },
+  "pokeapi_id": 707,
+  "pokeapi_version": "v2",
+  "species": "klefki",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/707.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/707.png"
+  },
+  "types": [
+    "steel",
+    "fairy"
+  ],
+  "weight_kg": 3.0
+}

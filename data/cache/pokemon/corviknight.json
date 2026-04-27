@@ -1,0 +1,126 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "pressure",
+      "name_ko": "프레셔",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "unnerve",
+      "name_ko": "긴장감",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "mirror-armor",
+      "name_ko": "미러아머",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 87,
+    "def": 105,
+    "hp": 98,
+    "spa": 53,
+    "spd": 85,
+    "spe": 67
+  },
+  "entity_id": "corviknight",
+  "fetched_at": "2026-04-27T11:52:02Z",
+  "form_type": "default",
+  "height_m": 2.2,
+  "movepool": {
+    "egg": [
+      "defog",
+      "rock-smash",
+      "roost",
+      "sand-attack",
+      "sky-attack",
+      "spite",
+      "tailwind"
+    ],
+    "level_up": [
+      "brave-bird",
+      "drill-peck",
+      "fury-attack",
+      "hone-claws",
+      "iron-defense",
+      "leer",
+      "metal-sound",
+      "peck",
+      "pluck",
+      "power-trip",
+      "scary-face",
+      "screech",
+      "steel-wing",
+      "swagger",
+      "taunt"
+    ],
+    "machine": [
+      "aerial-ace",
+      "agility",
+      "air-cutter",
+      "air-slash",
+      "body-press",
+      "body-slam",
+      "brave-bird",
+      "bulk-up",
+      "curse",
+      "double-edge",
+      "dual-wingbeat",
+      "endure",
+      "facade",
+      "fake-tears",
+      "flash-cannon",
+      "fly",
+      "giga-impact",
+      "heavy-slam",
+      "hurricane",
+      "hyper-beam",
+      "iron-defense",
+      "iron-head",
+      "light-screen",
+      "metal-claw",
+      "metal-sound",
+      "nasty-plot",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "reversal",
+      "scary-face",
+      "sleep-talk",
+      "spite",
+      "steel-beam",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "tailwind",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "u-turn"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "corviknight",
+    "ko": "아머까오"
+  },
+  "pokeapi_id": 823,
+  "pokeapi_version": "v2",
+  "species": "corviknight",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/823.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/823.png"
+  },
+  "types": [
+    "flying",
+    "steel"
+  ],
+  "weight_kg": 75.0
+}

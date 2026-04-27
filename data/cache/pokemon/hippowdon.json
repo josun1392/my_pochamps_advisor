@@ -1,0 +1,112 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sand-stream",
+      "name_ko": "모래날림",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "sand-force",
+      "name_ko": "모래의힘",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 112,
+    "def": 118,
+    "hp": 108,
+    "spa": 68,
+    "spd": 72,
+    "spe": 47
+  },
+  "entity_id": "hippowdon",
+  "fetched_at": "2026-04-27T11:51:46Z",
+  "form_type": "default",
+  "height_m": 2.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "bite",
+      "crunch",
+      "dig",
+      "double-edge",
+      "earthquake",
+      "fire-fang",
+      "fissure",
+      "ice-fang",
+      "rest",
+      "roar",
+      "sand-attack",
+      "sand-tomb",
+      "sandstorm",
+      "slack-off",
+      "tackle",
+      "take-down",
+      "thunder-fang",
+      "yawn"
+    ],
+    "machine": [
+      "amnesia",
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "crunch",
+      "curse",
+      "dig",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "endure",
+      "facade",
+      "fire-fang",
+      "giga-impact",
+      "hard-press",
+      "heavy-slam",
+      "helping-hand",
+      "high-horsepower",
+      "hyper-beam",
+      "hyper-voice",
+      "ice-fang",
+      "iron-head",
+      "mud-shot",
+      "mud-slap",
+      "muddy-water",
+      "protect",
+      "rest",
+      "roar",
+      "rock-slide",
+      "rock-tomb",
+      "sand-tomb",
+      "sandstorm",
+      "scorching-sands",
+      "sleep-talk",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "tera-blast",
+      "thunder-fang"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "hippowdon",
+    "ko": "하마돈"
+  },
+  "pokeapi_id": 450,
+  "pokeapi_version": "v2",
+  "species": "hippowdon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/450.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/450.png"
+  },
+  "types": [
+    "ground"
+  ],
+  "weight_kg": 300.0
+}

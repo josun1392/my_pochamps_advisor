@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sand-stream",
+      "name_ko": "모래날림",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 164,
+    "def": 150,
+    "hp": 100,
+    "spa": 95,
+    "spd": 120,
+    "spe": 71
+  },
+  "entity_id": "tyranitar-mega",
+  "fetched_at": "2026-04-27T11:51:53Z",
+  "form_type": "mega",
+  "height_m": 2.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Tyranitar",
+    "ko": "메가마기라스"
+  },
+  "pokeapi_id": 10049,
+  "pokeapi_version": "v2",
+  "species": "tyranitar",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10049.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10049.png"
+  },
+  "types": [
+    "rock",
+    "dark"
+  ],
+  "weight_kg": 255.0
+}

@@ -1,0 +1,127 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sap-sipper",
+      "name_ko": "초식",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "hydration",
+      "name_ko": "촉촉바디",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "gooey",
+      "name_ko": "미끈미끈",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 100,
+    "def": 70,
+    "hp": 90,
+    "spa": 110,
+    "spd": 150,
+    "spe": 80
+  },
+  "entity_id": "goodra",
+  "fetched_at": "2026-04-27T11:52:02Z",
+  "form_type": "default",
+  "height_m": 2.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "absorb",
+      "acid-spray",
+      "aqua-tail",
+      "body-slam",
+      "curse",
+      "dragon-breath",
+      "feint",
+      "flail",
+      "muddy-water",
+      "poison-tail",
+      "power-whip",
+      "protect",
+      "rain-dance",
+      "tackle",
+      "tearful-look",
+      "water-gun",
+      "water-pulse"
+    ],
+    "machine": [
+      "acid-spray",
+      "blizzard",
+      "body-press",
+      "body-slam",
+      "breaking-swipe",
+      "bulldoze",
+      "charm",
+      "chilling-water",
+      "curse",
+      "draco-meteor",
+      "dragon-cheer",
+      "dragon-claw",
+      "dragon-pulse",
+      "dragon-tail",
+      "earthquake",
+      "endure",
+      "facade",
+      "fire-blast",
+      "fire-punch",
+      "flamethrower",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-beam",
+      "knock-off",
+      "mud-shot",
+      "muddy-water",
+      "outrage",
+      "poison-tail",
+      "protect",
+      "rain-dance",
+      "rest",
+      "rock-slide",
+      "scald",
+      "skitter-smack",
+      "sleep-talk",
+      "sludge-bomb",
+      "sludge-wave",
+      "stomping-tantrum",
+      "substitute",
+      "sunny-day",
+      "surf",
+      "take-down",
+      "tera-blast",
+      "thunder",
+      "thunder-punch",
+      "thunderbolt",
+      "toxic",
+      "water-pulse",
+      "weather-ball"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "goodra",
+    "ko": "미끄래곤"
+  },
+  "pokeapi_id": 706,
+  "pokeapi_version": "v2",
+  "species": "goodra",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/706.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/706.png"
+  },
+  "types": [
+    "dragon"
+  ],
+  "weight_kg": 150.5
+}

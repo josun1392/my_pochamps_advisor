@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "mold-breaker",
+      "name_ko": "틀깨기",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 155,
+    "def": 109,
+    "hp": 95,
+    "spa": 70,
+    "spd": 130,
+    "spe": 81
+  },
+  "entity_id": "gyarados-mega",
+  "fetched_at": "2026-04-27T11:51:46Z",
+  "form_type": "mega",
+  "height_m": 6.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Gyarados",
+    "ko": "메가갸라도스"
+  },
+  "pokeapi_id": 10041,
+  "pokeapi_version": "v2",
+  "species": "gyarados",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10041.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10041.png"
+  },
+  "types": [
+    "water",
+    "dark"
+  ],
+  "weight_kg": 305.0
+}

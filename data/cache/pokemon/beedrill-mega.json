@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "adaptability",
+      "name_ko": "적응력",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 150,
+    "def": 40,
+    "hp": 65,
+    "spa": 15,
+    "spd": 80,
+    "spe": 145
+  },
+  "entity_id": "beedrill-mega",
+  "fetched_at": "2026-04-27T11:51:41Z",
+  "form_type": "mega",
+  "height_m": 1.4,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Beedrill",
+    "ko": "메가독침붕"
+  },
+  "pokeapi_id": 10090,
+  "pokeapi_version": "v2",
+  "species": "beedrill",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10090.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10090.png"
+  },
+  "types": [
+    "bug",
+    "poison"
+  ],
+  "weight_kg": 40.5
+}

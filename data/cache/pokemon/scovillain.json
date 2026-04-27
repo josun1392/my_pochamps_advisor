@@ -1,0 +1,115 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "chlorophyll",
+      "name_ko": "엽록소",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "insomnia",
+      "name_ko": "불면",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "moody",
+      "name_ko": "변덕쟁이",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 108,
+    "def": 65,
+    "hp": 65,
+    "spa": 108,
+    "spd": 65,
+    "spe": 75
+  },
+  "entity_id": "scovillain",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 0.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "bite",
+      "bullet-seed",
+      "crunch",
+      "fire-fang",
+      "flamethrower",
+      "growth",
+      "headbutt",
+      "leafage",
+      "leer",
+      "overheat",
+      "razor-leaf",
+      "seed-bomb",
+      "solar-beam",
+      "spicy-extract",
+      "sunny-day",
+      "worry-seed",
+      "zen-headbutt"
+    ],
+    "machine": [
+      "bullet-seed",
+      "burning-jealousy",
+      "crunch",
+      "endeavor",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fire-blast",
+      "fire-fang",
+      "flamethrower",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-glide",
+      "grassy-terrain",
+      "helping-hand",
+      "hyper-beam",
+      "lash-out",
+      "leaf-storm",
+      "magical-leaf",
+      "overheat",
+      "protect",
+      "rest",
+      "sandstorm",
+      "scary-face",
+      "seed-bomb",
+      "sleep-talk",
+      "solar-beam",
+      "stomping-tantrum",
+      "substitute",
+      "sunny-day",
+      "super-fang",
+      "take-down",
+      "temper-flare",
+      "tera-blast",
+      "thief",
+      "trailblaze",
+      "will-o-wisp",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "scovillain",
+    "ko": "스코빌런"
+  },
+  "pokeapi_id": 952,
+  "pokeapi_version": "v2",
+  "species": "scovillain",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/952.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/952.png"
+  },
+  "types": [
+    "grass",
+    "fire"
+  ],
+  "weight_kg": 15.0
+}

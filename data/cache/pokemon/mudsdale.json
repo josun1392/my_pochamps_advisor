@@ -1,0 +1,111 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "own-tempo",
+      "name_ko": "마이페이스",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "stamina",
+      "name_ko": "지구력",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "inner-focus",
+      "name_ko": "정신력",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 125,
+    "def": 100,
+    "hp": 100,
+    "spa": 55,
+    "spd": 85,
+    "spe": 35
+  },
+  "entity_id": "mudsdale",
+  "fetched_at": "2026-04-27T11:51:48Z",
+  "form_type": "default",
+  "height_m": 2.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "bulldoze",
+      "counter",
+      "double-kick",
+      "earthquake",
+      "heavy-slam",
+      "high-horsepower",
+      "iron-defense",
+      "mega-kick",
+      "mud-slap",
+      "rock-smash",
+      "stomp",
+      "strength",
+      "superpower"
+    ],
+    "machine": [
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "close-combat",
+      "curse",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "endeavor",
+      "endure",
+      "facade",
+      "focus-blast",
+      "giga-impact",
+      "heavy-slam",
+      "high-horsepower",
+      "hyper-beam",
+      "iron-defense",
+      "iron-head",
+      "lash-out",
+      "low-kick",
+      "low-sweep",
+      "mud-shot",
+      "mud-slap",
+      "protect",
+      "rest",
+      "roar",
+      "rock-slide",
+      "rock-tomb",
+      "sand-tomb",
+      "sandstorm",
+      "scary-face",
+      "sleep-talk",
+      "smack-down",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "tera-blast"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "mudsdale",
+    "ko": "만마드"
+  },
+  "pokeapi_id": 750,
+  "pokeapi_version": "v2",
+  "species": "mudsdale",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/750.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/750.png"
+  },
+  "types": [
+    "ground"
+  ],
+  "weight_kg": 920.0
+}

@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "stance-change",
+      "name_ko": "배틀스위치",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 50,
+    "def": 140,
+    "hp": 60,
+    "spa": 50,
+    "spd": 140,
+    "spe": 60
+  },
+  "entity_id": "aegislash-shield",
+  "fetched_at": "2026-04-27T11:51:38Z",
+  "form_type": "default",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "aegislash",
+    "ko": "킬가르도"
+  },
+  "pokeapi_id": 681,
+  "pokeapi_version": "v2",
+  "species": "aegislash",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/681.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/681.png"
+  },
+  "types": [
+    "steel",
+    "ghost"
+  ],
+  "weight_kg": 53.0
+}

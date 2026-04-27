@@ -1,0 +1,104 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "mega-launcher",
+      "name_ko": "메가런처",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 73,
+    "def": 88,
+    "hp": 71,
+    "spa": 120,
+    "spd": 89,
+    "spe": 59
+  },
+  "entity_id": "clawitzer",
+  "fetched_at": "2026-04-27T11:51:42Z",
+  "form_type": "default",
+  "height_m": 1.3,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "aqua-jet",
+      "aura-sphere",
+      "bounce",
+      "crabhammer",
+      "dark-pulse",
+      "dragon-pulse",
+      "flail",
+      "heal-pulse",
+      "hone-claws",
+      "muddy-water",
+      "smack-down",
+      "splash",
+      "swords-dance",
+      "water-gun",
+      "water-pulse"
+    ],
+    "machine": [
+      "aura-sphere",
+      "blizzard",
+      "body-slam",
+      "chilling-water",
+      "dark-pulse",
+      "dragon-pulse",
+      "endure",
+      "facade",
+      "flash-cannon",
+      "flip-turn",
+      "focus-blast",
+      "giga-impact",
+      "helping-hand",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-beam",
+      "icy-wind",
+      "liquidation",
+      "mud-shot",
+      "mud-slap",
+      "muddy-water",
+      "pounce",
+      "protect",
+      "rain-dance",
+      "rest",
+      "rock-slide",
+      "scary-face",
+      "shadow-ball",
+      "sleep-talk",
+      "sludge-bomb",
+      "sludge-wave",
+      "smack-down",
+      "substitute",
+      "surf",
+      "swords-dance",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "u-turn",
+      "venoshock",
+      "water-pulse",
+      "waterfall",
+      "weather-ball"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "clawitzer",
+    "ko": "블로스터"
+  },
+  "pokeapi_id": 693,
+  "pokeapi_version": "v2",
+  "species": "clawitzer",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/693.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/693.png"
+  },
+  "types": [
+    "water"
+  ],
+  "weight_kg": 35.3
+}

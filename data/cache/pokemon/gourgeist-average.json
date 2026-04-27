@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "pickup",
+      "name_ko": "픽업",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "frisk",
+      "name_ko": "통찰",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "insomnia",
+      "name_ko": "불면",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 90,
+    "def": 122,
+    "hp": 65,
+    "spa": 58,
+    "spd": 75,
+    "spe": 84
+  },
+  "entity_id": "gourgeist-average",
+  "fetched_at": "2026-04-27T11:51:57Z",
+  "form_type": "default",
+  "height_m": 0.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "gourgeist",
+    "ko": "펌킨인"
+  },
+  "pokeapi_id": 711,
+  "pokeapi_version": "v2",
+  "species": "gourgeist",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/711.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/711.png"
+  },
+  "types": [
+    "ghost",
+    "grass"
+  ],
+  "weight_kg": 12.5
+}

@@ -1,0 +1,126 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "hyper-cutter",
+      "name_ko": "괴력집게",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "iron-fist",
+      "name_ko": "철주먹",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "anger-point",
+      "name_ko": "분노의경혈",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 132,
+    "def": 77,
+    "hp": 97,
+    "spa": 62,
+    "spd": 67,
+    "spe": 43
+  },
+  "entity_id": "crabominable",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "avalanche",
+      "brick-break",
+      "bubble-beam",
+      "close-combat",
+      "dynamic-punch",
+      "ice-hammer",
+      "ice-punch",
+      "iron-defense",
+      "leer",
+      "protect",
+      "reversal",
+      "rock-smash",
+      "slam"
+    ],
+    "machine": [
+      "amnesia",
+      "avalanche",
+      "blizzard",
+      "body-press",
+      "body-slam",
+      "brick-break",
+      "bulk-up",
+      "bulldoze",
+      "chilling-water",
+      "close-combat",
+      "coaching",
+      "dig",
+      "drain-punch",
+      "earthquake",
+      "endeavor",
+      "endure",
+      "facade",
+      "fling",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "gunk-shot",
+      "hard-press",
+      "helping-hand",
+      "hyper-beam",
+      "ice-beam",
+      "ice-punch",
+      "ice-spinner",
+      "icy-wind",
+      "iron-defense",
+      "iron-head",
+      "knock-off",
+      "liquidation",
+      "mud-shot",
+      "mud-slap",
+      "protect",
+      "rain-dance",
+      "rest",
+      "reversal",
+      "rock-slide",
+      "rock-tomb",
+      "scary-face",
+      "sleep-talk",
+      "snowscape",
+      "stomping-tantrum",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "thunder-punch",
+      "upper-hand",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "crabominable",
+    "ko": "모단단게"
+  },
+  "pokeapi_id": 740,
+  "pokeapi_version": "v2",
+  "species": "crabominable",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/740.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/740.png"
+  },
+  "types": [
+    "fighting",
+    "ice"
+  ],
+  "weight_kg": 180.0
+}

@@ -1,0 +1,126 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "insomnia",
+      "name_ko": "불면",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "frisk",
+      "name_ko": "통찰",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "cursed-body",
+      "name_ko": "저주받은바디",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 115,
+    "def": 65,
+    "hp": 64,
+    "spa": 83,
+    "spd": 63,
+    "spe": 65
+  },
+  "entity_id": "banette",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "curse",
+      "hex",
+      "knock-off",
+      "night-shade",
+      "phantom-force",
+      "role-play",
+      "screech",
+      "shadow-ball",
+      "shadow-sneak",
+      "spite",
+      "sucker-punch",
+      "trick",
+      "will-o-wisp"
+    ],
+    "machine": [
+      "burning-jealousy",
+      "calm-mind",
+      "charge-beam",
+      "confuse-ray",
+      "curse",
+      "dark-pulse",
+      "dazzling-gleam",
+      "encore",
+      "endure",
+      "facade",
+      "fling",
+      "foul-play",
+      "giga-impact",
+      "gunk-shot",
+      "helping-hand",
+      "hex",
+      "hyper-beam",
+      "icy-wind",
+      "imprison",
+      "knock-off",
+      "lash-out",
+      "metronome",
+      "nasty-plot",
+      "night-shade",
+      "pain-split",
+      "phantom-force",
+      "poltergeist",
+      "pounce",
+      "protect",
+      "psybeam",
+      "psych-up",
+      "psychic",
+      "rain-dance",
+      "rest",
+      "scary-face",
+      "shadow-ball",
+      "shadow-claw",
+      "skill-swap",
+      "skitter-smack",
+      "sleep-talk",
+      "spite",
+      "substitute",
+      "sunny-day",
+      "swords-dance",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "thunder",
+      "thunder-wave",
+      "thunderbolt",
+      "trailblaze",
+      "trick",
+      "trick-room",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "banette",
+    "ko": "다크펫"
+  },
+  "pokeapi_id": 354,
+  "pokeapi_version": "v2",
+  "species": "banette",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/354.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/354.png"
+  },
+  "types": [
+    "ghost"
+  ],
+  "weight_kg": 12.5
+}

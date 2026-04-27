@@ -1,0 +1,126 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "torrent",
+      "name_ko": "급류",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "moxie",
+      "name_ko": "자기과신",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 120,
+    "def": 80,
+    "hp": 85,
+    "spa": 85,
+    "spd": 75,
+    "spe": 85
+  },
+  "entity_id": "quaquaval",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "default",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [
+      "counter"
+    ],
+    "level_up": [
+      "acrobatics",
+      "air-slash",
+      "aqua-cutter",
+      "aqua-jet",
+      "aqua-step",
+      "close-combat",
+      "double-hit",
+      "feather-dance",
+      "focus-energy",
+      "growl",
+      "liquidation",
+      "low-sweep",
+      "mega-kick",
+      "pound",
+      "water-gun",
+      "water-pulse",
+      "wave-crash",
+      "wing-attack",
+      "work-up"
+    ],
+    "machine": [
+      "acrobatics",
+      "aerial-ace",
+      "agility",
+      "air-cutter",
+      "air-slash",
+      "baton-pass",
+      "brave-bird",
+      "brick-break",
+      "bulk-up",
+      "chilling-water",
+      "close-combat",
+      "coaching",
+      "disarming-voice",
+      "encore",
+      "endeavor",
+      "endure",
+      "facade",
+      "feather-dance",
+      "fling",
+      "flip-turn",
+      "giga-impact",
+      "helping-hand",
+      "hurricane",
+      "hydro-cannon",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-spinner",
+      "icy-wind",
+      "knock-off",
+      "liquidation",
+      "low-kick",
+      "low-sweep",
+      "misty-terrain",
+      "protect",
+      "psych-up",
+      "rain-dance",
+      "rest",
+      "reversal",
+      "sleep-talk",
+      "substitute",
+      "surf",
+      "swift",
+      "swords-dance",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "triple-axel",
+      "u-turn",
+      "upper-hand",
+      "water-pledge",
+      "water-pulse",
+      "whirlpool"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "quaquaval",
+    "ko": "웨이니발"
+  },
+  "pokeapi_id": 914,
+  "pokeapi_version": "v2",
+  "species": "quaquaval",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/914.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/914.png"
+  },
+  "types": [
+    "water",
+    "fighting"
+  ],
+  "weight_kg": 61.9
+}

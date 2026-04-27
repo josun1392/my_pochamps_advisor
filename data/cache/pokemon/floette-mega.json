@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "fairy-aura",
+      "name_ko": "페어리오라",
+      "slot": 1
+    }
+  ],
+  "availability": "transfer_only",
+  "base_stats": {
+    "atk": 85,
+    "def": 87,
+    "hp": 74,
+    "spa": 155,
+    "spd": 148,
+    "spe": 102
+  },
+  "entity_id": "floette-mega",
+  "fetched_at": "2026-04-27T11:51:44Z",
+  "form_type": "mega",
+  "height_m": 0.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Floette",
+    "ko": "메가플라엣테"
+  },
+  "pokeapi_id": 10296,
+  "pokeapi_version": "v2",
+  "species": "floette-eternal",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "fairy"
+  ],
+  "weight_kg": 100.8
+}

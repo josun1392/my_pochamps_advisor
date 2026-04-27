@@ -1,0 +1,132 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "inner-focus",
+      "name_ko": "정신력",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "telepathy",
+      "name_ko": "텔레파시",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "symbiosis",
+      "name_ko": "공생",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 60,
+    "def": 80,
+    "hp": 90,
+    "spa": 90,
+    "spd": 110,
+    "spe": 60
+  },
+  "entity_id": "oranguru",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [
+      "dream-eater",
+      "extrasensory",
+      "last-resort",
+      "yawn"
+    ],
+    "level_up": [
+      "after-you",
+      "calm-mind",
+      "confusion",
+      "foul-play",
+      "future-sight",
+      "instruct",
+      "nasty-plot",
+      "psych-up",
+      "psychic",
+      "quash",
+      "stored-power",
+      "taunt",
+      "trick-room",
+      "zen-headbutt"
+    ],
+    "machine": [
+      "body-slam",
+      "brick-break",
+      "bulldoze",
+      "calm-mind",
+      "charge-beam",
+      "chilling-water",
+      "earthquake",
+      "encore",
+      "endeavor",
+      "endure",
+      "energy-ball",
+      "expanding-force",
+      "facade",
+      "fling",
+      "focus-blast",
+      "foul-play",
+      "future-sight",
+      "giga-impact",
+      "gravity",
+      "hyper-beam",
+      "hyper-voice",
+      "imprison",
+      "knock-off",
+      "light-screen",
+      "nasty-plot",
+      "pain-split",
+      "protect",
+      "psybeam",
+      "psych-up",
+      "psychic",
+      "psychic-noise",
+      "psychic-terrain",
+      "psyshock",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "rock-slide",
+      "scary-face",
+      "shadow-ball",
+      "skill-swap",
+      "sleep-talk",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thunder",
+      "thunderbolt",
+      "trailblaze",
+      "trick",
+      "trick-room",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "oranguru",
+    "ko": "하랑우탄"
+  },
+  "pokeapi_id": 765,
+  "pokeapi_version": "v2",
+  "species": "oranguru",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/765.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/765.png"
+  },
+  "types": [
+    "normal",
+    "psychic"
+  ],
+  "weight_kg": 76.0
+}

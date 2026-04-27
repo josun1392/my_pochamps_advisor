@@ -1,0 +1,108 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "water-bubble",
+      "name_ko": "수포",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "water-absorb",
+      "name_ko": "저수",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 70,
+    "def": 92,
+    "hp": 68,
+    "spa": 50,
+    "spd": 132,
+    "spe": 42
+  },
+  "entity_id": "araquanid",
+  "fetched_at": "2026-04-27T11:51:54Z",
+  "form_type": "default",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [
+      "power-split",
+      "spit-up",
+      "sticky-web",
+      "stockpile"
+    ],
+    "level_up": [
+      "aqua-ring",
+      "bite",
+      "bubble-beam",
+      "bug-bite",
+      "crunch",
+      "entrainment",
+      "headbutt",
+      "infestation",
+      "leech-life",
+      "liquidation",
+      "lunge",
+      "mirror-coat",
+      "soak",
+      "water-gun",
+      "wide-guard"
+    ],
+    "machine": [
+      "blizzard",
+      "body-slam",
+      "bug-bite",
+      "bug-buzz",
+      "chilling-water",
+      "crunch",
+      "endeavor",
+      "endure",
+      "facade",
+      "giga-drain",
+      "giga-impact",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-beam",
+      "icy-wind",
+      "iron-defense",
+      "leech-life",
+      "liquidation",
+      "lunge",
+      "poison-jab",
+      "pounce",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "scary-face",
+      "skitter-smack",
+      "sleep-talk",
+      "substitute",
+      "surf",
+      "tera-blast",
+      "trailblaze",
+      "water-pulse",
+      "waterfall",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "araquanid",
+    "ko": "깨비물거미"
+  },
+  "pokeapi_id": 752,
+  "pokeapi_version": "v2",
+  "species": "araquanid",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/752.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/752.png"
+  },
+  "types": [
+    "water",
+    "bug"
+  ],
+  "weight_kg": 82.0
+}

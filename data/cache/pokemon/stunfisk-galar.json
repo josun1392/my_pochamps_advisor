@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "mimicry",
+      "name_ko": "의태",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 81,
+    "def": 99,
+    "hp": 109,
+    "spa": 66,
+    "spd": 84,
+    "spe": 32
+  },
+  "entity_id": "stunfisk-galar",
+  "fetched_at": "2026-04-27T11:51:53Z",
+  "form_type": "form",
+  "height_m": 0.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "stunfisk Galarian Form",
+    "ko": "메더 가라르의 모습"
+  },
+  "pokeapi_id": 10180,
+  "pokeapi_version": "v2",
+  "species": "stunfisk",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10180.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10180.png"
+  },
+  "types": [
+    "ground",
+    "steel"
+  ],
+  "weight_kg": 20.5
+}

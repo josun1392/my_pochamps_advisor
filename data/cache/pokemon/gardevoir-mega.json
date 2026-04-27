@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "pixilate",
+      "name_ko": "페어리스킨",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 85,
+    "def": 65,
+    "hp": 68,
+    "spa": 165,
+    "spd": 135,
+    "spe": 100
+  },
+  "entity_id": "gardevoir-mega",
+  "fetched_at": "2026-04-27T11:51:45Z",
+  "form_type": "mega",
+  "height_m": 1.6,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Gardevoir",
+    "ko": "메가가디안"
+  },
+  "pokeapi_id": 10051,
+  "pokeapi_version": "v2",
+  "species": "gardevoir",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10051.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10051.png"
+  },
+  "types": [
+    "psychic",
+    "fairy"
+  ],
+  "weight_kg": 48.4
+}

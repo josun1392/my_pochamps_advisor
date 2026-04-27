@@ -1,0 +1,118 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "flash-fire",
+      "name_ko": "타오르는불꽃",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "guts",
+      "name_ko": "근성",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 130,
+    "def": 60,
+    "hp": 65,
+    "spa": 95,
+    "spd": 110,
+    "spe": 65
+  },
+  "entity_id": "flareon",
+  "fetched_at": "2026-04-27T11:51:44Z",
+  "form_type": "default",
+  "height_m": 0.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "baby-doll-eyes",
+      "baton-pass",
+      "bite",
+      "charm",
+      "copycat",
+      "covet",
+      "double-edge",
+      "ember",
+      "fire-fang",
+      "fire-spin",
+      "flare-blitz",
+      "growl",
+      "helping-hand",
+      "last-resort",
+      "lava-plume",
+      "quick-attack",
+      "sand-attack",
+      "scary-face",
+      "smog",
+      "swift",
+      "tackle",
+      "tail-whip",
+      "take-down"
+    ],
+    "machine": [
+      "alluring-voice",
+      "baton-pass",
+      "body-slam",
+      "burning-jealousy",
+      "calm-mind",
+      "charm",
+      "curse",
+      "dig",
+      "double-edge",
+      "endeavor",
+      "endure",
+      "facade",
+      "fake-tears",
+      "fire-blast",
+      "fire-fang",
+      "fire-spin",
+      "flamethrower",
+      "flare-blitz",
+      "giga-impact",
+      "heat-wave",
+      "helping-hand",
+      "hyper-beam",
+      "hyper-voice",
+      "mud-slap",
+      "overheat",
+      "protect",
+      "rain-dance",
+      "rest",
+      "roar",
+      "scary-face",
+      "scorching-sands",
+      "shadow-ball",
+      "sleep-talk",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "temper-flare",
+      "tera-blast",
+      "trailblaze",
+      "weather-ball",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "flareon",
+    "ko": "부스터"
+  },
+  "pokeapi_id": 136,
+  "pokeapi_version": "v2",
+  "species": "flareon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/136.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/136.png"
+  },
+  "types": [
+    "fire"
+  ],
+  "weight_kg": 25.0
+}

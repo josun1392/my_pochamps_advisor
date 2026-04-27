@@ -1,0 +1,136 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "swarm",
+      "name_ko": "벌레의알림",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "guts",
+      "name_ko": "근성",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "moxie",
+      "name_ko": "자기과신",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 125,
+    "def": 75,
+    "hp": 80,
+    "spa": 40,
+    "spd": 95,
+    "spe": 85
+  },
+  "entity_id": "heracross",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [
+      "double-edge",
+      "feint",
+      "flail",
+      "harden",
+      "night-slash",
+      "seismic-toss"
+    ],
+    "level_up": [
+      "aerial-ace",
+      "arm-thrust",
+      "brick-break",
+      "close-combat",
+      "counter",
+      "endure",
+      "fury-attack",
+      "horn-attack",
+      "leer",
+      "megahorn",
+      "pin-missile",
+      "swords-dance",
+      "tackle",
+      "thrash",
+      "throat-chop"
+    ],
+    "machine": [
+      "aerial-ace",
+      "body-slam",
+      "brick-break",
+      "bug-bite",
+      "bug-buzz",
+      "bulk-up",
+      "bulldoze",
+      "bullet-seed",
+      "close-combat",
+      "coaching",
+      "curse",
+      "dig",
+      "double-edge",
+      "earthquake",
+      "endeavor",
+      "endure",
+      "facade",
+      "false-swipe",
+      "fling",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "helping-hand",
+      "high-horsepower",
+      "hyper-beam",
+      "iron-defense",
+      "knock-off",
+      "low-kick",
+      "lunge",
+      "pounce",
+      "protect",
+      "rain-dance",
+      "rest",
+      "reversal",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "shadow-claw",
+      "skitter-smack",
+      "sleep-talk",
+      "smack-down",
+      "smart-strike",
+      "spikes",
+      "stone-edge",
+      "struggle-bug",
+      "substitute",
+      "sunny-day",
+      "swords-dance",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "trailblaze",
+      "upper-hand",
+      "vacuum-wave"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "heracross",
+    "ko": "헤라크로스"
+  },
+  "pokeapi_id": 214,
+  "pokeapi_version": "v2",
+  "species": "heracross",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/214.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/214.png"
+  },
+  "types": [
+    "bug",
+    "fighting"
+  ],
+  "weight_kg": 54.0
+}

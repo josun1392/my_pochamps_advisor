@@ -1,0 +1,122 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "overgrow",
+      "name_ko": "심록",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "leaf-guard",
+      "name_ko": "리프가드",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 82,
+    "def": 100,
+    "hp": 80,
+    "spa": 83,
+    "spd": 100,
+    "spe": 80
+  },
+  "entity_id": "meganium",
+  "fetched_at": "2026-04-27T11:51:48Z",
+  "form_type": "default",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [
+      "ancient-power",
+      "counter",
+      "flail",
+      "heal-pulse",
+      "ingrain",
+      "vine-whip"
+    ],
+    "level_up": [
+      "body-slam",
+      "giga-drain",
+      "growl",
+      "leech-seed",
+      "light-screen",
+      "magical-leaf",
+      "petal-blizzard",
+      "petal-dance",
+      "poison-powder",
+      "razor-leaf",
+      "reflect",
+      "safeguard",
+      "solar-beam",
+      "sweet-scent",
+      "synthesis",
+      "tackle"
+    ],
+    "machine": [
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "bullet-seed",
+      "charm",
+      "curse",
+      "double-edge",
+      "dragon-tail",
+      "earthquake",
+      "encore",
+      "endeavor",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fake-tears",
+      "frenzy-plant",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grass-pledge",
+      "grassy-glide",
+      "grassy-terrain",
+      "helping-hand",
+      "hyper-beam",
+      "knock-off",
+      "leaf-storm",
+      "light-screen",
+      "magical-leaf",
+      "mud-slap",
+      "outrage",
+      "petal-blizzard",
+      "protect",
+      "reflect",
+      "rest",
+      "seed-bomb",
+      "sleep-talk",
+      "solar-beam",
+      "solar-blade",
+      "stomping-tantrum",
+      "substitute",
+      "sunny-day",
+      "swords-dance",
+      "take-down",
+      "tera-blast",
+      "trailblaze",
+      "weather-ball",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "meganium",
+    "ko": "메가니움"
+  },
+  "pokeapi_id": 154,
+  "pokeapi_version": "v2",
+  "species": "meganium",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/154.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/154.png"
+  },
+  "types": [
+    "grass"
+  ],
+  "weight_kg": 100.5
+}

@@ -1,0 +1,51 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "swarm",
+      "name_ko": "벌레의알림",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "sniper",
+      "name_ko": "스나이퍼",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 90,
+    "def": 40,
+    "hp": 65,
+    "spa": 45,
+    "spd": 80,
+    "spe": 75
+  },
+  "entity_id": "beedrill",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "beedrill",
+    "ko": "독침붕"
+  },
+  "pokeapi_id": 15,
+  "pokeapi_version": "v2",
+  "species": "beedrill",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/15.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/15.png"
+  },
+  "types": [
+    "bug",
+    "poison"
+  ],
+  "weight_kg": 29.5
+}

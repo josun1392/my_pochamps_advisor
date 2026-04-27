@@ -1,0 +1,126 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "white-smoke",
+      "name_ko": "하얀연기",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "drought",
+      "name_ko": "가뭄",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "shell-armor",
+      "name_ko": "조가비갑옷",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 85,
+    "def": 140,
+    "hp": 70,
+    "spa": 85,
+    "spd": 70,
+    "spe": 20
+  },
+  "entity_id": "torkoal",
+  "fetched_at": "2026-04-27T11:51:53Z",
+  "form_type": "default",
+  "height_m": 0.5,
+  "movepool": {
+    "egg": [
+      "ancient-power",
+      "fissure",
+      "flail",
+      "yawn"
+    ],
+    "level_up": [
+      "amnesia",
+      "body-slam",
+      "clear-smog",
+      "curse",
+      "ember",
+      "eruption",
+      "flame-wheel",
+      "flamethrower",
+      "heat-wave",
+      "inferno",
+      "iron-defense",
+      "lava-plume",
+      "protect",
+      "rapid-spin",
+      "shell-smash",
+      "smog",
+      "smokescreen",
+      "withdraw"
+    ],
+    "machine": [
+      "amnesia",
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "burning-jealousy",
+      "curse",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "endure",
+      "facade",
+      "fire-blast",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "giga-impact",
+      "gyro-ball",
+      "heat-crash",
+      "heat-wave",
+      "heavy-slam",
+      "helping-hand",
+      "hyper-beam",
+      "iron-defense",
+      "overheat",
+      "protect",
+      "rest",
+      "rock-slide",
+      "rock-tomb",
+      "sandstorm",
+      "scorching-sands",
+      "sleep-talk",
+      "sludge-bomb",
+      "solar-beam",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "temper-flare",
+      "tera-blast",
+      "weather-ball",
+      "will-o-wisp",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "torkoal",
+    "ko": "코터스"
+  },
+  "pokeapi_id": 324,
+  "pokeapi_version": "v2",
+  "species": "torkoal",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/324.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/324.png"
+  },
+  "types": [
+    "fire"
+  ],
+  "weight_kg": 80.4
+}

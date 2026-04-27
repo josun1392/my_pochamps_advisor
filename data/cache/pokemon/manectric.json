@@ -1,0 +1,56 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "static",
+      "name_ko": "정전기",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "lightning-rod",
+      "name_ko": "피뢰침",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "minus",
+      "name_ko": "마이너스",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 75,
+    "def": 60,
+    "hp": 70,
+    "spa": 105,
+    "spd": 60,
+    "spe": 105
+  },
+  "entity_id": "manectric",
+  "fetched_at": "2026-04-27T11:52:02Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "manectric",
+    "ko": "썬더볼트"
+  },
+  "pokeapi_id": 310,
+  "pokeapi_version": "v2",
+  "species": "manectric",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/310.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/310.png"
+  },
+  "types": [
+    "electric"
+  ],
+  "weight_kg": 40.2
+}

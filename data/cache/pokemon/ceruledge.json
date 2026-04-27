@@ -1,0 +1,120 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "flash-fire",
+      "name_ko": "타오르는불꽃",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "weak-armor",
+      "name_ko": "깨어진갑옷",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 125,
+    "def": 80,
+    "hp": 75,
+    "spa": 60,
+    "spd": 100,
+    "spe": 85
+  },
+  "entity_id": "ceruledge",
+  "fetched_at": "2026-04-27T11:51:56Z",
+  "form_type": "default",
+  "height_m": 1.6,
+  "movepool": {
+    "egg": [
+      "night-slash",
+      "quick-guard",
+      "shadow-sneak",
+      "solar-blade"
+    ],
+    "level_up": [
+      "ally-switch",
+      "astonish",
+      "bitter-blade",
+      "clear-smog",
+      "ember",
+      "fire-spin",
+      "flame-charge",
+      "flare-blitz",
+      "incinerate",
+      "lava-plume",
+      "leer",
+      "night-shade",
+      "psycho-cut",
+      "shadow-claw",
+      "swords-dance",
+      "will-o-wisp"
+    ],
+    "machine": [
+      "brick-break",
+      "bulk-up",
+      "close-combat",
+      "confuse-ray",
+      "curse",
+      "dragon-claw",
+      "endure",
+      "facade",
+      "false-swipe",
+      "fire-blast",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "fling",
+      "heat-wave",
+      "helping-hand",
+      "hex",
+      "iron-defense",
+      "iron-head",
+      "light-screen",
+      "night-shade",
+      "overheat",
+      "phantom-force",
+      "poison-jab",
+      "poltergeist",
+      "protect",
+      "psych-up",
+      "reflect",
+      "rest",
+      "shadow-ball",
+      "shadow-claw",
+      "sleep-talk",
+      "solar-blade",
+      "spite",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swords-dance",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "throat-chop",
+      "vacuum-wave",
+      "will-o-wisp",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "ceruledge",
+    "ko": "파라블레이즈"
+  },
+  "pokeapi_id": 937,
+  "pokeapi_version": "v2",
+  "species": "ceruledge",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/937.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/937.png"
+  },
+  "types": [
+    "fire",
+    "ghost"
+  ],
+  "weight_kg": 62.0
+}

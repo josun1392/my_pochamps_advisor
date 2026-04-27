@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "mold-breaker",
+      "name_ko": "틀깨기",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 95,
+    "def": 105,
+    "hp": 90,
+    "spa": 165,
+    "spd": 110,
+    "spe": 45
+  },
+  "entity_id": "ampharos-mega",
+  "fetched_at": "2026-04-27T11:51:39Z",
+  "form_type": "mega",
+  "height_m": 1.4,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Ampharos",
+    "ko": "메가전룡"
+  },
+  "pokeapi_id": 10045,
+  "pokeapi_version": "v2",
+  "species": "ampharos",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10045.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10045.png"
+  },
+  "types": [
+    "electric",
+    "dragon"
+  ],
+  "weight_kg": 61.5
+}

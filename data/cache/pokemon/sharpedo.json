@@ -1,0 +1,51 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "rough-skin",
+      "name_ko": "까칠한피부",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "speed-boost",
+      "name_ko": "가속",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 120,
+    "def": 40,
+    "hp": 70,
+    "spa": 95,
+    "spd": 40,
+    "spe": 95
+  },
+  "entity_id": "sharpedo",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "sharpedo",
+    "ko": "샤크니아"
+  },
+  "pokeapi_id": 319,
+  "pokeapi_version": "v2",
+  "species": "sharpedo",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/319.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/319.png"
+  },
+  "types": [
+    "water",
+    "dark"
+  ],
+  "weight_kg": 88.8
+}

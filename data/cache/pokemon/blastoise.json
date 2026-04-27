@@ -1,0 +1,130 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "torrent",
+      "name_ko": "급류",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "rain-dish",
+      "name_ko": "젖은접시",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 83,
+    "def": 100,
+    "hp": 79,
+    "spa": 85,
+    "spd": 105,
+    "spe": 78
+  },
+  "entity_id": "blastoise",
+  "fetched_at": "2026-04-27T11:51:56Z",
+  "form_type": "default",
+  "height_m": 1.6,
+  "movepool": {
+    "egg": [
+      "aqua-jet",
+      "aqua-ring",
+      "fake-out",
+      "flail",
+      "life-dew",
+      "mirror-coat",
+      "mist",
+      "water-spout",
+      "yawn"
+    ],
+    "level_up": [
+      "aqua-tail",
+      "bite",
+      "flash-cannon",
+      "hydro-pump",
+      "iron-defense",
+      "protect",
+      "rain-dance",
+      "rapid-spin",
+      "shell-smash",
+      "tackle",
+      "tail-whip",
+      "water-gun",
+      "water-pulse",
+      "wave-crash",
+      "withdraw"
+    ],
+    "machine": [
+      "aura-sphere",
+      "avalanche",
+      "blizzard",
+      "body-press",
+      "body-slam",
+      "brick-break",
+      "chilling-water",
+      "crunch",
+      "dark-pulse",
+      "dig",
+      "double-edge",
+      "dragon-pulse",
+      "earthquake",
+      "endure",
+      "facade",
+      "flash-cannon",
+      "fling",
+      "flip-turn",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "gyro-ball",
+      "haze",
+      "helping-hand",
+      "hydro-cannon",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-beam",
+      "ice-punch",
+      "ice-spinner",
+      "icy-wind",
+      "iron-defense",
+      "liquidation",
+      "mud-shot",
+      "muddy-water",
+      "protect",
+      "rain-dance",
+      "rest",
+      "roar",
+      "rock-slide",
+      "rock-tomb",
+      "scary-face",
+      "sleep-talk",
+      "smack-down",
+      "substitute",
+      "surf",
+      "take-down",
+      "tera-blast",
+      "water-pledge",
+      "water-pulse",
+      "weather-ball",
+      "whirlpool",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "blastoise",
+    "ko": "거북왕"
+  },
+  "pokeapi_id": 9,
+  "pokeapi_version": "v2",
+  "species": "blastoise",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/9.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/9.png"
+  },
+  "types": [
+    "water"
+  ],
+  "weight_kg": 85.5
+}

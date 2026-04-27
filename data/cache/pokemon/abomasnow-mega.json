@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "snow-warning",
+      "name_ko": "눈퍼뜨리기",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 132,
+    "def": 105,
+    "hp": 90,
+    "spa": 132,
+    "spd": 105,
+    "spe": 30
+  },
+  "entity_id": "abomasnow-mega",
+  "fetched_at": "2026-04-27T11:51:38Z",
+  "form_type": "mega",
+  "height_m": 2.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Abomasnow",
+    "ko": "메가눈설왕"
+  },
+  "pokeapi_id": 10060,
+  "pokeapi_version": "v2",
+  "species": "abomasnow",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10060.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10060.png"
+  },
+  "types": [
+    "grass",
+    "ice"
+  ],
+  "weight_kg": 185.0
+}

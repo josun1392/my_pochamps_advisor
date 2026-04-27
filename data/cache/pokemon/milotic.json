@@ -1,0 +1,133 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "marvel-scale",
+      "name_ko": "이상한비늘",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "competitive",
+      "name_ko": "승기",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "cute-charm",
+      "name_ko": "헤롱헤롱바디",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 60,
+    "def": 79,
+    "hp": 95,
+    "spa": 100,
+    "spd": 125,
+    "spe": 81
+  },
+  "entity_id": "milotic",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "default",
+  "height_m": 6.2,
+  "movepool": {
+    "egg": [
+      "confuse-ray",
+      "dragon-breath",
+      "haze",
+      "hypnosis",
+      "mirror-coat",
+      "mist",
+      "tickle"
+    ],
+    "level_up": [
+      "aqua-ring",
+      "aqua-tail",
+      "attract",
+      "coil",
+      "disarming-voice",
+      "dragon-tail",
+      "flail",
+      "hydro-pump",
+      "life-dew",
+      "rain-dance",
+      "recover",
+      "safeguard",
+      "splash",
+      "surf",
+      "tackle",
+      "twister",
+      "water-gun",
+      "water-pulse",
+      "wrap"
+    ],
+    "machine": [
+      "alluring-voice",
+      "avalanche",
+      "blizzard",
+      "body-slam",
+      "breaking-swipe",
+      "bulldoze",
+      "chilling-water",
+      "confuse-ray",
+      "disarming-voice",
+      "double-edge",
+      "dragon-cheer",
+      "dragon-dance",
+      "dragon-pulse",
+      "dragon-tail",
+      "draining-kiss",
+      "endure",
+      "facade",
+      "flip-turn",
+      "giga-impact",
+      "haze",
+      "helping-hand",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-beam",
+      "icy-wind",
+      "imprison",
+      "iron-head",
+      "light-screen",
+      "mud-shot",
+      "muddy-water",
+      "protect",
+      "psych-up",
+      "rain-dance",
+      "rest",
+      "scald",
+      "scale-shot",
+      "skitter-smack",
+      "sleep-talk",
+      "substitute",
+      "surf",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "triple-axel",
+      "water-pulse",
+      "waterfall",
+      "weather-ball",
+      "whirlpool"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "milotic",
+    "ko": "밀로틱"
+  },
+  "pokeapi_id": 350,
+  "pokeapi_version": "v2",
+  "species": "milotic",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/350.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/350.png"
+  },
+  "types": [
+    "water"
+  ],
+  "weight_kg": 162.0
+}

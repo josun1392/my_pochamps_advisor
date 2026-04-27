@@ -1,0 +1,140 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "limber",
+      "name_ko": "유연",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "unburden",
+      "name_ko": "곡예",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "mold-breaker",
+      "name_ko": "틀깨기",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 92,
+    "def": 75,
+    "hp": 78,
+    "spa": 74,
+    "spd": 63,
+    "spe": 118
+  },
+  "entity_id": "hawlucha",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 0.8,
+  "movepool": {
+    "egg": [
+      "cross-chop",
+      "defog",
+      "entrainment",
+      "feint",
+      "mean-look",
+      "quick-guard"
+    ],
+    "level_up": [
+      "aerial-ace",
+      "bounce",
+      "brick-break",
+      "detect",
+      "encore",
+      "endeavor",
+      "feather-dance",
+      "flying-press",
+      "high-jump-kick",
+      "hone-claws",
+      "roost",
+      "sky-attack",
+      "swords-dance",
+      "tackle",
+      "taunt",
+      "wing-attack"
+    ],
+    "machine": [
+      "acrobatics",
+      "aerial-ace",
+      "agility",
+      "baton-pass",
+      "body-press",
+      "body-slam",
+      "brave-bird",
+      "brick-break",
+      "bulk-up",
+      "close-combat",
+      "coaching",
+      "dig",
+      "drain-punch",
+      "dual-wingbeat",
+      "encore",
+      "endeavor",
+      "endure",
+      "facade",
+      "false-swipe",
+      "feather-dance",
+      "fire-punch",
+      "fling",
+      "fly",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "grass-knot",
+      "helping-hand",
+      "hyper-beam",
+      "iron-head",
+      "low-kick",
+      "low-sweep",
+      "lunge",
+      "poison-jab",
+      "protect",
+      "rain-dance",
+      "rest",
+      "reversal",
+      "rock-slide",
+      "rock-tomb",
+      "sleep-talk",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "thunder-punch",
+      "trailblaze",
+      "u-turn",
+      "upper-hand",
+      "uproar",
+      "x-scissor",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "hawlucha",
+    "ko": "루차불"
+  },
+  "pokeapi_id": 701,
+  "pokeapi_version": "v2",
+  "species": "hawlucha",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/701.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/701.png"
+  },
+  "types": [
+    "fighting",
+    "flying"
+  ],
+  "weight_kg": 21.5
+}

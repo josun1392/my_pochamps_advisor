@@ -1,0 +1,131 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "intimidate",
+      "name_ko": "위협",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "frisk",
+      "name_ko": "통찰",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sap-sipper",
+      "name_ko": "초식",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 105,
+    "def": 72,
+    "hp": 103,
+    "spa": 105,
+    "spd": 75,
+    "spe": 65
+  },
+  "entity_id": "wyrdeer",
+  "fetched_at": "2026-04-27T11:51:54Z",
+  "form_type": "default",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "astonish",
+      "calm-mind",
+      "confuse-ray",
+      "double-edge",
+      "hypnosis",
+      "imprison",
+      "leer",
+      "megahorn",
+      "psyshield-bash",
+      "role-play",
+      "sand-attack",
+      "stomp",
+      "tackle",
+      "take-down",
+      "zen-headbutt"
+    ],
+    "machine": [
+      "agility",
+      "body-slam",
+      "bulldoze",
+      "calm-mind",
+      "charge-beam",
+      "confuse-ray",
+      "curse",
+      "dig",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "endure",
+      "energy-ball",
+      "expanding-force",
+      "facade",
+      "future-sight",
+      "giga-impact",
+      "gravity",
+      "helping-hand",
+      "high-horsepower",
+      "hyper-beam",
+      "imprison",
+      "light-screen",
+      "lunge",
+      "protect",
+      "psybeam",
+      "psych-up",
+      "psychic",
+      "psychic-noise",
+      "psyshock",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "roar",
+      "scary-face",
+      "shadow-ball",
+      "skill-swap",
+      "sleep-talk",
+      "solar-beam",
+      "spite",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "thunder",
+      "thunder-wave",
+      "thunderbolt",
+      "trailblaze",
+      "trick",
+      "trick-room",
+      "uproar",
+      "wild-charge",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "wyrdeer",
+    "ko": "신비록"
+  },
+  "pokeapi_id": 899,
+  "pokeapi_version": "v2",
+  "species": "wyrdeer",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/899.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/899.png"
+  },
+  "types": [
+    "normal",
+    "psychic"
+  ],
+  "weight_kg": 95.1
+}

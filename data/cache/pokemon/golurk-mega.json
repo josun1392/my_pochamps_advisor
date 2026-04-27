@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "unseen-fist",
+      "name_ko": "보이지않는주먹",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 159,
+    "def": 105,
+    "hp": 89,
+    "spa": 70,
+    "spd": 105,
+    "spe": 55
+  },
+  "entity_id": "golurk-mega",
+  "fetched_at": "2026-04-27T11:51:45Z",
+  "form_type": "mega",
+  "height_m": 4.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Golurk",
+    "ko": "메가골루그"
+  },
+  "pokeapi_id": 10313,
+  "pokeapi_version": "v2",
+  "species": "golurk",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "ground",
+    "ghost"
+  ],
+  "weight_kg": 330.0
+}

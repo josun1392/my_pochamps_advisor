@@ -1,0 +1,99 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "levitate",
+      "name_ko": "부유",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 65,
+    "def": 107,
+    "hp": 50,
+    "spa": 105,
+    "spd": 107,
+    "spe": 86
+  },
+  "entity_id": "rotom-mow",
+  "fetched_at": "2026-04-27T11:51:50Z",
+  "form_type": "form",
+  "height_m": 0.3,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "astonish",
+      "charge",
+      "confuse-ray",
+      "discharge",
+      "double-team",
+      "electro-ball",
+      "hex",
+      "shock-wave",
+      "substitute",
+      "thunder-shock",
+      "thunder-wave",
+      "trick",
+      "uproar"
+    ],
+    "machine": [
+      "charge",
+      "charge-beam",
+      "confuse-ray",
+      "dark-pulse",
+      "eerie-impulse",
+      "electric-terrain",
+      "electro-ball",
+      "electroweb",
+      "endure",
+      "facade",
+      "foul-play",
+      "helping-hand",
+      "hex",
+      "hyper-voice",
+      "light-screen",
+      "nasty-plot",
+      "night-shade",
+      "pain-split",
+      "poltergeist",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "shadow-ball",
+      "sleep-talk",
+      "spite",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "tera-blast",
+      "thief",
+      "thunder",
+      "thunder-wave",
+      "thunderbolt",
+      "trick",
+      "uproar",
+      "volt-switch",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "rotom Mow Rotom",
+    "ko": "로토무 Mow Rotom"
+  },
+  "pokeapi_id": 10012,
+  "pokeapi_version": "v2",
+  "species": "rotom",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10012.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10012.png"
+  },
+  "types": [
+    "electric",
+    "grass"
+  ],
+  "weight_kg": 0.3
+}

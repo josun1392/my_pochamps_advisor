@@ -1,0 +1,18 @@
+{
+  "cached_entities": 276,
+  "failures": 0,
+  "generated_at": "2026-04-27T11:52:46Z",
+  "pokeapi_version": "v2",
+  "skipped_entities": 276,
+  "source": {
+    "roster_counts": {
+      "form_variants": 75,
+      "mega_evolutions": 59,
+      "species": 187,
+      "total_battle_entities": 321
+    },
+    "roster_version": "Regular Roster M-A",
+    "valid_until": "2026-06-16"
+  },
+  "target_entities": 276
+}

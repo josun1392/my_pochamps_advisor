@@ -22,6 +22,9 @@ htmlcov/
 
 # Runtime data cache
 data/cache/*
+!data/cache/_meta.json
+!data/cache/pokemon/
+!data/cache/pokemon/**
 !data/cache/pokeapi/
 data/cache/pokeapi/*
 !data/cache/pokeapi/.gitkeep

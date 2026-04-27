@@ -1,0 +1,114 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "mold-breaker",
+      "name_ko": "틀깨기",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "own-tempo",
+      "name_ko": "마이페이스",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "pickpocket",
+      "name_ko": "나쁜손버릇",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 75,
+    "def": 77,
+    "hp": 85,
+    "spa": 70,
+    "spd": 105,
+    "spe": 94
+  },
+  "entity_id": "tinkaton",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 0.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "astonish",
+      "baby-doll-eyes",
+      "brutal-swing",
+      "covet",
+      "draining-kiss",
+      "fairy-wind",
+      "fake-out",
+      "flash-cannon",
+      "flatter",
+      "gigaton-hammer",
+      "knock-off",
+      "metal-claw",
+      "play-rough",
+      "rock-smash",
+      "skitter-smack",
+      "slam",
+      "sweet-kiss"
+    ],
+    "machine": [
+      "brick-break",
+      "bulldoze",
+      "draining-kiss",
+      "encore",
+      "endeavor",
+      "endure",
+      "facade",
+      "fake-tears",
+      "flash-cannon",
+      "fling",
+      "foul-play",
+      "hard-press",
+      "heavy-slam",
+      "helping-hand",
+      "knock-off",
+      "light-screen",
+      "metal-claw",
+      "metal-sound",
+      "metronome",
+      "play-rough",
+      "pounce",
+      "protect",
+      "reflect",
+      "rest",
+      "rock-slide",
+      "rock-tomb",
+      "skill-swap",
+      "skitter-smack",
+      "sleep-talk",
+      "smack-down",
+      "stealth-rock",
+      "steel-beam",
+      "stone-edge",
+      "substitute",
+      "swords-dance",
+      "tera-blast",
+      "thief",
+      "thunder-wave"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "tinkaton",
+    "ko": "두드리짱"
+  },
+  "pokeapi_id": 959,
+  "pokeapi_version": "v2",
+  "species": "tinkaton",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/959.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/959.png"
+  },
+  "types": [
+    "fairy",
+    "steel"
+  ],
+  "weight_kg": 112.8
+}

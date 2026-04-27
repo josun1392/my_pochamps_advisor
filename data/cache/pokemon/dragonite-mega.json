@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "multiscale",
+      "name_ko": "멀티스케일",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 124,
+    "def": 115,
+    "hp": 91,
+    "spa": 145,
+    "spd": 125,
+    "spe": 100
+  },
+  "entity_id": "dragonite-mega",
+  "fetched_at": "2026-04-27T11:51:43Z",
+  "form_type": "mega",
+  "height_m": 2.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Dragonite",
+    "ko": "메가망나뇽"
+  },
+  "pokeapi_id": 10281,
+  "pokeapi_version": "v2",
+  "species": "dragonite",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10281.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10281.png"
+  },
+  "types": [
+    "dragon",
+    "flying"
+  ],
+  "weight_kg": 290.0
+}

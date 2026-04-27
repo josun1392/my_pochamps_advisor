@@ -1,0 +1,128 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "early-bird",
+      "name_ko": "일찍기상",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "flash-fire",
+      "name_ko": "타오르는불꽃",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "unnerve",
+      "name_ko": "긴장감",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 90,
+    "def": 50,
+    "hp": 75,
+    "spa": 110,
+    "spd": 80,
+    "spe": 95
+  },
+  "entity_id": "houndoom",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 1.4,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "beat-up",
+      "bite",
+      "comeuppance",
+      "crunch",
+      "ember",
+      "fire-fang",
+      "flamethrower",
+      "foul-play",
+      "howl",
+      "incinerate",
+      "inferno",
+      "leer",
+      "nasty-plot",
+      "roar",
+      "smog",
+      "thunder-fang",
+      "torment"
+    ],
+    "machine": [
+      "body-slam",
+      "burning-jealousy",
+      "crunch",
+      "dark-pulse",
+      "double-edge",
+      "endeavor",
+      "endure",
+      "facade",
+      "fire-blast",
+      "fire-fang",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "foul-play",
+      "giga-impact",
+      "heat-wave",
+      "helping-hand",
+      "hyper-beam",
+      "hyper-voice",
+      "lash-out",
+      "mud-shot",
+      "mud-slap",
+      "nasty-plot",
+      "overheat",
+      "pain-split",
+      "protect",
+      "psychic-fangs",
+      "rain-dance",
+      "rest",
+      "reversal",
+      "roar",
+      "scary-face",
+      "shadow-ball",
+      "sleep-talk",
+      "sludge-bomb",
+      "snarl",
+      "solar-beam",
+      "spite",
+      "substitute",
+      "sunny-day",
+      "super-fang",
+      "take-down",
+      "taunt",
+      "temper-flare",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "thunder-fang",
+      "toxic",
+      "trailblaze",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "houndoom",
+    "ko": "헬가"
+  },
+  "pokeapi_id": 229,
+  "pokeapi_version": "v2",
+  "species": "houndoom",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/229.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/229.png"
+  },
+  "types": [
+    "dark",
+    "fire"
+  ],
+  "weight_kg": 35.0
+}

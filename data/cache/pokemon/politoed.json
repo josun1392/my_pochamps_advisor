@@ -1,0 +1,128 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "water-absorb",
+      "name_ko": "저수",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "damp",
+      "name_ko": "습기",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "drizzle",
+      "name_ko": "잔비",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 75,
+    "def": 75,
+    "hp": 90,
+    "spa": 90,
+    "spd": 100,
+    "spe": 70
+  },
+  "entity_id": "politoed",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "default",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [
+      "body-slam",
+      "bubble-beam",
+      "double-edge",
+      "earth-power",
+      "endeavor",
+      "hyper-voice",
+      "hypnosis",
+      "mist",
+      "mud-shot",
+      "muddy-water",
+      "perish-song",
+      "splash",
+      "swagger",
+      "water-gun",
+      "water-pulse"
+    ],
+    "level_up": [
+      "belly-drum",
+      "bounce",
+      "hydro-pump",
+      "pound",
+      "rain-dance"
+    ],
+    "machine": [
+      "amnesia",
+      "blizzard",
+      "body-slam",
+      "brick-break",
+      "bulldoze",
+      "chilling-water",
+      "dig",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "encore",
+      "endeavor",
+      "endure",
+      "facade",
+      "fling",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "haze",
+      "helping-hand",
+      "hydro-pump",
+      "hyper-beam",
+      "hyper-voice",
+      "ice-beam",
+      "ice-punch",
+      "icy-wind",
+      "liquidation",
+      "low-kick",
+      "low-sweep",
+      "metronome",
+      "mud-shot",
+      "mud-slap",
+      "muddy-water",
+      "protect",
+      "psych-up",
+      "psychic",
+      "rain-dance",
+      "rest",
+      "sleep-talk",
+      "substitute",
+      "surf",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "water-pulse",
+      "waterfall",
+      "weather-ball",
+      "whirlpool"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "politoed",
+    "ko": "왕구리"
+  },
+  "pokeapi_id": 186,
+  "pokeapi_version": "v2",
+  "species": "politoed",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/186.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/186.png"
+  },
+  "types": [
+    "water"
+  ],
+  "weight_kg": 33.9
+}

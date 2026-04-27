@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "mold-breaker",
+      "name_ko": "틀깨기",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 148,
+    "def": 75,
+    "hp": 110,
+    "spa": 110,
+    "spd": 110,
+    "spe": 75
+  },
+  "entity_id": "emboar-mega",
+  "fetched_at": "2026-04-27T11:51:43Z",
+  "form_type": "mega",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Emboar",
+    "ko": "메가염무왕"
+  },
+  "pokeapi_id": 10286,
+  "pokeapi_version": "v2",
+  "species": "emboar",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "fire",
+    "fighting"
+  ],
+  "weight_kg": 180.3
+}

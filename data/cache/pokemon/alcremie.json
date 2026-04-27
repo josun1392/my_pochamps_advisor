@@ -1,0 +1,104 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sweet-veil",
+      "name_ko": "스위트베일",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "aroma-veil",
+      "name_ko": "아로마베일",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 60,
+    "def": 75,
+    "hp": 65,
+    "spa": 110,
+    "spd": 121,
+    "spe": 64
+  },
+  "entity_id": "alcremie",
+  "fetched_at": "2026-04-27T11:51:54Z",
+  "form_type": "default",
+  "height_m": 0.3,
+  "movepool": {
+    "egg": [
+      "baby-doll-eyes",
+      "last-resort"
+    ],
+    "level_up": [
+      "acid-armor",
+      "aromatic-mist",
+      "attract",
+      "charm",
+      "dazzling-gleam",
+      "decorate",
+      "draining-kiss",
+      "entrainment",
+      "misty-terrain",
+      "recover",
+      "sweet-kiss",
+      "sweet-scent",
+      "tackle"
+    ],
+    "machine": [
+      "alluring-voice",
+      "calm-mind",
+      "charm",
+      "dazzling-gleam",
+      "disarming-voice",
+      "drain-punch",
+      "draining-kiss",
+      "encore",
+      "endeavor",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fake-tears",
+      "fling",
+      "giga-drain",
+      "giga-impact",
+      "helping-hand",
+      "hyper-beam",
+      "imprison",
+      "light-screen",
+      "magical-leaf",
+      "metronome",
+      "misty-explosion",
+      "misty-terrain",
+      "pain-split",
+      "play-rough",
+      "protect",
+      "psych-up",
+      "psychic",
+      "psyshock",
+      "rest",
+      "sleep-talk",
+      "solar-beam",
+      "stored-power",
+      "substitute",
+      "tera-blast"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "alcremie",
+    "ko": "마휘핑"
+  },
+  "pokeapi_id": 869,
+  "pokeapi_version": "v2",
+  "species": "alcremie",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/869.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/869.png"
+  },
+  "types": [
+    "fairy"
+  ],
+  "weight_kg": 0.5
+}

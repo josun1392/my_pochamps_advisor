@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "trace",
+      "name_ko": "트레이스",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 48,
+    "def": 76,
+    "hp": 74,
+    "spa": 143,
+    "spd": 101,
+    "spe": 124
+  },
+  "entity_id": "meowstic-mega",
+  "fetched_at": "2026-04-27T11:51:48Z",
+  "form_type": "mega",
+  "height_m": 0.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Meowstic",
+    "ko": "메가냐오닉스"
+  },
+  "pokeapi_id": 10314,
+  "pokeapi_version": "v2",
+  "species": "meowstic",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "psychic"
+  ],
+  "weight_kg": 10.1
+}

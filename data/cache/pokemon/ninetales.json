@@ -1,0 +1,115 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "flash-fire",
+      "name_ko": "타오르는불꽃",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "drought",
+      "name_ko": "가뭄",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 76,
+    "def": 75,
+    "hp": 73,
+    "spa": 81,
+    "spd": 100,
+    "spe": 100
+  },
+  "entity_id": "ninetales",
+  "fetched_at": "2026-04-27T11:51:48Z",
+  "form_type": "default",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [
+      "baby-doll-eyes",
+      "flail",
+      "flame-charge",
+      "healing-wish",
+      "howl",
+      "hypnosis",
+      "memento",
+      "roar"
+    ],
+    "level_up": [
+      "flamethrower",
+      "quick-attack",
+      "tail-whip"
+    ],
+    "machine": [
+      "agility",
+      "baton-pass",
+      "body-slam",
+      "burning-jealousy",
+      "calm-mind",
+      "charm",
+      "confuse-ray",
+      "dark-pulse",
+      "dig",
+      "double-edge",
+      "encore",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fake-tears",
+      "fire-blast",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "foul-play",
+      "giga-impact",
+      "heat-wave",
+      "helping-hand",
+      "hex",
+      "hyper-beam",
+      "imprison",
+      "nasty-plot",
+      "night-shade",
+      "overheat",
+      "pain-split",
+      "protect",
+      "psych-up",
+      "psyshock",
+      "rest",
+      "roar",
+      "scorching-sands",
+      "shadow-ball",
+      "sleep-talk",
+      "snarl",
+      "solar-beam",
+      "spite",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "weather-ball",
+      "will-o-wisp",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "ninetales",
+    "ko": "나인테일"
+  },
+  "pokeapi_id": 38,
+  "pokeapi_version": "v2",
+  "species": "ninetales",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/38.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/38.png"
+  },
+  "types": [
+    "fire"
+  ],
+  "weight_kg": 19.9
+}

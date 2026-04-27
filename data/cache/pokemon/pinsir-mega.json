@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "aerilate",
+      "name_ko": "스카이스킨",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 155,
+    "def": 120,
+    "hp": 65,
+    "spa": 65,
+    "spd": 90,
+    "spe": 105
+  },
+  "entity_id": "pinsir-mega",
+  "fetched_at": "2026-04-27T11:51:49Z",
+  "form_type": "mega",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Pinsir",
+    "ko": "메가쁘사이저"
+  },
+  "pokeapi_id": 10040,
+  "pokeapi_version": "v2",
+  "species": "pinsir",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10040.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10040.png"
+  },
+  "types": [
+    "bug",
+    "flying"
+  ],
+  "weight_kg": 59.0
+}

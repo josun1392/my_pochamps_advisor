@@ -1,0 +1,120 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "ripen",
+      "name_ko": "숙성",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "gluttony",
+      "name_ko": "먹보",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "thick-fat",
+      "name_ko": "두꺼운지방",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 85,
+    "def": 80,
+    "hp": 110,
+    "spa": 100,
+    "spd": 80,
+    "spe": 30
+  },
+  "entity_id": "appletun",
+  "fetched_at": "2026-04-27T11:51:54Z",
+  "form_type": "default",
+  "height_m": 0.4,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "apple-acid",
+      "astonish",
+      "body-slam",
+      "bullet-seed",
+      "curse",
+      "dragon-pulse",
+      "energy-ball",
+      "growth",
+      "headbutt",
+      "iron-defense",
+      "leech-seed",
+      "protect",
+      "recover",
+      "recycle",
+      "stomp",
+      "sweet-scent",
+      "withdraw"
+    ],
+    "machine": [
+      "amnesia",
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "bullet-seed",
+      "curse",
+      "draco-meteor",
+      "dragon-pulse",
+      "dragon-tail",
+      "earthquake",
+      "endure",
+      "energy-ball",
+      "facade",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-glide",
+      "grassy-terrain",
+      "gyro-ball",
+      "heavy-slam",
+      "helping-hand",
+      "high-horsepower",
+      "hyper-beam",
+      "iron-defense",
+      "iron-head",
+      "leaf-storm",
+      "light-screen",
+      "magical-leaf",
+      "outrage",
+      "pounce",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "seed-bomb",
+      "sleep-talk",
+      "solar-beam",
+      "stomping-tantrum",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "tera-blast",
+      "trailblaze",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "appletun",
+    "ko": "단지래플"
+  },
+  "pokeapi_id": 842,
+  "pokeapi_version": "v2",
+  "species": "appletun",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/842.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/842.png"
+  },
+  "types": [
+    "grass",
+    "dragon"
+  ],
+  "weight_kg": 13.0
+}

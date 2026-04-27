@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "intimidate",
+      "name_ko": "위협",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 75,
+    "def": 80,
+    "hp": 70,
+    "spa": 135,
+    "spd": 80,
+    "spe": 135
+  },
+  "entity_id": "manectric-mega",
+  "fetched_at": "2026-04-27T11:51:48Z",
+  "form_type": "mega",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Manectric",
+    "ko": "메가썬더볼트"
+  },
+  "pokeapi_id": 10055,
+  "pokeapi_version": "v2",
+  "species": "manectric",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10055.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10055.png"
+  },
+  "types": [
+    "electric"
+  ],
+  "weight_kg": 44.0
+}

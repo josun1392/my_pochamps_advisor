@@ -1,0 +1,56 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "ice-body",
+      "name_ko": "아이스바디",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "snow-warning",
+      "name_ko": "눈퍼뜨리기",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "weak-armor",
+      "name_ko": "깨어진갑옷",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 95,
+    "def": 85,
+    "hp": 71,
+    "spa": 110,
+    "spd": 95,
+    "spe": 79
+  },
+  "entity_id": "vanilluxe",
+  "fetched_at": "2026-04-27T11:51:54Z",
+  "form_type": "default",
+  "height_m": 1.3,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "vanilluxe",
+    "ko": "배바닐라"
+  },
+  "pokeapi_id": 584,
+  "pokeapi_version": "v2",
+  "species": "vanilluxe",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/584.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/584.png"
+  },
+  "types": [
+    "ice"
+  ],
+  "weight_kg": 57.5
+}

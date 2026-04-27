@@ -1,0 +1,124 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sand-rush",
+      "name_ko": "모래헤치기",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "sand-force",
+      "name_ko": "모래의힘",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "mold-breaker",
+      "name_ko": "틀깨기",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 135,
+    "def": 60,
+    "hp": 110,
+    "spa": 50,
+    "spd": 65,
+    "spe": 88
+  },
+  "entity_id": "excadrill",
+  "fetched_at": "2026-04-27T11:51:56Z",
+  "form_type": "default",
+  "height_m": 0.7,
+  "movepool": {
+    "egg": [
+      "metal-sound",
+      "slash"
+    ],
+    "level_up": [
+      "crush-claw",
+      "dig",
+      "drill-run",
+      "earthquake",
+      "fissure",
+      "fury-swipes",
+      "hone-claws",
+      "horn-drill",
+      "metal-claw",
+      "mud-slap",
+      "rapid-spin",
+      "rock-slide",
+      "sandstorm",
+      "scratch",
+      "swords-dance"
+    ],
+    "machine": [
+      "aerial-ace",
+      "body-slam",
+      "brick-break",
+      "bulldoze",
+      "curse",
+      "dig",
+      "double-edge",
+      "drill-run",
+      "earth-power",
+      "earthquake",
+      "endure",
+      "facade",
+      "fling",
+      "focus-blast",
+      "giga-impact",
+      "helping-hand",
+      "high-horsepower",
+      "hyper-beam",
+      "iron-defense",
+      "iron-head",
+      "metal-claw",
+      "metal-sound",
+      "mud-shot",
+      "mud-slap",
+      "poison-jab",
+      "protect",
+      "rest",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sand-tomb",
+      "sandstorm",
+      "scary-face",
+      "scorching-sands",
+      "shadow-claw",
+      "sleep-talk",
+      "smart-strike",
+      "stealth-rock",
+      "steel-beam",
+      "stomping-tantrum",
+      "substitute",
+      "sunny-day",
+      "swords-dance",
+      "take-down",
+      "tera-blast",
+      "throat-chop",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "excadrill",
+    "ko": "몰드류"
+  },
+  "pokeapi_id": 530,
+  "pokeapi_version": "v2",
+  "species": "excadrill",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/530.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/530.png"
+  },
+  "types": [
+    "ground",
+    "steel"
+  ],
+  "weight_kg": 40.4
+}

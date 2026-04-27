@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "inner-focus",
+      "name_ko": "정신력",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 165,
+    "def": 95,
+    "hp": 68,
+    "spa": 65,
+    "spd": 115,
+    "spe": 110
+  },
+  "entity_id": "gallade-mega",
+  "fetched_at": "2026-04-27T11:51:44Z",
+  "form_type": "mega",
+  "height_m": 1.6,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Gallade",
+    "ko": "메가엘레이드"
+  },
+  "pokeapi_id": 10068,
+  "pokeapi_version": "v2",
+  "species": "gallade",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10068.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10068.png"
+  },
+  "types": [
+    "psychic",
+    "fighting"
+  ],
+  "weight_kg": 56.4
+}

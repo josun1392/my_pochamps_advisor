@@ -1,0 +1,118 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "levitate",
+      "name_ko": "부유",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 50,
+    "def": 80,
+    "hp": 75,
+    "spa": 95,
+    "spd": 90,
+    "spe": 65
+  },
+  "entity_id": "chimecho",
+  "fetched_at": "2026-04-27T11:51:42Z",
+  "form_type": "default",
+  "height_m": 0.6,
+  "movepool": {
+    "egg": [
+      "ally-switch",
+      "cosmic-power",
+      "curse",
+      "disable",
+      "hypnosis",
+      "recover",
+      "recycle",
+      "wish"
+    ],
+    "level_up": [
+      "astonish",
+      "confusion",
+      "double-edge",
+      "extrasensory",
+      "growl",
+      "heal-bell",
+      "heal-pulse",
+      "healing-wish",
+      "safeguard",
+      "stored-power",
+      "take-down",
+      "uproar",
+      "wrap",
+      "yawn"
+    ],
+    "machine": [
+      "baton-pass",
+      "calm-mind",
+      "charge-beam",
+      "charm",
+      "curse",
+      "dazzling-gleam",
+      "disarming-voice",
+      "double-edge",
+      "draining-kiss",
+      "encore",
+      "endure",
+      "energy-ball",
+      "expanding-force",
+      "facade",
+      "fake-tears",
+      "future-sight",
+      "grass-knot",
+      "gravity",
+      "helping-hand",
+      "hyper-voice",
+      "icy-wind",
+      "imprison",
+      "knock-off",
+      "light-screen",
+      "protect",
+      "psybeam",
+      "psych-up",
+      "psychic",
+      "psychic-noise",
+      "psyshock",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "shadow-ball",
+      "skill-swap",
+      "sleep-talk",
+      "snarl",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thunder-wave",
+      "trick",
+      "trick-room",
+      "uproar",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "chimecho",
+    "ko": "치렁"
+  },
+  "pokeapi_id": 358,
+  "pokeapi_version": "v2",
+  "species": "chimecho",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/358.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/358.png"
+  },
+  "types": [
+    "psychic"
+  ],
+  "weight_kg": 1.0
+}

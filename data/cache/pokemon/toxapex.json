@@ -1,0 +1,110 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "merciless",
+      "name_ko": "무도한행동",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "limber",
+      "name_ko": "유연",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "regenerator",
+      "name_ko": "재생력",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 63,
+    "def": 152,
+    "hp": 50,
+    "spa": 53,
+    "spd": 142,
+    "spe": 35
+  },
+  "entity_id": "toxapex",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 0.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "acid-spray",
+      "baneful-bunker",
+      "bite",
+      "liquidation",
+      "peck",
+      "pin-missile",
+      "poison-jab",
+      "poison-sting",
+      "recover",
+      "toxic",
+      "toxic-spikes",
+      "venoshock",
+      "wide-guard"
+    ],
+    "machine": [
+      "acid-spray",
+      "blizzard",
+      "body-slam",
+      "chilling-water",
+      "endure",
+      "facade",
+      "giga-impact",
+      "gunk-shot",
+      "haze",
+      "hex",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-beam",
+      "ice-spinner",
+      "icy-wind",
+      "iron-defense",
+      "liquidation",
+      "lunge",
+      "mud-shot",
+      "muddy-water",
+      "pain-split",
+      "poison-jab",
+      "pounce",
+      "protect",
+      "rain-dance",
+      "rest",
+      "scary-face",
+      "sleep-talk",
+      "sludge-bomb",
+      "sludge-wave",
+      "smack-down",
+      "substitute",
+      "surf",
+      "tera-blast",
+      "toxic",
+      "toxic-spikes",
+      "venoshock",
+      "water-pulse"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "toxapex",
+    "ko": "더시마사리"
+  },
+  "pokeapi_id": 748,
+  "pokeapi_version": "v2",
+  "species": "toxapex",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/748.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/748.png"
+  },
+  "types": [
+    "poison",
+    "water"
+  ],
+  "weight_kg": 14.5
+}

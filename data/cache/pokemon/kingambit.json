@@ -1,0 +1,123 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "defiant",
+      "name_ko": "오기",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "supreme-overlord",
+      "name_ko": "supreme-overlord",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "pressure",
+      "name_ko": "프레셔",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 135,
+    "def": 120,
+    "hp": 100,
+    "spa": 60,
+    "spd": 85,
+    "spe": 50
+  },
+  "entity_id": "kingambit",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 2.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "assurance",
+      "fury-cutter",
+      "guillotine",
+      "iron-defense",
+      "iron-head",
+      "kowtow-cleave",
+      "leer",
+      "metal-burst",
+      "metal-claw",
+      "metal-sound",
+      "night-slash",
+      "retaliate",
+      "scary-face",
+      "scratch",
+      "slash",
+      "swords-dance",
+      "torment"
+    ],
+    "machine": [
+      "aerial-ace",
+      "air-slash",
+      "brick-break",
+      "dark-pulse",
+      "dig",
+      "endure",
+      "facade",
+      "false-swipe",
+      "flash-cannon",
+      "fling",
+      "focus-blast",
+      "foul-play",
+      "giga-impact",
+      "grass-knot",
+      "hyper-beam",
+      "iron-defense",
+      "iron-head",
+      "lash-out",
+      "low-kick",
+      "low-sweep",
+      "metal-claw",
+      "metal-sound",
+      "poison-jab",
+      "protect",
+      "rain-dance",
+      "rest",
+      "reversal",
+      "rock-tomb",
+      "sandstorm",
+      "scary-face",
+      "shadow-claw",
+      "sleep-talk",
+      "snarl",
+      "spite",
+      "stealth-rock",
+      "steel-beam",
+      "stone-edge",
+      "substitute",
+      "swords-dance",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "thunder-wave",
+      "x-scissor",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "kingambit",
+    "ko": "대도각참"
+  },
+  "pokeapi_id": 983,
+  "pokeapi_version": "v2",
+  "species": "kingambit",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/983.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/983.png"
+  },
+  "types": [
+    "dark",
+    "steel"
+  ],
+  "weight_kg": 120.0
+}

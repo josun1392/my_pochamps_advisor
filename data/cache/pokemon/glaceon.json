@@ -1,0 +1,117 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "snow-cloak",
+      "name_ko": "눈숨기",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "ice-body",
+      "name_ko": "아이스바디",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 60,
+    "def": 110,
+    "hp": 65,
+    "spa": 130,
+    "spd": 95,
+    "spe": 65
+  },
+  "entity_id": "glaceon",
+  "fetched_at": "2026-04-27T11:51:57Z",
+  "form_type": "default",
+  "height_m": 0.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "baby-doll-eyes",
+      "baton-pass",
+      "bite",
+      "blizzard",
+      "charm",
+      "copycat",
+      "covet",
+      "double-edge",
+      "freeze-dry",
+      "growl",
+      "helping-hand",
+      "ice-fang",
+      "ice-shard",
+      "icy-wind",
+      "last-resort",
+      "mirror-coat",
+      "quick-attack",
+      "sand-attack",
+      "snowscape",
+      "swift",
+      "tackle",
+      "tail-whip",
+      "take-down"
+    ],
+    "machine": [
+      "alluring-voice",
+      "avalanche",
+      "baton-pass",
+      "blizzard",
+      "body-slam",
+      "calm-mind",
+      "charm",
+      "chilling-water",
+      "curse",
+      "dig",
+      "double-edge",
+      "endure",
+      "facade",
+      "fake-tears",
+      "giga-impact",
+      "gravity",
+      "haze",
+      "helping-hand",
+      "hyper-beam",
+      "hyper-voice",
+      "ice-beam",
+      "ice-fang",
+      "icicle-spear",
+      "icy-wind",
+      "mud-shot",
+      "mud-slap",
+      "protect",
+      "rain-dance",
+      "rest",
+      "roar",
+      "shadow-ball",
+      "sleep-talk",
+      "snowscape",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "triple-axel",
+      "water-pulse",
+      "weather-ball"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "glaceon",
+    "ko": "글레이시아"
+  },
+  "pokeapi_id": 471,
+  "pokeapi_version": "v2",
+  "species": "glaceon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/471.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/471.png"
+  },
+  "types": [
+    "ice"
+  ],
+  "weight_kg": 25.9
+}

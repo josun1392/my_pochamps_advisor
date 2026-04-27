@@ -1,0 +1,123 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "keen-eye",
+      "name_ko": "날카로운눈",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "skill-link",
+      "name_ko": "스킬링크",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sheer-force",
+      "name_ko": "우격다짐",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 120,
+    "def": 75,
+    "hp": 80,
+    "spa": 75,
+    "spd": 75,
+    "spe": 60
+  },
+  "entity_id": "toucannon",
+  "fetched_at": "2026-04-27T11:51:53Z",
+  "form_type": "default",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [
+      "boomburst",
+      "gunk-shot",
+      "sky-attack"
+    ],
+    "level_up": [
+      "beak-blast",
+      "bullet-seed",
+      "drill-peck",
+      "echoed-voice",
+      "feather-dance",
+      "fury-attack",
+      "growl",
+      "hyper-voice",
+      "peck",
+      "pluck",
+      "rock-blast",
+      "rock-smash",
+      "roost",
+      "screech",
+      "supersonic"
+    ],
+    "machine": [
+      "acrobatics",
+      "aerial-ace",
+      "air-cutter",
+      "air-slash",
+      "brave-bird",
+      "brick-break",
+      "bullet-seed",
+      "dual-wingbeat",
+      "encore",
+      "endeavor",
+      "endure",
+      "facade",
+      "feather-dance",
+      "flame-charge",
+      "flash-cannon",
+      "fly",
+      "giga-impact",
+      "gunk-shot",
+      "heat-wave",
+      "helping-hand",
+      "hurricane",
+      "hyper-beam",
+      "hyper-voice",
+      "knock-off",
+      "overheat",
+      "protect",
+      "psych-up",
+      "rest",
+      "rock-blast",
+      "scary-face",
+      "seed-bomb",
+      "sleep-talk",
+      "smack-down",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "tailwind",
+      "take-down",
+      "temper-flare",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "u-turn",
+      "uproar"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "toucannon",
+    "ko": "왕큰부리"
+  },
+  "pokeapi_id": 733,
+  "pokeapi_version": "v2",
+  "species": "toucannon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/733.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/733.png"
+  },
+  "types": [
+    "normal",
+    "flying"
+  ],
+  "weight_kg": 26.0
+}

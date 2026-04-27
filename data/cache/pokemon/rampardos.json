@@ -1,0 +1,131 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "mold-breaker",
+      "name_ko": "틀깨기",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "sheer-force",
+      "name_ko": "우격다짐",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 165,
+    "def": 60,
+    "hp": 97,
+    "spa": 65,
+    "spd": 50,
+    "spe": 58
+  },
+  "entity_id": "rampardos",
+  "fetched_at": "2026-04-27T11:51:50Z",
+  "form_type": "default",
+  "height_m": 1.6,
+  "movepool": {
+    "egg": [
+      "hammer-arm",
+      "stomp",
+      "thrash",
+      "whirlwind"
+    ],
+    "level_up": [
+      "ancient-power",
+      "assurance",
+      "endeavor",
+      "focus-energy",
+      "head-smash",
+      "headbutt",
+      "leer",
+      "rock-smash",
+      "scary-face",
+      "screech",
+      "slam",
+      "take-down",
+      "zen-headbutt"
+    ],
+    "machine": [
+      "avalanche",
+      "blizzard",
+      "body-press",
+      "body-slam",
+      "breaking-swipe",
+      "brick-break",
+      "bulldoze",
+      "crunch",
+      "curse",
+      "dig",
+      "double-edge",
+      "dragon-cheer",
+      "dragon-claw",
+      "dragon-pulse",
+      "dragon-tail",
+      "earth-power",
+      "earthquake",
+      "endeavor",
+      "endure",
+      "facade",
+      "fire-blast",
+      "fire-punch",
+      "flamethrower",
+      "fling",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "heavy-slam",
+      "hyper-beam",
+      "ice-beam",
+      "iron-head",
+      "mud-slap",
+      "outrage",
+      "protect",
+      "rain-dance",
+      "rest",
+      "roar",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sandstorm",
+      "scary-face",
+      "sleep-talk",
+      "smack-down",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "supercell-slam",
+      "surf",
+      "swords-dance",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "thunder",
+      "thunder-punch",
+      "thunderbolt",
+      "trailblaze",
+      "uproar",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "rampardos",
+    "ko": "램펄드"
+  },
+  "pokeapi_id": 409,
+  "pokeapi_version": "v2",
+  "species": "rampardos",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/409.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/409.png"
+  },
+  "types": [
+    "rock"
+  ],
+  "weight_kg": 102.5
+}

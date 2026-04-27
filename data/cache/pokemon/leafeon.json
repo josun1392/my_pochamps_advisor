@@ -1,0 +1,121 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "leaf-guard",
+      "name_ko": "리프가드",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "chlorophyll",
+      "name_ko": "엽록소",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 110,
+    "def": 130,
+    "hp": 65,
+    "spa": 60,
+    "spd": 65,
+    "spe": 95
+  },
+  "entity_id": "leafeon",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "baby-doll-eyes",
+      "baton-pass",
+      "bite",
+      "charm",
+      "copycat",
+      "covet",
+      "double-edge",
+      "giga-drain",
+      "growl",
+      "helping-hand",
+      "last-resort",
+      "leaf-blade",
+      "leech-seed",
+      "magical-leaf",
+      "quick-attack",
+      "razor-leaf",
+      "sand-attack",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "synthesis",
+      "tackle",
+      "tail-whip",
+      "take-down"
+    ],
+    "machine": [
+      "aerial-ace",
+      "alluring-voice",
+      "baton-pass",
+      "body-slam",
+      "bullet-seed",
+      "calm-mind",
+      "charm",
+      "curse",
+      "dig",
+      "double-edge",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fake-tears",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-glide",
+      "helping-hand",
+      "hyper-beam",
+      "hyper-voice",
+      "knock-off",
+      "leaf-storm",
+      "magical-leaf",
+      "mud-shot",
+      "mud-slap",
+      "protect",
+      "rain-dance",
+      "rest",
+      "roar",
+      "seed-bomb",
+      "shadow-ball",
+      "sleep-talk",
+      "solar-beam",
+      "solar-blade",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "take-down",
+      "tera-blast",
+      "trailblaze",
+      "weather-ball",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "leafeon",
+    "ko": "리피아"
+  },
+  "pokeapi_id": 470,
+  "pokeapi_version": "v2",
+  "species": "leafeon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/470.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/470.png"
+  },
+  "types": [
+    "grass"
+  ],
+  "weight_kg": 25.5
+}

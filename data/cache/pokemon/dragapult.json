@@ -1,0 +1,124 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "clear-body",
+      "name_ko": "클리어바디",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "infiltrator",
+      "name_ko": "틈새포착",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "cursed-body",
+      "name_ko": "저주받은바디",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 120,
+    "def": 75,
+    "hp": 88,
+    "spa": 100,
+    "spd": 75,
+    "spe": 142
+  },
+  "entity_id": "dragapult",
+  "fetched_at": "2026-04-27T11:51:56Z",
+  "form_type": "default",
+  "height_m": 3.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "agility",
+      "assurance",
+      "astonish",
+      "bite",
+      "double-edge",
+      "double-hit",
+      "dragon-breath",
+      "dragon-dance",
+      "dragon-darts",
+      "dragon-rush",
+      "hex",
+      "infestation",
+      "last-resort",
+      "lock-on",
+      "phantom-force",
+      "quick-attack",
+      "take-down",
+      "u-turn"
+    ],
+    "machine": [
+      "acrobatics",
+      "agility",
+      "baton-pass",
+      "body-slam",
+      "breaking-swipe",
+      "curse",
+      "double-edge",
+      "draco-meteor",
+      "dragon-cheer",
+      "dragon-claw",
+      "dragon-dance",
+      "dragon-pulse",
+      "dragon-tail",
+      "endure",
+      "facade",
+      "fire-blast",
+      "flamethrower",
+      "fly",
+      "giga-impact",
+      "helping-hand",
+      "hex",
+      "hydro-pump",
+      "hyper-beam",
+      "light-screen",
+      "night-shade",
+      "outrage",
+      "phantom-force",
+      "pounce",
+      "protect",
+      "psychic-fangs",
+      "reflect",
+      "rest",
+      "shadow-ball",
+      "sleep-talk",
+      "solar-beam",
+      "substitute",
+      "sunny-day",
+      "surf",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "thunder",
+      "thunder-wave",
+      "thunderbolt",
+      "u-turn",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "dragapult",
+    "ko": "드래펄트"
+  },
+  "pokeapi_id": 887,
+  "pokeapi_version": "v2",
+  "species": "dragapult",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/887.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/887.png"
+  },
+  "types": [
+    "dragon",
+    "ghost"
+  ],
+  "weight_kg": 50.0
+}

@@ -1,0 +1,119 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "flash-fire",
+      "name_ko": "타오르는불꽃",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "weak-armor",
+      "name_ko": "깨어진갑옷",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 60,
+    "def": 100,
+    "hp": 85,
+    "spa": 125,
+    "spd": 80,
+    "spe": 75
+  },
+  "entity_id": "armarouge",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "ally-switch",
+      "armor-cannon",
+      "astonish",
+      "calm-mind",
+      "clear-smog",
+      "ember",
+      "expanding-force",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "incinerate",
+      "lava-plume",
+      "leer",
+      "mystical-fire",
+      "night-shade",
+      "psyshock",
+      "wide-guard",
+      "will-o-wisp"
+    ],
+    "machine": [
+      "acid-spray",
+      "aura-sphere",
+      "calm-mind",
+      "confuse-ray",
+      "dark-pulse",
+      "dragon-pulse",
+      "endure",
+      "energy-ball",
+      "expanding-force",
+      "facade",
+      "fire-blast",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "flash-cannon",
+      "fling",
+      "focus-blast",
+      "heat-wave",
+      "helping-hand",
+      "iron-defense",
+      "light-screen",
+      "meteor-beam",
+      "night-shade",
+      "overheat",
+      "protect",
+      "psybeam",
+      "psych-up",
+      "psychic",
+      "psychic-terrain",
+      "psyshock",
+      "reflect",
+      "rest",
+      "scorching-sands",
+      "shadow-ball",
+      "sleep-talk",
+      "solar-beam",
+      "spite",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "trick",
+      "trick-room",
+      "weather-ball",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "armarouge",
+    "ko": "카디나르마"
+  },
+  "pokeapi_id": 936,
+  "pokeapi_version": "v2",
+  "species": "armarouge",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/936.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/936.png"
+  },
+  "types": [
+    "fire",
+    "psychic"
+  ],
+  "weight_kg": 85.0
+}

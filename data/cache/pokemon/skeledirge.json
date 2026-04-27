@@ -1,0 +1,125 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "blaze",
+      "name_ko": "맹화",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "unaware",
+      "name_ko": "천진",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 75,
+    "def": 100,
+    "hp": 104,
+    "spa": 110,
+    "spd": 75,
+    "spe": 66
+  },
+  "entity_id": "skeledirge",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 1.6,
+  "movepool": {
+    "egg": [
+      "sing"
+    ],
+    "level_up": [
+      "bite",
+      "ember",
+      "fire-blast",
+      "flamethrower",
+      "hex",
+      "hyper-voice",
+      "incinerate",
+      "leer",
+      "lick",
+      "overheat",
+      "roar",
+      "round",
+      "scary-face",
+      "shadow-ball",
+      "snarl",
+      "tackle",
+      "torch-song",
+      "will-o-wisp"
+    ],
+    "machine": [
+      "alluring-voice",
+      "blast-burn",
+      "body-slam",
+      "crunch",
+      "curse",
+      "dig",
+      "disarming-voice",
+      "earth-power",
+      "earthquake",
+      "encore",
+      "endure",
+      "facade",
+      "fire-blast",
+      "fire-fang",
+      "fire-pledge",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "giga-impact",
+      "heat-crash",
+      "heat-wave",
+      "helping-hand",
+      "hex",
+      "hyper-beam",
+      "hyper-voice",
+      "imprison",
+      "mud-slap",
+      "night-shade",
+      "outrage",
+      "overheat",
+      "poltergeist",
+      "protect",
+      "rest",
+      "roar",
+      "scary-face",
+      "scorching-sands",
+      "seed-bomb",
+      "shadow-ball",
+      "shadow-claw",
+      "sleep-talk",
+      "snarl",
+      "solar-beam",
+      "stomping-tantrum",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "temper-flare",
+      "tera-blast",
+      "thunder-fang",
+      "will-o-wisp",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "skeledirge",
+    "ko": "라우드본"
+  },
+  "pokeapi_id": 911,
+  "pokeapi_version": "v2",
+  "species": "skeledirge",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/911.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/911.png"
+  },
+  "types": [
+    "fire",
+    "ghost"
+  ],
+  "weight_kg": 326.5
+}

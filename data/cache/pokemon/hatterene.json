@@ -1,0 +1,119 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "healer",
+      "name_ko": "치유의마음",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "anticipation",
+      "name_ko": "위험예지",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "magic-bounce",
+      "name_ko": "매직미러",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 90,
+    "def": 95,
+    "hp": 57,
+    "spa": 136,
+    "spd": 103,
+    "spe": 29
+  },
+  "entity_id": "hatterene",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 2.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "aromatic-mist",
+      "brutal-swing",
+      "calm-mind",
+      "confusion",
+      "dazzling-gleam",
+      "disarming-voice",
+      "heal-pulse",
+      "healing-wish",
+      "life-dew",
+      "magic-powder",
+      "play-nice",
+      "psybeam",
+      "psychic",
+      "psycho-cut"
+    ],
+    "machine": [
+      "agility",
+      "baton-pass",
+      "calm-mind",
+      "charm",
+      "dark-pulse",
+      "dazzling-gleam",
+      "disarming-voice",
+      "draining-kiss",
+      "endure",
+      "expanding-force",
+      "facade",
+      "future-sight",
+      "giga-drain",
+      "giga-impact",
+      "gravity",
+      "helping-hand",
+      "hyper-beam",
+      "imprison",
+      "light-screen",
+      "magical-leaf",
+      "metronome",
+      "misty-explosion",
+      "misty-terrain",
+      "pain-split",
+      "play-rough",
+      "protect",
+      "psybeam",
+      "psych-up",
+      "psychic",
+      "psychic-noise",
+      "psychic-terrain",
+      "psyshock",
+      "reflect",
+      "rest",
+      "shadow-ball",
+      "shadow-claw",
+      "skill-swap",
+      "sleep-talk",
+      "stored-power",
+      "substitute",
+      "swift",
+      "swords-dance",
+      "tera-blast",
+      "thunder-wave",
+      "trick",
+      "trick-room"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "hatterene",
+    "ko": "브리무음"
+  },
+  "pokeapi_id": 858,
+  "pokeapi_version": "v2",
+  "species": "hatterene",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/858.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/858.png"
+  },
+  "types": [
+    "psychic",
+    "fairy"
+  ],
+  "weight_kg": 5.1
+}

@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "mega-launcher",
+      "name_ko": "메가런처",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 103,
+    "def": 120,
+    "hp": 79,
+    "spa": 135,
+    "spd": 115,
+    "spe": 78
+  },
+  "entity_id": "blastoise-mega",
+  "fetched_at": "2026-04-27T11:51:41Z",
+  "form_type": "mega",
+  "height_m": 1.6,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Blastoise",
+    "ko": "메가거북왕"
+  },
+  "pokeapi_id": 10036,
+  "pokeapi_version": "v2",
+  "species": "blastoise",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10036.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10036.png"
+  },
+  "types": [
+    "water"
+  ],
+  "weight_kg": 101.1
+}

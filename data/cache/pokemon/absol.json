@@ -1,0 +1,56 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "pressure",
+      "name_ko": "프레셔",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "super-luck",
+      "name_ko": "대운",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "justified",
+      "name_ko": "정의의마음",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 130,
+    "def": 60,
+    "hp": 65,
+    "spa": 75,
+    "spd": 60,
+    "spe": 75
+  },
+  "entity_id": "absol",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "absol",
+    "ko": "앱솔"
+  },
+  "pokeapi_id": 359,
+  "pokeapi_version": "v2",
+  "species": "absol",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/359.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/359.png"
+  },
+  "types": [
+    "dark"
+  ],
+  "weight_kg": 47.0
+}

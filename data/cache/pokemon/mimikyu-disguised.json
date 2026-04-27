@@ -1,0 +1,113 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "disguise",
+      "name_ko": "탈",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 90,
+    "def": 80,
+    "hp": 55,
+    "spa": 50,
+    "spd": 105,
+    "spe": 96
+  },
+  "entity_id": "mimikyu-disguised",
+  "fetched_at": "2026-04-27T11:51:49Z",
+  "form_type": "default",
+  "height_m": 0.2,
+  "movepool": {
+    "egg": [
+      "curse",
+      "destiny-bond"
+    ],
+    "level_up": [
+      "astonish",
+      "baby-doll-eyes",
+      "charm",
+      "copycat",
+      "double-team",
+      "hone-claws",
+      "mimic",
+      "pain-split",
+      "play-rough",
+      "scratch",
+      "shadow-claw",
+      "shadow-sneak",
+      "slash",
+      "splash",
+      "wood-hammer"
+    ],
+    "machine": [
+      "bulk-up",
+      "burning-jealousy",
+      "charm",
+      "confuse-ray",
+      "curse",
+      "dark-pulse",
+      "dazzling-gleam",
+      "drain-punch",
+      "draining-kiss",
+      "endure",
+      "facade",
+      "fling",
+      "giga-drain",
+      "giga-impact",
+      "hex",
+      "hyper-beam",
+      "leech-life",
+      "light-screen",
+      "misty-terrain",
+      "night-shade",
+      "pain-split",
+      "phantom-force",
+      "play-rough",
+      "pounce",
+      "protect",
+      "psych-up",
+      "psychic",
+      "rain-dance",
+      "rest",
+      "shadow-ball",
+      "shadow-claw",
+      "sleep-talk",
+      "spite",
+      "substitute",
+      "sunny-day",
+      "swords-dance",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "thunder",
+      "thunder-wave",
+      "thunderbolt",
+      "trailblaze",
+      "trick",
+      "trick-room",
+      "will-o-wisp",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "mimikyu",
+    "ko": "따라큐"
+  },
+  "pokeapi_id": 778,
+  "pokeapi_version": "v2",
+  "species": "mimikyu",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/778.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/778.png"
+  },
+  "types": [
+    "ghost",
+    "fairy"
+  ],
+  "weight_kg": 0.7
+}

@@ -1,0 +1,126 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "guts",
+      "name_ko": "근성",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "sheer-force",
+      "name_ko": "우격다짐",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "iron-fist",
+      "name_ko": "철주먹",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 140,
+    "def": 95,
+    "hp": 105,
+    "spa": 55,
+    "spd": 65,
+    "spe": 45
+  },
+  "entity_id": "conkeldurr",
+  "fetched_at": "2026-04-27T11:51:43Z",
+  "form_type": "default",
+  "height_m": 1.4,
+  "movepool": {
+    "egg": [
+      "counter",
+      "defog",
+      "detect",
+      "mach-punch",
+      "wide-guard"
+    ],
+    "level_up": [
+      "bulk-up",
+      "dynamic-punch",
+      "focus-energy",
+      "focus-punch",
+      "hammer-arm",
+      "leer",
+      "low-kick",
+      "pound",
+      "rock-slide",
+      "rock-throw",
+      "scary-face",
+      "slam",
+      "stone-edge",
+      "superpower"
+    ],
+    "machine": [
+      "body-slam",
+      "brick-break",
+      "bulk-up",
+      "bulldoze",
+      "close-combat",
+      "coaching",
+      "curse",
+      "dig",
+      "double-edge",
+      "drain-punch",
+      "earthquake",
+      "endure",
+      "facade",
+      "fire-punch",
+      "fling",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "grass-knot",
+      "hard-press",
+      "helping-hand",
+      "high-horsepower",
+      "hyper-beam",
+      "ice-punch",
+      "knock-off",
+      "low-kick",
+      "low-sweep",
+      "poison-jab",
+      "protect",
+      "rain-dance",
+      "rest",
+      "reversal",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "scary-face",
+      "sleep-talk",
+      "smack-down",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "thunder-punch",
+      "upper-hand"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "conkeldurr",
+    "ko": "노보청"
+  },
+  "pokeapi_id": 534,
+  "pokeapi_version": "v2",
+  "species": "conkeldurr",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/534.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/534.png"
+  },
+  "types": [
+    "fighting"
+  ],
+  "weight_kg": 87.0
+}

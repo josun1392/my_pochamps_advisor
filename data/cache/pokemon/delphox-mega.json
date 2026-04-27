@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "levitate",
+      "name_ko": "부유",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 69,
+    "def": 72,
+    "hp": 75,
+    "spa": 159,
+    "spd": 125,
+    "spe": 134
+  },
+  "entity_id": "delphox-mega",
+  "fetched_at": "2026-04-27T11:51:43Z",
+  "form_type": "mega",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Delphox",
+    "ko": "메가마폭시"
+  },
+  "pokeapi_id": 10293,
+  "pokeapi_version": "v2",
+  "species": "delphox",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "fire",
+    "psychic"
+  ],
+  "weight_kg": 39.0
+}

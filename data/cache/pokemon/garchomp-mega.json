@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sand-force",
+      "name_ko": "모래의힘",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 170,
+    "def": 115,
+    "hp": 108,
+    "spa": 120,
+    "spd": 95,
+    "spe": 92
+  },
+  "entity_id": "garchomp-mega",
+  "fetched_at": "2026-04-27T11:51:45Z",
+  "form_type": "mega",
+  "height_m": 1.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Garchomp",
+    "ko": "메가한카리아스"
+  },
+  "pokeapi_id": 10058,
+  "pokeapi_version": "v2",
+  "species": "garchomp",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10058.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10058.png"
+  },
+  "types": [
+    "dragon",
+    "ground"
+  ],
+  "weight_kg": 95.0
+}

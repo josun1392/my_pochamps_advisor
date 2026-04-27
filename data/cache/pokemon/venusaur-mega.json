@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "thick-fat",
+      "name_ko": "두꺼운지방",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 100,
+    "def": 123,
+    "hp": 80,
+    "spa": 122,
+    "spd": 120,
+    "spe": 80
+  },
+  "entity_id": "venusaur-mega",
+  "fetched_at": "2026-04-27T11:51:53Z",
+  "form_type": "mega",
+  "height_m": 2.4,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Venusaur",
+    "ko": "메가이상해꽃"
+  },
+  "pokeapi_id": 10033,
+  "pokeapi_version": "v2",
+  "species": "venusaur",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10033.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10033.png"
+  },
+  "types": [
+    "grass",
+    "poison"
+  ],
+  "weight_kg": 155.5
+}

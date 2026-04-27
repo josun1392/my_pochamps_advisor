@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "technician",
+      "name_ko": "테크니션",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 150,
+    "def": 140,
+    "hp": 70,
+    "spa": 65,
+    "spd": 100,
+    "spe": 75
+  },
+  "entity_id": "scizor-mega",
+  "fetched_at": "2026-04-27T11:51:51Z",
+  "form_type": "mega",
+  "height_m": 2.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Scizor",
+    "ko": "메가핫삼"
+  },
+  "pokeapi_id": 10046,
+  "pokeapi_version": "v2",
+  "species": "scizor",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10046.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10046.png"
+  },
+  "types": [
+    "bug",
+    "steel"
+  ],
+  "weight_kg": 125.0
+}

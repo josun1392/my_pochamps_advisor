@@ -1,0 +1,106 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "electromorphosis",
+      "name_ko": "electromorphosis",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "static",
+      "name_ko": "정전기",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "damp",
+      "name_ko": "습기",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 64,
+    "def": 91,
+    "hp": 109,
+    "spa": 103,
+    "spd": 83,
+    "spe": 45
+  },
+  "entity_id": "bellibolt",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "charge",
+      "discharge",
+      "electric-terrain",
+      "flail",
+      "mud-shot",
+      "mud-slap",
+      "slack-off",
+      "spark",
+      "sucker-punch",
+      "tackle",
+      "thunder-shock",
+      "water-gun",
+      "weather-ball",
+      "zap-cannon"
+    ],
+    "machine": [
+      "acid-spray",
+      "charge",
+      "charge-beam",
+      "chilling-water",
+      "confuse-ray",
+      "eerie-impulse",
+      "electric-terrain",
+      "electro-ball",
+      "electroweb",
+      "endure",
+      "giga-impact",
+      "hyper-beam",
+      "hyper-voice",
+      "light-screen",
+      "mud-shot",
+      "mud-slap",
+      "muddy-water",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "sleep-talk",
+      "substitute",
+      "supercell-slam",
+      "swift",
+      "tera-blast",
+      "thunder",
+      "thunder-wave",
+      "thunderbolt",
+      "toxic",
+      "volt-switch",
+      "water-pulse",
+      "weather-ball",
+      "wild-charge"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "bellibolt",
+    "ko": "찌리배리"
+  },
+  "pokeapi_id": 939,
+  "pokeapi_version": "v2",
+  "species": "bellibolt",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/939.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/939.png"
+  },
+  "types": [
+    "electric"
+  ],
+  "weight_kg": 113.0
+}

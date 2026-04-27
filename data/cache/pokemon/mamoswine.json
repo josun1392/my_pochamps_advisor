@@ -1,0 +1,135 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "oblivious",
+      "name_ko": "둔감",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "snow-cloak",
+      "name_ko": "눈숨기",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "thick-fat",
+      "name_ko": "두꺼운지방",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 130,
+    "def": 80,
+    "hp": 110,
+    "spa": 70,
+    "spd": 60,
+    "spe": 80
+  },
+  "entity_id": "mamoswine",
+  "fetched_at": "2026-04-27T11:51:48Z",
+  "form_type": "default",
+  "height_m": 2.5,
+  "movepool": {
+    "egg": [
+      "ancient-power",
+      "bite",
+      "curse",
+      "double-edge",
+      "fissure",
+      "freeze-dry",
+      "icicle-crash"
+    ],
+    "level_up": [
+      "amnesia",
+      "ancient-power",
+      "blizzard",
+      "double-hit",
+      "earthquake",
+      "endure",
+      "flail",
+      "ice-fang",
+      "ice-shard",
+      "icy-wind",
+      "mist",
+      "mud-slap",
+      "powder-snow",
+      "tackle",
+      "take-down",
+      "thrash"
+    ],
+    "machine": [
+      "amnesia",
+      "avalanche",
+      "blizzard",
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "charm",
+      "curse",
+      "dig",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "endeavor",
+      "endure",
+      "facade",
+      "giga-impact",
+      "hard-press",
+      "haze",
+      "heavy-slam",
+      "high-horsepower",
+      "hyper-beam",
+      "ice-beam",
+      "ice-fang",
+      "icicle-spear",
+      "icy-wind",
+      "iron-head",
+      "knock-off",
+      "mud-shot",
+      "mud-slap",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "reversal",
+      "roar",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sand-tomb",
+      "sandstorm",
+      "scary-face",
+      "sleep-talk",
+      "smack-down",
+      "snowscape",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "take-down",
+      "tera-blast",
+      "throat-chop",
+      "trailblaze"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "mamoswine",
+    "ko": "맘모꾸리"
+  },
+  "pokeapi_id": 473,
+  "pokeapi_version": "v2",
+  "species": "mamoswine",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/473.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/473.png"
+  },
+  "types": [
+    "ice",
+    "ground"
+  ],
+  "weight_kg": 291.0
+}

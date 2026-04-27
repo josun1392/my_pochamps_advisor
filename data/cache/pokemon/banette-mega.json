@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "prankster",
+      "name_ko": "짓궂은마음",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 165,
+    "def": 75,
+    "hp": 64,
+    "spa": 93,
+    "spd": 83,
+    "spe": 75
+  },
+  "entity_id": "banette-mega",
+  "fetched_at": "2026-04-27T11:51:41Z",
+  "form_type": "mega",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Banette",
+    "ko": "메가다크펫"
+  },
+  "pokeapi_id": 10056,
+  "pokeapi_version": "v2",
+  "species": "banette",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10056.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10056.png"
+  },
+  "types": [
+    "ghost"
+  ],
+  "weight_kg": 13.0
+}

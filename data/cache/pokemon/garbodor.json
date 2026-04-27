@@ -1,0 +1,56 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "stench",
+      "name_ko": "악취",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "weak-armor",
+      "name_ko": "깨어진갑옷",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "aftermath",
+      "name_ko": "유폭",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 95,
+    "def": 82,
+    "hp": 80,
+    "spa": 60,
+    "spd": 82,
+    "spe": 75
+  },
+  "entity_id": "garbodor",
+  "fetched_at": "2026-04-27T11:52:02Z",
+  "form_type": "default",
+  "height_m": 1.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "garbodor",
+    "ko": "더스트나"
+  },
+  "pokeapi_id": 569,
+  "pokeapi_version": "v2",
+  "species": "garbodor",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/569.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/569.png"
+  },
+  "types": [
+    "poison"
+  ],
+  "weight_kg": 107.3
+}

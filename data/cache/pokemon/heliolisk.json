@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "dry-skin",
+      "name_ko": "건조피부",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "sand-veil",
+      "name_ko": "모래숨기",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "solar-power",
+      "name_ko": "선파워",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 55,
+    "def": 52,
+    "hp": 62,
+    "spa": 109,
+    "spd": 94,
+    "spe": 109
+  },
+  "entity_id": "heliolisk",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "heliolisk",
+    "ko": "일레도리자드"
+  },
+  "pokeapi_id": 695,
+  "pokeapi_version": "v2",
+  "species": "heliolisk",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/695.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/695.png"
+  },
+  "types": [
+    "electric",
+    "normal"
+  ],
+  "weight_kg": 21.0
+}

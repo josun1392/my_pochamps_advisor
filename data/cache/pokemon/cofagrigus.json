@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "mummy",
+      "name_ko": "미라",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 50,
+    "def": 145,
+    "hp": 58,
+    "spa": 95,
+    "spd": 105,
+    "spe": 30
+  },
+  "entity_id": "cofagrigus",
+  "fetched_at": "2026-04-27T11:51:43Z",
+  "form_type": "default",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "cofagrigus",
+    "ko": "데스니칸"
+  },
+  "pokeapi_id": 563,
+  "pokeapi_version": "v2",
+  "species": "cofagrigus",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/563.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/563.png"
+  },
+  "types": [
+    "ghost"
+  ],
+  "weight_kg": 76.5
+}

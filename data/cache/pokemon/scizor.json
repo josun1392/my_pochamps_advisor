@@ -1,0 +1,127 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "swarm",
+      "name_ko": "벌레의알림",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "technician",
+      "name_ko": "테크니션",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "light-metal",
+      "name_ko": "라이트메탈",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 130,
+    "def": 100,
+    "hp": 70,
+    "spa": 55,
+    "spd": 80,
+    "spe": 65
+  },
+  "entity_id": "scizor",
+  "fetched_at": "2026-04-27T11:52:03Z",
+  "form_type": "default",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "agility",
+      "air-slash",
+      "bullet-punch",
+      "double-hit",
+      "double-team",
+      "false-swipe",
+      "focus-energy",
+      "fury-cutter",
+      "iron-defense",
+      "iron-head",
+      "leer",
+      "metal-claw",
+      "quick-attack",
+      "slash",
+      "swords-dance",
+      "wing-attack",
+      "x-scissor"
+    ],
+    "machine": [
+      "acrobatics",
+      "aerial-ace",
+      "agility",
+      "air-cutter",
+      "air-slash",
+      "baton-pass",
+      "brick-break",
+      "bug-bite",
+      "bug-buzz",
+      "close-combat",
+      "curse",
+      "double-edge",
+      "dual-wingbeat",
+      "endure",
+      "facade",
+      "false-swipe",
+      "flash-cannon",
+      "fling",
+      "giga-impact",
+      "hard-press",
+      "helping-hand",
+      "hyper-beam",
+      "iron-defense",
+      "iron-head",
+      "knock-off",
+      "light-screen",
+      "lunge",
+      "metal-claw",
+      "pounce",
+      "protect",
+      "rain-dance",
+      "rest",
+      "reversal",
+      "sandstorm",
+      "scary-face",
+      "skitter-smack",
+      "sleep-talk",
+      "steel-beam",
+      "struggle-bug",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "tailwind",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "trailblaze",
+      "u-turn",
+      "vacuum-wave",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "scizor",
+    "ko": "핫삼"
+  },
+  "pokeapi_id": 212,
+  "pokeapi_version": "v2",
+  "species": "scizor",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/212.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/212.png"
+  },
+  "types": [
+    "bug",
+    "steel"
+  ],
+  "weight_kg": 118.0
+}

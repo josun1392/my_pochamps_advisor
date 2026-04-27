@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "dragonize",
+      "name_ko": "dragonize",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 160,
+    "def": 125,
+    "hp": 85,
+    "spa": 89,
+    "spd": 93,
+    "spe": 78
+  },
+  "entity_id": "feraligatr-mega",
+  "fetched_at": "2026-04-27T11:51:44Z",
+  "form_type": "mega",
+  "height_m": 2.3,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Feraligatr",
+    "ko": "메가장크로다일"
+  },
+  "pokeapi_id": 10283,
+  "pokeapi_version": "v2",
+  "species": "feraligatr",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "water",
+    "dragon"
+  ],
+  "weight_kg": 108.8
+}

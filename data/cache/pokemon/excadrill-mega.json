@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "piercing-drill",
+      "name_ko": "piercing-drill",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 165,
+    "def": 100,
+    "hp": 110,
+    "spa": 65,
+    "spd": 65,
+    "spe": 103
+  },
+  "entity_id": "excadrill-mega",
+  "fetched_at": "2026-04-27T11:51:44Z",
+  "form_type": "mega",
+  "height_m": 0.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Excadrill",
+    "ko": "메가몰드류"
+  },
+  "pokeapi_id": 10287,
+  "pokeapi_version": "v2",
+  "species": "excadrill",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "ground",
+    "steel"
+  ],
+  "weight_kg": 60.0
+}

@@ -1,0 +1,122 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sand-veil",
+      "name_ko": "모래숨기",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "rough-skin",
+      "name_ko": "까칠한피부",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 130,
+    "def": 95,
+    "hp": 108,
+    "spa": 80,
+    "spd": 85,
+    "spe": 102
+  },
+  "entity_id": "garchomp",
+  "fetched_at": "2026-04-27T11:51:57Z",
+  "form_type": "default",
+  "height_m": 1.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "bite",
+      "bulldoze",
+      "crunch",
+      "dig",
+      "dragon-breath",
+      "dragon-claw",
+      "dragon-rush",
+      "sand-attack",
+      "sand-tomb",
+      "sandstorm",
+      "slash",
+      "tackle",
+      "take-down"
+    ],
+    "machine": [
+      "aerial-ace",
+      "body-slam",
+      "breaking-swipe",
+      "brick-break",
+      "bulldoze",
+      "crunch",
+      "dig",
+      "double-edge",
+      "draco-meteor",
+      "dragon-cheer",
+      "dragon-claw",
+      "dragon-pulse",
+      "dragon-tail",
+      "earth-power",
+      "earthquake",
+      "endure",
+      "facade",
+      "false-swipe",
+      "fire-blast",
+      "fire-fang",
+      "flamethrower",
+      "fling",
+      "giga-impact",
+      "helping-hand",
+      "hyper-beam",
+      "iron-head",
+      "liquidation",
+      "metal-claw",
+      "mud-shot",
+      "outrage",
+      "poison-jab",
+      "power-gem",
+      "protect",
+      "rain-dance",
+      "rest",
+      "rock-slide",
+      "rock-tomb",
+      "sand-tomb",
+      "sandstorm",
+      "scale-shot",
+      "scary-face",
+      "scorching-sands",
+      "shadow-claw",
+      "sleep-talk",
+      "spikes",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "surf",
+      "swift",
+      "swords-dance",
+      "take-down",
+      "tera-blast",
+      "thunder-fang"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "garchomp",
+    "ko": "한카리아스"
+  },
+  "pokeapi_id": 445,
+  "pokeapi_version": "v2",
+  "species": "garchomp",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/445.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/445.png"
+  },
+  "types": [
+    "dragon",
+    "ground"
+  ],
+  "weight_kg": 95.0
+}

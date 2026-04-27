@@ -1,0 +1,51 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "strong-jaw",
+      "name_ko": "옹골찬턱",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "rock-head",
+      "name_ko": "돌머리",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 121,
+    "def": 119,
+    "hp": 82,
+    "spa": 69,
+    "spd": 59,
+    "spe": 71
+  },
+  "entity_id": "tyrantrum",
+  "fetched_at": "2026-04-27T11:51:53Z",
+  "form_type": "default",
+  "height_m": 2.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "tyrantrum",
+    "ko": "견고라스"
+  },
+  "pokeapi_id": 697,
+  "pokeapi_version": "v2",
+  "species": "tyrantrum",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/697.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/697.png"
+  },
+  "types": [
+    "rock",
+    "dragon"
+  ],
+  "weight_kg": 270.0
+}

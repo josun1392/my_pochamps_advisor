@@ -1,0 +1,117 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "cute-charm",
+      "name_ko": "헤롱헤롱바디",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "pixilate",
+      "name_ko": "페어리스킨",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 65,
+    "def": 65,
+    "hp": 95,
+    "spa": 110,
+    "spd": 130,
+    "spe": 60
+  },
+  "entity_id": "sylveon",
+  "fetched_at": "2026-04-27T11:51:53Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "baby-doll-eyes",
+      "baton-pass",
+      "bite",
+      "charm",
+      "copycat",
+      "covet",
+      "disarming-voice",
+      "double-edge",
+      "draining-kiss",
+      "growl",
+      "helping-hand",
+      "last-resort",
+      "light-screen",
+      "misty-terrain",
+      "moonblast",
+      "psych-up",
+      "quick-attack",
+      "sand-attack",
+      "skill-swap",
+      "swift",
+      "tackle",
+      "tail-whip",
+      "take-down"
+    ],
+    "machine": [
+      "alluring-voice",
+      "baton-pass",
+      "body-slam",
+      "calm-mind",
+      "charm",
+      "curse",
+      "dazzling-gleam",
+      "dig",
+      "disarming-voice",
+      "double-edge",
+      "draining-kiss",
+      "endure",
+      "facade",
+      "fake-tears",
+      "giga-impact",
+      "helping-hand",
+      "hyper-beam",
+      "hyper-voice",
+      "light-screen",
+      "magical-leaf",
+      "misty-explosion",
+      "misty-terrain",
+      "play-rough",
+      "protect",
+      "psych-up",
+      "psychic",
+      "psyshock",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "roar",
+      "shadow-ball",
+      "skill-swap",
+      "sleep-talk",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "trailblaze",
+      "weather-ball"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "sylveon",
+    "ko": "님피아"
+  },
+  "pokeapi_id": 700,
+  "pokeapi_version": "v2",
+  "species": "sylveon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/700.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/700.png"
+  },
+  "types": [
+    "fairy"
+  ],
+  "weight_kg": 23.5
+}

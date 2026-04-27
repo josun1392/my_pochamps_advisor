@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "shadow-tag",
+      "name_ko": "그림자밟기",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 65,
+    "def": 80,
+    "hp": 60,
+    "spa": 170,
+    "spd": 95,
+    "spe": 130
+  },
+  "entity_id": "gengar-mega",
+  "fetched_at": "2026-04-27T11:51:45Z",
+  "form_type": "mega",
+  "height_m": 1.4,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Gengar",
+    "ko": "메가팬텀"
+  },
+  "pokeapi_id": 10038,
+  "pokeapi_version": "v2",
+  "species": "gengar",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10038.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10038.png"
+  },
+  "types": [
+    "ghost",
+    "poison"
+  ],
+  "weight_kg": 40.5
+}

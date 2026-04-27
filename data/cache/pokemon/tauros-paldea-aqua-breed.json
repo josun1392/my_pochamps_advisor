@@ -1,0 +1,120 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "intimidate",
+      "name_ko": "위협",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "anger-point",
+      "name_ko": "분노의경혈",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "cud-chew",
+      "name_ko": "cud-chew",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 110,
+    "def": 105,
+    "hp": 75,
+    "spa": 30,
+    "spd": 70,
+    "spe": 100
+  },
+  "entity_id": "tauros-paldea-aqua-breed",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "form",
+  "height_m": 1.4,
+  "movepool": {
+    "egg": [
+      "curse",
+      "endeavor"
+    ],
+    "level_up": [
+      "aqua-jet",
+      "close-combat",
+      "double-kick",
+      "headbutt",
+      "raging-bull",
+      "rest",
+      "scary-face",
+      "swagger",
+      "tackle",
+      "tail-whip",
+      "thrash",
+      "wave-crash",
+      "work-up",
+      "zen-headbutt"
+    ],
+    "machine": [
+      "body-press",
+      "body-slam",
+      "bulk-up",
+      "bulldoze",
+      "chilling-water",
+      "close-combat",
+      "curse",
+      "dig",
+      "double-edge",
+      "drill-run",
+      "earthquake",
+      "endeavor",
+      "endure",
+      "facade",
+      "giga-impact",
+      "high-horsepower",
+      "hydro-pump",
+      "hyper-beam",
+      "iron-head",
+      "lash-out",
+      "liquidation",
+      "outrage",
+      "protect",
+      "rain-dance",
+      "rest",
+      "reversal",
+      "rock-slide",
+      "rock-tomb",
+      "sandstorm",
+      "scary-face",
+      "sleep-talk",
+      "smart-strike",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "surf",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "trailblaze",
+      "water-pulse",
+      "whirlpool",
+      "wild-charge",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "tauros Paldean Form Aqua Breed",
+    "ko": "켄타로스 팔데아의 모습 워터종"
+  },
+  "pokeapi_id": 10252,
+  "pokeapi_version": "v2",
+  "species": "tauros",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10252.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10252.png"
+  },
+  "types": [
+    "fighting",
+    "water"
+  ],
+  "weight_kg": 110.0
+}

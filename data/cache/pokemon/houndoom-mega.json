@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "solar-power",
+      "name_ko": "선파워",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 90,
+    "def": 90,
+    "hp": 75,
+    "spa": 140,
+    "spd": 90,
+    "spe": 115
+  },
+  "entity_id": "houndoom-mega",
+  "fetched_at": "2026-04-27T11:51:46Z",
+  "form_type": "mega",
+  "height_m": 1.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Houndoom",
+    "ko": "메가헬가"
+  },
+  "pokeapi_id": 10048,
+  "pokeapi_version": "v2",
+  "species": "houndoom",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10048.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10048.png"
+  },
+  "types": [
+    "dark",
+    "fire"
+  ],
+  "weight_kg": 49.5
+}

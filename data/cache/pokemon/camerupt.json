@@ -1,0 +1,129 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "magma-armor",
+      "name_ko": "마그마의무장",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "solid-rock",
+      "name_ko": "하드록",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "anger-point",
+      "name_ko": "분노의경혈",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 100,
+    "def": 70,
+    "hp": 70,
+    "spa": 105,
+    "spd": 75,
+    "spe": 40
+  },
+  "entity_id": "camerupt",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.9,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "amnesia",
+      "bulldoze",
+      "curse",
+      "earth-power",
+      "earthquake",
+      "ember",
+      "eruption",
+      "fissure",
+      "focus-energy",
+      "growl",
+      "incinerate",
+      "lava-plume",
+      "rock-slide",
+      "tackle",
+      "take-down",
+      "yawn"
+    ],
+    "machine": [
+      "amnesia",
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "charm",
+      "curse",
+      "dig",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "endeavor",
+      "endure",
+      "facade",
+      "fire-blast",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "flash-cannon",
+      "giga-impact",
+      "heat-crash",
+      "heat-wave",
+      "heavy-slam",
+      "helping-hand",
+      "high-horsepower",
+      "hyper-beam",
+      "iron-head",
+      "lash-out",
+      "mud-shot",
+      "mud-slap",
+      "overheat",
+      "protect",
+      "rain-dance",
+      "rest",
+      "roar",
+      "rock-slide",
+      "rock-tomb",
+      "sandstorm",
+      "scary-face",
+      "scorching-sands",
+      "sleep-talk",
+      "smack-down",
+      "solar-beam",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "temper-flare",
+      "tera-blast",
+      "trailblaze",
+      "will-o-wisp",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "camerupt",
+    "ko": "폭타"
+  },
+  "pokeapi_id": 323,
+  "pokeapi_version": "v2",
+  "species": "camerupt",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/323.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/323.png"
+  },
+  "types": [
+    "fire",
+    "ground"
+  ],
+  "weight_kg": 220.0
+}

@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "adaptability",
+      "name_ko": "적응력",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 145,
+    "def": 88,
+    "hp": 70,
+    "spa": 140,
+    "spd": 70,
+    "spe": 112
+  },
+  "entity_id": "lucario-mega",
+  "fetched_at": "2026-04-27T11:51:47Z",
+  "form_type": "mega",
+  "height_m": 1.3,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Lucario",
+    "ko": "메가루카리오"
+  },
+  "pokeapi_id": 10059,
+  "pokeapi_version": "v2",
+  "species": "lucario",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10059.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10059.png"
+  },
+  "types": [
+    "fighting",
+    "steel"
+  ],
+  "weight_kg": 57.5
+}

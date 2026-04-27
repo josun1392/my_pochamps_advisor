@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "magic-bounce",
+      "name_ko": "매직미러",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 80,
+    "def": 93,
+    "hp": 95,
+    "spa": 135,
+    "spd": 110,
+    "spe": 70
+  },
+  "entity_id": "clefable-mega",
+  "fetched_at": "2026-04-27T11:51:42Z",
+  "form_type": "mega",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Clefable",
+    "ko": "메가픽시"
+  },
+  "pokeapi_id": 10278,
+  "pokeapi_version": "v2",
+  "species": "clefable",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "fairy",
+    "flying"
+  ],
+  "weight_kg": 42.3
+}

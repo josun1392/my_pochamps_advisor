@@ -1,0 +1,128 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "swarm",
+      "name_ko": "벌레의알림",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "insomnia",
+      "name_ko": "불면",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sniper",
+      "name_ko": "스나이퍼",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 90,
+    "def": 70,
+    "hp": 70,
+    "spa": 60,
+    "spd": 70,
+    "spe": 40
+  },
+  "entity_id": "ariados",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [
+      "disable",
+      "lunge",
+      "megahorn",
+      "night-slash",
+      "rage-powder"
+    ],
+    "level_up": [
+      "absorb",
+      "agility",
+      "bug-bite",
+      "cross-poison",
+      "fell-stinger",
+      "focus-energy",
+      "fury-swipes",
+      "infestation",
+      "night-shade",
+      "pin-missile",
+      "poison-jab",
+      "poison-sting",
+      "psychic",
+      "scary-face",
+      "shadow-sneak",
+      "sticky-web",
+      "string-shot",
+      "sucker-punch",
+      "swords-dance",
+      "toxic-thread"
+    ],
+    "machine": [
+      "acid-spray",
+      "agility",
+      "baton-pass",
+      "bug-bite",
+      "bug-buzz",
+      "dig",
+      "electroweb",
+      "endure",
+      "facade",
+      "foul-play",
+      "giga-drain",
+      "giga-impact",
+      "hex",
+      "hyper-beam",
+      "knock-off",
+      "leech-life",
+      "lunge",
+      "night-shade",
+      "poison-jab",
+      "pounce",
+      "protect",
+      "psychic",
+      "rest",
+      "scary-face",
+      "skitter-smack",
+      "sleep-talk",
+      "sludge-bomb",
+      "sludge-wave",
+      "smart-strike",
+      "solar-beam",
+      "spite",
+      "struggle-bug",
+      "substitute",
+      "sunny-day",
+      "swords-dance",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "toxic",
+      "toxic-spikes",
+      "trailblaze",
+      "venoshock",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "ariados",
+    "ko": "아리아도스"
+  },
+  "pokeapi_id": 168,
+  "pokeapi_version": "v2",
+  "species": "ariados",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/168.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/168.png"
+  },
+  "types": [
+    "bug",
+    "poison"
+  ],
+  "weight_kg": 33.5
+}

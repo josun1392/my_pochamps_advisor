@@ -1,0 +1,130 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "torrent",
+      "name_ko": "급류",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "protean",
+      "name_ko": "변환자재",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 95,
+    "def": 67,
+    "hp": 72,
+    "spa": 103,
+    "spd": 71,
+    "spe": 122
+  },
+  "entity_id": "greninja",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [
+      "counter",
+      "retaliate",
+      "spikes",
+      "switcheroo",
+      "toxic-spikes"
+    ],
+    "level_up": [
+      "aerial-ace",
+      "double-team",
+      "extrasensory",
+      "growl",
+      "haze",
+      "hydro-pump",
+      "lick",
+      "night-slash",
+      "pound",
+      "quick-attack",
+      "role-play",
+      "shadow-sneak",
+      "smokescreen",
+      "spikes",
+      "substitute",
+      "water-gun",
+      "water-pulse",
+      "water-shuriken"
+    ],
+    "machine": [
+      "acrobatics",
+      "aerial-ace",
+      "blizzard",
+      "brick-break",
+      "chilling-water",
+      "dark-pulse",
+      "dig",
+      "endure",
+      "facade",
+      "false-swipe",
+      "fling",
+      "giga-impact",
+      "grass-knot",
+      "gunk-shot",
+      "haze",
+      "helping-hand",
+      "hydro-cannon",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-beam",
+      "ice-punch",
+      "icy-wind",
+      "liquidation",
+      "low-kick",
+      "low-sweep",
+      "mud-shot",
+      "mud-slap",
+      "protect",
+      "rain-dance",
+      "rest",
+      "rock-slide",
+      "rock-tomb",
+      "sleep-talk",
+      "sludge-wave",
+      "smack-down",
+      "snowscape",
+      "spikes",
+      "substitute",
+      "surf",
+      "swift",
+      "swords-dance",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "toxic-spikes",
+      "trailblaze",
+      "u-turn",
+      "upper-hand",
+      "water-pledge",
+      "water-pulse",
+      "waterfall",
+      "weather-ball"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "greninja",
+    "ko": "개굴닌자"
+  },
+  "pokeapi_id": 658,
+  "pokeapi_version": "v2",
+  "species": "greninja",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/658.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/658.png"
+  },
+  "types": [
+    "water",
+    "dark"
+  ],
+  "weight_kg": 40.0
+}

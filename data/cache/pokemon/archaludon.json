@@ -1,0 +1,127 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "stamina",
+      "name_ko": "지구력",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "sturdy",
+      "name_ko": "옹골참",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "stalwart",
+      "name_ko": "굳건한신념",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 105,
+    "def": 130,
+    "hp": 90,
+    "spa": 125,
+    "spd": 65,
+    "spe": 85
+  },
+  "entity_id": "archaludon",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 2.0,
+  "movepool": {
+    "egg": [
+      "mirror-coat",
+      "night-slash",
+      "slash"
+    ],
+    "level_up": [
+      "breaking-swipe",
+      "dragon-claw",
+      "dragon-tail",
+      "electro-shot",
+      "flash-cannon",
+      "focus-energy",
+      "hone-claws",
+      "hyper-beam",
+      "iron-defense",
+      "leer",
+      "metal-burst",
+      "metal-claw",
+      "metal-sound",
+      "rock-smash"
+    ],
+    "machine": [
+      "aura-sphere",
+      "body-press",
+      "body-slam",
+      "breaking-swipe",
+      "brick-break",
+      "dark-pulse",
+      "double-edge",
+      "draco-meteor",
+      "dragon-cheer",
+      "dragon-claw",
+      "dragon-pulse",
+      "dragon-tail",
+      "earthquake",
+      "endure",
+      "facade",
+      "flash-cannon",
+      "foul-play",
+      "giga-impact",
+      "gyro-ball",
+      "hard-press",
+      "heavy-slam",
+      "hyper-beam",
+      "iron-defense",
+      "iron-head",
+      "light-screen",
+      "metal-claw",
+      "metal-sound",
+      "meteor-beam",
+      "outrage",
+      "protect",
+      "reflect",
+      "rest",
+      "roar",
+      "rock-slide",
+      "rock-tomb",
+      "scary-face",
+      "sleep-talk",
+      "smack-down",
+      "snarl",
+      "solar-beam",
+      "stealth-rock",
+      "steel-beam",
+      "stone-edge",
+      "substitute",
+      "swords-dance",
+      "take-down",
+      "tera-blast",
+      "thunder",
+      "thunder-wave",
+      "thunderbolt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "archaludon",
+    "ko": "브리두라스"
+  },
+  "pokeapi_id": 1018,
+  "pokeapi_version": "v2",
+  "species": "archaludon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1018.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/1018.png"
+  },
+  "types": [
+    "steel",
+    "dragon"
+  ],
+  "weight_kg": 60.0
+}

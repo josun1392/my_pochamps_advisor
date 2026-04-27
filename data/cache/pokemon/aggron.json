@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sturdy",
+      "name_ko": "옹골참",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "rock-head",
+      "name_ko": "돌머리",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "heavy-metal",
+      "name_ko": "헤비메탈",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 110,
+    "def": 180,
+    "hp": 70,
+    "spa": 60,
+    "spd": 60,
+    "spe": 50
+  },
+  "entity_id": "aggron",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 2.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "aggron",
+    "ko": "보스로라"
+  },
+  "pokeapi_id": 306,
+  "pokeapi_version": "v2",
+  "species": "aggron",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/306.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/306.png"
+  },
+  "types": [
+    "steel",
+    "rock"
+  ],
+  "weight_kg": 360.0
+}

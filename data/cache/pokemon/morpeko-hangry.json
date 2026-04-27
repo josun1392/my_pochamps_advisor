@@ -1,0 +1,120 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "hunger-switch",
+      "name_ko": "꼬르륵스위치",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 95,
+    "def": 58,
+    "hp": 58,
+    "spa": 70,
+    "spd": 58,
+    "spe": 97
+  },
+  "entity_id": "morpeko-hangry",
+  "fetched_at": "2026-04-27T11:51:48Z",
+  "form_type": "form",
+  "height_m": 0.3,
+  "movepool": {
+    "egg": [
+      "charge",
+      "fake-out",
+      "parting-shot",
+      "quash",
+      "rapid-spin",
+      "super-fang",
+      "swagger",
+      "tickle"
+    ],
+    "level_up": [
+      "agility",
+      "aura-wheel",
+      "bite",
+      "bullet-seed",
+      "crunch",
+      "flatter",
+      "leer",
+      "power-trip",
+      "quick-attack",
+      "spark",
+      "tail-whip",
+      "thrash",
+      "thunder-shock",
+      "torment"
+    ],
+    "machine": [
+      "agility",
+      "baton-pass",
+      "brick-break",
+      "bullet-seed",
+      "charge",
+      "charge-beam",
+      "crunch",
+      "dark-pulse",
+      "double-edge",
+      "eerie-impulse",
+      "electric-terrain",
+      "electro-ball",
+      "electroweb",
+      "endeavor",
+      "endure",
+      "facade",
+      "fake-tears",
+      "fire-fang",
+      "fling",
+      "foul-play",
+      "ice-fang",
+      "knock-off",
+      "lash-out",
+      "nasty-plot",
+      "outrage",
+      "protect",
+      "psychic-fangs",
+      "rest",
+      "reversal",
+      "scary-face",
+      "seed-bomb",
+      "sleep-talk",
+      "snarl",
+      "spite",
+      "stomping-tantrum",
+      "substitute",
+      "super-fang",
+      "swift",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "thunder",
+      "thunder-fang",
+      "thunder-punch",
+      "thunder-wave",
+      "thunderbolt",
+      "uproar",
+      "volt-switch",
+      "wild-charge"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "morpeko Hangry Mode",
+    "ko": "모르페코 배고픈 모양"
+  },
+  "pokeapi_id": 10187,
+  "pokeapi_version": "v2",
+  "species": "morpeko",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10187.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10187.png"
+  },
+  "types": [
+    "electric",
+    "dark"
+  ],
+  "weight_kg": 3.0
+}

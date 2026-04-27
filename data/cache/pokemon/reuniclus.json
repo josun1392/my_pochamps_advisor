@@ -1,0 +1,134 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "overcoat",
+      "name_ko": "방진",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "magic-guard",
+      "name_ko": "매직가드",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "regenerator",
+      "name_ko": "재생력",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 65,
+    "def": 75,
+    "hp": 110,
+    "spa": 125,
+    "spd": 85,
+    "spe": 30
+  },
+  "entity_id": "reuniclus",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [
+      "acid-armor",
+      "astonish",
+      "confuse-ray"
+    ],
+    "level_up": [
+      "ally-switch",
+      "charm",
+      "confusion",
+      "endeavor",
+      "future-sight",
+      "hammer-arm",
+      "light-screen",
+      "pain-split",
+      "protect",
+      "psybeam",
+      "psychic",
+      "psyshock",
+      "recover",
+      "reflect",
+      "skill-swap",
+      "wonder-room"
+    ],
+    "machine": [
+      "body-slam",
+      "calm-mind",
+      "charm",
+      "confuse-ray",
+      "drain-punch",
+      "encore",
+      "endeavor",
+      "endure",
+      "energy-ball",
+      "expanding-force",
+      "facade",
+      "fire-punch",
+      "flash-cannon",
+      "fling",
+      "focus-blast",
+      "focus-punch",
+      "future-sight",
+      "giga-impact",
+      "grass-knot",
+      "gravity",
+      "gyro-ball",
+      "helping-hand",
+      "hyper-beam",
+      "ice-punch",
+      "imprison",
+      "iron-defense",
+      "knock-off",
+      "light-screen",
+      "night-shade",
+      "pain-split",
+      "protect",
+      "psybeam",
+      "psych-up",
+      "psychic",
+      "psychic-noise",
+      "psychic-terrain",
+      "psyshock",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "rock-slide",
+      "rock-tomb",
+      "shadow-ball",
+      "skill-swap",
+      "sleep-talk",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "tera-blast",
+      "thunder",
+      "thunder-punch",
+      "thunder-wave",
+      "trick",
+      "trick-room",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "reuniclus",
+    "ko": "란쿨루스"
+  },
+  "pokeapi_id": 579,
+  "pokeapi_version": "v2",
+  "species": "reuniclus",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/579.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/579.png"
+  },
+  "types": [
+    "psychic"
+  ],
+  "weight_kg": 20.1
+}

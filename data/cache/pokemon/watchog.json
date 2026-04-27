@@ -1,0 +1,56 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "illuminate",
+      "name_ko": "발광",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "keen-eye",
+      "name_ko": "날카로운눈",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "analytic",
+      "name_ko": "애널라이즈",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 85,
+    "def": 69,
+    "hp": 60,
+    "spa": 60,
+    "spd": 69,
+    "spe": 77
+  },
+  "entity_id": "watchog",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "watchog",
+    "ko": "보르그"
+  },
+  "pokeapi_id": 505,
+  "pokeapi_version": "v2",
+  "species": "watchog",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/505.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/505.png"
+  },
+  "types": [
+    "normal"
+  ],
+  "weight_kg": 27.0
+}

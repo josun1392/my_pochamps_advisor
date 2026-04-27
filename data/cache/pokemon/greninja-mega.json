@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "protean",
+      "name_ko": "변환자재",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 125,
+    "def": 77,
+    "hp": 72,
+    "spa": 133,
+    "spd": 81,
+    "spe": 142
+  },
+  "entity_id": "greninja-mega",
+  "fetched_at": "2026-04-27T11:51:46Z",
+  "form_type": "mega",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Greninja",
+    "ko": "메가개굴닌자"
+  },
+  "pokeapi_id": 10294,
+  "pokeapi_version": "v2",
+  "species": "greninja",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "water",
+    "dark"
+  ],
+  "weight_kg": 40.0
+}

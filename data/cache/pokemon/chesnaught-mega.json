@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "bulletproof",
+      "name_ko": "방탄",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 137,
+    "def": 172,
+    "hp": 88,
+    "spa": 74,
+    "spd": 115,
+    "spe": 44
+  },
+  "entity_id": "chesnaught-mega",
+  "fetched_at": "2026-04-27T11:51:42Z",
+  "form_type": "mega",
+  "height_m": 1.6,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Chesnaught",
+    "ko": "메가브리가론"
+  },
+  "pokeapi_id": 10292,
+  "pokeapi_version": "v2",
+  "species": "chesnaught",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "grass",
+    "fighting"
+  ],
+  "weight_kg": 90.0
+}

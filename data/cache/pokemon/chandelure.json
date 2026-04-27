@@ -1,0 +1,123 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "flash-fire",
+      "name_ko": "타오르는불꽃",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "flame-body",
+      "name_ko": "불꽃몸",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "infiltrator",
+      "name_ko": "틈새포착",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 55,
+    "def": 90,
+    "hp": 60,
+    "spa": 145,
+    "spd": 90,
+    "spe": 80
+  },
+  "entity_id": "chandelure",
+  "fetched_at": "2026-04-27T11:51:56Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [
+      "acid-armor",
+      "clear-smog",
+      "haze",
+      "power-split"
+    ],
+    "level_up": [
+      "astonish",
+      "confuse-ray",
+      "curse",
+      "ember",
+      "fire-spin",
+      "hex",
+      "imprison",
+      "inferno",
+      "memento",
+      "minimize",
+      "night-shade",
+      "overheat",
+      "pain-split",
+      "shadow-ball",
+      "smog",
+      "will-o-wisp"
+    ],
+    "machine": [
+      "burning-jealousy",
+      "calm-mind",
+      "confuse-ray",
+      "curse",
+      "dark-pulse",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fire-blast",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "giga-impact",
+      "haze",
+      "heat-wave",
+      "hex",
+      "hyper-beam",
+      "imprison",
+      "lash-out",
+      "night-shade",
+      "overheat",
+      "pain-split",
+      "poltergeist",
+      "protect",
+      "psych-up",
+      "psychic",
+      "rest",
+      "shadow-ball",
+      "skitter-smack",
+      "sleep-talk",
+      "solar-beam",
+      "spite",
+      "substitute",
+      "sunny-day",
+      "taunt",
+      "temper-flare",
+      "tera-blast",
+      "thief",
+      "trailblaze",
+      "trick",
+      "trick-room",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "chandelure",
+    "ko": "샹델라"
+  },
+  "pokeapi_id": 609,
+  "pokeapi_version": "v2",
+  "species": "chandelure",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/609.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/609.png"
+  },
+  "types": [
+    "ghost",
+    "fire"
+  ],
+  "weight_kg": 34.3
+}

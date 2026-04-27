@@ -1,0 +1,125 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "receiver",
+      "name_ko": "리시버",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "defiant",
+      "name_ko": "오기",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 120,
+    "def": 90,
+    "hp": 100,
+    "spa": 40,
+    "spd": 60,
+    "spe": 80
+  },
+  "entity_id": "passimian",
+  "fetched_at": "2026-04-27T11:51:49Z",
+  "form_type": "default",
+  "height_m": 2.0,
+  "movepool": {
+    "egg": [
+      "counter",
+      "feint",
+      "knock-off",
+      "quick-attack",
+      "quick-guard",
+      "seismic-toss"
+    ],
+    "level_up": [
+      "beat-up",
+      "bulk-up",
+      "close-combat",
+      "double-edge",
+      "fling",
+      "focus-energy",
+      "giga-impact",
+      "leer",
+      "reversal",
+      "rock-smash",
+      "scary-face",
+      "tackle",
+      "take-down",
+      "thrash"
+    ],
+    "machine": [
+      "acrobatics",
+      "baton-pass",
+      "body-slam",
+      "brick-break",
+      "bulk-up",
+      "bulldoze",
+      "chilling-water",
+      "close-combat",
+      "coaching",
+      "curse",
+      "double-edge",
+      "drain-punch",
+      "earthquake",
+      "electroweb",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fling",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "grass-knot",
+      "gunk-shot",
+      "gyro-ball",
+      "hyper-beam",
+      "iron-head",
+      "knock-off",
+      "low-kick",
+      "low-sweep",
+      "pain-split",
+      "protect",
+      "rain-dance",
+      "rest",
+      "reversal",
+      "rock-slide",
+      "rock-tomb",
+      "scary-face",
+      "seed-bomb",
+      "shadow-ball",
+      "sleep-talk",
+      "smack-down",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "trailblaze",
+      "u-turn",
+      "upper-hand",
+      "uproar",
+      "vacuum-wave"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "passimian",
+    "ko": "내던숭이"
+  },
+  "pokeapi_id": 766,
+  "pokeapi_version": "v2",
+  "species": "passimian",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/766.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/766.png"
+  },
+  "types": [
+    "fighting"
+  ],
+  "weight_kg": 82.8
+}

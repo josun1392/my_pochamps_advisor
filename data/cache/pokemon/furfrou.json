@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "fur-coat",
+      "name_ko": "퍼코트",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 80,
+    "def": 60,
+    "hp": 75,
+    "spa": 65,
+    "spd": 90,
+    "spe": 102
+  },
+  "entity_id": "furfrou",
+  "fetched_at": "2026-04-27T11:51:45Z",
+  "form_type": "default",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "furfrou",
+    "ko": "트리미앙"
+  },
+  "pokeapi_id": 676,
+  "pokeapi_version": "v2",
+  "species": "furfrou",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/676.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/676.png"
+  },
+  "types": [
+    "normal"
+  ],
+  "weight_kg": 28.0
+}

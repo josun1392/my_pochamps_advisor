@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "berserk",
+      "name_ko": "발끈",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "sap-sipper",
+      "name_ko": "초식",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "cloud-nine",
+      "name_ko": "날씨부정",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 60,
+    "def": 85,
+    "hp": 78,
+    "spa": 135,
+    "spd": 91,
+    "spe": 36
+  },
+  "entity_id": "drampa",
+  "fetched_at": "2026-04-27T11:51:56Z",
+  "form_type": "default",
+  "height_m": 3.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "drampa",
+    "ko": "할비롱"
+  },
+  "pokeapi_id": 780,
+  "pokeapi_version": "v2",
+  "species": "drampa",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/780.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/780.png"
+  },
+  "types": [
+    "normal",
+    "dragon"
+  ],
+  "weight_kg": 185.0
+}

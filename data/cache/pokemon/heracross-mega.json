@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "skill-link",
+      "name_ko": "스킬링크",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 185,
+    "def": 115,
+    "hp": 80,
+    "spa": 40,
+    "spd": 105,
+    "spe": 75
+  },
+  "entity_id": "heracross-mega",
+  "fetched_at": "2026-04-27T11:51:47Z",
+  "form_type": "mega",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Heracross",
+    "ko": "메가헤라크로스"
+  },
+  "pokeapi_id": 10047,
+  "pokeapi_version": "v2",
+  "species": "heracross",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10047.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10047.png"
+  },
+  "types": [
+    "bug",
+    "fighting"
+  ],
+  "weight_kg": 62.5
+}

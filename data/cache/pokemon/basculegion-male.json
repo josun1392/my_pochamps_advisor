@@ -1,0 +1,121 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "swift-swim",
+      "name_ko": "쓱쓱",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "adaptability",
+      "name_ko": "적응력",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "mold-breaker",
+      "name_ko": "틀깨기",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 112,
+    "def": 65,
+    "hp": 120,
+    "spa": 80,
+    "spd": 75,
+    "spe": 78
+  },
+  "entity_id": "basculegion-male",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 3.0,
+  "movepool": {
+    "egg": [
+      "endeavor",
+      "last-respects"
+    ],
+    "level_up": [
+      "aqua-jet",
+      "bite",
+      "crunch",
+      "double-edge",
+      "flail",
+      "head-smash",
+      "headbutt",
+      "phantom-force",
+      "scary-face",
+      "shadow-ball",
+      "soak",
+      "tackle",
+      "tail-whip",
+      "take-down",
+      "thrash",
+      "uproar",
+      "water-gun",
+      "wave-crash"
+    ],
+    "machine": [
+      "agility",
+      "blizzard",
+      "chilling-water",
+      "confuse-ray",
+      "crunch",
+      "double-edge",
+      "endeavor",
+      "facade",
+      "flip-turn",
+      "giga-impact",
+      "hex",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-beam",
+      "ice-fang",
+      "icy-wind",
+      "liquidation",
+      "mud-shot",
+      "muddy-water",
+      "night-shade",
+      "outrage",
+      "pain-split",
+      "phantom-force",
+      "protect",
+      "psychic-fangs",
+      "rain-dance",
+      "rest",
+      "scale-shot",
+      "scary-face",
+      "shadow-ball",
+      "sleep-talk",
+      "snowscape",
+      "spite",
+      "substitute",
+      "surf",
+      "take-down",
+      "tera-blast",
+      "uproar",
+      "water-pulse",
+      "waterfall",
+      "whirlpool"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "basculegion",
+    "ko": "대쓰여너"
+  },
+  "pokeapi_id": 902,
+  "pokeapi_version": "v2",
+  "species": "basculegion",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/902.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/902.png"
+  },
+  "types": [
+    "water",
+    "ghost"
+  ],
+  "weight_kg": 110.0
+}

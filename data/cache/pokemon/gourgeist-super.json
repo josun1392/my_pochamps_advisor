@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "pickup",
+      "name_ko": "픽업",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "frisk",
+      "name_ko": "통찰",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "insomnia",
+      "name_ko": "불면",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 100,
+    "def": 122,
+    "hp": 85,
+    "spa": 58,
+    "spd": 75,
+    "spe": 54
+  },
+  "entity_id": "gourgeist-super",
+  "fetched_at": "2026-04-27T11:51:57Z",
+  "form_type": "form",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "gourgeist Jumbo Variety",
+    "ko": "펌킨인 Jumbo Variety"
+  },
+  "pokeapi_id": 10032,
+  "pokeapi_version": "v2",
+  "species": "gourgeist",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10032.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10032.png"
+  },
+  "types": [
+    "ghost",
+    "grass"
+  ],
+  "weight_kg": 39.0
+}

@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "forecast",
+      "name_ko": "기분파",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 70,
+    "def": 70,
+    "hp": 70,
+    "spa": 70,
+    "spd": 70,
+    "spe": 70
+  },
+  "entity_id": "castform",
+  "fetched_at": "2026-04-27T11:51:42Z",
+  "form_type": "form",
+  "height_m": 0.3,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "castform Snowy Form",
+    "ko": "캐스퐁 설운의 모습"
+  },
+  "pokeapi_id": 351,
+  "pokeapi_version": "v2",
+  "species": "castform",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/351.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/351.png"
+  },
+  "types": [
+    "normal"
+  ],
+  "weight_kg": 0.8
+}

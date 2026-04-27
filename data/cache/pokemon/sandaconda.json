@@ -1,0 +1,110 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sand-spit",
+      "name_ko": "모래뿜기",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "shed-skin",
+      "name_ko": "탈피",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sand-veil",
+      "name_ko": "모래숨기",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 107,
+    "def": 125,
+    "hp": 72,
+    "spa": 65,
+    "spd": 70,
+    "spe": 71
+  },
+  "entity_id": "sandaconda",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 3.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "brutal-swing",
+      "bulldoze",
+      "coil",
+      "dig",
+      "glare",
+      "headbutt",
+      "minimize",
+      "sand-attack",
+      "sand-tomb",
+      "sandstorm",
+      "slam",
+      "wrap"
+    ],
+    "machine": [
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "dig",
+      "drill-run",
+      "earth-power",
+      "earthquake",
+      "endeavor",
+      "endure",
+      "facade",
+      "fire-fang",
+      "giga-impact",
+      "high-horsepower",
+      "hurricane",
+      "hyper-beam",
+      "iron-defense",
+      "iron-head",
+      "mud-shot",
+      "mud-slap",
+      "outrage",
+      "poison-tail",
+      "protect",
+      "rest",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sand-tomb",
+      "sandstorm",
+      "scale-shot",
+      "scary-face",
+      "scorching-sands",
+      "skitter-smack",
+      "sleep-talk",
+      "stealth-rock",
+      "stone-edge",
+      "substitute",
+      "take-down",
+      "tera-blast",
+      "thunder-fang",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "sandaconda",
+    "ko": "사다이사"
+  },
+  "pokeapi_id": 844,
+  "pokeapi_version": "v2",
+  "species": "sandaconda",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/844.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/844.png"
+  },
+  "types": [
+    "ground"
+  ],
+  "weight_kg": 65.5
+}

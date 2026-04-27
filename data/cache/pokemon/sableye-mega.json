@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "magic-bounce",
+      "name_ko": "매직미러",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 85,
+    "def": 125,
+    "hp": 50,
+    "spa": 85,
+    "spd": 115,
+    "spe": 20
+  },
+  "entity_id": "sableye-mega",
+  "fetched_at": "2026-04-27T11:51:50Z",
+  "form_type": "mega",
+  "height_m": 0.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Sableye",
+    "ko": "메가깜까미"
+  },
+  "pokeapi_id": 10066,
+  "pokeapi_version": "v2",
+  "species": "sableye",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10066.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10066.png"
+  },
+  "types": [
+    "dark",
+    "ghost"
+  ],
+  "weight_kg": 161.0
+}

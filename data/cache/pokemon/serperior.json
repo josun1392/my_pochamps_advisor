@@ -1,0 +1,116 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "overgrow",
+      "name_ko": "심록",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "contrary",
+      "name_ko": "심술꾸러기",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 75,
+    "def": 95,
+    "hp": 75,
+    "spa": 75,
+    "spd": 95,
+    "spe": 113
+  },
+  "entity_id": "serperior",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 3.3,
+  "movepool": {
+    "egg": [
+      "glare",
+      "iron-tail",
+      "mean-look",
+      "mirror-coat",
+      "sweet-scent",
+      "synthesis",
+      "twister"
+    ],
+    "level_up": [
+      "coil",
+      "gastro-acid",
+      "giga-drain",
+      "growth",
+      "leaf-blade",
+      "leaf-storm",
+      "leech-seed",
+      "leer",
+      "magical-leaf",
+      "mega-drain",
+      "slam",
+      "tackle",
+      "vine-whip",
+      "wrap"
+    ],
+    "machine": [
+      "aerial-ace",
+      "body-slam",
+      "breaking-swipe",
+      "bullet-seed",
+      "calm-mind",
+      "double-edge",
+      "dragon-pulse",
+      "dragon-tail",
+      "endure",
+      "energy-ball",
+      "facade",
+      "frenzy-plant",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grass-pledge",
+      "grassy-glide",
+      "grassy-terrain",
+      "helping-hand",
+      "hyper-beam",
+      "knock-off",
+      "leaf-storm",
+      "light-screen",
+      "magical-leaf",
+      "outrage",
+      "petal-blizzard",
+      "protect",
+      "reflect",
+      "rest",
+      "scale-shot",
+      "scary-face",
+      "seed-bomb",
+      "sleep-talk",
+      "solar-beam",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "trailblaze"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "serperior",
+    "ko": "샤로다"
+  },
+  "pokeapi_id": 497,
+  "pokeapi_version": "v2",
+  "species": "serperior",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/497.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/497.png"
+  },
+  "types": [
+    "grass"
+  ],
+  "weight_kg": 63.0
+}

@@ -1,0 +1,114 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "ripen",
+      "name_ko": "숙성",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "gluttony",
+      "name_ko": "먹보",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "hustle",
+      "name_ko": "의욕",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 110,
+    "def": 80,
+    "hp": 70,
+    "spa": 95,
+    "spd": 60,
+    "spe": 70
+  },
+  "entity_id": "flapple",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 0.3,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "acid-spray",
+      "acrobatics",
+      "astonish",
+      "dragon-breath",
+      "dragon-dance",
+      "dragon-pulse",
+      "dragon-rush",
+      "fly",
+      "grav-apple",
+      "growth",
+      "iron-defense",
+      "leech-seed",
+      "protect",
+      "recycle",
+      "twister",
+      "wing-attack",
+      "withdraw"
+    ],
+    "machine": [
+      "acid-spray",
+      "acrobatics",
+      "aerial-ace",
+      "air-slash",
+      "bullet-seed",
+      "draco-meteor",
+      "dragon-dance",
+      "dragon-pulse",
+      "dual-wingbeat",
+      "endeavor",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fly",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-glide",
+      "grassy-terrain",
+      "heavy-slam",
+      "hyper-beam",
+      "iron-defense",
+      "leaf-storm",
+      "magical-leaf",
+      "outrage",
+      "pounce",
+      "protect",
+      "rest",
+      "scary-face",
+      "seed-bomb",
+      "sleep-talk",
+      "solar-beam",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "tera-blast",
+      "trailblaze",
+      "u-turn"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "flapple",
+    "ko": "애프룡"
+  },
+  "pokeapi_id": 841,
+  "pokeapi_version": "v2",
+  "species": "flapple",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/841.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/841.png"
+  },
+  "types": [
+    "grass",
+    "dragon"
+  ],
+  "weight_kg": 1.0
+}

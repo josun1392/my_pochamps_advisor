@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "trace",
+      "name_ko": "트레이스",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 50,
+    "def": 65,
+    "hp": 55,
+    "spa": 175,
+    "spd": 105,
+    "spe": 150
+  },
+  "entity_id": "alakazam-mega",
+  "fetched_at": "2026-04-27T11:51:39Z",
+  "form_type": "mega",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Alakazam",
+    "ko": "메가후딘"
+  },
+  "pokeapi_id": 10037,
+  "pokeapi_version": "v2",
+  "species": "alakazam",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10037.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10037.png"
+  },
+  "types": [
+    "psychic"
+  ],
+  "weight_kg": 48.0
+}

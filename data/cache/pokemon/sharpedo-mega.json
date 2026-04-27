@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "strong-jaw",
+      "name_ko": "옹골찬턱",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 140,
+    "def": 70,
+    "hp": 70,
+    "spa": 110,
+    "spd": 65,
+    "spe": 105
+  },
+  "entity_id": "sharpedo-mega",
+  "fetched_at": "2026-04-27T11:51:51Z",
+  "form_type": "mega",
+  "height_m": 2.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Sharpedo",
+    "ko": "메가샤크니아"
+  },
+  "pokeapi_id": 10070,
+  "pokeapi_version": "v2",
+  "species": "sharpedo",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10070.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10070.png"
+  },
+  "types": [
+    "water",
+    "dark"
+  ],
+  "weight_kg": 130.3
+}

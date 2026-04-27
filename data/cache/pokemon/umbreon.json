@@ -1,0 +1,123 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "synchronize",
+      "name_ko": "싱크로",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "inner-focus",
+      "name_ko": "정신력",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 65,
+    "def": 110,
+    "hp": 95,
+    "spa": 60,
+    "spd": 130,
+    "spe": 65
+  },
+  "entity_id": "umbreon",
+  "fetched_at": "2026-04-27T11:51:53Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "assurance",
+      "baby-doll-eyes",
+      "baton-pass",
+      "bite",
+      "charm",
+      "confuse-ray",
+      "copycat",
+      "covet",
+      "dark-pulse",
+      "double-edge",
+      "growl",
+      "guard-swap",
+      "helping-hand",
+      "last-resort",
+      "mean-look",
+      "moonlight",
+      "quick-attack",
+      "sand-attack",
+      "screech",
+      "snarl",
+      "swift",
+      "tackle",
+      "tail-whip",
+      "take-down"
+    ],
+    "machine": [
+      "alluring-voice",
+      "baton-pass",
+      "body-slam",
+      "calm-mind",
+      "charm",
+      "confuse-ray",
+      "crunch",
+      "curse",
+      "dark-pulse",
+      "dig",
+      "double-edge",
+      "endure",
+      "facade",
+      "fake-tears",
+      "foul-play",
+      "giga-impact",
+      "helping-hand",
+      "hyper-beam",
+      "hyper-voice",
+      "lash-out",
+      "light-screen",
+      "protect",
+      "psych-up",
+      "psychic",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "roar",
+      "scary-face",
+      "shadow-ball",
+      "skill-swap",
+      "sleep-talk",
+      "snarl",
+      "spite",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "thunder-wave",
+      "toxic",
+      "trailblaze",
+      "weather-ball"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "umbreon",
+    "ko": "블래키"
+  },
+  "pokeapi_id": 197,
+  "pokeapi_version": "v2",
+  "species": "umbreon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/197.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/197.png"
+  },
+  "types": [
+    "dark"
+  ],
+  "weight_kg": 27.0
+}

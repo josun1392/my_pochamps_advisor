@@ -1,0 +1,50 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "gluttony",
+      "name_ko": "먹보",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "torrent",
+      "name_ko": "급류",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 98,
+    "def": 63,
+    "hp": 75,
+    "spa": 98,
+    "spd": 63,
+    "spe": 101
+  },
+  "entity_id": "simipour",
+  "fetched_at": "2026-04-27T11:51:51Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "simipour",
+    "ko": "앗차키"
+  },
+  "pokeapi_id": 516,
+  "pokeapi_version": "v2",
+  "species": "simipour",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/516.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/516.png"
+  },
+  "types": [
+    "water"
+  ],
+  "weight_kg": 29.0
+}

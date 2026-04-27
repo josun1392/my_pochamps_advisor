@@ -1,0 +1,107 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "shield-dust",
+      "name_ko": "인분",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "compound-eyes",
+      "name_ko": "복안",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "friend-guard",
+      "name_ko": "프렌드가드",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 52,
+    "def": 50,
+    "hp": 80,
+    "spa": 90,
+    "spd": 50,
+    "spe": 89
+  },
+  "entity_id": "vivillon",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "bug-buzz",
+      "draining-kiss",
+      "gust",
+      "hurricane",
+      "light-screen",
+      "poison-powder",
+      "psybeam",
+      "quiver-dance",
+      "safeguard",
+      "sleep-powder",
+      "struggle-bug",
+      "stun-spore",
+      "supersonic"
+    ],
+    "machine": [
+      "acrobatics",
+      "air-cutter",
+      "air-slash",
+      "bug-bite",
+      "bug-buzz",
+      "confuse-ray",
+      "draining-kiss",
+      "endure",
+      "energy-ball",
+      "facade",
+      "giga-drain",
+      "giga-impact",
+      "hurricane",
+      "hyper-beam",
+      "iron-defense",
+      "light-screen",
+      "pollen-puff",
+      "pounce",
+      "protect",
+      "psybeam",
+      "psychic",
+      "rain-dance",
+      "rest",
+      "skitter-smack",
+      "sleep-talk",
+      "solar-beam",
+      "struggle-bug",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "tailwind",
+      "tera-blast",
+      "thief",
+      "u-turn",
+      "weather-ball"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "vivillon",
+    "ko": "비비용"
+  },
+  "pokeapi_id": 666,
+  "pokeapi_version": "v2",
+  "species": "vivillon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/666.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/666.png"
+  },
+  "types": [
+    "bug",
+    "flying"
+  ],
+  "weight_kg": 17.0
+}

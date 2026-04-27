@@ -1,0 +1,117 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "pressure",
+      "name_ko": "프레셔",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "infiltrator",
+      "name_ko": "틈새포착",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 92,
+    "def": 108,
+    "hp": 50,
+    "spa": 92,
+    "spd": 108,
+    "spe": 35
+  },
+  "entity_id": "spiritomb",
+  "fetched_at": "2026-04-27T11:51:52Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [
+      "ally-switch",
+      "destiny-bond",
+      "disable",
+      "pain-split",
+      "smokescreen"
+    ],
+    "level_up": [
+      "confuse-ray",
+      "curse",
+      "dark-pulse",
+      "dream-eater",
+      "hex",
+      "hypnosis",
+      "memento",
+      "nasty-plot",
+      "night-shade",
+      "payback",
+      "shadow-ball",
+      "shadow-sneak",
+      "spite",
+      "sucker-punch"
+    ],
+    "machine": [
+      "body-slam",
+      "burning-jealousy",
+      "calm-mind",
+      "confuse-ray",
+      "curse",
+      "dark-pulse",
+      "endure",
+      "facade",
+      "foul-play",
+      "giga-impact",
+      "helping-hand",
+      "hex",
+      "hyper-beam",
+      "icy-wind",
+      "imprison",
+      "lash-out",
+      "nasty-plot",
+      "night-shade",
+      "pain-split",
+      "phantom-force",
+      "poltergeist",
+      "protect",
+      "psybeam",
+      "psychic",
+      "psyshock",
+      "rain-dance",
+      "rest",
+      "rock-tomb",
+      "scary-face",
+      "shadow-ball",
+      "skill-swap",
+      "sleep-talk",
+      "snarl",
+      "spite",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "taunt",
+      "tera-blast",
+      "thief",
+      "toxic",
+      "trick",
+      "trick-room",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "spiritomb",
+    "ko": "화강돌"
+  },
+  "pokeapi_id": 442,
+  "pokeapi_version": "v2",
+  "species": "spiritomb",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/442.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/442.png"
+  },
+  "types": [
+    "ghost",
+    "dark"
+  ],
+  "weight_kg": 108.0
+}

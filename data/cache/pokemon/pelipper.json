@@ -1,0 +1,124 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "keen-eye",
+      "name_ko": "날카로운눈",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "drizzle",
+      "name_ko": "잔비",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "rain-dish",
+      "name_ko": "젖은접시",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 50,
+    "def": 100,
+    "hp": 60,
+    "spa": 95,
+    "spd": 70,
+    "spe": 65
+  },
+  "entity_id": "pelipper",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "default",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [
+      "wide-guard"
+    ],
+    "level_up": [
+      "agility",
+      "air-slash",
+      "fling",
+      "growl",
+      "hurricane",
+      "hydro-pump",
+      "mist",
+      "protect",
+      "quick-attack",
+      "roost",
+      "soak",
+      "spit-up",
+      "stockpile",
+      "supersonic",
+      "swallow",
+      "tailwind",
+      "water-gun",
+      "water-pulse",
+      "wing-attack"
+    ],
+    "machine": [
+      "acrobatics",
+      "aerial-ace",
+      "agility",
+      "air-cutter",
+      "air-slash",
+      "blizzard",
+      "body-slam",
+      "brave-bird",
+      "chilling-water",
+      "dual-wingbeat",
+      "endure",
+      "facade",
+      "feather-dance",
+      "fling",
+      "fly",
+      "giga-impact",
+      "gunk-shot",
+      "helping-hand",
+      "hurricane",
+      "hydro-pump",
+      "hyper-beam",
+      "ice-beam",
+      "icy-wind",
+      "knock-off",
+      "liquidation",
+      "muddy-water",
+      "protect",
+      "rain-dance",
+      "rest",
+      "seed-bomb",
+      "sleep-talk",
+      "snowscape",
+      "substitute",
+      "surf",
+      "swift",
+      "tailwind",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "u-turn",
+      "water-pulse",
+      "waterfall",
+      "weather-ball",
+      "whirlpool"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "pelipper",
+    "ko": "패리퍼"
+  },
+  "pokeapi_id": 279,
+  "pokeapi_version": "v2",
+  "species": "pelipper",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/279.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/279.png"
+  },
+  "types": [
+    "water",
+    "flying"
+  ],
+  "weight_kg": 28.0
+}

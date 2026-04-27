@@ -1,0 +1,51 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "refrigerate",
+      "name_ko": "프리즈스킨",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "snow-warning",
+      "name_ko": "눈퍼뜨리기",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 77,
+    "def": 72,
+    "hp": 123,
+    "spa": 99,
+    "spd": 92,
+    "spe": 58
+  },
+  "entity_id": "aurorus",
+  "fetched_at": "2026-04-27T11:51:41Z",
+  "form_type": "default",
+  "height_m": 2.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "aurorus",
+    "ko": "아마루르가"
+  },
+  "pokeapi_id": 699,
+  "pokeapi_version": "v2",
+  "species": "aurorus",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/699.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/699.png"
+  },
+  "types": [
+    "rock",
+    "ice"
+  ],
+  "weight_kg": 225.0
+}

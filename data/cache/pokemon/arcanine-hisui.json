@@ -1,0 +1,132 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "intimidate",
+      "name_ko": "위협",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "flash-fire",
+      "name_ko": "타오르는불꽃",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "rock-head",
+      "name_ko": "돌머리",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 115,
+    "def": 80,
+    "hp": 95,
+    "spa": 95,
+    "spd": 80,
+    "spe": 90
+  },
+  "entity_id": "arcanine-hisui",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "form",
+  "height_m": 2.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "agility",
+      "bite",
+      "crunch",
+      "ember",
+      "extreme-speed",
+      "fire-fang",
+      "flame-wheel",
+      "flamethrower",
+      "flare-blitz",
+      "helping-hand",
+      "howl",
+      "leer",
+      "raging-fury",
+      "retaliate",
+      "reversal",
+      "roar",
+      "rock-slide",
+      "rock-throw",
+      "take-down"
+    ],
+    "machine": [
+      "aerial-ace",
+      "agility",
+      "body-slam",
+      "bulldoze",
+      "close-combat",
+      "crunch",
+      "dig",
+      "double-edge",
+      "dragon-pulse",
+      "endure",
+      "facade",
+      "fire-blast",
+      "fire-fang",
+      "fire-spin",
+      "flame-charge",
+      "flamethrower",
+      "flare-blitz",
+      "giga-impact",
+      "heat-crash",
+      "heat-wave",
+      "helping-hand",
+      "hyper-beam",
+      "hyper-voice",
+      "iron-head",
+      "outrage",
+      "overheat",
+      "power-gem",
+      "protect",
+      "psychic-fangs",
+      "rest",
+      "reversal",
+      "roar",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sandstorm",
+      "scary-face",
+      "scorching-sands",
+      "sleep-talk",
+      "smack-down",
+      "smart-strike",
+      "snarl",
+      "solar-beam",
+      "stealth-rock",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "temper-flare",
+      "tera-blast",
+      "thief",
+      "thunder-fang",
+      "wild-charge",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "arcanine Hisuian Form",
+    "ko": "윈디 히스이의 모습"
+  },
+  "pokeapi_id": 10230,
+  "pokeapi_version": "v2",
+  "species": "arcanine",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10230.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10230.png"
+  },
+  "types": [
+    "fire",
+    "rock"
+  ],
+  "weight_kg": 168.0
+}

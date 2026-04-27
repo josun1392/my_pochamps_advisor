@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "wandering-spirit",
+      "name_ko": "떠도는영혼",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 95,
+    "def": 145,
+    "hp": 58,
+    "spa": 50,
+    "spd": 105,
+    "spe": 30
+  },
+  "entity_id": "runerigus",
+  "fetched_at": "2026-04-27T11:51:51Z",
+  "form_type": "default",
+  "height_m": 1.6,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "runerigus",
+    "ko": "데스판"
+  },
+  "pokeapi_id": 867,
+  "pokeapi_version": "v2",
+  "species": "runerigus",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/867.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/867.png"
+  },
+  "types": [
+    "ground",
+    "ghost"
+  ],
+  "weight_kg": 66.6
+}

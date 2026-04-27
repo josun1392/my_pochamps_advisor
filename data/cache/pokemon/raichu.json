@@ -1,0 +1,122 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "static",
+      "name_ko": "정전기",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "lightning-rod",
+      "name_ko": "피뢰침",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 90,
+    "def": 55,
+    "hp": 60,
+    "spa": 90,
+    "spd": 80,
+    "spe": 110
+  },
+  "entity_id": "raichu",
+  "fetched_at": "2026-04-27T11:51:50Z",
+  "form_type": "default",
+  "height_m": 0.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "agility",
+      "charm",
+      "discharge",
+      "double-team",
+      "electro-ball",
+      "feint",
+      "growl",
+      "iron-tail",
+      "light-screen",
+      "nasty-plot",
+      "nuzzle",
+      "play-nice",
+      "quick-attack",
+      "spark",
+      "sweet-kiss",
+      "tail-whip",
+      "thunder",
+      "thunder-punch",
+      "thunder-shock",
+      "thunder-wave",
+      "thunderbolt"
+    ],
+    "machine": [
+      "agility",
+      "alluring-voice",
+      "body-slam",
+      "brick-break",
+      "charge",
+      "charge-beam",
+      "charm",
+      "dig",
+      "disarming-voice",
+      "draining-kiss",
+      "eerie-impulse",
+      "electric-terrain",
+      "electro-ball",
+      "electroweb",
+      "encore",
+      "endeavor",
+      "endure",
+      "facade",
+      "fling",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "grass-knot",
+      "helping-hand",
+      "hyper-beam",
+      "knock-off",
+      "light-screen",
+      "nasty-plot",
+      "play-rough",
+      "protect",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "reversal",
+      "sleep-talk",
+      "substitute",
+      "surf",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "thunder",
+      "thunder-punch",
+      "thunder-wave",
+      "thunderbolt",
+      "trailblaze",
+      "upper-hand",
+      "volt-switch",
+      "wild-charge"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "raichu",
+    "ko": "라이츄"
+  },
+  "pokeapi_id": 26,
+  "pokeapi_version": "v2",
+  "species": "raichu",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/26.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/26.png"
+  },
+  "types": [
+    "electric"
+  ],
+  "weight_kg": 30.0
+}

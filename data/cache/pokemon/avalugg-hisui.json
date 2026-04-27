@@ -1,0 +1,122 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "strong-jaw",
+      "name_ko": "옹골찬턱",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "ice-body",
+      "name_ko": "아이스바디",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sturdy",
+      "name_ko": "옹골참",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 127,
+    "def": 184,
+    "hp": 95,
+    "spa": 34,
+    "spd": 36,
+    "spe": 38
+  },
+  "entity_id": "avalugg-hisui",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "form",
+  "height_m": 1.4,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "avalanche",
+      "bite",
+      "blizzard",
+      "crunch",
+      "curse",
+      "double-edge",
+      "harden",
+      "ice-fang",
+      "icy-wind",
+      "iron-defense",
+      "mountain-gale",
+      "powder-snow",
+      "protect",
+      "rapid-spin",
+      "recover",
+      "rock-slide",
+      "stone-edge",
+      "tackle",
+      "take-down",
+      "wide-guard"
+    ],
+    "machine": [
+      "avalanche",
+      "blizzard",
+      "body-press",
+      "body-slam",
+      "bulldoze",
+      "chilling-water",
+      "crunch",
+      "curse",
+      "dig",
+      "double-edge",
+      "earthquake",
+      "endure",
+      "facade",
+      "giga-impact",
+      "gyro-ball",
+      "hard-press",
+      "heavy-slam",
+      "high-horsepower",
+      "hyper-beam",
+      "ice-beam",
+      "ice-fang",
+      "ice-spinner",
+      "icicle-spear",
+      "icy-wind",
+      "iron-defense",
+      "iron-head",
+      "meteor-beam",
+      "protect",
+      "rain-dance",
+      "rest",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sandstorm",
+      "scary-face",
+      "sleep-talk",
+      "snowscape",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "take-down",
+      "tera-blast"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "avalugg Hisuian Form",
+    "ko": "크레베이스 히스이의 모습"
+  },
+  "pokeapi_id": 10243,
+  "pokeapi_version": "v2",
+  "species": "avalugg",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10243.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10243.png"
+  },
+  "types": [
+    "ice",
+    "rock"
+  ],
+  "weight_kg": 262.4
+}

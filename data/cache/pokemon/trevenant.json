@@ -1,0 +1,139 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "natural-cure",
+      "name_ko": "자연회복",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "frisk",
+      "name_ko": "통찰",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "harvest",
+      "name_ko": "수확",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 110,
+    "def": 76,
+    "hp": 85,
+    "spa": 65,
+    "spd": 82,
+    "spe": 56
+  },
+  "entity_id": "trevenant",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [
+      "ally-switch",
+      "disable",
+      "sucker-punch"
+    ],
+    "level_up": [
+      "astonish",
+      "branch-poke",
+      "confuse-ray",
+      "curse",
+      "destiny-bond",
+      "forests-curse",
+      "growth",
+      "hex",
+      "horn-leech",
+      "ingrain",
+      "leech-seed",
+      "phantom-force",
+      "shadow-claw",
+      "tackle",
+      "will-o-wisp",
+      "wood-hammer"
+    ],
+    "machine": [
+      "bulldoze",
+      "burning-jealousy",
+      "calm-mind",
+      "confuse-ray",
+      "curse",
+      "dark-pulse",
+      "dig",
+      "drain-punch",
+      "earthquake",
+      "endure",
+      "energy-ball",
+      "facade",
+      "focus-blast",
+      "foul-play",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-glide",
+      "grassy-terrain",
+      "haze",
+      "hex",
+      "hyper-beam",
+      "imprison",
+      "knock-off",
+      "lash-out",
+      "leaf-storm",
+      "magical-leaf",
+      "night-shade",
+      "pain-split",
+      "phantom-force",
+      "poison-jab",
+      "poltergeist",
+      "protect",
+      "psych-up",
+      "psychic",
+      "psychic-noise",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "rock-slide",
+      "scary-face",
+      "seed-bomb",
+      "shadow-ball",
+      "shadow-claw",
+      "skill-swap",
+      "skitter-smack",
+      "sleep-talk",
+      "solar-beam",
+      "spite",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "toxic",
+      "trailblaze",
+      "trick",
+      "trick-room",
+      "will-o-wisp",
+      "x-scissor"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "trevenant",
+    "ko": "대로트"
+  },
+  "pokeapi_id": 709,
+  "pokeapi_version": "v2",
+  "species": "trevenant",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/709.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/709.png"
+  },
+  "types": [
+    "ghost",
+    "grass"
+  ],
+  "weight_kg": 71.0
+}

@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "adaptability",
+      "name_ko": "적응력",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 90,
+    "def": 105,
+    "hp": 83,
+    "spa": 150,
+    "spd": 96,
+    "spe": 101
+  },
+  "entity_id": "glimmora-mega",
+  "fetched_at": "2026-04-27T11:51:45Z",
+  "form_type": "mega",
+  "height_m": 2.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Glimmora",
+    "ko": "메가킬라플로르"
+  },
+  "pokeapi_id": 10321,
+  "pokeapi_version": "v2",
+  "species": "glimmora",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "rock",
+    "poison"
+  ],
+  "weight_kg": 77.0
+}

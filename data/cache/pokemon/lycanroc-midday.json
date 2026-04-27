@@ -1,0 +1,123 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "keen-eye",
+      "name_ko": "날카로운눈",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "sand-rush",
+      "name_ko": "모래헤치기",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "steadfast",
+      "name_ko": "불굴의마음",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 115,
+    "def": 65,
+    "hp": 75,
+    "spa": 55,
+    "spd": 65,
+    "spe": 112
+  },
+  "entity_id": "lycanroc-midday",
+  "fetched_at": "2026-04-27T11:51:48Z",
+  "form_type": "default",
+  "height_m": 0.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "accelerock",
+      "bite",
+      "crunch",
+      "double-team",
+      "howl",
+      "leer",
+      "quick-attack",
+      "quick-guard",
+      "roar",
+      "rock-slide",
+      "rock-throw",
+      "rock-tomb",
+      "sand-attack",
+      "scary-face",
+      "stealth-rock",
+      "stone-edge",
+      "sucker-punch",
+      "tackle"
+    ],
+    "machine": [
+      "agility",
+      "body-slam",
+      "brick-break",
+      "bulk-up",
+      "bulldoze",
+      "charm",
+      "close-combat",
+      "crunch",
+      "dig",
+      "double-edge",
+      "drill-run",
+      "earth-power",
+      "endeavor",
+      "endure",
+      "facade",
+      "fire-fang",
+      "giga-impact",
+      "helping-hand",
+      "hyper-voice",
+      "iron-defense",
+      "iron-head",
+      "mud-slap",
+      "play-rough",
+      "protect",
+      "psychic-fangs",
+      "rest",
+      "roar",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sandstorm",
+      "scary-face",
+      "sleep-talk",
+      "snarl",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "swords-dance",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "thunder-fang",
+      "trailblaze",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "lycanroc",
+    "ko": "루가루암"
+  },
+  "pokeapi_id": 745,
+  "pokeapi_version": "v2",
+  "species": "lycanroc",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/745.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/745.png"
+  },
+  "types": [
+    "rock"
+  ],
+  "weight_kg": 25.0
+}

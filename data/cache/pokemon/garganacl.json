@@ -1,0 +1,123 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "purifying-salt",
+      "name_ko": "purifying-salt",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "sturdy",
+      "name_ko": "옹골참",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "clear-body",
+      "name_ko": "클리어바디",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 100,
+    "def": 130,
+    "hp": 100,
+    "spa": 45,
+    "spd": 90,
+    "spe": 35
+  },
+  "entity_id": "garganacl",
+  "fetched_at": "2026-04-27T11:51:45Z",
+  "form_type": "default",
+  "height_m": 2.3,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "block",
+      "earthquake",
+      "explosion",
+      "hammer-arm",
+      "harden",
+      "headbutt",
+      "heavy-slam",
+      "mud-shot",
+      "recover",
+      "rock-blast",
+      "rock-polish",
+      "rock-slide",
+      "rock-throw",
+      "rock-tomb",
+      "salt-cure",
+      "stealth-rock",
+      "stone-edge",
+      "tackle",
+      "wide-guard"
+    ],
+    "machine": [
+      "avalanche",
+      "body-press",
+      "body-slam",
+      "brick-break",
+      "bulldoze",
+      "curse",
+      "dig",
+      "double-edge",
+      "earth-power",
+      "earthquake",
+      "endure",
+      "facade",
+      "fire-punch",
+      "flash-cannon",
+      "fling",
+      "focus-punch",
+      "giga-impact",
+      "gravity",
+      "hard-press",
+      "heavy-slam",
+      "helping-hand",
+      "hyper-beam",
+      "ice-punch",
+      "iron-defense",
+      "iron-head",
+      "meteor-beam",
+      "mud-shot",
+      "power-gem",
+      "protect",
+      "rain-dance",
+      "rest",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sandstorm",
+      "sleep-talk",
+      "smack-down",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "tera-blast",
+      "thunder-punch",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "garganacl",
+    "ko": "콜로솔트"
+  },
+  "pokeapi_id": 934,
+  "pokeapi_version": "v2",
+  "species": "garganacl",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/934.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/934.png"
+  },
+  "types": [
+    "rock"
+  ],
+  "weight_kg": 240.0
+}

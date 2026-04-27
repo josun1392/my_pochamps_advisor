@@ -1,0 +1,115 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "leaf-guard",
+      "name_ko": "리프가드",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "queenly-majesty",
+      "name_ko": "여왕의위엄",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sweet-veil",
+      "name_ko": "스위트베일",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 120,
+    "def": 98,
+    "hp": 72,
+    "spa": 50,
+    "spd": 98,
+    "spe": 72
+  },
+  "entity_id": "tsareena",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "aromatic-mist",
+      "flail",
+      "high-jump-kick",
+      "leaf-storm",
+      "magical-leaf",
+      "play-nice",
+      "power-whip",
+      "rapid-spin",
+      "razor-leaf",
+      "splash",
+      "stomp",
+      "swagger",
+      "sweet-scent",
+      "teeter-dance",
+      "trop-kick"
+    ],
+    "machine": [
+      "acrobatics",
+      "bullet-seed",
+      "charm",
+      "dazzling-gleam",
+      "draining-kiss",
+      "endeavor",
+      "endure",
+      "energy-ball",
+      "facade",
+      "fling",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-glide",
+      "grassy-terrain",
+      "helping-hand",
+      "hyper-beam",
+      "knock-off",
+      "leaf-storm",
+      "light-screen",
+      "low-kick",
+      "low-sweep",
+      "magical-leaf",
+      "petal-blizzard",
+      "play-rough",
+      "protect",
+      "reflect",
+      "rest",
+      "seed-bomb",
+      "sleep-talk",
+      "solar-beam",
+      "solar-blade",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "trailblaze",
+      "triple-axel",
+      "u-turn",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "tsareena",
+    "ko": "달코퀸"
+  },
+  "pokeapi_id": 763,
+  "pokeapi_version": "v2",
+  "species": "tsareena",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/763.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/763.png"
+  },
+  "types": [
+    "grass"
+  ],
+  "weight_kg": 21.4
+}

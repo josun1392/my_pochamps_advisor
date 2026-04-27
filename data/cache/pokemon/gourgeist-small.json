@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "pickup",
+      "name_ko": "픽업",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "frisk",
+      "name_ko": "통찰",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "insomnia",
+      "name_ko": "불면",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 85,
+    "def": 122,
+    "hp": 55,
+    "spa": 58,
+    "spd": 75,
+    "spe": 99
+  },
+  "entity_id": "gourgeist-small",
+  "fetched_at": "2026-04-27T11:51:57Z",
+  "form_type": "form",
+  "height_m": 0.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "gourgeist Small Variety",
+    "ko": "펌킨인 Small Variety"
+  },
+  "pokeapi_id": 10030,
+  "pokeapi_version": "v2",
+  "species": "gourgeist",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10030.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10030.png"
+  },
+  "types": [
+    "ghost",
+    "grass"
+  ],
+  "weight_kg": 9.5
+}

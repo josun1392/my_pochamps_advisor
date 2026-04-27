@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "innards-out",
+      "name_ko": "내용물분출",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 125,
+    "def": 85,
+    "hp": 80,
+    "spa": 135,
+    "spd": 95,
+    "spe": 70
+  },
+  "entity_id": "victreebel-mega",
+  "fetched_at": "2026-04-27T11:51:54Z",
+  "form_type": "mega",
+  "height_m": 4.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Victreebel",
+    "ko": "메가우츠보트"
+  },
+  "pokeapi_id": 10279,
+  "pokeapi_version": "v2",
+  "species": "victreebel",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10279.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10279.png"
+  },
+  "types": [
+    "grass",
+    "poison"
+  ],
+  "weight_kg": 125.5
+}

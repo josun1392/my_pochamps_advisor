@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "mega-sol",
+      "name_ko": "mega-sol",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 92,
+    "def": 115,
+    "hp": 80,
+    "spa": 143,
+    "spd": 115,
+    "spe": 80
+  },
+  "entity_id": "meganium-mega",
+  "fetched_at": "2026-04-27T11:51:48Z",
+  "form_type": "mega",
+  "height_m": 2.4,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega nium Mega Meganium",
+    "ko": "메가메가니움"
+  },
+  "pokeapi_id": 10282,
+  "pokeapi_version": "v2",
+  "species": "meganium",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "grass",
+    "fairy"
+  ],
+  "weight_kg": 201.0
+}

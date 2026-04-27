@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "huge-power",
+      "name_ko": "천하장사",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 100,
+    "def": 105,
+    "hp": 60,
+    "spa": 130,
+    "spd": 105,
+    "spe": 120
+  },
+  "entity_id": "starmie-mega",
+  "fetched_at": "2026-04-27T11:51:52Z",
+  "form_type": "mega",
+  "height_m": 2.3,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Starmie",
+    "ko": "메가아쿠스타"
+  },
+  "pokeapi_id": 10280,
+  "pokeapi_version": "v2",
+  "species": "starmie",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "water",
+    "psychic"
+  ],
+  "weight_kg": 80.0
+}

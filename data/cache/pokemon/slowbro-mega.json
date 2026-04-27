@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "shell-armor",
+      "name_ko": "조가비갑옷",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 75,
+    "def": 180,
+    "hp": 95,
+    "spa": 130,
+    "spd": 80,
+    "spe": 30
+  },
+  "entity_id": "slowbro-mega",
+  "fetched_at": "2026-04-27T11:51:52Z",
+  "form_type": "mega",
+  "height_m": 2.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Slowbro",
+    "ko": "메가야도란"
+  },
+  "pokeapi_id": 10071,
+  "pokeapi_version": "v2",
+  "species": "slowbro",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10071.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10071.png"
+  },
+  "types": [
+    "water",
+    "psychic"
+  ],
+  "weight_kg": 120.0
+}

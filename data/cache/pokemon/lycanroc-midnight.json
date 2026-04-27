@@ -1,0 +1,133 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "keen-eye",
+      "name_ko": "날카로운눈",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "vital-spirit",
+      "name_ko": "의기양양",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "no-guard",
+      "name_ko": "노가드",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 115,
+    "def": 75,
+    "hp": 85,
+    "spa": 55,
+    "spd": 75,
+    "spe": 82
+  },
+  "entity_id": "lycanroc-midnight",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "form",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "bite",
+      "counter",
+      "crunch",
+      "double-team",
+      "endure",
+      "howl",
+      "leer",
+      "reversal",
+      "roar",
+      "rock-slide",
+      "rock-throw",
+      "rock-tomb",
+      "sand-attack",
+      "scary-face",
+      "stealth-rock",
+      "stone-edge",
+      "tackle",
+      "taunt"
+    ],
+    "machine": [
+      "body-slam",
+      "brick-break",
+      "bulk-up",
+      "bulldoze",
+      "charm",
+      "close-combat",
+      "crunch",
+      "dig",
+      "double-edge",
+      "earth-power",
+      "endeavor",
+      "endure",
+      "facade",
+      "fire-fang",
+      "fire-punch",
+      "fling",
+      "focus-punch",
+      "foul-play",
+      "giga-impact",
+      "helping-hand",
+      "hyper-voice",
+      "iron-defense",
+      "iron-head",
+      "knock-off",
+      "lash-out",
+      "low-sweep",
+      "mud-slap",
+      "outrage",
+      "play-rough",
+      "protect",
+      "psychic-fangs",
+      "rest",
+      "reversal",
+      "roar",
+      "rock-blast",
+      "rock-slide",
+      "rock-tomb",
+      "sandstorm",
+      "scary-face",
+      "shadow-claw",
+      "sleep-talk",
+      "snarl",
+      "stealth-rock",
+      "stomping-tantrum",
+      "stone-edge",
+      "substitute",
+      "sunny-day",
+      "swords-dance",
+      "take-down",
+      "taunt",
+      "tera-blast",
+      "throat-chop",
+      "thunder-fang",
+      "thunder-punch",
+      "trailblaze",
+      "upper-hand",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "lycanroc Midnight Form",
+    "ko": "루가루암 한밤중의 모습"
+  },
+  "pokeapi_id": 10126,
+  "pokeapi_version": "v2",
+  "species": "lycanroc",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10126.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10126.png"
+  },
+  "types": [
+    "rock"
+  ],
+  "weight_kg": 25.0
+}

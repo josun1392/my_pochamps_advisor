@@ -1,0 +1,56 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "early-bird",
+      "name_ko": "일찍기상",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "scrappy",
+      "name_ko": "배짱",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "inner-focus",
+      "name_ko": "정신력",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 95,
+    "def": 80,
+    "hp": 105,
+    "spa": 40,
+    "spd": 80,
+    "spe": 90
+  },
+  "entity_id": "kangaskhan",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 2.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "kangaskhan",
+    "ko": "캥카"
+  },
+  "pokeapi_id": 115,
+  "pokeapi_version": "v2",
+  "species": "kangaskhan",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/115.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/115.png"
+  },
+  "types": [
+    "normal"
+  ],
+  "weight_kg": 80.0
+}

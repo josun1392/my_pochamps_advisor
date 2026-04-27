@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "rock-head",
+      "name_ko": "돌머리",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "sturdy",
+      "name_ko": "옹골참",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sheer-force",
+      "name_ko": "우격다짐",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 85,
+    "def": 200,
+    "hp": 75,
+    "spa": 55,
+    "spd": 65,
+    "spe": 30
+  },
+  "entity_id": "steelix",
+  "fetched_at": "2026-04-27T11:51:52Z",
+  "form_type": "default",
+  "height_m": 9.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "steelix",
+    "ko": "강철톤"
+  },
+  "pokeapi_id": 208,
+  "pokeapi_version": "v2",
+  "species": "steelix",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/208.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/208.png"
+  },
+  "types": [
+    "steel",
+    "ground"
+  ],
+  "weight_kg": 400.0
+}

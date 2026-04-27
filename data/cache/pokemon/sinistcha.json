@@ -1,0 +1,98 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "hospitality",
+      "name_ko": "대접",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "heatproof",
+      "name_ko": "내열",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 60,
+    "def": 106,
+    "hp": 71,
+    "spa": 121,
+    "spd": 80,
+    "spe": 70
+  },
+  "entity_id": "sinistcha",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 0.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "absorb",
+      "astonish",
+      "foul-play",
+      "hex",
+      "leaf-storm",
+      "life-dew",
+      "matcha-gotcha",
+      "mega-drain",
+      "memento",
+      "rage-powder",
+      "shadow-ball",
+      "strength-sap",
+      "stun-spore",
+      "withdraw"
+    ],
+    "machine": [
+      "calm-mind",
+      "curse",
+      "endure",
+      "energy-ball",
+      "foul-play",
+      "giga-drain",
+      "grassy-terrain",
+      "hex",
+      "hyper-beam",
+      "imprison",
+      "iron-defense",
+      "leaf-storm",
+      "magical-leaf",
+      "nasty-plot",
+      "night-shade",
+      "pain-split",
+      "phantom-force",
+      "poltergeist",
+      "protect",
+      "psych-up",
+      "reflect",
+      "rest",
+      "scald",
+      "shadow-ball",
+      "sleep-talk",
+      "solar-beam",
+      "spite",
+      "substitute",
+      "tera-blast",
+      "trick-room",
+      "uproar"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "sinistcha",
+    "ko": "그우린차"
+  },
+  "pokeapi_id": 1013,
+  "pokeapi_version": "v2",
+  "species": "sinistcha",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1013.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/1013.png"
+  },
+  "types": [
+    "grass",
+    "ghost"
+  ],
+  "weight_kg": 2.2
+}

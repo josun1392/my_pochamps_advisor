@@ -1,0 +1,105 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "flower-veil",
+      "name_ko": "플라워베일",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "symbiosis",
+      "name_ko": "공생",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 65,
+    "def": 68,
+    "hp": 78,
+    "spa": 112,
+    "spd": 154,
+    "spe": 75
+  },
+  "entity_id": "florges",
+  "fetched_at": "2026-04-27T11:51:57Z",
+  "form_type": "default",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "disarming-voice",
+      "grass-knot",
+      "grassy-terrain",
+      "magical-leaf",
+      "misty-terrain",
+      "moonblast",
+      "petal-blizzard",
+      "petal-dance",
+      "safeguard",
+      "solar-beam",
+      "synthesis",
+      "wish"
+    ],
+    "machine": [
+      "alluring-voice",
+      "baton-pass",
+      "calm-mind",
+      "charm",
+      "chilling-water",
+      "dazzling-gleam",
+      "disarming-voice",
+      "draining-kiss",
+      "endeavor",
+      "endure",
+      "energy-ball",
+      "facade",
+      "giga-drain",
+      "giga-impact",
+      "grass-knot",
+      "grassy-terrain",
+      "helping-hand",
+      "hyper-beam",
+      "light-screen",
+      "magical-leaf",
+      "metronome",
+      "misty-explosion",
+      "misty-terrain",
+      "petal-blizzard",
+      "pollen-puff",
+      "protect",
+      "psychic",
+      "psychic-noise",
+      "rain-dance",
+      "rest",
+      "seed-bomb",
+      "skill-swap",
+      "sleep-talk",
+      "solar-beam",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "swift",
+      "tera-blast",
+      "trailblaze",
+      "trick"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "florges",
+    "ko": "플라제스"
+  },
+  "pokeapi_id": 671,
+  "pokeapi_version": "v2",
+  "species": "florges",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/671.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/671.png"
+  },
+  "types": [
+    "fairy"
+  ],
+  "weight_kg": 10.0
+}

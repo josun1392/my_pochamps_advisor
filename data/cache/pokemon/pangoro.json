@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "iron-fist",
+      "name_ko": "철주먹",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "mold-breaker",
+      "name_ko": "틀깨기",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "scrappy",
+      "name_ko": "배짱",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 124,
+    "def": 78,
+    "hp": 95,
+    "spa": 69,
+    "spd": 71,
+    "spe": 58
+  },
+  "entity_id": "pangoro",
+  "fetched_at": "2026-04-27T11:51:49Z",
+  "form_type": "default",
+  "height_m": 2.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "pangoro",
+    "ko": "부란다"
+  },
+  "pokeapi_id": 675,
+  "pokeapi_version": "v2",
+  "species": "pangoro",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/675.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/675.png"
+  },
+  "types": [
+    "fighting",
+    "dark"
+  ],
+  "weight_kg": 136.0
+}

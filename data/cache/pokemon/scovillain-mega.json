@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "spicy-spray",
+      "name_ko": "spicy-spray",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 138,
+    "def": 85,
+    "hp": 65,
+    "spa": 138,
+    "spd": 85,
+    "spe": 75
+  },
+  "entity_id": "scovillain-mega",
+  "fetched_at": "2026-04-27T11:51:51Z",
+  "form_type": "mega",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Scovillain",
+    "ko": "메가스코빌런"
+  },
+  "pokeapi_id": 10320,
+  "pokeapi_version": "v2",
+  "species": "scovillain",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "grass",
+    "fire"
+  ],
+  "weight_kg": 22.0
+}

@@ -1,0 +1,120 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "water-absorb",
+      "name_ko": "저수",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "hydration",
+      "name_ko": "촉촉바디",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 65,
+    "def": 60,
+    "hp": 130,
+    "spa": 110,
+    "spd": 95,
+    "spe": 65
+  },
+  "entity_id": "vaporeon",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "acid-armor",
+      "aqua-ring",
+      "aurora-beam",
+      "baby-doll-eyes",
+      "baton-pass",
+      "bite",
+      "charm",
+      "copycat",
+      "covet",
+      "double-edge",
+      "growl",
+      "haze",
+      "helping-hand",
+      "hydro-pump",
+      "last-resort",
+      "muddy-water",
+      "quick-attack",
+      "sand-attack",
+      "swift",
+      "tackle",
+      "tail-whip",
+      "take-down",
+      "water-gun",
+      "water-pulse"
+    ],
+    "machine": [
+      "alluring-voice",
+      "baton-pass",
+      "blizzard",
+      "body-slam",
+      "calm-mind",
+      "charm",
+      "chilling-water",
+      "curse",
+      "dig",
+      "double-edge",
+      "endure",
+      "facade",
+      "fake-tears",
+      "flip-turn",
+      "giga-impact",
+      "haze",
+      "helping-hand",
+      "hydro-pump",
+      "hyper-beam",
+      "hyper-voice",
+      "ice-beam",
+      "icy-wind",
+      "liquidation",
+      "mud-slap",
+      "muddy-water",
+      "protect",
+      "rain-dance",
+      "rest",
+      "roar",
+      "scald",
+      "shadow-ball",
+      "sleep-talk",
+      "stored-power",
+      "substitute",
+      "sunny-day",
+      "surf",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "trailblaze",
+      "water-pulse",
+      "waterfall",
+      "weather-ball",
+      "whirlpool"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "vaporeon",
+    "ko": "샤미드"
+  },
+  "pokeapi_id": 134,
+  "pokeapi_version": "v2",
+  "species": "vaporeon",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/134.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/134.png"
+  },
+  "types": [
+    "water"
+  ],
+  "weight_kg": 29.0
+}

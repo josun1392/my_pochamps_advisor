@@ -1,0 +1,125 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "torrent",
+      "name_ko": "급류",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "liquid-voice",
+      "name_ko": "촉촉보이스",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 74,
+    "def": 74,
+    "hp": 80,
+    "spa": 126,
+    "spd": 116,
+    "spe": 60
+  },
+  "entity_id": "primarina",
+  "fetched_at": "2026-04-27T11:52:00Z",
+  "form_type": "default",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [
+      "aqua-ring",
+      "life-dew",
+      "perish-song"
+    ],
+    "level_up": [
+      "aqua-jet",
+      "baby-doll-eyes",
+      "bubble-beam",
+      "disarming-voice",
+      "encore",
+      "growl",
+      "hydro-pump",
+      "hyper-voice",
+      "icy-wind",
+      "misty-terrain",
+      "moonblast",
+      "pound",
+      "sing",
+      "sparkling-aria",
+      "water-gun"
+    ],
+    "machine": [
+      "acrobatics",
+      "alluring-voice",
+      "amnesia",
+      "blizzard",
+      "body-slam",
+      "calm-mind",
+      "charm",
+      "chilling-water",
+      "dazzling-gleam",
+      "disarming-voice",
+      "draining-kiss",
+      "encore",
+      "endure",
+      "energy-ball",
+      "facade",
+      "flip-turn",
+      "giga-impact",
+      "haze",
+      "helping-hand",
+      "hydro-cannon",
+      "hydro-pump",
+      "hyper-beam",
+      "hyper-voice",
+      "ice-beam",
+      "ice-spinner",
+      "icy-wind",
+      "light-screen",
+      "liquidation",
+      "misty-explosion",
+      "misty-terrain",
+      "play-rough",
+      "protect",
+      "psych-up",
+      "psychic",
+      "psychic-noise",
+      "rain-dance",
+      "reflect",
+      "rest",
+      "shadow-ball",
+      "sleep-talk",
+      "snowscape",
+      "stored-power",
+      "substitute",
+      "surf",
+      "swift",
+      "tera-blast",
+      "triple-axel",
+      "uproar",
+      "water-pledge",
+      "water-pulse",
+      "waterfall",
+      "weather-ball",
+      "whirlpool"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "primarina",
+    "ko": "누리레느"
+  },
+  "pokeapi_id": 730,
+  "pokeapi_version": "v2",
+  "species": "primarina",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/730.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/730.png"
+  },
+  "types": [
+    "water",
+    "fairy"
+  ],
+  "weight_kg": 44.0
+}

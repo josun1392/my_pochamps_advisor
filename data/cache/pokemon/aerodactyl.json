@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "rock-head",
+      "name_ko": "돌머리",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "pressure",
+      "name_ko": "프레셔",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "unnerve",
+      "name_ko": "긴장감",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 105,
+    "def": 65,
+    "hp": 80,
+    "spa": 60,
+    "spd": 75,
+    "spe": 130
+  },
+  "entity_id": "aerodactyl",
+  "fetched_at": "2026-04-27T11:51:54Z",
+  "form_type": "default",
+  "height_m": 1.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "aerodactyl",
+    "ko": "프테라"
+  },
+  "pokeapi_id": 142,
+  "pokeapi_version": "v2",
+  "species": "aerodactyl",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/142.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/142.png"
+  },
+  "types": [
+    "rock",
+    "flying"
+  ],
+  "weight_kg": 59.0
+}

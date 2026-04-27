@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "snow-warning",
+      "name_ko": "눈퍼뜨리기",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 80,
+    "def": 70,
+    "hp": 70,
+    "spa": 140,
+    "spd": 100,
+    "spe": 120
+  },
+  "entity_id": "froslass-mega",
+  "fetched_at": "2026-04-27T11:51:45Z",
+  "form_type": "mega",
+  "height_m": 2.6,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Froslass",
+    "ko": "메가눈여아"
+  },
+  "pokeapi_id": 10285,
+  "pokeapi_version": "v2",
+  "species": "froslass",
+  "sprites": {
+    "front_default": null,
+    "front_shiny": null
+  },
+  "types": [
+    "ice",
+    "ghost"
+  ],
+  "weight_kg": 29.6
+}

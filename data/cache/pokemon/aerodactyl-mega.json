@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "tough-claws",
+      "name_ko": "단단한발톱",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 135,
+    "def": 85,
+    "hp": 80,
+    "spa": 70,
+    "spd": 95,
+    "spe": 150
+  },
+  "entity_id": "aerodactyl-mega",
+  "fetched_at": "2026-04-27T11:51:39Z",
+  "form_type": "mega",
+  "height_m": 2.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Aerodactyl",
+    "ko": "메가프테라"
+  },
+  "pokeapi_id": 10042,
+  "pokeapi_version": "v2",
+  "species": "aerodactyl",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10042.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10042.png"
+  },
+  "types": [
+    "rock",
+    "flying"
+  ],
+  "weight_kg": 79.0
+}

@@ -1,0 +1,114 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "snow-cloak",
+      "name_ko": "눈숨기",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "snow-warning",
+      "name_ko": "눈퍼뜨리기",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 67,
+    "def": 75,
+    "hp": 73,
+    "spa": 81,
+    "spd": 100,
+    "spe": 109
+  },
+  "entity_id": "ninetales-alola",
+  "fetched_at": "2026-04-27T11:51:48Z",
+  "form_type": "form",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [
+      "baby-doll-eyes",
+      "flail",
+      "howl",
+      "hypnosis",
+      "moonblast",
+      "roar"
+    ],
+    "level_up": [
+      "blizzard",
+      "dazzling-gleam",
+      "icy-wind",
+      "imprison",
+      "tail-whip"
+    ],
+    "machine": [
+      "agility",
+      "avalanche",
+      "baton-pass",
+      "blizzard",
+      "body-slam",
+      "calm-mind",
+      "charm",
+      "chilling-water",
+      "confuse-ray",
+      "dark-pulse",
+      "dazzling-gleam",
+      "dig",
+      "disarming-voice",
+      "double-edge",
+      "draining-kiss",
+      "encore",
+      "endure",
+      "facade",
+      "fake-tears",
+      "foul-play",
+      "giga-impact",
+      "helping-hand",
+      "hex",
+      "hyper-beam",
+      "ice-beam",
+      "icicle-spear",
+      "icy-wind",
+      "imprison",
+      "misty-terrain",
+      "nasty-plot",
+      "pain-split",
+      "play-rough",
+      "protect",
+      "psych-up",
+      "psyshock",
+      "rain-dance",
+      "rest",
+      "roar",
+      "sleep-talk",
+      "snowscape",
+      "spite",
+      "stored-power",
+      "substitute",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "triple-axel",
+      "weather-ball",
+      "zen-headbutt"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "ninetales Alolan Form",
+    "ko": "나인테일 알로라의 모습"
+  },
+  "pokeapi_id": 10104,
+  "pokeapi_version": "v2",
+  "species": "ninetales",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10104.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10104.png"
+  },
+  "types": [
+    "ice",
+    "fairy"
+  ],
+  "weight_kg": 19.9
+}

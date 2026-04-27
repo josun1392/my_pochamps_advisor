@@ -1,0 +1,129 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "thick-fat",
+      "name_ko": "두꺼운지방",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "huge-power",
+      "name_ko": "천하장사",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "sap-sipper",
+      "name_ko": "초식",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 50,
+    "def": 80,
+    "hp": 100,
+    "spa": 60,
+    "spd": 80,
+    "spe": 50
+  },
+  "entity_id": "azumarill",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 0.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "aqua-ring",
+      "aqua-tail",
+      "bounce",
+      "bubble-beam",
+      "charm",
+      "defense-curl",
+      "double-edge",
+      "helping-hand",
+      "hydro-pump",
+      "play-rough",
+      "rain-dance",
+      "rollout",
+      "slam",
+      "superpower",
+      "tackle",
+      "tail-whip",
+      "water-gun"
+    ],
+    "machine": [
+      "alluring-voice",
+      "amnesia",
+      "blizzard",
+      "body-slam",
+      "brick-break",
+      "bulldoze",
+      "charm",
+      "chilling-water",
+      "dig",
+      "disarming-voice",
+      "double-edge",
+      "draining-kiss",
+      "encore",
+      "endure",
+      "facade",
+      "fake-tears",
+      "fling",
+      "focus-blast",
+      "focus-punch",
+      "giga-impact",
+      "grass-knot",
+      "helping-hand",
+      "hydro-pump",
+      "hyper-beam",
+      "hyper-voice",
+      "ice-beam",
+      "ice-punch",
+      "ice-spinner",
+      "icy-wind",
+      "knock-off",
+      "light-screen",
+      "liquidation",
+      "metronome",
+      "misty-explosion",
+      "misty-terrain",
+      "mud-shot",
+      "mud-slap",
+      "muddy-water",
+      "play-rough",
+      "protect",
+      "rain-dance",
+      "rest",
+      "sleep-talk",
+      "snowscape",
+      "substitute",
+      "surf",
+      "swift",
+      "take-down",
+      "tera-blast",
+      "trailblaze",
+      "water-pulse",
+      "waterfall",
+      "whirlpool"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "azumarill",
+    "ko": "마릴리"
+  },
+  "pokeapi_id": 184,
+  "pokeapi_version": "v2",
+  "species": "azumarill",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/184.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/184.png"
+  },
+  "types": [
+    "water",
+    "fairy"
+  ],
+  "weight_kg": 28.5
+}

@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "drought",
+      "name_ko": "가뭄",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 104,
+    "def": 78,
+    "hp": 78,
+    "spa": 159,
+    "spd": 115,
+    "spe": 100
+  },
+  "entity_id": "charizard-mega-y",
+  "fetched_at": "2026-04-27T11:51:42Z",
+  "form_type": "mega",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Charizard Y",
+    "ko": "메가리자몽 Y"
+  },
+  "pokeapi_id": 10035,
+  "pokeapi_version": "v2",
+  "species": "charizard",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10035.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10035.png"
+  },
+  "types": [
+    "fire",
+    "flying"
+  ],
+  "weight_kg": 100.5
+}

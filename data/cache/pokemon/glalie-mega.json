@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "refrigerate",
+      "name_ko": "프리즈스킨",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 120,
+    "def": 80,
+    "hp": 80,
+    "spa": 120,
+    "spd": 80,
+    "spe": 100
+  },
+  "entity_id": "glalie-mega",
+  "fetched_at": "2026-04-27T11:51:45Z",
+  "form_type": "mega",
+  "height_m": 2.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Glalie",
+    "ko": "메가얼음귀신"
+  },
+  "pokeapi_id": 10074,
+  "pokeapi_version": "v2",
+  "species": "glalie",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10074.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10074.png"
+  },
+  "types": [
+    "ice"
+  ],
+  "weight_kg": 350.2
+}

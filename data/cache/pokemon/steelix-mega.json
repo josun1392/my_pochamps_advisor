@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "sand-force",
+      "name_ko": "모래의힘",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 125,
+    "def": 230,
+    "hp": 75,
+    "spa": 55,
+    "spd": 95,
+    "spe": 30
+  },
+  "entity_id": "steelix-mega",
+  "fetched_at": "2026-04-27T11:51:52Z",
+  "form_type": "mega",
+  "height_m": 10.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Steelix",
+    "ko": "메가강철톤"
+  },
+  "pokeapi_id": 10072,
+  "pokeapi_version": "v2",
+  "species": "steelix",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10072.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10072.png"
+  },
+  "types": [
+    "steel",
+    "ground"
+  ],
+  "weight_kg": 740.0
+}

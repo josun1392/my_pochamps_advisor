@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "pixilate",
+      "name_ko": "페어리스킨",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 110,
+    "def": 110,
+    "hp": 75,
+    "spa": 110,
+    "spd": 105,
+    "spe": 80
+  },
+  "entity_id": "altaria-mega",
+  "fetched_at": "2026-04-27T11:51:39Z",
+  "form_type": "mega",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Altaria",
+    "ko": "메가파비코리"
+  },
+  "pokeapi_id": 10067,
+  "pokeapi_version": "v2",
+  "species": "altaria",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10067.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10067.png"
+  },
+  "types": [
+    "dragon",
+    "fairy"
+  ],
+  "weight_kg": 20.6
+}

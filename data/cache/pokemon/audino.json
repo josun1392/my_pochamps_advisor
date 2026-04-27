@@ -1,0 +1,56 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "healer",
+      "name_ko": "치유의마음",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "regenerator",
+      "name_ko": "재생력",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "klutz",
+      "name_ko": "서투름",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 60,
+    "def": 86,
+    "hp": 103,
+    "spa": 60,
+    "spd": 86,
+    "spe": 50
+  },
+  "entity_id": "audino",
+  "fetched_at": "2026-04-27T11:52:01Z",
+  "form_type": "default",
+  "height_m": 1.1,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "audino",
+    "ko": "다부니"
+  },
+  "pokeapi_id": 531,
+  "pokeapi_version": "v2",
+  "species": "audino",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/531.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/531.png"
+  },
+  "types": [
+    "normal"
+  ],
+  "weight_kg": 31.0
+}

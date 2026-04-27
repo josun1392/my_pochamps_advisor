@@ -1,0 +1,104 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "weak-armor",
+      "name_ko": "깨어진갑옷",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "cursed-body",
+      "name_ko": "저주받은바디",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 65,
+    "def": 65,
+    "hp": 60,
+    "spa": 134,
+    "spd": 114,
+    "spe": 70
+  },
+  "entity_id": "polteageist",
+  "fetched_at": "2026-04-27T11:51:50Z",
+  "form_type": "default",
+  "height_m": 0.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [
+      "aromatic-mist",
+      "astonish",
+      "curse",
+      "giga-drain",
+      "mega-drain",
+      "memento",
+      "nasty-plot",
+      "protect",
+      "shadow-ball",
+      "shell-smash",
+      "strength-sap",
+      "sucker-punch",
+      "sweet-scent",
+      "teatime",
+      "withdraw"
+    ],
+    "machine": [
+      "baton-pass",
+      "calm-mind",
+      "confuse-ray",
+      "curse",
+      "dark-pulse",
+      "endure",
+      "facade",
+      "foul-play",
+      "giga-drain",
+      "giga-impact",
+      "hex",
+      "hyper-beam",
+      "imprison",
+      "light-screen",
+      "magical-leaf",
+      "metronome",
+      "nasty-plot",
+      "night-shade",
+      "pain-split",
+      "phantom-force",
+      "poltergeist",
+      "protect",
+      "psybeam",
+      "psychic",
+      "psyshock",
+      "reflect",
+      "rest",
+      "shadow-ball",
+      "skill-swap",
+      "sleep-talk",
+      "spite",
+      "stored-power",
+      "substitute",
+      "tera-blast",
+      "trick",
+      "trick-room",
+      "will-o-wisp"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "polteageist",
+    "ko": "포트데스"
+  },
+  "pokeapi_id": 855,
+  "pokeapi_version": "v2",
+  "species": "polteageist",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/855.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/855.png"
+  },
+  "types": [
+    "ghost"
+  ],
+  "weight_kg": 0.4
+}

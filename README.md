@@ -21,3 +21,31 @@ Run verification:
 uv run python scripts/verify_champions_roster.py
 uv run pytest tests/test_champions_roster.py -v
 ```
+
+## Data Prefetch
+
+Pokémon Champions battle data is cached under `data/cache/pokemon/` for offline damage calculation.
+
+Run the full prefetch:
+
+```powershell
+uv run python scripts/prefetch_champions_data.py
+```
+
+Refresh selected entities:
+
+```powershell
+uv run python scripts/prefetch_champions_data.py --only charizard charizard-mega-y
+```
+
+Force a full refresh:
+
+```powershell
+uv run python scripts/prefetch_champions_data.py --force
+```
+
+Verify the cache:
+
+```powershell
+uv run python scripts/verify_champions_cache.py
+```

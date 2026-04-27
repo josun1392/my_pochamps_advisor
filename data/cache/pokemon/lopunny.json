@@ -1,0 +1,56 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "cute-charm",
+      "name_ko": "헤롱헤롱바디",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "klutz",
+      "name_ko": "서투름",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "limber",
+      "name_ko": "유연",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 76,
+    "def": 84,
+    "hp": 65,
+    "spa": 54,
+    "spd": 96,
+    "spe": 105
+  },
+  "entity_id": "lopunny",
+  "fetched_at": "2026-04-27T11:51:58Z",
+  "form_type": "default",
+  "height_m": 1.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "lopunny",
+    "ko": "이어롭"
+  },
+  "pokeapi_id": 428,
+  "pokeapi_version": "v2",
+  "species": "lopunny",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/428.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/428.png"
+  },
+  "types": [
+    "normal"
+  ],
+  "weight_kg": 33.3
+}

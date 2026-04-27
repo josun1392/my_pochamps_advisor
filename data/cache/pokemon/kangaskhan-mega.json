@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "parental-bond",
+      "name_ko": "부자유친",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 125,
+    "def": 100,
+    "hp": 105,
+    "spa": 60,
+    "spd": 100,
+    "spe": 100
+  },
+  "entity_id": "kangaskhan-mega",
+  "fetched_at": "2026-04-27T11:51:47Z",
+  "form_type": "mega",
+  "height_m": 2.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Kangaskhan",
+    "ko": "메가캥카"
+  },
+  "pokeapi_id": 10039,
+  "pokeapi_version": "v2",
+  "species": "kangaskhan",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10039.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10039.png"
+  },
+  "types": [
+    "normal"
+  ],
+  "weight_kg": 100.0
+}

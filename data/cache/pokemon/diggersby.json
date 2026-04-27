@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "pickup",
+      "name_ko": "픽업",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "cheek-pouch",
+      "name_ko": "볼주머니",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "huge-power",
+      "name_ko": "천하장사",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 56,
+    "def": 77,
+    "hp": 85,
+    "spa": 50,
+    "spd": 77,
+    "spe": 78
+  },
+  "entity_id": "diggersby",
+  "fetched_at": "2026-04-27T11:51:56Z",
+  "form_type": "default",
+  "height_m": 1.0,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "diggersby",
+    "ko": "파르토"
+  },
+  "pokeapi_id": 660,
+  "pokeapi_version": "v2",
+  "species": "diggersby",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/660.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/660.png"
+  },
+  "types": [
+    "normal",
+    "ground"
+  ],
+  "weight_kg": 42.4
+}

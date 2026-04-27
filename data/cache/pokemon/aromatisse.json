@@ -1,0 +1,50 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "healer",
+      "name_ko": "치유의마음",
+      "slot": 1
+    },
+    {
+      "is_hidden": true,
+      "name": "aroma-veil",
+      "name_ko": "아로마베일",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 72,
+    "def": 72,
+    "hp": 101,
+    "spa": 99,
+    "spd": 89,
+    "spe": 29
+  },
+  "entity_id": "aromatisse",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 0.8,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "aromatisse",
+    "ko": "프레프티르"
+  },
+  "pokeapi_id": 683,
+  "pokeapi_version": "v2",
+  "species": "aromatisse",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/683.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/683.png"
+  },
+  "types": [
+    "fairy"
+  ],
+  "weight_kg": 15.5
+}

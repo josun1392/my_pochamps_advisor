@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "healer",
+      "name_ko": "치유의마음",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 60,
+    "def": 126,
+    "hp": 103,
+    "spa": 80,
+    "spd": 126,
+    "spe": 50
+  },
+  "entity_id": "audino-mega",
+  "fetched_at": "2026-04-27T11:51:40Z",
+  "form_type": "mega",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Audino",
+    "ko": "메가다부니"
+  },
+  "pokeapi_id": 10069,
+  "pokeapi_version": "v2",
+  "species": "audino",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10069.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10069.png"
+  },
+  "types": [
+    "normal",
+    "fairy"
+  ],
+  "weight_kg": 32.0
+}

@@ -1,0 +1,45 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "tough-claws",
+      "name_ko": "단단한발톱",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 130,
+    "def": 111,
+    "hp": 78,
+    "spa": 130,
+    "spd": 85,
+    "spe": 100
+  },
+  "entity_id": "charizard-mega-x",
+  "fetched_at": "2026-04-27T11:51:42Z",
+  "form_type": "mega",
+  "height_m": 1.7,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Charizard X",
+    "ko": "메가리자몽 X"
+  },
+  "pokeapi_id": 10034,
+  "pokeapi_version": "v2",
+  "species": "charizard",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10034.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10034.png"
+  },
+  "types": [
+    "fire",
+    "dragon"
+  ],
+  "weight_kg": 110.5
+}

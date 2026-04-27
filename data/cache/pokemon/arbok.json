@@ -1,0 +1,140 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "intimidate",
+      "name_ko": "위협",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "shed-skin",
+      "name_ko": "탈피",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "unnerve",
+      "name_ko": "긴장감",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 95,
+    "def": 69,
+    "hp": 60,
+    "spa": 65,
+    "spd": 79,
+    "spe": 80
+  },
+  "entity_id": "arbok",
+  "fetched_at": "2026-04-27T11:51:55Z",
+  "form_type": "default",
+  "height_m": 3.5,
+  "movepool": {
+    "egg": [
+      "poison-fang",
+      "poison-tail",
+      "scary-face",
+      "spite",
+      "sucker-punch",
+      "switcheroo"
+    ],
+    "level_up": [
+      "acid",
+      "acid-spray",
+      "belch",
+      "bite",
+      "coil",
+      "crunch",
+      "fire-fang",
+      "gastro-acid",
+      "glare",
+      "gunk-shot",
+      "haze",
+      "ice-fang",
+      "leer",
+      "poison-sting",
+      "screech",
+      "sludge-bomb",
+      "spit-up",
+      "stockpile",
+      "swallow",
+      "thunder-fang",
+      "wrap"
+    ],
+    "machine": [
+      "acid-spray",
+      "body-slam",
+      "breaking-swipe",
+      "bulldoze",
+      "crunch",
+      "dark-pulse",
+      "dig",
+      "double-edge",
+      "dragon-tail",
+      "earthquake",
+      "endure",
+      "facade",
+      "fire-fang",
+      "giga-drain",
+      "giga-impact",
+      "gunk-shot",
+      "haze",
+      "hyper-beam",
+      "ice-fang",
+      "knock-off",
+      "lash-out",
+      "leech-life",
+      "mud-shot",
+      "mud-slap",
+      "pain-split",
+      "poison-jab",
+      "poison-tail",
+      "protect",
+      "psychic-fangs",
+      "rain-dance",
+      "rest",
+      "rock-slide",
+      "rock-tomb",
+      "scale-shot",
+      "scary-face",
+      "seed-bomb",
+      "skitter-smack",
+      "sleep-talk",
+      "sludge-bomb",
+      "sludge-wave",
+      "snarl",
+      "spite",
+      "stomping-tantrum",
+      "substitute",
+      "sunny-day",
+      "take-down",
+      "tera-blast",
+      "thief",
+      "throat-chop",
+      "thunder-fang",
+      "toxic",
+      "toxic-spikes",
+      "trailblaze",
+      "venoshock"
+    ],
+    "tutor": []
+  },
+  "name": {
+    "en": "arbok",
+    "ko": "아보크"
+  },
+  "pokeapi_id": 24,
+  "pokeapi_version": "v2",
+  "species": "arbok",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/24.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/24.png"
+  },
+  "types": [
+    "poison"
+  ],
+  "weight_kg": 65.0
+}

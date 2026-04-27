@@ -1,0 +1,57 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "keen-eye",
+      "name_ko": "날카로운눈",
+      "slot": 1
+    },
+    {
+      "is_hidden": false,
+      "name": "tangled-feet",
+      "name_ko": "갈지자걸음",
+      "slot": 2
+    },
+    {
+      "is_hidden": true,
+      "name": "big-pecks",
+      "name_ko": "부풀린가슴",
+      "slot": 3
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 80,
+    "def": 75,
+    "hp": 83,
+    "spa": 70,
+    "spd": 70,
+    "spe": 101
+  },
+  "entity_id": "pidgeot",
+  "fetched_at": "2026-04-27T11:51:59Z",
+  "form_type": "default",
+  "height_m": 1.5,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "pidgeot",
+    "ko": "피죤투"
+  },
+  "pokeapi_id": 18,
+  "pokeapi_version": "v2",
+  "species": "pidgeot",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/18.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/18.png"
+  },
+  "types": [
+    "normal",
+    "flying"
+  ],
+  "weight_kg": 39.5
+}

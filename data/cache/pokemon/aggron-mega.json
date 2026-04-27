@@ -1,0 +1,44 @@
+{
+  "abilities": [
+    {
+      "is_hidden": false,
+      "name": "filter",
+      "name_ko": "필터",
+      "slot": 1
+    }
+  ],
+  "availability": "normal",
+  "base_stats": {
+    "atk": 140,
+    "def": 230,
+    "hp": 70,
+    "spa": 60,
+    "spd": 80,
+    "spe": 50
+  },
+  "entity_id": "aggron-mega",
+  "fetched_at": "2026-04-27T11:51:39Z",
+  "form_type": "mega",
+  "height_m": 2.2,
+  "movepool": {
+    "egg": [],
+    "level_up": [],
+    "machine": [],
+    "tutor": []
+  },
+  "name": {
+    "en": "Mega Aggron",
+    "ko": "메가보스로라"
+  },
+  "pokeapi_id": 10053,
+  "pokeapi_version": "v2",
+  "species": "aggron",
+  "sprites": {
+    "front_default": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10053.png",
+    "front_shiny": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/10053.png"
+  },
+  "types": [
+    "steel"
+  ],
+  "weight_kg": 395.0
+}
