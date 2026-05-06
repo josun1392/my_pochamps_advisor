@@ -68,11 +68,29 @@ function normalizeBoosts(boosts) {
   return normalized;
 }
 
-function makePokemon(gen, input, fieldInput) {
+const WEATHER_SUPPRESSORS = new Set(['cloud-nine', 'cloud nine', 'air-lock', 'air lock']);
+
+function neutralizingGasActive(req) {
+  return [req.attacker?.ability, req.defender?.ability]
+    .some(ability => String(ability || '').toLowerCase() === 'neutralizing-gas' || String(ability || '').toLowerCase() === 'neutralizing gas');
+}
+
+function bridgeAbility(input, req) {
+  const ability = String(input.ability || '').toLowerCase();
+  if (neutralizingGasActive(req) && WEATHER_SUPPRESSORS.has(ability)) {
+    // Showdown sim: Neutralizing Gas suppresses Cloud Nine / Air Lock via
+    // Pokemon.ignoringAbility(), while the weather condition remains active.
+    // @smogon/calc lacks this active-field ability suppression layer.
+    return undefined;
+  }
+  return toCalcName(input.ability);
+}
+
+function makePokemon(gen, input, fieldInput, req) {
   const ability = String(input.ability || '').toLowerCase();
   const pokemon = new Pokemon(gen, toCalcName(input.species, '-'), {
     level: input.level,
-    ability: toCalcName(input.ability),
+    ability: bridgeAbility(input, req),
     abilityOn: !!fieldInput?.ally_has_plus_minus && (ability === 'plus' || ability === 'minus'),
     item: toCalcName(input.item),
     nature: toCalcName(input.nature),
@@ -173,8 +191,8 @@ function roundPct(value) {
 
 function buildResponse(req) {
   const gen = Generations.get(9);
-  const attacker = makePokemon(gen, req.attacker, req.field);
-  const defender = makePokemon(gen, req.defender, req.field);
+  const attacker = makePokemon(gen, req.attacker, req.field, req);
+  const defender = makePokemon(gen, req.defender, req.field, req);
   const move = makeMove(gen, req.move);
   const field = makeField(req.field);
   const result = calculate(gen, attacker, defender, move, field);

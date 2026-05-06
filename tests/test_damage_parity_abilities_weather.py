@@ -254,7 +254,7 @@ CASES = [
     ("air_lock_negates_rain_water", _request("blastoise", "charizard", "water-gun", attacker_ability="air-lock", weather="rain")),
     ("cloud_nine_solar_power_inactive", _request("charizard", "pikachu", "flamethrower", attacker_ability="solar-power", defender_ability="cloud-nine", weather="sun")),
     # PR #3.3-A3: Neutralizing Gas suppresses Cloud Nine -> sun boost re-applies
-    pytest.param(
+    (
         "neutralizing_gas_disables_cloud_nine_in_sun",
         _request(
             "weezing-galar",
@@ -263,22 +263,6 @@ CASES = [
             attacker_ability="neutralizing-gas",
             defender_ability="cloud-nine",
             weather="sun",
-        ),
-        marks=pytest.mark.xfail(
-            reason=(
-                "Known @smogon/calc bridge limitation: bridge applies "
-                "Cloud Nine before Neutralizing Gas, contradicting "
-                "Pokemon Showdown sim behavior. "
-                "Ground truth (verified 2026-05-06): "
-                "(1) Bulbapedia — Cloud Nine NOT in NG exception list; "
-                "(2) pokemon-showdown/data/abilities.ts — cloudnine.onSwitchIn "
-                "comment: 'does not activate ... when Neutralizing Gas leaves "
-                "the field'; "
-                "(3) Cloud Nine lacks `cantsuppress` flag. "
-                "Our engine resolves NG -> Cloud Nine correctly. "
-                "Upstream issue tracked against @smogon/calc."
-            ),
-            strict=True,
         ),
     ),
     ("sand_force_rock", _request("garchomp", "pikachu", "rock-slide", attacker_ability="sand-force", weather="sand")),
