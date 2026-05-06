@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
 from advisor.damage.formula import DamageContext, calc_damage_rolls
@@ -10,6 +10,21 @@ MULTIHIT_MOVES: dict[str, tuple[int, int] | int] = {
     "bullet-seed": (2, 5),
     "rock-blast": (2, 5),
     "icicle-spear": (2, 5),
+    "triple-kick": 3,
+    "triple-axel": 3,
+}
+
+MOVE_BASE_POWER: dict[str, int] = {
+    "bullet-seed": 25,
+    "rock-blast": 25,
+    "icicle-spear": 25,
+    "triple-kick": 10,
+    "triple-axel": 20,
+}
+
+BP_ESCALATION_MOVES: set[str] = {
+    "triple-kick",
+    "triple-axel",
 }
 
 
@@ -17,6 +32,8 @@ MULTIHIT_MOVES: dict[str, tuple[int, int] | int] = {
 class MultiHitMove:
     move_id: str
     multihit: tuple[int, int] | int | None = None
+    base_power: int | None = None
+    bp_escalation: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +58,20 @@ def multihit_for(move) -> tuple[int, int] | int | None:
 
 def is_multihit(move) -> bool:
     return multihit_for(move) is not None
+
+
+def get_escalated_bp(move, hit_index: int, *, base_power: int | None = None) -> int:
+    """Return per-hit BP for Triple Axel/Kick style BP escalation."""
+    move_id = str(_read_value(move, "move_id", _read_value(move, "id", _read_value(move, "name", "")))).lower()
+    resolved_base_power = base_power
+    if resolved_base_power is None:
+        resolved_base_power = _read_value(move, "base_power", MOVE_BASE_POWER.get(move_id))
+    if resolved_base_power is None:
+        raise ValueError(f"Missing base power for {move_id}")
+    bp_escalation = bool(_read_value(move, "bp_escalation", move_id in BP_ESCALATION_MOVES))
+    if not bp_escalation:
+        return resolved_base_power
+    return resolved_base_power * (hit_index + 1)
 
 
 def resolve_hit_count(
@@ -89,19 +120,26 @@ def calculate_multihit_damage(
     *,
     hit_count: int,
     roll_index: int = 0,
+    move=None,
 ) -> int:
     """Calculate total damage for one roll index by summing each hit."""
     total = 0
     for hit_idx in range(hit_count):
-        del hit_idx
-        hit_rolls = calc_damage_rolls(ctx)
+        if move is None:
+            hit_ctx = ctx
+        else:
+            hit_ctx = replace(
+                ctx,
+                move_power=get_escalated_bp(move, hit_idx, base_power=ctx.move_power),
+            )
+        hit_rolls = calc_damage_rolls(hit_ctx)
         total += hit_rolls[roll_index]
     return total
 
 
-def calc_multihit_damage_rolls(ctx: DamageContext, *, hit_count: int) -> list[int]:
+def calc_multihit_damage_rolls(ctx: DamageContext, *, hit_count: int, move=None) -> list[int]:
     """Return 16 total multihit damage rolls, summed hit-by-hit."""
     return [
-        calculate_multihit_damage(ctx, hit_count=hit_count, roll_index=roll_index)
+        calculate_multihit_damage(ctx, hit_count=hit_count, roll_index=roll_index, move=move)
         for roll_index in range(16)
     ]
