@@ -50,3 +50,12 @@ charcoal, eviolite, light_ball, species_orb (adamant/lustrous/griseous orb).
 Deferred:
 - [ ] PR #8a Sheer Force secondary-effect suppression
 - [ ] PR #9a Life Orb 1/10 HP recoil (turn_engine layer)
+
+### PR #8a + PR #9a — Deferred Debt Closed
+
+- PR #8a: Sheer Force secondary-effect suppression (Path B)
+- PR #9a: Life Orb recoil computation (Path B)
+
+Tests: 381 -> 386 -> 393
+
+3.1.5 series fully closed. No deferred items remain in this band.
