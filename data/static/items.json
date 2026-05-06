@@ -202,5 +202,14 @@
     "category": "bp_mods_pass1",
     "condition": "latios_latias_psychic_or_dragon_move",
     "implemented": true
+  },
+  "loaded-dice": {
+    "multiplier_q12": 4096,
+    "category": "multihit_modifier",
+    "condition": "range_multihit_4_to_5",
+    "forces_multihit_min": 4,
+    "forces_multihit_max": 5,
+    "applies_to_range_multihit_only": true,
+    "implemented": true
   }
 }

@@ -22,6 +22,7 @@ class MultiHitMove:
 @dataclass(frozen=True, slots=True)
 class MultiHitAttacker:
     ability: str | None = None
+    item: str | None = None
 
 
 def _read_value(source, name: str, default=None):
@@ -48,6 +49,15 @@ def resolve_hit_count(
     *,
     mode: Literal["min", "max", "expected"] = "min",
 ) -> int:
+    """
+    Hit-count resolution priority:
+      1. Skill Link (ability) -> max hits for range multihit.
+      2. Loaded Dice (item) -> 4 min / 5 max for range multihit.
+      3. Default -> move min / max.
+
+    Ability beats item because Pokemon Showdown evaluates Skill Link before
+    Loaded Dice when both are present.
+    """
     multihit = multihit_for(move)
     if multihit is None:
         return 1
@@ -58,6 +68,15 @@ def resolve_hit_count(
     ability = _read_value(attacker, "ability")
     if ability == "skill-link":
         return max_hits
+    item = _read_value(attacker, "item")
+    if item == "loaded-dice":
+        if mode == "min":
+            return 4
+        if mode == "max":
+            return 5
+        raise NotImplementedError(
+            "Loaded Dice expected distribution reserved for PR #3.4-D"
+        )
     if mode == "min":
         return min_hits
     if mode == "max":
