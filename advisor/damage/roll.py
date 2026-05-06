@@ -19,8 +19,9 @@ def resolve_damage_roll(
 ) -> int | tuple[int, int] | dict[int, int]:
     """Resolve Pokemon's 16-value damage roll layer.
 
-    Showdown applies ``floor(base * (85 + random(16)) / 100)``.
-    Source: pokemon-showdown/sim/battle-actions.ts randomizer(), lines 2404-2406.
+    Showdown applies ``floor(base * (100 - random(16)) / 100)``,
+    equivalent to a uniform 85..100 percent roll.
+    Source: pokemon-showdown/sim/battle.ts randomizer(), lines 2404-2406.
     """
     if base_damage < 0:
         raise ValueError("base_damage must be non-negative")

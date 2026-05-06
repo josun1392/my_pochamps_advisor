@@ -1,7 +1,7 @@
 # PRD 2.0 — Master Ball Advisor (PoChamps Format)
 
 **Project Codename:** `josun1392/my_pochamps_advisor`
-**Version:** 2.0 (v0.3)
+**Version:** 2.0 (v0.7)
 **Last Updated:** 2026-05-06
 **Data Cutoff:** 2026-06-16
 **Document Status:** 🟢 LIVING DOCUMENT
@@ -21,15 +21,16 @@
 6. [Roadmap](#6-roadmap)
 7. [Phase 3.3 Specification — Field & Weather (DONE)](#7-phase-33-specification--field--weather-done)
 8. [Phase 3.4 Specification — Multi-hit Moves (DONE)](#8-phase-34-specification--multi-hit-moves-done)
-9. [Phase 4.0 Specification — PoChamps Localization Layer](#9-phase-40-specification--pochamps-localization-layer)
-10. [Quality Gates / Definition of Done](#10-quality-gates--definition-of-done)
-11. [Re-Entry Protocol — Common Misconceptions](#11-re-entry-protocol--common-misconceptions)
-12. [3-Tier AI Orchestration Model](#12-3-tier-ai-orchestration-model)
-13. [Risks & Open Questions](#13-risks--open-questions)
-14. [Glossary](#14-glossary)
-15. [Appendix A — Q12 Lookup Reference](#15-appendix-a--q12-lookup-reference)
-16. [Version History](#16-version-history)
-17. [Document Control](#17-document-control)
+9. [Phase 3.5 Specification — Damage Roll & Field Audit (DONE)](#9-phase-35-specification--damage-roll--field-audit-done)
+10. [Phase 4.0 Specification — PoChamps Localization Layer](#10-phase-40-specification--pochamps-localization-layer)
+11. [Quality Gates / Definition of Done](#11-quality-gates--definition-of-done)
+12. [Re-Entry Protocol — Common Misconceptions](#12-re-entry-protocol--common-misconceptions)
+13. [3-Tier AI Orchestration Model](#13-3-tier-ai-orchestration-model)
+14. [Risks & Open Questions](#14-risks--open-questions)
+15. [Glossary](#15-glossary)
+16. [Appendix A — Q12 Lookup Reference](#16-appendix-a--q12-lookup-reference)
+17. [Version History](#17-version-history)
+18. [Document Control](#18-document-control)
 
 ---
 
@@ -39,8 +40,8 @@ The **Master Ball Advisor** is a desktop battle copilot for the **PoChamps** tou
 
 | Field | Status |
 |---|---|
-| **Current Phase** | 3.3 ✅ DONE → 3.4 🚧 IN PROGRESS |
-| **Tests Passing** | **440** (441 collected, 1 xfailed) |
+| **Current Phase** | 3.5 DONE -> 4.0 NEXT |
+| **Tests Passing** | **453** (453 collected, 0 xfailed) |
 | **Engine Math** | Q12 fixed-point (Base 4096), no float |
 | **Parity Reference** | `@smogon/calc` v0.11.0 (`gen789.ts`) |
 | **Architecture** | Path A (stateful) / Path B (pure functional) |
@@ -159,7 +160,7 @@ When in conflict, **correctness wins**. Optimization is permitted only after par
     - PoChamps rules are classified as **Format Overrides**, NOT Engine Behavior.
     - Format Overrides MUST live outside `advisor/damage/` — exclusively in `advisor/format/`.
 - **Enforcement:** Any PR that introduces PoChamps-specific code into `advisor/damage/` MUST be rejected.
-- **Upstream Divergence:** Where our engine matches Showdown sim but `@smogon/calc` bridge diverges, we mark with `xfail(strict=True)` and document via ground-truth references (Showdown source, Bulbapedia). See § 7.
+- **Upstream Divergence:** Where our engine matches Showdown sim but `@smogon/calc` bridge diverges, we patch the local bridge only after ground-truth review (Showdown source, Bulbapedia). The Phase 3.3 divergence is resolved in § 9.
 
 ### 3.3 Q12 Fixed-Point Discipline
 
@@ -236,7 +237,7 @@ Base Power modifiers are resolved in **two passes** to handle conditional trigge
 - **Commit:** `42207fb` (feat) + `ae71966` (docs)
 - **Branch:** `master` (synced to `my_pochamps/master`)
 
-**Coverage:** 397 tests total (+4), 143 parity tests (+4), **396 passed, 1 xfailed**.
+**Coverage:** 397 tests total (+4), 143 parity tests (+4). The historical bridge divergence is resolved in Phase 3.5; current suite has **0 xfailed**.
 
 See § 7 for full specification.
 
@@ -248,7 +249,7 @@ See § 7 for full specification.
 - **PR #3.4-C2:** Population Bomb deterministic Tier C multiaccuracy — DONE.
 - **PR #3.4-C3:** Skill Link + Loaded Dice Tier C regression fix — DONE.
 - **PR #3.4-D:** Probabilistic multihit sampling — DONE.
-- **Current test count:** 441 collected, 440 passed, 1 xfailed.
+- **Current test count:** 441 collected, 440 passed, 1 xfailed at Phase 3.4 close. The remaining xfail is resolved in Phase 3.5.
 
 See § 8 for full specification.
 
@@ -261,7 +262,7 @@ See § 8 for full specification.
 
 ### 4.5 Parity Bridge
 
-`advisor/parity/` contains parity assertions against `@smogon/calc`. **143 parity tests** currently passing (+1 xfail tracked as upstream bridge limitation).
+`advisor/parity/` contains parity assertions against `@smogon/calc`. **143 parity tests** passed at Phase 3.3 close; the Neutralizing Gas / Cloud Nine bridge limitation is now patched locally.
 
 ---
 
@@ -313,9 +314,9 @@ my_pochamps_advisor/
 | 1.x | Foundation / PokeAPI | ✅ DONE | — |
 | 2.x | Localization (KO names) | ✅ DONE | — |
 | 3.1 | Core Damage Engine | ✅ DONE | 393 |
-| 3.3 | Field & Weather | ✅ DONE (Verified) | **397** (1 xfail) |
-| **3.4** | **Multi-hit Moves** | 🚧 **IN PROGRESS** | 397 → 402 (target) |
-| 3.5 | Hardening / Parity Audit | ⏳ NEXT | TBD |
+| 3.3 | Field & Weather | ✅ DONE (Verified) | **397** (xfail resolved in 3.5) |
+| **3.4** | **Multi-hit Moves** | ✅ DONE | **441** |
+| 3.5 | Damage Roll & Field Audit | DONE | **453** |
 | 3.6 | (Reserved) | — | — |
 | 4.0 | PoChamps Localization Layer | ⏳ Planned | — |
 | 4.1 | Turn Engine | ⏳ Planned | — |
@@ -336,7 +337,7 @@ my_pochamps_advisor/
 
 - **Total tests:** 397 (+4)
 - **Parity tests:** 143 (+4)
-- **Status:** 396 passed, 1 xfailed (strict)
+- **Status:** Phase 3.3 originally closed with 396 passed, 1 xfailed; Phase 3.5 resolves the bridge divergence and the test now passes.
 
 ### 7.2 Verified Scenarios
 
@@ -345,44 +346,17 @@ my_pochamps_advisor/
 | `sun_water_nerf` | Water moves halved (`2048/4096`) under Sun | ✅ |
 | `snow_non_ice_no_boost` | Non-Ice DEF unaffected by Snow | ✅ |
 | `sand_non_rock_no_boost` | Non-Rock SpD unaffected by Sand | ✅ |
-| `neutralizing_gas_disables_cloud_nine_in_sun` | NG suppresses Cloud Nine → Sun boost applies | ⚠️ xfailed |
+| `neutralizing_gas_disables_cloud_nine_in_sun` | NG suppresses Cloud Nine -> Sun boost applies | PASS in Phase 3.5 |
 
-### 7.3 Known Divergence — `@smogon/calc` Bridge Limitation
+### 7.3 Bridge Resolution
 
-The xfailed test documents a **bridge limitation**, not an engine bug.
+Phase 3.5 patches the local `@smogon/calc` bridge to mirror Showdown's active-field ability suppression model:
 
-**Ground Truth (verified 2026-05-06):**
+1. `sim/pokemon.ts` `ignoringAbility()` suppresses Cloud Nine / Air Lock while Neutralizing Gas is active.
+2. `effectiveWeather()` keeps the weather condition active; only weather effects are ignored by Cloud Nine / Air Lock.
+3. The bridge now removes Cloud Nine / Air Lock from the calc-side Pokemon only when Neutralizing Gas is active, so Sun/Rain/Sand/Snow remain present and resolve correctly.
 
-1. **Bulbapedia:** Cloud Nine is **NOT** in Neutralizing Gas's exception list.
-2. **Pokémon Showdown** (`data/abilities.ts`): `cloudnine.onSwitchIn` comment explicitly states *"does not activate ... when Neutralizing Gas leaves the field"*.
-3. Cloud Nine **lacks the `cantsuppress` flag** → NG suppresses it.
-
-**Verdict:** Our engine resolves NG → Cloud Nine correctly, matching Showdown sim behavior. `@smogon/calc` uses a simplified ability resolution model.
-
-**Tracking:** Upstream issue to be filed against `@smogon/calc`.
-
-### 7.4 xfail Configuration
-
-```python
-@pytest.mark.xfail(
-    reason=(
-        "Known @smogon/calc bridge limitation: bridge applies "
-        "Cloud Nine before Neutralizing Gas, contradicting "
-        "Pokemon Showdown sim behavior. "
-        "Ground truth (verified 2026-05-06): "
-        "(1) Bulbapedia — Cloud Nine NOT in NG exception list; "
-        "(2) pokemon-showdown/data/abilities.ts — cloudnine.onSwitchIn "
-        "comment: 'does not activate ... when Neutralizing Gas leaves "
-        "the field'; "
-        "(3) Cloud Nine lacks `cantsuppress` flag. "
-        "Our engine resolves NG -> Cloud Nine correctly. "
-        "Upstream issue tracked against @smogon/calc."
-    ),
-    strict=True,
-)
-def test_neutralizing_gas_disables_cloud_nine_in_sun(): ...
-```
-
+**Result:** the former strict xfail is now a passing parity regression test.
 ---
 
 ## 8. Phase 3.4 Specification — Multi-hit Moves (DONE)
@@ -647,9 +621,70 @@ Phase 3.4 deterministic and probabilistic multihit mechanics are complete. Remai
 
 ---
 
-## 9. Phase 4.0 Specification — PoChamps Localization Layer
+## 9. Phase 3.5 Specification — Damage Roll & Field Audit (DONE)
 
-### 9.1 `advisor/format/pochamps.py`
+**Completed:** 2026-05-06  
+**Branch:** `feat/3.5-damage-roll-and-field-audit`  
+**Version:** v0.7.0  
+**Tests:** 453 collected, 453 passed, 0 xfailed, 0 skipped
+
+### 9.1 Track A — Field Bridge Resolution
+
+The Phase 3.3 Neutralizing Gas / Cloud Nine parity case is no longer xfailed. The local bridge now mirrors Showdown's `sim/pokemon.ts` `ignoringAbility()` and `effectiveWeather()` behavior: Neutralizing Gas suppresses weather-related abilities, but the weather condition itself remains active.
+
+Verified controls:
+
+| Scenario | Expected |
+|---|---|
+| Neutralizing Gas + defender Cloud Nine + Sun | Sun remains active; Fire damage is boosted |
+| Air Lock + Sun | Weather damage modifier is suppressed |
+| Cloud Nine + Sun | Weather state persists; only effects are suppressed |
+
+### 9.2 Track B — Damage Roll Layer
+
+`advisor/damage/roll.py` adds the 16-value damage roll projection used by Pokemon Showdown.
+
+**Showdown source:** `pokemon-showdown/sim/battle.ts` `randomizer()`, lines 2404-2406.
+
+```python
+damage = floor(base_damage * (100 - random(16)) / 100)
+```
+
+This is equivalent to uniform integer percentages 85, 86, ..., 100.
+
+| Mode | Return | Behavior |
+|---|---|---|
+| `min` | `int` | `floor(base * 85 / 100)` |
+| `max` | `int` | `base` |
+| `deterministic` | `tuple[int, int]` | `(min, max)` |
+| `probabilistic` | `int` | Seedable sampled roll via `advisor.damage.rng.RNG` |
+| `distribution` | `dict[int, int]` | All 16 roll outcomes, preserving duplicate damage values |
+
+### 9.3 Calculator Compatibility
+
+`advisor/damage/calculator.py` provides an opt-in roll projection wrapper around `formula.calc_damage_rolls()`.
+
+| Call | Return |
+|---|---|
+| `calculate(ctx)` | max-roll `int` (backward compatible default) |
+| `calculate(ctx, roll_mode="deterministic")` | `(min, max)` |
+| `calculate(ctx, roll_mode="distribution")` | 16-roll distribution map |
+
+Default `roll_mode="max"` preserves existing single-value callers. Tuple and distribution returns are opt-in.
+
+### 9.4 Phase 3.5 Closure
+
+- Final Phase 3.5 count: **453 collected, 453 passed**.
+- xfailed: **0**.
+- skipped: **0**.
+- Phase 3.3 field divergence is closed.
+- Phase 3.5 damage roll distribution layer is complete.
+
+---
+
+## 10. Phase 4.0 Specification — PoChamps Localization Layer
+
+### 10.1 `advisor/format/pochamps.py`
 
 ```python
 def get_paralysis_full_para_rate() -> float: return 0.125
@@ -658,7 +693,7 @@ def get_freeze_thaw_rate()           -> float: return 0.25
 def get_freeze_max_turns()           -> int:   return 3
 ```
 
-### 9.2 FormatProfile System
+### 10.2 FormatProfile System
 
 ```python
 class FormatProfile(Enum):
@@ -668,16 +703,16 @@ class FormatProfile(Enum):
 
 Turn Engine reads the profile at init. **Default = SHOWDOWN** for engine purity (UI can override to POCHAMPS).
 
-### 9.3 `data/pochamps_pp_table.py`
+### 10.3 `data/pochamps_pp_table.py`
 
 PP cap lookup, used by Turn Engine and Battle AI.
 
-### 9.4 Format Isolation Tests
+### 10.4 Format Isolation Tests
 
 - Assert PoChamps overrides differ from Showdown defaults.
 - Assert Damage Engine output is **identical** regardless of profile.
 
-### 9.5 Implementation Layer Map
+### 10.5 Implementation Layer Map
 
 | Override | Engine Layer | Phase |
 |---|---|---|
@@ -687,9 +722,9 @@ PP cap lookup, used by Turn Engine and Battle AI.
 
 ---
 
-## 10. Quality Gates / Definition of Done
+## 11. Quality Gates / Definition of Done
 
-### 10.1 PR-Level DoD
+### 11.1 PR-Level DoD
 
 - [ ] All new tests pass
 - [ ] No regressions in existing test suite
@@ -699,7 +734,7 @@ PP cap lookup, used by Turn Engine and Battle AI.
 - [ ] PR description states test count delta (e.g., "397 → 402")
 - [ ] `xfail` cases (if any) include detailed `reason` with ground-truth references and `strict=True`
 
-### 10.2 Phase-Level DoD
+### 11.2 Phase-Level DoD
 
 - [ ] All sub-milestones complete
 - [ ] PRD updated to reflect new state
@@ -710,11 +745,11 @@ PP cap lookup, used by Turn Engine and Battle AI.
 
 ---
 
-## 11. Re-Entry Protocol — Common Misconceptions
+## 12. Re-Entry Protocol — Common Misconceptions
 
 > 📖 **Read this section first when resuming after a break.**
 
-### 11.1 DO NOT assume:
+### 12.1 DO NOT assume:
 
 | Misconception | Reality |
 |---|---|
@@ -729,7 +764,7 @@ PP cap lookup, used by Turn Engine and Battle AI.
 | "Multihit damage = single_hit × count." | ❌ NO. Each hit is an **independent Q12 roll**, then summed. |
 | "If `@smogon/calc` differs, our engine is wrong." | Not always. Verify against Showdown sim source first (see § 7.3). |
 
-### 11.2 Architectural Boundaries (Quick Reference)
+### 12.2 Architectural Boundaries (Quick Reference)
 
 ```
 Damage Engine (3.x)         = Showdown standard mirror
@@ -737,7 +772,7 @@ advisor/format/pochamps.py  = All PoChamps overrides (4.0)
 Turn Engine (4.1+)          = Imports both, applies profile
 ```
 
-### 11.3 Sanity Checks Before Coding
+### 12.3 Sanity Checks Before Coding
 
 | Question | Layer |
 |---|---|
@@ -749,9 +784,9 @@ Turn Engine (4.1+)          = Imports both, applies profile
 
 ---
 
-## 12. 3-Tier AI Orchestration Model
+## 13. 3-Tier AI Orchestration Model
 
-### 12.1 Roles
+### 13.1 Roles
 
 | Tier | Role | Responsibility |
 |---|---|---|
@@ -759,14 +794,14 @@ Turn Engine (4.1+)          = Imports both, applies profile
 | **T2** | Prompt Engineer / QA Lead (Claude) | Translates T1 requirements into precision prompts for T3, gap analysis, audits architectural integrity |
 | **T3** | Implementer / Code Author (GPT-5.5) | Generates Python code, diffs, unit tests based on Q12 fixed-point standard |
 
-### 12.2 Operating Principles
+### 13.2 Operating Principles
 
 1. **T1 has final authority** on scope and architectural boundaries.
 2. **T2 owns "Verify, Don't Trust"** — every parity discrepancy triggers ground-truth investigation before code changes.
 3. **T3 produces "Diff-Ready Output"** — exact code/markdown/test strings for zero-context-loss handoff.
 4. **"Plan B" (Safety/Investigation) > Quick Merge** when parity divergence appears.
 
-### 12.3 Workflow Pattern
+### 13.3 Workflow Pattern
 
 ```
 T1 (Decision) → T2 (Prompt + Audit) → T3 (Diff-Ready Code) → T1 (Quality Gate)
@@ -776,35 +811,35 @@ T1 (Decision) → T2 (Prompt + Audit) → T3 (Diff-Ready Code) → T1 (Quality G
 
 ---
 
-## 13. Risks & Open Questions
+## 14. Risks & Open Questions
 
-### 13.1 Pipeline Ordering for Weather (RESOLVED)
+### 14.1 Pipeline Ordering for Weather (RESOLVED)
 
 ✅ Verified during Phase 3.3 implementation. Weather modifier insertion point in `formula.py` `chainMods` sequence is correct.
 
-### 13.2 PoChamps Spec Source (OPEN)
+### 14.2 PoChamps Spec Source (OPEN)
 
 Status RNG overrides (12.5% para, 3-turn sleep, 25%/3-turn freeze) and PP caps need a citable source to lock spec before data cutoff (2026-06-16).
 
-### 13.3 Mega Evolution Implementation (DEFERRED)
+### 14.3 Mega Evolution Implementation (DEFERRED)
 
 Mega forms exist in PokeAPI but trigger logic (one-per-team, activation timing) requires Turn Engine state. **Deferred to 4.1.**
 
-### 13.4 Format Profile Default (DECIDED)
+### 14.4 Format Profile Default (DECIDED)
 
 ✅ Default profile = **SHOWDOWN** (engine purity). UI provides override to POCHAMPS.
 
-### 13.5 Multi-hit Probability Distribution (DEFERRED)
+### 14.5 Multi-hit Probability Distribution (RESOLVED)
 
-Probabilistic 2-5 hit resolution (35/35/15/15) requires deterministic-seed strategy for testing. **Deferred to PR #3.4-D.**
+Probabilistic 2-5 and Population Bomb hit resolution are implemented in PR #3.4-D with seedable `advisor.damage.rng.RNG` tests.
 
-### 13.6 `@smogon/calc` Bridge Upstream Issue (OPEN)
+### 14.6 `@smogon/calc` Bridge Divergence (RESOLVED)
 
-Cloud Nine ↔ Neutralizing Gas resolution divergence (§ 7.3). Upstream issue to be filed.
+Cloud Nine / Neutralizing Gas bridge divergence is resolved in Phase 3.5 by suppressing Cloud Nine / Air Lock only in the local calc bridge when Neutralizing Gas is active.
 
 ---
 
-## 14. Glossary
+## 15. Glossary
 
 | Term | Definition |
 |---|---|
@@ -821,7 +856,7 @@ Cloud Nine ↔ Neutralizing Gas resolution divergence (§ 7.3). Upstream issue t
 
 ---
 
-## 15. Appendix A — Q12 Lookup Reference
+## 16. Appendix A — Q12 Lookup Reference
 
 | Multiplier | Q12 Value | Common Use |
 |---|---|---|
@@ -837,14 +872,22 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ---
 
-## 16. Version History
+## 17. Version History
 
-### v0.6 (current, 2026-05-06)
+### v0.7.0 (current, 2026-05-06)
+
+- PR #3.5 merged: damage roll distribution + field divergence audit.
+- Test count: 453 collected, 453 passed, 0 xfailed, 0 skipped.
+- Resolved the Phase 3.3 Neutralizing Gas / Cloud Nine bridge xfail.
+- Added `advisor/damage/roll.py` and `advisor/damage/calculator.py` roll-mode integration.
+- Default calculator behavior remains max-roll `int`; ranges and distributions are opt-in.
+
+### v0.6 (2026-05-06)
 
 - PR #3.4-D merged: probabilistic multihit sampling mode.
 - Test count: 441 collected, 440 passed, 1 xfailed.
 - Multihit Phase 3.4 marked DONE.
-- Remaining xfail is the Phase 3.3 Neutralizing Gas / Cloud Nine bridge divergence, not multihit debt.
+- Remaining xfail at v0.6 was the Phase 3.3 Neutralizing Gas / Cloud Nine bridge divergence; it is resolved in v0.7.0.
 
 ### v0.5.1 (2026-05-06)
 
@@ -896,17 +939,17 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ---
 
-## 17. Document Control
+## 18. Document Control
 
 | Field | Value |
 |---|---|
 | **Owner** | Lead Systems Architect (T1) |
 | **Document Status** | 🟢 LIVING DOCUMENT |
 | **Last Reviewed** | 2026-05-06 |
-| **Next Review Trigger** | PR #3.4-D entry |
+| **Next Review Trigger** | Phase 4.0 entry |
 | **Storage** | `docs/PRD.md` in `josun1392/my_pochamps_advisor` |
 | **Amendment Process** | All Constitution changes (§ 3) require explicit T1 decision logged in § 16 |
 
 ---
 
-*End of PRD 2.0 (v0.3) — Master Ball Advisor*
+*End of PRD 2.0 (v0.7) — Master Ball Advisor*
