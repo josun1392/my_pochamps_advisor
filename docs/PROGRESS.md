@@ -1,15 +1,15 @@
 # Phase 3.1.5c - Stat-Modifying Abilities Progress
 
 ## Cumulative State
-- Tests: 292 -> 304 -> 316
-- Parity: 112 -> 114 -> 118
+- Tests: 292 -> 304 -> 316 -> 326
+- Parity: 112 -> 114 -> 118 -> 122
 - Performance: ~0.18ms/calc (must maintain, regression < 5%)
 
 ## PR Tracker
 - [x] PR #1 Foundation - status_effects.py, move_flags.json, abilities.json seed (296 tests)
 - [x] PR #2 Stat Doublers - Huge Power, Pure Power, Hustle (304 tests, parity 114)
 - [x] PR #3 Defensive Boosters - Fur Coat, Ice Scales, Multiscale, Shadow Shield (316 tests, parity 118)
-- [ ] PR #4 SpA Boosters - Solar Power, Plus/Minus
+- [x] PR #4 SpA Boosters - Solar Power, Plus/Minus (326 tests, parity 122)
 - [ ] PR #5 Speed Mods - Swift Swim, Chlorophyll, Sand Rush, Slush Rush, Quick Feet
 - [ ] PR #6 HP-Conditional - Defeatist, Overgrow/Blaze/Torrent/Swarm
 - [ ] PR #7 Damage Chain - Tough Claws, Strong Jaw, Sheer Force, Technician, Iron Fist, Reckless, Mega Launcher, Punk Rock, Transistor
