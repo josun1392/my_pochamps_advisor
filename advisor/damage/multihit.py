@@ -4,6 +4,10 @@ from dataclasses import dataclass, replace
 from typing import Literal
 
 from advisor.damage.formula import DamageContext, calc_damage_rolls
+from advisor.damage.rng import RNG
+
+
+HitCountMode = Literal["min", "max", "deterministic", "probabilistic", "expected"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,19 +88,29 @@ def get_escalated_bp(move, hit_index: int, *, base_power: int | None = None) -> 
 def _resolve_tier_a(
     multihit: tuple[int, int],
     attacker,
-    mode: Literal["min", "max", "expected"],
-) -> int:
+    mode: HitCountMode,
+    rng: RNG | None = None,
+) -> int | tuple[int, int]:
     """Resolve range multihit moves such as Bullet Seed and Rock Blast."""
     min_hits, max_hits = multihit
     ability = _read_value(attacker, "ability")
     if ability == "skill-link":
-        return max_hits
+        return (max_hits, max_hits) if mode == "deterministic" else max_hits
     item = _read_value(attacker, "item")
     if item == "loaded-dice":
         if mode == "min":
             return 4
         if mode == "max":
             return 5
+        if mode == "deterministic":
+            return (4, 5)
+        if mode in {"probabilistic", "expected"}:
+            if rng is None:
+                rng = RNG()
+            # Showdown: if initial 2-5 roll is below 4 and Loaded Dice is held,
+            # targetHits = 5 - random(2), so the deterministic distribution is 4/5.
+            # Source: sim/battle-actions.ts lines 865-867.
+            return 4 + rng.random(2)
         raise NotImplementedError(
             "Loaded Dice expected distribution reserved for PR #3.4-D"
         )
@@ -104,14 +118,24 @@ def _resolve_tier_a(
         return min_hits
     if mode == "max":
         return max_hits
-    raise NotImplementedError("Multihit expected distribution reserved for PR #3.4-D")
+    if mode == "deterministic":
+        return (min_hits, max_hits)
+    if mode in {"probabilistic", "expected"}:
+        if rng is None:
+            rng = RNG()
+        # Showdown samples duplicate entries:
+        # [2 x7, 3 x7, 4 x3, 5 x3], i.e. 35/35/15/15.
+        # Source: sim/battle-actions.ts lines 864-865.
+        return [2, 3, 4, 5][rng.weighted_choice([35, 35, 15, 15])]
+    raise ValueError(f"Unsupported hit-count mode: {mode}")
 
 
 def _resolve_tier_c(
     move: MultiHitMove,
     attacker,
-    mode: Literal["min", "max", "expected"],
-) -> int:
+    mode: HitCountMode,
+    rng: RNG | None = None,
+) -> int | tuple[int, int]:
     """Resolve multiaccuracy fixed-10 hit moves such as Population Bomb.
 
     Showdown order matters here: Skill Link removes multiaccuracy via
@@ -128,27 +152,51 @@ def _resolve_tier_c(
             return 4
         if mode == "max":
             return move.multihit
-        raise NotImplementedError(
-            "Loaded Dice + multiaccuracy probabilistic sampling reserved for PR #3.4-D"
-        )
+        if mode == "deterministic":
+            return (4, move.multihit)
+        if mode in {"probabilistic", "expected"}:
+            if rng is None:
+                rng = RNG()
+            # Showdown: if targetHits === 10 and Loaded Dice is held,
+            # targetHits -= random(7), producing a uniform 4..10.
+            # Source: sim/battle-actions.ts line 876.
+            return move.multihit - rng.random(7)
+        raise ValueError(f"Unsupported hit-count mode: {mode}")
 
     ability = _read_value(attacker, "ability")
     if ability == "skill-link":
-        return move.multihit
+        return (move.multihit, move.multihit) if mode == "deterministic" else move.multihit
 
     if mode == "min":
         return 1
     if mode == "max":
         return move.multihit
-    raise NotImplementedError("Multiaccuracy probabilistic sampling reserved for PR #3.4-D")
+    if mode == "deterministic":
+        return (1, move.multihit)
+    if mode in {"probabilistic", "expected"}:
+        if rng is None:
+            rng = RNG()
+        hits = 1
+        # Post-connect model: hit 1 has landed; hits 2..10 independently roll
+        # move accuracy and stop on the first miss. Neutral Population Bomb uses
+        # 90 accuracy. Accuracy modifiers are reserved for a later layer.
+        # Source: sim/battle-actions.ts lines 907-933.
+        for _ in range(move.multihit - 1):
+            if rng.random(100) < 90:
+                hits += 1
+            else:
+                break
+        return hits
+    raise ValueError(f"Unsupported hit-count mode: {mode}")
 
 
 def resolve_hit_count(
     move,
     attacker,
     *,
-    mode: Literal["min", "max", "expected"] = "min",
-) -> int:
+    mode: HitCountMode = "min",
+    rng: RNG | None = None,
+) -> int | tuple[int, int]:
     """Resolve the number of hits for a multihit move.
 
     This function uses a post-connect model: the move has already passed the
@@ -170,13 +218,13 @@ def resolve_hit_count(
     move_data = move_data_for(move)
     multihit = move_data.multihit
     if multihit is None:
-        return 1
+        return (1, 1) if mode == "deterministic" else 1
     if isinstance(multihit, int) and move_data.multiaccuracy:
-        return _resolve_tier_c(move_data, attacker, mode)
+        return _resolve_tier_c(move_data, attacker, mode, rng)
     if isinstance(multihit, int):
-        return multihit
+        return (multihit, multihit) if mode == "deterministic" else multihit
 
-    return _resolve_tier_a(multihit, attacker, mode)
+    return _resolve_tier_a(multihit, attacker, mode, rng)
 
 
 def calculate_multihit_damage(

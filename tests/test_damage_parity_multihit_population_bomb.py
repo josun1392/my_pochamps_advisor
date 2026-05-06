@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from advisor.damage.abilities import get_ability
 from advisor.damage.field import Field
 from advisor.damage.formula import DamageContext, calc_damage_rolls
@@ -346,6 +344,7 @@ def test_population_bomb_technician_applies_to_all_hits() -> None:
     assert _assert_population_bomb_parity(request) == [roll * 10 for roll in single_hit]
 
 
-@pytest.mark.xfail(reason="Probabilistic sampling reserved for PR #3.4-D", strict=True)
 def test_population_bomb_default_probabilistic_distribution() -> None:
-    resolve_hit_count(MultiHitMove("population-bomb"), MultiHitAttacker(), mode="expected")
+    hits = resolve_hit_count(MultiHitMove("population-bomb"), MultiHitAttacker(), mode="expected")
+
+    assert 1 <= hits <= 10
