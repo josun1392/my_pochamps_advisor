@@ -188,11 +188,16 @@ def _load_entity(entity_id: str) -> dict:
 CASES = [
     ("sun_fire_boost", _request("charizard", "pikachu", "flamethrower", weather="sun")),
     ("rain_water_boost", _request("blastoise", "charizard", "hydro-pump", weather="rain")),
+    # PR #3.3-A1: Sun nerfs Water (mirror of rain_fire_nerf)
+    ("sun_water_nerf", _request("blastoise", "charizard", "hydro-pump", weather="sun")),
     ("rain_fire_nerf", _request("charizard", "pikachu", "flamethrower", weather="rain")),
     ("heavy_rain_blocks_fire", _request("charizard", "pikachu", "flamethrower", weather="heavy-rain")),
     ("harsh_sun_blocks_water", _request("blastoise", "charizard", "hydro-pump", weather="harsh-sunlight")),
     ("sand_rock_spdef", _request("charizard", "tyranitar", "flamethrower", weather="sand")),
     ("snow_ice_def", _request("garchomp", "glaceon", "earthquake", weather="snow")),
+    # PR #3.3-A2: Negative regression guards - confirm boosts do NOT trigger off-type
+    ("snow_non_ice_no_boost", _request("garchomp", "blastoise", "earthquake", weather="snow")),
+    ("sand_non_rock_no_boost", _request("charizard", "blastoise", "flamethrower", weather="sand")),
     ("electric_terrain_boost", _request("pikachu", "charizard", "thunderbolt", terrain="electric")),
     ("electric_terrain_flying_no_boost", _request("charizard", "blastoise", "thunderbolt", terrain="electric")),
     ("grassy_terrain_eq_nerf", _request("garchomp", "pikachu", "earthquake", terrain="grassy")),

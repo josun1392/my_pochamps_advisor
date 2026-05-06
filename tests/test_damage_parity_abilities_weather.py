@@ -72,7 +72,9 @@ OVERRIDES = {
     "minun": {"types": ["electric"], "base_stats": {"hp": 60, "atk": 40, "def": 50, "spa": 75, "spd": 85, "spe": 95}},
     "necrozma-ultra": {"types": ["psychic", "dragon"], "base_stats": {"hp": 97, "atk": 167, "def": 97, "spa": 167, "spd": 97, "spe": 129}},
     "plusle": {"types": ["electric"], "base_stats": {"hp": 60, "atk": 50, "def": 40, "spa": 85, "spd": 75, "spe": 95}},
+    "psyduck": {"types": ["water"], "base_stats": {"hp": 50, "atk": 52, "def": 48, "spa": 65, "spd": 50, "spe": 55}},
     "tapu-lele": {"types": ["psychic", "fairy"], "base_stats": {"hp": 70, "atk": 85, "def": 75, "spa": 130, "spd": 115, "spe": 95}},
+    "weezing-galar": {"types": ["poison", "fairy"], "base_stats": {"hp": 65, "atk": 90, "def": 120, "spa": 85, "spd": 70, "spe": 60}},
 }
 
 
@@ -251,6 +253,21 @@ CASES = [
     ("cloud_nine_negates_sun_fire", _request("charizard", "pikachu", "flamethrower", attacker_ability="cloud-nine", weather="sun")),
     ("air_lock_negates_rain_water", _request("blastoise", "charizard", "water-gun", attacker_ability="air-lock", weather="rain")),
     ("cloud_nine_solar_power_inactive", _request("charizard", "pikachu", "flamethrower", attacker_ability="solar-power", defender_ability="cloud-nine", weather="sun")),
+    # PR #3.3-A3: Neutralizing Gas suppresses Cloud Nine -> sun boost re-applies
+    pytest.param(
+        "neutralizing_gas_disables_cloud_nine_in_sun",
+        _request(
+            "weezing-galar",
+            "psyduck",
+            "flamethrower",
+            attacker_ability="neutralizing-gas",
+            defender_ability="cloud-nine",
+            weather="sun",
+        ),
+        marks=pytest.mark.xfail(
+            reason="@smogon/calc bridge applies Cloud Nine before Neutralizing Gas weather suppression",
+        ),
+    ),
     ("sand_force_rock", _request("garchomp", "pikachu", "rock-slide", attacker_ability="sand-force", weather="sand")),
     ("sand_force_ground", _request("garchomp", "pikachu", "earthquake", attacker_ability="sand-force", weather="sand")),
     ("sand_force_steel", _request("garchomp", "pikachu", "iron-head", attacker_ability="sand-force", weather="sand")),
