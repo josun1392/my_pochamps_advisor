@@ -112,13 +112,15 @@ def _resolve_tier_c(
     attacker,
     mode: Literal["min", "max", "expected"],
 ) -> int:
-    """Resolve multiaccuracy fixed-10 hit moves such as Population Bomb."""
+    """Resolve multiaccuracy fixed-10 hit moves such as Population Bomb.
+
+    Showdown order matters here: Skill Link removes multiaccuracy via
+    onModifyMove, then Loaded Dice's hit-loop branch still runs because it only
+    checks ``targetHits === 10 && hasItem('loadeddice')``. Source:
+    sim/battle-actions.ts line 876, Pokemon Showdown master.
+    """
     if not isinstance(move.multihit, int):
         raise TypeError("Tier C multihit must be a fixed integer")
-
-    ability = _read_value(attacker, "ability")
-    if ability == "skill-link":
-        return move.multihit
 
     item = _read_value(attacker, "item")
     if item == "loaded-dice":
@@ -129,6 +131,10 @@ def _resolve_tier_c(
         raise NotImplementedError(
             "Loaded Dice + multiaccuracy probabilistic sampling reserved for PR #3.4-D"
         )
+
+    ability = _read_value(attacker, "ability")
+    if ability == "skill-link":
+        return move.multihit
 
     if mode == "min":
         return 1
@@ -143,14 +149,23 @@ def resolve_hit_count(
     *,
     mode: Literal["min", "max", "expected"] = "min",
 ) -> int:
-    """
-    Hit-count resolution priority:
-      1. Skill Link (ability) -> max hits for range multihit.
-      2. Loaded Dice (item) -> 4 min / 5 max for range multihit.
-      3. Default -> move min / max.
+    """Resolve the number of hits for a multihit move.
 
-    Ability beats item because Pokemon Showdown evaluates Skill Link before
-    Loaded Dice when both are present.
+    This function uses a post-connect model: the move has already passed the
+    initial accuracy check. Default Tier C minimum is therefore 1, not 0.
+
+    Tier A: range multihit tuple, e.g. Bullet Seed (2, 5).
+    Tier B: fixed int multihit, e.g. Triple Axel/Kick.
+    Tier C: fixed int multihit with multiaccuracy, e.g. Population Bomb.
+
+    Tier A Skill Link beats Loaded Dice because Showdown's onModifyMove turns
+    the multihit array into max int before the Loaded Dice ``targetHits < 4``
+    branch can apply.
+
+    Tier C Skill Link does not block Loaded Dice. Skill Link removes
+    multiaccuracy, but Loaded Dice later checks only
+    ``targetHits === 10 && hasItem('loadeddice')`` in the hit loop. Source:
+    sim/battle-actions.ts line 876, Pokemon Showdown master.
     """
     move_data = move_data_for(move)
     multihit = move_data.multihit

@@ -217,6 +217,12 @@
       "deterministic_min": 4,
       "deterministic_max": 10
     },
-    "implemented": true
+    "interactions": {
+      "tier_a": "Reroll to 5 - random(2) when initial roll is 2 or 3. Skill Link bypasses this entirely.",
+      "tier_b": "No effect.",
+      "tier_c": "targetHits = 10 - random(7), uniform 4-10. Independent of Skill Link; applies even when both are held."
+    },
+    "implemented": true,
+    "showdown_source": "sim/battle-actions.ts hitStepMoveHitLoop, lines 865-876 (master branch)"
   }
 }

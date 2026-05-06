@@ -385,6 +385,10 @@ def test_neutralizing_gas_disables_cloud_nine_in_sun(): ...
 
 ## 8. Phase 3.4 Specification — Multi-hit Moves (IN PROGRESS)
 
+### 8.0 Hit Count Resolution Model
+
+`resolve_hit_count()` operates under the post-connect assumption: the move is presumed to have passed the initial accuracy check. The minimum return value is 1 for default Tier C moves, not 0. Initial accuracy is handled at a higher layer or supplied directly by advisor flows.
+
 ### 8.1 Sub-PR Plan
 
 | PR | Scope | Status |
@@ -587,6 +591,25 @@ Loaded Dice:
 - Probabilistic multiaccuracy sampling -> PR #3.4-D.
 - Accuracy stat application / hit-miss interruption -> future turn-engine PR.
 
+### 8.6 PR #3.4-C3 — Skill Link x Loaded Dice Tier C Fix ✅ DONE
+
+**Branch:** `feat/3.4-c3-tier-c-loaded-dice-fix`  
+**Tests:** 423 collected, 421 passed, 2 xfailed (+4 passing)
+
+#### Interaction Matrix
+
+| Tier | Skill Link only | Loaded Dice only | Both |
+|---|---|---|---|
+| A | max | 4 or 5 | max (Skill Link wins) |
+| B | fixed | fixed | fixed |
+| C | 10 | 4..10 uniform | 4..10 uniform (Loaded Dice still applies) |
+
+#### Rationale
+
+Showdown's onModifyMove phase converts Tier A multihit arrays to their max int, which causes Loaded Dice's `targetHits < 4` branch to fail. However, Tier C's Loaded Dice branch checks `targetHits === 10` directly, which Skill Link does not modify. The two effects are independent on Tier C.
+
+PR #3.4-C2 incorrectly assumed Skill Link beats Loaded Dice on Tier C. Fixed in PR #3.4-C3.
+
 ---
 
 ## 9. Phase 4.0 Specification — PoChamps Localization Layer
@@ -781,7 +804,13 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ## 16. Version History
 
-### v0.5 (current, 2026-05-06)
+### v0.5.1 (current, 2026-05-06)
+
+- PR #3.4-C3 fixed Skill Link + Loaded Dice interaction on Tier C.
+- Test count: 423 collected, 421 passed, 2 xfailed.
+- Post-connect hit-count model documented for `resolve_hit_count()`.
+
+### v0.5 (2026-05-06)
 
 - PR #3.4-C2 merged: Population Bomb deterministic Tier C multiaccuracy.
 - Test count: 419 collected, 417 passed, 2 xfailed.

@@ -1341,8 +1341,14 @@
         "removes_multiaccuracy": true,
         "forces_max_multihit": true
       },
+      "interactions": {
+        "tier_a": "Converts multihit array to max int via onModifyMove. Beats Loaded Dice on Tier A.",
+        "tier_b": "No effect (multihit is already a fixed int).",
+        "tier_c": "Removes multiaccuracy flag. Does NOT block Loaded Dice on Tier C; hit loop's Loaded Dice branch is independent."
+      },
       "implemented": true,
-      "name": "Skill Link"
+      "name": "Skill Link",
+      "showdown_source": "data/abilities.ts skilllink onModifyMove (master branch)"
     },
     "slow-start": {
       "category": "uncategorized",

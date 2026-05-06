@@ -269,12 +269,12 @@ def test_population_bomb_loaded_dice_max_10_hits() -> None:
     )
 
 
-def test_population_bomb_skill_link_beats_loaded_dice() -> None:
+def test_population_bomb_skill_link_plus_loaded_dice_loaded_dice_wins() -> None:
     move = MultiHitMove("population-bomb")
     attacker = MultiHitAttacker(ability="skill-link", item="loaded-dice")
     hits = resolve_hit_count(move, attacker, mode="min")
 
-    assert hits == 10
+    assert hits == 4
     _assert_population_bomb_parity(
         _request(
             "cinccino",
@@ -285,6 +285,46 @@ def test_population_bomb_skill_link_beats_loaded_dice() -> None:
             attacker_item="loaded-dice",
         )
     )
+
+
+def test_population_bomb_skill_link_only_returns_10() -> None:
+    """Skill Link removes multiaccuracy, so all 10 hits are guaranteed post-connect."""
+    move = MultiHitMove("population-bomb")
+    attacker = MultiHitAttacker(ability="skill-link")
+
+    assert resolve_hit_count(move, attacker, mode="min") == 10
+    assert resolve_hit_count(move, attacker, mode="max") == 10
+
+
+def test_population_bomb_loaded_dice_only_returns_4_to_10() -> None:
+    """Loaded Dice on Tier C uses targetHits = 10 - random(7), deterministic 4..10."""
+    move = MultiHitMove("population-bomb")
+    attacker = MultiHitAttacker(item="loaded-dice")
+
+    assert resolve_hit_count(move, attacker, mode="min") == 4
+    assert resolve_hit_count(move, attacker, mode="max") == 10
+
+
+def test_population_bomb_skill_link_and_loaded_dice_loaded_dice_still_applies() -> None:
+    """
+    Regression: PR #3.4-C2 incorrectly returned 10 here.
+    Showdown source (sim/battle-actions.ts line 876) shows Loaded Dice's
+    targetHits === 10 branch is independent of Skill Link's multiaccuracy removal.
+    """
+    move = MultiHitMove("population-bomb")
+    attacker = MultiHitAttacker(ability="skill-link", item="loaded-dice")
+
+    assert resolve_hit_count(move, attacker, mode="min") == 4
+    assert resolve_hit_count(move, attacker, mode="max") == 10
+
+
+def test_population_bomb_default_post_connect_min_is_1() -> None:
+    """Post-connect model: first hit has landed; initial miss lives above damage."""
+    move = MultiHitMove("population-bomb")
+    attacker = MultiHitAttacker()
+
+    assert resolve_hit_count(move, attacker, mode="min") == 1
+    assert resolve_hit_count(move, attacker, mode="max") == 10
 
 
 def test_population_bomb_bp_per_hit_is_20() -> None:
