@@ -20,7 +20,7 @@
 5. [System Architecture](#5-system-architecture)
 6. [Roadmap](#6-roadmap)
 7. [Phase 3.3 Specification — Field & Weather (DONE)](#7-phase-33-specification--field--weather-done)
-8. [Phase 3.4 Specification — Multi-hit Moves (IN PROGRESS)](#8-phase-34-specification--multi-hit-moves-in-progress)
+8. [Phase 3.4 Specification — Multi-hit Moves (DONE)](#8-phase-34-specification--multi-hit-moves-done)
 9. [Phase 4.0 Specification — PoChamps Localization Layer](#9-phase-40-specification--pochamps-localization-layer)
 10. [Quality Gates / Definition of Done](#10-quality-gates--definition-of-done)
 11. [Re-Entry Protocol — Common Misconceptions](#11-re-entry-protocol--common-misconceptions)
@@ -40,7 +40,7 @@ The **Master Ball Advisor** is a desktop battle copilot for the **PoChamps** tou
 | Field | Status |
 |---|---|
 | **Current Phase** | 3.3 ✅ DONE → 3.4 🚧 IN PROGRESS |
-| **Tests Passing** | **397** (143 parity, 1 xfailed) |
+| **Tests Passing** | **440** (441 collected, 1 xfailed) |
 | **Engine Math** | Q12 fixed-point (Base 4096), no float |
 | **Parity Reference** | `@smogon/calc` v0.11.0 (`gen789.ts`) |
 | **Architecture** | Path A (stateful) / Path B (pure functional) |
@@ -240,13 +240,15 @@ Base Power modifiers are resolved in **two passes** to handle conditional trigge
 
 See § 7 for full specification.
 
-### 4.3 Phase 3.4 — Multi-hit Moves 🚧 IN PROGRESS
+### 4.3 Phase 3.4 — Multi-hit Moves ✅ DONE
 
 - **PR #3.4-A:** Minimum Slice (Bullet Seed / Rock Blast / Icicle Spear + Skill Link) — DONE.
 - **PR #3.4-B:** Loaded Dice integration — DONE.
 - **PR #3.4-C:** Triple Axel / Triple Kick BP escalation — DONE.
 - **PR #3.4-C2:** Population Bomb deterministic Tier C multiaccuracy — DONE.
-- **Current test count:** 419 collected, 417 passed, 2 xfailed.
+- **PR #3.4-C3:** Skill Link + Loaded Dice Tier C regression fix — DONE.
+- **PR #3.4-D:** Probabilistic multihit sampling — DONE.
+- **Current test count:** 441 collected, 440 passed, 1 xfailed.
 
 See § 8 for full specification.
 
@@ -383,7 +385,7 @@ def test_neutralizing_gas_disables_cloud_nine_in_sun(): ...
 
 ---
 
-## 8. Phase 3.4 Specification — Multi-hit Moves (IN PROGRESS)
+## 8. Phase 3.4 Specification — Multi-hit Moves (DONE)
 
 ### 8.0 Hit Count Resolution Model
 
@@ -397,7 +399,7 @@ def test_neutralizing_gas_disables_cloud_nine_in_sun(): ...
 | #3.4-B | Item Modifiers — Loaded Dice (4-5 hit guarantee) | ✅ DONE |
 | #3.4-C | Triple Axel/Kick — escalating BP fixed-3 moves | ✅ DONE |
 | #3.4-C2 | Population Bomb — deterministic Tier C multiaccuracy | ✅ DONE |
-| #3.4-D | Distribution Sampling — probabilistic 2-5 and 1-10 hit resolution | ⏳ Planned |
+| #3.4-D | Distribution Sampling — probabilistic 2-5 and 1-10 hit resolution | ✅ DONE |
 
 ### 8.2 PR #3.4-A — Minimum Slice (Current)
 
@@ -610,6 +612,39 @@ Showdown's onModifyMove phase converts Tier A multihit arrays to their max int, 
 
 PR #3.4-C2 incorrectly assumed Skill Link beats Loaded Dice on Tier C. Fixed in PR #3.4-C3.
 
+### 8.7 PR #3.4-D — Probabilistic Sampling Mode ✅ DONE
+
+**Branch:** `feat/3.4-d-multihit-probabilistic`  
+**Tests:** 441 collected, 440 passed, 1 xfailed (+18 passing tests)
+
+#### RNG Layer
+
+`advisor/damage/rng.py` provides a seedable `RNG` wrapper with Showdown-shaped `random(n)` and weighted-choice APIs. It uses Python's Mersenne Twister, not Showdown's `sim/prng.ts`; bit-level PRNG parity is out of scope.
+
+#### Probabilistic Distributions
+
+| Tier | Scenario | Distribution |
+|---|---|---|
+| A | Default 2-5 range | 2:35%, 3:35%, 4:15%, 5:15% |
+| A | Loaded Dice | 4 or 5, uniform |
+| A | Skill Link + Loaded Dice | 5 fixed |
+| B | Fixed multihit | fixed |
+| C | Population Bomb default | post-connect 1 hit guaranteed, hits 2-10 roll 90% and stop on miss |
+| C | Loaded Dice | 10 - random(7), uniform 4-10 |
+| C | Skill Link | 10 fixed |
+| C | Skill Link + Loaded Dice | uniform 4-10; Loaded Dice still applies |
+
+#### Source References
+
+- Tier A weighted 35/35/15/15: Showdown `sim/battle-actions.ts` lines 864-865.
+- Tier A Loaded Dice 4/5: Showdown `sim/battle-actions.ts` lines 866-867.
+- Tier C Loaded Dice 4-10: Showdown `sim/battle-actions.ts` line 876.
+- Tier C multiaccuracy loop: Showdown `sim/battle-actions.ts` lines 907-933.
+
+#### Phase 3.4 Closure
+
+Phase 3.4 deterministic and probabilistic multihit mechanics are complete. Remaining accuracy-modifier interactions such as Compound Eyes and Hustle are intentionally outside this phase.
+
 ---
 
 ## 9. Phase 4.0 Specification — PoChamps Localization Layer
@@ -804,7 +839,14 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ## 16. Version History
 
-### v0.5.1 (current, 2026-05-06)
+### v0.6 (current, 2026-05-06)
+
+- PR #3.4-D merged: probabilistic multihit sampling mode.
+- Test count: 441 collected, 440 passed, 1 xfailed.
+- Multihit Phase 3.4 marked DONE.
+- Remaining xfail is the Phase 3.3 Neutralizing Gas / Cloud Nine bridge divergence, not multihit debt.
+
+### v0.5.1 (2026-05-06)
 
 - PR #3.4-C3 fixed Skill Link + Loaded Dice interaction on Tier C.
 - Test count: 423 collected, 421 passed, 2 xfailed.
