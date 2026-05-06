@@ -503,9 +503,21 @@
       "name": "Gulp Missile"
     },
     "guts": {
-      "category": "uncategorized",
+      "category": "stat_multiplier_status",
+      "ignores_burn_drop": true,
       "implemented": false,
-      "name": "Guts"
+      "multiplier_q12": 6144,
+      "name": "Guts",
+      "stat": "atk",
+      "trigger_status": [
+        "burn",
+        "paralysis",
+        "poison",
+        "toxic",
+        "sleep",
+        "freeze",
+        "frostbite"
+      ]
     },
     "hadron-engine": {
       "category": "terrain_summon",
@@ -551,9 +563,12 @@
       "name": "Hospitality"
     },
     "huge-power": {
-      "category": "stat_mod",
+      "category": "stat_multiplier",
+      "condition": "always",
       "implemented": false,
-      "name": "Huge Power"
+      "multiplier_q12": 8192,
+      "name": "Huge Power",
+      "stat": "atk"
     },
     "hunger-switch": {
       "category": "uncategorized",
@@ -1537,9 +1552,13 @@
       "name": "Torrent"
     },
     "tough-claws": {
-      "category": "uncategorized",
+      "category": "damage_mod_flag",
+      "flag_required": "contact",
       "implemented": false,
-      "name": "Tough Claws"
+      "modifier_layer": "bp_mods",
+      "multiplier_q12": 5325,
+      "name": "Tough Claws",
+      "smogon_ref": "gen789.ts L1195 (groups with Sheer Force/Punk Rock/Technician/Strong Jaw/Mega Launcher at L1198 push 5325)"
     },
     "toxic-boost": {
       "category": "uncategorized",
