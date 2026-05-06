@@ -265,7 +265,20 @@ CASES = [
             weather="sun",
         ),
         marks=pytest.mark.xfail(
-            reason="@smogon/calc bridge applies Cloud Nine before Neutralizing Gas weather suppression",
+            reason=(
+                "Known @smogon/calc bridge limitation: bridge applies "
+                "Cloud Nine before Neutralizing Gas, contradicting "
+                "Pokemon Showdown sim behavior. "
+                "Ground truth (verified 2026-05-06): "
+                "(1) Bulbapedia — Cloud Nine NOT in NG exception list; "
+                "(2) pokemon-showdown/data/abilities.ts — cloudnine.onSwitchIn "
+                "comment: 'does not activate ... when Neutralizing Gas leaves "
+                "the field'; "
+                "(3) Cloud Nine lacks `cantsuppress` flag. "
+                "Our engine resolves NG -> Cloud Nine correctly. "
+                "Upstream issue tracked against @smogon/calc."
+            ),
+            strict=True,
         ),
     ),
     ("sand_force_rock", _request("garchomp", "pikachu", "rock-slide", attacker_ability="sand-force", weather="sand")),
