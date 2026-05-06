@@ -1,0 +1,206 @@
+{
+  "life-orb": {
+    "multiplier_q12": 5325,
+    "category": "final_mods",
+    "condition": "damaging_move",
+    "implemented": true
+  },
+  "choice-band": {
+    "multiplier_q12": 6144,
+    "category": "atk_mods",
+    "condition": "physical_move",
+    "implemented": true
+  },
+  "choice-specs": {
+    "multiplier_q12": 6144,
+    "category": "spa_mods",
+    "condition": "special_move",
+    "implemented": true
+  },
+  "choice-scarf": {
+    "multiplier_q12": 6144,
+    "category": "speed_mods",
+    "condition": "speed_only_turn_engine",
+    "implemented": false
+  },
+  "muscle-band": {
+    "multiplier_q12": 4505,
+    "category": "bp_mods_pass1",
+    "condition": "physical_move",
+    "implemented": true
+  },
+  "wise-glasses": {
+    "multiplier_q12": 4505,
+    "category": "bp_mods_pass1",
+    "condition": "special_move",
+    "implemented": true
+  },
+  "expert-belt": {
+    "multiplier_q12": 4915,
+    "category": "final_mods",
+    "condition": "type_effectiveness_q12_gt_4096",
+    "implemented": true
+  },
+  "flame-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_fire",
+    "implemented": true
+  },
+  "blank-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_normal",
+    "implemented": false
+  },
+  "draco-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_dragon",
+    "implemented": false
+  },
+  "dread-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_dark",
+    "implemented": false
+  },
+  "earth-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_ground",
+    "implemented": false
+  },
+  "fist-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_fighting",
+    "implemented": false
+  },
+  "icicle-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_ice",
+    "implemented": false
+  },
+  "insect-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_bug",
+    "implemented": false
+  },
+  "iron-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_steel",
+    "implemented": false
+  },
+  "meadow-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_grass",
+    "implemented": false
+  },
+  "mind-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_psychic",
+    "implemented": false
+  },
+  "pixie-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_fairy",
+    "implemented": false
+  },
+  "sky-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_flying",
+    "implemented": false
+  },
+  "splash-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_water",
+    "implemented": false
+  },
+  "spooky-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_ghost",
+    "implemented": false
+  },
+  "stone-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_rock",
+    "implemented": false
+  },
+  "toxic-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_poison",
+    "implemented": false
+  },
+  "zap-plate": {
+    "multiplier_q12": 4915,
+    "category": "atk_spa_mods",
+    "condition": "move_type_electric",
+    "implemented": false
+  },
+  "charcoal": {
+    "multiplier_q12": 4915,
+    "category": "bp_mods_pass1",
+    "condition": "move_type_fire",
+    "implemented": true
+  },
+  "black-belt": {
+    "multiplier_q12": 4915,
+    "category": "bp_mods_pass1",
+    "condition": "move_type_fighting",
+    "implemented": true
+  },
+  "silver-powder": {
+    "multiplier_q12": 4915,
+    "category": "bp_mods_pass1",
+    "condition": "move_type_bug",
+    "implemented": true
+  },
+  "eviolite": {
+    "multiplier_q12": 6144,
+    "category": "def_spd_mods",
+    "condition": "holder_is_nfe",
+    "implemented": true
+  },
+  "light-ball": {
+    "multiplier_q12": 8192,
+    "category": "atk_spa_mods",
+    "condition": "holder_species_pikachu",
+    "implemented": true
+  },
+  "adamant-orb": {
+    "multiplier_q12": 4915,
+    "category": "bp_mods_pass1",
+    "condition": "dialga_dragon_or_steel_move",
+    "implemented": true
+  },
+  "lustrous-orb": {
+    "multiplier_q12": 4915,
+    "category": "bp_mods_pass1",
+    "condition": "palkia_dragon_or_water_move",
+    "implemented": true
+  },
+  "griseous-orb": {
+    "multiplier_q12": 4915,
+    "category": "bp_mods_pass1",
+    "condition": "giratina_origin_dragon_or_ghost_move",
+    "implemented": true
+  },
+  "soul-dew": {
+    "multiplier_q12": 4915,
+    "category": "bp_mods_pass1",
+    "condition": "latios_latias_psychic_or_dragon_move",
+    "implemented": true
+  }
+}

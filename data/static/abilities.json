@@ -116,9 +116,12 @@
       "name": "Big Pecks"
     },
     "blaze": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Blaze"
+      "category": "stat_multiplier",
+      "condition": "type_fire_low_hp",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Blaze",
+      "stat": "at_or_sa"
     },
     "bulletproof": {
       "category": "move_flag_immunity",
@@ -245,9 +248,12 @@
       "name": "Dazzling"
     },
     "defeatist": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Defeatist"
+      "category": "stat_multiplier",
+      "condition": "hp_le_half",
+      "implemented": true,
+      "multiplier_q12": 2048,
+      "name": "Defeatist",
+      "stat": "at_or_sa"
     },
     "defiant": {
       "category": "uncategorized",
@@ -364,11 +370,13 @@
       "name": "Fairy Aura"
     },
     "filter": {
-      "category": "damage_mod_super_effective",
       "ignored_by_mold_breaker": true,
       "implemented": true,
       "multiplier_q12": 3072,
-      "name": "Filter"
+      "name": "Filter",
+      "stat": "final_def",
+      "condition": "super_effective",
+      "category": "damage_mod_super_effective"
     },
     "flame-body": {
       "category": "uncategorized",
@@ -784,9 +792,13 @@
       "name": "Marvel Scale"
     },
     "mega-launcher": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Mega Launcher"
+      "category": "bp_modifier",
+      "condition": "pulse",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Mega Launcher",
+      "stat": "bp",
+      "trigger": "move_flags.pulse"
     },
     "merciless": {
       "category": "uncategorized",
@@ -924,9 +936,12 @@
       "name": "Overcoat"
     },
     "overgrow": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Overgrow"
+      "category": "stat_multiplier",
+      "condition": "type_grass_low_hp",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Overgrow",
+      "stat": "at_or_sa"
     },
     "own-tempo": {
       "category": "uncategorized",
@@ -1029,11 +1044,13 @@
       "summons": "heavy-rain"
     },
     "prism-armor": {
-      "category": "damage_mod_super_effective",
       "ignored_by_mold_breaker": false,
       "implemented": true,
       "multiplier_q12": 3072,
-      "name": "Prism Armor"
+      "name": "Prism Armor",
+      "stat": "final_def",
+      "condition": "super_effective",
+      "category": "damage_mod_super_effective"
     },
     "propeller-tail": {
       "category": "uncategorized",
@@ -1064,9 +1081,14 @@
       "summons": "psychic"
     },
     "punk-rock": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Punk Rock"
+      "category": "damage_mod_flag",
+      "condition": "sound_move",
+      "attacker_multiplier_q12": 5325,
+      "implemented": true,
+      "multiplier_q12": 2048,
+      "name": "Punk Rock",
+      "stat": "final_def",
+      "trigger": "move_flags.sound"
     },
     "pure-power": {
       "category": "stat_multiplier",
@@ -1134,9 +1156,13 @@
       "name": "Receiver"
     },
     "reckless": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Reckless"
+      "category": "bp_modifier",
+      "condition": "recoil",
+      "implemented": true,
+      "multiplier_q12": 4915,
+      "name": "Reckless",
+      "stat": "bp",
+      "trigger": "move_flags.recoil_and_not_struggle"
     },
     "refrigerate": {
       "category": "uncategorized",
@@ -1277,9 +1303,13 @@
       "name": "Shed Skin"
     },
     "sheer-force": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Sheer Force"
+      "category": "bp_modifier",
+      "condition": "has_secondary",
+      "implemented": true,
+      "multiplier_q12": 5325,
+      "name": "Sheer Force",
+      "stat": "bp",
+      "trigger": "move_flags.has_secondary"
     },
     "shell-armor": {
       "category": "uncategorized",
@@ -1349,11 +1379,13 @@
       "weather": "sun"
     },
     "solid-rock": {
-      "category": "damage_mod_super_effective",
       "ignored_by_mold_breaker": true,
       "implemented": true,
       "multiplier_q12": 3072,
-      "name": "Solid Rock"
+      "name": "Solid Rock",
+      "stat": "final_def",
+      "condition": "super_effective",
+      "category": "damage_mod_super_effective"
     },
     "soul-heart": {
       "category": "uncategorized",
@@ -1438,9 +1470,13 @@
       "name": "Storm Drain"
     },
     "strong-jaw": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Strong Jaw"
+      "category": "bp_modifier",
+      "condition": "bite",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Strong Jaw",
+      "stat": "bp",
+      "trigger": "move_flags.bite"
     },
     "sturdy": {
       "category": "uncategorized",
@@ -1476,9 +1512,12 @@
       "terrain": "electric"
     },
     "swarm": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Swarm"
+      "category": "stat_multiplier",
+      "condition": "type_bug_low_hp",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Swarm",
+      "stat": "at_or_sa"
     },
     "sweet-veil": {
       "category": "uncategorized",
@@ -1580,9 +1619,12 @@
       "name": "Tinted Lens"
     },
     "torrent": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Torrent"
+      "category": "stat_multiplier",
+      "condition": "type_water_low_hp",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Torrent",
+      "stat": "at_or_sa"
     },
     "tough-claws": {
       "category": "bp_modifier",
@@ -1614,9 +1656,13 @@
       "name": "Trace"
     },
     "transistor": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Transistor"
+      "category": "stat_multiplier",
+      "condition": "type_electric",
+      "implemented": true,
+      "multiplier_q12": 5325,
+      "name": "Transistor",
+      "stat": "at_or_sa",
+      "trigger": "move.type == electric"
     },
     "triage": {
       "category": "uncategorized",

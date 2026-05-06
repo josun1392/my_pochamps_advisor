@@ -70,7 +70,7 @@ function normalizeBoosts(boosts) {
 
 function makePokemon(gen, input, fieldInput) {
   const ability = String(input.ability || '').toLowerCase();
-  return new Pokemon(gen, toCalcName(input.species, '-'), {
+  const pokemon = new Pokemon(gen, toCalcName(input.species, '-'), {
     level: input.level,
     ability: toCalcName(input.ability),
     abilityOn: !!fieldInput?.ally_has_plus_minus && (ability === 'plus' || ability === 'minus'),
@@ -84,6 +84,10 @@ function makePokemon(gen, input, fieldInput) {
     isTerastallized: input.is_terastallized,
     boostedStat: input.boosted_stat || undefined
   });
+  if (input.current_hp_pct !== undefined && input.current_hp_pct !== null) {
+    pokemon.originalCurHP = Math.floor((pokemon.maxHP() * input.current_hp_pct) / 100);
+  }
+  return pokemon;
 }
 
 function makeMove(gen, input) {

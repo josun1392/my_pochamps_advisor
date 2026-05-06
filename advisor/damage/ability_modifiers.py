@@ -17,7 +17,49 @@ M_PARADOX = 5324
 M_HADRON_ORICHALCUM = 5461
 
 
-def get_atk_ability_modifier(ability_id: str, move_category: str) -> int:
+def _pinch_type_boost(
+    ability: str,
+    *,
+    move_type: str,
+    hp_current: int,
+    hp_max: int,
+) -> int:
+    """
+    Returns Q12 multiplier for pinch type-boosters. Default 4096.
+
+    Pinch threshold: hp_current * 3 <= hp_max
+    Defeatist threshold: hp_current * 2 <= hp_max
+    """
+    type_map = {
+        "overgrow": "grass",
+        "blaze": "fire",
+        "torrent": "water",
+        "swarm": "bug",
+    }
+    if hp_max <= 0:
+        return Q12_ONE
+    normalized_type = move_type.lower()
+    if ability in type_map:
+        if normalized_type == type_map[ability] and hp_current * 3 <= hp_max:
+            return M_STAB
+        return Q12_ONE
+
+    if ability == "defeatist":
+        if hp_current * 2 <= hp_max:
+            return M_HALF
+        return Q12_ONE
+
+    return Q12_ONE
+
+
+def get_atk_ability_modifier(
+    ability_id: str,
+    move_category: str,
+    *,
+    move_type: str = "",
+    hp_current: int = 1,
+    hp_max: int = 1,
+) -> int:
     """
     Returns Q12 multiplier for at_mods layer based on ability.
     move_category: "physical" | "special" | "status"
@@ -28,13 +70,20 @@ def get_atk_ability_modifier(ability_id: str, move_category: str) -> int:
         return Q12_ONE
     if ability.category != "stat_multiplier":
         return Q12_ONE
-    if ability.raw_data.get("stat") != "atk":
-        return Q12_ONE
-    if ability.raw_data.get("condition") != "physical_move":
-        return Q12_ONE
-    if move_category != "physical":
-        return Q12_ONE
-    return ability.multiplier_q12
+    if (
+        ability.raw_data.get("stat") == "atk"
+        and ability.raw_data.get("condition") == "physical_move"
+        and move_category == "physical"
+    ):
+        return ability.multiplier_q12
+    if ability.raw_data.get("condition") == "type_electric" and move_type == "electric":
+        return ability.multiplier_q12
+    return _pinch_type_boost(
+        ability_id,
+        move_type=move_type,
+        hp_current=hp_current,
+        hp_max=hp_max,
+    )
 
 
 def get_def_ability_modifier(ability_id: str, move_category: str) -> int:
@@ -57,23 +106,38 @@ def get_def_ability_modifier(ability_id: str, move_category: str) -> int:
     return Q12_ONE
 
 
-def get_final_def_ability_modifier(ability_id: str, defender_hp_ratio: float) -> int:
+def get_final_def_ability_modifier(
+    ability: str,
+    *,
+    hp_ratio: float,
+    type_effectiveness: float,
+    move_flags: set[str],
+) -> int:
     """
-    final_mods layer (defender side).
-    - multiscale: HP == 1.0 returns 2048
-    - shadow-shield: HP == 1.0 returns 2048
-    - otherwise: 4096
-    defender_hp_ratio: 0.0 ~ 1.0
+    Returns Q12 multiplier for defender-side final_mods layer. Default 4096.
+
+    Existing:
+      - Multiscale / Shadow Shield: 2048 if hp_ratio == 1.0 else 4096
+
+    New:
+      - Filter / Solid Rock / Prism Armor: 3072 if type_effectiveness > 1.0
+      - Punk Rock: 2048 if "sound" in move_flags
     """
-    ability = get_ability(ability_id)
-    if ability is None or not ability.implemented:
+    effect = get_ability(ability)
+    if effect is None or not effect.implemented:
         return Q12_ONE
-    if ability.category != "damage_mod_hp":
+    condition = effect.raw_data.get("condition")
+    if effect.category == "damage_mod_hp" and condition == "defender_hp_full":
+        if hp_ratio == 1.0:
+            return effect.multiplier_q12
         return Q12_ONE
-    if ability.raw_data.get("condition") != "defender_hp_full":
+    if effect.raw_data.get("stat") != "final_def":
         return Q12_ONE
-    if defender_hp_ratio == 1.0:
-        return ability.multiplier_q12
+    if condition == "super_effective" and type_effectiveness > 1.0 + 1e-9:
+        return effect.multiplier_q12
+    if condition == "sound_move" and "sound" in move_flags:
+        # TODO: PR #? implements Punk Rock's offensive sound boost in bp_mods.
+        return effect.multiplier_q12
     return Q12_ONE
 
 
@@ -82,6 +146,9 @@ def get_spa_ability_modifier(
     *,
     weather: str | None = None,
     ally_has_plus_minus: bool = False,
+    move_type: str = "",
+    hp_current: int = 1,
+    hp_max: int = 1,
 ) -> int:
     """Returns Q12 multiplier for SpA layer. Default 4096 (no-op)."""
     effect = get_ability(ability)
@@ -89,16 +156,23 @@ def get_spa_ability_modifier(
         return Q12_ONE
     if effect.category != "stat_multiplier":
         return Q12_ONE
-    if effect.raw_data.get("stat") not in {"sa", "spa"}:
+    if effect.raw_data.get("stat") not in {"sa", "spa", "at_or_sa"}:
         return Q12_ONE
     condition = effect.raw_data.get("condition")
-    if condition == "weather_sun":
+    if effect.raw_data.get("stat") in {"sa", "spa"} and condition == "weather_sun":
         # TODO: HP drain handled in turn_engine
         if weather in ("sun", "harsh_sun", "harsh-sunlight", "harsh_sunshine"):
             return effect.multiplier_q12
-    if condition == "ally_plus_minus" and ally_has_plus_minus:
+    if effect.raw_data.get("stat") in {"sa", "spa"} and condition == "ally_plus_minus" and ally_has_plus_minus:
         return effect.multiplier_q12
-    return Q12_ONE
+    if condition == "type_electric" and move_type == "electric":
+        return effect.multiplier_q12
+    return _pinch_type_boost(
+        ability,
+        move_type=move_type,
+        hp_current=hp_current,
+        hp_max=hp_max,
+    )
 
 
 def get_bp_ability_modifier(
@@ -106,6 +180,7 @@ def get_bp_ability_modifier(
     *,
     base_power: int,
     move_flags: set[str],
+    move_id: str = "",
 ) -> int:
     """
     Returns Q12 multiplier for bp_mods layer. Default 4096 (no-op).
@@ -120,12 +195,24 @@ def get_bp_ability_modifier(
     effect = get_ability(ability)
     if effect is None or not effect.implemented:
         return Q12_ONE
+    if effect.ability_id == "punk-rock" and "sound" in move_flags:
+        return int(effect.raw_data.get("attacker_multiplier_q12", Q12_ONE))
     if effect.category != "bp_modifier":
         return Q12_ONE
     condition = effect.raw_data.get("condition")
     if condition == "contact" and "contact" in move_flags:
         return effect.multiplier_q12
     if condition == "punch" and "punch" in move_flags:
+        return effect.multiplier_q12
+    if condition == "bite" and "bite" in move_flags:
+        return effect.multiplier_q12
+    if condition == "pulse" and "pulse" in move_flags:
+        return effect.multiplier_q12
+    if condition == "recoil" and "recoil" in move_flags and move_id != "struggle":
+        return effect.multiplier_q12
+    if condition == "sound_move" and "sound" in move_flags:
+        return effect.multiplier_q12
+    if condition == "has_secondary" and "has_secondary" in move_flags:
         return effect.multiplier_q12
     if condition == "bp_le_60" and base_power <= 60:
         return effect.multiplier_q12
@@ -169,6 +256,9 @@ def attack_stat_ability_mod(
     locked_paradox_stat: StatName | None = None,
     booster_active: bool = False,
     ally_has_plus_minus: bool = False,
+    move_type: str = "",
+    hp_current: int = 1,
+    hp_max: int = 1,
 ) -> int:
     if ability is None or not ability.implemented:
         return Q12_ONE
@@ -176,6 +266,9 @@ def attack_stat_ability_mod(
     stat_multiplier = get_atk_ability_modifier(
         ability_id,
         "physical" if is_physical else "special",
+        move_type=move_type,
+        hp_current=hp_current,
+        hp_max=hp_max,
     )
     if stat_multiplier != Q12_ONE:
         return stat_multiplier
@@ -183,12 +276,17 @@ def attack_stat_ability_mod(
         ability_id,
         weather="none" if weather_suppressed else weather,
         ally_has_plus_minus=ally_has_plus_minus,
+        move_type=move_type,
+        hp_current=hp_current,
+        hp_max=hp_max,
     )
     if not is_physical and spa_multiplier != Q12_ONE:
         return spa_multiplier
     if ability_id == "flower-gift" and is_physical:
         if weather in ("sun", "harsh-sunlight") and not weather_suppressed:
             return M_STAB
+    if ability_id == "transistor" and move_type == "electric":
+        return ability.multiplier_q12
     if _paradox_active(ability_id, weather, weather_suppressed, terrain, booster_active):
         boosted = locked_paradox_stat or _highest_paradox_stat(stats, boosts)
         if (is_physical and boosted == "atk") or (not is_physical and boosted == "spa"):
@@ -353,6 +451,8 @@ def defender_damage_ability_mod(
     is_contact: bool,
     is_physical: bool = True,
     defender_hp_ratio: float = 1.0,
+    type_effectiveness: float | None = None,
+    move_flags: set[str] | frozenset[str] | tuple[str, ...] = (),
 ) -> int:
     if ability is None or not ability.implemented:
         return Q12_ONE
@@ -364,9 +464,16 @@ def defender_damage_ability_mod(
     )
     if ability_id == "fur-coat":
         def_mod = Q12_ONE
-    final_hp_mod = get_final_def_ability_modifier(ability_id, defender_hp_ratio)
-    if def_mod != Q12_ONE or final_hp_mod != Q12_ONE:
-        return chain_modifiers([def_mod, final_hp_mod])
+    final_def_mod = get_final_def_ability_modifier(
+        ability_id,
+        hp_ratio=defender_hp_ratio,
+        type_effectiveness=type_effectiveness
+        if type_effectiveness is not None
+        else (2.0 if is_super_effective else 1.0),
+        move_flags=set(move_flags),
+    )
+    if def_mod != Q12_ONE or final_def_mod != Q12_ONE:
+        return chain_modifiers([def_mod, final_def_mod])
 
     if ability_id == "fluffy":
         mods: list[int] = []
@@ -375,9 +482,6 @@ def defender_damage_ability_mod(
         if move_type == "fire":
             mods.append(M_DOUBLE)
         return chain_modifiers(mods)
-
-    if ability_id in {"solid-rock", "filter", "prism-armor"} and is_super_effective:
-        return 3072
 
     return Q12_ONE
 

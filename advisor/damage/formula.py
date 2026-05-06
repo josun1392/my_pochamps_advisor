@@ -16,13 +16,15 @@ from advisor.damage.ability_modifiers import (
 from advisor.damage.field import Field
 from advisor.damage.grounded import GroundedInputs, is_grounded
 from advisor.damage.item_modifiers import (
-    attack_stat_item_mod,
-    attacker_base_power_item_mod,
-    attacker_damage_item_mod,
     defense_stat_item_mod,
     defender_berry_mod,
+    get_atk_item_modifier,
+    get_bp_item_modifier,
+    get_final_atk_item_modifier,
+    get_spa_item_modifier,
 )
 from advisor.damage.items import ItemEffect
+from advisor.damage.move_categories import has_secondary_effect
 from advisor.damage.modifiers import (
     calc_stab,
     sand_spdef_boost,
@@ -102,6 +104,8 @@ class DamageContext:
     ally_has_flower_gift: bool = False
     move_flags: tuple[str, ...] = ()
     is_contact: bool = False
+    attacker_hp_current: int = 100
+    attacker_hp_max: int = 100
     defender_hp_ratio: float = 1.0
     ally_ability_ids: tuple[str | None, ...] = ()
 
@@ -170,11 +174,30 @@ def calc_damage_rolls(
     ):
         return [0] * 16
     bp = ctx.move_power
-    if eff_attacker_ability and eff_attacker_ability.ability_id in ("tough-claws", "iron-fist"):
+    move_category = "physical" if ctx.is_physical else "special"
+    attacker_item_id = ctx.attacker_item.item_id if ctx.attacker_item else ""
+    bp = apply_damage_modifier(
+        bp,
+        get_bp_item_modifier(attacker_item_id, move_category=move_category),
+    )
+    pass1_move_flags = set(move_flags)
+    if has_secondary_effect(move_id):
+        # TODO PR #8a: suppress secondary effects.
+        pass1_move_flags.add("has_secondary")
+    if eff_attacker_ability and eff_attacker_ability.ability_id in (
+        "tough-claws",
+        "iron-fist",
+        "strong-jaw",
+        "mega-launcher",
+        "reckless",
+        "punk-rock",
+        "sheer-force",
+    ):
         bp_mod = get_bp_ability_modifier(
             eff_attacker_ability.ability_id,
             base_power=bp,
-            move_flags=set(move_flags),
+            move_flags=pass1_move_flags,
+            move_id=move_id,
         )
         bp = apply_damage_modifier(bp, bp_mod)
 
@@ -210,12 +233,6 @@ def calc_damage_rolls(
                 eff_defender_ability,
                 ctx.move_type,
             ),
-            attacker_base_power_item_mod(
-                ctx.attacker_item,
-                ctx.move_type,
-                ctx.attacker_species,
-                ctx.is_physical,
-            ),
         ]
     )
     power = max(1, apply_damage_modifier(bp, bp_mod))
@@ -223,6 +240,16 @@ def calc_damage_rolls(
         ctx.attack_stat,
         chain_modifiers(
             [
+                get_atk_item_modifier(
+                    attacker_item_id,
+                    move_category,
+                    move_type=ctx.move_type,
+                )
+                if ctx.is_physical
+                else get_spa_item_modifier(
+                    attacker_item_id,
+                    move_type=ctx.move_type,
+                ),
                 attack_stat_ability_mod(
                     eff_attacker_ability,
                     ctx.is_physical,
@@ -234,6 +261,9 @@ def calc_damage_rolls(
                     ctx.attacker_locked_paradox_stat,  # type: ignore[arg-type]
                     ctx.attacker_booster_active,
                     field.ally_has_plus_minus,
+                    move_type=ctx.move_type,
+                    hp_current=ctx.attacker_hp_current,
+                    hp_max=ctx.attacker_hp_max,
                 ),
                 attacker_move_attack_stat_ability_mod(
                     eff_attacker_ability,
@@ -242,12 +272,6 @@ def calc_damage_rolls(
                 defender_attack_stat_ability_mod(
                     eff_defender_ability,
                     ctx.move_type,
-                ),
-                attack_stat_item_mod(
-                    ctx.attacker_item,
-                    ctx.is_physical,
-                    ctx.attacker_species,
-                    ctx.attacker_is_transformed,
                 ),
             ]
         ),
@@ -318,6 +342,9 @@ def calc_damage_rolls(
         return [0] * 16
     if is_wonder_guard_blocked(effectiveness, eff_defender_ability, mold_breaker_active):
         return [0] * 16
+    # type_effectiveness_with_field returns a float from static chart data; item
+    # final_mods compare at the Q12 boundary, so convert once at the hook.
+    type_effectiveness_q12 = int(effectiveness * Q12_ONE)
     is_super_effective = effectiveness > 1.0
     is_not_very_effective = 0.0 < effectiveness < 1.0
 
@@ -338,9 +365,9 @@ def calc_damage_rolls(
                 ctx.bypass_screens,
             ),
             ctx.item_mod_q12,
-            attacker_damage_item_mod(
-                ctx.attacker_item,
-                is_super_effective,
+            get_final_atk_item_modifier(
+                attacker_item_id,
+                type_effectiveness_q12=type_effectiveness_q12,
             ),
             defender_berry_mod(
                 ctx.defender_item,
@@ -360,6 +387,8 @@ def calc_damage_rolls(
                 ctx.is_contact,
                 ctx.is_physical,
                 ctx.defender_hp_ratio,
+                effectiveness,
+                set(move_flags),
             ),
             ctx.final_mod_q12,
         ]

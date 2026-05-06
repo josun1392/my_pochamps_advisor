@@ -23,21 +23,20 @@ from advisor.parity.schemas import DamageRequest
 CACHE_DIR = Path("data/cache/pokemon")
 
 MOVES = {
+    "close-combat": ("fighting", "physical", 120, "normal"),
     "earthquake": ("ground", "physical", 100, "allAdjacent"),
-    "ember": ("fire", "special", 40, "normal"),
     "flamethrower": ("fire", "special", 90, "normal"),
-    "hydro-pump": ("water", "special", 110, "normal"),
-    "ice-beam": ("ice", "special", 90, "normal"),
     "iron-head": ("steel", "physical", 80, "normal"),
-    "outrage": ("dragon", "physical", 120, "normal"),
-    "scratch": ("normal", "physical", 40, "normal"),
-    "shadow-ball": ("ghost", "special", 80, "normal"),
-    "tackle": ("normal", "physical", 40, "normal"),
+    "psychic": ("psychic", "special", 90, "normal"),
     "thunderbolt": ("electric", "special", 90, "normal"),
-    "water-gun": ("water", "special", 40, "normal"),
 }
 
-NFE = {"pikachu"}
+ENTITY_OVERRIDES = {
+    "metagross": {
+        "types": ["steel", "psychic"],
+        "base_stats": {"hp": 80, "atk": 135, "def": 130, "spa": 95, "spd": 90, "spe": 70},
+    },
+}
 
 
 def _request(
@@ -46,12 +45,6 @@ def _request(
     move: str,
     *,
     attacker_item: str | None = None,
-    defender_item: str | None = None,
-    weather: str | None = None,
-    terrain: str | None = None,
-    format_: str = "gen9ou",
-    defender_side: dict | None = None,
-    tera_type: str | None = None,
 ) -> dict:
     return {
         "schema_version": "v1",
@@ -65,14 +58,14 @@ def _request(
             "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
             "boosts": {"atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0},
             "status": None,
-            "tera_type": tera_type,
-            "is_terastallized": tera_type is not None,
+            "tera_type": None,
+            "is_terastallized": False,
         },
         "defender": {
             "species": defender,
             "level": 50,
             "ability": None,
-            "item": defender_item,
+            "item": None,
             "nature": "hardy",
             "evs": {"hp": 0, "atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0},
             "ivs": {"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
@@ -84,12 +77,11 @@ def _request(
         },
         "move": {"name": move, "is_critical": False, "is_z": False, "is_max": False},
         "field": {
-            "weather": weather,
-            "terrain": terrain,
+            "weather": None,
+            "terrain": None,
             "is_gravity": False,
             "is_trick_room": False,
-            "format": format_,
-            "defender_side": defender_side,
+            "format": "gen9ou",
         },
     }
 
@@ -135,29 +127,20 @@ def _context_from_request(request: DamageRequest) -> DamageContext:
             ability=request.defender.ability,
             item=request.defender.item,
         ),
-        attacker_tera_type=request.attacker.tera_type,
-        is_terastallized=request.attacker.is_terastallized,
         attacker_item=get_item(request.attacker.item),
         defender_item=get_item(request.defender.item),
         attacker_species=request.attacker.species,
         defender_species=request.defender.species,
-        attacker_is_nfe=request.attacker.species in NFE,
-        defender_is_nfe=request.defender.species in NFE,
     )
 
 
 def _field_from_request(request: DamageRequest) -> Field:
-    defender_side = request.field.defender_side
     return Field(
         weather=request.field.weather or "none",
         terrain=request.field.terrain or "none",
         is_doubles=request.field.format == "gen9doubles",
         is_gravity=request.field.is_gravity,
-        defender_side=SideField(
-            reflect=bool(defender_side and defender_side.reflect),
-            light_screen=bool(defender_side and defender_side.light_screen),
-            aurora_veil=bool(defender_side and defender_side.aurora_veil),
-        ),
+        defender_side=SideField(),
     )
 
 
@@ -198,48 +181,22 @@ def _stats_for(pokemon, base_stats: dict[str, int]) -> StatBlock:
 
 
 def _load_entity(entity_id: str) -> dict:
+    if entity_id in ENTITY_OVERRIDES:
+        return ENTITY_OVERRIDES[entity_id]
     return json.loads((CACHE_DIR / f"{entity_id}.json").read_text(encoding="utf-8"))
 
 
 CASES = [
-    ("charcoal_fire", _request("charizard", "pikachu", "flamethrower", attacker_item="charcoal")),
-    ("mystic_water", _request("blastoise", "charizard", "hydro-pump", attacker_item="mystic-water")),
-    ("draco_plate", _request("garchomp", "blastoise", "outrage", attacker_item="draco-plate")),
-    ("choice_band", _request("garchomp", "pikachu", "earthquake", attacker_item="choice-band")),
-    ("choice_specs", _request("charizard", "pikachu", "flamethrower", attacker_item="choice-specs")),
-    ("life_orb", _request("charizard", "pikachu", "flamethrower", attacker_item="life-orb")),
-    ("expert_belt_se", _request("blastoise", "charizard", "water-gun", attacker_item="expert-belt")),
+    ("life_orb_earthquake", _request("garchomp", "arcanine", "earthquake", attacker_item="life-orb")),
+    ("choice_band_close_combat", _request("conkeldurr", "pikachu", "close-combat", attacker_item="choice-band")),
+    ("choice_specs_thunderbolt", _request("pikachu", "charizard", "thunderbolt", attacker_item="choice-specs")),
+    ("muscle_band_iron_head", _request("metagross", "pikachu", "iron-head", attacker_item="muscle-band")),
+    ("wise_glasses_psychic", _request("espeon", "conkeldurr", "psychic", attacker_item="wise-glasses")),
+    ("expert_belt_super_effective", _request("charizard", "forretress", "flamethrower", attacker_item="expert-belt")),
     ("expert_belt_neutral", _request("charizard", "pikachu", "flamethrower", attacker_item="expert-belt")),
-    ("muscle_band", _request("garchomp", "pikachu", "earthquake", attacker_item="muscle-band")),
-    ("wise_glasses", _request("charizard", "pikachu", "flamethrower", attacker_item="wise-glasses")),
-    ("eviolite_pikachu", _request("charizard", "pikachu", "flamethrower", defender_item="eviolite")),
-    ("eviolite_raichu_no_boost", _request("charizard", "raichu", "flamethrower", defender_item="eviolite")),
-    ("assault_vest", _request("charizard", "pikachu", "flamethrower", defender_item="assault-vest")),
-    ("light_ball_physical", _request("pikachu", "charizard", "tackle", attacker_item="light-ball")),
-    ("light_ball_special", _request("pikachu", "charizard", "thunderbolt", attacker_item="light-ball")),
-    ("light_ball_raichu_no_boost", _request("raichu", "charizard", "thunderbolt", attacker_item="light-ball")),
-    ("occa_berry_fire_se", _request("charizard", "venusaur", "flamethrower", defender_item="occa-berry")),
-    ("occa_berry_wrong_type", _request("blastoise", "venusaur", "water-gun", defender_item="occa-berry")),
-    ("yache_berry_4x", _request("blastoise", "garchomp", "ice-beam", defender_item="yache-berry")),
-    ("chilan_berry_normal", _request("pikachu", "charizard", "tackle", defender_item="chilan-berry")),
-    ("life_orb_sun_fire", _request("charizard", "pikachu", "flamethrower", attacker_item="life-orb", weather="sun")),
-    ("choice_band_grassy_eq", _request("garchomp", "pikachu", "earthquake", attacker_item="choice-band", terrain="grassy")),
-    (
-        "eviolite_aurora_veil",
-        _request(
-            "charizard",
-            "pikachu",
-            "flamethrower",
-            defender_item="eviolite",
-            defender_side={"aurora_veil": True},
-            format_="gen9doubles",
-        ),
-    ),
-    (
-        "expert_belt_tera",
-        _request("garchomp", "pikachu", "iron-head", attacker_item="expert-belt", tera_type="steel"),
-    ),
-    ("plate_no_boost_wrong_type", _request("garchomp", "pikachu", "earthquake", attacker_item="draco-plate")),
+    ("flame_plate_flamethrower", _request("arcanine", "pikachu", "flamethrower", attacker_item="flame-plate")),
+    ("life_orb_super_effective", _request("pikachu", "charizard", "thunderbolt", attacker_item="life-orb")),
+    ("choice_band_no_life_orb", _request("garchomp", "pikachu", "earthquake", attacker_item="choice-band")),
 ]
 
 

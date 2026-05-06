@@ -62,6 +62,7 @@ class PokemonInput(StrictModel):
     tera_type: str | None
     is_terastallized: bool
     boosted_stat: Literal["atk", "def", "spa", "spd", "spe", "auto"] | None = None
+    current_hp_pct: int = Field(default=100, ge=0, le=100)
 
 
 class DefenderInput(PokemonInput):

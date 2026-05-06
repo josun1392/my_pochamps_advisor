@@ -25,12 +25,20 @@ CACHE_DIR = Path("data/cache/pokemon")
 
 MOVES = {
     "earthquake": ("ground", "physical", 100, "allAdjacent"),
+    "acrobatics": ("flying", "physical", 110, "normal"),
+    "air-slash": ("flying", "special", 75, "normal"),
     "fire-blast": ("fire", "special", 110, "normal"),
     "flamethrower": ("fire", "special", 90, "normal"),
+    "giga-drain": ("grass", "special", 75, "normal"),
     "bug-bite": ("bug", "physical", 60, "normal"),
     "bullet-punch": ("steel", "physical", 40, "normal"),
     "close-combat": ("fighting", "physical", 120, "normal"),
+    "boomburst": ("normal", "special", 140, "allAdjacent"),
+    "crunch": ("dark", "physical", 80, "normal"),
+    "dazzling-gleam": ("fairy", "special", 80, "allAdjacentFoes"),
     "dragon-claw": ("dragon", "physical", 80, "normal"),
+    "dragon-pulse": ("dragon", "special", 85, "normal"),
+    "double-edge": ("normal", "physical", 120, "normal"),
     "ice-beam": ("ice", "special", 90, "normal"),
     "iron-head": ("steel", "physical", 80, "normal"),
     "mach-punch": ("fighting", "physical", 40, "normal"),
@@ -41,6 +49,8 @@ MOVES = {
     "scratch": ("normal", "physical", 40, "normal"),
     "shadow-ball": ("ghost", "special", 80, "normal"),
     "sucker-punch": ("dark", "physical", 70, "normal"),
+    "surf": ("water", "special", 90, "allAdjacent"),
+    "struggle": ("normal", "physical", 50, "normal"),
     "tackle": ("normal", "physical", 40, "normal"),
     "thunderbolt": ("electric", "special", 90, "normal"),
     "water-gun": ("water", "special", 40, "normal"),
@@ -49,6 +59,8 @@ MOVES = {
 
 OVERRIDES = {
     "cherrim": {"types": ["grass"], "base_stats": {"hp": 70, "atk": 60, "def": 70, "spa": 87, "spd": 78, "spe": 85}},
+    "archeops": {"types": ["rock", "flying"], "base_stats": {"hp": 75, "atk": 140, "def": 65, "spa": 112, "spd": 65, "spe": 110}},
+    "exploud": {"types": ["normal"], "base_stats": {"hp": 104, "atk": 91, "def": 63, "spa": 91, "spd": 73, "spe": 68}},
     "gogoat": {"types": ["grass"], "base_stats": {"hp": 123, "atk": 100, "def": 62, "spa": 97, "spd": 81, "spe": 68}},
     "great-tusk": {"types": ["ground", "fighting"], "base_stats": {"hp": 115, "atk": 131, "def": 131, "spa": 53, "spd": 53, "spe": 87}},
     "hitmonchan": {"types": ["fighting"], "base_stats": {"hp": 50, "atk": 105, "def": 79, "spa": 35, "spd": 110, "spe": 76}},
@@ -58,6 +70,7 @@ OVERRIDES = {
     "lugia": {"types": ["psychic", "flying"], "base_stats": {"hp": 106, "atk": 90, "def": 130, "spa": 90, "spd": 154, "spe": 110}},
     "lunala": {"types": ["psychic", "ghost"], "base_stats": {"hp": 137, "atk": 113, "def": 89, "spa": 137, "spd": 107, "spe": 97}},
     "minun": {"types": ["electric"], "base_stats": {"hp": 60, "atk": 40, "def": 50, "spa": 75, "spd": 85, "spe": 95}},
+    "necrozma-ultra": {"types": ["psychic", "dragon"], "base_stats": {"hp": 97, "atk": 167, "def": 97, "spa": 167, "spd": 97, "spe": 129}},
     "plusle": {"types": ["electric"], "base_stats": {"hp": 60, "atk": 50, "def": 40, "spa": 85, "spd": 75, "spe": 95}},
     "tapu-lele": {"types": ["psychic", "fairy"], "base_stats": {"hp": 70, "atk": 85, "def": 75, "spa": 130, "spd": 115, "spe": 95}},
 }
@@ -76,6 +89,7 @@ def _request(
     terrain: str | None = None,
     ally_has_plus_minus: bool = False,
     boosted_stat: str | None = None,
+    attacker_current_hp_pct: int = 100,
     format_: str = "gen9ou",
 ) -> dict:
     return {
@@ -93,6 +107,7 @@ def _request(
             "tera_type": None,
             "is_terastallized": False,
             "boosted_stat": boosted_stat,
+            "current_hp_pct": attacker_current_hp_pct,
         },
         "defender": {
             "species": defender,
@@ -173,6 +188,8 @@ def _context_from_request(request: DamageRequest) -> DamageContext:
         defender_boosts=defender_boosts,
         attacker_booster_active=request.attacker.item == "booster-energy",
         defender_booster_active=request.defender.item == "booster-energy",
+        attacker_hp_current=request.attacker.current_hp_pct,
+        attacker_hp_max=100,
         defender_hp_ratio=request.defender.current_hp_pct / 100,
         attacker_locked_paradox_stat=None
         if request.attacker.boosted_stat in (None, "auto")
@@ -263,6 +280,26 @@ CASES = [
     ("charizard_tough_claws_dragon_claw", _request("charizard", "blastoise", "dragon-claw", attacker_ability="tough-claws")),
     ("hitmonchan_iron_fist_mach_punch", _request("hitmonchan", "pikachu", "mach-punch", attacker_ability="iron-fist")),
     ("hitmonchan_iron_fist_close_combat_no_boost", _request("hitmonchan", "pikachu", "close-combat", attacker_ability="iron-fist")),
+    ("mega_aggron_filter_earthquake", _request("garchomp", "aggron-mega", "earthquake", defender_ability="filter")),
+    ("rhyperior_solid_rock_surf", _request("blastoise", "rhyperior", "surf", defender_ability="solid-rock")),
+    ("ultra_necrozma_prism_armor_dazzling_gleam", _request("tapu-lele", "necrozma-ultra", "dazzling-gleam", defender_ability="prism-armor")),
+    ("toxapex_punk_rock_boomburst", _request("exploud", "toxapex", "boomburst", attacker_ability="scrappy", defender_ability="punk-rock")),
+    ("toxapex_punk_rock_earthquake_no_sound", _request("garchomp", "toxapex", "earthquake", defender_ability="punk-rock")),
+    ("aggron_filter_full_hp_earthquake", _request("garchomp", "aggron", "earthquake", defender_ability="filter")),
+    ("charizard_blaze_flamethrower_low_hp", _request("charizard", "pikachu", "flamethrower", attacker_ability="blaze", attacker_current_hp_pct=10)),
+    ("charizard_blaze_flamethrower_half_hp", _request("charizard", "pikachu", "flamethrower", attacker_ability="blaze", attacker_current_hp_pct=50)),
+    ("charizard_blaze_air_slash_low_hp_wrong_type", _request("charizard", "pikachu", "air-slash", attacker_ability="blaze", attacker_current_hp_pct=10)),
+    ("venusaur_overgrow_giga_drain_33_hp", _request("venusaur", "blastoise", "giga-drain", attacker_ability="overgrow", attacker_current_hp_pct=33)),
+    ("venusaur_overgrow_giga_drain_34_hp", _request("venusaur", "blastoise", "giga-drain", attacker_ability="overgrow", attacker_current_hp_pct=34)),
+    ("archeops_defeatist_acrobatics_half_hp", _request("archeops", "pikachu", "acrobatics", attacker_ability="defeatist", attacker_current_hp_pct=50)),
+    ("gyarados_strong_jaw_crunch", _request("gyarados", "pikachu", "crunch", attacker_ability="strong-jaw")),
+    ("blastoise_mega_launcher_dragon_pulse", _request("blastoise", "pikachu", "dragon-pulse", attacker_ability="mega-launcher")),
+    ("charizard_reckless_double_edge", _request("charizard", "pikachu", "double-edge", attacker_ability="reckless")),
+    ("charizard_reckless_struggle_no_boost", _request("charizard", "pikachu", "struggle", attacker_ability="reckless")),
+    ("exploud_punk_rock_boomburst", _request("exploud", "pikachu", "boomburst", attacker_ability="punk-rock")),
+    ("garchomp_sheer_force_iron_head", _request("garchomp", "pikachu", "iron-head", attacker_ability="sheer-force")),
+    ("garchomp_sheer_force_earthquake_no_boost", _request("garchomp", "pikachu", "earthquake", attacker_ability="sheer-force")),
+    ("pikachu_transistor_thunderbolt", _request("pikachu", "blastoise", "thunderbolt", attacker_ability="transistor")),
 ]
 
 
