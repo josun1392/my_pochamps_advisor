@@ -18,3 +18,18 @@ def get_move_flags(move_id: str) -> tuple[str, ...]:
 def has_secondary_effect(move_id: str) -> bool:
     data = load_move_flags()
     return move_id in data.get("secondary_effect_moves", [])
+
+
+def is_secondary_suppressed_by(
+    move_id: str,
+    *,
+    attacker_ability: str | None,
+    attacker_item: str | None = None,
+) -> bool:
+    """Return whether a move's built-in secondary effect is suppressed.
+
+    This is a turn-engine predicate: it does not model item-added effects such
+    as King's Rock flinch chances, and it does not mutate battle state.
+    """
+    del attacker_item
+    return attacker_ability == "sheer-force" and has_secondary_effect(move_id)

@@ -60,7 +60,7 @@
     "x-scissor": ["contact"]
   },
   "secondary_effect_moves": [
-    "thunderbolt", "thunder", "ice-beam", "blizzard",
+    "thunderbolt", "thunder", "ice-beam", "blizzard", "body-slam",
     "flamethrower", "fire-blast", "shadow-ball", "scald",
     "discharge", "sludge-bomb", "iron-head", "rock-slide",
     "air-slash", "dark-pulse", "moonblast", "play-rough"

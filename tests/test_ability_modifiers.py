@@ -5,6 +5,10 @@ from advisor.damage.ability_modifiers import (
     get_final_def_ability_modifier,
     get_spa_ability_modifier,
 )
+from advisor.damage.move_categories import (
+    has_secondary_effect,
+    is_secondary_suppressed_by,
+)
 
 def test_huge_power_doubles_physical():
     assert get_atk_ability_modifier("huge-power", "physical") == 8192
@@ -319,6 +323,33 @@ def test_sheer_force_boosts_secondary_effect_moves():
 
 def test_sheer_force_no_effect_without_secondary():
     assert get_bp_ability_modifier("sheer-force", base_power=100, move_flags=set()) == 4096
+
+def test_sheer_force_iron_head_boosts_bp_and_suppresses_flinch():
+    assert has_secondary_effect("iron-head")
+    assert get_bp_ability_modifier("sheer-force", base_power=80, move_flags={"has_secondary"}) == 5325
+    assert is_secondary_suppressed_by("iron-head", attacker_ability="sheer-force")
+
+def test_sheer_force_fire_blast_boosts_bp_and_suppresses_burn():
+    assert has_secondary_effect("fire-blast")
+    assert get_bp_ability_modifier("sheer-force", base_power=110, move_flags={"has_secondary"}) == 5325
+    assert is_secondary_suppressed_by("fire-blast", attacker_ability="sheer-force")
+
+def test_sheer_force_earthquake_has_no_bp_boost_or_suppression():
+    assert not has_secondary_effect("earthquake")
+    assert get_bp_ability_modifier("sheer-force", base_power=100, move_flags=set()) == 4096
+    assert not is_secondary_suppressed_by("earthquake", attacker_ability="sheer-force")
+
+def test_sheer_force_body_slam_boosts_bp_and_suppresses_paralysis():
+    assert has_secondary_effect("body-slam")
+    assert get_bp_ability_modifier("sheer-force", base_power=85, move_flags={"has_secondary"}) == 5325
+    assert is_secondary_suppressed_by("body-slam", attacker_ability="sheer-force")
+
+def test_kings_rock_non_sheer_force_flinch_is_not_suppressed():
+    assert not is_secondary_suppressed_by(
+        "earthquake",
+        attacker_ability=None,
+        attacker_item="king's-rock",
+    )
 
 def test_transistor_boosts_special_electric_moves_only():
     assert get_spa_ability_modifier("transistor", move_type="electric") == 5325
