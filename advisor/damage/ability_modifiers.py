@@ -37,6 +37,46 @@ def get_atk_ability_modifier(ability_id: str, move_category: str) -> int:
     return ability.multiplier_q12
 
 
+def get_def_ability_modifier(ability_id: str, move_category: str) -> int:
+    """
+    df_mods/sd_mods layer.
+    - fur-coat: physical receive 2048
+    - ice-scales: special receive 2048
+    - otherwise: 4096
+    """
+    ability = get_ability(ability_id)
+    if ability is None or not ability.implemented:
+        return Q12_ONE
+    if ability.category != "stat_multiplier":
+        return Q12_ONE
+    condition = ability.raw_data.get("condition")
+    if condition == "physical_move_received" and move_category == "physical":
+        return ability.multiplier_q12
+    if condition == "special_move_received" and move_category == "special":
+        return ability.multiplier_q12
+    return Q12_ONE
+
+
+def get_final_def_ability_modifier(ability_id: str, defender_hp_ratio: float) -> int:
+    """
+    final_mods layer (defender side).
+    - multiscale: HP == 1.0 returns 2048
+    - shadow-shield: HP == 1.0 returns 2048
+    - otherwise: 4096
+    defender_hp_ratio: 0.0 ~ 1.0
+    """
+    ability = get_ability(ability_id)
+    if ability is None or not ability.implemented:
+        return Q12_ONE
+    if ability.category != "damage_mod_hp":
+        return Q12_ONE
+    if ability.raw_data.get("condition") != "defender_hp_full":
+        return Q12_ONE
+    if defender_hp_ratio == 1.0:
+        return ability.multiplier_q12
+    return Q12_ONE
+
+
 def attacker_base_power_ability_mod(
     ability: AbilityEffect | None,
     move_type: str,
@@ -139,6 +179,8 @@ def defense_stat_ability_mod(
     if ability is None or not ability.implemented:
         return Q12_ONE
     ability_id = ability.ability_id
+    if ability_id == "fur-coat" and get_def_ability_modifier(ability_id, "physical" if is_physical else "special") != Q12_ONE:
+        return M_DOUBLE
     if ability_id == "flower-gift" and not is_physical:
         if weather in ("sun", "harsh-sunlight") and not weather_suppressed:
             return M_STAB
@@ -249,11 +291,23 @@ def defender_damage_ability_mod(
     move_type: str,
     is_super_effective: bool,
     is_contact: bool,
+    is_physical: bool = True,
+    defender_hp_ratio: float = 1.0,
 ) -> int:
     if ability is None or not ability.implemented:
         return Q12_ONE
 
     ability_id = ability.ability_id
+    def_mod = get_def_ability_modifier(
+        ability_id,
+        "physical" if is_physical else "special",
+    )
+    if ability_id == "fur-coat":
+        def_mod = Q12_ONE
+    final_hp_mod = get_final_def_ability_modifier(ability_id, defender_hp_ratio)
+    if def_mod != Q12_ONE or final_hp_mod != Q12_ONE:
+        return chain_modifiers([def_mod, final_hp_mod])
+
     if ability_id == "fluffy":
         mods: list[int] = []
         if is_contact:

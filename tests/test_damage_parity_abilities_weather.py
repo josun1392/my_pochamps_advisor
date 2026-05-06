@@ -30,9 +30,11 @@ MOVES = {
     "iron-head": ("steel", "physical", 80, "normal"),
     "moonblast": ("fairy", "special", 95, "normal"),
     "play-rough": ("fairy", "physical", 90, "normal"),
+    "psychic": ("psychic", "special", 90, "normal"),
     "rock-slide": ("rock", "physical", 75, "allAdjacentFoes"),
     "scratch": ("normal", "physical", 40, "normal"),
     "shadow-ball": ("ghost", "special", 80, "normal"),
+    "sucker-punch": ("dark", "physical", 70, "normal"),
     "tackle": ("normal", "physical", 40, "normal"),
     "thunderbolt": ("electric", "special", 90, "normal"),
     "water-gun": ("water", "special", 40, "normal"),
@@ -45,6 +47,9 @@ OVERRIDES = {
     "iron-bundle": {"types": ["ice", "water"], "base_stats": {"hp": 56, "atk": 80, "def": 114, "spa": 124, "spd": 60, "spe": 136}},
     "iron-moth": {"types": ["fire", "poison"], "base_stats": {"hp": 80, "atk": 70, "def": 60, "spa": 140, "spd": 110, "spe": 110}},
     "flutter-mane": {"types": ["ghost", "fairy"], "base_stats": {"hp": 55, "atk": 55, "def": 55, "spa": 135, "spd": 135, "spe": 135}},
+    "lugia": {"types": ["psychic", "flying"], "base_stats": {"hp": 106, "atk": 90, "def": 130, "spa": 90, "spd": 154, "spe": 110}},
+    "lunala": {"types": ["psychic", "ghost"], "base_stats": {"hp": 137, "atk": 113, "def": 89, "spa": 137, "spd": 107, "spe": 97}},
+    "tapu-lele": {"types": ["psychic", "fairy"], "base_stats": {"hp": 70, "atk": 85, "def": 75, "spa": 130, "spd": 115, "spe": 95}},
 }
 
 
@@ -155,6 +160,7 @@ def _context_from_request(request: DamageRequest) -> DamageContext:
         defender_boosts=defender_boosts,
         attacker_booster_active=request.attacker.item == "booster-energy",
         defender_booster_active=request.defender.item == "booster-energy",
+        defender_hp_ratio=request.defender.current_hp_pct / 100,
         attacker_locked_paradox_stat=None
         if request.attacker.boosted_stat in (None, "auto")
         else request.attacker.boosted_stat,
@@ -230,6 +236,10 @@ CASES = [
     ("sand_force_life_orb", _request("garchomp", "pikachu", "earthquake", attacker_ability="sand-force", attacker_item="life-orb", weather="sand")),
     ("azumarill_huge_power_play_rough", _request("azumarill", "garchomp", "play-rough", attacker_ability="huge-power")),
     ("flapple_hustle_tackle", _request("flapple", "pikachu", "tackle", attacker_ability="hustle")),
+    ("furfrou_fur_coat_earthquake", _request("garchomp", "furfrou", "earthquake", defender_ability="fur-coat")),
+    ("goodra_h_ice_scales_psychic", _request("tapu-lele", "goodra-hisui", "psychic", defender_ability="ice-scales")),
+    ("lugia_multiscale_full_hp_earthquake", _request("garchomp", "lugia", "earthquake", defender_ability="multiscale")),
+    ("lunala_shadow_shield_full_hp_sucker_punch", _request("gengar", "lunala", "sucker-punch", defender_ability="shadow-shield")),
 ]
 
 

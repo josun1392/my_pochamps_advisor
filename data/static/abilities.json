@@ -438,9 +438,12 @@
       "name": "Full Metal Body"
     },
     "fur-coat": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Fur Coat"
+      "category": "stat_multiplier",
+      "condition": "physical_move_received",
+      "implemented": true,
+      "multiplier_q12": 2048,
+      "name": "Fur Coat",
+      "stat": "def_received"
     },
     "gale-wings": {
       "category": "uncategorized",
@@ -607,9 +610,13 @@
       "name": "Ice Face"
     },
     "ice-scales": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Ice Scales"
+      "category": "stat_multiplier",
+      "condition": "special_move_received",
+      "implemented": true,
+      "multiplier_q12": 2048,
+      "name": "Ice Scales",
+      "smogon_ref": "gen789.ts final_mods 2048 for special",
+      "stat": "spd_received"
     },
     "illuminate": {
       "category": "uncategorized",
@@ -840,8 +847,11 @@
       "name": "Moxie"
     },
     "multiscale": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "damage_mod_hp",
+      "condition": "defender_hp_full",
+      "implemented": true,
+      "modifier_layer": "final_mods",
+      "multiplier_q12": 2048,
       "name": "Multiscale"
     },
     "multitype": {
@@ -1235,8 +1245,11 @@
       "name": "Serene Grace"
     },
     "shadow-shield": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "damage_mod_hp",
+      "condition": "defender_hp_full",
+      "implemented": true,
+      "modifier_layer": "final_mods",
+      "multiplier_q12": 2048,
       "name": "Shadow Shield"
     },
     "shadow-tag": {

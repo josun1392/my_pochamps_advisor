@@ -101,6 +101,7 @@ class DamageContext:
     ally_has_flower_gift: bool = False
     move_flags: tuple[str, ...] = ()
     is_contact: bool = False
+    defender_hp_ratio: float = 1.0
     ally_ability_ids: tuple[str | None, ...] = ()
 
 
@@ -338,6 +339,8 @@ def calc_damage_rolls(
                 ctx.move_type,
                 is_super_effective,
                 ctx.is_contact,
+                ctx.is_physical,
+                ctx.defender_hp_ratio,
             ),
             ctx.final_mod_q12,
         ]
