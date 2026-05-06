@@ -29,3 +29,22 @@
   - **Tracked:** Upstream issue to be filed against `@smogon/calc`.
 
 **Next:** Phase 3.4 — Move Mechanics (Multi-hit Moves)
+
+### Phase 3.4 — Multi-hit Moves: 🚧 IN PROGRESS
+
+#### PR #3.4-A — Minimum Slice ✅
+- **Branch:** `feat/3.4-multihit-minimum-slice`
+- **Coverage:** Bullet Seed / Rock Blast / Icicle Spear + Skill Link
+- **Tests:** 402 total (+5 parity)
+- **Modes:** min / max / skill-link (expected distribution deferred)
+
+#### PR #3.4-B — Item Modifiers (planned)
+- Loaded Dice (4-5 hit guarantee)
+
+#### PR #3.4-C — Special Cases (planned)
+- Population Bomb (10-hit distribution)
+- Triple Axel / Triple Kick (escalating BP, hit-dependent)
+
+#### PR #3.4-D — Distribution Sampling (planned)
+- Probabilistic 2-5 hit resolution (35/35/15/15)
+- Expected value mode for damage calc UI
