@@ -206,10 +206,17 @@
   "loaded-dice": {
     "multiplier_q12": 4096,
     "category": "multihit_modifier",
-    "condition": "range_multihit_4_to_5",
-    "forces_multihit_min": 4,
-    "forces_multihit_max": 5,
-    "applies_to_range_multihit_only": true,
+    "applies_to_tiers": ["A", "C"],
+    "tier_a_behavior": {
+      "forces_multihit_min": 4,
+      "forces_multihit_max": 5
+    },
+    "tier_c_behavior": {
+      "removes_multiaccuracy": true,
+      "hit_distribution": "10 - random(0..6)",
+      "deterministic_min": 4,
+      "deterministic_max": 10
+    },
     "implemented": true
   }
 }

@@ -1333,7 +1333,14 @@
     },
     "skill-link": {
       "category": "multihit_modifier",
-      "forces_max_multihit": true,
+      "applies_to_tiers": ["A", "C"],
+      "tier_a_behavior": {
+        "forces_max_multihit": true
+      },
+      "tier_c_behavior": {
+        "removes_multiaccuracy": true,
+        "forces_max_multihit": true
+      },
       "implemented": true,
       "name": "Skill Link"
     },

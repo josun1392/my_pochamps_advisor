@@ -6,34 +6,13 @@ from typing import Literal
 from advisor.damage.formula import DamageContext, calc_damage_rolls
 
 
-MULTIHIT_MOVES: dict[str, tuple[int, int] | int] = {
-    "bullet-seed": (2, 5),
-    "rock-blast": (2, 5),
-    "icicle-spear": (2, 5),
-    "triple-kick": 3,
-    "triple-axel": 3,
-}
-
-MOVE_BASE_POWER: dict[str, int] = {
-    "bullet-seed": 25,
-    "rock-blast": 25,
-    "icicle-spear": 25,
-    "triple-kick": 10,
-    "triple-axel": 20,
-}
-
-BP_ESCALATION_MOVES: set[str] = {
-    "triple-kick",
-    "triple-axel",
-}
-
-
 @dataclass(frozen=True, slots=True)
 class MultiHitMove:
     move_id: str
     multihit: tuple[int, int] | int | None = None
     base_power: int | None = None
     bp_escalation: bool = False
+    multiaccuracy: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,18 +21,49 @@ class MultiHitAttacker:
     item: str | None = None
 
 
+MULTIHIT_MOVES: dict[str, MultiHitMove] = {
+    "bullet-seed": MultiHitMove("bullet-seed", multihit=(2, 5), base_power=25),
+    "rock-blast": MultiHitMove("rock-blast", multihit=(2, 5), base_power=25),
+    "icicle-spear": MultiHitMove("icicle-spear", multihit=(2, 5), base_power=25),
+    "triple-kick": MultiHitMove("triple-kick", multihit=3, base_power=10, bp_escalation=True),
+    "triple-axel": MultiHitMove("triple-axel", multihit=3, base_power=20, bp_escalation=True),
+    "population-bomb": MultiHitMove(
+        "population-bomb",
+        multihit=10,
+        base_power=20,
+        multiaccuracy=True,
+    ),
+}
+
+
 def _read_value(source, name: str, default=None):
     if isinstance(source, dict):
         return source.get(name, default)
     return getattr(source, name, default)
 
 
+def _move_id_for(move) -> str:
+    return str(_read_value(move, "move_id", _read_value(move, "id", _read_value(move, "name", "")))).lower()
+
+
+def move_data_for(move) -> MultiHitMove:
+    move_id = _move_id_for(move)
+    registered = MULTIHIT_MOVES.get(move_id)
+    explicit_multihit = _read_value(move, "multihit")
+    explicit_base_power = _read_value(move, "base_power")
+    return MultiHitMove(
+        move_id=move_id,
+        multihit=explicit_multihit if explicit_multihit is not None else registered.multihit if registered else None,
+        base_power=explicit_base_power
+        if explicit_base_power is not None
+        else registered.base_power if registered else None,
+        bp_escalation=bool(_read_value(move, "bp_escalation") or (registered and registered.bp_escalation)),
+        multiaccuracy=bool(_read_value(move, "multiaccuracy") or (registered and registered.multiaccuracy)),
+    )
+
+
 def multihit_for(move) -> tuple[int, int] | int | None:
-    explicit = _read_value(move, "multihit")
-    if explicit is not None:
-        return explicit
-    move_id = _read_value(move, "move_id", _read_value(move, "id", _read_value(move, "name", "")))
-    return MULTIHIT_MOVES.get(str(move_id).lower())
+    return move_data_for(move).multihit
 
 
 def is_multihit(move) -> bool:
@@ -62,39 +72,21 @@ def is_multihit(move) -> bool:
 
 def get_escalated_bp(move, hit_index: int, *, base_power: int | None = None) -> int:
     """Return per-hit BP for Triple Axel/Kick style BP escalation."""
-    move_id = str(_read_value(move, "move_id", _read_value(move, "id", _read_value(move, "name", "")))).lower()
-    resolved_base_power = base_power
+    move_data = move_data_for(move)
+    resolved_base_power = base_power if base_power is not None else move_data.base_power
     if resolved_base_power is None:
-        resolved_base_power = _read_value(move, "base_power", MOVE_BASE_POWER.get(move_id))
-    if resolved_base_power is None:
-        raise ValueError(f"Missing base power for {move_id}")
-    bp_escalation = bool(_read_value(move, "bp_escalation", move_id in BP_ESCALATION_MOVES))
-    if not bp_escalation:
+        raise ValueError(f"Missing base power for {move_data.move_id}")
+    if not move_data.bp_escalation:
         return resolved_base_power
     return resolved_base_power * (hit_index + 1)
 
 
-def resolve_hit_count(
-    move,
+def _resolve_tier_a(
+    multihit: tuple[int, int],
     attacker,
-    *,
-    mode: Literal["min", "max", "expected"] = "min",
+    mode: Literal["min", "max", "expected"],
 ) -> int:
-    """
-    Hit-count resolution priority:
-      1. Skill Link (ability) -> max hits for range multihit.
-      2. Loaded Dice (item) -> 4 min / 5 max for range multihit.
-      3. Default -> move min / max.
-
-    Ability beats item because Pokemon Showdown evaluates Skill Link before
-    Loaded Dice when both are present.
-    """
-    multihit = multihit_for(move)
-    if multihit is None:
-        return 1
-    if isinstance(multihit, int):
-        return multihit
-
+    """Resolve range multihit moves such as Bullet Seed and Rock Blast."""
     min_hits, max_hits = multihit
     ability = _read_value(attacker, "ability")
     if ability == "skill-link":
@@ -112,7 +104,64 @@ def resolve_hit_count(
         return min_hits
     if mode == "max":
         return max_hits
-    raise NotImplementedError("expected mode reserved for future PR")
+    raise NotImplementedError("Multihit expected distribution reserved for PR #3.4-D")
+
+
+def _resolve_tier_c(
+    move: MultiHitMove,
+    attacker,
+    mode: Literal["min", "max", "expected"],
+) -> int:
+    """Resolve multiaccuracy fixed-10 hit moves such as Population Bomb."""
+    if not isinstance(move.multihit, int):
+        raise TypeError("Tier C multihit must be a fixed integer")
+
+    ability = _read_value(attacker, "ability")
+    if ability == "skill-link":
+        return move.multihit
+
+    item = _read_value(attacker, "item")
+    if item == "loaded-dice":
+        if mode == "min":
+            return 4
+        if mode == "max":
+            return move.multihit
+        raise NotImplementedError(
+            "Loaded Dice + multiaccuracy probabilistic sampling reserved for PR #3.4-D"
+        )
+
+    if mode == "min":
+        return 1
+    if mode == "max":
+        return move.multihit
+    raise NotImplementedError("Multiaccuracy probabilistic sampling reserved for PR #3.4-D")
+
+
+def resolve_hit_count(
+    move,
+    attacker,
+    *,
+    mode: Literal["min", "max", "expected"] = "min",
+) -> int:
+    """
+    Hit-count resolution priority:
+      1. Skill Link (ability) -> max hits for range multihit.
+      2. Loaded Dice (item) -> 4 min / 5 max for range multihit.
+      3. Default -> move min / max.
+
+    Ability beats item because Pokemon Showdown evaluates Skill Link before
+    Loaded Dice when both are present.
+    """
+    move_data = move_data_for(move)
+    multihit = move_data.multihit
+    if multihit is None:
+        return 1
+    if isinstance(multihit, int) and move_data.multiaccuracy:
+        return _resolve_tier_c(move_data, attacker, mode)
+    if isinstance(multihit, int):
+        return multihit
+
+    return _resolve_tier_a(multihit, attacker, mode)
 
 
 def calculate_multihit_damage(
