@@ -46,7 +46,15 @@ function titleWord(word) {
 
 function toCalcName(value, separator = ' ') {
   if (value === null || value === undefined || value === '') return undefined;
-  return String(value)
+  const specialNames = {
+    'well-baked-body': 'Well-Baked Body',
+    'mind-s-eye': "Mind's Eye"
+  };
+  const raw = String(value);
+  if (Object.prototype.hasOwnProperty.call(specialNames, raw.toLowerCase())) {
+    return specialNames[raw.toLowerCase()];
+  }
+  return raw
     .split('-')
     .map(titleWord)
     .join(separator);

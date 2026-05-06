@@ -121,8 +121,9 @@
       "name": "Blaze"
     },
     "bulletproof": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "move_flag_immunity",
+      "immune_flag": "bullet",
+      "implemented": true,
       "name": "Bulletproof"
     },
     "cheek-pouch": {
@@ -297,9 +298,12 @@
       "summons": "sun"
     },
     "dry-skin": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Dry Skin"
+      "category": "type_dual_effect",
+      "immune_to_type": "water",
+      "implemented": true,
+      "name": "Dry Skin",
+      "vulnerable_multiplier_q12": 5120,
+      "vulnerable_type": "fire"
     },
     "early-bird": {
       "category": "uncategorized",
@@ -307,8 +311,9 @@
       "name": "Early Bird"
     },
     "earth-eater": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "type_immunity",
+      "immune_to_type": "ground",
+      "implemented": true,
       "name": "Earth Eater"
     },
     "effect-spore": {
@@ -359,8 +364,10 @@
       "name": "Fairy Aura"
     },
     "filter": {
-      "category": "damage_mod",
-      "implemented": false,
+      "category": "damage_mod_super_effective",
+      "ignored_by_mold_breaker": true,
+      "implemented": true,
+      "multiplier_q12": 3072,
       "name": "Filter"
     },
     "flame-body": {
@@ -374,8 +381,13 @@
       "name": "Flare Boost"
     },
     "flash-fire": {
+      "boost_on_proc": {
+        "multiplier_q12": 6144,
+        "type": "fire"
+      },
       "category": "type_immunity",
-      "implemented": false,
+      "immune_to_type": "fire",
+      "implemented": true,
       "name": "Flash Fire"
     },
     "flower-gift": {
@@ -392,8 +404,10 @@
       "name": "Flower Veil"
     },
     "fluffy": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "damage_mod_flag",
+      "contact_multiplier_q12": 2048,
+      "fire_multiplier_q12": 8192,
+      "implemented": true,
       "name": "Fluffy"
     },
     "forecast": {
@@ -513,8 +527,12 @@
       "name": "Healer"
     },
     "heatproof": {
-      "category": "uncategorized",
-      "implemented": false,
+      "boosted_types": [
+        "fire"
+      ],
+      "category": "damage_mod_type",
+      "implemented": true,
+      "multiplier_q12": 2048,
       "name": "Heatproof"
     },
     "heavy-metal": {
@@ -657,9 +675,11 @@
       "weather": "sun"
     },
     "levitate": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Levitate"
+      "category": "type_immunity",
+      "immune_to_type": "ground",
+      "implemented": true,
+      "name": "Levitate",
+      "via_grounded_check": true
     },
     "libero": {
       "category": "uncategorized",
@@ -672,8 +692,9 @@
       "name": "Light Metal"
     },
     "lightning-rod": {
-      "category": "type_redirect",
-      "implemented": false,
+      "category": "type_immunity_redirect",
+      "immune_to_type": "electric",
+      "implemented": true,
       "name": "Lightning Rod"
     },
     "limber": {
@@ -702,13 +723,15 @@
       "name": "Long Reach"
     },
     "magic-bounce": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "status_reflect",
+      "implemented": true,
+      "implemented_stub": true,
       "name": "Magic Bounce"
     },
     "magic-guard": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "residual_immunity",
+      "implemented": true,
+      "implemented_stub": true,
       "name": "Magic Guard"
     },
     "magician": {
@@ -771,9 +794,10 @@
       "summons": "misty"
     },
     "mold-breaker": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Mold Breaker"
+      "category": "ability_suppress",
+      "implemented": true,
+      "name": "Mold Breaker",
+      "scope": "defender_immunity_and_damage"
     },
     "moody": {
       "category": "uncategorized",
@@ -781,8 +805,9 @@
       "name": "Moody"
     },
     "motor-drive": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "type_immunity",
+      "immune_to_type": "electric",
+      "implemented": true,
       "name": "Motor Drive"
     },
     "mountaineer": {
@@ -826,8 +851,8 @@
       "name": "Neuroforce"
     },
     "neutralizing-gas": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "ability_global_suppress",
+      "implemented": true,
       "name": "Neutralizing Gas"
     },
     "no-guard": {
@@ -858,8 +883,9 @@
       "summons": "sun"
     },
     "overcoat": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "move_flag_immunity",
+      "immune_flag": "powder",
+      "implemented": true,
       "name": "Overcoat"
     },
     "overgrow": {
@@ -965,8 +991,10 @@
       "summons": "heavy-rain"
     },
     "prism-armor": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "damage_mod_super_effective",
+      "ignored_by_mold_breaker": false,
+      "implemented": true,
+      "multiplier_q12": 3072,
       "name": "Prism Armor"
     },
     "propeller-tail": {
@@ -1008,8 +1036,12 @@
       "name": "Pure Power"
     },
     "purifying-salt": {
-      "category": "uncategorized",
-      "implemented": false,
+      "boosted_types": [
+        "ghost"
+      ],
+      "category": "damage_mod_type",
+      "implemented": true,
+      "multiplier_q12": 2048,
       "name": "Purifying Salt"
     },
     "quark-drive": {
@@ -1150,8 +1182,9 @@
       "weather": "sand"
     },
     "sap-sipper": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "type_immunity",
+      "immune_to_type": "grass",
+      "implemented": true,
       "name": "Sap Sipper"
     },
     "schooling": {
@@ -1271,8 +1304,10 @@
       "weather": "sun"
     },
     "solid-rock": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "damage_mod_super_effective",
+      "ignored_by_mold_breaker": true,
+      "implemented": true,
+      "multiplier_q12": 3072,
       "name": "Solid Rock"
     },
     "soul-heart": {
@@ -1281,8 +1316,9 @@
       "name": "Soul-Heart"
     },
     "soundproof": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "move_flag_immunity",
+      "immune_flag": "sound",
+      "implemented": true,
       "name": "Soundproof"
     },
     "speed-boost": {
@@ -1351,8 +1387,9 @@
       "name": "Sticky Hold"
     },
     "storm-drain": {
-      "category": "type_redirect",
-      "implemented": false,
+      "category": "type_immunity_redirect",
+      "immune_to_type": "water",
+      "implemented": true,
       "name": "Storm Drain"
     },
     "strong-jaw": {
@@ -1447,8 +1484,9 @@
       "name": "Technician"
     },
     "telepathy": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "ally_immunity",
+      "implemented": true,
+      "implemented_stub": true,
       "name": "Telepathy"
     },
     "tera-shell": {
@@ -1467,9 +1505,10 @@
       "name": "Teraform Zero"
     },
     "teravolt": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Teravolt"
+      "category": "ability_suppress",
+      "implemented": true,
+      "name": "Teravolt",
+      "scope": "defender_immunity_and_damage"
     },
     "thermal-exchange": {
       "category": "uncategorized",
@@ -1477,13 +1516,19 @@
       "name": "Thermal Exchange"
     },
     "thick-fat": {
-      "category": "uncategorized",
-      "implemented": false,
+      "boosted_types": [
+        "fire",
+        "ice"
+      ],
+      "category": "damage_mod_type",
+      "implemented": true,
+      "multiplier_q12": 2048,
       "name": "Thick Fat"
     },
     "tinted-lens": {
-      "category": "damage_mod",
-      "implemented": false,
+      "category": "damage_mod_not_very_effective",
+      "implemented": true,
+      "multiplier_q12": 8192,
       "name": "Tinted Lens"
     },
     "torrent": {
@@ -1532,9 +1577,10 @@
       "name": "Truant"
     },
     "turboblaze": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Turboblaze"
+      "category": "ability_suppress",
+      "implemented": true,
+      "name": "Turboblaze",
+      "scope": "defender_immunity_and_damage"
     },
     "unaware": {
       "category": "uncategorized",
@@ -1573,7 +1619,8 @@
     },
     "volt-absorb": {
       "category": "type_immunity",
-      "implemented": false,
+      "immune_to_type": "electric",
+      "implemented": true,
       "name": "Volt Absorb"
     },
     "wandering-spirit": {
@@ -1583,13 +1630,18 @@
     },
     "water-absorb": {
       "category": "type_immunity",
-      "implemented": false,
+      "immune_to_type": "water",
+      "implemented": true,
       "name": "Water Absorb"
     },
     "water-bubble": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Water Bubble"
+      "category": "damage_mod_dual",
+      "defensive_multiplier_q12": 2048,
+      "defensive_type": "fire",
+      "implemented": true,
+      "name": "Water Bubble",
+      "offensive_multiplier_q12": 8192,
+      "offensive_type": "water"
     },
     "water-compaction": {
       "category": "uncategorized",
@@ -1607,8 +1659,9 @@
       "name": "Weak Armor"
     },
     "well-baked-body": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "type_immunity",
+      "immune_to_type": "fire",
+      "implemented": true,
       "name": "Well-Baked Body"
     },
     "white-smoke": {
@@ -1632,8 +1685,8 @@
       "name": "Wind Rider"
     },
     "wonder-guard": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "wonder_guard",
+      "implemented": true,
       "name": "Wonder Guard"
     },
     "wonder-skin": {

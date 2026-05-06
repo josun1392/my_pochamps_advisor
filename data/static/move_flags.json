@@ -1,0 +1,32 @@
+{
+  "version": "gen9",
+  "flags_by_move": {
+    "aura-sphere": ["bullet", "pulse"],
+    "boomburst": ["sound"],
+    "bug-buzz": ["sound"],
+    "bullet-seed": ["bullet"],
+    "clangorous-soul": ["sound"],
+    "clanging-scales": ["sound"],
+    "cotton-spore": ["powder"],
+    "egg-bomb": ["bullet"],
+    "energy-ball": ["bullet"],
+    "fire-punch": ["contact", "punch"],
+    "flamethrower": [],
+    "focus-blast": ["bullet"],
+    "hyper-voice": ["sound"],
+    "ice-beam": [],
+    "iron-head": ["contact"],
+    "poison-powder": ["powder"],
+    "powder": ["powder"],
+    "pyro-ball": ["bullet"],
+    "rage-powder": ["powder"],
+    "scratch": ["contact"],
+    "shadow-ball": ["bullet"],
+    "sleep-powder": ["powder"],
+    "sludge-bomb": ["bullet", "bomb"],
+    "snarl": ["sound"],
+    "spore": ["powder"],
+    "stun-spore": ["powder"],
+    "tackle": ["contact"]
+  }
+}

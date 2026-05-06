@@ -1,16 +1,53 @@
 {
   "categories": {
-    "damage_mod": [
-      "filter",
+    "ability_global_suppress": [
+      "neutralizing-gas"
+    ],
+    "ability_suppress": [
+      "mold-breaker",
+      "teravolt",
+      "turboblaze"
+    ],
+    "ally_immunity": [
+      "telepathy"
+    ],
+    "damage_mod_dual": [
+      "water-bubble"
+    ],
+    "damage_mod_flag": [
+      "fluffy"
+    ],
+    "damage_mod_not_very_effective": [
       "tinted-lens"
+    ],
+    "damage_mod_super_effective": [
+      "filter",
+      "prism-armor",
+      "solid-rock"
+    ],
+    "damage_mod_type": [
+      "heatproof",
+      "purifying-salt",
+      "thick-fat"
+    ],
+    "move_flag_immunity": [
+      "bulletproof",
+      "overcoat",
+      "soundproof"
     ],
     "paradox": [
       "protosynthesis",
       "quark-drive"
     ],
+    "residual_immunity": [
+      "magic-guard"
+    ],
     "stat_mod": [
       "huge-power",
       "pure-power"
+    ],
+    "status_reflect": [
+      "magic-bounce"
     ],
     "terrain_conditional": [
       "grass-pelt",
@@ -24,12 +61,20 @@
       "misty-surge",
       "psychic-surge"
     ],
-    "type_immunity": [
-      "flash-fire",
-      "volt-absorb",
-      "water-absorb"
+    "type_dual_effect": [
+      "dry-skin"
     ],
-    "type_redirect": [
+    "type_immunity": [
+      "earth-eater",
+      "flash-fire",
+      "levitate",
+      "motor-drive",
+      "sap-sipper",
+      "volt-absorb",
+      "water-absorb",
+      "well-baked-body"
+    ],
+    "type_immunity_redirect": [
       "lightning-rod",
       "storm-drain"
     ],
@@ -57,7 +102,6 @@
       "berserk",
       "big-pecks",
       "blaze",
-      "bulletproof",
       "cheek-pouch",
       "chilling-neigh",
       "clear-body",
@@ -84,9 +128,7 @@
       "disguise",
       "download",
       "dragon-s-maw",
-      "dry-skin",
       "early-bird",
-      "earth-eater",
       "effect-spore",
       "electromorphosis",
       "embody-aspect-cornerstone",
@@ -98,7 +140,6 @@
       "flame-body",
       "flare-boost",
       "flower-veil",
-      "fluffy",
       "forewarn",
       "friend-guard",
       "frisk",
@@ -115,7 +156,6 @@
       "gulp-missile",
       "guts",
       "healer",
-      "heatproof",
       "heavy-metal",
       "honey-gather",
       "hospitality",
@@ -140,7 +180,6 @@
       "justified",
       "keen-eye",
       "klutz",
-      "levitate",
       "libero",
       "light-metal",
       "limber",
@@ -148,8 +187,6 @@
       "liquid-ooze",
       "liquid-voice",
       "long-reach",
-      "magic-bounce",
-      "magic-guard",
       "magician",
       "magma-armor",
       "magnet-pull",
@@ -159,9 +196,7 @@
       "mind-s-eye",
       "minus",
       "mirror-armor",
-      "mold-breaker",
       "moody",
-      "motor-drive",
       "mountaineer",
       "moxie",
       "multiscale",
@@ -170,12 +205,10 @@
       "mycelium-might",
       "natural-cure",
       "neuroforce",
-      "neutralizing-gas",
       "no-guard",
       "normalize",
       "oblivious",
       "opportunist",
-      "overcoat",
       "overgrow",
       "own-tempo",
       "parental-bond",
@@ -195,11 +228,9 @@
       "power-spot",
       "prankster",
       "pressure",
-      "prism-armor",
       "propeller-tail",
       "protean",
       "punk-rock",
-      "purifying-salt",
       "queenly-majesty",
       "quick-draw",
       "quick-feet",
@@ -217,7 +248,6 @@
       "rough-skin",
       "run-away",
       "sand-spit",
-      "sap-sipper",
       "schooling",
       "scrappy",
       "screen-cleaner",
@@ -235,9 +265,7 @@
       "skill-link",
       "slow-start",
       "sniper",
-      "solid-rock",
       "soul-heart",
-      "soundproof",
       "speed-boost",
       "stakeout",
       "stall",
@@ -266,13 +294,10 @@
       "tangled-feet",
       "tangling-hair",
       "technician",
-      "telepathy",
       "tera-shell",
       "tera-shift",
       "teraform-zero",
-      "teravolt",
       "thermal-exchange",
-      "thick-fat",
       "torrent",
       "tough-claws",
       "toxic-boost",
@@ -282,7 +307,6 @@
       "transistor",
       "triage",
       "truant",
-      "turboblaze",
       "unaware",
       "unburden",
       "unnerve",
@@ -291,16 +315,13 @@
       "victory-star",
       "vital-spirit",
       "wandering-spirit",
-      "water-bubble",
       "water-compaction",
       "water-veil",
       "weak-armor",
-      "well-baked-body",
       "white-smoke",
       "wimp-out",
       "wind-power",
       "wind-rider",
-      "wonder-guard",
       "wonder-skin",
       "zen-mode",
       "zero-to-hero"
@@ -334,6 +355,9 @@
     "weather_suppress": [
       "air-lock",
       "cloud-nine"
+    ],
+    "wonder_guard": [
+      "wonder-guard"
     ]
   },
   "version": "champions-2026"

@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field as dataclass_field
+from dataclasses import dataclass, field as dataclass_field, replace
 from advisor.damage.abilities import AbilityEffect, is_weather_suppressed
 from advisor.damage.ability_modifiers import (
     attack_stat_ability_mod,
+    attacker_damage_ability_mod_immunity_phase,
     attacker_base_power_ability_mod,
+    attacker_move_attack_stat_ability_mod,
+    defender_attack_stat_ability_mod,
+    defender_base_power_ability_mod,
+    defender_damage_ability_mod,
     defense_stat_ability_mod,
 )
 from advisor.damage.field import Field
@@ -26,6 +31,12 @@ from advisor.damage.modifiers import (
     type_effectiveness_with_field,
     weather_modifier,
 )
+from advisor.damage.mold_breaker import (
+    effective_attacker_ability,
+    effective_defender_ability,
+    is_mold_breaker_active,
+    is_neutralizing_gas_active,
+)
 from advisor.damage.q12 import (
     M_NEUTRAL,
     M_SPREAD,
@@ -36,6 +47,11 @@ from advisor.damage.q12 import (
 )
 from advisor.damage.screens import screen_modifier
 from advisor.damage.stats import StatBlock
+from advisor.damage.type_immunity import (
+    is_immune_by_ability,
+    is_wonder_guard_blocked,
+    move_flags_for,
+)
 from advisor.damage.types import load_type_chart
 
 
@@ -83,6 +99,9 @@ class DamageContext:
     attacker_locked_paradox_stat: str | None = None
     defender_locked_paradox_stat: str | None = None
     ally_has_flower_gift: bool = False
+    move_flags: tuple[str, ...] = ()
+    is_contact: bool = False
+    ally_ability_ids: tuple[str | None, ...] = ()
 
 
 def base_damage(level: int, power: int, attack: int, defense: int) -> int:
@@ -95,20 +114,59 @@ def calc_damage_rolls(
 ) -> list[int]:
     chart = type_chart or load_type_chart()
     field = ctx.field
+    attacker_ability_id = ctx.attacker_ability.ability_id if ctx.attacker_ability else None
+    defender_ability_id = ctx.defender_ability.ability_id if ctx.defender_ability else None
+    neutralizing_gas_active = is_neutralizing_gas_active(
+        attacker_ability_id,
+        defender_ability_id,
+        ctx.ally_ability_ids,
+    )
+    eff_attacker_ability = effective_attacker_ability(
+        ctx.attacker_ability,
+        neutralizing_gas_active,
+    )
+    eff_defender_ability = effective_defender_ability(
+        ctx.defender_ability,
+        attacker_ability_id,
+        neutralizing_gas_active,
+    )
+    mold_breaker_active = (
+        is_mold_breaker_active(attacker_ability_id) and not neutralizing_gas_active
+    )
     weather_suppressed = is_weather_suppressed(
-        ctx.attacker_ability.ability_id if ctx.attacker_ability else None,
-        ctx.defender_ability.ability_id if ctx.defender_ability else None,
+        eff_attacker_ability.ability_id if eff_attacker_ability else None,
+        eff_defender_ability.ability_id if eff_defender_ability else None,
     )
     effective_weather = "none" if weather_suppressed else field.weather
+    attacker_grounded_inputs = ctx.attacker_grounded_inputs or GroundedInputs(ctx.attacker_types)
+    defender_grounded_inputs = ctx.defender_grounded_inputs or GroundedInputs(ctx.defender_types)
+    attacker_grounded_inputs = replace(
+        attacker_grounded_inputs,
+        ability=eff_attacker_ability.ability_id if eff_attacker_ability else None,
+    )
+    defender_grounded_inputs = replace(
+        defender_grounded_inputs,
+        ability=eff_defender_ability.ability_id if eff_defender_ability else None,
+    )
     attacker_grounded = is_grounded(
-        ctx.attacker_grounded_inputs or GroundedInputs(ctx.attacker_types),
+        attacker_grounded_inputs,
         field,
     )
     defender_grounded = is_grounded(
-        ctx.defender_grounded_inputs or GroundedInputs(ctx.defender_types),
+        defender_grounded_inputs,
         field,
     )
     move_id = ctx.move_id or ctx.move_type
+    move_flags = ctx.move_flags or move_flags_for(move_id)
+    if is_immune_by_ability(
+        ctx.move_type,
+        move_id,
+        move_flags,
+        eff_defender_ability,
+        defender_grounded,
+        mold_breaker_active,
+    ):
+        return [0] * 16
     bp_mod = chain_modifiers(
         [
             terrain_attack_modifier(
@@ -124,10 +182,14 @@ def calc_damage_rolls(
                 defender_grounded,
             ),
             attacker_base_power_ability_mod(
-                ctx.attacker_ability,
+                eff_attacker_ability,
                 ctx.move_type,
                 effective_weather,
                 weather_suppressed,
+            ),
+            defender_base_power_ability_mod(
+                eff_defender_ability,
+                ctx.move_type,
             ),
             attacker_base_power_item_mod(
                 ctx.attacker_item,
@@ -143,7 +205,7 @@ def calc_damage_rolls(
         chain_modifiers(
             [
                 attack_stat_ability_mod(
-                    ctx.attacker_ability,
+                    eff_attacker_ability,
                     ctx.is_physical,
                     effective_weather,
                     weather_suppressed,
@@ -152,6 +214,14 @@ def calc_damage_rolls(
                     ctx.attacker_boosts,
                     ctx.attacker_locked_paradox_stat,  # type: ignore[arg-type]
                     ctx.attacker_booster_active,
+                ),
+                attacker_move_attack_stat_ability_mod(
+                    eff_attacker_ability,
+                    ctx.move_type,
+                ),
+                defender_attack_stat_ability_mod(
+                    eff_defender_ability,
+                    ctx.move_type,
                 ),
                 attack_stat_item_mod(
                     ctx.attacker_item,
@@ -175,7 +245,7 @@ def calc_damage_rolls(
             chain_modifiers(
                 [
                     defense_stat_ability_mod(
-                        ctx.defender_ability,
+                        eff_defender_ability,
                         ctx.is_physical,
                         effective_weather,
                         weather_suppressed,
@@ -226,7 +296,10 @@ def calc_damage_rolls(
     )
     if effectiveness == 0.0:
         return [0] * 16
+    if is_wonder_guard_blocked(effectiveness, eff_defender_ability, mold_breaker_active):
+        return [0] * 16
     is_super_effective = effectiveness > 1.0
+    is_not_very_effective = 0.0 < effectiveness < 1.0
 
     stab_mod = calc_stab(
         ctx.attacker_types,
@@ -255,7 +328,17 @@ def calc_damage_rolls(
                 is_super_effective,
             ),
             ctx.ability_atk_mod_q12,
+            attacker_damage_ability_mod_immunity_phase(
+                eff_attacker_ability,
+                is_not_very_effective,
+            ),
             ctx.ability_def_mod_q12,
+            defender_damage_ability_mod(
+                eff_defender_ability,
+                ctx.move_type,
+                is_super_effective,
+                ctx.is_contact,
+            ),
             ctx.final_mod_q12,
         ]
     )

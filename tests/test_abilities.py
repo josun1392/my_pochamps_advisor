@@ -22,7 +22,7 @@ def test_weather_suppression_lookup() -> None:
 
 
 def test_stubbed_ability_is_not_implemented() -> None:
-    ability = get_ability("tinted-lens")
+    ability = get_ability("huge-power")
     assert ability is not None
     assert ability.implemented is False
 

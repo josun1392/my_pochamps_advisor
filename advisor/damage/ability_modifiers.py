@@ -1,7 +1,15 @@
 from __future__ import annotations
 
 from advisor.damage.abilities import AbilityEffect
-from advisor.damage.q12 import Q12_ONE, M_DOUBLE, M_STAB, apply_damage_modifier
+from advisor.damage.q12 import (
+    M_DOUBLE,
+    M_HALF,
+    M_NEUTRAL,
+    M_STAB,
+    Q12_ONE,
+    apply_damage_modifier,
+    chain_modifiers,
+)
 from advisor.damage.stats import StatBlock, StatName, apply_boosts
 
 
@@ -21,6 +29,17 @@ def attacker_base_power_ability_mod(
         if weather == "sand" and not weather_suppressed:
             if move_type in ability.boosted_types:
                 return ability.multiplier_q12
+    return Q12_ONE
+
+
+def defender_base_power_ability_mod(
+    ability: AbilityEffect | None,
+    move_type: str,
+) -> int:
+    if ability is None or not ability.implemented:
+        return Q12_ONE
+    if ability.ability_id == "dry-skin" and move_type == "fire":
+        return 5120
     return Q12_ONE
 
 
@@ -48,6 +67,35 @@ def attack_stat_ability_mod(
         boosted = locked_paradox_stat or _highest_paradox_stat(stats, boosts)
         if (is_physical and boosted == "atk") or (not is_physical and boosted == "spa"):
             return M_PARADOX
+    return Q12_ONE
+
+
+def attacker_move_attack_stat_ability_mod(
+    ability: AbilityEffect | None,
+    move_type: str,
+) -> int:
+    if ability is None or not ability.implemented:
+        return Q12_ONE
+    if ability.ability_id == "water-bubble" and move_type == "water":
+        return M_DOUBLE
+    return Q12_ONE
+
+
+def defender_attack_stat_ability_mod(
+    ability: AbilityEffect | None,
+    move_type: str,
+) -> int:
+    if ability is None or not ability.implemented:
+        return Q12_ONE
+    ability_id = ability.ability_id
+    if ability_id == "heatproof" and move_type == "fire":
+        return M_HALF
+    if ability_id == "thick-fat" and move_type in ("fire", "ice"):
+        return M_HALF
+    if ability_id == "water-bubble" and move_type == "fire":
+        return M_HALF
+    if ability_id == "purifying-salt" and move_type == "ghost":
+        return M_HALF
     return Q12_ONE
 
 
@@ -168,3 +216,38 @@ def apply_speed_ability(
             booster_active,
         ),
     )
+
+
+def defender_damage_ability_mod(
+    ability: AbilityEffect | None,
+    move_type: str,
+    is_super_effective: bool,
+    is_contact: bool,
+) -> int:
+    if ability is None or not ability.implemented:
+        return Q12_ONE
+
+    ability_id = ability.ability_id
+    if ability_id == "fluffy":
+        mods: list[int] = []
+        if is_contact:
+            mods.append(M_HALF)
+        if move_type == "fire":
+            mods.append(M_DOUBLE)
+        return chain_modifiers(mods)
+
+    if ability_id in {"solid-rock", "filter", "prism-armor"} and is_super_effective:
+        return 3072
+
+    return Q12_ONE
+
+
+def attacker_damage_ability_mod_immunity_phase(
+    ability: AbilityEffect | None,
+    is_not_very_effective: bool,
+) -> int:
+    if ability is None or not ability.implemented:
+        return Q12_ONE
+    if ability.ability_id == "tinted-lens" and is_not_very_effective:
+        return M_DOUBLE
+    return M_NEUTRAL
