@@ -21,10 +21,11 @@ def test_weather_suppression_lookup() -> None:
     assert is_weather_suppressed(None, None) is False
 
 
-def test_stubbed_ability_is_not_implemented() -> None:
+def test_huge_power_lookup() -> None:
     ability = get_ability("huge-power")
     assert ability is not None
-    assert ability.implemented is False
+    assert ability.implemented is True
+    assert ability.multiplier_q12 == 8192
 
 
 def test_catalog_contains_full_smogon_registry() -> None:

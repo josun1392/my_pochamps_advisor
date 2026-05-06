@@ -564,8 +564,8 @@
     },
     "huge-power": {
       "category": "stat_multiplier",
-      "condition": "always",
-      "implemented": false,
+      "condition": "physical_move",
+      "implemented": true,
       "multiplier_q12": 8192,
       "name": "Huge Power",
       "stat": "atk"
@@ -576,9 +576,13 @@
       "name": "Hunger Switch"
     },
     "hustle": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Hustle"
+      "accuracy_penalty_q12": 3277,
+      "category": "stat_multiplier",
+      "condition": "physical_move",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Hustle",
+      "stat": "atk"
     },
     "hydration": {
       "category": "uncategorized",
@@ -1046,9 +1050,12 @@
       "name": "Punk Rock"
     },
     "pure-power": {
-      "category": "stat_mod",
-      "implemented": false,
-      "name": "Pure Power"
+      "category": "stat_multiplier",
+      "condition": "physical_move",
+      "implemented": true,
+      "multiplier_q12": 8192,
+      "name": "Pure Power",
+      "stat": "atk"
     },
     "purifying-salt": {
       "boosted_types": [

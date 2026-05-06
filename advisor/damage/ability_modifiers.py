@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from advisor.damage.abilities import AbilityEffect
+from advisor.damage.abilities import AbilityEffect, get_ability
 from advisor.damage.q12 import (
     M_DOUBLE,
     M_HALF,
@@ -15,6 +15,26 @@ from advisor.damage.stats import StatBlock, StatName, apply_boosts
 
 M_PARADOX = 5324
 M_HADRON_ORICHALCUM = 5461
+
+
+def get_atk_ability_modifier(ability_id: str, move_category: str) -> int:
+    """
+    Returns Q12 multiplier for at_mods layer based on ability.
+    move_category: "physical" | "special" | "status"
+    Returns 4096 if no modifier applies.
+    """
+    ability = get_ability(ability_id)
+    if ability is None or not ability.implemented:
+        return Q12_ONE
+    if ability.category != "stat_multiplier":
+        return Q12_ONE
+    if ability.raw_data.get("stat") != "atk":
+        return Q12_ONE
+    if ability.raw_data.get("condition") != "physical_move":
+        return Q12_ONE
+    if move_category != "physical":
+        return Q12_ONE
+    return ability.multiplier_q12
 
 
 def attacker_base_power_ability_mod(
@@ -57,6 +77,12 @@ def attack_stat_ability_mod(
     if ability is None or not ability.implemented:
         return Q12_ONE
     ability_id = ability.ability_id
+    stat_multiplier = get_atk_ability_modifier(
+        ability_id,
+        "physical" if is_physical else "special",
+    )
+    if stat_multiplier != Q12_ONE:
+        return stat_multiplier
     if ability_id == "solar-power" and not is_physical:
         if weather in ("sun", "harsh-sunlight") and not weather_suppressed:
             return M_STAB

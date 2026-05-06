@@ -29,6 +29,7 @@ MOVES = {
     "ice-beam": ("ice", "special", 90, "normal"),
     "iron-head": ("steel", "physical", 80, "normal"),
     "moonblast": ("fairy", "special", 95, "normal"),
+    "play-rough": ("fairy", "physical", 90, "normal"),
     "rock-slide": ("rock", "physical", 75, "allAdjacentFoes"),
     "scratch": ("normal", "physical", 40, "normal"),
     "shadow-ball": ("ghost", "special", 80, "normal"),
@@ -227,6 +228,8 @@ CASES = [
     ("quark_drive_spa", _request("iron-moth", "pikachu", "flamethrower", attacker_ability="quark-drive", terrain="electric", boosted_stat="auto")),
     ("protosynthesis_booster_locked_spa", _request("flutter-mane", "pikachu", "shadow-ball", attacker_ability="protosynthesis", attacker_item="booster-energy", boosted_stat="spa")),
     ("sand_force_life_orb", _request("garchomp", "pikachu", "earthquake", attacker_ability="sand-force", attacker_item="life-orb", weather="sand")),
+    ("azumarill_huge_power_play_rough", _request("azumarill", "garchomp", "play-rough", attacker_ability="huge-power")),
+    ("flapple_hustle_tackle", _request("flapple", "pikachu", "tackle", attacker_ability="hustle")),
 ]
 
 
