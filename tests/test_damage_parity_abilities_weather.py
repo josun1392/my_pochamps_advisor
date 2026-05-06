@@ -25,6 +25,7 @@ CACHE_DIR = Path("data/cache/pokemon")
 
 MOVES = {
     "earthquake": ("ground", "physical", 100, "allAdjacent"),
+    "fire-blast": ("fire", "special", 110, "normal"),
     "flamethrower": ("fire", "special", 90, "normal"),
     "ice-beam": ("ice", "special", 90, "normal"),
     "iron-head": ("steel", "physical", 80, "normal"),
@@ -49,6 +50,8 @@ OVERRIDES = {
     "flutter-mane": {"types": ["ghost", "fairy"], "base_stats": {"hp": 55, "atk": 55, "def": 55, "spa": 135, "spd": 135, "spe": 135}},
     "lugia": {"types": ["psychic", "flying"], "base_stats": {"hp": 106, "atk": 90, "def": 130, "spa": 90, "spd": 154, "spe": 110}},
     "lunala": {"types": ["psychic", "ghost"], "base_stats": {"hp": 137, "atk": 113, "def": 89, "spa": 137, "spd": 107, "spe": 97}},
+    "minun": {"types": ["electric"], "base_stats": {"hp": 60, "atk": 40, "def": 50, "spa": 75, "spd": 85, "spe": 95}},
+    "plusle": {"types": ["electric"], "base_stats": {"hp": 60, "atk": 50, "def": 40, "spa": 85, "spd": 75, "spe": 95}},
     "tapu-lele": {"types": ["psychic", "fairy"], "base_stats": {"hp": 70, "atk": 85, "def": 75, "spa": 130, "spd": 115, "spe": 95}},
 }
 
@@ -64,6 +67,7 @@ def _request(
     defender_item: str | None = None,
     weather: str | None = None,
     terrain: str | None = None,
+    ally_has_plus_minus: bool = False,
     boosted_stat: str | None = None,
     format_: str = "gen9ou",
 ) -> dict:
@@ -105,6 +109,7 @@ def _request(
             "is_gravity": False,
             "is_trick_room": False,
             "format": format_,
+            "ally_has_plus_minus": ally_has_plus_minus,
         },
     }
 
@@ -129,6 +134,7 @@ def _context_from_request(request: DamageRequest) -> DamageContext:
         weather=request.field.weather or "none",
         terrain=request.field.terrain or "none",
         is_doubles=request.field.format == "gen9doubles",
+        ally_has_plus_minus=request.field.ally_has_plus_minus,
     )
     attacker_boosts = _boost_block(request.attacker.boosts)
     defender_boosts = _boost_block(request.defender.boosts)
@@ -240,6 +246,10 @@ CASES = [
     ("goodra_h_ice_scales_psychic", _request("tapu-lele", "goodra-hisui", "psychic", defender_ability="ice-scales")),
     ("lugia_multiscale_full_hp_earthquake", _request("garchomp", "lugia", "earthquake", defender_ability="multiscale")),
     ("lunala_shadow_shield_full_hp_sucker_punch", _request("gengar", "lunala", "sucker-punch", defender_ability="shadow-shield")),
+    ("solar_power_fire_blast_sun", _request("charizard", "blastoise", "fire-blast", attacker_ability="solar-power", weather="sun")),
+    ("solar_power_fire_blast_no_sun", _request("charizard", "blastoise", "fire-blast", attacker_ability="solar-power")),
+    ("plusle_plus_thunderbolt_ally_minun", _request("plusle", "blastoise", "thunderbolt", attacker_ability="plus", ally_has_plus_minus=True)),
+    ("minun_minus_thunderbolt_solo", _request("minun", "blastoise", "thunderbolt", attacker_ability="minus")),
 ]
 
 

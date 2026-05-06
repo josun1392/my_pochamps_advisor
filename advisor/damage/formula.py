@@ -215,6 +215,7 @@ def calc_damage_rolls(
                     ctx.attacker_boosts,
                     ctx.attacker_locked_paradox_stat,  # type: ignore[arg-type]
                     ctx.attacker_booster_active,
+                    field.ally_has_plus_minus,
                 ),
                 attacker_move_attack_stat_ability_mod(
                     eff_attacker_ability,

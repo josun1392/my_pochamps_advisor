@@ -55,6 +55,7 @@ class Field:
     is_gravity: bool = False
     is_magic_room: bool = False
     is_wonder_room: bool = False
+    ally_has_plus_minus: bool = False
     attacker_side: SideField = field(default_factory=SideField)
     defender_side: SideField = field(default_factory=SideField)
 

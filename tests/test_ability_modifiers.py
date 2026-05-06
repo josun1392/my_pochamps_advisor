@@ -2,6 +2,7 @@ from advisor.damage.ability_modifiers import (
     get_atk_ability_modifier,
     get_def_ability_modifier,
     get_final_def_ability_modifier,
+    get_spa_ability_modifier,
 )
 
 def test_huge_power_doubles_physical():
@@ -45,3 +46,21 @@ def test_shadow_shield_full_hp_halves():
 
 def test_unknown_def_ability_returns_neutral():
     assert get_def_ability_modifier("static", "physical") == 4096
+
+def test_solar_power_sun_boosts_spa():
+    assert get_spa_ability_modifier("solar-power", weather="sun") == 6144
+
+def test_solar_power_no_weather_no_effect():
+    assert get_spa_ability_modifier("solar-power") == 4096
+
+def test_solar_power_rain_no_effect():
+    assert get_spa_ability_modifier("solar-power", weather="rain") == 4096
+
+def test_plus_with_plus_minus_ally_boosts_spa():
+    assert get_spa_ability_modifier("plus", ally_has_plus_minus=True) == 6144
+
+def test_plus_without_plus_minus_ally_no_effect():
+    assert get_spa_ability_modifier("plus", ally_has_plus_minus=False) == 4096
+
+def test_minus_matches_plus_condition():
+    assert get_spa_ability_modifier("minus", ally_has_plus_minus=True) == 6144

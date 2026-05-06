@@ -77,6 +77,30 @@ def get_final_def_ability_modifier(ability_id: str, defender_hp_ratio: float) ->
     return Q12_ONE
 
 
+def get_spa_ability_modifier(
+    ability: str,
+    *,
+    weather: str | None = None,
+    ally_has_plus_minus: bool = False,
+) -> int:
+    """Returns Q12 multiplier for SpA layer. Default 4096 (no-op)."""
+    effect = get_ability(ability)
+    if effect is None or not effect.implemented:
+        return Q12_ONE
+    if effect.category != "stat_multiplier":
+        return Q12_ONE
+    if effect.raw_data.get("stat") not in {"sa", "spa"}:
+        return Q12_ONE
+    condition = effect.raw_data.get("condition")
+    if condition == "weather_sun":
+        # TODO: HP drain handled in turn_engine
+        if weather in ("sun", "harsh_sun", "harsh-sunlight", "harsh_sunshine"):
+            return effect.multiplier_q12
+    if condition == "ally_plus_minus" and ally_has_plus_minus:
+        return effect.multiplier_q12
+    return Q12_ONE
+
+
 def attacker_base_power_ability_mod(
     ability: AbilityEffect | None,
     move_type: str,
@@ -113,6 +137,7 @@ def attack_stat_ability_mod(
     boosts: StatBlock | None = None,
     locked_paradox_stat: StatName | None = None,
     booster_active: bool = False,
+    ally_has_plus_minus: bool = False,
 ) -> int:
     if ability is None or not ability.implemented:
         return Q12_ONE
@@ -123,9 +148,13 @@ def attack_stat_ability_mod(
     )
     if stat_multiplier != Q12_ONE:
         return stat_multiplier
-    if ability_id == "solar-power" and not is_physical:
-        if weather in ("sun", "harsh-sunlight") and not weather_suppressed:
-            return M_STAB
+    spa_multiplier = get_spa_ability_modifier(
+        ability_id,
+        weather="none" if weather_suppressed else weather,
+        ally_has_plus_minus=ally_has_plus_minus,
+    )
+    if not is_physical and spa_multiplier != Q12_ONE:
+        return spa_multiplier
     if ability_id == "flower-gift" and is_physical:
         if weather in ("sun", "harsh-sunlight") and not weather_suppressed:
             return M_STAB

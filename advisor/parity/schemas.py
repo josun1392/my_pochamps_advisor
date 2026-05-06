@@ -87,6 +87,7 @@ class FieldInput(StrictModel):
     is_gravity: bool
     is_trick_room: bool
     format: Format
+    ally_has_plus_minus: bool = False
     attacker_side: SideInput | None = None
     defender_side: SideInput | None = None
 

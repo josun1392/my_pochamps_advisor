@@ -68,10 +68,12 @@ function normalizeBoosts(boosts) {
   return normalized;
 }
 
-function makePokemon(gen, input) {
+function makePokemon(gen, input, fieldInput) {
+  const ability = String(input.ability || '').toLowerCase();
   return new Pokemon(gen, toCalcName(input.species, '-'), {
     level: input.level,
     ability: toCalcName(input.ability),
+    abilityOn: !!fieldInput?.ally_has_plus_minus && (ability === 'plus' || ability === 'minus'),
     item: toCalcName(input.item),
     nature: toCalcName(input.nature),
     evs: input.evs,
@@ -149,8 +151,8 @@ function roundPct(value) {
 
 function buildResponse(req) {
   const gen = Generations.get(9);
-  const attacker = makePokemon(gen, req.attacker);
-  const defender = makePokemon(gen, req.defender);
+  const attacker = makePokemon(gen, req.attacker, req.field);
+  const defender = makePokemon(gen, req.defender, req.field);
   const move = makeMove(gen, req.move);
   const field = makeField(req.field);
   const result = calculate(gen, attacker, defender, move, field);

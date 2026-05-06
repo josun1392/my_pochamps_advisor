@@ -803,9 +803,12 @@
       "name": "Mind's Eye"
     },
     "minus": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Minus"
+      "category": "stat_multiplier",
+      "condition": "ally_plus_minus",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Minus",
+      "stat": "sa"
     },
     "mirror-armor": {
       "category": "uncategorized",
@@ -963,9 +966,12 @@
       "name": "Pixilate"
     },
     "plus": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Plus"
+      "category": "stat_multiplier",
+      "condition": "ally_plus_minus",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Plus",
+      "stat": "sa"
     },
     "poison-heal": {
       "category": "uncategorized",
@@ -1330,12 +1336,13 @@
       "summons": "snow"
     },
     "solar-power": {
-      "category": "weather_conditional",
+      "category": "stat_multiplier",
+      "condition": "weather_sun",
       "implemented": true,
       "multiplier_q12": 6144,
       "name": "Solar Power",
       "side_effect": "hp_loss_per_turn",
-      "stat": "spa",
+      "stat": "sa",
       "weather": "sun"
     },
     "solid-rock": {
