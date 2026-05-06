@@ -245,7 +245,8 @@ See § 7 for full specification.
 - **PR #3.4-A:** Minimum Slice (Bullet Seed / Rock Blast / Icicle Spear + Skill Link) — DONE.
 - **PR #3.4-B:** Loaded Dice integration — DONE.
 - **PR #3.4-C:** Triple Axel / Triple Kick BP escalation — DONE.
-- **Current test count:** 410 collected, 409 passed, 1 xfailed.
+- **PR #3.4-C2:** Population Bomb deterministic Tier C multiaccuracy — DONE.
+- **Current test count:** 419 collected, 417 passed, 2 xfailed.
 
 See § 8 for full specification.
 
@@ -391,8 +392,8 @@ def test_neutralizing_gas_disables_cloud_nine_in_sun(): ...
 | #3.4-A | Minimum Slice — Bullet Seed / Rock Blast / Icicle Spear + Skill Link | ✅ DONE |
 | #3.4-B | Item Modifiers — Loaded Dice (4-5 hit guarantee) | ✅ DONE |
 | #3.4-C | Triple Axel/Kick — escalating BP fixed-3 moves | ✅ DONE |
-| #3.4-C2 | Special Cases — Population Bomb (10-hit), hit-miss interruption | ⏳ Planned |
-| #3.4-D | Distribution Sampling — Probabilistic 2-5 hit (35/35/15/15) | ⏳ Planned |
+| #3.4-C2 | Population Bomb — deterministic Tier C multiaccuracy | ✅ DONE |
+| #3.4-D | Distribution Sampling — probabilistic 2-5 and 1-10 hit resolution | ⏳ Planned |
 
 ### 8.2 PR #3.4-A — Minimum Slice (Current)
 
@@ -539,6 +540,52 @@ Each hit uses its own escalated BP before the full BP modifier pipeline. The fin
 - Hit-miss interruption -> future PR.
 - Population Bomb -> PR #3.4-C2.
 - Probabilistic hit count -> PR #3.4-D.
+
+### 8.5 PR #3.4-C2 — Population Bomb ✅ DONE
+
+**Branch:** `feat/3.4-population-bomb`  
+**Commit:** `8972888`  
+**Tests:** 419 collected, 417 passed, 2 xfailed (+8 passing, +1 xfail)
+
+#### Three-Tier Classification
+
+```text
+Tier A: range multihit      -> tuple[int, int], e.g. Bullet Seed (2-5)
+Tier B: fixed multihit      -> int, e.g. Triple Axel / Triple Kick (3)
+Tier C: multiaccuracy fixed -> int + multiaccuracy, e.g. Population Bomb (10)
+```
+
+#### Tier C Deterministic Resolution
+
+```text
+Default:
+  min -> 1
+  max -> 10
+
+Skill Link:
+  removes multiaccuracy -> 10 guaranteed
+
+Loaded Dice:
+  removes multiaccuracy
+  min -> 4
+  max -> 10
+  probabilistic distribution -> PR #3.4-D
+```
+
+#### Verified Scenarios
+
+- Population Bomb default min 1 hit -> verified.
+- Population Bomb default max 10 hits -> verified.
+- Skill Link forces Population Bomb to 10 hits -> verified.
+- Loaded Dice deterministic min/max for Population Bomb -> verified.
+- Skill Link beats Loaded Dice on Population Bomb -> verified.
+- Population Bomb per-hit BP remains fixed at 20 -> verified.
+- Technician applies to Population Bomb per hit (`bp <= 60`) -> verified.
+
+#### Out of Scope (Tracked)
+
+- Probabilistic multiaccuracy sampling -> PR #3.4-D.
+- Accuracy stat application / hit-miss interruption -> future turn-engine PR.
 
 ---
 
@@ -734,7 +781,14 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ## 16. Version History
 
-### v0.4 (current, 2026-05-06)
+### v0.5 (current, 2026-05-06)
+
+- PR #3.4-C2 merged: Population Bomb deterministic Tier C multiaccuracy.
+- Test count: 419 collected, 417 passed, 2 xfailed.
+- Loaded Dice and Skill Link now cover Tier A range moves and Tier C multiaccuracy moves.
+- Probabilistic Population Bomb distribution remains xfailed for PR #3.4-D.
+
+### v0.4 (2026-05-06)
 
 - PR #3.4-C merged: Triple Axel / Triple Kick BP escalation.
 - Test count: 410 collected, 409 passed, 1 xfailed.
