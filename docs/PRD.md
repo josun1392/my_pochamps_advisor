@@ -242,8 +242,10 @@ See § 7 for full specification.
 
 ### 4.3 Phase 3.4 — Multi-hit Moves 🚧 IN PROGRESS
 
-- **PR #3.4-A:** Minimum Slice (Bullet Seed / Rock Blast / Icicle Spear + Skill Link) — APPROVED, awaiting implementation.
-- **Target test count:** 397 → 402.
+- **PR #3.4-A:** Minimum Slice (Bullet Seed / Rock Blast / Icicle Spear + Skill Link) — DONE.
+- **PR #3.4-B:** Loaded Dice integration — DONE.
+- **PR #3.4-C:** Triple Axel / Triple Kick BP escalation — DONE.
+- **Current test count:** 410 collected, 409 passed, 1 xfailed.
 
 See § 8 for full specification.
 
@@ -386,9 +388,10 @@ def test_neutralizing_gas_disables_cloud_nine_in_sun(): ...
 
 | PR | Scope | Status |
 |---|---|---|
-| **#3.4-A** | **Minimum Slice** — Bullet Seed / Rock Blast / Icicle Spear + Skill Link | 🚧 **CURRENT** |
-| #3.4-B | Item Modifiers — Loaded Dice (4-5 hit guarantee) | ⏳ Planned |
-| #3.4-C | Special Cases — Population Bomb (10-hit), Triple Axel/Kick (escalating BP) | ⏳ Planned |
+| #3.4-A | Minimum Slice — Bullet Seed / Rock Blast / Icicle Spear + Skill Link | ✅ DONE |
+| #3.4-B | Item Modifiers — Loaded Dice (4-5 hit guarantee) | ✅ DONE |
+| #3.4-C | Triple Axel/Kick — escalating BP fixed-3 moves | ✅ DONE |
+| #3.4-C2 | Special Cases — Population Bomb (10-hit), hit-miss interruption | ⏳ Planned |
 | #3.4-D | Distribution Sampling — Probabilistic 2-5 hit (35/35/15/15) | ⏳ Planned |
 
 ### 8.2 PR #3.4-A — Minimum Slice (Current)
@@ -482,6 +485,60 @@ def resolve_hit_count(
 | T5 | `test_skill_link_forces_5_hits` | 5 (Cinccino) |
 
 All tests assert bit-perfect parity with `@smogon/calc(..., {hits: <count>})`.
+
+### 8.3 PR #3.4-B — Loaded Dice ✅ DONE
+
+**Branch:** `feat/3.4-loaded-dice`  
+**Tests:** 406 collected, 405 passed, 1 xfailed (+4 parity)
+
+#### Priority Rule (Locked)
+
+```text
+Multihit hit-count resolution priority:
+1. Skill Link (ability)     -> max hits (range multihit only)
+2. Loaded Dice (item)       -> 4 (min) / 5 (max)
+3. Default                  -> move's multihit_min / multihit_max
+```
+
+#### Verified Scenarios
+
+- Loaded Dice + Bullet Seed (min 4) -> verified.
+- Loaded Dice + Rock Blast (max 5) -> verified.
+- Loaded Dice + Icicle Spear (min 4) -> verified.
+- Skill Link beats Loaded Dice (5 fixed) -> verified.
+
+#### Out of Scope (Tracked)
+
+- Triple Kick/Axel hit-miss interruption -> future PR.
+- Population Bomb distribution -> PR #3.4-C2.
+- Loaded Dice 4-vs-5 probability -> PR #3.4-D.
+
+### 8.4 PR #3.4-C — Triple Axel / Triple Kick ✅ DONE
+
+**Branch:** `feat/3.4-triple-axel-kick`  
+**Commit:** `7fbb84b`  
+**Tests:** 410 collected, 409 passed, 1 xfailed (+4 parity)
+
+#### BP Escalation Rule
+
+```text
+effective_bp = base_bp * (hit_index + 1)
+```
+
+Each hit uses its own escalated BP before the full BP modifier pipeline. The final multihit result is the sum of independent Q12 damage rolls, never `single_hit_damage * hit_count`.
+
+#### Verified Scenarios
+
+- Triple Kick 3 hits escalating BP (10 / 20 / 30) -> verified.
+- Triple Axel 3 hits escalating BP (20 / 40 / 60) -> verified.
+- Triple Kick + Technician: all hits boosted (`bp <= 60`) -> verified.
+- Triple Axel + Technician: all hits boosted (`bp <= 60`) -> verified.
+
+#### Out of Scope (Tracked)
+
+- Hit-miss interruption -> future PR.
+- Population Bomb -> PR #3.4-C2.
+- Probabilistic hit count -> PR #3.4-D.
 
 ---
 
@@ -677,7 +734,19 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ## 16. Version History
 
-### v0.3 (current, 2026-05-06)
+### v0.4 (current, 2026-05-06)
+
+- PR #3.4-C merged: Triple Axel / Triple Kick BP escalation.
+- Test count: 410 collected, 409 passed, 1 xfailed.
+- Technician threshold verified for all Triple Axel/Kick hits (`bp <= 60`).
+
+### v0.3.2 (2026-05-06)
+
+- PR #3.4-B merged: Loaded Dice + ability/item priority lock.
+- Test count: 406 collected, 405 passed, 1 xfailed.
+- Re-Entry Protocol updated with Loaded Dice misconceptions.
+
+### v0.3 (2026-05-06)
 
 - ✅ **Phase 3.3 marked DONE** (Verified). 397 tests, 143 parity, 1 xfail (NG/Cloud Nine bridge limitation).
 - ✅ Added § 7 Phase 3.3 specification with ground-truth divergence record.
@@ -709,7 +778,7 @@ Full table: `docs/Q12_LOOKUP.md`.
 | **Owner** | Lead Systems Architect (T1) |
 | **Document Status** | 🟢 LIVING DOCUMENT |
 | **Last Reviewed** | 2026-05-06 |
-| **Next Review Trigger** | PR #3.4-A merge |
+| **Next Review Trigger** | PR #3.4-D entry |
 | **Storage** | `docs/PRD.md` in `josun1392/my_pochamps_advisor` |
 | **Amendment Process** | All Constitution changes (§ 3) require explicit T1 decision logged in § 16 |
 
