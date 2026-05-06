@@ -74,6 +74,7 @@ class MoveInput(StrictModel):
     is_critical: bool
     is_z: bool
     is_max: bool
+    hits: int | None = Field(default=None, ge=1)
 
 
 class SideInput(StrictModel):

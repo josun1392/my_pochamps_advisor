@@ -1332,8 +1332,9 @@
       "name": "Simple"
     },
     "skill-link": {
-      "category": "uncategorized",
-      "implemented": false,
+      "category": "multihit_modifier",
+      "forces_max_multihit": true,
+      "implemented": true,
       "name": "Skill Link"
     },
     "slow-start": {

@@ -94,7 +94,8 @@ function makeMove(gen, input) {
   return new Move(gen, toCalcName(input.name), {
     isCrit: input.is_critical,
     isZ: input.is_z,
-    useMax: input.is_max
+    useMax: input.is_max,
+    hits: input.hits || undefined
   });
 }
 
@@ -124,6 +125,23 @@ function flattenDamage(damage) {
     return damage.flatMap(flattenDamage);
   }
   return [damage];
+}
+
+function totalDamageRolls(damage) {
+  if (!Array.isArray(damage)) {
+    return [damage];
+  }
+  if (!Array.isArray(damage[0])) {
+    return damage;
+  }
+  const rollCount = damage[0].length;
+  const totals = Array(rollCount).fill(0);
+  for (const hitRolls of damage) {
+    for (let i = 0; i < rollCount; i++) {
+      totals[i] += hitRolls[i];
+    }
+  }
+  return totals;
 }
 
 function typeEffectiveness(genNum, moveType, defenderTypes) {
@@ -160,7 +178,7 @@ function buildResponse(req) {
   const move = makeMove(gen, req.move);
   const field = makeField(req.field);
   const result = calculate(gen, attacker, defender, move, field);
-  const damageRolls = result.damage === 0 ? Array(16).fill(0) : flattenDamage(result.damage);
+  const damageRolls = result.damage === 0 ? Array(16).fill(0) : totalDamageRolls(result.damage);
   const damageMin = Math.min(...damageRolls);
   const damageMax = Math.max(...damageRolls);
   const defenderHp = defender.maxHP();
