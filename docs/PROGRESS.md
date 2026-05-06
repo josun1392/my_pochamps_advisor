@@ -1,61 +1,210 @@
-# Phase 3.1.5d - Item Layer Foundation Progress
+# Master Ball Advisor — Progress
 
-## Cumulative State
-- Tests: 292 -> 304 -> 316 -> 326 -> 341 -> 357 -> 375 -> 393 -> 381
-- Parity: 112 -> 114 -> 118 -> 122 -> 128 -> 134 -> 140 -> 148 -> 139
-- Performance: ~0.18ms/calc (must maintain, regression < 5%)
+## Naming Convention (since 3.1 closure)
 
-## PR Tracker
-- [x] PR #1 Foundation - status_effects.py, move_flags.json, abilities.json seed (296 tests)
-- [x] PR #2 Stat Doublers - Huge Power, Pure Power, Hustle (304 tests, parity 114)
-- [x] PR #3 Defensive Boosters - Fur Coat, Ice Scales, Multiscale, Shadow Shield (316 tests, parity 118)
-- [x] PR #4 SpA Boosters - Solar Power, Plus/Minus (326 tests, parity 122)
-- [x] PR #5 BP Modifiers - Technician, Tough Claws, Iron Fist (341 tests, parity 128)
-- [x] PR #6 Final Damage Reducers - Filter, Solid Rock, Prism Armor, Punk Rock (357 tests, parity 134)
-- [x] PR #7 HP-Conditional Type Boosters - Overgrow, Blaze, Torrent, Swarm, Defeatist (375 tests, parity 140)
-- [x] PR #8 Damage Chain Gap Fill - Strong Jaw, Mega Launcher, Reckless, Punk Rock (attacker), Sheer Force, Transistor (393 tests, parity 148)
-- [x] PR #9 Item Layer Foundation - Life Orb, Choice Band/Specs, Muscle Band, Wise Glasses, Expert Belt, Flame Plate (417 tests, parity 158)
-- [ ] PR #8a Secondary Effect Suppression - Sheer Force secondary-effect suppression
+```
+<Major>.<Minor>.<Patch><suffix>
+   │       │       │      └─ same-patch split work (a, b, c, ...)
+   │       │       └─ patch (single feature unit)
+   │       └─ minor (subsystem group)
+   └─ major (product stage)
+```
 
-## Verified Q12 Constants (re-audit unnecessary)
-- bp_mods 6144 (x1.50): technician
-- bp_mods 6144 (x1.50): strong-jaw, mega-launcher
-- bp_mods 5325 (x1.30): tough-claws, sheer-force, punk-rock(off)
-- bp_mods 4915 (x1.20): iron-fist, reckless
-- at_mods 5325 (x1.30): transistor (Gen 9 nerf, previous 6144)
-- at_mods 8192 (x2.00): huge-power, pure-power
-- at_mods 6144 (x1.50): hustle, guts, overgrow, blaze, torrent, swarm
-- at_mods 2048 (x0.50): defeatist
-- sa_mods 6144 (x1.50): solar-power, plus, minus, overgrow, blaze, torrent, swarm
-- sa_mods 2048 (x0.50): defeatist
-- df_mods 2048 (x0.50): fur-coat (physical received)
-- sd_mods 2048 (x0.50): ice-scales (special received)
-- final_mods 2048 (x0.50): multiscale, shadow-shield (HP full), punk-rock(def, sound)
-- final_mods 3072 (x0.75): filter, solid-rock, prism-armor (super-effective received)
-- item atk/spa_mods 6144 (x1.50): choice-band, choice-specs
-- item atk/spa_mods 4915 (x1.20): flame-plate
-- item bp_mods 4505 (x1.10): muscle-band, wise-glasses
-- item final_mods 5325 (x1.30): life-orb
-- item final_mods 4915 (x1.20): expert-belt
+- `3.1.5a` = damage engine / 5th patch / split a
+- `3.1.5a-Δ` = deferred-debt cleanup of `3.1.5a`
+- Internal git PR numbers are **not** referenced in conversation; use milestone codes only.
 
-### PR #6-9 + PR #9.1 Squash (3.1.5a-d consolidated)
+---
 
-PRs #6-9 were developed sequentially in working directory and squashed into
-one commit. Splitting into 4 reconstructed commits provides no real bisect
-value (intermediate states were never tested in isolation).
+## Current Position
+
+- **Milestone:** `3.1` Core Damage Formula — ✅ **CLOSED**
+- **HEAD:** `4a833a4`
+- **Tests:** 393 passing (parity 148 → 139 after item-test reconciliation, see notes)
+- **Performance:** ~0.18 ms / calc (regression budget < 5%)
+
+---
+
+## Major Roadmap
+
+| Major | Codename | Status |
+|---|---|---|
+| 1.x | Foundation | ✅ Complete |
+| 2.x | Stat Engine | ✅ Complete |
+| **3.x** | **Damage Engine** | 🔧 ~30% (3.1 done) |
+| 4.x | Turn Engine | ❌ Not started |
+| 5.x | Battle AI | ❌ Not started |
+| 6.x | UI / CLI / API | ❌ Not started |
+
+---
+
+## 3.x — Damage Engine
+
+### 3.1 — Core Damage Formula ✅ CLOSED
+
+| Code | Item | Status | Tests |
+|---|---|---|---|
+| 3.1.1 | Status modifiers (burn/paralysis) | ✅ | 296 |
+| 3.1.2 | Stat Doublers (Huge Power, Pure Power, Hustle) | ✅ | 304 |
+| 3.1.3 | Defensive Boosters (Fur Coat, Ice Scales, Multiscale, Shadow Shield) | ✅ | 316 |
+| 3.1.4a | SpA Boosters (Solar Power, Plus, Minus) | ✅ | 326 |
+| 3.1.4b | Two-Pass BP Hook (Technician, Tough Claws, Iron Fist) | ✅ | 341 |
+| 3.1.5a | Damage Reducers (Filter, Solid Rock, Prism Armor, Punk Rock-D) | ✅ | 357 |
+| 3.1.5b | HP-Conditional Type Boosters (Overgrow, Blaze, Torrent, Swarm, Defeatist) | ✅ | 375 |
+| 3.1.5c | Damage Chain Gap Fill (Strong Jaw, Mega Launcher, Reckless, Punk Rock-O, Sheer Force BP, Transistor) | ✅ | 393 |
+| 3.1.5d | Item Layer 1 (Life Orb, Choice Band/Specs, Muscle Band, Wise Glasses, Expert Belt, Flame Plate) | ✅ | 381* |
+| 3.1.5a-Δ | Sheer Force secondary-effect suppression (Path B predicate) | ✅ | 386 |
+| 3.1.5d-Δ | Life Orb 1/10 max HP recoil (Path B pure function) | ✅ | 393 |
+
+\* 3.1.5d temporarily showed 417 before squash reconciliation; final consolidated count = 381 after restoring 4 silently-deleted item tests (charcoal, eviolite, light_ball, species_orb).
+
+### 3.2 — Item Wiring (next candidate)
+
+| Code | Item | Status |
+|---|---|---|
+| 3.2.1 | Choice Scarf (defer to 4.x — speed only) | ⏭️ deferred |
+| 3.2.2 | Assault Vest, Eviolite (partial in 3.1.5d) | 🟡 partial |
+| 3.2.3 | Type-resist Berries (Occa, Passho, etc.) | ❌ |
+| 3.2.4 | Pinch Berries (Salac, Liechi — damage only) | ❌ |
+| 3.2.5 | Sitrus / Lum / Leftovers | ⏭️ defer to 4.x |
+| 3.2.6 | Air Balloon, Iron Ball, Ring Target | ❌ |
+| 3.2.7 | Weakness Policy, Throat Spray | ⏭️ defer to 4.x |
+| 3.2.8 | Z-Crystals (Gen 7) | ⏭️ low priority |
+| 3.2.9 | Mega Stones (stat + type/ability swap) | ❌ |
+
+### 3.3 — Field & Weather
+
+| Code | Item | Status |
+|---|---|---|
+| 3.3.1 | Weather (Sun/Rain/Sand/Snow) damage modifiers | ❌ |
+| 3.3.2 | Terrain (Electric/Grassy/Misty/Psychic) | ❌ |
+| 3.3.3 | Weather/Terrain-setting abilities (Drought, Surge) | ❌ |
+| 3.3.4 | Aura abilities (Fairy/Dark Aura, Aura Break) | ❌ |
+| 3.3.5 | Room effects (Wonder Room, Magic Room) | ❌ |
+
+### 3.4 — Move-Specific Mechanics
+
+| Code | Item | Status |
+|---|---|---|
+| 3.4.1 | Multi-hit moves (Bullet Seed, Rock Blast) | ❌ |
+| 3.4.2 | Fixed damage (Seismic Toss, Night Shade, Endeavor) | ❌ |
+| 3.4.3 | Variable BP (Gyro Ball, Electro Ball, Low Kick) | ❌ |
+| 3.4.4 | Counter / Mirror Coat / Metal Burst | ❌ |
+| 3.4.5 | OHKO moves | ❌ |
+| 3.4.6 | Spread moves (0.75x doubles) | ❌ |
+| 3.4.7 | Critical hit mechanics | 🟡 partial |
+
+### 3.5 — Parity Hardening
+
+| Code | Item | Status |
+|---|---|---|
+| 3.5.1 | `@smogon/calc` 1000-case randomized comparison | ❌ |
+| 3.5.2 | Per-generation branching (Gen 1–9) | 🟡 Gen 9 only |
+| 3.5.3 | Edge case regression suite (Wonder Guard, Levitate) | 🟡 partial |
+| 3.5.4 | Performance benchmark (10k calc / sec) | ❌ |
+
+---
+
+## Test Count Trajectory
+
+```
+292 → 296 → 304 → 316 → 326 → 341 → 357 → 375 → 393 → 381 → 386 → 393
+ (init)  PR#1  PR#2  PR#3  PR#4  PR#5  PR#6  PR#7  PR#8  squash  Δ-a   Δ-d
+```
+
+Parity tests: `112 → 114 → 118 → 122 → 128 → 134 → 140 → 148 → 139`
+
+The dip from 393 → 381 reflects the squash + silent-deletion restoration of 4 item tests, not a regression.
+
+---
+
+## Verified Q12 Constants (audit-stable)
+
+### BP Modifiers
+| Constant | Multiplier | Sources |
+|---|---|---|
+| 6144 | ×1.50 | technician, strong-jaw, mega-launcher |
+| 5325 | ×1.30 | tough-claws, sheer-force, punk-rock (offensive) |
+| 4915 | ×1.20 | iron-fist, reckless |
+| 4505 | ×1.10 | muscle-band, wise-glasses |
+
+### Attack / Special Attack Modifiers
+| Constant | Multiplier | Sources |
+|---|---|---|
+| 8192 | ×2.00 | huge-power, pure-power |
+| 6144 | ×1.50 | hustle, guts, overgrow, blaze, torrent, swarm (Atk); solar-power, plus, minus, overgrow, blaze, torrent, swarm (SpA); choice-band, choice-specs (item) |
+| 5325 | ×1.30 | transistor (Gen 9 nerf, was 6144) |
+| 4915 | ×1.20 | flame-plate (item) |
+| 2048 | ×0.50 | defeatist (Atk + SpA) |
+
+### Defense / Special Defense Modifiers
+| Constant | Multiplier | Sources |
+|---|---|---|
+| 2048 | ×0.50 | fur-coat (physical received), ice-scales (special received) |
+
+### Final Modifiers
+| Constant | Multiplier | Sources |
+|---|---|---|
+| 5325 | ×1.30 | life-orb |
+| 4915 | ×1.20 | expert-belt |
+| 3072 | ×0.75 | filter, solid-rock, prism-armor (super-effective received) |
+| 2048 | ×0.50 | multiscale, shadow-shield (full HP), punk-rock (def, sound) |
+
+---
+
+## History Log (chronological commits)
+
+### `3.1.5a-d` Consolidated Squash → `e8a0893`
+Sequential PRs #6–9 + PR #9.1 hotfix were developed in working directory and squashed into one commit. Splitting into 4 reconstructed commits provided no real bisect value (intermediate states were never tested in isolation).
 
 Restored 4 item tests silently deleted during PR #9:
-charcoal, eviolite, light_ball, species_orb (adamant/lustrous/griseous orb).
+- charcoal, eviolite, light_ball, species_orb (adamant / lustrous / griseous orb)
 
-Deferred:
-- [ ] PR #8a Sheer Force secondary-effect suppression
-- [ ] PR #9a Life Orb 1/10 HP recoil (turn_engine layer)
+### `3.1.5a-Δ` (Sheer Force suppression) → `587d29f`
+- Path B chosen: no secondary-effect resolver exists yet
+- Added pure predicate in `advisor/damage/move_categories.py`
+- Tests: 381 → 386
+- Note: commit subject reads `3.1.6a / PR #8a` (pre-rename); milestone code is `3.1.5a-Δ`
 
-### PR #8a + PR #9a — Deferred Debt Closed
+### `3.1.5d-Δ` (Life Orb recoil) → `d3469ca`
+- Path B chosen: no turn engine exists yet
+- Added pure recoil computation in `advisor/damage/recoil.py`
+- Spec: Bulbapedia — 10% max HP, rounded down, min 1 HP; suppressed by Magic Guard and Sheer Force-boosted moves
+- Tests: 386 → 393
+- Note: commit subject reads `3.1.6b / PR #9a` (pre-rename); milestone code is `3.1.5d-Δ`
 
-- PR #8a: Sheer Force secondary-effect suppression (Path B)
-- PR #9a: Life Orb recoil computation (Path B)
+### Docs commit → `4a833a4`
+- 3.1.5 deferred debt closed
+- 3.1 milestone fully terminated
 
-Tests: 381 -> 386 -> 393
+---
 
-3.1.5 series fully closed. No deferred items remain in this band.
+## Legacy ↔ Current Code Mapping
+
+| Old reference (in commits / earlier docs) | Current milestone code |
+|---|---|
+| PR #1 | 3.1.1 |
+| PR #2 | 3.1.2 |
+| PR #3 | 3.1.3 |
+| PR #4 | 3.1.4a |
+| PR #5 / 3.1.5c-pr5 | 3.1.4b |
+| PR #6 | 3.1.5a |
+| PR #7 | 3.1.5b |
+| PR #8 | 3.1.5c |
+| PR #9 / PR #9.1 | 3.1.5d |
+| PR #8a / "3.1.6a" | 3.1.5a-Δ |
+| PR #9a / "3.1.6b" | 3.1.5d-Δ |
+
+Future commits use milestone codes directly. PR numbers are git-internal only.
+
+---
+
+## Next Decision Point
+
+`3.1` is closed. Choose next branch before opening any new patch:
+
+- **Option A — `3.2` Item Wiring**: horizontal expansion, fastest path to single-hit Smogon parity 100%
+- **Option B — `4.1` Turn Engine**: vertical expansion, unlocks deferred items naturally
+- **Option C — `3.3` Field/Weather**: high battle-impact gap-fill
+
+Decision pending. Baseline `4a833a4` / 393 tests is safe to pause on.
