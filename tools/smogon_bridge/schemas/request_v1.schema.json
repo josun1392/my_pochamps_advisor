@@ -28,11 +28,22 @@
         "terrain": {"type": ["string", "null"]},
         "is_gravity": {"type": "boolean"},
         "is_trick_room": {"type": "boolean"},
-        "format": {"type": "string"}
+        "format": {"type": "string"},
+        "attacker_side": {"$ref": "#/$defs/side"},
+        "defender_side": {"$ref": "#/$defs/side"}
       }
     }
   },
   "$defs": {
+    "side": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "reflect": {"type": "boolean"},
+        "light_screen": {"type": "boolean"},
+        "aurora_veil": {"type": "boolean"}
+      }
+    },
     "stats": {
       "type": "object",
       "additionalProperties": false,
@@ -85,7 +96,11 @@
         "boosts": {"$ref": "#/$defs/boosts"},
         "status": {"type": ["string", "null"]},
         "tera_type": {"type": ["string", "null"]},
-        "is_terastallized": {"type": "boolean"}
+        "is_terastallized": {"type": "boolean"},
+        "boosted_stat": {
+          "type": ["string", "null"],
+          "enum": ["atk", "def", "spa", "spd", "spe", "auto", null]
+        }
       }
     },
     "defender_pokemon": {
@@ -117,6 +132,10 @@
         "status": {"type": ["string", "null"]},
         "tera_type": {"type": ["string", "null"]},
         "is_terastallized": {"type": "boolean"},
+        "boosted_stat": {
+          "type": ["string", "null"],
+          "enum": ["atk", "def", "spa", "spd", "spe", "auto", null]
+        },
         "current_hp_pct": {"type": "integer", "minimum": 0, "maximum": 100}
       }
     }

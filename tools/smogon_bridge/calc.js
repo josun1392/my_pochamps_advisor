@@ -15,12 +15,15 @@ function toCalcWeather(weather) {
   if (weather === null || weather === undefined) return undefined;
   const values = {
     sun: 'Sun',
+    'harsh-sunlight': 'Harsh Sunshine',
     rain: 'Rain',
+    'heavy-rain': 'Heavy Rain',
     sand: 'Sand',
     hail: 'Hail',
     snow: 'Snow',
     harsh_sunshine: 'Harsh Sunshine',
     heavy_rain: 'Heavy Rain',
+    'strong-winds': 'Strong Winds',
     strong_winds: 'Strong Winds'
   };
   return values[weather] || weather;
@@ -68,7 +71,8 @@ function makePokemon(gen, input) {
     boosts: normalizeBoosts(input.boosts),
     status: input.status || undefined,
     teraType: toCalcName(input.tera_type),
-    isTerastallized: input.is_terastallized
+    isTerastallized: input.is_terastallized,
+    boostedStat: input.boosted_stat || undefined
   });
 }
 
@@ -84,9 +88,21 @@ function makeField(input) {
   return new Field({
     weather: toCalcWeather(input.weather),
     terrain: toCalcTerrain(input.terrain),
+    gameType: input.format && input.format.includes('doubles') ? 'Doubles' : 'Singles',
     isGravity: input.is_gravity,
-    isTrickRoom: input.is_trick_room
+    isTrickRoom: input.is_trick_room,
+    defenderSide: toCalcSide(input.defender_side),
+    attackerSide: toCalcSide(input.attacker_side)
   });
+}
+
+function toCalcSide(side) {
+  if (!side) return undefined;
+  return {
+    isReflect: !!side.reflect,
+    isLightScreen: !!side.light_screen,
+    isAuroraVeil: !!side.aurora_veil
+  };
 }
 
 function flattenDamage(damage) {
@@ -130,11 +146,13 @@ function buildResponse(req) {
   const move = makeMove(gen, req.move);
   const field = makeField(req.field);
   const result = calculate(gen, attacker, defender, move, field);
-  const damageRolls = flattenDamage(result.damage);
+  const damageRolls = result.damage === 0 ? Array(16).fill(0) : flattenDamage(result.damage);
   const damageMin = Math.min(...damageRolls);
   const damageMax = Math.max(...damageRolls);
   const defenderHp = defender.maxHP();
-  const koChance = result.kochance();
+  const koChance = damageMax === 0
+    ? { n: 0, chance: 0, text: '0% chance to KO' }
+    : result.kochance();
   const weather = toCalcWeather(req.field.weather);
 
   return {
@@ -146,7 +164,7 @@ function buildResponse(req) {
     damage_max_pct: roundPct((damageMax / defenderHp) * 100),
     ko_chance: {
       n_hits: koChance.n,
-      chance: koChance.chance,
+      chance: koChance.chance ?? 0,
       description: koChance.text
     },
     modifiers: {
@@ -159,7 +177,7 @@ function buildResponse(req) {
       ability_attacker: 1.0,
       ability_defender: 1.0
     },
-    raw_calc_desc: result.desc()
+    raw_calc_desc: damageMax === 0 ? 'No effect' : result.desc()
   };
 }
 

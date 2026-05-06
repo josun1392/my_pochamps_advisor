@@ -1,0 +1,384 @@
+{
+  "defensive_items": {
+    "assault-vest": {
+      "multiplier_q12": 6144,
+      "stats": [
+        "spd"
+      ]
+    },
+    "eviolite": {
+      "multiplier_q12": 6144,
+      "requires_nfe": true,
+      "stats": [
+        "def",
+        "spd"
+      ]
+    }
+  },
+  "species_orbs": {
+    "adamant-orb": {
+      "boosted_types": [
+        "dragon",
+        "steel"
+      ],
+      "multiplier_q12": 4915,
+      "species": [
+        "dialga"
+      ]
+    },
+    "griseous-core": {
+      "boosted_types": [
+        "dragon",
+        "ghost"
+      ],
+      "multiplier_q12": 4915,
+      "species": [
+        "giratina-origin"
+      ]
+    },
+    "griseous-orb": {
+      "boosted_types": [
+        "dragon",
+        "ghost"
+      ],
+      "multiplier_q12": 4915,
+      "species": [
+        "giratina-origin"
+      ]
+    },
+    "lustrous-orb": {
+      "boosted_types": [
+        "dragon",
+        "water"
+      ],
+      "multiplier_q12": 4915,
+      "species": [
+        "palkia"
+      ]
+    },
+    "soul-dew": {
+      "boosted_types": [
+        "psychic",
+        "dragon"
+      ],
+      "multiplier_q12": 4915,
+      "species": [
+        "latios",
+        "latias"
+      ]
+    }
+  },
+  "species_stat_items": {
+    "deep-sea-scale": {
+      "multiplier_q12": 8192,
+      "species": [
+        "clamperl"
+      ],
+      "stats": [
+        "spd"
+      ]
+    },
+    "deep-sea-tooth": {
+      "multiplier_q12": 8192,
+      "species": [
+        "clamperl"
+      ],
+      "stats": [
+        "spa"
+      ]
+    },
+    "light-ball": {
+      "multiplier_q12": 8192,
+      "species": [
+        "pikachu"
+      ],
+      "stats": [
+        "atk",
+        "spa"
+      ]
+    },
+    "metal-powder": {
+      "multiplier_q12": 8192,
+      "species": [
+        "ditto"
+      ],
+      "stats": [
+        "def"
+      ],
+      "untransformed_only": true
+    },
+    "quick-powder": {
+      "multiplier_q12": 8192,
+      "species": [
+        "ditto"
+      ],
+      "stats": [
+        "spe"
+      ],
+      "untransformed_only": true
+    },
+    "thick-club": {
+      "multiplier_q12": 8192,
+      "species": [
+        "cubone",
+        "marowak",
+        "marowak-alola"
+      ],
+      "stats": [
+        "atk"
+      ]
+    }
+  },
+  "stat_boost_items": {
+    "booster-energy": {
+      "multiplier_q12": 4096,
+      "stat": "ability_trigger"
+    },
+    "choice-band": {
+      "multiplier_q12": 6144,
+      "stat": "atk"
+    },
+    "choice-scarf": {
+      "multiplier_q12": 6144,
+      "stat": "spe"
+    },
+    "choice-specs": {
+      "multiplier_q12": 6144,
+      "stat": "spa"
+    },
+    "expert-belt": {
+      "multiplier_q12": 4915,
+      "stat": "super_effective_only"
+    },
+    "life-orb": {
+      "multiplier_q12": 5324,
+      "stat": "all_attack"
+    },
+    "muscle-band": {
+      "multiplier_q12": 4505,
+      "stat": "atk_move"
+    },
+    "wise-glasses": {
+      "multiplier_q12": 4505,
+      "stat": "spa_move"
+    }
+  },
+  "type_boost_items": {
+    "black-belt": {
+      "multiplier_q12": 4915,
+      "type": "fighting"
+    },
+    "black-glasses": {
+      "multiplier_q12": 4915,
+      "type": "dark"
+    },
+    "charcoal": {
+      "multiplier_q12": 4915,
+      "type": "fire"
+    },
+    "dragon-fang": {
+      "multiplier_q12": 4915,
+      "type": "dragon"
+    },
+    "hard-stone": {
+      "multiplier_q12": 4915,
+      "type": "rock"
+    },
+    "magnet": {
+      "multiplier_q12": 4915,
+      "type": "electric"
+    },
+    "metal-coat": {
+      "multiplier_q12": 4915,
+      "type": "steel"
+    },
+    "miracle-seed": {
+      "multiplier_q12": 4915,
+      "type": "grass"
+    },
+    "mystic-water": {
+      "multiplier_q12": 4915,
+      "type": "water"
+    },
+    "never-melt-ice": {
+      "multiplier_q12": 4915,
+      "type": "ice"
+    },
+    "odd-incense": {
+      "multiplier_q12": 4915,
+      "type": "psychic"
+    },
+    "poison-barb": {
+      "multiplier_q12": 4915,
+      "type": "poison"
+    },
+    "rose-incense": {
+      "multiplier_q12": 4915,
+      "type": "grass"
+    },
+    "sea-incense": {
+      "multiplier_q12": 4915,
+      "type": "water"
+    },
+    "sharp-beak": {
+      "multiplier_q12": 4915,
+      "type": "flying"
+    },
+    "silk-scarf": {
+      "multiplier_q12": 4915,
+      "type": "normal"
+    },
+    "silver-powder": {
+      "multiplier_q12": 4915,
+      "type": "bug"
+    },
+    "soft-sand": {
+      "multiplier_q12": 4915,
+      "type": "ground"
+    },
+    "spell-tag": {
+      "multiplier_q12": 4915,
+      "type": "ghost"
+    },
+    "twisted-spoon": {
+      "multiplier_q12": 4915,
+      "type": "psychic"
+    },
+    "wave-incense": {
+      "multiplier_q12": 4915,
+      "type": "water"
+    }
+  },
+  "type_plates": {
+    "blank-plate": {
+      "multiplier_q12": 4915,
+      "type": "normal"
+    },
+    "draco-plate": {
+      "multiplier_q12": 4915,
+      "type": "dragon"
+    },
+    "dread-plate": {
+      "multiplier_q12": 4915,
+      "type": "dark"
+    },
+    "earth-plate": {
+      "multiplier_q12": 4915,
+      "type": "ground"
+    },
+    "fist-plate": {
+      "multiplier_q12": 4915,
+      "type": "fighting"
+    },
+    "flame-plate": {
+      "multiplier_q12": 4915,
+      "type": "fire"
+    },
+    "icicle-plate": {
+      "multiplier_q12": 4915,
+      "type": "ice"
+    },
+    "insect-plate": {
+      "multiplier_q12": 4915,
+      "type": "bug"
+    },
+    "iron-plate": {
+      "multiplier_q12": 4915,
+      "type": "steel"
+    },
+    "meadow-plate": {
+      "multiplier_q12": 4915,
+      "type": "grass"
+    },
+    "mind-plate": {
+      "multiplier_q12": 4915,
+      "type": "psychic"
+    },
+    "pixie-plate": {
+      "multiplier_q12": 4915,
+      "type": "fairy"
+    },
+    "sky-plate": {
+      "multiplier_q12": 4915,
+      "type": "flying"
+    },
+    "splash-plate": {
+      "multiplier_q12": 4915,
+      "type": "water"
+    },
+    "spooky-plate": {
+      "multiplier_q12": 4915,
+      "type": "ghost"
+    },
+    "stone-plate": {
+      "multiplier_q12": 4915,
+      "type": "rock"
+    },
+    "toxic-plate": {
+      "multiplier_q12": 4915,
+      "type": "poison"
+    },
+    "zap-plate": {
+      "multiplier_q12": 4915,
+      "type": "electric"
+    }
+  },
+  "type_resist_berries": {
+    "babiri-berry": {
+      "resist_type": "steel"
+    },
+    "charti-berry": {
+      "resist_type": "rock"
+    },
+    "chilan-berry": {
+      "always_resist": true,
+      "resist_type": "normal"
+    },
+    "chople-berry": {
+      "resist_type": "fighting"
+    },
+    "coba-berry": {
+      "resist_type": "flying"
+    },
+    "colbur-berry": {
+      "resist_type": "dark"
+    },
+    "haban-berry": {
+      "resist_type": "dragon"
+    },
+    "kasib-berry": {
+      "resist_type": "ghost"
+    },
+    "kebia-berry": {
+      "resist_type": "poison"
+    },
+    "occa-berry": {
+      "resist_type": "fire"
+    },
+    "passho-berry": {
+      "resist_type": "water"
+    },
+    "payapa-berry": {
+      "resist_type": "psychic"
+    },
+    "rindo-berry": {
+      "resist_type": "grass"
+    },
+    "roseli-berry": {
+      "resist_type": "fairy"
+    },
+    "shuca-berry": {
+      "resist_type": "ground"
+    },
+    "tanga-berry": {
+      "resist_type": "bug"
+    },
+    "wacan-berry": {
+      "resist_type": "electric"
+    },
+    "yache-berry": {
+      "resist_type": "ice"
+    }
+  },
+  "version": "gen9-champions"
+}

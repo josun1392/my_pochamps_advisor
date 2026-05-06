@@ -1,0 +1,256 @@
+{
+  "mega_stones": {
+    "abomasite": {
+      "base": "abomasnow",
+      "mega_form": "abomasnow-mega"
+    },
+    "absolite": {
+      "base": "absol",
+      "mega_form": "absol-mega"
+    },
+    "aerodactylite": {
+      "base": "aerodactyl",
+      "mega_form": "aerodactyl-mega"
+    },
+    "aggronite": {
+      "base": "aggron",
+      "mega_form": "aggron-mega"
+    },
+    "alakazite": {
+      "base": "alakazam",
+      "mega_form": "alakazam-mega"
+    },
+    "altariaite": {
+      "base": "altaria",
+      "mega_form": "altaria-mega"
+    },
+    "ampharosite": {
+      "base": "ampharos",
+      "mega_form": "ampharos-mega"
+    },
+    "audinite": {
+      "base": "audino",
+      "mega_form": "audino-mega"
+    },
+    "banettite": {
+      "base": "banette",
+      "mega_form": "banette-mega"
+    },
+    "beedrillite": {
+      "base": "beedrill",
+      "mega_form": "beedrill-mega"
+    },
+    "blastoisinite": {
+      "base": "blastoise",
+      "mega_form": "blastoise-mega"
+    },
+    "cameruptite": {
+      "base": "camerupt",
+      "mega_form": "camerupt-mega"
+    },
+    "chandelureite": {
+      "base": "chandelure",
+      "mega_form": "chandelure-mega"
+    },
+    "charizardite-x": {
+      "base": "charizard",
+      "mega_form": "charizard-mega-x"
+    },
+    "charizardite-y": {
+      "base": "charizard",
+      "mega_form": "charizard-mega-y"
+    },
+    "chesnaughtite": {
+      "base": "chesnaught",
+      "mega_form": "chesnaught-mega"
+    },
+    "chimechoite": {
+      "base": "chimecho",
+      "mega_form": "chimecho-mega"
+    },
+    "clefableite": {
+      "base": "clefable",
+      "mega_form": "clefable-mega"
+    },
+    "crabominableite": {
+      "base": "crabominable",
+      "mega_form": "crabominable-mega"
+    },
+    "delphoxite": {
+      "base": "delphox",
+      "mega_form": "delphox-mega"
+    },
+    "dragoniteite": {
+      "base": "dragonite",
+      "mega_form": "dragonite-mega"
+    },
+    "drampaite": {
+      "base": "drampa",
+      "mega_form": "drampa-mega"
+    },
+    "emboarite": {
+      "base": "emboar",
+      "mega_form": "emboar-mega"
+    },
+    "excadrillite": {
+      "base": "excadrill",
+      "mega_form": "excadrill-mega"
+    },
+    "feraligatrite": {
+      "base": "feraligatr",
+      "mega_form": "feraligatr-mega"
+    },
+    "floetteite": {
+      "base": "floette-eternal",
+      "mega_form": "floette-mega"
+    },
+    "froslassite": {
+      "base": "froslass",
+      "mega_form": "froslass-mega"
+    },
+    "galladite": {
+      "base": "gallade",
+      "mega_form": "gallade-mega"
+    },
+    "garchompite": {
+      "base": "garchomp",
+      "mega_form": "garchomp-mega"
+    },
+    "gardevoirite": {
+      "base": "gardevoir",
+      "mega_form": "gardevoir-mega"
+    },
+    "gengarite": {
+      "base": "gengar",
+      "mega_form": "gengar-mega"
+    },
+    "glalieite": {
+      "base": "glalie",
+      "mega_form": "glalie-mega"
+    },
+    "glimmoraite": {
+      "base": "glimmora",
+      "mega_form": "glimmora-mega"
+    },
+    "golurkite": {
+      "base": "golurk",
+      "mega_form": "golurk-mega"
+    },
+    "greninjaite": {
+      "base": "greninja",
+      "mega_form": "greninja-mega"
+    },
+    "gyaradosite": {
+      "base": "gyarados",
+      "mega_form": "gyarados-mega"
+    },
+    "hawluchaite": {
+      "base": "hawlucha",
+      "mega_form": "hawlucha-mega"
+    },
+    "heracronite": {
+      "base": "heracross",
+      "mega_form": "heracross-mega"
+    },
+    "houndoominite": {
+      "base": "houndoom",
+      "mega_form": "houndoom-mega"
+    },
+    "kangaskhanite": {
+      "base": "kangaskhan",
+      "mega_form": "kangaskhan-mega"
+    },
+    "lopunnyite": {
+      "base": "lopunny",
+      "mega_form": "lopunny-mega"
+    },
+    "lucarionite": {
+      "base": "lucario",
+      "mega_form": "lucario-mega"
+    },
+    "manectite": {
+      "base": "manectric",
+      "mega_form": "manectric-mega"
+    },
+    "medichamite": {
+      "base": "medicham",
+      "mega_form": "medicham-mega"
+    },
+    "meganiumite": {
+      "base": "meganium",
+      "mega_form": "meganium-mega"
+    },
+    "meowsticite": {
+      "base": "meowstic",
+      "mega_form": "meowstic-mega"
+    },
+    "pidgeotite": {
+      "base": "pidgeot",
+      "mega_form": "pidgeot-mega"
+    },
+    "pinsirite": {
+      "base": "pinsir",
+      "mega_form": "pinsir-mega"
+    },
+    "sablenite": {
+      "base": "sableye",
+      "mega_form": "sableye-mega"
+    },
+    "scizorite": {
+      "base": "scizor",
+      "mega_form": "scizor-mega"
+    },
+    "scovillainite": {
+      "base": "scovillain",
+      "mega_form": "scovillain-mega"
+    },
+    "sharpedoite": {
+      "base": "sharpedo",
+      "mega_form": "sharpedo-mega"
+    },
+    "skarmoryite": {
+      "base": "skarmory",
+      "mega_form": "skarmory-mega"
+    },
+    "slowbronite": {
+      "base": "slowbro",
+      "mega_form": "slowbro-mega"
+    },
+    "starmieite": {
+      "base": "starmie",
+      "mega_form": "starmie-mega"
+    },
+    "steelixite": {
+      "base": "steelix",
+      "mega_form": "steelix-mega"
+    },
+    "tyranitarite": {
+      "base": "tyranitar",
+      "mega_form": "tyranitar-mega"
+    },
+    "venusaurite": {
+      "base": "venusaur",
+      "mega_form": "venusaur-mega"
+    },
+    "victreebelite": {
+      "base": "victreebel",
+      "mega_form": "victreebel-mega"
+    }
+  },
+  "primal_orbs": {
+    "blue-orb": {
+      "base": "kyogre",
+      "primal_form": "kyogre-primal"
+    },
+    "red-orb": {
+      "base": "groudon",
+      "primal_form": "groudon-primal"
+    }
+  },
+  "rayquaza_mega": {
+    "base": "rayquaza",
+    "mega_form": "rayquaza-mega",
+    "trigger": "knows-dragon-ascent"
+  },
+  "version": "champions-2026"
+}

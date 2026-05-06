@@ -1,0 +1,271 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field as dataclass_field
+from advisor.damage.abilities import AbilityEffect, is_weather_suppressed
+from advisor.damage.ability_modifiers import (
+    attack_stat_ability_mod,
+    attacker_base_power_ability_mod,
+    defense_stat_ability_mod,
+)
+from advisor.damage.field import Field
+from advisor.damage.grounded import GroundedInputs, is_grounded
+from advisor.damage.item_modifiers import (
+    attack_stat_item_mod,
+    attacker_base_power_item_mod,
+    attacker_damage_item_mod,
+    defense_stat_item_mod,
+    defender_berry_mod,
+)
+from advisor.damage.items import ItemEffect
+from advisor.damage.modifiers import (
+    calc_stab,
+    sand_spdef_boost,
+    snow_def_boost,
+    terrain_attack_modifier,
+    terrain_defense_modifier,
+    type_effectiveness_with_field,
+    weather_modifier,
+)
+from advisor.damage.q12 import (
+    M_NEUTRAL,
+    M_SPREAD,
+    Q12_ONE,
+    apply_damage_modifier,
+    chain_modifiers,
+    pokeround,
+)
+from advisor.damage.screens import screen_modifier
+from advisor.damage.stats import StatBlock
+from advisor.damage.types import load_type_chart
+
+
+@dataclass(frozen=True, slots=True)
+class DamageContext:
+    attacker_level: int
+    move_power: int
+    attack_stat: int
+    defense_stat: int
+    move_type: str
+    attacker_types: tuple[str, ...]
+    defender_types: tuple[str, ...]
+    is_physical: bool
+    is_critical: bool
+    is_spread: bool
+    move_id: str = ""
+    field: Field = dataclass_field(default_factory=Field)
+    attacker_grounded_inputs: GroundedInputs | None = None
+    defender_grounded_inputs: GroundedInputs | None = None
+    bypass_screens: bool = False
+    breaks_screens: bool = False
+    attacker_tera_type: str | None = None
+    is_terastallized: bool = False
+    weather_mod_q12: int = Q12_ONE
+    item_mod_q12: int = Q12_ONE
+    ability_atk_mod_q12: int = Q12_ONE
+    ability_def_mod_q12: int = Q12_ONE
+    final_mod_q12: int = Q12_ONE
+    attacker_item: ItemEffect | None = None
+    defender_item: ItemEffect | None = None
+    attacker_species: str = ""
+    defender_species: str = ""
+    attacker_is_nfe: bool = False
+    defender_is_nfe: bool = False
+    attacker_is_transformed: bool = False
+    defender_is_transformed: bool = False
+    attacker_ability: AbilityEffect | None = None
+    defender_ability: AbilityEffect | None = None
+    attacker_stats: StatBlock | None = None
+    defender_stats: StatBlock | None = None
+    attacker_boosts: StatBlock | None = None
+    defender_boosts: StatBlock | None = None
+    attacker_booster_active: bool = False
+    defender_booster_active: bool = False
+    attacker_locked_paradox_stat: str | None = None
+    defender_locked_paradox_stat: str | None = None
+    ally_has_flower_gift: bool = False
+
+
+def base_damage(level: int, power: int, attack: int, defense: int) -> int:
+    return ((((2 * level) // 5 + 2) * power * attack) // defense) // 50 + 2
+
+
+def calc_damage_rolls(
+    ctx: DamageContext,
+    type_chart: dict[str, dict[str, float]] | None = None,
+) -> list[int]:
+    chart = type_chart or load_type_chart()
+    field = ctx.field
+    weather_suppressed = is_weather_suppressed(
+        ctx.attacker_ability.ability_id if ctx.attacker_ability else None,
+        ctx.defender_ability.ability_id if ctx.defender_ability else None,
+    )
+    effective_weather = "none" if weather_suppressed else field.weather
+    attacker_grounded = is_grounded(
+        ctx.attacker_grounded_inputs or GroundedInputs(ctx.attacker_types),
+        field,
+    )
+    defender_grounded = is_grounded(
+        ctx.defender_grounded_inputs or GroundedInputs(ctx.defender_types),
+        field,
+    )
+    move_id = ctx.move_id or ctx.move_type
+    bp_mod = chain_modifiers(
+        [
+            terrain_attack_modifier(
+                ctx.move_type,
+                move_id,
+                field.terrain,
+                attacker_grounded,
+            ),
+            terrain_defense_modifier(
+                ctx.move_type,
+                move_id,
+                field.terrain,
+                defender_grounded,
+            ),
+            attacker_base_power_ability_mod(
+                ctx.attacker_ability,
+                ctx.move_type,
+                effective_weather,
+                weather_suppressed,
+            ),
+            attacker_base_power_item_mod(
+                ctx.attacker_item,
+                ctx.move_type,
+                ctx.attacker_species,
+                ctx.is_physical,
+            ),
+        ]
+    )
+    power = max(1, apply_damage_modifier(ctx.move_power, bp_mod))
+    attack = apply_damage_modifier(
+        ctx.attack_stat,
+        chain_modifiers(
+            [
+                attack_stat_ability_mod(
+                    ctx.attacker_ability,
+                    ctx.is_physical,
+                    effective_weather,
+                    weather_suppressed,
+                    field.terrain,
+                    ctx.attacker_stats,
+                    ctx.attacker_boosts,
+                    ctx.attacker_locked_paradox_stat,  # type: ignore[arg-type]
+                    ctx.attacker_booster_active,
+                ),
+                attack_stat_item_mod(
+                    ctx.attacker_item,
+                    ctx.is_physical,
+                    ctx.attacker_species,
+                    ctx.attacker_is_transformed,
+                ),
+            ]
+        ),
+    )
+    defense = ctx.defense_stat
+    if ctx.is_physical:
+        defense_mod = snow_def_boost(ctx.defender_types, effective_weather)
+    else:
+        defense_mod = sand_spdef_boost(ctx.defender_types, effective_weather)
+    defense = max(1, apply_damage_modifier(defense, defense_mod))
+    defense = max(
+        1,
+        apply_damage_modifier(
+            defense,
+            chain_modifiers(
+                [
+                    defense_stat_ability_mod(
+                        ctx.defender_ability,
+                        ctx.is_physical,
+                        effective_weather,
+                        weather_suppressed,
+                        field.terrain,
+                        ctx.defender_stats,
+                        ctx.defender_boosts,
+                        ctx.defender_locked_paradox_stat,  # type: ignore[arg-type]
+                        ctx.defender_booster_active,
+                    ),
+                    defense_stat_item_mod(
+                        ctx.defender_item,
+                        ctx.is_physical,
+                        ctx.defender_species,
+                        ctx.defender_is_nfe,
+                        ctx.defender_is_transformed,
+                    ),
+                ]
+            ),
+        ),
+    )
+
+    base = base_damage(
+        ctx.attacker_level,
+        power,
+        attack,
+        defense,
+    )
+
+    if ctx.is_spread:
+        base = apply_damage_modifier(base, M_SPREAD)
+
+    weather_mod = weather_modifier(ctx.move_type, effective_weather)
+    if weather_mod == 0:
+        return [0] * 16
+    base = apply_damage_modifier(base, weather_mod)
+
+    if ctx.weather_mod_q12 != M_NEUTRAL:
+        base = apply_damage_modifier(base, ctx.weather_mod_q12)
+
+    if ctx.is_critical:
+        base = (base * 3) // 2
+
+    effectiveness = type_effectiveness_with_field(
+        ctx.move_type,
+        ctx.defender_types,
+        chart,
+        field.with_weather(effective_weather),
+    )
+    if effectiveness == 0.0:
+        return [0] * 16
+    is_super_effective = effectiveness > 1.0
+
+    stab_mod = calc_stab(
+        ctx.attacker_types,
+        ctx.move_type,
+        ctx.is_terastallized,
+        ctx.attacker_tera_type,
+    )
+    final_mod = chain_modifiers(
+        [
+            screen_modifier(
+                field.defender_side,
+                ctx.is_physical,
+                ctx.is_critical,
+                field.is_doubles,
+                ctx.breaks_screens,
+                ctx.bypass_screens,
+            ),
+            ctx.item_mod_q12,
+            attacker_damage_item_mod(
+                ctx.attacker_item,
+                is_super_effective,
+            ),
+            defender_berry_mod(
+                ctx.defender_item,
+                ctx.move_type,
+                is_super_effective,
+            ),
+            ctx.ability_atk_mod_q12,
+            ctx.ability_def_mod_q12,
+            ctx.final_mod_q12,
+        ]
+    )
+
+    rolls: list[int] = []
+    for random_factor in range(85, 101):
+        damage = (base * random_factor) // 100
+        if stab_mod != M_NEUTRAL:
+            damage = apply_damage_modifier(damage, stab_mod)
+        damage = int(pokeround(damage) * effectiveness)
+        damage = apply_damage_modifier(max(1, damage), final_mod)
+        rolls.append(damage)
+    return rolls

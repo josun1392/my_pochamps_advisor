@@ -2,16 +2,16 @@
 
 PySide6 desktop skeleton for a Pokemon battle copilot.
 
-## Pokémon Champions Roster
+## Pokemon Champions Roster
 
-The project includes a static Pokémon Champions roster at `data/static/champions_roster.json`.
+The project includes a static Pokemon Champions roster at `data/static/champions_roster.json`.
 
 - Format: `champions`
 - Roster version: `Regular Roster M-A`
 - Valid until: `2026-06-16`
 - Primary data source: Bulbapedia
 - Cross-check source: Serebii
-- Official reference: Pokémon Champions official site
+- Official reference: Pokemon Champions official site
 
 The roster is species-centered: regional and battle forms live under each species in `forms[]`, while Mega Evolutions live under `mega_evolutions[]`. Cosmetic forms that do not have distinct PokeAPI `/pokemon/{form}` endpoints are retained with `pokeapi_supported: false`.
 
@@ -24,7 +24,7 @@ uv run pytest tests/test_champions_roster.py -v
 
 ## Data Prefetch
 
-Pokémon Champions battle data is cached under `data/cache/pokemon/` for offline damage calculation.
+Pokemon Champions battle data is cached under `data/cache/pokemon/` for offline damage calculation.
 
 Run the full prefetch:
 
@@ -72,4 +72,32 @@ Run the bridge tests:
 
 ```powershell
 uv run pytest tests/test_parity_bridge.py -v
+```
+
+## Damage Engine
+
+The pure Python damage engine lives under `advisor/damage/` and is checked against
+`@smogon/calc` parity cases.
+
+Run core and field verification:
+
+```powershell
+uv run python scripts/verify_damage_engine.py
+uv run python scripts/verify_field_engine.py
+```
+
+Verify item modifiers:
+
+```powershell
+uv run python scripts/build_items_catalog.py
+uv run python scripts/verify_item_engine.py
+uv run pytest tests/test_damage_parity_items.py -v
+```
+
+Verify weather/terrain ability modifiers:
+
+```powershell
+uv run python scripts/build_abilities_catalog.py
+uv run python scripts/verify_ability_engine_weather.py
+uv run pytest tests/test_damage_parity_abilities_weather.py -v
 ```

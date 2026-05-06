@@ -1,0 +1,1656 @@
+{
+  "abilities": {
+    "adaptability": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Adaptability"
+    },
+    "aerilate": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Aerilate"
+    },
+    "aftermath": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Aftermath"
+    },
+    "air-lock": {
+      "category": "weather_suppress",
+      "implemented": true,
+      "name": "Air Lock"
+    },
+    "analytic": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Analytic"
+    },
+    "anger-point": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Anger Point"
+    },
+    "anger-shell": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Anger Shell"
+    },
+    "anticipation": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Anticipation"
+    },
+    "arena-trap": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Arena Trap"
+    },
+    "armor-tail": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Armor Tail"
+    },
+    "aroma-veil": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Aroma Veil"
+    },
+    "as-one-glastrier": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "As One (Glastrier)"
+    },
+    "as-one-spectrier": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "As One (Spectrier)"
+    },
+    "aura-break": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Aura Break"
+    },
+    "bad-dreams": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Bad Dreams"
+    },
+    "ball-fetch": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Ball Fetch"
+    },
+    "battery": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Battery"
+    },
+    "battle-armor": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Battle Armor"
+    },
+    "battle-bond": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Battle Bond"
+    },
+    "beads-of-ruin": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Beads of Ruin"
+    },
+    "beast-boost": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Beast Boost"
+    },
+    "berserk": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Berserk"
+    },
+    "big-pecks": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Big Pecks"
+    },
+    "blaze": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Blaze"
+    },
+    "bulletproof": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Bulletproof"
+    },
+    "cheek-pouch": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Cheek Pouch"
+    },
+    "chilling-neigh": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Chilling Neigh"
+    },
+    "chlorophyll": {
+      "category": "weather_conditional",
+      "implemented": true,
+      "multiplier_q12": 8192,
+      "name": "Chlorophyll",
+      "stat": "spe",
+      "weather": "sun"
+    },
+    "clear-body": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Clear Body"
+    },
+    "cloud-nine": {
+      "category": "weather_suppress",
+      "implemented": true,
+      "name": "Cloud Nine"
+    },
+    "color-change": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Color Change"
+    },
+    "comatose": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Comatose"
+    },
+    "commander": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Commander"
+    },
+    "competitive": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Competitive"
+    },
+    "compound-eyes": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Compound Eyes"
+    },
+    "contrary": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Contrary"
+    },
+    "corrosion": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Corrosion"
+    },
+    "costar": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Costar"
+    },
+    "cotton-down": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Cotton Down"
+    },
+    "cud-chew": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Cud Chew"
+    },
+    "curious-medicine": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Curious Medicine"
+    },
+    "cursed-body": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Cursed Body"
+    },
+    "cute-charm": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Cute Charm"
+    },
+    "damp": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Damp"
+    },
+    "dancer": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Dancer"
+    },
+    "dark-aura": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Dark Aura"
+    },
+    "dauntless-shield": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Dauntless Shield"
+    },
+    "dazzling": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Dazzling"
+    },
+    "defeatist": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Defeatist"
+    },
+    "defiant": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Defiant"
+    },
+    "delta-stream": {
+      "category": "weather_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Delta Stream",
+      "summons": "strong-winds"
+    },
+    "desolate-land": {
+      "category": "weather_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Desolate Land",
+      "summons": "harsh-sunlight"
+    },
+    "disguise": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Disguise"
+    },
+    "download": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Download"
+    },
+    "dragon-s-maw": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Dragon's Maw"
+    },
+    "drizzle": {
+      "category": "weather_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Drizzle",
+      "summons": "rain"
+    },
+    "drought": {
+      "category": "weather_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Drought",
+      "summons": "sun"
+    },
+    "dry-skin": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Dry Skin"
+    },
+    "early-bird": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Early Bird"
+    },
+    "earth-eater": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Earth Eater"
+    },
+    "effect-spore": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Effect Spore"
+    },
+    "electric-surge": {
+      "category": "terrain_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Electric Surge",
+      "summons": "electric"
+    },
+    "electromorphosis": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Electromorphosis"
+    },
+    "embody-aspect-cornerstone": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Embody Aspect (Cornerstone)"
+    },
+    "embody-aspect-hearthflame": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Embody Aspect (Hearthflame)"
+    },
+    "embody-aspect-teal": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Embody Aspect (Teal)"
+    },
+    "embody-aspect-wellspring": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Embody Aspect (Wellspring)"
+    },
+    "emergency-exit": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Emergency Exit"
+    },
+    "fairy-aura": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Fairy Aura"
+    },
+    "filter": {
+      "category": "damage_mod",
+      "implemented": false,
+      "name": "Filter"
+    },
+    "flame-body": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Flame Body"
+    },
+    "flare-boost": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Flare Boost"
+    },
+    "flash-fire": {
+      "category": "type_immunity",
+      "implemented": false,
+      "name": "Flash Fire"
+    },
+    "flower-gift": {
+      "category": "weather_conditional",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Flower Gift",
+      "stat": "atk_spd",
+      "weather": "sun"
+    },
+    "flower-veil": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Flower Veil"
+    },
+    "fluffy": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Fluffy"
+    },
+    "forecast": {
+      "category": "weather_conditional",
+      "damage_effect": "type_change_external",
+      "implemented": true,
+      "name": "Forecast",
+      "weather": "any"
+    },
+    "forewarn": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Forewarn"
+    },
+    "friend-guard": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Friend Guard"
+    },
+    "frisk": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Frisk"
+    },
+    "full-metal-body": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Full Metal Body"
+    },
+    "fur-coat": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Fur Coat"
+    },
+    "gale-wings": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Gale Wings"
+    },
+    "galvanize": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Galvanize"
+    },
+    "gluttony": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Gluttony"
+    },
+    "good-as-gold": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Good as Gold"
+    },
+    "gooey": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Gooey"
+    },
+    "gorilla-tactics": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Gorilla Tactics"
+    },
+    "grass-pelt": {
+      "category": "terrain_conditional",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Grass Pelt",
+      "stat": "def",
+      "terrain": "grassy"
+    },
+    "grassy-surge": {
+      "category": "terrain_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Grassy Surge",
+      "summons": "grassy"
+    },
+    "grim-neigh": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Grim Neigh"
+    },
+    "guard-dog": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Guard Dog"
+    },
+    "gulp-missile": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Gulp Missile"
+    },
+    "guts": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Guts"
+    },
+    "hadron-engine": {
+      "category": "terrain_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Hadron Engine",
+      "summons": "electric"
+    },
+    "harvest": {
+      "category": "weather_conditional",
+      "damage_effect": "turn_loop",
+      "implemented": true,
+      "name": "Harvest",
+      "weather": "sun"
+    },
+    "healer": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Healer"
+    },
+    "heatproof": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Heatproof"
+    },
+    "heavy-metal": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Heavy Metal"
+    },
+    "honey-gather": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Honey Gather"
+    },
+    "hospitality": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Hospitality"
+    },
+    "huge-power": {
+      "category": "stat_mod",
+      "implemented": false,
+      "name": "Huge Power"
+    },
+    "hunger-switch": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Hunger Switch"
+    },
+    "hustle": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Hustle"
+    },
+    "hydration": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Hydration"
+    },
+    "hyper-cutter": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Hyper Cutter"
+    },
+    "ice-body": {
+      "category": "weather_conditional",
+      "damage_effect": "turn_loop",
+      "implemented": true,
+      "name": "Ice Body",
+      "weather": "snow"
+    },
+    "ice-face": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Ice Face"
+    },
+    "ice-scales": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Ice Scales"
+    },
+    "illuminate": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Illuminate"
+    },
+    "illusion": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Illusion"
+    },
+    "immunity": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Immunity"
+    },
+    "imposter": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Imposter"
+    },
+    "infiltrator": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Infiltrator"
+    },
+    "innards-out": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Innards Out"
+    },
+    "inner-focus": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Inner Focus"
+    },
+    "insomnia": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Insomnia"
+    },
+    "intimidate": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Intimidate"
+    },
+    "intrepid-sword": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Intrepid Sword"
+    },
+    "iron-barbs": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Iron Barbs"
+    },
+    "iron-fist": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Iron Fist"
+    },
+    "justified": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Justified"
+    },
+    "keen-eye": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Keen Eye"
+    },
+    "klutz": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Klutz"
+    },
+    "leaf-guard": {
+      "category": "weather_conditional",
+      "damage_effect": "status_only",
+      "implemented": true,
+      "name": "Leaf Guard",
+      "weather": "sun"
+    },
+    "levitate": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Levitate"
+    },
+    "libero": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Libero"
+    },
+    "light-metal": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Light Metal"
+    },
+    "lightning-rod": {
+      "category": "type_redirect",
+      "implemented": false,
+      "name": "Lightning Rod"
+    },
+    "limber": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Limber"
+    },
+    "lingering-aroma": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Lingering Aroma"
+    },
+    "liquid-ooze": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Liquid Ooze"
+    },
+    "liquid-voice": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Liquid Voice"
+    },
+    "long-reach": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Long Reach"
+    },
+    "magic-bounce": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Magic Bounce"
+    },
+    "magic-guard": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Magic Guard"
+    },
+    "magician": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Magician"
+    },
+    "magma-armor": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Magma Armor"
+    },
+    "magnet-pull": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Magnet Pull"
+    },
+    "marvel-scale": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Marvel Scale"
+    },
+    "mega-launcher": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Mega Launcher"
+    },
+    "merciless": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Merciless"
+    },
+    "mimicry": {
+      "category": "terrain_conditional",
+      "damage_effect": "type_change_external",
+      "implemented": true,
+      "name": "Mimicry",
+      "terrain": "any"
+    },
+    "mind-s-eye": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Mind's Eye"
+    },
+    "minus": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Minus"
+    },
+    "mirror-armor": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Mirror Armor"
+    },
+    "misty-surge": {
+      "category": "terrain_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Misty Surge",
+      "summons": "misty"
+    },
+    "mold-breaker": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Mold Breaker"
+    },
+    "moody": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Moody"
+    },
+    "motor-drive": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Motor Drive"
+    },
+    "mountaineer": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Mountaineer"
+    },
+    "moxie": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Moxie"
+    },
+    "multiscale": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Multiscale"
+    },
+    "multitype": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Multitype"
+    },
+    "mummy": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Mummy"
+    },
+    "mycelium-might": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Mycelium Might"
+    },
+    "natural-cure": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Natural Cure"
+    },
+    "neuroforce": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Neuroforce"
+    },
+    "neutralizing-gas": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Neutralizing Gas"
+    },
+    "no-guard": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "No Guard"
+    },
+    "normalize": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Normalize"
+    },
+    "oblivious": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Oblivious"
+    },
+    "opportunist": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Opportunist"
+    },
+    "orichalcum-pulse": {
+      "category": "weather_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Orichalcum Pulse",
+      "summons": "sun"
+    },
+    "overcoat": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Overcoat"
+    },
+    "overgrow": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Overgrow"
+    },
+    "own-tempo": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Own Tempo"
+    },
+    "parental-bond": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Parental Bond"
+    },
+    "pastel-veil": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Pastel Veil"
+    },
+    "perish-body": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Perish Body"
+    },
+    "persistent": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Persistent"
+    },
+    "pickpocket": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Pickpocket"
+    },
+    "pickup": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Pickup"
+    },
+    "pixilate": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Pixilate"
+    },
+    "plus": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Plus"
+    },
+    "poison-heal": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Poison Heal"
+    },
+    "poison-point": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Poison Point"
+    },
+    "poison-puppeteer": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Poison Puppeteer"
+    },
+    "poison-touch": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Poison Touch"
+    },
+    "power-construct": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Power Construct"
+    },
+    "power-of-alchemy": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Power of Alchemy"
+    },
+    "power-spot": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Power Spot"
+    },
+    "prankster": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Prankster"
+    },
+    "pressure": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Pressure"
+    },
+    "primordial-sea": {
+      "category": "weather_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Primordial Sea",
+      "summons": "heavy-rain"
+    },
+    "prism-armor": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Prism Armor"
+    },
+    "propeller-tail": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Propeller Tail"
+    },
+    "protean": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Protean"
+    },
+    "protosynthesis": {
+      "category": "paradox",
+      "implemented": true,
+      "name": "Protosynthesis",
+      "stat_boost_q12": {
+        "default": 5324,
+        "spe": 6144
+      },
+      "trigger_field": "sun",
+      "trigger_item": "booster-energy"
+    },
+    "psychic-surge": {
+      "category": "terrain_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Psychic Surge",
+      "summons": "psychic"
+    },
+    "punk-rock": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Punk Rock"
+    },
+    "pure-power": {
+      "category": "stat_mod",
+      "implemented": false,
+      "name": "Pure Power"
+    },
+    "purifying-salt": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Purifying Salt"
+    },
+    "quark-drive": {
+      "category": "paradox",
+      "implemented": true,
+      "name": "Quark Drive",
+      "stat_boost_q12": {
+        "default": 5324,
+        "spe": 6144
+      },
+      "trigger_field": "electric_terrain",
+      "trigger_item": "booster-energy"
+    },
+    "queenly-majesty": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Queenly Majesty"
+    },
+    "quick-draw": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Quick Draw"
+    },
+    "quick-feet": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Quick Feet"
+    },
+    "rain-dish": {
+      "category": "weather_conditional",
+      "damage_effect": "turn_loop",
+      "implemented": true,
+      "name": "Rain Dish",
+      "weather": "rain"
+    },
+    "rattled": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Rattled"
+    },
+    "rebound": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Rebound"
+    },
+    "receiver": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Receiver"
+    },
+    "reckless": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Reckless"
+    },
+    "refrigerate": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Refrigerate"
+    },
+    "regenerator": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Regenerator"
+    },
+    "ripen": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Ripen"
+    },
+    "rivalry": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Rivalry"
+    },
+    "rks-system": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "RKS System"
+    },
+    "rock-head": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Rock Head"
+    },
+    "rocky-payload": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Rocky Payload"
+    },
+    "rough-skin": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Rough Skin"
+    },
+    "run-away": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Run Away"
+    },
+    "sand-force": {
+      "boosted_types": [
+        "rock",
+        "ground",
+        "steel"
+      ],
+      "category": "weather_conditional",
+      "implemented": true,
+      "multiplier_q12": 5325,
+      "name": "Sand Force",
+      "weather": "sand"
+    },
+    "sand-rush": {
+      "category": "weather_conditional",
+      "implemented": true,
+      "multiplier_q12": 8192,
+      "name": "Sand Rush",
+      "stat": "spe",
+      "weather": "sand"
+    },
+    "sand-spit": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Sand Spit"
+    },
+    "sand-stream": {
+      "category": "weather_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Sand Stream",
+      "summons": "sand"
+    },
+    "sand-veil": {
+      "category": "weather_conditional",
+      "damage_effect": "accuracy_only",
+      "implemented": true,
+      "name": "Sand Veil",
+      "weather": "sand"
+    },
+    "sap-sipper": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Sap Sipper"
+    },
+    "schooling": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Schooling"
+    },
+    "scrappy": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Scrappy"
+    },
+    "screen-cleaner": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Screen Cleaner"
+    },
+    "seed-sower": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Seed Sower"
+    },
+    "serene-grace": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Serene Grace"
+    },
+    "shadow-shield": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Shadow Shield"
+    },
+    "shadow-tag": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Shadow Tag"
+    },
+    "sharpness": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Sharpness"
+    },
+    "shed-skin": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Shed Skin"
+    },
+    "sheer-force": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Sheer Force"
+    },
+    "shell-armor": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Shell Armor"
+    },
+    "shield-dust": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Shield Dust"
+    },
+    "shields-down": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Shields Down"
+    },
+    "simple": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Simple"
+    },
+    "skill-link": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Skill Link"
+    },
+    "slow-start": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Slow Start"
+    },
+    "slush-rush": {
+      "category": "weather_conditional",
+      "implemented": true,
+      "multiplier_q12": 8192,
+      "name": "Slush Rush",
+      "stat": "spe",
+      "weather": "snow"
+    },
+    "sniper": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Sniper"
+    },
+    "snow-cloak": {
+      "category": "weather_conditional",
+      "damage_effect": "accuracy_only",
+      "implemented": true,
+      "name": "Snow Cloak",
+      "weather": "snow"
+    },
+    "snow-warning": {
+      "category": "weather_summon",
+      "damage_effect": "none",
+      "implemented": true,
+      "name": "Snow Warning",
+      "summons": "snow"
+    },
+    "solar-power": {
+      "category": "weather_conditional",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Solar Power",
+      "side_effect": "hp_loss_per_turn",
+      "stat": "spa",
+      "weather": "sun"
+    },
+    "solid-rock": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Solid Rock"
+    },
+    "soul-heart": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Soul-Heart"
+    },
+    "soundproof": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Soundproof"
+    },
+    "speed-boost": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Speed Boost"
+    },
+    "stakeout": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Stakeout"
+    },
+    "stall": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Stall"
+    },
+    "stalwart": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Stalwart"
+    },
+    "stamina": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Stamina"
+    },
+    "stance-change": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Stance Change"
+    },
+    "static": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Static"
+    },
+    "steadfast": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Steadfast"
+    },
+    "steam-engine": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Steam Engine"
+    },
+    "steelworker": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Steelworker"
+    },
+    "steely-spirit": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Steely Spirit"
+    },
+    "stench": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Stench"
+    },
+    "sticky-hold": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Sticky Hold"
+    },
+    "storm-drain": {
+      "category": "type_redirect",
+      "implemented": false,
+      "name": "Storm Drain"
+    },
+    "strong-jaw": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Strong Jaw"
+    },
+    "sturdy": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Sturdy"
+    },
+    "suction-cups": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Suction Cups"
+    },
+    "super-luck": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Super Luck"
+    },
+    "supersweet-syrup": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Supersweet Syrup"
+    },
+    "supreme-overlord": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Supreme Overlord"
+    },
+    "surge-surfer": {
+      "category": "terrain_conditional",
+      "implemented": true,
+      "multiplier_q12": 8192,
+      "name": "Surge Surfer",
+      "stat": "spe",
+      "terrain": "electric"
+    },
+    "swarm": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Swarm"
+    },
+    "sweet-veil": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Sweet Veil"
+    },
+    "swift-swim": {
+      "category": "weather_conditional",
+      "implemented": true,
+      "multiplier_q12": 8192,
+      "name": "Swift Swim",
+      "stat": "spe",
+      "weather": "rain"
+    },
+    "sword-of-ruin": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Sword of Ruin"
+    },
+    "symbiosis": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Symbiosis"
+    },
+    "synchronize": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Synchronize"
+    },
+    "tablets-of-ruin": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Tablets of Ruin"
+    },
+    "tangled-feet": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Tangled Feet"
+    },
+    "tangling-hair": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Tangling Hair"
+    },
+    "technician": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Technician"
+    },
+    "telepathy": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Telepathy"
+    },
+    "tera-shell": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Tera Shell"
+    },
+    "tera-shift": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Tera Shift"
+    },
+    "teraform-zero": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Teraform Zero"
+    },
+    "teravolt": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Teravolt"
+    },
+    "thermal-exchange": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Thermal Exchange"
+    },
+    "thick-fat": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Thick Fat"
+    },
+    "tinted-lens": {
+      "category": "damage_mod",
+      "implemented": false,
+      "name": "Tinted Lens"
+    },
+    "torrent": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Torrent"
+    },
+    "tough-claws": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Tough Claws"
+    },
+    "toxic-boost": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Toxic Boost"
+    },
+    "toxic-chain": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Toxic Chain"
+    },
+    "toxic-debris": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Toxic Debris"
+    },
+    "trace": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Trace"
+    },
+    "transistor": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Transistor"
+    },
+    "triage": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Triage"
+    },
+    "truant": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Truant"
+    },
+    "turboblaze": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Turboblaze"
+    },
+    "unaware": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Unaware"
+    },
+    "unburden": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Unburden"
+    },
+    "unnerve": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Unnerve"
+    },
+    "unseen-fist": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Unseen Fist"
+    },
+    "vessel-of-ruin": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Vessel of Ruin"
+    },
+    "victory-star": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Victory Star"
+    },
+    "vital-spirit": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Vital Spirit"
+    },
+    "volt-absorb": {
+      "category": "type_immunity",
+      "implemented": false,
+      "name": "Volt Absorb"
+    },
+    "wandering-spirit": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Wandering Spirit"
+    },
+    "water-absorb": {
+      "category": "type_immunity",
+      "implemented": false,
+      "name": "Water Absorb"
+    },
+    "water-bubble": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Water Bubble"
+    },
+    "water-compaction": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Water Compaction"
+    },
+    "water-veil": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Water Veil"
+    },
+    "weak-armor": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Weak Armor"
+    },
+    "well-baked-body": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Well-Baked Body"
+    },
+    "white-smoke": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "White Smoke"
+    },
+    "wimp-out": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Wimp Out"
+    },
+    "wind-power": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Wind Power"
+    },
+    "wind-rider": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Wind Rider"
+    },
+    "wonder-guard": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Wonder Guard"
+    },
+    "wonder-skin": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Wonder Skin"
+    },
+    "zen-mode": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Zen Mode"
+    },
+    "zero-to-hero": {
+      "category": "uncategorized",
+      "implemented": false,
+      "name": "Zero to Hero"
+    }
+  },
+  "version": "champions-2026"
+}

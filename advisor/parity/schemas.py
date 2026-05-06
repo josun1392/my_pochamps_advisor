@@ -9,10 +9,13 @@ SchemaVersion = Literal["v1"]
 Status = Literal["brn", "par", "slp", "frz", "psn", "tox"]
 Weather = Literal[
     "sun",
+    "harsh-sunlight",
     "rain",
+    "heavy-rain",
     "sand",
     "hail",
     "snow",
+    "strong-winds",
     "harsh_sunshine",
     "heavy_rain",
     "strong_winds",
@@ -58,6 +61,7 @@ class PokemonInput(StrictModel):
     status: Status | None
     tera_type: str | None
     is_terastallized: bool
+    boosted_stat: Literal["atk", "def", "spa", "spd", "spe", "auto"] | None = None
 
 
 class DefenderInput(PokemonInput):
@@ -71,12 +75,20 @@ class MoveInput(StrictModel):
     is_max: bool
 
 
+class SideInput(StrictModel):
+    reflect: bool = False
+    light_screen: bool = False
+    aurora_veil: bool = False
+
+
 class FieldInput(StrictModel):
     weather: Weather | None
     terrain: Terrain | None
     is_gravity: bool
     is_trick_room: bool
     format: Format
+    attacker_side: SideInput | None = None
+    defender_side: SideInput | None = None
 
 
 class DamageRequest(StrictModel):
