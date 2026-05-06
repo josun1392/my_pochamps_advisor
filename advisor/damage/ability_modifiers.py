@@ -101,6 +101,37 @@ def get_spa_ability_modifier(
     return Q12_ONE
 
 
+def get_bp_ability_modifier(
+    ability: str,
+    *,
+    base_power: int,
+    move_flags: set[str],
+) -> int:
+    """
+    Returns Q12 multiplier for bp_mods layer. Default 4096 (no-op).
+
+    Stacking order (Smogon Gen 9):
+      1. Tough Claws / Iron Fist apply first (independent flags).
+      2. Technician applies on the POST-other-BP-mod base power.
+
+    This function returns ONE ability's contribution. The caller must
+    sequence them correctly in formula.py.
+    """
+    effect = get_ability(ability)
+    if effect is None or not effect.implemented:
+        return Q12_ONE
+    if effect.category != "bp_modifier":
+        return Q12_ONE
+    condition = effect.raw_data.get("condition")
+    if condition == "contact" and "contact" in move_flags:
+        return effect.multiplier_q12
+    if condition == "punch" and "punch" in move_flags:
+        return effect.multiplier_q12
+    if condition == "bp_le_60" and base_power <= 60:
+        return effect.multiplier_q12
+    return Q12_ONE
+
+
 def attacker_base_power_ability_mod(
     ability: AbilityEffect | None,
     move_type: str,

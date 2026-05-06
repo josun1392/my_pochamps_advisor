@@ -674,9 +674,12 @@
       "name": "Iron Barbs"
     },
     "iron-fist": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Iron Fist"
+      "category": "bp_modifier",
+      "condition": "punch",
+      "implemented": true,
+      "multiplier_q12": 4915,
+      "name": "Iron Fist",
+      "stat": "bp"
     },
     "justified": {
       "category": "uncategorized",
@@ -1521,9 +1524,12 @@
       "name": "Tangling Hair"
     },
     "technician": {
-      "category": "uncategorized",
-      "implemented": false,
-      "name": "Technician"
+      "category": "bp_modifier",
+      "condition": "bp_le_60",
+      "implemented": true,
+      "multiplier_q12": 6144,
+      "name": "Technician",
+      "stat": "bp"
     },
     "telepathy": {
       "category": "ally_immunity",
@@ -1579,12 +1585,12 @@
       "name": "Torrent"
     },
     "tough-claws": {
-      "category": "damage_mod_flag",
-      "flag_required": "contact",
-      "implemented": false,
-      "modifier_layer": "bp_mods",
+      "category": "bp_modifier",
+      "condition": "contact",
+      "implemented": true,
       "multiplier_q12": 5325,
       "name": "Tough Claws",
+      "stat": "bp",
       "smogon_ref": "gen789.ts L1195 (groups with Sheer Force/Punk Rock/Technician/Strong Jaw/Mega Launcher at L1198 push 5325)"
     },
     "toxic-boost": {

@@ -27,8 +27,13 @@ MOVES = {
     "earthquake": ("ground", "physical", 100, "allAdjacent"),
     "fire-blast": ("fire", "special", 110, "normal"),
     "flamethrower": ("fire", "special", 90, "normal"),
+    "bug-bite": ("bug", "physical", 60, "normal"),
+    "bullet-punch": ("steel", "physical", 40, "normal"),
+    "close-combat": ("fighting", "physical", 120, "normal"),
+    "dragon-claw": ("dragon", "physical", 80, "normal"),
     "ice-beam": ("ice", "special", 90, "normal"),
     "iron-head": ("steel", "physical", 80, "normal"),
+    "mach-punch": ("fighting", "physical", 40, "normal"),
     "moonblast": ("fairy", "special", 95, "normal"),
     "play-rough": ("fairy", "physical", 90, "normal"),
     "psychic": ("psychic", "special", 90, "normal"),
@@ -39,12 +44,14 @@ MOVES = {
     "tackle": ("normal", "physical", 40, "normal"),
     "thunderbolt": ("electric", "special", 90, "normal"),
     "water-gun": ("water", "special", 40, "normal"),
+    "x-scissor": ("bug", "physical", 80, "normal"),
 }
 
 OVERRIDES = {
     "cherrim": {"types": ["grass"], "base_stats": {"hp": 70, "atk": 60, "def": 70, "spa": 87, "spd": 78, "spe": 85}},
     "gogoat": {"types": ["grass"], "base_stats": {"hp": 123, "atk": 100, "def": 62, "spa": 97, "spd": 81, "spe": 68}},
     "great-tusk": {"types": ["ground", "fighting"], "base_stats": {"hp": 115, "atk": 131, "def": 131, "spa": 53, "spd": 53, "spe": 87}},
+    "hitmonchan": {"types": ["fighting"], "base_stats": {"hp": 50, "atk": 105, "def": 79, "spa": 35, "spd": 110, "spe": 76}},
     "iron-bundle": {"types": ["ice", "water"], "base_stats": {"hp": 56, "atk": 80, "def": 114, "spa": 124, "spd": 60, "spe": 136}},
     "iron-moth": {"types": ["fire", "poison"], "base_stats": {"hp": 80, "atk": 70, "def": 60, "spa": 140, "spd": 110, "spe": 110}},
     "flutter-mane": {"types": ["ghost", "fairy"], "base_stats": {"hp": 55, "atk": 55, "def": 55, "spa": 135, "spd": 135, "spe": 135}},
@@ -250,6 +257,12 @@ CASES = [
     ("solar_power_fire_blast_no_sun", _request("charizard", "blastoise", "fire-blast", attacker_ability="solar-power")),
     ("plusle_plus_thunderbolt_ally_minun", _request("plusle", "blastoise", "thunderbolt", attacker_ability="plus", ally_has_plus_minus=True)),
     ("minun_minus_thunderbolt_solo", _request("minun", "blastoise", "thunderbolt", attacker_ability="minus")),
+    ("scizor_technician_bullet_punch", _request("scizor", "pikachu", "bullet-punch", attacker_ability="technician")),
+    ("scizor_technician_bug_bite", _request("scizor", "pikachu", "bug-bite", attacker_ability="technician")),
+    ("scizor_technician_x_scissor_no_boost", _request("scizor", "pikachu", "x-scissor", attacker_ability="technician")),
+    ("charizard_tough_claws_dragon_claw", _request("charizard", "blastoise", "dragon-claw", attacker_ability="tough-claws")),
+    ("hitmonchan_iron_fist_mach_punch", _request("hitmonchan", "pikachu", "mach-punch", attacker_ability="iron-fist")),
+    ("hitmonchan_iron_fist_close_combat_no_boost", _request("hitmonchan", "pikachu", "close-combat", attacker_ability="iron-fist")),
 ]
 
 

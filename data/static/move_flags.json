@@ -4,6 +4,7 @@
     "aura-sphere": ["bullet", "pulse"],
     "boomburst": ["sound"],
     "brave-bird": ["contact", "recoil"],
+    "bug-bite": ["contact"],
     "bug-buzz": ["sound"],
     "bullet-punch": ["contact", "punch"],
     "bullet-seed": ["bullet"],
@@ -14,6 +15,7 @@
     "crunch": ["contact", "bite"],
     "dark-pulse": ["pulse"],
     "double-edge": ["contact", "recoil"],
+    "dragon-claw": ["contact"],
     "dragon-pulse": ["pulse"],
     "drain-punch": ["contact", "punch"],
     "egg-bomb": ["bullet"],
@@ -45,11 +47,13 @@
     "snarl": ["sound"],
     "spore": ["powder"],
     "stun-spore": ["powder"],
+    "sucker-punch": ["contact"],
     "tackle": ["contact"],
     "thunder-fang": ["contact", "bite"],
     "thunder-punch": ["contact", "punch"],
     "water-pulse": ["pulse"],
-    "wood-hammer": ["contact", "recoil"]
+    "wood-hammer": ["contact", "recoil"],
+    "x-scissor": ["contact"]
   },
   "secondary_effect_moves": [
     "thunderbolt", "thunder", "ice-beam", "blizzard",

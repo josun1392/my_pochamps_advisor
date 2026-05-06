@@ -11,6 +11,7 @@ from advisor.damage.ability_modifiers import (
     defender_base_power_ability_mod,
     defender_damage_ability_mod,
     defense_stat_ability_mod,
+    get_bp_ability_modifier,
 )
 from advisor.damage.field import Field
 from advisor.damage.grounded import GroundedInputs, is_grounded
@@ -168,6 +169,23 @@ def calc_damage_rolls(
         mold_breaker_active,
     ):
         return [0] * 16
+    bp = ctx.move_power
+    if eff_attacker_ability and eff_attacker_ability.ability_id in ("tough-claws", "iron-fist"):
+        bp_mod = get_bp_ability_modifier(
+            eff_attacker_ability.ability_id,
+            base_power=bp,
+            move_flags=set(move_flags),
+        )
+        bp = apply_damage_modifier(bp, bp_mod)
+
+    if eff_attacker_ability and eff_attacker_ability.ability_id == "technician":
+        bp_mod = get_bp_ability_modifier(
+            "technician",
+            base_power=bp,
+            move_flags=set(move_flags),
+        )
+        bp = apply_damage_modifier(bp, bp_mod)
+
     bp_mod = chain_modifiers(
         [
             terrain_attack_modifier(
@@ -200,7 +218,7 @@ def calc_damage_rolls(
             ),
         ]
     )
-    power = max(1, apply_damage_modifier(ctx.move_power, bp_mod))
+    power = max(1, apply_damage_modifier(bp, bp_mod))
     attack = apply_damage_modifier(
         ctx.attack_stat,
         chain_modifiers(

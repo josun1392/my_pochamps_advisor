@@ -1,5 +1,6 @@
 from advisor.damage.ability_modifiers import (
     get_atk_ability_modifier,
+    get_bp_ability_modifier,
     get_def_ability_modifier,
     get_final_def_ability_modifier,
     get_spa_ability_modifier,
@@ -64,3 +65,30 @@ def test_plus_without_plus_minus_ally_no_effect():
 
 def test_minus_matches_plus_condition():
     assert get_spa_ability_modifier("minus", ally_has_plus_minus=True) == 6144
+
+def test_technician_boosts_bp_40():
+    assert get_bp_ability_modifier("technician", base_power=40, move_flags=set()) == 6144
+
+def test_technician_boosts_bp_60():
+    assert get_bp_ability_modifier("technician", base_power=60, move_flags=set()) == 6144
+
+def test_technician_no_effect_bp_61():
+    assert get_bp_ability_modifier("technician", base_power=61, move_flags=set()) == 4096
+
+def test_technician_no_effect_bp_100():
+    assert get_bp_ability_modifier("technician", base_power=100, move_flags=set()) == 4096
+
+def test_tough_claws_boosts_contact():
+    assert get_bp_ability_modifier("tough-claws", base_power=80, move_flags={"contact"}) == 5325
+
+def test_tough_claws_no_effect_without_contact():
+    assert get_bp_ability_modifier("tough-claws", base_power=80, move_flags=set()) == 4096
+
+def test_iron_fist_boosts_punch():
+    assert get_bp_ability_modifier("iron-fist", base_power=40, move_flags={"contact", "punch"}) == 4915
+
+def test_iron_fist_no_effect_without_punch():
+    assert get_bp_ability_modifier("iron-fist", base_power=120, move_flags={"contact"}) == 4096
+
+def test_unknown_bp_ability_returns_neutral():
+    assert get_bp_ability_modifier("static", base_power=40, move_flags={"contact"}) == 4096
