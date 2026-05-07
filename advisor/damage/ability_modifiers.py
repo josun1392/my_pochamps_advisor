@@ -464,13 +464,17 @@ def defender_damage_ability_mod(
     )
     if ability_id == "fur-coat":
         def_mod = Q12_ONE
-    final_def_mod = get_final_def_ability_modifier(
-        ability_id,
-        hp_ratio=defender_hp_ratio,
-        type_effectiveness=type_effectiveness
-        if type_effectiveness is not None
-        else (2.0 if is_super_effective else 1.0),
-        move_flags=set(move_flags),
+    final_def_mod = (
+        Q12_ONE
+        if ability.category == "damage_mod_hp"
+        else get_final_def_ability_modifier(
+            ability_id,
+            hp_ratio=defender_hp_ratio,
+            type_effectiveness=type_effectiveness
+            if type_effectiveness is not None
+            else (2.0 if is_super_effective else 1.0),
+            move_flags=set(move_flags),
+        )
     )
     if def_mod != Q12_ONE or final_def_mod != Q12_ONE:
         return chain_modifiers([def_mod, final_def_mod])
