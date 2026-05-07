@@ -18,10 +18,23 @@
 
 ## Current Position
 
-- **Milestone:** `3.1` Core Damage Formula — ✅ **CLOSED**
-- **HEAD:** `4a833a4`
-- **Tests:** 393 passing (parity 148 → 139 after item-test reconciliation, see notes)
-- **Performance:** ~0.18 ms / calc (regression budget < 5%)
+- **Milestone:** `4.0` Stochastic KO Probability Composer — ✅ **COMPLETE**
+- **HEAD:** `2f342d8`
+- **Tag:** `v0.10.0`
+- **Tests:** 560 passing, 0 failures, 0 xfail
+- **Performance:** N=4 convolution 0.215 ms (budget < 100 ms)
+
+---
+
+## Phase 4: COMPLETE
+
+- **Completed:** 2026-05-07
+- **Tag:** `v0.10.0`
+- **Merge commit:** `2f342d8`
+- **Tests:** 518 → 560 (+42), 0 failures, 0 xfail
+- **Performance:** N=4 convolution avg 0.215 ms (budget 100 ms)
+- **Scope:** Fraction-based 1-4 turn KO probability composer, 16-roll Q12 distribution, crit-rate integration, and canonical modifier scenarios.
+- **Next:** Phase 5 preview — multi-hit plus chip damage composition.
 
 ---
 
