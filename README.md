@@ -22,6 +22,13 @@ uv run python scripts/verify_champions_roster.py
 uv run pytest tests/test_champions_roster.py -v
 ```
 
+Run tests:
+
+```powershell
+uv run pytest
+uv run pytest -m slow
+```
+
 ## Data Prefetch
 
 Pokemon Champions battle data is cached under `data/cache/pokemon/` for offline damage calculation.
