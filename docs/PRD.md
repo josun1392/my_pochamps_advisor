@@ -1,7 +1,7 @@
 # PRD 2.0 — Master Ball Advisor (PoChamps Format)
 
 **Project Codename:** `josun1392/my_pochamps_advisor`
-**Version:** 2.0 (v0.8)
+**Version:** 2.0 (v0.9)
 **Last Updated:** 2026-05-06
 **Data Cutoff:** 2026-06-16
 **Document Status:** 🟢 LIVING DOCUMENT
@@ -23,15 +23,16 @@
 8. [Phase 3.4 Specification — Multi-hit Moves (DONE)](#8-phase-34-specification--multi-hit-moves-done)
 9. [Phase 3.5 Specification — Damage Roll & Field Audit (DONE)](#9-phase-35-specification--damage-roll--field-audit-done)
 10. [Phase 3.6 Specification — Critical Hit Sampling (DONE)](#10-phase-36-specification--critical-hit-sampling-done)
-11. [Phase 4.0 Specification — PoChamps Localization Layer](#11-phase-40-specification--pochamps-localization-layer)
-12. [Quality Gates / Definition of Done](#12-quality-gates--definition-of-done)
-13. [Re-Entry Protocol — Common Misconceptions](#13-re-entry-protocol--common-misconceptions)
-14. [3-Tier AI Orchestration Model](#14-3-tier-ai-orchestration-model)
-15. [Risks & Open Questions](#15-risks--open-questions)
-16. [Glossary](#16-glossary)
-17. [Appendix A — Q12 Lookup Reference](#17-appendix-a--q12-lookup-reference)
-18. [Version History](#18-version-history)
-19. [Document Control](#19-document-control)
+11. [Phase 3.7 Specification — Modifier Precision Layer (DONE)](#11-phase-37-specification--modifier-precision-layer-done)
+12. [Phase 4.0 Specification — PoChamps Localization Layer](#12-phase-40-specification--pochamps-localization-layer)
+13. [Quality Gates / Definition of Done](#13-quality-gates--definition-of-done)
+14. [Re-Entry Protocol — Common Misconceptions](#14-re-entry-protocol--common-misconceptions)
+15. [3-Tier AI Orchestration Model](#15-3-tier-ai-orchestration-model)
+16. [Risks & Open Questions](#16-risks--open-questions)
+17. [Glossary](#17-glossary)
+18. [Appendix A — Q12 Lookup Reference](#18-appendix-a--q12-lookup-reference)
+19. [Version History](#19-version-history)
+20. [Document Control](#20-document-control)
 
 ---
 
@@ -41,8 +42,8 @@ The **Master Ball Advisor** is a desktop battle copilot for the **PoChamps** tou
 
 | Field | Status |
 |---|---|
-| **Current Phase** | 3.6 DONE -> 4.0 NEXT |
-| **Tests Passing** | **485** (485 collected, 0 xfailed) |
+| **Current Phase** | 3.7 DONE -> 4.0 NEXT |
+| **Tests Passing** | **518** (518 collected, 0 xfailed) |
 | **Engine Math** | Q12 fixed-point (Base 4096), no float |
 | **Parity Reference** | `@smogon/calc` v0.11.0 (`gen789.ts`) |
 | **Architecture** | Path A (stateful) / Path B (pure functional) |
@@ -319,6 +320,7 @@ my_pochamps_advisor/
 | **3.4** | **Multi-hit Moves** | ✅ DONE | **441** |
 | 3.5 | Damage Roll & Field Audit | DONE | **453** |
 | 3.6 | Critical Hit Sampling | DONE | **485** |
+| 3.7 | Modifier Precision Layer | DONE | **518** |
 | 4.0 | PoChamps Localization Layer | ⏳ Planned | — |
 | 4.1 | Turn Engine | ⏳ Planned | — |
 | 5.x | Battle AI (Minimax) | ⏳ Planned | — |
@@ -760,7 +762,15 @@ Base damage
 
 ---
 
-## 11. Phase 4.0 Specification — PoChamps Localization Layer
+## 11. Phase 3.7 Specification — Modifier Precision Layer (DONE)
+
+**Version:** v0.9.0; **Tests:** 518 collected, 518 passed, 0 xfailed.
+
+Phase 3.7 closes deterministic modifier precision before Phase 4 KO composition: Sniper, Adaptability, Tinted Lens, Solid Rock / Filter / Prism Armor, and Multiscale / Shadow Shield. Multiscale / Shadow Shield run outside the final modifier chain. Items audit found Life Orb, Choice Band, Choice Specs, and Choice Scarf already wired.
+
+---
+
+## 12. Phase 4.0 Specification — PoChamps Localization Layer
 
 ### 11.1 `advisor/format/pochamps.py`
 
@@ -800,9 +810,9 @@ PP cap lookup, used by Turn Engine and Battle AI.
 
 ---
 
-## 12. Quality Gates / Definition of Done
+## 13. Quality Gates / Definition of Done
 
-### 12.1 PR-Level DoD
+### 13.1 PR-Level DoD
 
 - [ ] All new tests pass
 - [ ] No regressions in existing test suite
@@ -812,7 +822,7 @@ PP cap lookup, used by Turn Engine and Battle AI.
 - [ ] PR description states test count delta (e.g., "397 → 402")
 - [ ] `xfail` cases (if any) include detailed `reason` with ground-truth references and `strict=True`
 
-### 12.2 Phase-Level DoD
+### 13.2 Phase-Level DoD
 
 - [ ] All sub-milestones complete
 - [ ] PRD updated to reflect new state
@@ -823,11 +833,11 @@ PP cap lookup, used by Turn Engine and Battle AI.
 
 ---
 
-## 13. Re-Entry Protocol — Common Misconceptions
+## 14. Re-Entry Protocol — Common Misconceptions
 
 > 📖 **Read this section first when resuming after a break.**
 
-### 13.1 DO NOT assume:
+### 14.1 DO NOT assume:
 
 | Misconception | Reality |
 |---|---|
@@ -842,7 +852,7 @@ PP cap lookup, used by Turn Engine and Battle AI.
 | "Multihit damage = single_hit × count." | ❌ NO. Each hit is an **independent Q12 roll**, then summed. |
 | "If `@smogon/calc` differs, our engine is wrong." | Not always. Verify against Showdown sim source first (see § 7.3). |
 
-### 13.2 Architectural Boundaries (Quick Reference)
+### 14.2 Architectural Boundaries (Quick Reference)
 
 ```
 Damage Engine (3.x)         = Showdown standard mirror
@@ -850,7 +860,7 @@ advisor/format/pochamps.py  = All PoChamps overrides (4.0)
 Turn Engine (4.1+)          = Imports both, applies profile
 ```
 
-### 13.3 Sanity Checks Before Coding
+### 14.3 Sanity Checks Before Coding
 
 | Question | Layer |
 |---|---|
@@ -862,9 +872,9 @@ Turn Engine (4.1+)          = Imports both, applies profile
 
 ---
 
-## 14. 3-Tier AI Orchestration Model
+## 15. 3-Tier AI Orchestration Model
 
-### 14.1 Roles
+### 15.1 Roles
 
 | Tier | Role | Responsibility |
 |---|---|---|
@@ -872,14 +882,14 @@ Turn Engine (4.1+)          = Imports both, applies profile
 | **T2** | Prompt Engineer / QA Lead (Claude) | Translates T1 requirements into precision prompts for T3, gap analysis, audits architectural integrity |
 | **T3** | Implementer / Code Author (GPT-5.5) | Generates Python code, diffs, unit tests based on Q12 fixed-point standard |
 
-### 14.2 Operating Principles
+### 15.2 Operating Principles
 
 1. **T1 has final authority** on scope and architectural boundaries.
 2. **T2 owns "Verify, Don't Trust"** — every parity discrepancy triggers ground-truth investigation before code changes.
 3. **T3 produces "Diff-Ready Output"** — exact code/markdown/test strings for zero-context-loss handoff.
 4. **"Plan B" (Safety/Investigation) > Quick Merge** when parity divergence appears.
 
-### 14.3 Workflow Pattern
+### 15.3 Workflow Pattern
 
 ```
 T1 (Decision) → T2 (Prompt + Audit) → T3 (Diff-Ready Code) → T1 (Quality Gate)
@@ -889,35 +899,35 @@ T1 (Decision) → T2 (Prompt + Audit) → T3 (Diff-Ready Code) → T1 (Quality G
 
 ---
 
-## 15. Risks & Open Questions
+## 16. Risks & Open Questions
 
-### 15.1 Pipeline Ordering for Weather (RESOLVED)
+### 16.1 Pipeline Ordering for Weather (RESOLVED)
 
 ✅ Verified during Phase 3.3 implementation. Weather modifier insertion point in `formula.py` `chainMods` sequence is correct.
 
-### 15.2 PoChamps Spec Source (OPEN)
+### 16.2 PoChamps Spec Source (OPEN)
 
 Status RNG overrides (12.5% para, 3-turn sleep, 25%/3-turn freeze) and PP caps need a citable source to lock spec before data cutoff (2026-06-16).
 
-### 15.3 Mega Evolution Implementation (DEFERRED)
+### 16.3 Mega Evolution Implementation (DEFERRED)
 
 Mega forms exist in PokeAPI but trigger logic (one-per-team, activation timing) requires Turn Engine state. **Deferred to 4.1.**
 
-### 15.4 Format Profile Default (DECIDED)
+### 16.4 Format Profile Default (DECIDED)
 
 ✅ Default profile = **SHOWDOWN** (engine purity). UI provides override to POCHAMPS.
 
-### 15.5 Multi-hit Probability Distribution (RESOLVED)
+### 16.5 Multi-hit Probability Distribution (RESOLVED)
 
 Probabilistic 2-5 and Population Bomb hit resolution are implemented in PR #3.4-D with seedable `advisor.damage.rng.RNG` tests.
 
-### 15.6 `@smogon/calc` Bridge Divergence (RESOLVED)
+### 16.6 `@smogon/calc` Bridge Divergence (RESOLVED)
 
 Cloud Nine / Neutralizing Gas bridge divergence is resolved in Phase 3.5 by suppressing Cloud Nine / Air Lock only in the local calc bridge when Neutralizing Gas is active.
 
 ---
 
-## 16. Glossary
+## 17. Glossary
 
 | Term | Definition |
 |---|---|
@@ -936,7 +946,7 @@ Cloud Nine / Neutralizing Gas bridge divergence is resolved in Phase 3.5 by supp
 
 ---
 
-## 17. Appendix A — Q12 Lookup Reference
+## 18. Appendix A — Q12 Lookup Reference
 
 | Multiplier | Q12 Value | Common Use |
 |---|---|---|
@@ -952,9 +962,13 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ---
 
-## 18. Version History
+## 19. Version History
 
-### v0.8.0 (current, 2026-05-07)
+### v0.9.0 (current, 2026-05-07)
+
+- PR #3.7 merged: modifier precision layer. 518 collected, 518 passed, 0 xfailed. Added Q12 helpers for Sniper, Adaptability, Tinted Lens, defender SE reducers, and Multiscale / Shadow Shield.
+
+### v0.8.0 (2026-05-07)
 
 - PR #3.6 merged: critical hit sampling and modifier resolution.
 - Test count: 485 collected, 485 passed, 0 xfailed, 0 skipped.
@@ -1027,7 +1041,7 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ---
 
-## 19. Document Control
+## 20. Document Control
 
 | Field | Value |
 |---|---|
@@ -1040,4 +1054,4 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ---
 
-*End of PRD 2.0 (v0.8) — Master Ball Advisor*
+*End of PRD 2.0 (v0.9) — Master Ball Advisor*

@@ -40,6 +40,8 @@ from advisor.damage.mold_breaker import (
     is_mold_breaker_active,
     is_neutralizing_gas_active,
 )
+from advisor.damage.crit import resolve_crit_multiplier
+from advisor.damage.modifiers.abilities import apply_adaptability, apply_multiscale
 from advisor.damage.q12 import (
     M_NEUTRAL,
     M_SPREAD,
@@ -106,6 +108,8 @@ class DamageContext:
     is_contact: bool = False
     attacker_hp_current: int = 100
     attacker_hp_max: int = 100
+    defender_hp_current: int | None = None
+    defender_hp_max: int | None = None
     defender_hp_ratio: float = 1.0
     ally_ability_ids: tuple[str | None, ...] = ()
 
@@ -329,8 +333,12 @@ def calc_damage_rolls(
     if ctx.weather_mod_q12 != M_NEUTRAL:
         base = apply_damage_modifier(base, ctx.weather_mod_q12)
 
-    if ctx.is_critical:
-        base = (base * 3) // 2
+    crit_mult = resolve_crit_multiplier(
+        ctx.is_critical,
+        eff_attacker_ability.ability_id if eff_attacker_ability else None,
+    )
+    if crit_mult != Q12_ONE:
+        base = (base * crit_mult) // Q12_ONE
 
     effectiveness = type_effectiveness_with_field(
         ctx.move_type,
@@ -353,6 +361,12 @@ def calc_damage_rolls(
         ctx.move_type,
         ctx.is_terastallized,
         ctx.attacker_tera_type,
+    )
+    stab_mod = apply_adaptability(
+        stab_mod,
+        eff_attacker_ability.ability_id if eff_attacker_ability else None,
+        ctx.move_type,
+        ctx.attacker_types,
     )
     final_mod = chain_modifiers(
         [
@@ -401,5 +415,16 @@ def calc_damage_rolls(
             damage = apply_damage_modifier(damage, stab_mod)
         damage = int(pokeround(damage) * effectiveness)
         damage = apply_damage_modifier(max(1, damage), final_mod)
+        defender_hp_current = ctx.defender_hp_current
+        defender_hp_max = ctx.defender_hp_max
+        if defender_hp_current is None or defender_hp_max is None:
+            defender_hp_current = 1 if ctx.defender_hp_ratio == 1.0 else 0
+            defender_hp_max = 1
+        damage = apply_multiscale(
+            damage,
+            eff_defender_ability.ability_id if eff_defender_ability else None,
+            defender_hp_current,
+            defender_hp_max,
+        )
         rolls.append(damage)
     return rolls

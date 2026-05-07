@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import Any, Literal
 
+from advisor.damage.modifiers.abilities import apply_sniper
+from advisor.damage.modifiers._q12 import MUL_1_5
+from advisor.damage.q12 import Q12_ONE
 from advisor.damage.rng import RNG
 
 
@@ -226,3 +229,13 @@ def apply_crit_modifier(base_damage: int, is_crit: bool) -> int:
     if not is_crit:
         return base_damage
     return (base_damage * 3) // 2
+
+
+def resolve_crit_multiplier(
+    is_crit: bool,
+    attacker_ability: str | None = None,
+) -> int:
+    """Return the Q12 critical-hit multiplier, including Sniper."""
+    if not is_crit:
+        return Q12_ONE
+    return apply_sniper(MUL_1_5, attacker_ability, is_crit)
