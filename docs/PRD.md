@@ -1,7 +1,7 @@
 # PRD 2.0 — Master Ball Advisor (PoChamps Format)
 
 **Project Codename:** `josun1392/my_pochamps_advisor`
-**Version:** 2.0 (v0.7)
+**Version:** 2.0 (v0.8)
 **Last Updated:** 2026-05-06
 **Data Cutoff:** 2026-06-16
 **Document Status:** 🟢 LIVING DOCUMENT
@@ -22,15 +22,16 @@
 7. [Phase 3.3 Specification — Field & Weather (DONE)](#7-phase-33-specification--field--weather-done)
 8. [Phase 3.4 Specification — Multi-hit Moves (DONE)](#8-phase-34-specification--multi-hit-moves-done)
 9. [Phase 3.5 Specification — Damage Roll & Field Audit (DONE)](#9-phase-35-specification--damage-roll--field-audit-done)
-10. [Phase 4.0 Specification — PoChamps Localization Layer](#10-phase-40-specification--pochamps-localization-layer)
-11. [Quality Gates / Definition of Done](#11-quality-gates--definition-of-done)
-12. [Re-Entry Protocol — Common Misconceptions](#12-re-entry-protocol--common-misconceptions)
-13. [3-Tier AI Orchestration Model](#13-3-tier-ai-orchestration-model)
-14. [Risks & Open Questions](#14-risks--open-questions)
-15. [Glossary](#15-glossary)
-16. [Appendix A — Q12 Lookup Reference](#16-appendix-a--q12-lookup-reference)
-17. [Version History](#17-version-history)
-18. [Document Control](#18-document-control)
+10. [Phase 3.6 Specification — Critical Hit Sampling (DONE)](#10-phase-36-specification--critical-hit-sampling-done)
+11. [Phase 4.0 Specification — PoChamps Localization Layer](#11-phase-40-specification--pochamps-localization-layer)
+12. [Quality Gates / Definition of Done](#12-quality-gates--definition-of-done)
+13. [Re-Entry Protocol — Common Misconceptions](#13-re-entry-protocol--common-misconceptions)
+14. [3-Tier AI Orchestration Model](#14-3-tier-ai-orchestration-model)
+15. [Risks & Open Questions](#15-risks--open-questions)
+16. [Glossary](#16-glossary)
+17. [Appendix A — Q12 Lookup Reference](#17-appendix-a--q12-lookup-reference)
+18. [Version History](#18-version-history)
+19. [Document Control](#19-document-control)
 
 ---
 
@@ -40,8 +41,8 @@ The **Master Ball Advisor** is a desktop battle copilot for the **PoChamps** tou
 
 | Field | Status |
 |---|---|
-| **Current Phase** | 3.5 DONE -> 4.0 NEXT |
-| **Tests Passing** | **453** (453 collected, 0 xfailed) |
+| **Current Phase** | 3.6 DONE -> 4.0 NEXT |
+| **Tests Passing** | **485** (485 collected, 0 xfailed) |
 | **Engine Math** | Q12 fixed-point (Base 4096), no float |
 | **Parity Reference** | `@smogon/calc` v0.11.0 (`gen789.ts`) |
 | **Architecture** | Path A (stateful) / Path B (pure functional) |
@@ -317,7 +318,7 @@ my_pochamps_advisor/
 | 3.3 | Field & Weather | ✅ DONE (Verified) | **397** (xfail resolved in 3.5) |
 | **3.4** | **Multi-hit Moves** | ✅ DONE | **441** |
 | 3.5 | Damage Roll & Field Audit | DONE | **453** |
-| 3.6 | (Reserved) | — | — |
+| 3.6 | Critical Hit Sampling | DONE | **485** |
 | 4.0 | PoChamps Localization Layer | ⏳ Planned | — |
 | 4.1 | Turn Engine | ⏳ Planned | — |
 | 5.x | Battle AI (Minimax) | ⏳ Planned | — |
@@ -682,9 +683,86 @@ Default `roll_mode="max"` preserves existing single-value callers. Tuple and dis
 
 ---
 
-## 10. Phase 4.0 Specification — PoChamps Localization Layer
+## 10. Phase 3.6 Specification — Critical Hit Sampling (DONE)
 
-### 10.1 `advisor/format/pochamps.py`
+**Completed:** 2026-05-07  
+**Branch:** `feat/3.6-critical-hit-sampling`  
+**Version:** v0.8.0  
+**Tests:** 485 collected, 485 passed, 0 xfailed, 0 skipped
+
+### 10.1 Critical Hit Probability Table
+
+`advisor/damage/crit.py` models the Gen 9 critical-hit stage table exactly:
+
+| Stage | Probability |
+|---|---|
+| 0 | 1/24 |
+| 1 | 1/8 |
+| 2 | 1/2 |
+| 3+ | 1/1 |
+
+Showdown source: `sim/battle-actions.ts` lines 1627-1645 (`ModifyCritRatio`, Gen 9 `critMult = [0, 24, 8, 2, 1]`, and `randomChance(1, critMult[critRatio])`).
+
+### 10.2 Modifier Sources
+
+| Source | Effect |
+|---|---|
+| High-crit moves (`critRatio: 2`) | +1 stage |
+| Always-crit moves (`willCrit: true`) | Guaranteed crit |
+| Super Luck | +1 stage |
+| Merciless vs poisoned target | Guaranteed crit |
+| Razor Claw / Scope Lens | +1 stage |
+| Stick on Farfetch'd / Lucky Punch on Chansey | +2 stages |
+| Focus Energy / Lansat Berry effect | +2 stages |
+| Dragon Cheer | +1 stage, +2 for Dragon-type users |
+| Battle Armor / Shell Armor / Lucky Chant | Blocks crit |
+
+Showdown source citations:
+
+- `data/moves.ts`: `critRatio: 2` entries and `willCrit: true` entries, e.g. lines 190, 5890, 6267, 18146, 18554, 20792.
+- `data/abilities.ts`: Battle Armor lines 345-346, Merciless lines 2527-2528, Shell Armor lines 4177-4178, Super Luck lines 4658-4659.
+- `data/items.ts`: Lansat Berry line 3323, Lucky Punch line 3522, Razor Claw line 5090, Scope Lens line 5555, Stick line 6097.
+- `sim/battle-actions.ts`: CriticalHit blocker event lines 1649-1650.
+
+### 10.3 Five-Mode Contract
+
+| Mode | Return | Behavior |
+|---|---|---|
+| `min` | `bool` | `False` (no crit) |
+| `max` | `bool` | `True` unless blocked |
+| `deterministic` | `tuple[bool, bool]` | `(False, True)` unless blocked |
+| `probabilistic` | `bool` | Seedable sampled crit outcome via `advisor.damage.rng.RNG` |
+| `distribution` | `dict[bool, int]` | Exact numerator counts, e.g. `{True: 1, False: 23}` |
+
+### 10.4 Damage Modifier and Composition Order
+
+Gen 9 critical hits use `floor(base_damage * 1.5)`.
+
+Showdown source: `sim/battle-actions.ts` lines 1752-1755 (`crit - not a modifier`, `baseDamage = tr(baseDamage * ... 1.5)`), followed by the randomizer at line 1759.
+
+```
+Base damage
+  -> weather/base field modifiers
+  -> critical hit 1.5x
+  -> 16-roll
+  -> STAB / type effectiveness / final modifiers
+```
+
+`advisor/damage/calculator.py` integrates crit with `crit_mode="min"` by default. This is intentionally asymmetric with `roll_mode="max"` because both defaults preserve v0.7.0 output: historical calls were non-crit max-roll single integers.
+
+### 10.5 Phase 3.6 Closure
+
+- Final Phase 3.6 count: **485 collected, 485 passed**.
+- xfailed: **0**.
+- skipped: **0**.
+- All stochastic damage inputs are now present: multihit count, damage roll, critical hit.
+- Phase 4 KO probability composition can begin.
+
+---
+
+## 11. Phase 4.0 Specification — PoChamps Localization Layer
+
+### 11.1 `advisor/format/pochamps.py`
 
 ```python
 def get_paralysis_full_para_rate() -> float: return 0.125
@@ -693,7 +771,7 @@ def get_freeze_thaw_rate()           -> float: return 0.25
 def get_freeze_max_turns()           -> int:   return 3
 ```
 
-### 10.2 FormatProfile System
+### 11.2 FormatProfile System
 
 ```python
 class FormatProfile(Enum):
@@ -703,16 +781,16 @@ class FormatProfile(Enum):
 
 Turn Engine reads the profile at init. **Default = SHOWDOWN** for engine purity (UI can override to POCHAMPS).
 
-### 10.3 `data/pochamps_pp_table.py`
+### 11.3 `data/pochamps_pp_table.py`
 
 PP cap lookup, used by Turn Engine and Battle AI.
 
-### 10.4 Format Isolation Tests
+### 11.4 Format Isolation Tests
 
 - Assert PoChamps overrides differ from Showdown defaults.
 - Assert Damage Engine output is **identical** regardless of profile.
 
-### 10.5 Implementation Layer Map
+### 11.5 Implementation Layer Map
 
 | Override | Engine Layer | Phase |
 |---|---|---|
@@ -722,9 +800,9 @@ PP cap lookup, used by Turn Engine and Battle AI.
 
 ---
 
-## 11. Quality Gates / Definition of Done
+## 12. Quality Gates / Definition of Done
 
-### 11.1 PR-Level DoD
+### 12.1 PR-Level DoD
 
 - [ ] All new tests pass
 - [ ] No regressions in existing test suite
@@ -734,7 +812,7 @@ PP cap lookup, used by Turn Engine and Battle AI.
 - [ ] PR description states test count delta (e.g., "397 → 402")
 - [ ] `xfail` cases (if any) include detailed `reason` with ground-truth references and `strict=True`
 
-### 11.2 Phase-Level DoD
+### 12.2 Phase-Level DoD
 
 - [ ] All sub-milestones complete
 - [ ] PRD updated to reflect new state
@@ -745,11 +823,11 @@ PP cap lookup, used by Turn Engine and Battle AI.
 
 ---
 
-## 12. Re-Entry Protocol — Common Misconceptions
+## 13. Re-Entry Protocol — Common Misconceptions
 
 > 📖 **Read this section first when resuming after a break.**
 
-### 12.1 DO NOT assume:
+### 13.1 DO NOT assume:
 
 | Misconception | Reality |
 |---|---|
@@ -764,7 +842,7 @@ PP cap lookup, used by Turn Engine and Battle AI.
 | "Multihit damage = single_hit × count." | ❌ NO. Each hit is an **independent Q12 roll**, then summed. |
 | "If `@smogon/calc` differs, our engine is wrong." | Not always. Verify against Showdown sim source first (see § 7.3). |
 
-### 12.2 Architectural Boundaries (Quick Reference)
+### 13.2 Architectural Boundaries (Quick Reference)
 
 ```
 Damage Engine (3.x)         = Showdown standard mirror
@@ -772,7 +850,7 @@ advisor/format/pochamps.py  = All PoChamps overrides (4.0)
 Turn Engine (4.1+)          = Imports both, applies profile
 ```
 
-### 12.3 Sanity Checks Before Coding
+### 13.3 Sanity Checks Before Coding
 
 | Question | Layer |
 |---|---|
@@ -784,9 +862,9 @@ Turn Engine (4.1+)          = Imports both, applies profile
 
 ---
 
-## 13. 3-Tier AI Orchestration Model
+## 14. 3-Tier AI Orchestration Model
 
-### 13.1 Roles
+### 14.1 Roles
 
 | Tier | Role | Responsibility |
 |---|---|---|
@@ -794,14 +872,14 @@ Turn Engine (4.1+)          = Imports both, applies profile
 | **T2** | Prompt Engineer / QA Lead (Claude) | Translates T1 requirements into precision prompts for T3, gap analysis, audits architectural integrity |
 | **T3** | Implementer / Code Author (GPT-5.5) | Generates Python code, diffs, unit tests based on Q12 fixed-point standard |
 
-### 13.2 Operating Principles
+### 14.2 Operating Principles
 
 1. **T1 has final authority** on scope and architectural boundaries.
 2. **T2 owns "Verify, Don't Trust"** — every parity discrepancy triggers ground-truth investigation before code changes.
 3. **T3 produces "Diff-Ready Output"** — exact code/markdown/test strings for zero-context-loss handoff.
 4. **"Plan B" (Safety/Investigation) > Quick Merge** when parity divergence appears.
 
-### 13.3 Workflow Pattern
+### 14.3 Workflow Pattern
 
 ```
 T1 (Decision) → T2 (Prompt + Audit) → T3 (Diff-Ready Code) → T1 (Quality Gate)
@@ -811,35 +889,35 @@ T1 (Decision) → T2 (Prompt + Audit) → T3 (Diff-Ready Code) → T1 (Quality G
 
 ---
 
-## 14. Risks & Open Questions
+## 15. Risks & Open Questions
 
-### 14.1 Pipeline Ordering for Weather (RESOLVED)
+### 15.1 Pipeline Ordering for Weather (RESOLVED)
 
 ✅ Verified during Phase 3.3 implementation. Weather modifier insertion point in `formula.py` `chainMods` sequence is correct.
 
-### 14.2 PoChamps Spec Source (OPEN)
+### 15.2 PoChamps Spec Source (OPEN)
 
 Status RNG overrides (12.5% para, 3-turn sleep, 25%/3-turn freeze) and PP caps need a citable source to lock spec before data cutoff (2026-06-16).
 
-### 14.3 Mega Evolution Implementation (DEFERRED)
+### 15.3 Mega Evolution Implementation (DEFERRED)
 
 Mega forms exist in PokeAPI but trigger logic (one-per-team, activation timing) requires Turn Engine state. **Deferred to 4.1.**
 
-### 14.4 Format Profile Default (DECIDED)
+### 15.4 Format Profile Default (DECIDED)
 
 ✅ Default profile = **SHOWDOWN** (engine purity). UI provides override to POCHAMPS.
 
-### 14.5 Multi-hit Probability Distribution (RESOLVED)
+### 15.5 Multi-hit Probability Distribution (RESOLVED)
 
 Probabilistic 2-5 and Population Bomb hit resolution are implemented in PR #3.4-D with seedable `advisor.damage.rng.RNG` tests.
 
-### 14.6 `@smogon/calc` Bridge Divergence (RESOLVED)
+### 15.6 `@smogon/calc` Bridge Divergence (RESOLVED)
 
 Cloud Nine / Neutralizing Gas bridge divergence is resolved in Phase 3.5 by suppressing Cloud Nine / Air Lock only in the local calc bridge when Neutralizing Gas is active.
 
 ---
 
-## 15. Glossary
+## 16. Glossary
 
 | Term | Definition |
 |---|---|
@@ -853,10 +931,12 @@ Cloud Nine / Neutralizing Gas bridge divergence is resolved in Phase 3.5 by supp
 | **xfail** | pytest expected-failure marker (with `strict=True` to flag unexpected passes) |
 | **Bridge** | `advisor/parity/` adapter to `@smogon/calc` for parity assertions |
 | **Skill Link** | Ability forcing range-multihit moves to always roll max hits (5) |
+| **Critical Hit Stage** | Gen 9 crit-ratio stage resolved from move, ability, item, and volatile modifiers |
+| **Crit Blocker** | Defender-side effect such as Battle Armor, Shell Armor, or Lucky Chant that prevents critical hits |
 
 ---
 
-## 16. Appendix A — Q12 Lookup Reference
+## 17. Appendix A — Q12 Lookup Reference
 
 | Multiplier | Q12 Value | Common Use |
 |---|---|---|
@@ -872,9 +952,17 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ---
 
-## 17. Version History
+## 18. Version History
 
-### v0.7.0 (current, 2026-05-06)
+### v0.8.0 (current, 2026-05-07)
+
+- PR #3.6 merged: critical hit sampling and modifier resolution.
+- Test count: 485 collected, 485 passed, 0 xfailed, 0 skipped.
+- Added `advisor/damage/crit.py` with crit stage, probability, blocker, five-mode roll, and Gen 6+ 1.5x modifier helpers.
+- Integrated `crit_mode` into `advisor/damage/calculator.py`; default `crit_mode="min"` preserves v0.7.0 non-crit behavior.
+- All stochastic damage inputs needed for Phase 4 KO probability composition are now present.
+
+### v0.7.0 (2026-05-06)
 
 - PR #3.5 merged: damage roll distribution + field divergence audit.
 - Test count: 453 collected, 453 passed, 0 xfailed, 0 skipped.
@@ -939,17 +1027,17 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ---
 
-## 18. Document Control
+## 19. Document Control
 
 | Field | Value |
 |---|---|
 | **Owner** | Lead Systems Architect (T1) |
 | **Document Status** | 🟢 LIVING DOCUMENT |
 | **Last Reviewed** | 2026-05-06 |
-| **Next Review Trigger** | Phase 4.0 entry |
+| **Next Review Trigger** | Phase 4 KO probability composer entry |
 | **Storage** | `docs/PRD.md` in `josun1392/my_pochamps_advisor` |
 | **Amendment Process** | All Constitution changes (§ 3) require explicit T1 decision logged in § 16 |
 
 ---
 
-*End of PRD 2.0 (v0.7) — Master Ball Advisor*
+*End of PRD 2.0 (v0.8) — Master Ball Advisor*
