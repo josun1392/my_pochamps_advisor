@@ -270,3 +270,22 @@ Future commits use milestone codes directly. PR numbers are git-internal only.
 - **Option C — `3.3` Field/Weather**: high battle-impact gap-fill
 
 Decision pending. Baseline `4a833a4` / 393 tests is safe to pause on.
+
+---
+
+## v0.5.2 LLM Advice Panel Success Verification
+
+Completed: 2026-05-08
+
+- Verified `scripts/spike_advisor.py` with a valid Gemini API key.
+- LLM recommendation returned successfully for the Mega Kangaskhan vs Garchomp spike.
+- Recommendation selected `Return`, identified no OHKO, and flagged Garchomp `Outrage` as the main threat.
+- Token usage: 1960 input / 148 output / 0 cached.
+- Estimated cost: `$0.000958`.
+- UI success path confirmed by screenshot:
+  - `LLMAdvicePanel` displays the recommendation.
+  - Status bar shows `Done | input 1960 / output 148 | $0.0009580`.
+  - Fallback cost label also shows the token/cost summary.
+- Existing validation remains: `613 passed, 2 deselected`.
+
+Status: v0.5.2 success path verified. Ready for the next UI integration slice.
