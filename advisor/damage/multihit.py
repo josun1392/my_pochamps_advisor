@@ -29,6 +29,9 @@ MULTIHIT_MOVES: dict[str, MultiHitMove] = {
     "bullet-seed": MultiHitMove("bullet-seed", multihit=(2, 5), base_power=25),
     "rock-blast": MultiHitMove("rock-blast", multihit=(2, 5), base_power=25),
     "icicle-spear": MultiHitMove("icicle-spear", multihit=(2, 5), base_power=25),
+    "tail-slap": MultiHitMove("tail-slap", multihit=(2, 5), base_power=25),
+    "pin-missile": MultiHitMove("pin-missile", multihit=(2, 5), base_power=25),
+    "water-shuriken": MultiHitMove("water-shuriken", multihit=(2, 5), base_power=15),
     "triple-kick": MultiHitMove("triple-kick", multihit=3, base_power=10, bp_escalation=True),
     "triple-axel": MultiHitMove("triple-axel", multihit=3, base_power=20, bp_escalation=True),
     "population-bomb": MultiHitMove(

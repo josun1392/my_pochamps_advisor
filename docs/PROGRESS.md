@@ -38,6 +38,18 @@
 
 ---
 
+## Phase 5: IN REVIEW
+
+- **Branch:** `feat/phase-5-multihit-chip`
+- **Scope:** Multi-hit move probability distributions plus deterministic residual chip integration.
+- **Multi-hit:** Tier A 2-5 distribution, Skill Link, Loaded Dice, and Population Bomb Tier C support.
+- **Chip:** Burn, poison, toxic, Leech Seed, Curse, sand/hail/snow, and binding residuals.
+- **Precision:** `Fraction` probability mass throughout; Q12 damage rolls remain integer-only.
+- **Tests:** 560 -> 602 (+42) locally.
+- **Performance:** N=4 multi-hit + chip worst measured 17.886 ms with crit-mixed Bullet Seed; Population Bomb + Loaded Dice measured 3.500 ms. Both remain under the 100 ms hard ceiling.
+- **Next:** Phase 5 review should decide whether the 5 ms soft target requires a follow-up optimization PR before merge.
+
+---
 ## Major Roadmap
 
 | Major | Codename | Status |

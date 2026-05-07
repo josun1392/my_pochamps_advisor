@@ -2,8 +2,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
+from math import lcm
+from collections import Counter
 
-from advisor.probability.multi_hit import nhko_curve
+from advisor.probability.multi_hit import (
+    convolve_counts,
+    multihit_damage_counts,
+    multihit_damage_distribution,
+    nhko_curve,
+    roll_damage_counts,
+    roll_damage_distribution,
+)
+from advisor.probability.residual import (
+    HPDistribution,
+    ResidualSpec,
+    apply_residual_damage,
+    hp_distribution_after_damage,
+    ko_probability_from_hp_distribution,
+    total_residual_damage,
+)
 from advisor.probability.single_hit import crit_integrated_ko_chance
 
 
@@ -62,6 +79,167 @@ def compute_ko_probability(
             crit_damage_q12,
             max_turns,
         )
+    return KOProbability(ohko=by_turn[1], by_turn=by_turn, crit_contribution=crit_contribution)
+
+
+def _weighted_damage_distribution(
+    final_damage_q12: int,
+    *,
+    crit_rate: Fraction,
+    crit_damage_q12: int | None,
+    move=None,
+    attacker=None,
+) -> tuple[dict[int, Fraction], Fraction]:
+    if not 0 <= crit_rate <= 1:
+        raise ValueError("crit_rate must be between 0 and 1")
+    normal = (
+        multihit_damage_distribution(final_damage_q12, move, attacker)
+        if move is not None
+        else roll_damage_distribution(final_damage_q12)
+    )
+    if crit_rate == 0 or crit_damage_q12 is None:
+        return normal, Fraction(0, 1)
+    crit = (
+        multihit_damage_distribution(crit_damage_q12, move, attacker)
+        if move is not None
+        else roll_damage_distribution(crit_damage_q12)
+    )
+    result: dict[int, Fraction] = {}
+    crit_ko_mass = Fraction(0, 1)
+    for damage, chance in normal.items():
+        result[damage] = result.get(damage, Fraction(0, 1)) + (1 - crit_rate) * chance
+    for damage, chance in crit.items():
+        weighted = crit_rate * chance
+        result[damage] = result.get(damage, Fraction(0, 1)) + weighted
+        crit_ko_mass += weighted
+    return result, crit_ko_mass
+
+
+def _weighted_damage_counts(
+    final_damage_q12: int,
+    *,
+    crit_rate: Fraction,
+    crit_damage_q12: int | None,
+    move=None,
+    attacker=None,
+) -> tuple[Counter[int], int]:
+    effective_crit_rate = crit_rate if crit_damage_q12 is not None else Fraction(0, 1)
+    normal_counts, normal_denominator = (
+        multihit_damage_counts(final_damage_q12, move, attacker)
+        if move is not None
+        else roll_damage_counts(final_damage_q12)
+    )
+    pieces: list[tuple[Counter[int], int, int]] = [
+        (
+            normal_counts,
+            normal_denominator * effective_crit_rate.denominator,
+            effective_crit_rate.denominator - effective_crit_rate.numerator,
+        )
+    ]
+    if effective_crit_rate:
+        crit_counts, crit_denominator = (
+            multihit_damage_counts(crit_damage_q12, move, attacker)
+            if move is not None
+            else roll_damage_counts(crit_damage_q12)
+        )
+        pieces.append((crit_counts, crit_denominator * effective_crit_rate.denominator, effective_crit_rate.numerator))
+
+    common_denominator = 1
+    for _, source_denominator, _ in pieces:
+        common_denominator = lcm(common_denominator, source_denominator)
+
+    result: Counter[int] = Counter()
+    for counts, source_denominator, numerator in pieces:
+        if numerator == 0:
+            continue
+        scale = common_denominator // source_denominator
+        for damage, count in counts.items():
+            result[damage] += count * numerator * scale
+    return result, common_denominator
+
+
+def compose_turn(
+    hp_distribution: HPDistribution,
+    damage_distribution: dict[int, Fraction],
+    residuals: ResidualSpec | list[ResidualSpec] | tuple[ResidualSpec, ...] | None = None,
+    *,
+    turn_index: int,
+) -> HPDistribution:
+    """Apply one turn of move damage followed by deterministic residual chip."""
+    after_damage = hp_distribution_after_damage(hp_distribution, damage_distribution)
+    return apply_residual_damage(after_damage, residuals, turn_index)
+
+
+def compute_ko_probability_with_effects(
+    final_damage_q12: int,
+    target_hp: int,
+    *,
+    move=None,
+    attacker=None,
+    residuals: ResidualSpec | list[ResidualSpec] | tuple[ResidualSpec, ...] | None = None,
+    crit_rate: Fraction = Fraction(1, 24),
+    crit_damage_q12: int | None = None,
+    max_turns: int = 4,
+) -> KOProbability:
+    """Compute KO probability with optional multihit and residual damage."""
+    if final_damage_q12 < 0:
+        raise ValueError("final_damage_q12 must be non-negative")
+    if target_hp <= 0:
+        by_turn = {turn: Fraction(1, 1) for turn in range(1, max_turns + 1)}
+        return KOProbability(ohko=Fraction(1, 1), by_turn=by_turn, crit_contribution=Fraction(0, 1))
+    if not 1 <= max_turns <= 4:
+        raise ValueError("max_turns must be in 1..4")
+
+    damage_counts, damage_denominator = _weighted_damage_counts(
+        final_damage_q12,
+        crit_rate=crit_rate,
+        crit_damage_q12=crit_damage_q12,
+        move=move,
+        attacker=attacker,
+    )
+    survivor_damage_counts: Counter[int] = Counter({0: 1})
+    cumulative_denominator = 1
+    cumulative_chip = 0
+    ko_count = 0
+    damage_items = sorted(damage_counts.items())
+    suffix_counts: list[int] = [0] * (len(damage_items) + 1)
+    for index in range(len(damage_items) - 1, -1, -1):
+        suffix_counts[index] = suffix_counts[index + 1] + damage_items[index][1]
+    by_turn: dict[int, Fraction] = {}
+    for turn in range(1, max_turns + 1):
+        cumulative_denominator *= damage_denominator
+        cumulative_chip += total_residual_damage(residuals, turn)
+        threshold = target_hp - cumulative_chip
+        if threshold <= 0:
+            by_turn[turn] = Fraction(1, 1)
+            ko_count = cumulative_denominator
+            survivor_damage_counts = Counter()
+        else:
+            next_survivors: Counter[int] = Counter()
+            next_ko_count = ko_count * damage_denominator
+            for previous_damage, previous_count in survivor_damage_counts.items():
+                remaining = threshold - previous_damage
+                for index, (damage, damage_count) in enumerate(damage_items):
+                    if damage >= remaining:
+                        next_ko_count += previous_count * suffix_counts[index]
+                        break
+                    next_survivors[previous_damage + damage] += previous_count * damage_count
+            ko_count = next_ko_count
+            survivor_damage_counts = next_survivors
+            by_turn[turn] = Fraction(ko_count, cumulative_denominator)
+
+    crit_contribution = Fraction(0, 1)
+    if crit_rate and crit_damage_q12 is not None:
+        crit_only = (
+            multihit_damage_distribution(crit_damage_q12, move, attacker)
+            if move is not None
+            else roll_damage_distribution(crit_damage_q12)
+        )
+        crit_contribution = crit_rate * sum(
+            chance for damage, chance in crit_only.items() if damage >= target_hp
+        )
+    else:
+        crit_contribution = Fraction(0, 1)
     return KOProbability(ohko=by_turn[1], by_turn=by_turn, crit_contribution=crit_contribution)
 
 
