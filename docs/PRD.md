@@ -1,7 +1,7 @@
 # PRD 2.0 — Master Ball Advisor (PoChamps Format)
 
 **Project Codename:** `josun1392/my_pochamps_advisor`
-**Version:** 2.0 (v0.9)
+**Version:** 2.0 (v0.10)
 **Last Updated:** 2026-05-06
 **Data Cutoff:** 2026-06-16
 **Document Status:** 🟢 LIVING DOCUMENT
@@ -24,15 +24,15 @@
 9. [Phase 3.5 Specification — Damage Roll & Field Audit (DONE)](#9-phase-35-specification--damage-roll--field-audit-done)
 10. [Phase 3.6 Specification — Critical Hit Sampling (DONE)](#10-phase-36-specification--critical-hit-sampling-done)
 11. [Phase 3.7 Specification — Modifier Precision Layer (DONE)](#11-phase-37-specification--modifier-precision-layer-done)
-12. [Phase 4.0 Specification — PoChamps Localization Layer](#12-phase-40-specification--pochamps-localization-layer)
-13. [Quality Gates / Definition of Done](#13-quality-gates--definition-of-done)
-14. [Re-Entry Protocol — Common Misconceptions](#14-re-entry-protocol--common-misconceptions)
-15. [3-Tier AI Orchestration Model](#15-3-tier-ai-orchestration-model)
-16. [Risks & Open Questions](#16-risks--open-questions)
-17. [Glossary](#17-glossary)
-18. [Appendix A — Q12 Lookup Reference](#18-appendix-a--q12-lookup-reference)
-19. [Version History](#19-version-history)
-20. [Document Control](#20-document-control)
+12. [Phase 4.0 Specification — KO Probability Composer (DONE)](#12-phase-40-specification--ko-probability-composer-done)
+13. [Phase 4.1 Specification — PoChamps Localization Layer](#13-phase-41-specification--pochamps-localization-layer)
+14. [Quality Gates / Definition of Done](#14-quality-gates--definition-of-done)
+15. [Re-Entry Protocol — Common Misconceptions](#15-re-entry-protocol--common-misconceptions)
+16. [3-Tier AI Orchestration Model](#16-3-tier-ai-orchestration-model)
+17. [Risks & Open Questions](#17-risks--open-questions)
+18. [Glossary](#18-glossary)
+19. [Appendix A — Q12 Lookup Reference](#19-appendix-a--q12-lookup-reference)
+20. [Version History](#20-version-history)`r`n21. [Document Control](#21-document-control)
 
 ---
 
@@ -42,8 +42,8 @@ The **Master Ball Advisor** is a desktop battle copilot for the **PoChamps** tou
 
 | Field | Status |
 |---|---|
-| **Current Phase** | 3.7 DONE -> 4.0 NEXT |
-| **Tests Passing** | **518** (518 collected, 0 xfailed) |
+| **Current Phase** | 4.0 DONE |
+| **Tests Passing** | **560** (560 collected, 0 xfailed) |
 | **Engine Math** | Q12 fixed-point (Base 4096), no float |
 | **Parity Reference** | `@smogon/calc` v0.11.0 (`gen789.ts`) |
 | **Architecture** | Path A (stateful) / Path B (pure functional) |
@@ -321,6 +321,7 @@ my_pochamps_advisor/
 | 3.5 | Damage Roll & Field Audit | DONE | **453** |
 | 3.6 | Critical Hit Sampling | DONE | **485** |
 | 3.7 | Modifier Precision Layer | DONE | **518** |
+| 4.0 | KO Probability Composer | DONE | **560** |
 | 4.0 | PoChamps Localization Layer | ⏳ Planned | — |
 | 4.1 | Turn Engine | ⏳ Planned | — |
 | 5.x | Battle AI (Minimax) | ⏳ Planned | — |
@@ -770,9 +771,19 @@ Phase 3.7 closes deterministic modifier precision before Phase 4 KO composition:
 
 ---
 
-## 12. Phase 4.0 Specification — PoChamps Localization Layer
+## 12. Phase 4.0 Specification — KO Probability Composer (DONE)
 
-### 11.1 `advisor/format/pochamps.py`
+**Version:** v0.10.0; **Tests:** 560 collected, 560 passed, 0 xfailed.
+
+Phase 4.0 adds `advisor/probability/`, turning final damage values into exact Fraction KO chances. It covers 16-roll Q12 distributions, one-hit KO chance with optional crit integration, N-hit convolution for turns 1-4, and the public `compute_ko_probability()` API.
+
+Performance gate: N=4 convolution averaged 0.251 ms locally, below the 100 ms abort threshold.
+
+---
+
+## 13. Phase 4.1 Specification — PoChamps Localization Layer
+
+### 13.1 `advisor/format/pochamps.py`
 
 ```python
 def get_paralysis_full_para_rate() -> float: return 0.125
@@ -781,7 +792,7 @@ def get_freeze_thaw_rate()           -> float: return 0.25
 def get_freeze_max_turns()           -> int:   return 3
 ```
 
-### 11.2 FormatProfile System
+### 13.2 FormatProfile System
 
 ```python
 class FormatProfile(Enum):
@@ -791,16 +802,16 @@ class FormatProfile(Enum):
 
 Turn Engine reads the profile at init. **Default = SHOWDOWN** for engine purity (UI can override to POCHAMPS).
 
-### 11.3 `data/pochamps_pp_table.py`
+### 13.3 `data/pochamps_pp_table.py`
 
 PP cap lookup, used by Turn Engine and Battle AI.
 
-### 11.4 Format Isolation Tests
+### 13.4 Format Isolation Tests
 
 - Assert PoChamps overrides differ from Showdown defaults.
 - Assert Damage Engine output is **identical** regardless of profile.
 
-### 11.5 Implementation Layer Map
+### 13.5 Implementation Layer Map
 
 | Override | Engine Layer | Phase |
 |---|---|---|
@@ -810,9 +821,9 @@ PP cap lookup, used by Turn Engine and Battle AI.
 
 ---
 
-## 13. Quality Gates / Definition of Done
+## 14. Quality Gates / Definition of Done
 
-### 13.1 PR-Level DoD
+### 14.1 PR-Level DoD
 
 - [ ] All new tests pass
 - [ ] No regressions in existing test suite
@@ -822,7 +833,7 @@ PP cap lookup, used by Turn Engine and Battle AI.
 - [ ] PR description states test count delta (e.g., "397 → 402")
 - [ ] `xfail` cases (if any) include detailed `reason` with ground-truth references and `strict=True`
 
-### 13.2 Phase-Level DoD
+### 14.2 Phase-Level DoD
 
 - [ ] All sub-milestones complete
 - [ ] PRD updated to reflect new state
@@ -833,11 +844,11 @@ PP cap lookup, used by Turn Engine and Battle AI.
 
 ---
 
-## 14. Re-Entry Protocol — Common Misconceptions
+## 15. Re-Entry Protocol — Common Misconceptions
 
 > 📖 **Read this section first when resuming after a break.**
 
-### 14.1 DO NOT assume:
+### 15.1 DO NOT assume:
 
 | Misconception | Reality |
 |---|---|
@@ -852,7 +863,7 @@ PP cap lookup, used by Turn Engine and Battle AI.
 | "Multihit damage = single_hit × count." | ❌ NO. Each hit is an **independent Q12 roll**, then summed. |
 | "If `@smogon/calc` differs, our engine is wrong." | Not always. Verify against Showdown sim source first (see § 7.3). |
 
-### 14.2 Architectural Boundaries (Quick Reference)
+### 15.2 Architectural Boundaries (Quick Reference)
 
 ```
 Damage Engine (3.x)         = Showdown standard mirror
@@ -860,7 +871,7 @@ advisor/format/pochamps.py  = All PoChamps overrides (4.0)
 Turn Engine (4.1+)          = Imports both, applies profile
 ```
 
-### 14.3 Sanity Checks Before Coding
+### 15.3 Sanity Checks Before Coding
 
 | Question | Layer |
 |---|---|
@@ -872,9 +883,9 @@ Turn Engine (4.1+)          = Imports both, applies profile
 
 ---
 
-## 15. 3-Tier AI Orchestration Model
+## 16. 3-Tier AI Orchestration Model
 
-### 15.1 Roles
+### 16.1 Roles
 
 | Tier | Role | Responsibility |
 |---|---|---|
@@ -882,14 +893,14 @@ Turn Engine (4.1+)          = Imports both, applies profile
 | **T2** | Prompt Engineer / QA Lead (Claude) | Translates T1 requirements into precision prompts for T3, gap analysis, audits architectural integrity |
 | **T3** | Implementer / Code Author (GPT-5.5) | Generates Python code, diffs, unit tests based on Q12 fixed-point standard |
 
-### 15.2 Operating Principles
+### 16.2 Operating Principles
 
 1. **T1 has final authority** on scope and architectural boundaries.
 2. **T2 owns "Verify, Don't Trust"** — every parity discrepancy triggers ground-truth investigation before code changes.
 3. **T3 produces "Diff-Ready Output"** — exact code/markdown/test strings for zero-context-loss handoff.
 4. **"Plan B" (Safety/Investigation) > Quick Merge** when parity divergence appears.
 
-### 15.3 Workflow Pattern
+### 16.3 Workflow Pattern
 
 ```
 T1 (Decision) → T2 (Prompt + Audit) → T3 (Diff-Ready Code) → T1 (Quality Gate)
@@ -899,35 +910,35 @@ T1 (Decision) → T2 (Prompt + Audit) → T3 (Diff-Ready Code) → T1 (Quality G
 
 ---
 
-## 16. Risks & Open Questions
+## 17. Risks & Open Questions
 
-### 16.1 Pipeline Ordering for Weather (RESOLVED)
+### 17.1 Pipeline Ordering for Weather (RESOLVED)
 
 ✅ Verified during Phase 3.3 implementation. Weather modifier insertion point in `formula.py` `chainMods` sequence is correct.
 
-### 16.2 PoChamps Spec Source (OPEN)
+### 17.2 PoChamps Spec Source (OPEN)
 
 Status RNG overrides (12.5% para, 3-turn sleep, 25%/3-turn freeze) and PP caps need a citable source to lock spec before data cutoff (2026-06-16).
 
-### 16.3 Mega Evolution Implementation (DEFERRED)
+### 17.3 Mega Evolution Implementation (DEFERRED)
 
 Mega forms exist in PokeAPI but trigger logic (one-per-team, activation timing) requires Turn Engine state. **Deferred to 4.1.**
 
-### 16.4 Format Profile Default (DECIDED)
+### 17.4 Format Profile Default (DECIDED)
 
 ✅ Default profile = **SHOWDOWN** (engine purity). UI provides override to POCHAMPS.
 
-### 16.5 Multi-hit Probability Distribution (RESOLVED)
+### 17.5 Multi-hit Probability Distribution (RESOLVED)
 
 Probabilistic 2-5 and Population Bomb hit resolution are implemented in PR #3.4-D with seedable `advisor.damage.rng.RNG` tests.
 
-### 16.6 `@smogon/calc` Bridge Divergence (RESOLVED)
+### 17.6 `@smogon/calc` Bridge Divergence (RESOLVED)
 
 Cloud Nine / Neutralizing Gas bridge divergence is resolved in Phase 3.5 by suppressing Cloud Nine / Air Lock only in the local calc bridge when Neutralizing Gas is active.
 
 ---
 
-## 17. Glossary
+## 18. Glossary
 
 | Term | Definition |
 |---|---|
@@ -946,7 +957,7 @@ Cloud Nine / Neutralizing Gas bridge divergence is resolved in Phase 3.5 by supp
 
 ---
 
-## 18. Appendix A — Q12 Lookup Reference
+## 19. Appendix A — Q12 Lookup Reference
 
 | Multiplier | Q12 Value | Common Use |
 |---|---|---|
@@ -962,9 +973,14 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ---
 
-## 19. Version History
+## 20. Version History
 
-### v0.9.0 (current, 2026-05-07)
+### v0.10.0 (current, 2026-05-07)
+
+- Phase 4.0 merged: KO probability composer. 560 collected, 560 passed, 0 xfailed.
+- Added exact Fraction distributions for 16-roll, single-hit crit integration, and 1-4 turn KO convolution.
+
+### v0.9.0 (2026-05-07)
 
 - PR #3.7 merged: modifier precision layer. 518 collected, 518 passed, 0 xfailed. Added Q12 helpers for Sniper, Adaptability, Tinted Lens, defender SE reducers, and Multiscale / Shadow Shield.
 
@@ -1041,7 +1057,7 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ---
 
-## 20. Document Control
+## 21. Document Control
 
 | Field | Value |
 |---|---|
@@ -1054,4 +1070,4 @@ Full table: `docs/Q12_LOOKUP.md`.
 
 ---
 
-*End of PRD 2.0 (v0.9) — Master Ball Advisor*
+*End of PRD 2.0 (v0.10) — Master Ball Advisor*
