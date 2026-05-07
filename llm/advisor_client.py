@@ -1,0 +1,55 @@
+"""Thin LLM advisor client used by UI spikes.
+
+This module keeps PySide UI code from importing the script module directly.
+The underlying quantitative scenario still lives in ``scripts.spike_advisor``
+for the v0.5 spike.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from llm.token_logger import TokenLogger
+from scripts.spike_advisor import (
+    DEFAULT_MODEL,
+    build_prompt,
+    call_gemini,
+    collect_battle_data,
+)
+
+
+def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dict[str, Any]]:
+    """Run the hardcoded v0.5 advisor spike and return recommendation + usage.
+
+    Returns:
+        ``(recommendation_text, usage, session_summary)``.
+    """
+    selected_model = model or DEFAULT_MODEL
+    data = collect_battle_data()
+    prompt = build_prompt(data)
+    recommendation, usage = call_gemini(prompt, selected_model)
+
+    logger = TokenLogger()
+    try:
+        logger.log_call(
+            model=selected_model,
+            input_tokens=usage["input_tokens"],
+            output_tokens=usage["output_tokens"],
+            cached_tokens=usage["cached_tokens"],
+            tool_name="damage_calculator",
+            turn_number=1,
+            game_id="spike_mega_kangaskhan_vs_garchomp",
+        )
+        summary = logger.get_session_summary()
+    except Exception as exc:  # pragma: no cover - defensive UI resilience path
+        summary = {
+            "total_calls": 0,
+            "total_input_tokens": usage.get("input_tokens", 0),
+            "total_output_tokens": usage.get("output_tokens", 0),
+            "total_cached_tokens": usage.get("cached_tokens", 0),
+            "estimated_cost_usd": 0.0,
+            "by_tool": {},
+            "token_logging_error": str(exc),
+        }
+
+    return recommendation, usage, summary

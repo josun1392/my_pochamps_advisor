@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 
-from PySide6.QtCore import Qt
+import requests
+from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -16,10 +17,44 @@ from core.cache_manager import CacheManager
 from core.ko_mapping_loader import KoMappingLoader
 from core.pokemon_repository import PokemonRepository
 from core.search_engine import SearchEngine
+from llm.advisor_client import run_spike_advice
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
+from ui.widgets.llm_advice_panel import LLMAdvicePanel
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
+
+
+class LLMAdviceWorker(QObject):
+    finished = Signal(str, dict)
+    failed = Signal(str)
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            recommendation, usage, summary = run_spike_advice()
+        except requests.Timeout:
+            self.failed.emit("\uC694\uCCAD \uC2DC\uAC04\uC774 \uCD08\uACFC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.")
+            return
+        except RuntimeError as exc:
+            self.failed.emit(self._friendly_runtime_error(str(exc)))
+            return
+        except (KeyError, IndexError, TypeError, ValueError):
+            self.failed.emit("LLM \uC751\uB2F5 \uD615\uC2DD\uC744 \uC77D\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.")
+            return
+        except Exception as exc:  # pragma: no cover - final UI safety net
+            self.failed.emit(f"LLM \uCD94\uCC9C \uC0DD\uC131\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4: {exc}")
+            return
+
+        self.finished.emit(recommendation, {"usage": usage, "summary": summary})
+
+    @staticmethod
+    def _friendly_runtime_error(message: str) -> str:
+        if "GEMINI_API_KEY" in message or "GOOGLE_API_KEY" in message:
+            return "API key\uAC00 \uC124\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4."
+        if "Gemini API returned HTTP" in message:
+            return message.replace("Gemini API returned HTTP", "Gemini API \uC624\uB958: status code", 1)
+        return message
 
 
 class AnalysisColumn(QFrame):
@@ -38,9 +73,11 @@ class AnalysisColumn(QFrame):
 
         self.search_box = PokemonSearchBox(search_engine, available_pokemon_ids)
         self.analysis_panel = AnalysisPanel()
+        self.llm_advice_panel = LLMAdvicePanel()
         layout.addWidget(title_label)
         layout.addWidget(self.search_box)
         layout.addWidget(self.analysis_panel, 1)
+        layout.addWidget(self.llm_advice_panel, 1)
 
     def set_active(self, active: bool) -> None:
         self.is_active = active
@@ -76,6 +113,8 @@ class MainWindow(QMainWindow):
             "team_enemy": None,
         }
         self._active_column_name = "team_my"
+        self._llm_thread: QThread | None = None
+        self._llm_worker: LLMAdviceWorker | None = None
 
         central_widget = QWidget()
         central_widget.setStyleSheet("background-color: #EEF2F6;")
@@ -106,6 +145,7 @@ class MainWindow(QMainWindow):
 
         self._connect_slot_clicks()
         self.center_column.search_box.pokemon_selected.connect(self._on_pokemon_selected)
+        self.center_column.llm_advice_panel.advice_requested.connect(self._start_llm_advice)
         self.shortcuts = GlobalShortcuts(self, self)
         self.set_active_column(self._active_column_name)
 
@@ -162,6 +202,62 @@ class MainWindow(QMainWindow):
 
         slot.set_pokemon(view)
         print(f"포켓몬 바인딩 완료: {view.ko} ({view.en})")
+
+
+    @Slot()
+    def _start_llm_advice(self) -> None:
+        if self._llm_thread is not None:
+            return
+
+        panel = self.center_column.llm_advice_panel
+        panel.set_running(True)
+        self.statusBar().showMessage("Analyzing...")
+
+        self._llm_thread = QThread(self)
+        self._llm_worker = LLMAdviceWorker()
+        self._llm_worker.moveToThread(self._llm_thread)
+
+        self._llm_thread.started.connect(self._llm_worker.run)
+        self._llm_worker.finished.connect(self._on_llm_advice_finished)
+        self._llm_worker.failed.connect(self._on_llm_advice_failed)
+        self._llm_worker.finished.connect(self._llm_thread.quit)
+        self._llm_worker.failed.connect(self._llm_thread.quit)
+        self._llm_thread.finished.connect(self._llm_worker.deleteLater)
+        self._llm_thread.finished.connect(self._cleanup_llm_worker)
+        self._llm_thread.start()
+
+    @Slot(str, dict)
+    def _on_llm_advice_finished(self, recommendation: str, payload: dict) -> None:
+        panel = self.center_column.llm_advice_panel
+        panel.set_running(False)
+        panel.set_advice_text(recommendation)
+
+        usage = payload.get("usage", {})
+        summary = payload.get("summary", {})
+        input_tokens = int(usage.get("input_tokens", 0))
+        output_tokens = int(usage.get("output_tokens", 0))
+        cost = float(summary.get("estimated_cost_usd", 0.0))
+        cost_text = f"input {input_tokens} / output {output_tokens} | ${cost:.7f}"
+        if summary.get("token_logging_error"):
+            status_text = f"Done | {cost_text} | cost logging failed"
+        else:
+            status_text = f"Done | {cost_text}"
+        panel.set_cost_text(f"\uBE44\uC6A9: {cost_text}")
+        self.statusBar().showMessage(status_text)
+
+    @Slot(str)
+    def _on_llm_advice_failed(self, message: str) -> None:
+        panel = self.center_column.llm_advice_panel
+        panel.set_running(False)
+        panel.set_error(message)
+        self.statusBar().showMessage(f"Failed | {message}")
+
+    @Slot()
+    def _cleanup_llm_worker(self) -> None:
+        if self._llm_thread is not None:
+            self._llm_thread.deleteLater()
+        self._llm_thread = None
+        self._llm_worker = None
 
     def _active_slot(self):
         team_column = self._team_column(self._active_column_name)
