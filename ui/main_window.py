@@ -50,7 +50,12 @@ class LLMAdviceWorker(QObject):
 
     @staticmethod
     def _friendly_runtime_error(message: str) -> str:
-        if "GEMINI_API_KEY" in message or "GOOGLE_API_KEY" in message:
+        if (
+            "GEMINI_API_KEY" in message
+            or "GOOGLE_API_KEY" in message
+            or "API_KEY_INVALID" in message
+            or "API Key not found" in message
+        ):
             return "API key\uAC00 \uC124\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4."
         if "Gemini API returned HTTP" in message:
             return message.replace("Gemini API returned HTTP", "Gemini API \uC624\uB958: status code", 1)
