@@ -1,8 +1,8 @@
-# PRD 2.0 — Master Ball Advisor (PoChamps Format)
+# PRD 3.0 — Master Ball Advisor (PoChamps Format)
 
 **Project Codename:** `josun1392/my_pochamps_advisor`
-**Version:** 2.0 (v0.10)
-**Last Updated:** 2026-05-06
+**Version:** 3.0 (v0.4)
+**Last Updated:** 2026-05-07
 **Data Cutoff:** 2026-06-16
 **Document Status:** 🟢 LIVING DOCUMENT
 **Author:** Lead Systems Architect (T1)
@@ -42,8 +42,8 @@ The **Master Ball Advisor** is a desktop battle copilot for the **PoChamps** tou
 
 | Field | Status |
 |---|---|
-| **Current Phase** | 4.0 DONE |
-| **Tests Passing** | **560** (560 collected, 0 xfailed) |
+| **Current Phase** | 5.1 DONE |
+| **Tests Passing** | **613** (615 collected, 2 perf deselected) |
 | **Engine Math** | Q12 fixed-point (Base 4096), no float |
 | **Parity Reference** | `@smogon/calc` v0.11.0 (`gen789.ts`) |
 | **Architecture** | Path A (stateful) / Path B (pure functional) |
@@ -63,7 +63,7 @@ The **Master Ball Advisor** is a desktop battle copilot for the **PoChamps** tou
 ### 2.1 Goals
 
 1. Real-time damage calculation for PoChamps battles with **<50ms** response time.
-2. Move recommendation engine (Phase 5.x Minimax AI) for tournament play.
+2. Move recommendation engine (Phase 5.x LLM Advisor) for tournament play.
 3. Korean-localized UI with full Pokémon name mapping (Phase 2.2 — DONE).
 4. Format-aware: support Showdown standard and PoChamps profiles via switch.
 
@@ -92,7 +92,7 @@ The user is a **Master Ball-tier PoChamps competitor** who demands:
 | **Tests** | pytest | TDD foundation |
 | **Data** | PokeAPI (cached) + manual overrides | Source of truth for species/moves |
 | **Parity** | `@smogon/calc` v0.11.0 bridge | Ground truth for engine assertions |
-| **AI (future)** | Minimax + Alpha-Beta | Phase 5.x |
+| **AI (future)** | LLM Advisor (Gemini Pre-computed Injection) | Phase 5.x |
 
 ### 2.5 PoChamps Format Specification ★ CRITICAL
 
@@ -324,8 +324,37 @@ my_pochamps_advisor/
 | 4.0 | KO Probability Composer | DONE | **560** |
 | 4.0 | PoChamps Localization Layer | ⏳ Planned | — |
 | 4.1 | Turn Engine | ⏳ Planned | — |
-| 5.x | Battle AI (Minimax) | ⏳ Planned | — |
+| 5.x | Battle AI (LLM Advisor) | Pivoted | 613 |
 | 6.x | UI Integration (PySide6) | ⏳ Planned | — |
+
+---
+
+### § 5.x Battle AI: LLM-based Advisor (Pivoted 2026-05-07)
+
+**Strategy**: Pre-computed Injection Pattern
+- Quantitative engine (Q12 damage + KO probability) emits structured JSON
+- LLM (Gemini 3 Flash Preview) consumes JSON, returns verbal recommendation
+- LLM fills gaps the quantitative engine cannot model:
+  * Recoil abilities (Rough Skin, Iron Barbs)
+  * Multi-turn risk moves (Outrage lock-in, Hyper Beam recharge)
+  * Setup tempo / win condition reasoning
+
+**Rationale for Pivot from Minimax**:
+- Project goal is sharing with PoChamps friend circle + personal utility,
+  which prioritizes natural-language explanation over raw move scoring.
+- Spike validated: $0.001 USD/query, 1960 input / 189 output tokens,
+  correctly identified unmodeled risks in Mega Kangaskhan vs Garchomp.
+- Q12 damage engine (613 passing tests) is preserved as the LLM's
+  deterministic input source, not deprecated.
+
+**Cost Model**:
+- Per query: ~$0.001 USD (gemini-3-flash-preview)
+- Tracked via `llm/token_logger.py` (TokenLogger with pricing normalization)
+
+**Components**:
+- `llm/token_logger.py`: cost tracking
+- `scripts/spike_advisor.py`: end-to-end PoC (211 lines)
+- `advisor/damage/*` + `advisor/probability/*`: JSON input source
 
 ---
 
@@ -974,6 +1003,13 @@ Full table: `docs/Q12_LOOKUP.md`.
 ---
 
 ## 20. Version History
+
+### v0.4 (2026-05-07) - PRD v3.0 Pivot Alignment
+
+- Phase 5.1 (bullet seed hot path) marked DONE
+- Test count updated: 560 -> 613
+- § 5.x Battle AI strategy pivoted: Minimax -> LLM Advisor
+- `llm/` track formally integrated into roadmap
 
 ### v0.10.0 (current, 2026-05-07)
 
