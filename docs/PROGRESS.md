@@ -18,14 +18,13 @@
 
 ## Current Position
 
-- **Milestone:** `4.0` Stochastic KO Probability Composer — ✅ **COMPLETE**
-- **HEAD:** `2f342d8`
-- **Tag:** `v0.10.0`
-- **Tests:** 560 passing, 0 failures, 0 xfail
-- **Performance:** N=4 convolution 0.215 ms (budget < 100 ms)
+- **Milestone:** `5.0` Multi-hit Moves & Chip Damage Integration - **COMPLETE**
+- **HEAD:** `fa8501d`
+- **Tag:** `v0.11.0`
+- **Tests:** 602 passing, 0 failures, 0 xfail
+- **Performance:** N=4 multi-hit + chip hard ceiling met; worst measured 17.886 ms
 
 ---
-
 ## Phase 4: COMPLETE
 
 - **Completed:** 2026-05-07
@@ -38,16 +37,29 @@
 
 ---
 
-## Phase 5: IN REVIEW
+## Phase 5: COMPLETE
 
-- **Branch:** `feat/phase-5-multihit-chip`
+- **Completed:** 2026-05-07
+- **Tag:** `v0.11.0`
+- **Merge commit:** `fa8501d`
+- **Tests:** 560 -> 602 (+42), 0 failures, 0 xfail
 - **Scope:** Multi-hit move probability distributions plus deterministic residual chip integration.
 - **Multi-hit:** Tier A 2-5 distribution, Skill Link, Loaded Dice, and Population Bomb Tier C support.
 - **Chip:** Burn, poison, toxic, Leech Seed, Curse, sand/hail/snow, and binding residuals.
 - **Precision:** `Fraction` probability mass throughout; Q12 damage rolls remain integer-only.
-- **Tests:** 560 -> 602 (+42) locally.
 - **Performance:** N=4 multi-hit + chip worst measured 17.886 ms with crit-mixed Bullet Seed; Population Bomb + Loaded Dice measured 3.500 ms. Both remain under the 100 ms hard ceiling.
-- **Next:** Phase 5 review should decide whether the 5 ms soft target requires a follow-up optimization PR before merge.
+
+### Phase 5.1: Performance Optimization Preview
+
+- Optimize default 2-5 hit distribution with crit mixing.
+- Target the Bullet Seed default soft-target exceedance (13-17 ms) while preserving exact `Fraction` output.
+- Keep the 100 ms hard ceiling unchanged.
+
+### Phase 6 Outlook
+
+- Parental Bond interaction modeling.
+- Accuracy and turn-engine interactions for move continuation and chip timing.
+- Broader battle-state integration on top of the Phase 4/5 probability core.
 
 ---
 ## Major Roadmap
