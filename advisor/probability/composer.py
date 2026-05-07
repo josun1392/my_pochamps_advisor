@@ -170,6 +170,32 @@ def compose_turn(
     return apply_residual_damage(after_damage, residuals, turn_index)
 
 
+def _advance_survivor_buckets(
+    survivor_counts: list[int],
+    damage_items: list[tuple[int, int]],
+    suffix_counts: list[int],
+    threshold: int,
+) -> tuple[list[int], int]:
+    """Advance non-KO cumulative damage buckets by one turn.
+
+    The hot path only needs survivor buckets below the KO threshold. Keeping
+    those buckets in a dense integer list avoids Counter key churn while
+    preserving exact integer probability counts.
+    """
+    next_survivors = [0] * threshold
+    ko_count = 0
+    for previous_damage, previous_count in enumerate(survivor_counts):
+        if previous_count == 0:
+            continue
+        remaining = threshold - previous_damage
+        for index, (damage, damage_count) in enumerate(damage_items):
+            if damage >= remaining:
+                ko_count += previous_count * suffix_counts[index]
+                break
+            next_survivors[previous_damage + damage] += previous_count * damage_count
+    return next_survivors, ko_count
+
+
 def compute_ko_probability_with_effects(
     final_damage_q12: int,
     target_hp: int,
@@ -197,7 +223,7 @@ def compute_ko_probability_with_effects(
         move=move,
         attacker=attacker,
     )
-    survivor_damage_counts: Counter[int] = Counter({0: 1})
+    survivor_damage_counts = [1] + [0] * (target_hp - 1)
     cumulative_denominator = 1
     cumulative_chip = 0
     ko_count = 0
@@ -215,15 +241,15 @@ def compute_ko_probability_with_effects(
             ko_count = cumulative_denominator
             survivor_damage_counts = Counter()
         else:
-            next_survivors: Counter[int] = Counter()
             next_ko_count = ko_count * damage_denominator
-            for previous_damage, previous_count in survivor_damage_counts.items():
-                remaining = threshold - previous_damage
-                for index, (damage, damage_count) in enumerate(damage_items):
-                    if damage >= remaining:
-                        next_ko_count += previous_count * suffix_counts[index]
-                        break
-                    next_survivors[previous_damage + damage] += previous_count * damage_count
+            active_survivors = survivor_damage_counts[:threshold]
+            next_survivors, turn_ko_count = _advance_survivor_buckets(
+                active_survivors,
+                damage_items,
+                suffix_counts,
+                threshold,
+            )
+            next_ko_count += turn_ko_count
             ko_count = next_ko_count
             survivor_damage_counts = next_survivors
             by_turn[turn] = Fraction(ko_count, cumulative_denominator)

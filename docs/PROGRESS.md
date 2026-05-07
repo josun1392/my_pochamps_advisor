@@ -49,11 +49,36 @@
 - **Precision:** `Fraction` probability mass throughout; Q12 damage rolls remain integer-only.
 - **Performance:** N=4 multi-hit + chip worst measured 17.886 ms with crit-mixed Bullet Seed; Population Bomb + Loaded Dice measured 3.500 ms. Both remain under the 100 ms hard ceiling.
 
-### Phase 5.1: Performance Optimization Preview
+### Phase 5.1: Performance Optimization Accepted
 
-- Optimize default 2-5 hit distribution with crit mixing.
-- Target the Bullet Seed default soft-target exceedance (13-17 ms) while preserving exact `Fraction` output.
-- Keep the 100 ms hard ceiling unchanged.
+- **Branch:** `feat/phase-5.1-bullet-seed-perf`
+- **Diagnosis:** H2/H4 - missing survivor bucket merge plus convolution loop overhead.
+- **Fix:** Composer survivor state uses dense integer buckets below KO threshold; `Fraction` construction is deferred to the final by-turn probability boundary.
+- **Tests:** 602 default -> 604 with slow (+2), 0 failures, 0 xfail.
+
+| Case | Before | After |
+|---|---:|---:|
+| bullet_seed_default_burn_no_crit | 13.608 ms | 6.137 ms |
+| bullet_seed_default_burn_with_crit | 17.886 ms | 8.861 ms |
+| bullet_seed_loaded_dice_toxic_with_crit | 2.207 ms | 1.161 ms |
+| population_bomb_loaded_dice_poison_with_crit | 3.500 ms | 2.388 ms |
+
+#### Perf Test Strategy
+
+Perf regression tests use the `slow` pytest marker and are excluded from the default test run. This isolation prevents resource contention with 600+ functional tests that otherwise inflate measurements 2.1~2.6x in shared-environment runs.
+
+**Usage:**
+- Default development: `pytest` (602 tests, perf tests excluded)
+- Perf verification: `pytest -m slow` (2 perf tests, clean env)
+- Full coverage: `pytest -m ""` (604 tests, perf may be flaky)
+
+**Threshold:** 15ms median (warmup + 3-run) on the bullet_seed worst case. T3 standalone baseline 8.861ms; threshold provides ~70% headroom for per-machine variance while still catching algorithmic regressions.
+
+**Phase 6 note:** New perf tests (Parental Bond, Accuracy-Turn) should inherit the `slow` marker via module-level `pytestmark`.
+
+Soft target 5ms partially recovered. The with_crit case at 8.86ms is accepted; hard ceiling 100ms maintained with >90% headroom. Deferred deeper optimization (FFT-style convolution) is out of scope until Phase 6 baseline is established.
+
+T1 to record local measurement post-merge for cross-validation.
 
 ### Phase 6 Outlook
 
