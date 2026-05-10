@@ -292,7 +292,11 @@ class MainWindow(QMainWindow):
                 "format_note": "Selected Pokemon identity only; no full battle state.",
                 "known_limitations": [
                     "Move data is not fully connected in v0.6.",
-                    "Items, EV/IV/nature, boosts, weather, terrain, and exact HP are not modeled.",
+                    "Base stats are species reference data, not EVs or final calculated battle stats.",
+                    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.6.",
+                    "Terastallization is banned in PoChamps and must not be considered.",
+                    "Do not assume unprovided EVs, IVs, nature, held items, boosts, weather, terrain, exact HP, move sets, or Tera types.",
+                    "Speed tier, OHKO/2HKO, and survival claims are uncertain unless final stats, items, and damage data are explicitly provided.",
                     "Recommendation is based on selected Pokemon identity and available UI state only.",
                 ],
             },
