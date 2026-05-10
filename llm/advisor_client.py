@@ -7,6 +7,7 @@ for the v0.5 spike.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from llm.token_logger import TokenLogger
@@ -53,3 +54,64 @@ def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dic
         }
 
     return recommendation, usage, summary
+
+
+def run_ui_selected_advice(
+    battle_input: dict[str, Any],
+    model: str | None = None,
+) -> tuple[str, dict[str, int], dict[str, Any]]:
+    """Run the v0.6 UI-selected Pokemon advisor flow.
+
+    The caller passes plain dictionaries collected from UI state. This function
+    owns prompt construction, Gemini invocation, and token logging.
+    """
+    selected_model = model or DEFAULT_MODEL
+    prompt = _build_ui_selected_prompt(battle_input)
+    recommendation, usage = call_gemini(prompt, selected_model)
+    summary = _log_advisor_call(
+        model=selected_model,
+        usage=usage,
+        game_id="ui_selected_pokemon_v0_6",
+    )
+    return recommendation, usage, summary
+
+
+def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
+    return (
+        "You are Master Ball Advisor. Recommend the best one-turn action using "
+        "only the selected Pokemon identity and UI state below. Be concise, "
+        "name the recommended direction, mention the main limitation in the "
+        "data, and note what information is missing before making a confident "
+        "damage-based call.\n\n"
+        f"{json.dumps(battle_input, ensure_ascii=False, indent=2)}"
+    )
+
+
+def _log_advisor_call(
+    *,
+    model: str,
+    usage: dict[str, int],
+    game_id: str,
+) -> dict[str, Any]:
+    logger = TokenLogger()
+    try:
+        logger.log_call(
+            model=model,
+            input_tokens=usage["input_tokens"],
+            output_tokens=usage["output_tokens"],
+            cached_tokens=usage["cached_tokens"],
+            tool_name="damage_calculator",
+            turn_number=1,
+            game_id=game_id,
+        )
+        return logger.get_session_summary()
+    except Exception as exc:  # pragma: no cover - defensive UI resilience path
+        return {
+            "total_calls": 0,
+            "total_input_tokens": usage.get("input_tokens", 0),
+            "total_output_tokens": usage.get("output_tokens", 0),
+            "total_cached_tokens": usage.get("cached_tokens", 0),
+            "estimated_cost_usd": 0.0,
+            "by_tool": {},
+            "token_logging_error": str(exc),
+        }

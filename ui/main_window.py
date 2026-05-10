@@ -17,7 +17,7 @@ from core.cache_manager import CacheManager
 from core.ko_mapping_loader import KoMappingLoader
 from core.pokemon_repository import PokemonRepository
 from core.search_engine import SearchEngine
-from llm.advisor_client import run_spike_advice
+from llm.advisor_client import run_ui_selected_advice
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
@@ -29,10 +29,14 @@ class LLMAdviceWorker(QObject):
     finished = Signal(str, dict)
     failed = Signal(str)
 
+    def __init__(self, battle_input: dict) -> None:
+        super().__init__()
+        self._battle_input = battle_input
+
     @Slot()
     def run(self) -> None:
         try:
-            recommendation, usage, summary = run_spike_advice()
+            recommendation, usage, summary = run_ui_selected_advice(self._battle_input)
         except requests.Timeout:
             self.failed.emit("\uC694\uCCAD \uC2DC\uAC04\uC774 \uCD08\uACFC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.")
             return
@@ -115,7 +119,7 @@ class MainWindow(QMainWindow):
 
         self.selected_slots = {
             "team_my": 0,
-            "team_enemy": None,
+            "team_enemy": 0,
         }
         self._active_column_name = "team_my"
         self._llm_thread: QThread | None = None
@@ -131,7 +135,7 @@ class MainWindow(QMainWindow):
 
         self.my_team_column = PokemonTeamColumn("내 팀", selectable=True)
         self.center_column = AnalysisColumn(self.search_engine, self._cached_pokemon_names())
-        self.opponent_team_column = PokemonTeamColumn("상대 팀", selectable=False)
+        self.opponent_team_column = PokemonTeamColumn("상대 팀", selectable=True)
         self.columns = {
             "team_my": self.my_team_column,
             "analysis": self.center_column,
@@ -215,11 +219,19 @@ class MainWindow(QMainWindow):
             return
 
         panel = self.center_column.llm_advice_panel
+        try:
+            battle_input = self._build_llm_battle_input()
+        except ValueError as exc:
+            message = str(exc)
+            panel.set_error(message)
+            self.statusBar().showMessage(f"Failed | {message}")
+            return
+
         panel.set_running(True)
         self.statusBar().showMessage("Analyzing...")
 
         self._llm_thread = QThread(self)
-        self._llm_worker = LLMAdviceWorker()
+        self._llm_worker = LLMAdviceWorker(battle_input)
         self._llm_worker.moveToThread(self._llm_thread)
 
         self._llm_thread.started.connect(self._llm_worker.run)
@@ -263,6 +275,58 @@ class MainWindow(QMainWindow):
             self._llm_thread.deleteLater()
         self._llm_thread = None
         self._llm_worker = None
+
+    def _build_llm_battle_input(self) -> dict:
+        my_slot_index = self.selected_slots.get("team_my")
+        opponent_slot_index = self.selected_slots.get("team_enemy")
+        if my_slot_index is None:
+            raise ValueError("\uB0B4 \uD3EC\uCF13\uBAAC\uC744 \uBA3C\uC800 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.")
+        if opponent_slot_index is None:
+            raise ValueError("\uC0C1\uB300 \uD3EC\uCF13\uBAAC\uC744 \uBA3C\uC800 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.")
+
+        my_panel = self._slot_panel("team_my", my_slot_index)
+        opponent_panel = self._slot_panel("team_enemy", opponent_slot_index)
+        return {
+            "scenario": {
+                "mode": "ui-selected-pokemon-v0.6",
+                "format_note": "Selected Pokemon identity only; no full battle state.",
+                "known_limitations": [
+                    "Move data is not fully connected in v0.6.",
+                    "Items, EV/IV/nature, boosts, weather, terrain, and exact HP are not modeled.",
+                    "Recommendation is based on selected Pokemon identity and available UI state only.",
+                ],
+            },
+            "pokemon": {
+                "my_active": self._panel_to_llm_payload(my_panel, my_slot_index),
+                "opponent_active": self._panel_to_llm_payload(opponent_panel, opponent_slot_index),
+            },
+        }
+
+    def _slot_panel(self, column_name: str, slot_index: int):
+        team_column = self._team_column(column_name)
+        if team_column is None or not 0 <= slot_index < len(team_column.panels):
+            raise ValueError("\uC120\uD0DD\uB41C \uD3EC\uCF13\uBAAC \uC815\uBCF4\uB97C \uC77D\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.")
+        return team_column.panels[slot_index]
+
+    @staticmethod
+    def _panel_to_llm_payload(panel, slot_index: int) -> dict:
+        view = getattr(panel, "pokemon_view", None)
+        if view is None:
+            raise ValueError("\uC120\uD0DD\uB41C \uD3EC\uCF13\uBAAC \uC815\uBCF4\uB97C \uC77D\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.")
+        if not view.types_en or not view.base_stats:
+            raise ValueError("\uD3EC\uCF13\uBAAC \uAE30\uBCF8 \uC815\uBCF4\uAC00 \uBD80\uC871\uD569\uB2C8\uB2E4.")
+        return {
+            "slot_index": slot_index,
+            "name_en": view.en,
+            "name_ko": view.ko,
+            "types": list(view.types_en),
+            "types_ko": list(view.types_ko),
+            "base_stats": dict(view.base_stats),
+            "abilities": list(view.abilities_en),
+            "abilities_ko": list(view.abilities_ko),
+            "hp_percent": panel.current_hp_percent,
+            "selected_move_index": panel.selected_move_index,
+        }
 
     def _active_slot(self):
         team_column = self._team_column(self._active_column_name)

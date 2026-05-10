@@ -29,6 +29,7 @@ class PokemonPanel(QFrame):
         self.setObjectName("slotFrame")
         self.slot_number = slot_number
         self.is_selected = False
+        self.pokemon_view: PokemonView | None = None
         self._current_hp = 100
         self.selected_move_index: int | None = None
         self.move_buttons: list[QPushButton] = []
@@ -141,6 +142,7 @@ class PokemonPanel(QFrame):
         super().mousePressEvent(event)
 
     def set_pokemon(self, view: PokemonView) -> None:
+        self.pokemon_view = view
         self.name_label.setText(view.ko)
         stats = view.base_stats
         self.detail_label.setText(
@@ -155,11 +157,16 @@ class PokemonPanel(QFrame):
                 badge.hide()
 
     def clear_pokemon(self) -> None:
+        self.pokemon_view = None
         self.name_label.setText(f"포켓몬 #{self.slot_number}")
         self.detail_label.setText("타입 / 스탯 대기")
         for badge in self.type_badges:
             badge.clear()
             badge.hide()
+
+    @property
+    def current_hp_percent(self) -> int:
+        return self._current_hp
 
     def set_hp(self, value: int) -> None:
         value = max(0, min(100, value))
