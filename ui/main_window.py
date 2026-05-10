@@ -288,12 +288,16 @@ class MainWindow(QMainWindow):
         opponent_panel = self._slot_panel("team_enemy", opponent_slot_index)
         return {
             "scenario": {
-                "mode": "ui-selected-pokemon-v0.6",
+                "mode": "ui-selected-pokemon-v0.7",
                 "format_note": "Selected Pokemon identity only; no full battle state.",
                 "known_limitations": [
-                    "Move data is not fully connected in v0.6.",
+                    "Move buttons are placeholders in v0.7.",
+                    "selected_move_index is a UI slot index only, not a move id.",
+                    "Actual four-move moveset is not connected yet.",
+                    "Do not infer exact move names, damage, OHKO/2HKO, or KO chance from selected_move_index.",
+                    "If move data is incomplete, do not infer exact damage or KO chances.",
                     "Base stats are species reference data, not EVs or final calculated battle stats.",
-                    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.6.",
+                    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.7.",
                     "Terastallization is banned in PoChamps and must not be considered.",
                     "Do not assume unprovided EVs, IVs, nature, held items, boosts, weather, terrain, exact HP, move sets, or Tera types.",
                     "Speed tier, OHKO/2HKO, and survival claims are uncertain unless final stats, items, and damage data are explicitly provided.",
@@ -303,6 +307,19 @@ class MainWindow(QMainWindow):
             "pokemon": {
                 "my_active": self._panel_to_llm_payload(my_panel, my_slot_index),
                 "opponent_active": self._panel_to_llm_payload(opponent_panel, opponent_slot_index),
+            },
+            "moves": {
+                "my_selected_move_index": my_panel.selected_move_index,
+                "opponent_selected_move_index": opponent_panel.selected_move_index,
+                "my_available_moves": [],
+                "opponent_available_moves": [],
+                "move_data_status": "not_connected_in_v0.7",
+                "notes": [
+                    "Move buttons are placeholders in v0.7.",
+                    "selected_move_index is a UI slot index only, not a move id.",
+                    "Actual four-move moveset is not connected yet.",
+                    "Cache learnsets are intentionally not treated as battle movesets.",
+                ],
             },
         }
 
