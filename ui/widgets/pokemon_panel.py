@@ -18,11 +18,13 @@ from PySide6.QtWidgets import (
 from ui.widgets.fast_buttons import FastButtonGroup
 
 if TYPE_CHECKING:
+    from core.move_repository import MoveView
     from core.pokemon_repository import PokemonView
 
 
 class PokemonPanel(QFrame):
     slot_clicked = Signal(int)
+    move_slot_selected = Signal(int)
 
     def __init__(self, slot_number: int, is_active: bool = False) -> None:
         super().__init__()
@@ -32,6 +34,7 @@ class PokemonPanel(QFrame):
         self.pokemon_view: PokemonView | None = None
         self._current_hp = 100
         self.selected_move_index: int | None = None
+        self.selected_moves: list[MoveView | None] = [None, None, None, None]
         self.move_buttons: list[QPushButton] = []
 
         self.setFixedHeight(108)
@@ -143,6 +146,8 @@ class PokemonPanel(QFrame):
 
     def set_pokemon(self, view: PokemonView) -> None:
         self.pokemon_view = view
+        self.selected_move_index = None
+        self.selected_moves = [None, None, None, None]
         self.name_label.setText(view.ko)
         stats = view.base_stats
         self.detail_label.setText(
@@ -156,13 +161,18 @@ class PokemonPanel(QFrame):
             else:
                 badge.hide()
 
+        self._reset_move_buttons()
+
     def clear_pokemon(self) -> None:
         self.pokemon_view = None
+        self.selected_move_index = None
+        self.selected_moves = [None, None, None, None]
         self.name_label.setText(f"포켓몬 #{self.slot_number}")
         self.detail_label.setText("타입 / 스탯 대기")
         for badge in self.type_badges:
             badge.clear()
             badge.hide()
+        self._reset_move_buttons()
 
     @property
     def current_hp_percent(self) -> int:
@@ -204,7 +214,20 @@ class PokemonPanel(QFrame):
         self.selected_move_index = move_index
         for index, button in enumerate(self.move_buttons):
             button.setStyleSheet(self._move_style(active=index == move_index))
+        self.move_slot_selected.emit(move_index)
         print(f"기술 선택: 포켓몬 {self.slot_number}번 / {move_index + 1}번 기술")
+
+    def set_move(self, move_index: int, move: MoveView) -> None:
+        if not 0 <= move_index < len(self.selected_moves):
+            return
+        self.selected_moves[move_index] = move
+        self.move_buttons[move_index].setText(move.name_ko or move.name_en)
+        self.select_move(move_index)
+
+    def _reset_move_buttons(self) -> None:
+        for index, (key, button) in enumerate(zip(("Q", "W", "E", "R"), self.move_buttons)):
+            button.setText(f"{key} 湲곗닠 {index + 1}")
+            button.setStyleSheet(self._move_style(active=False))
 
     @staticmethod
     def _move_style(active: bool) -> str:

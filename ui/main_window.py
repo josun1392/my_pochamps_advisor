@@ -15,12 +15,14 @@ from PySide6.QtWidgets import (
 
 from core.cache_manager import CacheManager
 from core.ko_mapping_loader import KoMappingLoader
+from core.move_repository import MoveRepository, MoveView
 from core.pokemon_repository import PokemonRepository
 from core.search_engine import SearchEngine
 from llm.advisor_client import run_ui_selected_advice
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
+from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
 
@@ -67,7 +69,12 @@ class LLMAdviceWorker(QObject):
 
 
 class AnalysisColumn(QFrame):
-    def __init__(self, search_engine: SearchEngine, available_pokemon_ids: set[str]) -> None:
+    def __init__(
+        self,
+        search_engine: SearchEngine,
+        available_pokemon_ids: set[str],
+        move_repository: MoveRepository,
+    ) -> None:
         super().__init__()
         self.setObjectName("columnFrame")
         self.is_active = False
@@ -81,10 +88,12 @@ class AnalysisColumn(QFrame):
         title_label.setStyleSheet("font-size: 18px; font-weight: 800; color: #17202A;")
 
         self.search_box = PokemonSearchBox(search_engine, available_pokemon_ids)
+        self.move_search_box = MoveSearchBox(search_engine, move_repository)
         self.analysis_panel = AnalysisPanel()
         self.llm_advice_panel = LLMAdvicePanel()
         layout.addWidget(title_label)
         layout.addWidget(self.search_box)
+        layout.addWidget(self.move_search_box)
         layout.addWidget(self.analysis_panel, 1)
         layout.addWidget(self.llm_advice_panel, 1)
 
@@ -116,6 +125,7 @@ class MainWindow(QMainWindow):
         self.ko_loader = KoMappingLoader()
         self.search_engine = SearchEngine(self.ko_loader)
         self.repo = PokemonRepository(self.cache, self.ko_loader)
+        self.move_repo = MoveRepository(self.cache, self.ko_loader)
 
         self.selected_slots = {
             "team_my": 0,
@@ -134,7 +144,11 @@ class MainWindow(QMainWindow):
         layout.setSpacing(10)
 
         self.my_team_column = PokemonTeamColumn("내 팀", selectable=True)
-        self.center_column = AnalysisColumn(self.search_engine, self._cached_pokemon_names())
+        self.center_column = AnalysisColumn(
+            self.search_engine,
+            self._cached_pokemon_names(),
+            self.move_repo,
+        )
         self.opponent_team_column = PokemonTeamColumn("상대 팀", selectable=True)
         self.columns = {
             "team_my": self.my_team_column,
@@ -154,6 +168,7 @@ class MainWindow(QMainWindow):
 
         self._connect_slot_clicks()
         self.center_column.search_box.pokemon_selected.connect(self._on_pokemon_selected)
+        self.center_column.move_search_box.move_selected.connect(self._on_move_selected)
         self.center_column.llm_advice_panel.advice_requested.connect(self._start_llm_advice)
         self.shortcuts = GlobalShortcuts(self, self)
         self.set_active_column(self._active_column_name)
@@ -168,6 +183,7 @@ class MainWindow(QMainWindow):
     def select_current_move(self, move_index: int) -> None:
         current_panel = self.my_team_column.panels[self.selected_slots["team_my"] or 0]
         current_panel.select_move(move_index)
+        self._sync_move_search_candidates()
 
     def focus_next_column(self) -> None:
         current_index = self._column_names.index(self._active_column_name)
@@ -196,6 +212,7 @@ class MainWindow(QMainWindow):
         self.set_active_column(column_name)
         for index, panel in enumerate(team_column.panels):
             panel.set_selected(index == slot_index)
+        self._sync_move_search_candidates()
 
     def _on_pokemon_selected(self, en_id: str) -> None:
         slot = self._active_slot()
@@ -210,8 +227,18 @@ class MainWindow(QMainWindow):
             return
 
         slot.set_pokemon(view)
+        self._sync_move_search_candidates()
         print(f"포켓몬 바인딩 완료: {view.ko} ({view.en})")
 
+
+    @Slot(object)
+    def _on_move_selected(self, move: MoveView) -> None:
+        slot = self._active_slot()
+        if slot is None or slot.selected_move_index is None:
+            self.statusBar().showMessage("Failed | Select a move slot first.")
+            return
+        slot.set_move(slot.selected_move_index, move)
+        self.statusBar().showMessage(f"Move set | {move.name_ko or move.name_en}")
 
     @Slot()
     def _start_llm_advice(self) -> None:
@@ -288,16 +315,16 @@ class MainWindow(QMainWindow):
         opponent_panel = self._slot_panel("team_enemy", opponent_slot_index)
         return {
             "scenario": {
-                "mode": "ui-selected-pokemon-v0.7",
+                "mode": "ui-selected-pokemon-v0.8",
                 "format_note": "Selected Pokemon identity only; no full battle state.",
                 "known_limitations": [
-                    "Move buttons are placeholders in v0.7.",
-                    "selected_move_index is a UI slot index only, not a move id.",
-                    "Actual four-move moveset is not connected yet.",
-                    "Do not infer exact move names, damage, OHKO/2HKO, or KO chance from selected_move_index.",
-                    "If move data is incomplete, do not infer exact damage or KO chances.",
+                    "Only user-selected moves are included in the payload.",
+                    "Empty move slots are omitted.",
+                    "Move data is metadata only; damage calculation is not connected in v0.8.",
+                    "Do not infer damage, OHKO/2HKO, or KO chance unless damage data is explicitly provided.",
+                    "Opponent moves may be missing in v0.8.",
                     "Base stats are species reference data, not EVs or final calculated battle stats.",
-                    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.7.",
+                    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.8.",
                     "Terastallization is banned in PoChamps and must not be considered.",
                     "Do not assume unprovided EVs, IVs, nature, held items, boosts, weather, terrain, exact HP, move sets, or Tera types.",
                     "Speed tier, OHKO/2HKO, and survival claims are uncertain unless final stats, items, and damage data are explicitly provided.",
@@ -310,18 +337,38 @@ class MainWindow(QMainWindow):
             },
             "moves": {
                 "my_selected_move_index": my_panel.selected_move_index,
-                "opponent_selected_move_index": opponent_panel.selected_move_index,
-                "my_available_moves": [],
+                "my_available_moves": self._panel_moves_payload(my_panel),
+                "my_selected_move": self._selected_move_payload(my_panel),
                 "opponent_available_moves": [],
-                "move_data_status": "not_connected_in_v0.7",
+                "opponent_selected_move": None,
+                "opponent_selected_move_index": opponent_panel.selected_move_index,
+                "move_data_status": "user_selected_partial_v0.8",
                 "notes": [
-                    "Move buttons are placeholders in v0.7.",
-                    "selected_move_index is a UI slot index only, not a move id.",
-                    "Actual four-move moveset is not connected yet.",
-                    "Cache learnsets are intentionally not treated as battle movesets.",
+                    "Only user-confirmed move slots are included.",
+                    "Empty move slots are omitted.",
+                    "Cache learnsets are used only as search candidates.",
+                    "Damage calculation is not connected in v0.8.",
                 ],
             },
         }
+
+    @staticmethod
+    def _panel_moves_payload(panel) -> list[dict]:
+        moves = []
+        for index, move in enumerate(panel.selected_moves):
+            if move is not None:
+                moves.append(_move_payload(move, index))
+        return moves
+
+    @staticmethod
+    def _selected_move_payload(panel) -> dict | None:
+        index = panel.selected_move_index
+        if index is None or not 0 <= index < len(panel.selected_moves):
+            return None
+        move = panel.selected_moves[index]
+        if move is None:
+            return None
+        return _move_payload(move, index)
 
     def _slot_panel(self, column_name: str, slot_index: int):
         team_column = self._team_column(column_name)
@@ -368,10 +415,31 @@ class MainWindow(QMainWindow):
             ("team_my", self.my_team_column),
             ("team_enemy", self.opponent_team_column),
         ):
-            for panel in team_column.panels:
+            for slot_index, panel in enumerate(team_column.panels):
                 panel.slot_clicked.connect(
                     lambda slot_index, name=column_name: self.select_slot(name, slot_index)
                 )
+                panel.move_slot_selected.connect(
+                    lambda move_index, name=column_name, slot=slot_index: self._on_move_slot_selected(
+                        name,
+                        slot,
+                        move_index,
+                    )
+                )
+
+    @Slot(str, int, int)
+    def _on_move_slot_selected(self, column_name: str, slot_index: int, move_index: int) -> None:
+        del move_index
+        self.select_slot(column_name, slot_index)
+        self._sync_move_search_candidates()
+
+    def _sync_move_search_candidates(self) -> None:
+        slot = self._active_slot()
+        view = getattr(slot, "pokemon_view", None) if slot is not None else None
+        if view is None:
+            self.center_column.move_search_box.set_available_move_ids(set())
+            return
+        self.center_column.move_search_box.set_available_move_ids(set(view.moves_en))
 
     def _cached_pokemon_names(self) -> set[str]:
         names: set[str] = set()
@@ -386,3 +454,17 @@ class MainWindow(QMainWindow):
             if isinstance(name, str):
                 names.add(name)
         return names
+
+
+def _move_payload(move: MoveView, slot_index: int) -> dict:
+    return {
+        "slot": slot_index,
+        "move_id": move.move_id,
+        "name_en": move.name_en,
+        "name_ko": move.name_ko,
+        "type": move.type,
+        "category": move.category,
+        "power": move.power,
+        "accuracy": move.accuracy,
+        "pp": move.pp,
+    }

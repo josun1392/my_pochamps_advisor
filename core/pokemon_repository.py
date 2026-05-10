@@ -19,6 +19,7 @@ class PokemonView:
     base_stats: dict[str, int]
     abilities_en: list[str]
     abilities_ko: list[str]
+    moves_en: list[str]
 
 
 class PokemonRepository:
@@ -59,6 +60,7 @@ class PokemonRepository:
                 self.ko_loader.get_ability_ko(ability_name) or ability_name
                 for ability_name in abilities_en
             ],
+            moves_en=_string_list(data.get("moves")),
         )
 
 
