@@ -289,3 +289,45 @@ Completed: 2026-05-08
 - Existing validation remains: `613 passed, 2 deselected`.
 
 Status: v0.5.2 success path verified. Ready for the next UI integration slice.
+
+---
+
+## v0.8.1 — Manual move payload verification attempt
+
+Completed: 2026-05-14
+
+Purpose:
+- Attempt to verify the v0.8 manual move selection path from UI-selected Pokemon state to the LLM payload and Gemini response.
+- Record the verified payload behavior separately from the blocked Gemini success path.
+- Preserve the existing pytest baseline.
+
+Partial verification succeeded:
+- Manual move selection path exercised with Charizard vs Garchomp and slot 1 set to Flamethrower.
+- Confirmed the selected move button text updates to `화염방사`.
+- Confirmed `moves.my_available_moves` includes only the user-selected Flamethrower move.
+- Confirmed empty move slots are omitted from `moves.my_available_moves`.
+- Confirmed `moves.my_selected_move` matches `moves.my_selected_move_index == 0`.
+- Confirmed `moves.move_data_status` is `user_selected_partial_v0.8`.
+- Confirmed cache learnsets are not included in the LLM payload.
+- Confirmed `moves.opponent_available_moves` remains empty in v0.8.
+- Confirmed the UI running state sets the request button disabled, recommendation text to `분석 중...`, and status bar to `Analyzing...`.
+- Confirmed the UI recovers after a failed Gemini call by re-enabling the request button and showing the fallback error label.
+
+Blocked / not verified:
+- `GEMINI_API_KEY` was present in the Codex environment; `GOOGLE_API_KEY` was not present.
+- The Gemini endpoint returned HTTP 400 `INVALID_ARGUMENT` in this environment.
+- Gemini success response was not verified.
+- LLM response quality was not evaluated.
+- The success status bar path `Done | input N / output N | $...` was not verified in this run.
+- No API key value was printed, saved, or committed.
+
+Tests:
+- `uv run pytest -q`
+- Result: 613 passed, 2 deselected.
+
+Remaining limitations:
+- A valid T1 local Gemini run is still needed to verify the v0.8.1 success response path.
+- Opponent moves are not connected yet.
+- Damage/OHKO/2HKO/KO chance are not connected yet.
+- EV/IV/nature/item/final stats are not connected yet.
+- LLM response quality for the v0.8 selected-move payload remains unjudged because the Gemini call did not succeed.
