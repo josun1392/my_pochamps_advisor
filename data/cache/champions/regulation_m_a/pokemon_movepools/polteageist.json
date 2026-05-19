@@ -1,0 +1,680 @@
+{
+  "pokemon_id": "polteageist",
+  "format": "pokemon_champions",
+  "regulation": "M-A",
+  "source_kind": "pokemon_movepool",
+  "source_table": "Standard Moves",
+  "moves": [
+    {
+      "move_id": "ally-switch",
+      "name_en": "Ally Switch",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "aromatic-mist",
+      "name_en": "Aromatic Mist",
+      "type": "fairy",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "baton-pass",
+      "name_en": "Baton Pass",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "calm-mind",
+      "name_en": "Calm Mind",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "confuse-ray",
+      "name_en": "Confuse Ray",
+      "type": "ghost",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "curse",
+      "name_en": "Curse",
+      "type": "ghost",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "dark-pulse",
+      "name_en": "Dark Pulse",
+      "type": "dark",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "endure",
+      "name_en": "Endure",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "facade",
+      "name_en": "Facade",
+      "type": "normal",
+      "category": "physical",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "foul-play",
+      "name_en": "Foul Play",
+      "type": "dark",
+      "category": "physical",
+      "power": 95,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "giga-drain",
+      "name_en": "Giga Drain",
+      "type": "grass",
+      "category": "special",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "giga-impact",
+      "name_en": "Giga Impact",
+      "type": "normal",
+      "category": "physical",
+      "power": 150,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "hex",
+      "name_en": "Hex",
+      "type": "ghost",
+      "category": "special",
+      "power": 65,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "hyper-beam",
+      "name_en": "Hyper Beam",
+      "type": "normal",
+      "category": "special",
+      "power": 150,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "imprison",
+      "name_en": "Imprison",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "light-screen",
+      "name_en": "Light Screen",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "memento",
+      "name_en": "Memento",
+      "type": "dark",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "nasty-plot",
+      "name_en": "Nasty Plot",
+      "type": "dark",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "night-shade",
+      "name_en": "Night Shade",
+      "type": "ghost",
+      "category": "special",
+      "power": null,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "pain-split",
+      "name_en": "Pain Split",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "payback",
+      "name_en": "Payback",
+      "type": "dark",
+      "category": "physical",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "phantom-force",
+      "name_en": "Phantom Force",
+      "type": "ghost",
+      "category": "physical",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "poltergeist",
+      "name_en": "Poltergeist",
+      "type": "ghost",
+      "category": "physical",
+      "power": 110,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "protect",
+      "name_en": "Protect",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "psychic",
+      "name_en": "Psychic",
+      "type": "psychic",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "psyshock",
+      "name_en": "Psyshock",
+      "type": "psychic",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "reflect",
+      "name_en": "Reflect",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rest",
+      "name_en": "Rest",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "round",
+      "name_en": "Round",
+      "type": "normal",
+      "category": "special",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "self-destruct",
+      "name_en": "Self-Destruct",
+      "type": "normal",
+      "category": "physical",
+      "power": 200,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "shadow-ball",
+      "name_en": "Shadow Ball",
+      "type": "ghost",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "shell-smash",
+      "name_en": "Shell Smash",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "skill-swap",
+      "name_en": "Skill Swap",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sleep-talk",
+      "name_en": "Sleep Talk",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "snore",
+      "name_en": "Snore",
+      "type": "normal",
+      "category": "special",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "spite",
+      "name_en": "Spite",
+      "type": "ghost",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "stored-power",
+      "name_en": "Stored Power",
+      "type": "psychic",
+      "category": "special",
+      "power": 20,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "strength-sap",
+      "name_en": "Strength Sap",
+      "type": "grass",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "substitute",
+      "name_en": "Substitute",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sucker-punch",
+      "name_en": "Sucker Punch",
+      "type": "dark",
+      "category": "physical",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sweet-scent",
+      "name_en": "Sweet Scent",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "teatime",
+      "name_en": "Teatime",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "trick",
+      "name_en": "Trick",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "trick-room",
+      "name_en": "Trick Room",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "will-o-wisp",
+      "name_en": "Will-O-Wisp",
+      "type": "fire",
+      "category": "status",
+      "power": null,
+      "accuracy": 85,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "wonder-room",
+      "name_en": "Wonder Room",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    }
+  ],
+  "excluded_moves": [
+    {
+      "move_id": "tera-blast",
+      "reason": "globally_denied_in_champions_override",
+      "source_refs": [
+        "champions_move_overrides"
+      ]
+    }
+  ],
+  "fetched_at": "2026-05-19T11:33:50+00:00",
+  "source_refs": {
+    "primary": [
+      {
+        "source": "serebii",
+        "url": "https://www.serebii.net/pokedex-champions/polteageist/",
+        "table": "Standard Moves"
+      }
+    ],
+    "metadata": [
+      "pokeapi"
+    ]
+  },
+  "notes": [
+    "Serebii Champions Pokédex is used as the legality source.",
+    "PokeAPI pokemon learnset is not used as a Champions legality source.",
+    "PokeAPI move cache is used only for move metadata."
+  ]
+}

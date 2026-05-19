@@ -1,0 +1,680 @@
+{
+  "pokemon_id": "glimmora",
+  "format": "pokemon_champions",
+  "regulation": "M-A",
+  "source_kind": "pokemon_movepool",
+  "source_table": "Standard Moves",
+  "moves": [
+    {
+      "move_id": "acid-armor",
+      "name_en": "Acid Armor",
+      "type": "poison",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "acid-spray",
+      "name_en": "Acid Spray",
+      "type": "poison",
+      "category": "special",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "ancient-power",
+      "name_en": "Ancient Power",
+      "type": "rock",
+      "category": "special",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "confuse-ray",
+      "name_en": "Confuse Ray",
+      "type": "ghost",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "dazzling-gleam",
+      "name_en": "Dazzling Gleam",
+      "type": "fairy",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "earth-power",
+      "name_en": "Earth Power",
+      "type": "ground",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "endure",
+      "name_en": "Endure",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "energy-ball",
+      "name_en": "Energy Ball",
+      "type": "grass",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "explosion",
+      "name_en": "Explosion",
+      "type": "normal",
+      "category": "physical",
+      "power": 250,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "facade",
+      "name_en": "Facade",
+      "type": "normal",
+      "category": "physical",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "flash-cannon",
+      "name_en": "Flash Cannon",
+      "type": "steel",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "giga-impact",
+      "name_en": "Giga Impact",
+      "type": "normal",
+      "category": "physical",
+      "power": 150,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "gunk-shot",
+      "name_en": "Gunk Shot",
+      "type": "poison",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 80,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "hyper-beam",
+      "name_en": "Hyper Beam",
+      "type": "normal",
+      "category": "special",
+      "power": 150,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "iron-defense",
+      "name_en": "Iron Defense",
+      "type": "steel",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "light-screen",
+      "name_en": "Light Screen",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "memento",
+      "name_en": "Memento",
+      "type": "dark",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "meteor-beam",
+      "name_en": "Meteor Beam",
+      "type": "rock",
+      "category": "special",
+      "power": 120,
+      "accuracy": 90,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "mortal-spin",
+      "name_en": "Mortal Spin",
+      "type": "poison",
+      "category": "physical",
+      "power": 30,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "mud-shot",
+      "name_en": "Mud Shot",
+      "type": "ground",
+      "category": "special",
+      "power": 55,
+      "accuracy": 95,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "power-gem",
+      "name_en": "Power Gem",
+      "type": "rock",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "protect",
+      "name_en": "Protect",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rain-dance",
+      "name_en": "Rain Dance",
+      "type": "water",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "reflect",
+      "name_en": "Reflect",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rest",
+      "name_en": "Rest",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rock-blast",
+      "name_en": "Rock Blast",
+      "type": "rock",
+      "category": "physical",
+      "power": 25,
+      "accuracy": 90,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rock-polish",
+      "name_en": "Rock Polish",
+      "type": "rock",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rock-slide",
+      "name_en": "Rock Slide",
+      "type": "rock",
+      "category": "physical",
+      "power": 75,
+      "accuracy": 90,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rock-tomb",
+      "name_en": "Rock Tomb",
+      "type": "rock",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 95,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sand-tomb",
+      "name_en": "Sand Tomb",
+      "type": "ground",
+      "category": "physical",
+      "power": 35,
+      "accuracy": 85,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sandstorm",
+      "name_en": "Sandstorm",
+      "type": "rock",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "self-destruct",
+      "name_en": "Self-Destruct",
+      "type": "normal",
+      "category": "physical",
+      "power": 200,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sleep-talk",
+      "name_en": "Sleep Talk",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sludge-bomb",
+      "name_en": "Sludge Bomb",
+      "type": "poison",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sludge-wave",
+      "name_en": "Sludge Wave",
+      "type": "poison",
+      "category": "special",
+      "power": 95,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "smack-down",
+      "name_en": "Smack Down",
+      "type": "rock",
+      "category": "physical",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "solar-beam",
+      "name_en": "Solar Beam",
+      "type": "grass",
+      "category": "special",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "spikes",
+      "name_en": "Spikes",
+      "type": "ground",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "spiky-shield",
+      "name_en": "Spiky Shield",
+      "type": "grass",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "stealth-rock",
+      "name_en": "Stealth Rock",
+      "type": "rock",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "stone-edge",
+      "name_en": "Stone Edge",
+      "type": "rock",
+      "category": "physical",
+      "power": 100,
+      "accuracy": 80,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "substitute",
+      "name_en": "Substitute",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sunny-day",
+      "name_en": "Sunny Day",
+      "type": "fire",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "toxic",
+      "name_en": "Toxic",
+      "type": "poison",
+      "category": "status",
+      "power": null,
+      "accuracy": 90,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "toxic-spikes",
+      "name_en": "Toxic Spikes",
+      "type": "poison",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "venoshock",
+      "name_en": "Venoshock",
+      "type": "poison",
+      "category": "special",
+      "power": 65,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    }
+  ],
+  "excluded_moves": [
+    {
+      "move_id": "tera-blast",
+      "reason": "globally_denied_in_champions_override",
+      "source_refs": [
+        "champions_move_overrides"
+      ]
+    }
+  ],
+  "fetched_at": "2026-05-19T11:33:50+00:00",
+  "source_refs": {
+    "primary": [
+      {
+        "source": "serebii",
+        "url": "https://www.serebii.net/pokedex-champions/glimmora/",
+        "table": "Standard Moves"
+      }
+    ],
+    "metadata": [
+      "pokeapi"
+    ]
+  },
+  "notes": [
+    "Serebii Champions Pokédex is used as the legality source.",
+    "PokeAPI pokemon learnset is not used as a Champions legality source.",
+    "PokeAPI move cache is used only for move metadata."
+  ]
+}

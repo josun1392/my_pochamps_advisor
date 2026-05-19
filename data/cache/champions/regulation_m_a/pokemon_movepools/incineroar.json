@@ -1,0 +1,1114 @@
+{
+  "pokemon_id": "incineroar",
+  "format": "pokemon_champions",
+  "regulation": "M-A",
+  "source_kind": "pokemon_movepool",
+  "source_table": "Standard Moves",
+  "moves": [
+    {
+      "move_id": "acrobatics",
+      "name_en": "Acrobatics",
+      "type": "flying",
+      "category": "physical",
+      "power": 55,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "aerial-ace",
+      "name_en": "Aerial Ace",
+      "type": "flying",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "assurance",
+      "name_en": "Assurance",
+      "type": "dark",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "attract",
+      "name_en": "Attract",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "baton-pass",
+      "name_en": "Baton Pass",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "bite",
+      "name_en": "Bite",
+      "type": "dark",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "blast-burn",
+      "name_en": "Blast Burn",
+      "type": "fire",
+      "category": "special",
+      "power": 150,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "blaze-kick",
+      "name_en": "Blaze Kick",
+      "type": "fire",
+      "category": "physical",
+      "power": 85,
+      "accuracy": 90,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "body-slam",
+      "name_en": "Body Slam",
+      "type": "normal",
+      "category": "physical",
+      "power": 85,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "brick-break",
+      "name_en": "Brick Break",
+      "type": "fighting",
+      "category": "physical",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "brutal-swing",
+      "name_en": "Brutal Swing",
+      "type": "dark",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "bulk-up",
+      "name_en": "Bulk Up",
+      "type": "fighting",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "bulldoze",
+      "name_en": "Bulldoze",
+      "type": "ground",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "burning-jealousy",
+      "name_en": "Burning Jealousy",
+      "type": "fire",
+      "category": "special",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "close-combat",
+      "name_en": "Close Combat",
+      "type": "fighting",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "cross-chop",
+      "name_en": "Cross Chop",
+      "type": "fighting",
+      "category": "physical",
+      "power": 100,
+      "accuracy": 80,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "crunch",
+      "name_en": "Crunch",
+      "type": "dark",
+      "category": "physical",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "dark-pulse",
+      "name_en": "Dark Pulse",
+      "type": "dark",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "darkest-lariat",
+      "name_en": "Darkest Lariat",
+      "type": "dark",
+      "category": "physical",
+      "power": 85,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "double-edge",
+      "name_en": "Double-Edge",
+      "type": "normal",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "drain-punch",
+      "name_en": "Drain Punch",
+      "type": "fighting",
+      "category": "physical",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "earthquake",
+      "name_en": "Earthquake",
+      "type": "ground",
+      "category": "physical",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "endeavor",
+      "name_en": "Endeavor",
+      "type": "normal",
+      "category": "physical",
+      "power": null,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "endure",
+      "name_en": "Endure",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "facade",
+      "name_en": "Facade",
+      "type": "normal",
+      "category": "physical",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "fake-out",
+      "name_en": "Fake Out",
+      "type": "normal",
+      "category": "physical",
+      "power": 40,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "fire-blast",
+      "name_en": "Fire Blast",
+      "type": "fire",
+      "category": "special",
+      "power": 110,
+      "accuracy": 85,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "fire-fang",
+      "name_en": "Fire Fang",
+      "type": "fire",
+      "category": "physical",
+      "power": 65,
+      "accuracy": 95,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "fire-punch",
+      "name_en": "Fire Punch",
+      "type": "fire",
+      "category": "physical",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "fire-spin",
+      "name_en": "Fire Spin",
+      "type": "fire",
+      "category": "special",
+      "power": 35,
+      "accuracy": 85,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "flame-charge",
+      "name_en": "Flame Charge",
+      "type": "fire",
+      "category": "physical",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "flamethrower",
+      "name_en": "Flamethrower",
+      "type": "fire",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "flare-blitz",
+      "name_en": "Flare Blitz",
+      "type": "fire",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "fling",
+      "name_en": "Fling",
+      "type": "dark",
+      "category": "physical",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "focus-blast",
+      "name_en": "Focus Blast",
+      "type": "fighting",
+      "category": "special",
+      "power": 120,
+      "accuracy": 70,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "focus-punch",
+      "name_en": "Focus Punch",
+      "type": "fighting",
+      "category": "physical",
+      "power": 150,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "giga-impact",
+      "name_en": "Giga Impact",
+      "type": "normal",
+      "category": "physical",
+      "power": 150,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "heat-crash",
+      "name_en": "Heat Crash",
+      "type": "fire",
+      "category": "physical",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "heat-wave",
+      "name_en": "Heat Wave",
+      "type": "fire",
+      "category": "special",
+      "power": 95,
+      "accuracy": 90,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "helping-hand",
+      "name_en": "Helping Hand",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "hyper-beam",
+      "name_en": "Hyper Beam",
+      "type": "normal",
+      "category": "special",
+      "power": 150,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "iron-head",
+      "name_en": "Iron Head",
+      "type": "steel",
+      "category": "physical",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "lash-out",
+      "name_en": "Lash Out",
+      "type": "dark",
+      "category": "physical",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "leech-life",
+      "name_en": "Leech Life",
+      "type": "bug",
+      "category": "physical",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "low-kick",
+      "name_en": "Low Kick",
+      "type": "fighting",
+      "category": "physical",
+      "power": null,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "low-sweep",
+      "name_en": "Low Sweep",
+      "type": "fighting",
+      "category": "physical",
+      "power": 65,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "mega-kick",
+      "name_en": "Mega Kick",
+      "type": "normal",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 75,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "nasty-plot",
+      "name_en": "Nasty Plot",
+      "type": "dark",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "outrage",
+      "name_en": "Outrage",
+      "type": "dragon",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "overheat",
+      "name_en": "Overheat",
+      "type": "fire",
+      "category": "special",
+      "power": 130,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "parting-shot",
+      "name_en": "Parting Shot",
+      "type": "dark",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "power-trip",
+      "name_en": "Power Trip",
+      "type": "dark",
+      "category": "physical",
+      "power": 20,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "protect",
+      "name_en": "Protect",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rest",
+      "name_en": "Rest",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "reversal",
+      "name_en": "Reversal",
+      "type": "fighting",
+      "category": "physical",
+      "power": null,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "roar",
+      "name_en": "Roar",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "round",
+      "name_en": "Round",
+      "type": "normal",
+      "category": "special",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "scary-face",
+      "name_en": "Scary Face",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "scorching-sands",
+      "name_en": "Scorching Sands",
+      "type": "ground",
+      "category": "special",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "shadow-claw",
+      "name_en": "Shadow Claw",
+      "type": "ghost",
+      "category": "physical",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sleep-talk",
+      "name_en": "Sleep Talk",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "snarl",
+      "name_en": "Snarl",
+      "type": "dark",
+      "category": "special",
+      "power": 55,
+      "accuracy": 95,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "snore",
+      "name_en": "Snore",
+      "type": "normal",
+      "category": "special",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "stomping-tantrum",
+      "name_en": "Stomping Tantrum",
+      "type": "ground",
+      "category": "physical",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "substitute",
+      "name_en": "Substitute",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sunny-day",
+      "name_en": "Sunny Day",
+      "type": "fire",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "superpower",
+      "name_en": "Superpower",
+      "type": "fighting",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "swagger",
+      "name_en": "Swagger",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 85,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "swords-dance",
+      "name_en": "Swords Dance",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "taunt",
+      "name_en": "Taunt",
+      "type": "dark",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "temper-flare",
+      "name_en": "Temper Flare",
+      "type": "fire",
+      "category": "physical",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "thief",
+      "name_en": "Thief",
+      "type": "dark",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "thrash",
+      "name_en": "Thrash",
+      "type": "normal",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "throat-chop",
+      "name_en": "Throat Chop",
+      "type": "dark",
+      "category": "physical",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "thunder-punch",
+      "name_en": "Thunder Punch",
+      "type": "electric",
+      "category": "physical",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "trailblaze",
+      "name_en": "Trailblaze",
+      "type": "grass",
+      "category": "physical",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "will-o-wisp",
+      "name_en": "Will-O-Wisp",
+      "type": "fire",
+      "category": "status",
+      "power": null,
+      "accuracy": 85,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    }
+  ],
+  "excluded_moves": [
+    {
+      "move_id": "tera-blast",
+      "reason": "globally_denied_in_champions_override",
+      "source_refs": [
+        "champions_move_overrides"
+      ]
+    }
+  ],
+  "fetched_at": "2026-05-19T11:33:50+00:00",
+  "source_refs": {
+    "primary": [
+      {
+        "source": "serebii",
+        "url": "https://www.serebii.net/pokedex-champions/incineroar/",
+        "table": "Standard Moves"
+      }
+    ],
+    "metadata": [
+      "pokeapi"
+    ]
+  },
+  "notes": [
+    "Serebii Champions Pokédex is used as the legality source.",
+    "PokeAPI pokemon learnset is not used as a Champions legality source.",
+    "PokeAPI move cache is used only for move metadata."
+  ]
+}

@@ -1,0 +1,944 @@
+{
+  "pokemon_id": "chimecho-mega",
+  "format": "pokemon_champions",
+  "regulation": "M-A",
+  "source_kind": "pokemon_movepool",
+  "source_table": "Standard Moves",
+  "moves": [
+    {
+      "move_id": "ally-switch",
+      "name_en": "Ally Switch",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "baton-pass",
+      "name_en": "Baton Pass",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "boomburst",
+      "name_en": "Boomburst",
+      "type": "normal",
+      "category": "special",
+      "power": 140,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "calm-mind",
+      "name_en": "Calm Mind",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "charge-beam",
+      "name_en": "Charge Beam",
+      "type": "electric",
+      "category": "special",
+      "power": 50,
+      "accuracy": 90,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "charm",
+      "name_en": "Charm",
+      "type": "fairy",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "cosmic-power",
+      "name_en": "Cosmic Power",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "curse",
+      "name_en": "Curse",
+      "type": "ghost",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "dazzling-gleam",
+      "name_en": "Dazzling Gleam",
+      "type": "fairy",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "disable",
+      "name_en": "Disable",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "double-edge",
+      "name_en": "Double-Edge",
+      "type": "normal",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "draining-kiss",
+      "name_en": "Draining Kiss",
+      "type": "fairy",
+      "category": "special",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "encore",
+      "name_en": "Encore",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "endure",
+      "name_en": "Endure",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "energy-ball",
+      "name_en": "Energy Ball",
+      "type": "grass",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "expanding-force",
+      "name_en": "Expanding Force",
+      "type": "psychic",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "extrasensory",
+      "name_en": "Extrasensory",
+      "type": "psychic",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "facade",
+      "name_en": "Facade",
+      "type": "normal",
+      "category": "physical",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "fake-tears",
+      "name_en": "Fake Tears",
+      "type": "dark",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "flash-cannon",
+      "name_en": "Flash Cannon",
+      "type": "steel",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "future-sight",
+      "name_en": "Future Sight",
+      "type": "psychic",
+      "category": "special",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "grass-knot",
+      "name_en": "Grass Knot",
+      "type": "grass",
+      "category": "special",
+      "power": null,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "gravity",
+      "name_en": "Gravity",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "heal-bell",
+      "name_en": "Heal Bell",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "heal-pulse",
+      "name_en": "Heal Pulse",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "healing-wish",
+      "name_en": "Healing Wish",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "helping-hand",
+      "name_en": "Helping Hand",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "hyper-voice",
+      "name_en": "Hyper Voice",
+      "type": "normal",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "hypnosis",
+      "name_en": "Hypnosis",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 60,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "icy-wind",
+      "name_en": "Icy Wind",
+      "type": "ice",
+      "category": "special",
+      "power": 55,
+      "accuracy": 95,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "imprison",
+      "name_en": "Imprison",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "knock-off",
+      "name_en": "Knock Off",
+      "type": "dark",
+      "category": "physical",
+      "power": 65,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "light-screen",
+      "name_en": "Light Screen",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "metal-sound",
+      "name_en": "Metal Sound",
+      "type": "steel",
+      "category": "status",
+      "power": null,
+      "accuracy": 85,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "protect",
+      "name_en": "Protect",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "psych-up",
+      "name_en": "Psych Up",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "psychic",
+      "name_en": "Psychic",
+      "type": "psychic",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "psychic-noise",
+      "name_en": "Psychic Noise",
+      "type": "psychic",
+      "category": "special",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "psyshock",
+      "name_en": "Psyshock",
+      "type": "psychic",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rain-dance",
+      "name_en": "Rain Dance",
+      "type": "water",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "recover",
+      "name_en": "Recover",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "recycle",
+      "name_en": "Recycle",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "reflect",
+      "name_en": "Reflect",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rest",
+      "name_en": "Rest",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "round",
+      "name_en": "Round",
+      "type": "normal",
+      "category": "special",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "safeguard",
+      "name_en": "Safeguard",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "screech",
+      "name_en": "Screech",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 85,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "self-destruct",
+      "name_en": "Self-Destruct",
+      "type": "normal",
+      "category": "physical",
+      "power": 200,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "shadow-ball",
+      "name_en": "Shadow Ball",
+      "type": "ghost",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "skill-swap",
+      "name_en": "Skill Swap",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sleep-talk",
+      "name_en": "Sleep Talk",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "snarl",
+      "name_en": "Snarl",
+      "type": "dark",
+      "category": "special",
+      "power": 55,
+      "accuracy": 95,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "snore",
+      "name_en": "Snore",
+      "type": "normal",
+      "category": "special",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "stored-power",
+      "name_en": "Stored Power",
+      "type": "psychic",
+      "category": "special",
+      "power": 20,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "substitute",
+      "name_en": "Substitute",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sunny-day",
+      "name_en": "Sunny Day",
+      "type": "fire",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "taunt",
+      "name_en": "Taunt",
+      "type": "dark",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "thunder-wave",
+      "name_en": "Thunder Wave",
+      "type": "electric",
+      "category": "status",
+      "power": null,
+      "accuracy": 90,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "trick",
+      "name_en": "Trick",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "trick-room",
+      "name_en": "Trick Room",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "uproar",
+      "name_en": "Uproar",
+      "type": "normal",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "wish",
+      "name_en": "Wish",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "wrap",
+      "name_en": "Wrap",
+      "type": "normal",
+      "category": "physical",
+      "power": 15,
+      "accuracy": 90,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "yawn",
+      "name_en": "Yawn",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "zen-headbutt",
+      "name_en": "Zen Headbutt",
+      "type": "psychic",
+      "category": "physical",
+      "power": 80,
+      "accuracy": 90,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    }
+  ],
+  "excluded_moves": [
+    {
+      "move_id": "tera-blast",
+      "reason": "globally_denied_in_champions_override",
+      "source_refs": [
+        "champions_move_overrides"
+      ]
+    }
+  ],
+  "fetched_at": "2026-05-19T11:33:50+00:00",
+  "source_refs": {
+    "primary": [
+      {
+        "source": "serebii",
+        "url": "https://www.serebii.net/pokedex-champions/chimecho/",
+        "table": "Standard Moves"
+      }
+    ],
+    "metadata": [
+      "pokeapi"
+    ]
+  },
+  "notes": [
+    "Mega form uses the base species Champions move table; Mega-specific stats/items remain separate."
+  ]
+}

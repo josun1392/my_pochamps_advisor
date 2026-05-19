@@ -1,0 +1,722 @@
+{
+  "pokemon_id": "avalugg",
+  "format": "pokemon_champions",
+  "regulation": "M-A",
+  "source_kind": "pokemon_movepool",
+  "source_table": "Standard Moves",
+  "moves": [
+    {
+      "move_id": "aurora-veil",
+      "name_en": "Aurora Veil",
+      "type": "ice",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "avalanche",
+      "name_en": "Avalanche",
+      "type": "ice",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "bite",
+      "name_en": "Bite",
+      "type": "dark",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "blizzard",
+      "name_en": "Blizzard",
+      "type": "ice",
+      "category": "special",
+      "power": 110,
+      "accuracy": 70,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "body-press",
+      "name_en": "Body Press",
+      "type": "fighting",
+      "category": "physical",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "body-slam",
+      "name_en": "Body Slam",
+      "type": "normal",
+      "category": "physical",
+      "power": 85,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "bulldoze",
+      "name_en": "Bulldoze",
+      "type": "ground",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "chilling-water",
+      "name_en": "Chilling Water",
+      "type": "water",
+      "category": "special",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "crunch",
+      "name_en": "Crunch",
+      "type": "dark",
+      "category": "physical",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "curse",
+      "name_en": "Curse",
+      "type": "ghost",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "double-edge",
+      "name_en": "Double-Edge",
+      "type": "normal",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "earthquake",
+      "name_en": "Earthquake",
+      "type": "ground",
+      "category": "physical",
+      "power": 100,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "endure",
+      "name_en": "Endure",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "facade",
+      "name_en": "Facade",
+      "type": "normal",
+      "category": "physical",
+      "power": 70,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "flash-cannon",
+      "name_en": "Flash Cannon",
+      "type": "steel",
+      "category": "special",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "frost-breath",
+      "name_en": "Frost Breath",
+      "type": "ice",
+      "category": "special",
+      "power": 60,
+      "accuracy": 90,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "giga-impact",
+      "name_en": "Giga Impact",
+      "type": "normal",
+      "category": "physical",
+      "power": 150,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "gyro-ball",
+      "name_en": "Gyro Ball",
+      "type": "steel",
+      "category": "physical",
+      "power": null,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "heavy-slam",
+      "name_en": "Heavy Slam",
+      "type": "steel",
+      "category": "physical",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "high-horsepower",
+      "name_en": "High Horsepower",
+      "type": "ground",
+      "category": "physical",
+      "power": 95,
+      "accuracy": 95,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "hydro-pump",
+      "name_en": "Hydro Pump",
+      "type": "water",
+      "category": "special",
+      "power": 110,
+      "accuracy": 80,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "hyper-beam",
+      "name_en": "Hyper Beam",
+      "type": "normal",
+      "category": "special",
+      "power": 150,
+      "accuracy": 90,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "ice-beam",
+      "name_en": "Ice Beam",
+      "type": "ice",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "ice-fang",
+      "name_en": "Ice Fang",
+      "type": "ice",
+      "category": "physical",
+      "power": 65,
+      "accuracy": 95,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "ice-spinner",
+      "name_en": "Ice Spinner",
+      "type": "ice",
+      "category": "physical",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "icicle-crash",
+      "name_en": "Icicle Crash",
+      "type": "ice",
+      "category": "physical",
+      "power": 85,
+      "accuracy": 90,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "icicle-spear",
+      "name_en": "Icicle Spear",
+      "type": "ice",
+      "category": "physical",
+      "power": 25,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "icy-wind",
+      "name_en": "Icy Wind",
+      "type": "ice",
+      "category": "special",
+      "power": 55,
+      "accuracy": 95,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "iron-defense",
+      "name_en": "Iron Defense",
+      "type": "steel",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "iron-head",
+      "name_en": "Iron Head",
+      "type": "steel",
+      "category": "physical",
+      "power": 80,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "mirror-coat",
+      "name_en": "Mirror Coat",
+      "type": "psychic",
+      "category": "special",
+      "power": null,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "protect",
+      "name_en": "Protect",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rain-dance",
+      "name_en": "Rain Dance",
+      "type": "water",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rapid-spin",
+      "name_en": "Rapid Spin",
+      "type": "normal",
+      "category": "physical",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 20,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "recover",
+      "name_en": "Recover",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rest",
+      "name_en": "Rest",
+      "type": "psychic",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rock-slide",
+      "name_en": "Rock Slide",
+      "type": "rock",
+      "category": "physical",
+      "power": 75,
+      "accuracy": 90,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "rock-tomb",
+      "name_en": "Rock Tomb",
+      "type": "rock",
+      "category": "physical",
+      "power": 60,
+      "accuracy": 95,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "round",
+      "name_en": "Round",
+      "type": "normal",
+      "category": "special",
+      "power": 60,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "scary-face",
+      "name_en": "Scary Face",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "sleep-talk",
+      "name_en": "Sleep Talk",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "snore",
+      "name_en": "Snore",
+      "type": "normal",
+      "category": "special",
+      "power": 50,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "snowscape",
+      "name_en": "Snowscape",
+      "type": "ice",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "stomping-tantrum",
+      "name_en": "Stomping Tantrum",
+      "type": "ground",
+      "category": "physical",
+      "power": 75,
+      "accuracy": 100,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "stone-edge",
+      "name_en": "Stone Edge",
+      "type": "rock",
+      "category": "physical",
+      "power": 100,
+      "accuracy": 80,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "substitute",
+      "name_en": "Substitute",
+      "type": "normal",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "superpower",
+      "name_en": "Superpower",
+      "type": "fighting",
+      "category": "physical",
+      "power": 120,
+      "accuracy": 100,
+      "pp": 8,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "surf",
+      "name_en": "Surf",
+      "type": "water",
+      "category": "special",
+      "power": 90,
+      "accuracy": 100,
+      "pp": 16,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "wide-guard",
+      "name_en": "Wide Guard",
+      "type": "rock",
+      "category": "status",
+      "power": null,
+      "accuracy": 101,
+      "pp": 12,
+      "source_refs": [
+        "serebii"
+      ],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    }
+  ],
+  "excluded_moves": [
+    {
+      "move_id": "tera-blast",
+      "reason": "globally_denied_in_champions_override",
+      "source_refs": [
+        "champions_move_overrides"
+      ]
+    }
+  ],
+  "fetched_at": "2026-05-19T11:33:50+00:00",
+  "source_refs": {
+    "primary": [
+      {
+        "source": "serebii",
+        "url": "https://www.serebii.net/pokedex-champions/avalugg/",
+        "table": "Standard Moves"
+      }
+    ],
+    "metadata": [
+      "pokeapi"
+    ]
+  },
+  "notes": [
+    "Serebii Champions Pokédex is used as the legality source.",
+    "PokeAPI pokemon learnset is not used as a Champions legality source.",
+    "PokeAPI move cache is used only for move metadata."
+  ]
+}

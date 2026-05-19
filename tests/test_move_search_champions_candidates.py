@@ -22,6 +22,7 @@ def test_charizard_move_candidates_use_champions_fixture() -> None:
     assert empty_message is None
     assert candidates == repo.get_allowed_move_ids_for_pokemon("charizard")
     assert "flamethrower" in candidates
+    assert "heat-wave" in candidates
 
 
 def test_charizard_move_candidates_do_not_include_historical_or_denied_moves() -> None:
@@ -51,11 +52,29 @@ def test_empty_local_movepool_sentinels_have_candidates() -> None:
     assert starmie_candidates
 
 
-def test_unknown_pokemon_does_not_fallback_to_pokeapi_learnset() -> None:
+def test_garchomp_move_candidates_are_available_from_full_champions_cache() -> None:
     candidates, empty_message = _move_search_candidates_for_view(_view("garchomp"), ChampionsMovePoolRepository())
 
-    assert candidates == set()
-    assert empty_message == "Champions moves unavailable"
+    assert empty_message is None
+    assert "earthquake" in candidates
+    assert "hidden-power" not in candidates
+    assert "tera-blast" not in candidates
+
+
+def test_missing_or_unavailable_pokemon_does_not_fallback_to_pokeapi_learnset() -> None:
+    missing_candidates, missing_message = _move_search_candidates_for_view(
+        _view("missingno"),
+        ChampionsMovePoolRepository(),
+    )
+    pawmot_candidates, pawmot_message = _move_search_candidates_for_view(
+        _view("pawmot"),
+        ChampionsMovePoolRepository(),
+    )
+
+    assert missing_candidates == set()
+    assert missing_message == "Champions moves unavailable"
+    assert pawmot_candidates == set()
+    assert pawmot_message == "Champions moves unavailable"
 
 
 def test_pokeapi_move_metadata_still_loads_for_fixture_candidate() -> None:
@@ -81,3 +100,22 @@ def test_sample_fixture_moves_are_added_to_search_index() -> None:
     ]
 
     assert [result.en for result in results] == ["freeze-dry"]
+
+
+def test_charizard_heat_wave_can_be_found_by_korean_name() -> None:
+    loader = KoMappingLoader()
+    search_engine = SearchEngine(loader)
+    repo = ChampionsMovePoolRepository()
+    for move_id, name_en in repo.iter_move_search_entries():
+        search_engine.add_entry("move", move_id, name_en)
+
+    candidates, _ = _move_search_candidates_for_view(_view("charizard"), repo)
+    results = [
+        result
+        for result in search_engine.search("열풍", kind="move", limit=24)
+        if result.en in candidates
+    ]
+
+    result_ids = [result.en for result in results]
+    assert result_ids[0] == "heat-wave"
+    assert "heat-wave" in result_ids

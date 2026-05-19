@@ -1,0 +1,10 @@
+{
+  "format": "pokemon_champions",
+  "regulation": "M-A",
+  "source": "serebii_champions_pokedex",
+  "source_base_url": "https://www.serebii.net/pokedex-champions",
+  "generated_at": "2026-05-19T11:33:50+00:00",
+  "target_count": 276,
+  "written_count": 276,
+  "failure_count": 1
+}

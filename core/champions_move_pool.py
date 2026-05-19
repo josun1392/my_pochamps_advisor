@@ -52,7 +52,14 @@ class ChampionsMovePoolRepository:
         return set(candidate_move_ids) & allowed_move_ids
 
     def status_for_pokemon(self, pokemon_id: str) -> dict[str, str]:
-        if self._fixture_path(pokemon_id).exists():
+        data = self._load_fixture(pokemon_id)
+        if data is not None and isinstance(data.get("status"), str) and data.get("status") != "available":
+            return {
+                "status": data["status"],
+                "pokemon_id": pokemon_id,
+                "reason": "Champions move pool fixture exists but is not available for move search.",
+            }
+        if data is not None:
             return {"status": "available", "pokemon_id": pokemon_id}
         return {
             "status": "unavailable_missing_champions_movepool",

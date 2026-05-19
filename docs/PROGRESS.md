@@ -354,6 +354,31 @@ Out of scope maintained:
 
 ---
 
+## v0.9.2c - Serebii Champions Full Movepool Cache
+
+Purpose:
+- Replace narrow sample movepools with Serebii-derived Champions movepool fixtures for the full local Champions roster.
+- Keep PokeAPI pokemon learnsets out of move legality decisions.
+
+Implemented:
+- Added `scripts/build_serebii_champions_movepools.py` to parse Serebii Champions Pokédex Standard Moves tables.
+- Added `scripts/verify_champions_movepools.py`.
+- Generated movepool fixtures for all 276 unique local Champions battle entities.
+- Preserved global denial of `tera-blast` and verified `hidden-power` is absent.
+- Marked `pawmot` as `unavailable_source_error` because Serebii Champions currently returns 404 for its page.
+
+Verification:
+- `uv run python scripts/verify_champions_movepools.py`
+- Result: 276 entities, 17,115 listed move entries, unavailable source fixtures: `pawmot`.
+
+Out of scope maintained:
+- No RotomLabs scraping.
+- No automatic scheduled scraping.
+- No damage engine changes.
+- No four-move damage comparison.
+
+---
+
 ## v0.8.3 — Advisor Payload Contract
 
 Purpose:

@@ -1,0 +1,29 @@
+{
+  "pokemon_id": "pawmot",
+  "format": "pokemon_champions",
+  "regulation": "M-A",
+  "source_kind": "pokemon_movepool",
+  "status": "unavailable_source_error",
+  "source_table": "Standard Moves",
+  "moves": [],
+  "excluded_moves": [],
+  "fetched_at": "2026-05-19T11:33:50+00:00",
+  "source_refs": {
+    "primary": [
+      {
+        "source": "serebii",
+        "url": "https://www.serebii.net/pokedex-champions/pawmot/",
+        "table": "Standard Moves"
+      }
+    ],
+    "metadata": [
+      "pokeapi"
+    ]
+  },
+  "notes": [
+    "Serebii Champions Pokédex is used as the legality source.",
+    "PokeAPI pokemon learnset is not used as a Champions legality source.",
+    "PokeAPI move cache is used only for move metadata.",
+    "Serebii Champions movepool could not be parsed for this entity: HTTPError: 404 Client Error: Not Found for url: https://www.serebii.net/pokedex-champions/pawmot/"
+  ]
+}

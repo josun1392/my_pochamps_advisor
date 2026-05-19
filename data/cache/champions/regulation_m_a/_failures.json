@@ -1,0 +1,9 @@
+{
+  "failures": [
+    {
+      "entity_id": "pawmot",
+      "source_url": "https://www.serebii.net/pokedex-champions/pawmot/",
+      "error": "HTTPError: 404 Client Error: Not Found for url: https://www.serebii.net/pokedex-champions/pawmot/"
+    }
+  ]
+}
