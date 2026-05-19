@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.cache_manager import CacheManager
+from core.champions_move_overrides import ChampionsMoveOverrides
 from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository, MoveView
 from core.pokemon_repository import PokemonRepository
@@ -132,6 +133,7 @@ class MainWindow(QMainWindow):
         self.search_engine.add_pokemon_entries(cached_pokemon_names)
         self.repo = PokemonRepository(self.cache, self.ko_loader)
         self.move_repo = MoveRepository(self.cache, self.ko_loader)
+        self.move_overrides = ChampionsMoveOverrides()
 
         self.selected_slots = {
             "team_my": 0,
@@ -449,7 +451,8 @@ class MainWindow(QMainWindow):
         if view is None:
             self.center_column.move_search_box.set_available_move_ids(set())
             return
-        self.center_column.move_search_box.set_available_move_ids(set(view.moves_en))
+        available_move_ids = self.move_overrides.filter_allowed_move_ids(set(view.moves_en))
+        self.center_column.move_search_box.set_available_move_ids(available_move_ids)
 
     @staticmethod
     def _cached_pokemon_names() -> dict[str, str | None]:

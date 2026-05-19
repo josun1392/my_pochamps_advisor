@@ -1,0 +1,25 @@
+{
+  "schema_version": "champions-global-move-overrides-v1",
+  "format": "pokemon_champions",
+  "ruleset": "regular_roster_m-a",
+  "generated_at": "2026-05-19T00:00:00Z",
+  "sources": [
+    {
+      "source": "bulbapedia",
+      "url": "https://bulbapedia.bulbagarden.net/wiki/List_of_moves_by_availability_in_Pok%C3%A9mon_Champions",
+      "purpose": "global move availability cross-check"
+    }
+  ],
+  "global_denied_moves": {
+    "tera-blast": {
+      "reason": "not_usable_in_pokemon_champions",
+      "confidence": "single_source",
+      "source": "bulbapedia",
+      "fetched_at": "2026-05-19T00:00:00Z",
+      "notes": [
+        "Do not expose in move search even if present in PokeAPI Scarlet/Violet learnsets.",
+        "PokeAPI may still be used for move metadata if a move is legal by Champions sources."
+      ]
+    }
+  }
+}
