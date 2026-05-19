@@ -331,3 +331,26 @@ Remaining limitations:
 - Damage/OHKO/2HKO/KO chance are not connected yet.
 - EV/IV/nature/item/final stats are not connected yet.
 - LLM response quality for the v0.8 selected-move payload remains unjudged because the Gemini call did not succeed.
+
+---
+
+## v0.8.3 — Advisor Payload Contract
+
+Purpose:
+- Freeze the current UI-to-LLM payload contract before selected-move damage estimates are added.
+- Keep the Gemini recommendation layer from treating incomplete UI metadata as confirmed battle math.
+
+Added:
+- `docs/advisor_payload_contract.md`
+- `llm/advisor_payload_contract.py`
+- `tests/test_advisor_payload_contract.py`
+
+Contract summary:
+- Current payload mode remains `ui-selected-pokemon-v0.8`.
+- Payload includes selected Pokemon identity, type, base stats, abilities, HP percent, selected move index, and user-confirmed move metadata.
+- Payload explicitly does not include final stats, EV/IV/nature, held items, weather, terrain, boosts, exact HP, opponent moves, damage rolls, OHKO/2HKO/KO chance, turn order, or Turn Engine state.
+- Guardrails prohibit the LLM from inferring exact damage, KO odds, speed order, survival, unprovided stats/items/field state, or Terastallization.
+
+Next milestones:
+- `v0.9 — Selected Move Damage Estimate`
+- `v0.10 — Four-Move Damage Comparison`

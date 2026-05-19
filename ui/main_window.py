@@ -18,6 +18,7 @@ from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository, MoveView
 from core.pokemon_repository import PokemonRepository
 from core.search_engine import SearchEngine
+from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import run_ui_selected_advice
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
@@ -315,21 +316,9 @@ class MainWindow(QMainWindow):
         opponent_panel = self._slot_panel("team_enemy", opponent_slot_index)
         return {
             "scenario": {
-                "mode": "ui-selected-pokemon-v0.8",
+                "mode": ADVISOR_PAYLOAD_MODE,
                 "format_note": "Selected Pokemon identity only; no full battle state.",
-                "known_limitations": [
-                    "Only user-selected moves are included in the payload.",
-                    "Empty move slots are omitted.",
-                    "Move data is metadata only; damage calculation is not connected in v0.8.",
-                    "Do not infer damage, OHKO/2HKO, or KO chance unless damage data is explicitly provided.",
-                    "Opponent moves may be missing in v0.8.",
-                    "Base stats are species reference data, not EVs or final calculated battle stats.",
-                    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.8.",
-                    "Terastallization is banned in PoChamps and must not be considered.",
-                    "Do not assume unprovided EVs, IVs, nature, held items, boosts, weather, terrain, exact HP, move sets, or Tera types.",
-                    "Speed tier, OHKO/2HKO, and survival claims are uncertain unless final stats, items, and damage data are explicitly provided.",
-                    "Recommendation is based on selected Pokemon identity and available UI state only.",
-                ],
+                "known_limitations": list(ADVISOR_KNOWN_LIMITATIONS),
             },
             "pokemon": {
                 "my_active": self._panel_to_llm_payload(my_panel, my_slot_index),
