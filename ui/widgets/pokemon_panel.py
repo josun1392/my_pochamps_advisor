@@ -11,8 +11,10 @@ from PySide6.QtWidgets import (
     QLabel,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
+    QWidget,
 )
 
 from ui.widgets.fast_buttons import FastButtonGroup
@@ -37,12 +39,12 @@ class PokemonPanel(QFrame):
         self.selected_moves: list[MoveView | None] = [None, None, None, None]
         self.move_buttons: list[QPushButton] = []
 
-        self.setFixedHeight(108)
+        self.setFixedHeight(136)
         self.setFrameShape(QFrame.Shape.StyledPanel)
 
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(8, 4, 8, 4)
-        root_layout.setSpacing(2)
+        root_layout.setContentsMargins(8, 5, 8, 8)
+        root_layout.setSpacing(3)
 
         top_row = QHBoxLayout()
         top_row.setSpacing(6)
@@ -109,14 +111,14 @@ class PokemonPanel(QFrame):
         self.hp_spinbox.setRange(0, 100)
         self.hp_spinbox.setValue(100)
         self.hp_spinbox.setSuffix(" %")
-        self.hp_spinbox.setFixedWidth(70)
+        self.hp_spinbox.setFixedWidth(86)
         self.hp_spinbox.setFixedHeight(20)
         self.hp_spinbox.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.hp_spinbox.setKeyboardTracking(False)
         self.hp_spinbox.valueChanged.connect(self.set_hp)
 
         middle_row.addWidget(QLabel("HP"))
-        middle_row.addWidget(self.hp_bar, 2)
+        middle_row.addWidget(self.hp_bar, 1)
         middle_row.addWidget(self.hp_spinbox)
         root_layout.addLayout(middle_row)
 
@@ -125,13 +127,16 @@ class PokemonPanel(QFrame):
         root_layout.addWidget(self.fast_buttons)
 
         move_row = QGridLayout()
-        move_row.setContentsMargins(0, 0, 0, 0)
-        move_row.setHorizontalSpacing(4)
-        move_row.setVerticalSpacing(2)
+        move_row.setContentsMargins(0, 0, 0, 2)
+        move_row.setHorizontalSpacing(6)
+        move_row.setVerticalSpacing(7)
+        move_row.setColumnStretch(0, 1)
+        move_row.setColumnStretch(1, 1)
 
         for index, key in enumerate(("Q", "W", "E", "R")):
             move_button = QPushButton(f"{key} 기술 {index + 1}")
-            move_button.setFixedHeight(18)
+            move_button.setFixedHeight(22)
+            move_button.setMinimumWidth(0)
             move_button.setStyleSheet(self._move_style(active=False))
             move_button.clicked.connect(lambda checked=False, idx=index: self.select_move(idx))
             self.move_buttons.append(move_button)
@@ -212,10 +217,14 @@ class PokemonPanel(QFrame):
 
     def select_move(self, move_index: int) -> None:
         self.selected_move_index = move_index
-        for index, button in enumerate(self.move_buttons):
-            button.setStyleSheet(self._move_style(active=index == move_index))
+        self.refresh_move_selection_style(show_selected=True)
         self.move_slot_selected.emit(move_index)
         print(f"기술 선택: 포켓몬 {self.slot_number}번 / {move_index + 1}번 기술")
+
+    def refresh_move_selection_style(self, show_selected: bool) -> None:
+        for index, button in enumerate(self.move_buttons):
+            is_active = show_selected and index == self.selected_move_index
+            button.setStyleSheet(self._move_style(active=is_active))
 
     def set_move(self, move_index: int, move: MoveView) -> None:
         if not 0 <= move_index < len(self.selected_moves):
@@ -226,7 +235,7 @@ class PokemonPanel(QFrame):
 
     def _reset_move_buttons(self) -> None:
         for index, (key, button) in enumerate(zip(("Q", "W", "E", "R"), self.move_buttons)):
-            button.setText(f"{key} 湲곗닠 {index + 1}")
+            button.setText(f"{key} 기술 {index + 1}")
             button.setStyleSheet(self._move_style(active=False))
 
     @staticmethod
@@ -239,7 +248,7 @@ class PokemonPanel(QFrame):
                     border: 1px solid #4A90E2;
                     border-radius: 4px;
                     font-size: 11px;
-                    padding: 2px 4px;
+                    padding: 1px 4px;
                 }
                 QPushButton:hover {
                     background-color: #6BA8E8;
@@ -253,7 +262,7 @@ class PokemonPanel(QFrame):
                 border: 1px solid #CAD6E2;
                 border-radius: 4px;
                 font-size: 11px;
-                padding: 2px 4px;
+                padding: 1px 4px;
             }
             QPushButton:hover {
                 background-color: #EEF6FF;
@@ -322,14 +331,47 @@ class PokemonTeamColumn(QFrame):
         title_label.setStyleSheet("font-size: 18px; font-weight: 800; color: #17202A;")
         layout.addWidget(title_label)
 
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setStyleSheet(
+            """
+            QScrollArea {
+                background-color: transparent;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: transparent;
+                width: 8px;
+                margin: 2px 0;
+            }
+            QScrollBar::handle:vertical {
+                background: #C8D2DE;
+                border-radius: 4px;
+                min-height: 24px;
+            }
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {
+                height: 0;
+            }
+            """
+        )
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_layout.setSpacing(6)
+
         for slot in range(1, 7):
             panel = PokemonPanel(slot, is_active=slot == 1)
             if selectable and slot == 1:
                 panel.set_selected(True)
             self.panels.append(panel)
-            layout.addWidget(panel)
+            scroll_layout.addWidget(panel)
 
-        layout.addStretch(1)
+        scroll_layout.addStretch(1)
+        scroll_area.setWidget(scroll_content)
+        layout.addWidget(scroll_area, 1)
 
     def set_active(self, active: bool) -> None:
         self.is_active = active

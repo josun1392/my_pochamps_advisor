@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import requests
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
@@ -120,12 +121,15 @@ class AnalysisColumn(QFrame):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Pokemon Copilot v0.1 (Phase 1)")
-        self.setMinimumSize(1280, 720)
+        self.setWindowTitle("Master Ball Advisor v0.9")
+        self.setMinimumSize(1500, 980)
+        self.resize(1500, 980)
 
         self.cache = CacheManager()
         self.ko_loader = KoMappingLoader()
         self.search_engine = SearchEngine(self.ko_loader)
+        cached_pokemon_names = self._cached_pokemon_names()
+        self.search_engine.add_pokemon_entries(cached_pokemon_names)
         self.repo = PokemonRepository(self.cache, self.ko_loader)
         self.move_repo = MoveRepository(self.cache, self.ko_loader)
 
@@ -148,7 +152,7 @@ class MainWindow(QMainWindow):
         self.my_team_column = PokemonTeamColumn("내 팀", selectable=True)
         self.center_column = AnalysisColumn(
             self.search_engine,
-            self._cached_pokemon_names(),
+            set(cached_pokemon_names),
             self.move_repo,
         )
         self.opponent_team_column = PokemonTeamColumn("상대 팀", selectable=True)
@@ -164,9 +168,9 @@ class MainWindow(QMainWindow):
             "team_enemy": "상대 팀",
         }
 
-        layout.addWidget(self.my_team_column, 33)
-        layout.addWidget(self.center_column, 34)
-        layout.addWidget(self.opponent_team_column, 33)
+        layout.addWidget(self.my_team_column, 35)
+        layout.addWidget(self.center_column, 30)
+        layout.addWidget(self.opponent_team_column, 35)
 
         self._connect_slot_clicks()
         self.center_column.search_box.pokemon_selected.connect(self._on_pokemon_selected)
@@ -203,6 +207,7 @@ class MainWindow(QMainWindow):
             column.style().polish(column)
 
         self._active_column_name = target_column_name
+        self._refresh_move_selection_styles()
         print(f"[FOCUS] Active column: {target_column_name}")
 
     def select_slot(self, column_name: str, slot_index: int) -> None:
@@ -214,6 +219,7 @@ class MainWindow(QMainWindow):
         self.set_active_column(column_name)
         for index, panel in enumerate(team_column.panels):
             panel.set_selected(index == slot_index)
+        self._refresh_move_selection_styles()
         self._sync_move_search_candidates()
 
     def _on_pokemon_selected(self, en_id: str) -> None:
@@ -424,6 +430,19 @@ class MainWindow(QMainWindow):
         self.select_slot(column_name, slot_index)
         self._sync_move_search_candidates()
 
+    def _refresh_move_selection_styles(self) -> None:
+        for column_name, team_column in (
+            ("team_my", self.my_team_column),
+            ("team_enemy", self.opponent_team_column),
+        ):
+            visible_slot_index = (
+                self.selected_slots.get(column_name)
+                if column_name == self._active_column_name
+                else None
+            )
+            for slot_index, panel in enumerate(team_column.panels):
+                panel.refresh_move_selection_style(show_selected=slot_index == visible_slot_index)
+
     def _sync_move_search_candidates(self) -> None:
         slot = self._active_slot()
         view = getattr(slot, "pokemon_view", None) if slot is not None else None
@@ -432,18 +451,28 @@ class MainWindow(QMainWindow):
             return
         self.center_column.move_search_box.set_available_move_ids(set(view.moves_en))
 
-    def _cached_pokemon_names(self) -> set[str]:
-        names: set[str] = set()
-        pokemon_dir = self.cache.cache_root / "pokemon"
+    @staticmethod
+    def _cached_pokemon_names() -> dict[str, str | None]:
+        names: dict[str, str | None] = {}
+        pokemon_dir = Path("data/cache/pokemon")
         for path in pokemon_dir.glob("*.json"):
             try:
                 with path.open("r", encoding="utf-8") as file:
                     data = json.load(file)
             except (OSError, json.JSONDecodeError):
                 continue
-            name = data.get("name") if isinstance(data, dict) else None
+            if not isinstance(data, dict):
+                continue
+            entity_id = data.get("entity_id")
+            name_data = data.get("name")
+            if isinstance(name_data, dict):
+                name = entity_id
+                name_ko = name_data.get("ko")
+            else:
+                name = entity_id
+                name_ko = None
             if isinstance(name, str):
-                names.add(name)
+                names[name] = name_ko if isinstance(name_ko, str) else None
         return names
 
 

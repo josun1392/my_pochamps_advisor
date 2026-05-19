@@ -48,6 +48,7 @@ class SearchEngine:
 
     def __init__(self, loader: KoMappingLoader) -> None:
         self._index: list[_IndexEntry] = []
+        self._indexed_keys: set[tuple[EntityKind, str]] = set()
         mapping = loader._mapping
 
         for kind, mapping_key in _KIND_TO_MAPPING_KEY.items():
@@ -56,15 +57,29 @@ class SearchEngine:
                 continue
             for en, ko in entries.items():
                 if isinstance(en, str) and isinstance(ko, str):
-                    self._index.append(
-                        _IndexEntry(
-                            kind=kind,
-                            en=en,
-                            ko=ko,
-                            en_norm=_normalize(en),
-                            ko_norm=_normalize(ko),
-                        )
-                    )
+                    self.add_entry(kind, en, ko)
+
+    def add_entry(self, kind: EntityKind, en: str, ko: str | None = None) -> None:
+        if not en:
+            return
+        key = (kind, en)
+        if key in self._indexed_keys:
+            return
+        self._indexed_keys.add(key)
+        resolved_ko = ko or en
+        self._index.append(
+            _IndexEntry(
+                kind=kind,
+                en=en,
+                ko=resolved_ko,
+                en_norm=_normalize(en),
+                ko_norm=_normalize(resolved_ko),
+            )
+        )
+
+    def add_pokemon_entries(self, entries: dict[str, str | None]) -> None:
+        for en, ko in entries.items():
+            self.add_entry("pokemon", en, ko)
 
     def search(
         self,

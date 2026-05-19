@@ -106,6 +106,20 @@ def test_prefix_beats_fuzzy(tmp_path: Path) -> None:
     assert all(result.match_type != "fuzzy" or results.index(result) > 0 for result in results)
 
 
+def test_add_pokemon_entries_extends_mapping_index(tmp_path: Path) -> None:
+    engine = _engine(tmp_path)
+
+    engine.add_pokemon_entries({"abomasnow": "눈설왕", "alakazam-mega": None})
+
+    korean = engine.search("눈설", kind="pokemon")
+    english = engine.search("alakazam", kind="pokemon")
+
+    assert korean[0].en == "abomasnow"
+    assert korean[0].ko == "눈설왕"
+    assert english[0].en == "alakazam-mega"
+    assert english[0].ko == "alakazam-mega"
+
+
 def _engine(tmp_path: Path) -> SearchEngine:
     return SearchEngine(KoMappingLoader(_write_mapping(tmp_path)))
 
