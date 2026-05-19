@@ -18,6 +18,7 @@ from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository, MoveView
 from core.pokemon_repository import PokemonRepository
 from core.search_engine import SearchEngine
+from llm.advisor_damage_estimate import attach_selected_move_damage_estimate
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import run_ui_selected_advice
 from ui.shortcuts import GlobalShortcuts
@@ -314,10 +315,10 @@ class MainWindow(QMainWindow):
 
         my_panel = self._slot_panel("team_my", my_slot_index)
         opponent_panel = self._slot_panel("team_enemy", opponent_slot_index)
-        return {
+        battle_input = {
             "scenario": {
                 "mode": ADVISOR_PAYLOAD_MODE,
-                "format_note": "Selected Pokemon identity only; no full battle state.",
+                "format_note": "Selected Pokemon identity plus default-assumption selected move damage estimate; no full battle state.",
                 "known_limitations": list(ADVISOR_KNOWN_LIMITATIONS),
             },
             "pokemon": {
@@ -331,15 +332,16 @@ class MainWindow(QMainWindow):
                 "opponent_available_moves": [],
                 "opponent_selected_move": None,
                 "opponent_selected_move_index": opponent_panel.selected_move_index,
-                "move_data_status": "user_selected_partial_v0.8",
+                "move_data_status": "selected_move_damage_estimate_v0.9",
                 "notes": [
                     "Only user-confirmed move slots are included.",
                     "Empty move slots are omitted.",
                     "Cache learnsets are used only as search candidates.",
-                    "Damage calculation is not connected in v0.8.",
+                    "Selected move damage estimate uses default assumptions only.",
                 ],
             },
         }
+        return attach_selected_move_damage_estimate(battle_input)
 
     @staticmethod
     def _panel_moves_payload(panel) -> list[dict]:

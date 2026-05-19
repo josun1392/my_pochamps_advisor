@@ -24,7 +24,7 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
 
     assert payload["scenario"]["mode"] == ADVISOR_PAYLOAD_MODE
     assert payload["scenario"]["known_limitations"] == ADVISOR_KNOWN_LIMITATIONS
-    assert "Do not infer damage, OHKO/2HKO, or KO chance unless damage data is explicitly provided." in payload[
+    assert "Selected move damage estimate, when present, uses default assumptions and is not final battle damage." in payload[
         "scenario"
     ]["known_limitations"]
     assert "Terastallization is banned in PoChamps and must not be considered." in payload["scenario"][
@@ -47,6 +47,31 @@ def test_manual_move_payload_includes_only_user_confirmed_moves() -> None:
     assert selected_move is not None
     assert selected_move["move_id"] == "flamethrower"
     assert selected_move["slot"] == 2
+
+
+def test_ui_payload_attaches_selected_move_damage_estimate() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.selected_slots = {"team_my": 0, "team_enemy": 0}
+    my_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
+    opponent_panel = _panel("garchomp", selected_move_index=None, selected_moves=[])
+
+    def _slot_panel(self, column_name: str, slot_index: int):
+        del slot_index
+        return my_panel if column_name == "team_my" else opponent_panel
+
+    window._slot_panel = MethodType(_slot_panel, window)
+
+    payload = window._build_llm_battle_input()
+    estimate = payload["moves"]["my_selected_move"]["damage_estimate"]
+
+    assert estimate["status"] == "available_with_default_assumptions"
+    assert estimate["is_final_battle_damage"] is False
+    assert "damage_range" in estimate
+    assert "percent_range" in estimate
+    assert "assumptions" in estimate
+    assert "limitations" in estimate
+    assert "ko_chance" not in estimate
+    assert "ohko_chance" not in estimate
 
 
 def test_pokemon_payload_marks_base_stats_as_reference_data_only() -> None:

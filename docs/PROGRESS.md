@@ -354,3 +354,26 @@ Contract summary:
 Next milestones:
 - `v0.9 — Selected Move Damage Estimate`
 - `v0.10 — Four-Move Damage Comparison`
+
+---
+
+## v0.9 — Selected Move Damage Estimate
+
+Purpose:
+- Add a default-assumption damage estimate for the currently selected user-confirmed move.
+- Keep the estimate scoped to `moves.my_selected_move.damage_estimate`.
+- Preserve the v0.8.3 guardrails so the LLM does not treat the estimate as final battle damage.
+
+Implemented:
+- `llm/advisor_damage_estimate.py`
+- Default assumptions: level 50, IV 31 all, EV 0 all, neutral nature, no item, no boosts, no weather, no terrain, no screens, no crit, no ability effects, non-spread single-target estimate.
+- `MainWindow._build_llm_battle_input()` now attaches the selected move estimate through the helper instead of doing damage math in UI code.
+- `docs/advisor_payload_contract.md` and `llm/advisor_payload_contract.py` now describe the v0.9 estimate and limitations.
+
+Out of scope maintained:
+- No OHKO/2HKO/KO chance.
+- No four-move comparison.
+- No opponent moves.
+- No EV/IV/nature/item/final stat UI.
+- No Turn Engine.
+- No `advisor/damage/` or `advisor/probability/` engine changes.
