@@ -21,6 +21,7 @@ class MoveSearchBox(QWidget):
         self.search_engine = search_engine
         self.move_repository = move_repository
         self.available_move_ids: set[str] | None = None
+        self.empty_message: str | None = None
         self._current_move_ids: list[str] = []
 
         layout = QVBoxLayout(self)
@@ -66,9 +67,16 @@ class MoveSearchBox(QWidget):
             """
         )
 
-    def set_available_move_ids(self, move_ids: set[str] | None) -> None:
+    def set_available_move_ids(
+        self,
+        move_ids: set[str] | None,
+        empty_message: str | None = None,
+    ) -> None:
         self.available_move_ids = move_ids
+        self.empty_message = empty_message
         self.input.clear()
+        self.input.setEnabled(empty_message is None)
+        self.input.setPlaceholderText(empty_message or "Move search")
         self.results_list.hide()
         self._current_move_ids.clear()
 

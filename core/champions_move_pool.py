@@ -12,6 +12,7 @@ from core.champions_move_overrides import ChampionsMoveOverrides
 class ChampionsMovePool:
     pokemon_id: str
     moves: list[str]
+    move_names: dict[str, str]
     status: str = "available"
 
 
@@ -29,8 +30,10 @@ class ChampionsMovePoolRepository:
         if data is None:
             return None
         moves = self._move_ids(data.get("moves"))
+        move_names = self._move_names(data.get("moves"))
         allowed_moves = sorted(self.move_overrides.filter_allowed_move_ids(set(moves)))
-        return ChampionsMovePool(pokemon_id=pokemon_id, moves=allowed_moves)
+        allowed_move_names = {move_id: move_names.get(move_id, move_id) for move_id in allowed_moves}
+        return ChampionsMovePool(pokemon_id=pokemon_id, moves=allowed_moves, move_names=allowed_move_names)
 
     def get_allowed_move_ids_for_pokemon(self, pokemon_id: str) -> set[str]:
         pool = self.load_champions_movepool(pokemon_id)
@@ -56,6 +59,16 @@ class ChampionsMovePoolRepository:
             "pokemon_id": pokemon_id,
             "reason": "No Serebii-derived Champions move pool fixture/cache exists for this Pokemon.",
         }
+
+    def iter_move_search_entries(self) -> list[tuple[str, str]]:
+        entries: dict[str, str] = {}
+        for path in sorted(self.cache_dir.glob("*.json")):
+            pool = self.load_champions_movepool(path.stem)
+            if pool is None:
+                continue
+            for move_id in pool.moves:
+                entries.setdefault(move_id, pool.move_names.get(move_id, move_id))
+        return sorted(entries.items())
 
     def _load_fixture(self, pokemon_id: str) -> dict[str, Any] | None:
         path = self._fixture_path(pokemon_id)
@@ -83,3 +96,17 @@ class ChampionsMovePoolRepository:
                 move_ids.append(move_id)
                 seen.add(move_id)
         return move_ids
+
+    @staticmethod
+    def _move_names(value: Any) -> dict[str, str]:
+        if not isinstance(value, list):
+            return {}
+        move_names: dict[str, str] = {}
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            move_id = item.get("move_id")
+            name_en = item.get("name_en")
+            if isinstance(move_id, str) and move_id and isinstance(name_en, str) and name_en:
+                move_names[move_id] = name_en
+        return move_names

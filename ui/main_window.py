@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.cache_manager import CacheManager
-from core.champions_move_overrides import ChampionsMoveOverrides
+from core.champions_move_pool import ChampionsMovePoolRepository
 from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository, MoveView
 from core.pokemon_repository import PokemonRepository
@@ -133,7 +133,9 @@ class MainWindow(QMainWindow):
         self.search_engine.add_pokemon_entries(cached_pokemon_names)
         self.repo = PokemonRepository(self.cache, self.ko_loader)
         self.move_repo = MoveRepository(self.cache, self.ko_loader)
-        self.move_overrides = ChampionsMoveOverrides()
+        self.champions_move_pool_repo = ChampionsMovePoolRepository()
+        for move_id, name_en in self.champions_move_pool_repo.iter_move_search_entries():
+            self.search_engine.add_entry("move", move_id, name_en)
 
         self.selected_slots = {
             "team_my": 0,
@@ -449,10 +451,21 @@ class MainWindow(QMainWindow):
         slot = self._active_slot()
         view = getattr(slot, "pokemon_view", None) if slot is not None else None
         if view is None:
-            self.center_column.move_search_box.set_available_move_ids(set())
+            self.center_column.move_search_box.set_available_move_ids(
+                set(),
+                empty_message="Select a Pokemon first",
+            )
             return
-        available_move_ids = self.move_overrides.filter_allowed_move_ids(set(view.moves_en))
-        self.center_column.move_search_box.set_available_move_ids(available_move_ids)
+        available_move_ids, empty_message = _move_search_candidates_for_view(
+            view,
+            self.champions_move_pool_repo,
+        )
+        self.center_column.move_search_box.set_available_move_ids(
+            available_move_ids,
+            empty_message=empty_message,
+        )
+        if empty_message is not None:
+            self.statusBar().showMessage(f"Move search unavailable | {view.ko}: Champions sample fixture missing")
 
     @staticmethod
     def _cached_pokemon_names() -> dict[str, str | None]:
@@ -491,3 +504,13 @@ def _move_payload(move: MoveView, slot_index: int) -> dict:
         "accuracy": move.accuracy,
         "pp": move.pp,
     }
+
+
+def _move_search_candidates_for_view(
+    view,
+    champions_move_pool_repo: ChampionsMovePoolRepository,
+) -> tuple[set[str], str | None]:
+    move_ids = champions_move_pool_repo.get_allowed_move_ids_for_pokemon(view.en)
+    if move_ids:
+        return move_ids, None
+    return set(), "Champions moves unavailable"

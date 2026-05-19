@@ -334,6 +334,26 @@ Remaining limitations:
 
 ---
 
+## v0.9.2b - MoveSearchBox Champions Fixture Integration
+
+Purpose:
+- Route move search candidates through the sample Champions movepool fixtures instead of PokeAPI historical Pokemon learnsets.
+- Keep PokeAPI move data as metadata only.
+
+Implemented:
+- MoveSearchBox now receives candidate move ids from `ChampionsMovePoolRepository`.
+- Fixture-backed Pokemon use their sample Champions move ids.
+- Pokemon without a Champions movepool fixture show an unavailable search state instead of silently falling back to PokeAPI learnsets.
+- Added regression tests for Charizard, Froslass, Vanilluxe, Starmie, missing fixtures, and metadata lookup.
+
+Out of scope maintained:
+- No full Serebii/RotomLabs scraping.
+- No full roster Champions movepool cache.
+- No damage engine changes.
+- No four-move comparison.
+
+---
+
 ## v0.8.3 — Advisor Payload Contract
 
 Purpose:
