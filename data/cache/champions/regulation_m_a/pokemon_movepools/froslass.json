@@ -1,0 +1,76 @@
+{
+  "pokemon_id": "froslass",
+  "format": "pokemon_champions",
+  "regulation": "M-A",
+  "source_kind": "pokemon_movepool",
+  "moves": [
+    {
+      "move_id": "aurora-veil",
+      "name_en": "Aurora Veil",
+      "source_refs": ["serebii"],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "blizzard",
+      "name_en": "Blizzard",
+      "source_refs": ["serebii"],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "ice-beam",
+      "name_en": "Ice Beam",
+      "source_refs": ["serebii"],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "shadow-ball",
+      "name_en": "Shadow Ball",
+      "source_refs": ["serebii"],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    },
+    {
+      "move_id": "spikes",
+      "name_en": "Spikes",
+      "source_refs": ["serebii"],
+      "confidence": "third_party_primary",
+      "metadata_source": "pokeapi"
+    }
+  ],
+  "excluded_moves": [
+    {
+      "move_id": "hidden-power",
+      "reason": "not_listed_in_champions_pokedex_movepool",
+      "source_refs": ["serebii"]
+    },
+    {
+      "move_id": "tera-blast",
+      "reason": "globally_denied_in_champions_override",
+      "source_refs": ["champions_move_overrides"]
+    }
+  ],
+  "fetched_at": "2026-05-19",
+  "source_refs": {
+    "primary": [
+      {
+        "source": "serebii",
+        "url": "https://www.serebii.net/pokedex-champions/froslass"
+      }
+    ],
+    "cross_check": [
+      {
+        "source": "rotomlabs",
+        "url": "https://rotomlabs.net/dex/champions/froslass"
+      }
+    ],
+    "metadata": ["pokeapi"]
+  },
+  "notes": [
+    "Sample fixture only; not a complete Froslass Champions move pool.",
+    "PokeAPI pokemon learnset is not used as a Champions legality source.",
+    "PokeAPI move cache is used only for move metadata."
+  ]
+}

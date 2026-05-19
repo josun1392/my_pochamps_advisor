@@ -27,6 +27,8 @@ data/cache/*
 !data/cache/_meta.json
 !data/cache/pokemon/
 !data/cache/pokemon/**
+!data/cache/champions/
+!data/cache/champions/**
 !data/cache/pokeapi/
 data/cache/pokeapi/*
 !data/cache/pokeapi/.gitkeep
