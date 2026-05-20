@@ -35,7 +35,11 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
         "Opponent known move damage estimates, when present, are default-assumption reference values only."
         in payload["scenario"]["known_limitations"]
     )
-    assert "Opponent candidate move damage is not calculated in v0.12." in payload["scenario"]["known_limitations"]
+    assert (
+        "Every damage estimate includes an assumption_profile that identifies the stat model used."
+        in payload["scenario"]["known_limitations"]
+    )
+    assert "Opponent candidate move damage is not calculated in v0.13." in payload["scenario"]["known_limitations"]
     assert "Use my_available_moves damage_estimates to compare the user's own move options." in payload["scenario"][
         "known_limitations"
     ]
@@ -71,6 +75,7 @@ def test_ui_payload_attaches_selected_move_damage_estimate() -> None:
 
     assert estimate["status"] == "available_with_default_assumptions"
     assert estimate["is_final_battle_damage"] is False
+    _assert_default_assumption_profile(estimate)
     assert "damage_range" in estimate
     assert "percent_range" in estimate
     assert "assumptions" in estimate
@@ -91,6 +96,10 @@ def test_ui_payload_attaches_available_move_damage_estimates() -> None:
     assert len(estimates) == 2
     assert {estimate["scope"] for estimate in estimates} == {"available_move_comparison"}
     assert all(estimate["status"] == "available_with_default_assumptions" for estimate in estimates)
+    assert all(
+        estimate["assumption_profile"]["id"] == "default_level50_ivs31_evs0_neutral_no_item"
+        for estimate in estimates
+    )
     assert all("damage_range" in estimate for estimate in estimates)
     assert all("percent_range" in estimate for estimate in estimates)
     assert all("ko_chance" not in estimate for estimate in estimates)
@@ -134,6 +143,7 @@ def test_opponent_selected_moves_become_known_moves() -> None:
     assert known_move["damage_estimate"]["scope"] == "opponent_known_move_only"
     assert known_move["damage_estimate"]["target"] == "my_active"
     assert known_move["damage_estimate"]["is_final_battle_damage"] is False
+    _assert_default_assumption_profile(known_move["damage_estimate"])
     assert "damage_range" in known_move["damage_estimate"]
     assert "percent_range" in known_move["damage_estimate"]
     assert "ko_chance" not in known_move["damage_estimate"]
@@ -246,6 +256,16 @@ def _panel(
         selected_move_index=selected_move_index,
         selected_moves=selected_moves + [None] * (4 - len(selected_moves)),
     )
+
+
+def _assert_default_assumption_profile(estimate: dict) -> None:
+    assert estimate["assumption_profile"] == {
+        "id": "default_level50_ivs31_evs0_neutral_no_item",
+        "label": "Default Level 50 / IV 31 / EV 0 / neutral nature / no item",
+        "source": "system_default",
+        "confidence": "rough_reference",
+        "is_user_confirmed": False,
+    }
 
 
 def _window(my_panel, opponent_panel):

@@ -78,11 +78,12 @@ def test_damaging_selected_move_returns_default_assumption_range() -> None:
     assert len(estimate["rolls"]) == 16
     assert estimate["rolls"][0] == estimate["damage_range"]["min"]
     assert estimate["rolls"][-1] == estimate["damage_range"]["max"]
+    _assert_default_assumption_profile(estimate)
     assert estimate["assumptions"]["level"] == 50
     assert estimate["assumptions"]["ivs"] == "31 all"
     assert estimate["assumptions"]["evs"] == "0 all"
     assert estimate["assumptions"]["ability_effects"] == "not_applied_unselected"
-    assert "OHKO/2HKO/KO chance is not provided in v0.12." in estimate["limitations"]
+    assert "OHKO/2HKO/KO chance is not provided in v0.13." in estimate["limitations"]
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -130,6 +131,7 @@ def test_attach_handles_no_selected_move_with_unavailable_schema() -> None:
 
     estimate = result["moves"]["my_selected_move"]["damage_estimate"]
     assert estimate["status"] == "unavailable_no_selected_move"
+    _assert_default_assumption_profile(estimate)
     assert "damage_range" not in estimate
 
 
@@ -150,10 +152,11 @@ def test_opponent_known_move_returns_damage_against_my_active() -> None:
     assert estimate["percent_range"]["max"] >= estimate["percent_range"]["min"]
     assert estimate["percent_range"]["denominator"] == "default_defender_max_hp"
     assert len(estimate["rolls"]) == 16
+    _assert_default_assumption_profile(estimate)
     assert "Opponent item, ability, EV/IV/nature, boosts, and final stats are not connected." in estimate[
         "limitations"
     ]
-    assert "OHKO/2HKO/KO chance is not provided in v0.12." in estimate["limitations"]
+    assert "OHKO/2HKO/KO chance is not provided in v0.13." in estimate["limitations"]
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -182,8 +185,24 @@ def test_attach_opponent_known_damage_skips_candidate_moves() -> None:
     candidate_move = result["opponent_moves"]["candidate_moves"][0]
     assert known_move["damage_estimate"]["target"] == "my_active"
     assert known_move["damage_estimate"]["scope"] == "opponent_known_move_only"
+    _assert_default_assumption_profile(known_move["damage_estimate"])
     assert "damage_estimate" not in candidate_move
     assert "damage_estimate" not in payload["opponent_moves"]["known_moves"][0]
+
+
+def test_available_move_estimates_include_default_assumption_profile() -> None:
+    payload = _battle_input(
+        selected_move=_flamethrower(),
+        available_moves=[_flamethrower(), _air_slash()],
+    )
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    for move in result["moves"]["my_available_moves"]:
+        estimate = move["damage_estimate"]
+        _assert_default_assumption_profile(estimate)
+        assert estimate["is_final_battle_damage"] is False
+        assert "assumptions" in estimate
 
 
 def _battle_input(selected_move: dict | None, available_moves: list[dict] | None = None) -> dict:
@@ -244,6 +263,16 @@ def _battle_input(selected_move: dict | None, available_moves: list[dict] | None
             "move_data_status": "four_move_damage_comparison_v0.10",
             "notes": [],
         },
+    }
+
+
+def _assert_default_assumption_profile(estimate: dict) -> None:
+    assert estimate["assumption_profile"] == {
+        "id": "default_level50_ivs31_evs0_neutral_no_item",
+        "label": "Default Level 50 / IV 31 / EV 0 / neutral nature / no item",
+        "source": "system_default",
+        "confidence": "rough_reference",
+        "is_user_confirmed": False,
     }
 
 

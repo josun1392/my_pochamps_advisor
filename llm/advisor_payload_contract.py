@@ -3,23 +3,24 @@
 from __future__ import annotations
 
 
-ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.12"
+ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.13"
 
 ADVISOR_KNOWN_LIMITATIONS = [
     "Only user-selected moves and explicitly labeled opponent move data are included in the payload.",
     "Empty move slots are omitted.",
     "Move damage estimates, when present, use default assumptions and are not final battle damage.",
+    "Every damage estimate includes an assumption_profile that identifies the stat model used.",
     "Do not infer damage, OHKO/2HKO, or KO chance unless damage data is explicitly provided.",
     "Known opponent moves are user-confirmed only.",
     "Opponent candidate moves are possible Champions moves, not confirmed moves.",
     "Do not assume the opponent has a candidate move unless it appears in known_moves.",
     "Candidate moves may be mentioned as possible threats only when labeled as unconfirmed.",
     "Opponent known move damage estimates, when present, are default-assumption reference values only.",
-    "Opponent candidate move damage is not calculated in v0.12.",
+    "Opponent candidate move damage is not calculated in v0.13.",
     "Opponent item, selected ability, final stats, speed order, and Turn Engine state remain unknown.",
     "Use my_available_moves damage_estimates to compare the user's own move options.",
     "Base stats are species reference data, not EVs or final calculated battle stats.",
-    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.12.",
+    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.13.",
     "Terastallization is banned in PoChamps and must not be considered.",
     "Do not assume unprovided EVs, IVs, nature, held items, boosts, weather, terrain, exact HP, move sets, or Tera types.",
     "Speed tier, OHKO/2HKO, KO chance, and survival claims are uncertain unless explicit calculated fields are provided.",
@@ -41,18 +42,26 @@ ADVISOR_DAMAGE_ASSUMPTIONS = {
     "ability_effects": "not_applied_unselected",
 }
 
+ADVISOR_DEFAULT_ASSUMPTION_PROFILE = {
+    "id": "default_level50_ivs31_evs0_neutral_no_item",
+    "label": "Default Level 50 / IV 31 / EV 0 / neutral nature / no item",
+    "source": "system_default",
+    "confidence": "rough_reference",
+    "is_user_confirmed": False,
+}
+
 ADVISOR_DAMAGE_LIMITATIONS = [
     "This is not final battle damage.",
     "EV/IV/nature/item/final stats are not connected.",
     "Use as rough reference only.",
-    "OHKO/2HKO/KO chance is not provided in v0.12.",
+    "OHKO/2HKO/KO chance is not provided in v0.13.",
 ]
 
 ADVISOR_OPPONENT_DAMAGE_LIMITATIONS = [
     "This is not final battle damage.",
     "Opponent item, ability, EV/IV/nature, boosts, and final stats are not connected.",
     "Use as rough threat reference only.",
-    "OHKO/2HKO/KO chance is not provided in v0.12.",
+    "OHKO/2HKO/KO chance is not provided in v0.13.",
 ]
 
 ADVISOR_DAMAGE_ESTIMATE_STATUSES = {

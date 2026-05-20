@@ -723,3 +723,39 @@ Remaining limitations:
 - Codex tool environment Gemini response quality remains unverified because that environment returned `API_KEY_INVALID`.
 - The damage estimate remains a default-assumption reference, not final battle damage.
 - Candidate move damage, KO odds, speed order, final stats, EV/IV/nature/item, and Turn Engine state remain out of scope.
+
+---
+
+## v0.13 - Stats Assumption Profile
+
+Purpose:
+- Make the stat model behind every damage estimate explicit.
+- Clarify that current damage estimates are still default-assumption rough references.
+
+Implemented:
+- Added `ADVISOR_DEFAULT_ASSUMPTION_PROFILE` with id `default_level50_ivs31_evs0_neutral_no_item`.
+- Added `assumption_profile` to available damage estimates.
+- Added `assumption_profile` to unavailable damage estimate schemas.
+- Kept the existing `assumptions` field for compatibility.
+- Updated advisor payload mode and contract guardrails for v0.13.
+- Updated advisor payload contract documentation.
+
+Maintained boundaries:
+- No UI changes.
+- No final stats input.
+- No EV/IV/nature/item input.
+- No top-level `stat_profiles`.
+- No item selection.
+- No KO/OHKO/2HKO, speed order, or Turn Engine.
+- No `advisor/damage/` or `advisor/probability/` engine changes.
+
+Verification:
+- Confirmed `moves.my_available_moves[*].damage_estimate.assumption_profile` is present.
+- Confirmed `moves.my_selected_move.damage_estimate.assumption_profile` is present.
+- Confirmed `opponent_moves.known_moves[*].damage_estimate.assumption_profile` is present.
+- Confirmed the default profile id is `default_level50_ivs31_evs0_neutral_no_item`.
+- Confirmed `source: "system_default"`, `confidence: "rough_reference"`, and `is_user_confirmed: false`.
+- Confirmed the existing `assumptions` field remains present.
+- Confirmed `is_final_battle_damage` remains `false`.
+- `uv run pytest -q`
+- Result: 662 passed, 2 deselected.

@@ -11,6 +11,7 @@ from advisor.damage.stats import StatBlock, StatInputs, final_stats, nature_from
 from llm.advisor_payload_contract import (
     ADVISOR_DAMAGE_ASSUMPTIONS,
     ADVISOR_DAMAGE_LIMITATIONS,
+    ADVISOR_DEFAULT_ASSUMPTION_PROFILE,
     ADVISOR_OPPONENT_DAMAGE_LIMITATIONS,
 )
 
@@ -267,6 +268,7 @@ def build_move_damage_estimate(
             "denominator": "default_defender_max_hp",
         },
         "rolls": list(rolls),
+        "assumption_profile": dict(ADVISOR_DEFAULT_ASSUMPTION_PROFILE),
         "assumptions": dict(ADVISOR_DAMAGE_ASSUMPTIONS),
         "derived_stats": {
             "attacker": {
@@ -300,6 +302,7 @@ def _unavailable(
         "scope": scope,
         "is_final_battle_damage": False,
         "reason": reason,
+        "assumption_profile": dict(ADVISOR_DEFAULT_ASSUMPTION_PROFILE),
         "assumptions": dict(ADVISOR_DAMAGE_ASSUMPTIONS),
         "limitations": list(
             limitations
