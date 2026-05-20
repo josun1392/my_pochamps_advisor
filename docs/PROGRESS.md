@@ -379,6 +379,25 @@ Out of scope maintained:
 
 ---
 
+## v0.9.2d - Champions Move Korean Name Coverage
+
+Purpose:
+- Ensure every move in the Serebii-derived Champions movepool cache has a Korean display/search name.
+- Keep move selection working even when PokeAPI move metadata is not locally cached.
+
+Implemented:
+- Added `scripts/update_champions_move_ko_mapping.py`.
+- Updated `data/ko_mapping.json` for all 490 Champions move ids.
+- Added manual Korean-name overrides for recent moves that PokeAPI does not localize yet.
+- Added Champions movepool metadata fallback in `MoveRepository`.
+- Verified `expanding-force` maps to `와이드포스` and can be searched for Starmie.
+
+Verification:
+- `uv run pytest -q`
+- Result: 648 passed, 2 deselected.
+
+---
+
 ## v0.8.3 — Advisor Payload Contract
 
 Purpose:

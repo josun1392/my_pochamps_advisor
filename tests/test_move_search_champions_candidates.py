@@ -85,6 +85,52 @@ def test_pokeapi_move_metadata_still_loads_for_fixture_candidate() -> None:
     assert move.category == "special"
 
 
+def test_champions_movepool_metadata_fallback_loads_expanding_force() -> None:
+    move = MoveRepository(CacheManager(), KoMappingLoader()).get("expanding-force")
+
+    assert move.move_id == "expanding-force"
+    assert move.name_ko == "와이드포스"
+    assert move.type == "psychic"
+    assert move.category == "special"
+    assert move.power == 80
+
+
+def test_starmie_expanding_force_can_be_found_by_korean_name() -> None:
+    loader = KoMappingLoader()
+    search_engine = SearchEngine(loader)
+    repo = ChampionsMovePoolRepository()
+    for move_id, name_en in repo.iter_move_search_entries():
+        search_engine.add_entry("move", move_id, name_en)
+
+    candidates, _ = _move_search_candidates_for_view(_view("starmie"), repo)
+    results = [
+        result
+        for result in search_engine.search("와이드포스", kind="move", limit=24)
+        if result.en in candidates
+    ]
+
+    assert [result.en for result in results] == ["expanding-force"]
+
+
+def test_recent_manual_korean_move_overrides_are_searchable() -> None:
+    loader = KoMappingLoader()
+    search_engine = SearchEngine(loader)
+    repo = ChampionsMovePoolRepository()
+    for move_id, name_en in repo.iter_move_search_entries():
+        search_engine.add_entry("move", move_id, name_en)
+
+    candidates, _ = _move_search_candidates_for_view(_view("meowscarada"), repo)
+    results = [
+        result
+        for result in search_engine.search("트릭플라워", kind="move", limit=24)
+        if result.en in candidates
+    ]
+
+    result_ids = [result.en for result in results]
+    assert result_ids[0] == "flower-trick"
+    assert "flower-trick" in result_ids
+
+
 def test_sample_fixture_moves_are_added_to_search_index() -> None:
     loader = KoMappingLoader()
     search_engine = SearchEngine(loader)

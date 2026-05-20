@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from core.cache_manager import CacheManager
+from core.champions_move_pool import ChampionsMovePoolRepository
 from core.ko_mapping_loader import KoMappingLoader
 
 
@@ -20,14 +21,20 @@ class MoveView:
 
 
 class MoveRepository:
-    def __init__(self, cache_manager: CacheManager, ko_loader: KoMappingLoader) -> None:
+    def __init__(
+        self,
+        cache_manager: CacheManager,
+        ko_loader: KoMappingLoader,
+        champions_move_pool: ChampionsMovePoolRepository | None = None,
+    ) -> None:
         self.cache_manager = cache_manager
         self.ko_loader = ko_loader
+        self.champions_move_pool = champions_move_pool or ChampionsMovePoolRepository()
 
     def get(self, move_id: str) -> MoveView:
         data = self.cache_manager.get("moves", move_id)
         if data is None:
-            raise RuntimeError(f"Move is missing from cache: {move_id}")
+            return self._get_from_champions_movepool(move_id)
 
         name = _required_str(data, "name")
         move_type = _required_str(data, "type")
@@ -36,6 +43,24 @@ class MoveRepository:
             move_id=name,
             name_en=_localized_name(data, "en") or name,
             name_ko=self.ko_loader.get_move_ko(name) or _localized_name(data, "ko"),
+            type=move_type,
+            category=category,
+            power=_optional_int(data.get("power")),
+            accuracy=_optional_int(data.get("accuracy")),
+            pp=_optional_int(data.get("pp")),
+        )
+
+    def _get_from_champions_movepool(self, move_id: str) -> MoveView:
+        data = self.champions_move_pool.get_move_metadata(move_id)
+        if data is None:
+            raise RuntimeError(f"Move is missing from cache: {move_id}")
+        name_en = _required_str(data, "name_en")
+        move_type = _required_str(data, "type")
+        category = _required_str(data, "category")
+        return MoveView(
+            move_id=move_id,
+            name_en=name_en,
+            name_ko=self.ko_loader.get_move_ko(move_id),
             type=move_type,
             category=category,
             power=_optional_int(data.get("power")),

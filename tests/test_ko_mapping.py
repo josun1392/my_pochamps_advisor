@@ -70,6 +70,18 @@ def test_manual_override_applied_when_pokeapi_missing() -> None:
     assert _resolve_ko_name(mapping, "moves", "tera-blast", data) == "테라버스트"
 
 
+def test_recent_manual_move_override_applied_when_pokeapi_missing() -> None:
+    mapping = _empty_mapping()
+    data = {
+        "name": "flower-trick",
+        "names": {
+            "en": "Flower Trick",
+        },
+    }
+
+    assert _resolve_ko_name(mapping, "moves", "flower-trick", data) == "트릭플라워"
+
+
 def test_manual_override_recorded_in_overridden_field() -> None:
     mapping = _empty_mapping()
     data = {

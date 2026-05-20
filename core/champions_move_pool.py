@@ -77,6 +77,16 @@ class ChampionsMovePoolRepository:
                 entries.setdefault(move_id, pool.move_names.get(move_id, move_id))
         return sorted(entries.items())
 
+    def get_move_metadata(self, move_id: str) -> dict[str, Any] | None:
+        for path in sorted(self.cache_dir.glob("*.json")):
+            data = self._load_fixture(path.stem)
+            if data is None:
+                continue
+            for item in data.get("moves", []):
+                if isinstance(item, dict) and item.get("move_id") == move_id:
+                    return item
+        return None
+
     def _load_fixture(self, pokemon_id: str) -> dict[str, Any] | None:
         path = self._fixture_path(pokemon_id)
         try:
