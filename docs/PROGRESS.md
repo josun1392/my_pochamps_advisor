@@ -803,3 +803,49 @@ Verification:
 - Offscreen UI smoke confirmed `Master Ball Advisor v0.14` launches and Pokemon panels expose Stats buttons.
 - `uv run pytest -q`
 - Result: 670 passed, 2 deselected.
+
+---
+
+## v0.14.1 - Final Stats Input local verification
+
+Purpose:
+- Verify the v0.14 final stats input flow without adding new functionality.
+- Confirm that UI state, payload `stat_profiles`, and damage estimate assumption profiles remain aligned.
+
+Verification:
+- Confirmed the app launches offscreen as `Master Ball Advisor v0.14`.
+- Confirmed Pokemon panels expose compact `Stats` buttons.
+- Confirmed `StatProfileDialog` can save all six final stats.
+- Confirmed the dialog `Clear` path returns to default assumptions.
+- Confirmed partial final stats are not accepted as `user_confirmed_final_stats`.
+- Confirmed `stat_profiles.my_active` and `stat_profiles.opponent_active` are emitted.
+- Confirmed complete final stats produce `status: "user_confirmed_final_stats"` and `source: "user_input"`.
+- Confirmed missing/partial final stats keep `status: "default_assumption"`.
+- Confirmed my available move damage estimates use `assumption_profile.id: "user_confirmed_final_stats_level50"` when final stats are present.
+- Confirmed opponent known move damage estimates use `assumption_profile.id: "user_confirmed_final_stats_level50"` when final stats are present.
+- Confirmed sample final stats changed damage ranges compared with default-reference calculations.
+- Confirmed `is_final_battle_damage` remains `false`.
+- Confirmed KO/OHKO/2HKO fields remain absent.
+- Confirmed opponent candidate moves still do not include `damage_estimate`.
+
+Gemini verification:
+- Attempted one Codex-environment Gemini call with `gemini-2.5-flash`.
+- Result: not verified in Codex because the configured key returned `API_KEY_INVALID`.
+- T1 local valid-key app verification is still required to confirm Gemini response quality.
+- Expected checks for T1 local verification:
+  - Gemini distinguishes user-confirmed final stats from default assumptions.
+  - Gemini does not describe the damage as final battle damage.
+  - Gemini keeps item/ability/boost/weather/terrain limitations.
+  - Gemini does not assert KO/OHKO/2HKO or speed order.
+
+Maintained boundaries:
+- No payload schema changes.
+- No UI changes.
+- No EV/IV/nature/item input.
+- No KO/OHKO/2HKO.
+- No speed order or Turn Engine.
+- No `advisor/damage/` or `advisor/probability/` engine changes.
+
+Test:
+- `uv run pytest -q`
+- Result: 670 passed, 2 deselected.
