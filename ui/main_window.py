@@ -33,7 +33,11 @@ from ui.widgets.llm_advice_panel import LLMAdvicePanel
 from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
-from ui.widgets.stat_profile_dialog import validate_final_stats, StatProfileDialog
+from ui.widgets.stat_profile_dialog import (
+    champions_final_stat_limits,
+    validate_final_stats,
+    StatProfileDialog,
+)
 
 
 OPPONENT_CANDIDATE_MOVES_LIMIT = 24
@@ -555,6 +559,7 @@ class MainWindow(QMainWindow):
         dialog = StatProfileDialog(
             pokemon_name=view.ko or view.en,
             current_stats=getattr(panel, "final_stats", None),
+            stat_limits=champions_final_stat_limits(view.base_stats),
             parent=self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
