@@ -675,3 +675,39 @@ Verification:
 - Confirmed v0.10 my-side damage estimate regression remains covered.
 - `uv run pytest -q`
 - Result: 661 passed, 2 deselected.
+
+---
+
+## v0.12.1 - Opponent known move damage Gemini verification
+
+Purpose:
+- Verify the v0.12 opponent known move damage payload shape.
+- Attempt a Gemini quality check for opponent known move damage awareness.
+
+Payload verification:
+- Offscreen payload check used Charizard vs Garchomp with opponent known move `Earthquake`.
+- Confirmed `opponent_moves.known_moves[0].move_id` is `earthquake`.
+- Confirmed `opponent_moves.known_moves[0].source` is `user_confirmed`.
+- Confirmed `opponent_moves.known_moves[0].damage_estimate.status` is `available_with_default_assumptions`.
+- Confirmed `opponent_moves.known_moves[0].damage_estimate.target` is `my_active`.
+- Confirmed `is_final_battle_damage` is `false`.
+- Confirmed Charizard's Ground immunity is represented as `damage_range: 0-0` and `percent_range: 0.0-0.0`.
+- Confirmed candidate moves do not include `damage_estimate`.
+- Confirmed `moves.my_available_moves[*].damage_estimate` remains present for four user-confirmed moves.
+- Confirmed `moves.opponent_available_moves` remains the legacy empty list.
+- Confirmed KO/OHKO/2HKO fields are not present.
+
+Gemini:
+- Actual Gemini call was attempted with `gemini-2.5-flash`.
+- The Codex execution environment returned `API_KEY_INVALID`, even though the environment variable was present.
+- This is recorded as an environment/key validation issue, not a v0.12 payload regression.
+- T1 local valid-key verification is still needed to judge whether Gemini explicitly interprets Earthquake vs Charizard as zero damage.
+
+Verification:
+- `uv run pytest -q`
+- Result: 661 passed, 2 deselected.
+
+Remaining limitations:
+- Gemini response quality for opponent known move damage could not be verified from the Codex tool environment.
+- The damage estimate remains a default-assumption reference, not final battle damage.
+- Candidate move damage, KO odds, speed order, final stats, EV/IV/nature/item, and Turn Engine state remain out of scope.
