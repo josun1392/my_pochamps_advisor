@@ -701,13 +701,25 @@ Gemini:
 - Actual Gemini call was attempted with `gemini-2.5-flash`.
 - The Codex execution environment returned `API_KEY_INVALID`, even though the environment variable was present.
 - This is recorded as an environment/key validation issue, not a v0.12 payload regression.
-- T1 local valid-key verification is still needed to judge whether Gemini explicitly interprets Earthquake vs Charizard as zero damage.
+
+T1 local app verification:
+- Gemini call succeeded from the local valid-key PySide app.
+- Status bar showed Free Tier cost semantics: `Free tier | input 7478 / output 101 | $0.0000000`.
+- In a Charizard vs Garchomp scenario, Gemini recommended `Heat Wave` from the user's four move options.
+- The response used the four-move damage comparison and cited `Heat Wave` at 18.0-21.3% estimated damage to Garchomp.
+- The response recognized the opponent known move `Earthquake`.
+- The response interpreted Charizard's Flying typing correctly and stated that Earthquake is ineffective/immune against Charizard.
+- Candidate Dragon-type moves were described only as unconfirmed possible threats.
+- No candidate move overclaim was observed.
+- No opponent damage overclaim was observed.
+- The response did not claim KO, OHKO, or 2HKO.
+- The response preserved the default-assumption limitation and did not assert EVs, IVs, nature, items, final stats, speed order, or turn outcome.
 
 Verification:
 - `uv run pytest -q`
 - Result: 661 passed, 2 deselected.
 
 Remaining limitations:
-- Gemini response quality for opponent known move damage could not be verified from the Codex tool environment.
+- Codex tool environment Gemini response quality remains unverified because that environment returned `API_KEY_INVALID`.
 - The damage estimate remains a default-assumption reference, not final battle damage.
 - Candidate move damage, KO odds, speed order, final stats, EV/IV/nature/item, and Turn Engine state remain out of scope.
