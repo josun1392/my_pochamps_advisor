@@ -83,7 +83,7 @@ def test_damaging_selected_move_returns_default_assumption_range() -> None:
     assert estimate["assumptions"]["ivs"] == "31 all"
     assert estimate["assumptions"]["evs"] == "0 all"
     assert estimate["assumptions"]["ability_effects"] == "not_applied_unselected"
-    assert "OHKO/2HKO/KO chance is not provided in v0.13." in estimate["limitations"]
+    assert "OHKO/2HKO/KO chance is not provided in v0.14." in estimate["limitations"]
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -156,7 +156,7 @@ def test_opponent_known_move_returns_damage_against_my_active() -> None:
     assert "Opponent item, ability, EV/IV/nature, boosts, and final stats are not connected." in estimate[
         "limitations"
     ]
-    assert "OHKO/2HKO/KO chance is not provided in v0.13." in estimate["limitations"]
+    assert "OHKO/2HKO/KO chance is not provided in v0.14." in estimate["limitations"]
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -203,6 +203,62 @@ def test_available_move_estimates_include_default_assumption_profile() -> None:
         _assert_default_assumption_profile(estimate)
         assert estimate["is_final_battle_damage"] is False
         assert "assumptions" in estimate
+
+
+def test_my_move_damage_uses_user_confirmed_final_stats() -> None:
+    default_payload = _battle_input(selected_move=_flamethrower())
+    final_stats_payload = _battle_input(selected_move=_flamethrower())
+    final_stats_payload["stat_profiles"] = {
+        "my_active": _user_final_stats(spa=300),
+        "opponent_active": _default_stat_profile(),
+    }
+
+    default_estimate = build_selected_move_damage_estimate(default_payload)
+    final_stats_estimate = build_selected_move_damage_estimate(final_stats_payload)
+
+    assert final_stats_estimate["damage_range"]["max"] > default_estimate["damage_range"]["max"]
+    _assert_user_final_stats_profile(
+        final_stats_estimate,
+        attacker="user_confirmed_final_stats",
+        defender="default_assumption",
+    )
+    assert final_stats_estimate["is_final_battle_damage"] is False
+
+
+def test_opponent_known_move_damage_uses_user_confirmed_final_stats() -> None:
+    default_payload = _battle_input(selected_move=_flamethrower())
+    final_stats_payload = _battle_input(selected_move=_flamethrower())
+    final_stats_payload["stat_profiles"] = {
+        "my_active": _user_final_stats(def_=50),
+        "opponent_active": _user_final_stats(atk=300),
+    }
+
+    default_estimate = build_opponent_known_move_damage_estimate(default_payload, _rock_slide())
+    final_stats_estimate = build_opponent_known_move_damage_estimate(final_stats_payload, _rock_slide())
+
+    assert final_stats_estimate["damage_range"]["max"] > default_estimate["damage_range"]["max"]
+    _assert_user_final_stats_profile(
+        final_stats_estimate,
+        attacker="user_confirmed_final_stats",
+        defender="user_confirmed_final_stats",
+    )
+    assert "ko_chance" not in final_stats_estimate
+    assert "ohko_chance" not in final_stats_estimate
+
+
+def test_partial_final_stats_falls_back_to_default_profile() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["stat_profiles"] = {
+        "my_active": {
+            "status": "user_confirmed_final_stats",
+            "final_stats": {"hp": 153, "atk": 104},
+        },
+        "opponent_active": _default_stat_profile(),
+    }
+
+    estimate = build_selected_move_damage_estimate(payload)
+
+    _assert_default_assumption_profile(estimate)
 
 
 def _battle_input(selected_move: dict | None, available_moves: list[dict] | None = None) -> dict:
@@ -276,6 +332,60 @@ def _assert_default_assumption_profile(estimate: dict) -> None:
     }
 
 
+def _assert_user_final_stats_profile(
+    estimate: dict,
+    *,
+    attacker: str,
+    defender: str,
+) -> None:
+    profile = estimate["assumption_profile"]
+    assert profile["id"] == "user_confirmed_final_stats_level50"
+    assert profile["source"] == "user_input"
+    assert profile["confidence"] == "higher_confidence_reference"
+    assert profile["is_user_confirmed"] is True
+    assert profile["stats_used"] == {
+        "attacker": attacker,
+        "defender": defender,
+    }
+
+
+def _default_stat_profile() -> dict:
+    return {
+        "status": "default_assumption",
+        "source": "system_default",
+        "level": 50,
+        "final_stats": None,
+        "evs": None,
+        "ivs": "31 all",
+        "nature": "neutral",
+        "item": None,
+    }
+
+
+def _user_final_stats(
+    *,
+    hp: int = 153,
+    atk: int = 104,
+    def_: int = 98,
+    spa: int = 161,
+    spd: int = 105,
+    spe: int = 167,
+) -> dict:
+    return {
+        "status": "user_confirmed_final_stats",
+        "source": "user_input",
+        "level": 50,
+        "final_stats": {
+            "hp": hp,
+            "atk": atk,
+            "def": def_,
+            "spa": spa,
+            "spd": spd,
+            "spe": spe,
+        },
+    }
+
+
 def _flamethrower() -> dict:
     return {
         "slot": 0,
@@ -328,5 +438,19 @@ def _earthquake() -> dict:
         "category": "physical",
         "power": 100,
         "accuracy": 100,
+        "pp": 10,
+    }
+
+
+def _rock_slide() -> dict:
+    return {
+        "slot": 0,
+        "move_id": "rock-slide",
+        "name_en": "Rock Slide",
+        "name_ko": "Rock Slide",
+        "type": "rock",
+        "category": "physical",
+        "power": 75,
+        "accuracy": 90,
         "pp": 10,
     }

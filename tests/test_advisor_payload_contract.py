@@ -39,7 +39,10 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
         "Every damage estimate includes an assumption_profile that identifies the stat model used."
         in payload["scenario"]["known_limitations"]
     )
-    assert "Opponent candidate move damage is not calculated in v0.13." in payload["scenario"]["known_limitations"]
+    assert "User-confirmed final stats may be used when stat_profiles provides all six stats." in payload["scenario"][
+        "known_limitations"
+    ]
+    assert "Opponent candidate move damage is not calculated in v0.14." in payload["scenario"]["known_limitations"]
     assert "Use my_available_moves damage_estimates to compare the user's own move options." in payload["scenario"][
         "known_limitations"
     ]
@@ -103,6 +106,67 @@ def test_ui_payload_attaches_available_move_damage_estimates() -> None:
     assert all("damage_range" in estimate for estimate in estimates)
     assert all("percent_range" in estimate for estimate in estimates)
     assert all("ko_chance" not in estimate for estimate in estimates)
+
+
+def test_ui_payload_includes_default_stat_profiles() -> None:
+    my_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
+    opponent_panel = _panel("garchomp", selected_move_index=None, selected_moves=[])
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+
+    assert payload["stat_profiles"]["my_active"]["status"] == "default_assumption"
+    assert payload["stat_profiles"]["my_active"]["source"] == "system_default"
+    assert payload["stat_profiles"]["my_active"]["final_stats"] is None
+    assert payload["stat_profiles"]["opponent_active"]["status"] == "default_assumption"
+    assert payload["stat_profiles"]["opponent_active"]["source"] == "system_default"
+    assert payload["stat_profiles"]["opponent_active"]["final_stats"] is None
+
+
+def test_ui_payload_includes_user_confirmed_final_stats() -> None:
+    my_panel = _panel(
+        "charizard",
+        selected_move_index=0,
+        selected_moves=[_move("flamethrower")],
+        final_stats=_final_stats(spa=300),
+    )
+    opponent_panel = _panel(
+        "garchomp",
+        selected_move_index=0,
+        selected_moves=[_move("earthquake")],
+        final_stats=_final_stats(atk=300),
+    )
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+
+    assert payload["stat_profiles"]["my_active"]["status"] == "user_confirmed_final_stats"
+    assert payload["stat_profiles"]["my_active"]["source"] == "user_input"
+    assert payload["stat_profiles"]["my_active"]["final_stats"]["spa"] == 300
+    assert payload["stat_profiles"]["opponent_active"]["status"] == "user_confirmed_final_stats"
+    assert payload["stat_profiles"]["opponent_active"]["final_stats"]["atk"] == 300
+    my_estimate = payload["moves"]["my_available_moves"][0]["damage_estimate"]
+    opponent_estimate = payload["opponent_moves"]["known_moves"][0]["damage_estimate"]
+    assert my_estimate["assumption_profile"]["id"] == "user_confirmed_final_stats_level50"
+    assert my_estimate["assumption_profile"]["is_user_confirmed"] is True
+    assert opponent_estimate["assumption_profile"]["id"] == "user_confirmed_final_stats_level50"
+    assert opponent_estimate["is_final_battle_damage"] is False
+
+
+def test_partial_final_stats_remain_default_assumption() -> None:
+    my_panel = _panel(
+        "charizard",
+        selected_move_index=0,
+        selected_moves=[_move("flamethrower")],
+        final_stats={"hp": 153, "atk": 104},
+    )
+    opponent_panel = _panel("garchomp", selected_move_index=None, selected_moves=[])
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+
+    assert payload["stat_profiles"]["my_active"]["status"] == "default_assumption"
+    assert payload["stat_profiles"]["my_active"]["final_stats"] is None
 
 
 def test_ui_payload_includes_opponent_moves_section() -> None:
@@ -239,7 +303,8 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "candidate_moves only as possible, not confirmed" in prompt
     assert "label them as unconfirmed" in prompt
     assert "Opponent known move damage estimates" in prompt
-    assert "Opponent candidate move damage is not calculated in v0.12" in prompt
+    assert "User-confirmed final stats may be used" in prompt
+    assert "Opponent candidate move damage is not calculated in v0.14" in prompt
     assert "Use my_available_moves damage_estimates to compare the user's own move options" in prompt
     assert "Do not claim OHKO, 2HKO, KO chance, survival, or speed order" in prompt
 
@@ -249,12 +314,14 @@ def _panel(
     *,
     selected_move_index: int | None,
     selected_moves: list[MoveView | None],
+    final_stats: dict | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         pokemon_view=_pokemon(name),
         current_hp_percent=100,
         selected_move_index=selected_move_index,
         selected_moves=selected_moves + [None] * (4 - len(selected_moves)),
+        final_stats=final_stats,
     )
 
 
@@ -265,6 +332,25 @@ def _assert_default_assumption_profile(estimate: dict) -> None:
         "source": "system_default",
         "confidence": "rough_reference",
         "is_user_confirmed": False,
+    }
+
+
+def _final_stats(
+    *,
+    hp: int = 153,
+    atk: int = 104,
+    def_: int = 98,
+    spa: int = 161,
+    spd: int = 105,
+    spe: int = 167,
+) -> dict:
+    return {
+        "hp": hp,
+        "atk": atk,
+        "def": def_,
+        "spa": spa,
+        "spd": spd,
+        "spe": spe,
     }
 
 

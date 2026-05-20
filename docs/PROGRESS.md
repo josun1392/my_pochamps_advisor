@@ -759,3 +759,47 @@ Verification:
 - Confirmed `is_final_battle_damage` remains `false`.
 - `uv run pytest -q`
 - Result: 662 passed, 2 deselected.
+
+---
+
+## v0.14 - Final Stats Input
+
+Purpose:
+- Allow user-confirmed final stats for the selected my/opponent active Pokemon.
+- Use those final stats in existing my-side and opponent-known-move damage estimates without changing the damage engine.
+
+Implemented:
+- Added top-level `stat_profiles.my_active` and `stat_profiles.opponent_active`.
+- Added `StatProfileDialog` for HP / Atk / Def / SpA / SpD / Spe entry.
+- Added a compact `Stats` button to Pokemon panels that opens the dialog for the selected slot.
+- Stored final stats on the selected Pokemon panel.
+- Added validation that accepts only complete six-stat positive integer profiles.
+- Kept partial final stats as default assumptions instead of silently mixing values.
+- Updated damage helper stat resolution:
+  - my move damage can use `my_active` attacker final stats and `opponent_active` defender final stats
+  - opponent known move damage can use `opponent_active` attacker final stats and `my_active` defender final stats
+- Updated `damage_estimate.assumption_profile` to `user_confirmed_final_stats_level50` when user-confirmed final stats are used.
+- Kept `is_final_battle_damage` as `false`.
+- Updated advisor payload contract guardrails for v0.14.
+
+Maintained boundaries:
+- No bench Pokemon final stats editing.
+- No EV/IV/nature/item input.
+- No item, ability, boost, weather, terrain, or screen UI.
+- No KO/OHKO/2HKO.
+- No speed order.
+- No Turn Engine.
+- No `advisor/damage/` or `advisor/probability/` engine changes.
+
+Verification:
+- Confirmed default stat profiles are emitted for both active Pokemon when final stats are absent.
+- Confirmed user-confirmed final stats are emitted for `my_active` and `opponent_active` when all six stats are present.
+- Confirmed partial final stats remain default assumptions.
+- Confirmed my move damage uses user-confirmed attacker/defender final stats.
+- Confirmed opponent known move damage uses user-confirmed attacker/defender final stats.
+- Confirmed `damage_estimate.assumption_profile` changes to `user_confirmed_final_stats_level50`.
+- Confirmed `is_final_battle_damage` remains `false`.
+- Confirmed KO/OHKO/2HKO fields remain absent.
+- Offscreen UI smoke confirmed `Master Ball Advisor v0.14` launches and Pokemon panels expose Stats buttons.
+- `uv run pytest -q`
+- Result: 670 passed, 2 deselected.

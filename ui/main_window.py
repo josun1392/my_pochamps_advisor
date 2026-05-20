@@ -6,6 +6,7 @@ from pathlib import Path
 import requests
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 from PySide6.QtWidgets import (
+    QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -32,6 +33,7 @@ from ui.widgets.llm_advice_panel import LLMAdvicePanel
 from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
+from ui.widgets.stat_profile_dialog import validate_final_stats, StatProfileDialog
 
 
 OPPONENT_CANDIDATE_MOVES_LIMIT = 24
@@ -128,7 +130,7 @@ class AnalysisColumn(QFrame):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Master Ball Advisor v0.11")
+        self.setWindowTitle("Master Ball Advisor v0.14")
         self.setMinimumSize(1500, 980)
         self.resize(1500, 980)
 
@@ -363,6 +365,10 @@ class MainWindow(QMainWindow):
                 "my_active": self._panel_to_llm_payload(my_panel, my_slot_index),
                 "opponent_active": self._panel_to_llm_payload(opponent_panel, opponent_slot_index),
             },
+            "stat_profiles": {
+                "my_active": _stat_profile_payload(my_panel),
+                "opponent_active": _stat_profile_payload(opponent_panel),
+            },
             "moves": {
                 "my_selected_move_index": my_panel.selected_move_index,
                 "my_available_moves": self._panel_moves_payload(my_panel),
@@ -449,7 +455,7 @@ class MainWindow(QMainWindow):
                 "Candidate moves are possible moves, not confirmed opponent moves.",
                 "Do not assume the opponent has a candidate move unless user-confirmed.",
                 "Opponent known move damage estimates use default assumptions only.",
-                "Candidate move damage is not calculated in v0.12.",
+                "Candidate move damage is not calculated in v0.14.",
             ],
         }
 
@@ -528,12 +534,36 @@ class MainWindow(QMainWindow):
                         move_index,
                     )
                 )
+                panel.stat_profile_requested.connect(
+                    lambda slot, name=column_name: self._on_stat_profile_requested(name, slot)
+                )
 
     @Slot(str, int, int)
     def _on_move_slot_selected(self, column_name: str, slot_index: int, move_index: int) -> None:
         del move_index
         self.select_slot(column_name, slot_index)
         self._sync_move_search_candidates()
+
+    @Slot(str, int)
+    def _on_stat_profile_requested(self, column_name: str, slot_index: int) -> None:
+        panel = self._slot_panel(column_name, slot_index)
+        self.select_slot(column_name, slot_index)
+        view = getattr(panel, "pokemon_view", None)
+        if view is None:
+            self.statusBar().showMessage("Failed | Select a Pokemon first.")
+            return
+        dialog = StatProfileDialog(
+            pokemon_name=view.ko or view.en,
+            current_stats=getattr(panel, "final_stats", None),
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        panel.set_final_stats(dialog.final_stats)
+        if dialog.final_stats is None:
+            self.statusBar().showMessage(f"Stats cleared | {view.ko or view.en}")
+        else:
+            self.statusBar().showMessage(f"Stats set | {view.ko or view.en}")
 
     def _refresh_move_selection_styles(self) -> None:
         for column_name, team_column in (
@@ -604,6 +634,39 @@ def _move_payload(move: MoveView, slot_index: int) -> dict:
         "power": move.power,
         "accuracy": move.accuracy,
         "pp": move.pp,
+    }
+
+
+def _stat_profile_payload(panel) -> dict:
+    final_stats = validate_final_stats(getattr(panel, "final_stats", None))
+    if final_stats is None:
+        return {
+            "status": "default_assumption",
+            "source": "system_default",
+            "level": 50,
+            "final_stats": None,
+            "evs": None,
+            "ivs": "31 all",
+            "nature": "neutral",
+            "item": None,
+            "notes": [
+                "No user-confirmed final stats are available.",
+                "Damage estimates use the default stat profile.",
+            ],
+        }
+    return {
+        "status": "user_confirmed_final_stats",
+        "source": "user_input",
+        "level": 50,
+        "final_stats": final_stats,
+        "evs": None,
+        "ivs": None,
+        "nature": None,
+        "item": None,
+        "notes": [
+            "Final stats are user-provided.",
+            "EV/IV/nature breakdown is not connected.",
+        ],
     }
 
 

@@ -13,6 +13,7 @@ from llm.advisor_payload_contract import (
     ADVISOR_DAMAGE_LIMITATIONS,
     ADVISOR_DEFAULT_ASSUMPTION_PROFILE,
     ADVISOR_OPPONENT_DAMAGE_LIMITATIONS,
+    ADVISOR_USER_CONFIRMED_FINAL_STATS_PROFILE,
 )
 
 
@@ -47,7 +48,7 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
 
 
 def attach_opponent_known_move_damage_estimates(battle_input: dict[str, Any]) -> dict[str, Any]:
-    """Return a copy of ``battle_input`` with v0.12 opponent known move estimates."""
+    """Return a copy of ``battle_input`` with opponent known move estimates."""
     result = deepcopy(battle_input)
     opponent_moves = result.get("opponent_moves")
     if not isinstance(opponent_moves, dict):
@@ -156,7 +157,7 @@ def build_move_damage_estimate(
         if category not in ("physical", "special"):
             return _unavailable(
                 "unavailable_unsupported_category",
-                "Move category is not supported in v0.12.",
+                "Move category is not supported in v0.14.",
                 move,
                 scope=scope,
                 target=target,
@@ -186,8 +187,8 @@ def build_move_damage_estimate(
                 limitations=estimate_limitations,
             )
 
-        attacker_stats = _default_stats(attacker)
-        defender_stats = _default_stats(defender)
+        attacker_stats = _stats_for_role(battle_input, attacker, attacker_key)
+        defender_stats = _stats_for_role(battle_input, defender, defender_key)
         if attacker_stats is None or defender_stats is None:
             return _unavailable(
                 "unavailable_missing_base_stats",
@@ -268,7 +269,11 @@ def build_move_damage_estimate(
             "denominator": "default_defender_max_hp",
         },
         "rolls": list(rolls),
-        "assumption_profile": dict(ADVISOR_DEFAULT_ASSUMPTION_PROFILE),
+        "assumption_profile": _assumption_profile_for_roles(
+            battle_input,
+            attacker_key=attacker_key,
+            defender_key=defender_key,
+        ),
         "assumptions": dict(ADVISOR_DAMAGE_ASSUMPTIONS),
         "derived_stats": {
             "attacker": {
@@ -350,6 +355,69 @@ def _default_stats(pokemon: dict[str, Any]) -> StatBlock | None:
             rule_set="gen9",
             species=str(pokemon.get("name_en", "")),
         )
+    )
+
+
+def _stats_for_role(
+    battle_input: dict[str, Any],
+    pokemon: dict[str, Any],
+    role_key: str,
+) -> StatBlock | None:
+    final_stat_block = _final_stats_from_profile(battle_input, role_key)
+    if final_stat_block is not None:
+        return final_stat_block
+    return _default_stats(pokemon)
+
+
+def _final_stats_from_profile(battle_input: dict[str, Any], role_key: str) -> StatBlock | None:
+    stat_profiles = battle_input.get("stat_profiles")
+    if not isinstance(stat_profiles, dict):
+        return None
+    profile = stat_profiles.get(role_key)
+    if not isinstance(profile, dict) or profile.get("status") != "user_confirmed_final_stats":
+        return None
+    final_stats = profile.get("final_stats")
+    if not isinstance(final_stats, dict):
+        return None
+    try:
+        values = {
+            "hp": int(final_stats["hp"]),
+            "atk": int(final_stats["atk"]),
+            "def_": int(final_stats["def"]),
+            "spa": int(final_stats["spa"]),
+            "spd": int(final_stats["spd"]),
+            "spe": int(final_stats["spe"]),
+        }
+    except (KeyError, TypeError, ValueError):
+        return None
+    if any(value < 1 for value in values.values()):
+        return None
+    return StatBlock(**values)
+
+
+def _assumption_profile_for_roles(
+    battle_input: dict[str, Any],
+    *,
+    attacker_key: str,
+    defender_key: str,
+) -> dict[str, Any]:
+    attacker_status = _stat_profile_status(battle_input, attacker_key)
+    defender_status = _stat_profile_status(battle_input, defender_key)
+    if attacker_status == "user_confirmed_final_stats" or defender_status == "user_confirmed_final_stats":
+        profile = dict(ADVISOR_USER_CONFIRMED_FINAL_STATS_PROFILE)
+        profile["stats_used"] = {
+            "attacker": attacker_status,
+            "defender": defender_status,
+        }
+        return profile
+    return dict(ADVISOR_DEFAULT_ASSUMPTION_PROFILE)
+
+
+def _stat_profile_status(battle_input: dict[str, Any], role_key: str) -> str:
+    return (
+        "user_confirmed_final_stats"
+        if _final_stats_from_profile(battle_input, role_key) is not None
+        else "default_assumption"
     )
 
 
