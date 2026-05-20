@@ -463,3 +463,38 @@ Out of scope maintained:
 - No weather/terrain/boost/screen UI.
 - No Turn Engine.
 - No `advisor/damage/` or `advisor/probability/` engine changes.
+
+---
+
+## v0.10.1 - Four-Move Damage Comparison verification
+
+Purpose:
+- Verify the v0.10 four-move damage payload path before moving to the next feature milestone.
+
+Verified:
+- Repository started clean and synced with `my_pochamps/master`.
+- Offscreen payload check confirmed `moves.my_available_moves[*].damage_estimate` is attached for four user-confirmed move slots.
+- Selected move consistency confirmed: `moves.my_selected_move.damage_estimate.selected_move_id` matched the selected slot's move id.
+- Damaging moves returned default-assumption `damage_range`, `percent_range`, and 16 rolls.
+- Status move handling confirmed with `will-o-wisp` returning `unavailable_status_move`.
+- KO chance, OHKO chance, and 2HKO chance fields were absent from available-move estimates.
+- Offscreen UI launch succeeded with `Master Ball Advisor v0.10`.
+- LLM advice button state transition was verified: enabled -> disabled while running -> enabled after completion state.
+
+Gemini:
+- Actual Gemini call was verified with `GEMINI_MODEL=gemini-2.5-flash`.
+- Gemini returned a recommendation successfully for Charizard vs Gardevoir with four user-confirmed moves.
+- The response selected `Overheat` and compared it using the provided damage estimate: 49.0-58.7% of Gardevoir's default max HP.
+- The response preserved the main limitation: estimates use default assumptions and are not final battle damage.
+- The response did not claim OHKO, 2HKO, KO chance, survival, Tera, EVs, items, or final stats.
+- No API key or secret value was printed or committed.
+- The UI success path displayed usage (`input 4031 / output 52`) and re-enabled after completion.
+- Cost display showed `$0.0000000`, indicating pricing metadata for `gemini-2.5-flash` still needs a TokenLogger update.
+
+Verification:
+- `uv run pytest -q`
+- Result: 650 passed, 2 deselected.
+
+Remaining limitations:
+- Damage estimates remain default-assumption references, not final battle damage.
+- EV/IV/nature/item/final stats, field state, exact HP, opponent moves, OHKO/2HKO/KO chance, and Turn Engine remain unconnected.
