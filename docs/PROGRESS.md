@@ -565,3 +565,35 @@ Verification:
 - Confirmed v0.10 my-side `damage_estimate` still appears.
 - `uv run pytest -q`
 - Result: 657 passed, 2 deselected.
+
+---
+
+## v0.11.1 - Opponent move payload Gemini verification
+
+Purpose:
+- Verify that the v0.11 opponent move payload separates known opponent moves from possible candidate moves.
+- Attempt a Gemini quality check for known/candidate move semantics.
+
+Payload verification:
+- Confirmed `opponent_moves.known_moves` includes user-confirmed Garchomp `Earthquake`.
+- Confirmed known moves use `source: "user_confirmed"`.
+- Confirmed `opponent_moves.candidate_moves` is generated from the Champions movepool cache.
+- Confirmed every candidate move uses `confidence: "possible_not_confirmed"`.
+- Confirmed candidate moves are capped at 24.
+- Confirmed known move ids are removed from candidate moves.
+- Confirmed `moves.opponent_available_moves` remains the legacy empty list.
+- Confirmed opponent moves do not include `damage_estimate`.
+- Confirmed my-side four-move `damage_estimate` remains present.
+
+Gemini:
+- Actual Gemini call was attempted with `GEMINI_MODEL=gemini-2.5-flash`.
+- The Codex tool environment returned `API_KEY_INVALID`, so Gemini response quality could not be verified in this run.
+- No API key or secret value was printed or committed.
+
+Verification:
+- `uv run pytest -q`
+- Result: 657 passed, 2 deselected.
+
+Remaining limitations:
+- A valid local Gemini run is still needed to judge whether the model consistently treats `known_moves` as confirmed and `candidate_moves` as possible only.
+- Opponent damage estimate remains out of scope until v0.12.
