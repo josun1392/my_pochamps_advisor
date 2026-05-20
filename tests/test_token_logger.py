@@ -4,7 +4,15 @@ import json
 
 import pytest
 
-from llm.token_logger import PRICING, TokenLogger, normalize_model
+from llm.token_logger import (
+    FREE_TIER_ZERO_COST,
+    PAID_TIER_ESTIMATED_COST,
+    PRICING,
+    UNKNOWN_MODEL_OR_UNKNOWN_PRICING,
+    TokenLogger,
+    normalize_model,
+    pricing_status_for_model,
+)
 
 
 def _read_jsonl(path):
@@ -34,6 +42,7 @@ def test_log_call_creates_jsonl_record(tmp_path) -> None:
     assert records[0]["input_tokens"] == 14_523
     assert records[0]["output_tokens"] == 412
     assert records[0]["cached_tokens"] == 8_000
+    assert records[0]["pricing_status"] == PAID_TIER_ESTIMATED_COST
     assert "timestamp" in records[0]
 
 
@@ -61,6 +70,8 @@ def test_session_summary_accumulates_totals_and_cost(tmp_path) -> None:
     assert summary["total_output_tokens"] == 300
     assert summary["total_cached_tokens"] == 150
     assert summary["estimated_cost_usd"] == pytest.approx(expected_cost)
+    assert summary["pricing_status"] == PAID_TIER_ESTIMATED_COST
+    assert summary["pricing_status_counts"] == {PAID_TIER_ESTIMATED_COST: 2}
 
 
 def test_session_summary_breaks_down_by_tool(tmp_path) -> None:
@@ -72,6 +83,7 @@ def test_session_summary_breaks_down_by_tool(tmp_path) -> None:
 
     summary = logger.get_session_summary()
     assert summary["by_tool"]["damage_calculator"]["total_calls"] == 1
+    assert summary["by_tool"]["damage_calculator"]["pricing_status"] == PAID_TIER_ESTIMATED_COST
     assert summary["by_tool"]["team_advisor"]["total_input_tokens"] == 300
     assert summary["by_tool"]["unknown"]["total_output_tokens"] == 20
 
@@ -108,6 +120,18 @@ def test_unknown_model_cost_warns_and_returns_zero(capsys) -> None:
     assert "normalized: 'unknown-model'" in warning
 
 
+def test_unknown_model_summary_is_pricing_unknown(tmp_path) -> None:
+    logger = TokenLogger(str(tmp_path / "usage.jsonl"))
+
+    logger.log_call("unknown-model", 100, 100)
+
+    summary = logger.get_session_summary()
+    records = _read_jsonl(tmp_path / "usage.jsonl")
+    assert summary["pricing_status"] == UNKNOWN_MODEL_OR_UNKNOWN_PRICING
+    assert summary["pricing_status_counts"] == {UNKNOWN_MODEL_OR_UNKNOWN_PRICING: 1}
+    assert records[0]["pricing_status"] == UNKNOWN_MODEL_OR_UNKNOWN_PRICING
+
+
 def test_negative_token_counts_warn_and_return_zero(capsys) -> None:
     logger = TokenLogger()
 
@@ -124,6 +148,29 @@ def test_gemini_pro_pricing_warns_that_it_is_unverified(capsys) -> None:
 
 def test_pricing_alias_resolution() -> None:
     assert normalize_model("gemini-3-flash-preview") == "gemini-3-flash"
+    assert normalize_model("gemini-2.5-flash-latest") == "gemini-2.5-flash"
+
+
+def test_gemini_25_flash_free_tier_zero_cost(tmp_path, capsys) -> None:
+    logger = TokenLogger(str(tmp_path / "usage.jsonl"))
+
+    logger.log_call("gemini-2.5-flash", 4_031, 52, tool_name="damage_calculator")
+
+    summary = logger.get_session_summary()
+    records = _read_jsonl(tmp_path / "usage.jsonl")
+    assert logger.estimate_cost(4_031, 52, model="gemini-2.5-flash") == 0.0
+    assert capsys.readouterr().err == ""
+    assert summary["estimated_cost_usd"] == 0.0
+    assert summary["pricing_status"] == FREE_TIER_ZERO_COST
+    assert summary["pricing_status_counts"] == {FREE_TIER_ZERO_COST: 1}
+    assert summary["by_tool"]["damage_calculator"]["pricing_status"] == FREE_TIER_ZERO_COST
+    assert records[0]["pricing_status"] == FREE_TIER_ZERO_COST
+
+
+def test_pricing_status_for_model() -> None:
+    assert pricing_status_for_model("gemini-2.5-flash") == FREE_TIER_ZERO_COST
+    assert pricing_status_for_model("gemini-3-flash-preview") == PAID_TIER_ESTIMATED_COST
+    assert pricing_status_for_model("unknown-model") == UNKNOWN_MODEL_OR_UNKNOWN_PRICING
 
 
 def test_pricing_normal_calculation() -> None:

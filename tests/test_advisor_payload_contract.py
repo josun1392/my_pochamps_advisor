@@ -119,6 +119,36 @@ def test_pokemon_payload_marks_base_stats_as_reference_data_only() -> None:
     assert "item" not in payload
 
 
+def test_ui_cost_text_includes_pricing_status() -> None:
+    assert (
+        MainWindow._format_cost_text(
+            input_tokens=4031,
+            output_tokens=52,
+            cost=0.0,
+            pricing_status="free_tier_zero_cost",
+        )
+        == "Free tier | input 4031 / output 52 | $0.0000000"
+    )
+    assert (
+        MainWindow._format_cost_text(
+            input_tokens=1000,
+            output_tokens=100,
+            cost=0.00055,
+            pricing_status="paid_tier_estimated_cost",
+        )
+        == "Paid estimate | input 1000 / output 100 | $0.0005500"
+    )
+    assert (
+        MainWindow._format_cost_text(
+            input_tokens=1000,
+            output_tokens=100,
+            cost=0.0,
+            pricing_status="unknown_model_or_unknown_pricing",
+        )
+        == "Pricing unknown | input 1000 / output 100"
+    )
+
+
 def _panel(
     name: str,
     *,

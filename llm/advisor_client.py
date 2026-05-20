@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from llm.token_logger import TokenLogger
+from llm.token_logger import UNKNOWN_MODEL_OR_UNKNOWN_PRICING, TokenLogger
 from scripts.spike_advisor import (
     DEFAULT_MODEL,
     build_prompt,
@@ -49,6 +49,8 @@ def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dic
             "total_output_tokens": usage.get("output_tokens", 0),
             "total_cached_tokens": usage.get("cached_tokens", 0),
             "estimated_cost_usd": 0.0,
+            "pricing_status": UNKNOWN_MODEL_OR_UNKNOWN_PRICING,
+            "pricing_status_counts": {UNKNOWN_MODEL_OR_UNKNOWN_PRICING: 1},
             "by_tool": {},
             "token_logging_error": str(exc),
         }
@@ -114,6 +116,8 @@ def _log_advisor_call(
             "total_output_tokens": usage.get("output_tokens", 0),
             "total_cached_tokens": usage.get("cached_tokens", 0),
             "estimated_cost_usd": 0.0,
+            "pricing_status": UNKNOWN_MODEL_OR_UNKNOWN_PRICING,
+            "pricing_status_counts": {UNKNOWN_MODEL_OR_UNKNOWN_PRICING: 1},
             "by_tool": {},
             "token_logging_error": str(exc),
         }

@@ -498,3 +498,34 @@ Verification:
 Remaining limitations:
 - Damage estimates remain default-assumption references, not final battle damage.
 - EV/IV/nature/item/final stats, field state, exact HP, opponent moves, OHKO/2HKO/KO chance, and Turn Engine remain unconnected.
+
+---
+
+## v0.10.2 - Gemini Cost Logging Semantics
+
+Purpose:
+- Clarify what the UI cost number means after `gemini-2.5-flash` showed `$0.0000000`.
+- Distinguish Free Tier zero-cost estimates from unknown model pricing.
+
+Implemented:
+- Added explicit pricing statuses to `TokenLogger`:
+  - `free_tier_zero_cost`
+  - `paid_tier_estimated_cost`
+  - `unknown_model_or_unknown_pricing`
+- Treated `gemini-2.5-flash` as a Free Tier zero-cost estimate in the local logger.
+- Preserved paid-tier estimated cost behavior for existing priced models.
+- Preserved warnings for unknown model pricing.
+- Added `pricing_status` and `pricing_status_counts` to JSONL records and session summaries.
+- Updated the UI cost label to show:
+  - `Free tier | input N / output N | $0.0000000`
+  - `Paid estimate | input N / output N | $...`
+  - `Pricing unknown | input N / output N`
+
+Notes:
+- The official Gemini API pricing page distinguishes Free Tier from Paid Tier pricing.
+- This logger reports local estimated cost semantics only; actual billing depends on the user's Google account, project, tier, limits, and current Gemini pricing.
+- Prices and Free Tier availability can change and should be reviewed against the official Gemini API pricing page before budget-sensitive use.
+
+Verification:
+- `uv run pytest tests/test_token_logger.py tests/test_advisor_payload_contract.py -q`
+- Result: 20 passed.

@@ -30,6 +30,19 @@ import sys
 from typing import Any
 
 
+FREE_TIER_ZERO_COST = "free_tier_zero_cost"
+PAID_TIER_ESTIMATED_COST = "paid_tier_estimated_cost"
+UNKNOWN_MODEL_OR_UNKNOWN_PRICING = "unknown_model_or_unknown_pricing"
+MIXED_PRICING_STATUS = "mixed_pricing_status"
+
+# Gemini API pricing distinguishes Free Tier from Paid Tier. Free Tier rows on
+# the official pricing page can be free of charge, while Paid Tier rows use per
+# 1M token rates. Keep these semantics separate so a $0 estimate is not confused
+# with an unknown model. Source: https://ai.google.dev/gemini-api/docs/pricing
+FREE_TIER_ZERO_COST_MODELS = {
+    "gemini-2.5-flash",
+}
+
 PRICING: dict[str, dict[str, float]] = {
     "gemini-3-flash": {
         # TODO: verify pricing on 2026-05-07 against the official
@@ -49,6 +62,8 @@ PRICING: dict[str, dict[str, float]] = {
 
 
 MODEL_ALIASES: dict[str, str] = {
+    "gemini-2.5-flash-latest": "gemini-2.5-flash",
+    "gemini-2.5-flash-001": "gemini-2.5-flash",
     "gemini-3-flash-preview": "gemini-3-flash",
     "gemini-3-flash-latest": "gemini-3-flash",
     "gemini-3-flash-001": "gemini-3-flash",
@@ -63,13 +78,34 @@ def normalize_model(name: str) -> str:
     return MODEL_ALIASES.get(name, name)
 
 
-def _empty_tool_summary() -> dict[str, int | float]:
+def pricing_status_for_model(model: str) -> str:
+    """Return the cost semantics for a Gemini model estimate."""
+    normalized_model = normalize_model(model)
+    if normalized_model in FREE_TIER_ZERO_COST_MODELS:
+        return FREE_TIER_ZERO_COST
+    if normalized_model in PRICING:
+        return PAID_TIER_ESTIMATED_COST
+    return UNKNOWN_MODEL_OR_UNKNOWN_PRICING
+
+
+def _merge_pricing_status(counts: dict[str, int]) -> str:
+    active = [status for status, count in counts.items() if count > 0]
+    if not active:
+        return UNKNOWN_MODEL_OR_UNKNOWN_PRICING
+    if len(active) == 1:
+        return active[0]
+    return MIXED_PRICING_STATUS
+
+
+def _empty_tool_summary() -> dict[str, int | float | dict[str, int] | str]:
     return {
         "total_calls": 0,
         "total_input_tokens": 0,
         "total_output_tokens": 0,
         "total_cached_tokens": 0,
         "estimated_cost_usd": 0.0,
+        "pricing_status": UNKNOWN_MODEL_OR_UNKNOWN_PRICING,
+        "pricing_status_counts": {},
     }
 
 
@@ -83,7 +119,8 @@ class TokenLogger:
         self._total_output_tokens = 0
         self._total_cached_tokens = 0
         self._estimated_cost_usd = 0.0
-        self._by_tool: dict[str, dict[str, int | float]] = {}
+        self._pricing_status_counts: dict[str, int] = {}
+        self._by_tool: dict[str, dict[str, int | float | dict[str, int] | str]] = {}
 
     def log_call(
         self,
@@ -102,6 +139,7 @@ class TokenLogger:
             cached_tokens,
             model=model,
         )
+        pricing_status = pricing_status_for_model(model)
         record: dict[str, Any] = {
             "timestamp": datetime.now().astimezone().isoformat(timespec="seconds"),
             "game_id": game_id,
@@ -112,6 +150,7 @@ class TokenLogger:
             "output_tokens": output_tokens,
             "cached_tokens": cached_tokens,
             "cost_usd": cost_usd,
+            "pricing_status": pricing_status,
         }
 
         self._record_session_totals(
@@ -119,11 +158,12 @@ class TokenLogger:
             output_tokens=output_tokens,
             cached_tokens=cached_tokens,
             cost_usd=cost_usd,
+            pricing_status=pricing_status,
             tool_name=tool_name,
         )
         self._append_jsonl(record)
 
-    def get_session_summary(self) -> dict[str, int | float | dict[str, dict[str, int | float]]]:
+    def get_session_summary(self) -> dict[str, Any]:
         """Return accumulated token usage and cost for the current process."""
         return {
             "total_calls": self._total_calls,
@@ -131,6 +171,8 @@ class TokenLogger:
             "total_output_tokens": self._total_output_tokens,
             "total_cached_tokens": self._total_cached_tokens,
             "estimated_cost_usd": self._estimated_cost_usd,
+            "pricing_status": _merge_pricing_status(self._pricing_status_counts),
+            "pricing_status_counts": dict(self._pricing_status_counts),
             "by_tool": deepcopy(self._by_tool),
         }
 
@@ -149,6 +191,9 @@ class TokenLogger:
             )
             return 0.0
         normalized_model = normalize_model(model)
+        pricing_status = pricing_status_for_model(model)
+        if pricing_status == FREE_TIER_ZERO_COST:
+            return 0.0
         pricing = PRICING.get(normalized_model)
         if pricing is None:
             print(
@@ -175,6 +220,7 @@ class TokenLogger:
         output_tokens: int,
         cached_tokens: int,
         cost_usd: float,
+        pricing_status: str,
         tool_name: str | None,
     ) -> None:
         self._total_calls += 1
@@ -182,6 +228,7 @@ class TokenLogger:
         self._total_output_tokens += output_tokens
         self._total_cached_tokens += cached_tokens
         self._estimated_cost_usd += cost_usd
+        self._pricing_status_counts[pricing_status] = self._pricing_status_counts.get(pricing_status, 0) + 1
 
         tool_key = tool_name or "unknown"
         tool_summary = self._by_tool.setdefault(tool_key, _empty_tool_summary())
@@ -190,6 +237,10 @@ class TokenLogger:
         tool_summary["total_output_tokens"] += output_tokens
         tool_summary["total_cached_tokens"] += cached_tokens
         tool_summary["estimated_cost_usd"] += cost_usd
+        pricing_counts = tool_summary["pricing_status_counts"]
+        if isinstance(pricing_counts, dict):
+            pricing_counts[pricing_status] = pricing_counts.get(pricing_status, 0) + 1
+            tool_summary["pricing_status"] = _merge_pricing_status(pricing_counts)
 
     def _append_jsonl(self, record: dict[str, Any]) -> None:
         try:

@@ -293,13 +293,35 @@ class MainWindow(QMainWindow):
         input_tokens = int(usage.get("input_tokens", 0))
         output_tokens = int(usage.get("output_tokens", 0))
         cost = float(summary.get("estimated_cost_usd", 0.0))
-        cost_text = f"input {input_tokens} / output {output_tokens} | ${cost:.7f}"
+        cost_text = self._format_cost_text(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost=cost,
+            pricing_status=str(summary.get("pricing_status", "")),
+        )
         if summary.get("token_logging_error"):
             status_text = f"Done | {cost_text} | cost logging failed"
         else:
             status_text = f"Done | {cost_text}"
         panel.set_cost_text(f"\uBE44\uC6A9: {cost_text}")
         self.statusBar().showMessage(status_text)
+
+    @staticmethod
+    def _format_cost_text(
+        *,
+        input_tokens: int,
+        output_tokens: int,
+        cost: float,
+        pricing_status: str,
+    ) -> str:
+        usage_text = f"input {input_tokens} / output {output_tokens}"
+        if pricing_status == "free_tier_zero_cost":
+            return f"Free tier | {usage_text} | ${cost:.7f}"
+        if pricing_status == "paid_tier_estimated_cost":
+            return f"Paid estimate | {usage_text} | ${cost:.7f}"
+        if pricing_status == "unknown_model_or_unknown_pricing":
+            return f"Pricing unknown | {usage_text}"
+        return f"{usage_text} | ${cost:.7f}"
 
     @Slot(str)
     def _on_llm_advice_failed(self, message: str) -> None:
