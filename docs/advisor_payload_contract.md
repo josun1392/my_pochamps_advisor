@@ -1,14 +1,14 @@
 # Advisor Payload Contract
 
-**Milestone:** v0.10 — Four-Move Damage Comparison
-**Payload mode:** `ui-selected-pokemon-v0.10`
+**Milestone:** v0.11 - Opponent Move Payload
+**Payload mode:** `ui-selected-pokemon-v0.11`
 **Status:** Current contract for the PySide6 UI to Gemini LLM advisor path.
 
 ## Purpose
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, and default-assumption damage estimates for user-confirmed moves. It does not yet send final battle stats, KO odds, turn order, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, default-assumption damage estimates for the user's confirmed moves, and explicitly labeled opponent move information. It does not yet send final battle stats, KO odds, turn order, opponent damage estimates, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -17,11 +17,12 @@ Top-level sections:
 - `scenario`
 - `pokemon`
 - `moves`
+- `opponent_moves`
 
 `scenario` contains:
 
-- `mode`: currently `ui-selected-pokemon-v0.10`
-- `format_note`: explains that this is selected Pokemon identity plus default-assumption user-confirmed move estimates, not full battle state
+- `mode`: currently `ui-selected-pokemon-v0.11`
+- `format_note`: explains that this is selected Pokemon identity plus default-assumption user-confirmed move estimates and opponent move context, not full battle state
 - `known_limitations`: guardrails the prompt and UI must preserve
 
 `pokemon.my_active` and `pokemon.opponent_active` contain:
@@ -47,6 +48,18 @@ Top-level sections:
 - `opponent_selected_move_index`
 - `move_data_status`
 - `notes`
+
+`moves.opponent_available_moves` remains a legacy compatibility field and is empty in v0.11. New opponent move semantics live in `opponent_moves`.
+
+`opponent_moves` contains:
+
+- `status`
+- `known_moves`
+- `candidate_moves`
+- `candidate_moves_limit`
+- `candidate_source_status`
+- `unknown_moves`
+- `limitations`
 
 User-confirmed move entries contain:
 
@@ -75,9 +88,19 @@ Each move `damage_estimate` contains:
 - `derived_stats` when available
 - `limitations`
 
+## Opponent Move Semantics
+
+Opponent move data is split into separate categories:
+
+- `known_moves`: moves the user directly confirmed in the opponent Q/W/E/R slots. These are the only confirmed opponent moves.
+- `candidate_moves`: possible moves from the Serebii-derived Champions movepool cache. These include `confidence: "possible_not_confirmed"` and are not the opponent's known moveset.
+- `unknown_moves`: explicit state for missing or partial opponent move information.
+
+Opponent candidate moves are capped by `candidate_moves_limit`. Candidate moves and known opponent moves do not include `damage_estimate` in v0.11.
+
 ## Explicitly Missing
 
-The v0.10 payload does not contain:
+The v0.11 payload does not contain:
 
 - final calculated stats
 - EV/IV/nature
@@ -87,7 +110,7 @@ The v0.10 payload does not contain:
 - terrain
 - stat boosts
 - exact current HP integer
-- opponent moves
+- opponent move damage estimates
 - OHKO/2HKO/KO chance
 - turn order
 - speed tie
@@ -103,6 +126,9 @@ The LLM must not:
 - describe `damage_estimate` as final battle damage
 - infer OHKO/2HKO, KO chance, survival, or speed order unless explicit calculated fields are present
 - treat cache learnsets or unselected moves as available moves
+- treat `opponent_moves.candidate_moves` as confirmed opponent moves
+- assume the opponent has a candidate move unless it appears in `opponent_moves.known_moves`
+- claim opponent move damage, speed order, or turn order from v0.11 opponent move metadata
 - consider Terastallization, which is banned in PoChamps
 
 The LLM may:
@@ -110,6 +136,8 @@ The LLM may:
 - explain broad type or role risks at a non-damage-exact level
 - discuss user-confirmed move metadata such as type, category, power, accuracy, and PP
 - discuss `damage_estimate` only under its stated default assumptions
+- discuss `opponent_moves.known_moves` as user-confirmed opponent moves
+- discuss `opponent_moves.candidate_moves` only as possible, not confirmed, Champions moves
 - recommend a direction while naming the missing information that prevents a confident damage-based call
 - ask for or point out missing final stats, items, field state, opponent moves, or damage estimates
 
@@ -145,8 +173,6 @@ Unavailable statuses include:
 
 ## Future Field Locations
 
-v0.10 extends the same `damage_estimate` shape to each user-confirmed move in `moves.my_available_moves`, enabling four-move comparison without changing the meaning of existing selected-move fields.
-
-Opponent move data should later enter `moves.opponent_available_moves` and `moves.opponent_selected_move`.
+v0.12 may add opponent-to-my-active damage estimates, but only after v0.11 opponent move semantics have been verified.
 
 Turn Engine state should later enter a separate top-level `battle_state` section instead of being mixed into Pokemon identity metadata.

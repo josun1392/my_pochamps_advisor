@@ -31,6 +31,9 @@ from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
 
 
+OPPONENT_CANDIDATE_MOVES_LIMIT = 24
+
+
 class LLMAdviceWorker(QObject):
     finished = Signal(str, dict)
     failed = Signal(str)
@@ -122,7 +125,7 @@ class AnalysisColumn(QFrame):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Master Ball Advisor v0.10")
+        self.setWindowTitle("Master Ball Advisor v0.11")
         self.setMinimumSize(1500, 980)
         self.resize(1500, 980)
 
@@ -372,6 +375,7 @@ class MainWindow(QMainWindow):
                     "User-confirmed move damage estimates use default assumptions only.",
                 ],
             },
+            "opponent_moves": self._opponent_moves_payload(opponent_panel),
         }
         return attach_selected_move_damage_estimate(battle_input)
 
@@ -392,6 +396,74 @@ class MainWindow(QMainWindow):
         if move is None:
             return None
         return _move_payload(move, index)
+
+    def _opponent_moves_payload(self, opponent_panel) -> dict:
+        known_moves = [
+            {**move_payload, "source": "user_confirmed"}
+            for move_payload in self._panel_moves_payload(opponent_panel)
+        ]
+        known_move_ids = {
+            move["move_id"]
+            for move in known_moves
+            if isinstance(move.get("move_id"), str) and move.get("move_id")
+        }
+
+        view = getattr(opponent_panel, "pokemon_view", None)
+        if view is None:
+            candidate_status = {
+                "status": "unknown",
+                "reason": "No opponent Pokemon is selected.",
+            }
+            candidate_moves: list[dict] = []
+        else:
+            candidate_status = self.champions_move_pool_repo.status_for_pokemon(view.en)
+            candidate_moves = self._opponent_candidate_moves(view.en, known_move_ids)
+
+        return {
+            "status": _opponent_moves_status(
+                known_moves=known_moves,
+                candidate_moves=candidate_moves,
+                candidate_source_status=str(candidate_status.get("status", "unknown")),
+            ),
+            "known_moves": known_moves,
+            "candidate_moves": candidate_moves,
+            "candidate_moves_limit": OPPONENT_CANDIDATE_MOVES_LIMIT,
+            "candidate_source_status": candidate_status,
+            "unknown_moves": {
+                "has_user_confirmed_moves": bool(known_moves),
+                "candidate_source_status": candidate_status.get("status", "unknown"),
+                "reason": (
+                    "No opponent moves have been user-confirmed."
+                    if not known_moves
+                    else "Opponent moves are partially user-confirmed."
+                ),
+            },
+            "limitations": [
+                "Known opponent moves are user-confirmed only.",
+                "Candidate moves are possible moves, not confirmed opponent moves.",
+                "Do not assume the opponent has a candidate move unless user-confirmed.",
+                "Opponent move damage is not calculated in v0.11.",
+            ],
+        }
+
+    def _opponent_candidate_moves(self, pokemon_id: str, known_move_ids: set[str]) -> list[dict]:
+        move_ids = sorted(self.champions_move_pool_repo.get_allowed_move_ids_for_pokemon(pokemon_id))
+        candidates: list[dict] = []
+        for move_id in move_ids:
+            if move_id in known_move_ids:
+                continue
+            try:
+                move = self.move_repo.get(move_id)
+            except RuntimeError:
+                continue
+            payload = _move_payload(move, slot_index=-1)
+            payload.pop("slot", None)
+            payload["source"] = "champions_movepool"
+            payload["confidence"] = "possible_not_confirmed"
+            candidates.append(payload)
+            if len(candidates) >= OPPONENT_CANDIDATE_MOVES_LIMIT:
+                break
+        return candidates
 
     def _slot_panel(self, column_name: str, slot_index: int):
         team_column = self._team_column(column_name)
@@ -526,6 +598,25 @@ def _move_payload(move: MoveView, slot_index: int) -> dict:
         "accuracy": move.accuracy,
         "pp": move.pp,
     }
+
+
+def _opponent_moves_status(
+    *,
+    known_moves: list[dict],
+    candidate_moves: list[dict],
+    candidate_source_status: str,
+) -> str:
+    has_known = bool(known_moves)
+    has_candidates = bool(candidate_moves)
+    if has_known and has_candidates:
+        return "known_and_candidates"
+    if has_known:
+        return "known_only"
+    if has_candidates:
+        return "candidates_only"
+    if candidate_source_status == "unavailable_missing_champions_movepool":
+        return "unavailable_missing_champions_movepool"
+    return "unknown"
 
 
 def _move_search_candidates_for_view(

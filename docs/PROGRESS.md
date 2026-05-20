@@ -529,3 +529,39 @@ Notes:
 Verification:
 - `uv run pytest tests/test_token_logger.py tests/test_advisor_payload_contract.py -q`
 - Result: 20 passed.
+
+---
+
+## v0.11 - Opponent Move Payload
+
+Purpose:
+- Add opponent move context to the LLM payload without treating possible moves as confirmed.
+- Keep v0.10 my-side four-move damage comparison intact.
+
+Implemented:
+- Added top-level `opponent_moves` to the advisor payload.
+- Added `known_moves` from user-confirmed opponent Q/W/E/R slots.
+- Added `candidate_moves` from the Serebii-derived Champions movepool cache.
+- Capped `candidate_moves` at 24 entries.
+- Added `confidence: "possible_not_confirmed"` to all candidate moves.
+- Removed known move ids from candidate moves to avoid duplicate semantics.
+- Kept legacy `moves.opponent_available_moves` as an empty compatibility field.
+- Updated payload contract guardrails so Gemini must not treat candidate moves as confirmed.
+
+Out of scope maintained:
+- No opponent damage estimate.
+- No OHKO/2HKO/KO chance.
+- No speed or turn order.
+- No Turn Engine.
+- No EV/IV/nature/item/final stats UI.
+- No `advisor/damage/` or `advisor/probability/` engine changes.
+
+Verification:
+- Manual payload check confirmed Garchomp `Earthquake` appears in `opponent_moves.known_moves`.
+- Confirmed `opponent_moves.candidate_moves` is capped at 24 and labeled `possible_not_confirmed`.
+- Confirmed known move ids are removed from candidate moves.
+- Confirmed `moves.opponent_available_moves` remains `[]`.
+- Confirmed opponent moves do not include `damage_estimate`.
+- Confirmed v0.10 my-side `damage_estimate` still appears.
+- `uv run pytest -q`
+- Result: 657 passed, 2 deselected.

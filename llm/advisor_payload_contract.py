@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 
-ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.10"
+ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.11"
 
 ADVISOR_KNOWN_LIMITATIONS = [
-    "Only user-selected moves are included in the payload.",
+    "Only user-selected moves and explicitly labeled opponent move data are included in the payload.",
     "Empty move slots are omitted.",
     "Move damage estimates, when present, use default assumptions and are not final battle damage.",
     "Do not infer damage, OHKO/2HKO, or KO chance unless damage data is explicitly provided.",
-    "Opponent moves may be missing in v0.8.",
+    "Known opponent moves are user-confirmed only.",
+    "Opponent candidate moves are possible Champions moves, not confirmed moves.",
+    "Do not assume the opponent has a candidate move unless it appears in known_moves.",
+    "Opponent move damage is not calculated in v0.11.",
+    "Opponent item, selected ability, final stats, speed order, and Turn Engine state remain unknown.",
     "Base stats are species reference data, not EVs or final calculated battle stats.",
-    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.10.",
+    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.11.",
     "Terastallization is banned in PoChamps and must not be considered.",
     "Do not assume unprovided EVs, IVs, nature, held items, boosts, weather, terrain, exact HP, move sets, or Tera types.",
     "Speed tier, OHKO/2HKO, KO chance, and survival claims are uncertain unless explicit calculated fields are provided.",

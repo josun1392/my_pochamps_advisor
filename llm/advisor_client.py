@@ -86,7 +86,9 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "data. If a damage_estimate is present, use it only under its stated "
         "default assumptions and never describe it as final battle damage. Do "
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "
-        "fields are explicitly provided.\n\n"
+        "fields are explicitly provided. If opponent_moves is present, treat "
+        "known_moves as user-confirmed and candidate_moves only as possible, "
+        "not confirmed, opponent moves.\n\n"
         f"{json.dumps(battle_input, ensure_ascii=False, indent=2)}"
     )
 
