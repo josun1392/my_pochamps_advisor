@@ -441,3 +441,25 @@ Out of scope maintained:
 - No EV/IV/nature/item/final stat UI.
 - No Turn Engine.
 - No `advisor/damage/` or `advisor/probability/` engine changes.
+
+---
+
+## v0.10 - Four-Move Damage Comparison
+
+Purpose:
+- Add default-assumption damage estimates for each user-confirmed move slot.
+- Let the LLM compare the Q/W/E/R moves already selected in the UI without adding KO odds or full battle state.
+
+Implemented:
+- `moves.my_available_moves[*].damage_estimate` now uses the same default-assumption schema as the selected move.
+- `moves.my_selected_move.damage_estimate` remains available for backward-compatible selected-move advice.
+- Status moves and incomplete move payloads return unavailable schemas instead of inferred damage.
+- Payload mode updated to `ui-selected-pokemon-v0.10`.
+
+Out of scope maintained:
+- No OHKO/2HKO/KO chance.
+- No opponent moves.
+- No EV/IV/nature/item/final stat UI.
+- No weather/terrain/boost/screen UI.
+- No Turn Engine.
+- No `advisor/damage/` or `advisor/probability/` engine changes.

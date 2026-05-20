@@ -122,7 +122,7 @@ class AnalysisColumn(QFrame):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Master Ball Advisor v0.9")
+        self.setWindowTitle("Master Ball Advisor v0.10")
         self.setMinimumSize(1500, 980)
         self.resize(1500, 980)
 
@@ -328,7 +328,7 @@ class MainWindow(QMainWindow):
         battle_input = {
             "scenario": {
                 "mode": ADVISOR_PAYLOAD_MODE,
-                "format_note": "Selected Pokemon identity plus default-assumption selected move damage estimate; no full battle state.",
+                "format_note": "Selected Pokemon identity plus default-assumption damage estimates for user-confirmed moves; no full battle state.",
                 "known_limitations": list(ADVISOR_KNOWN_LIMITATIONS),
             },
             "pokemon": {
@@ -342,12 +342,12 @@ class MainWindow(QMainWindow):
                 "opponent_available_moves": [],
                 "opponent_selected_move": None,
                 "opponent_selected_move_index": opponent_panel.selected_move_index,
-                "move_data_status": "selected_move_damage_estimate_v0.9",
+                "move_data_status": "four_move_damage_comparison_v0.10",
                 "notes": [
                     "Only user-confirmed move slots are included.",
                     "Empty move slots are omitted.",
                     "Cache learnsets are used only as search candidates.",
-                    "Selected move damage estimate uses default assumptions only.",
+                    "User-confirmed move damage estimates use default assumptions only.",
                 ],
             },
         }

@@ -80,7 +80,7 @@ def test_damaging_selected_move_returns_default_assumption_range() -> None:
     assert estimate["assumptions"]["ivs"] == "31 all"
     assert estimate["assumptions"]["evs"] == "0 all"
     assert estimate["assumptions"]["ability_effects"] == "not_applied_unselected"
-    assert "OHKO/2HKO/KO chance is not provided in v0.9." in estimate["limitations"]
+    assert "OHKO/2HKO/KO chance is not provided in v0.10." in estimate["limitations"]
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -96,6 +96,31 @@ def test_attach_places_estimate_under_my_selected_move() -> None:
     assert "damage_estimate" not in payload["moves"]["my_selected_move"]
 
 
+def test_attach_places_estimates_under_available_moves() -> None:
+    payload = _battle_input(
+        selected_move=_flamethrower(),
+        available_moves=[_flamethrower(), _air_slash(), _will_o_wisp()],
+    )
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    estimates = [move["damage_estimate"] for move in result["moves"]["my_available_moves"]]
+    assert [estimate["scope"] for estimate in estimates] == [
+        "available_move_comparison",
+        "available_move_comparison",
+        "available_move_comparison",
+    ]
+    assert estimates[0]["status"] == "available_with_default_assumptions"
+    assert estimates[1]["status"] == "available_with_default_assumptions"
+    assert estimates[2]["status"] == "unavailable_status_move"
+    assert "damage_range" in estimates[0]
+    assert "percent_range" in estimates[1]
+    assert "damage_range" not in estimates[2]
+    assert "ko_chance" not in estimates[0]
+    assert "ohko_chance" not in estimates[0]
+    assert "damage_estimate" not in payload["moves"]["my_available_moves"][0]
+
+
 def test_attach_handles_no_selected_move_with_unavailable_schema() -> None:
     payload = _battle_input(selected_move=None)
 
@@ -106,10 +131,12 @@ def test_attach_handles_no_selected_move_with_unavailable_schema() -> None:
     assert "damage_range" not in estimate
 
 
-def _battle_input(selected_move: dict | None) -> dict:
+def _battle_input(selected_move: dict | None, available_moves: list[dict] | None = None) -> dict:
+    if available_moves is None:
+        available_moves = [_flamethrower()] if selected_move else []
     return {
         "scenario": {
-            "mode": "ui-selected-pokemon-v0.9",
+            "mode": "ui-selected-pokemon-v0.10",
             "known_limitations": [],
         },
         "pokemon": {
@@ -154,12 +181,12 @@ def _battle_input(selected_move: dict | None) -> dict:
         },
         "moves": {
             "my_selected_move_index": 0,
-            "my_available_moves": [_flamethrower()] if selected_move else [],
+            "my_available_moves": available_moves,
             "my_selected_move": selected_move,
             "opponent_available_moves": [],
             "opponent_selected_move": None,
             "opponent_selected_move_index": None,
-            "move_data_status": "user_selected_partial_v0.9",
+            "move_data_status": "four_move_damage_comparison_v0.10",
             "notes": [],
         },
     }
@@ -175,5 +202,33 @@ def _flamethrower() -> dict:
         "category": "special",
         "power": 90,
         "accuracy": 100,
+        "pp": 15,
+    }
+
+
+def _air_slash() -> dict:
+    return {
+        "slot": 1,
+        "move_id": "air-slash",
+        "name_en": "Air Slash",
+        "name_ko": "Air Slash",
+        "type": "flying",
+        "category": "special",
+        "power": 75,
+        "accuracy": 95,
+        "pp": 15,
+    }
+
+
+def _will_o_wisp() -> dict:
+    return {
+        "slot": 2,
+        "move_id": "will-o-wisp",
+        "name_en": "Will-O-Wisp",
+        "name_ko": "Will-O-Wisp",
+        "type": "fire",
+        "category": "status",
+        "power": None,
+        "accuracy": 85,
         "pp": 15,
     }

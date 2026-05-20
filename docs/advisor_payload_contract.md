@@ -1,14 +1,14 @@
 # Advisor Payload Contract
 
-**Milestone:** v0.9 — Selected Move Damage Estimate  
-**Payload mode:** `ui-selected-pokemon-v0.9`  
+**Milestone:** v0.10 — Four-Move Damage Comparison
+**Payload mode:** `ui-selected-pokemon-v0.10`
 **Status:** Current contract for the PySide6 UI to Gemini LLM advisor path.
 
 ## Purpose
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, and a default-assumption damage estimate for the selected move. It does not yet send final battle stats, KO odds, turn order, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, and default-assumption damage estimates for user-confirmed moves. It does not yet send final battle stats, KO odds, turn order, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -20,8 +20,8 @@ Top-level sections:
 
 `scenario` contains:
 
-- `mode`: currently `ui-selected-pokemon-v0.9`
-- `format_note`: explains that this is selected Pokemon identity plus a default-assumption selected move estimate, not full battle state
+- `mode`: currently `ui-selected-pokemon-v0.10`
+- `format_note`: explains that this is selected Pokemon identity plus default-assumption user-confirmed move estimates, not full battle state
 - `known_limitations`: guardrails the prompt and UI must preserve
 
 `pokemon.my_active` and `pokemon.opponent_active` contain:
@@ -59,9 +59,10 @@ User-confirmed move entries contain:
 - `power`
 - `accuracy`
 - `pp`
-- `damage_estimate` on `moves.my_selected_move` only
+- `damage_estimate` on each user-confirmed entry in `moves.my_available_moves`
+- `damage_estimate` on `moves.my_selected_move`
 
-`moves.my_selected_move.damage_estimate` contains:
+Each move `damage_estimate` contains:
 
 - `status`
 - `scope`
@@ -76,7 +77,7 @@ User-confirmed move entries contain:
 
 ## Explicitly Missing
 
-The v0.9 payload does not contain:
+The v0.10 payload does not contain:
 
 - final calculated stats
 - EV/IV/nature
@@ -107,14 +108,14 @@ The LLM must not:
 The LLM may:
 
 - explain broad type or role risks at a non-damage-exact level
-- discuss selected move metadata such as type, category, power, accuracy, and PP
+- discuss user-confirmed move metadata such as type, category, power, accuracy, and PP
 - discuss `damage_estimate` only under its stated default assumptions
 - recommend a direction while naming the missing information that prevents a confident damage-based call
 - ask for or point out missing final stats, items, field state, opponent moves, or damage estimates
 
 ## Damage Estimate Defaults
 
-The selected move damage estimate uses:
+Move damage estimates use:
 
 - level 50
 - IV 31 all
@@ -144,7 +145,7 @@ Unavailable statuses include:
 
 ## Future Field Locations
 
-v0.10 should extend the same `damage_estimate` shape to each user-confirmed move in `moves.my_available_moves`, enabling four-move comparison without changing the meaning of existing fields.
+v0.10 extends the same `damage_estimate` shape to each user-confirmed move in `moves.my_available_moves`, enabling four-move comparison without changing the meaning of existing selected-move fields.
 
 Opponent move data should later enter `moves.opponent_available_moves` and `moves.opponent_selected_move`.
 

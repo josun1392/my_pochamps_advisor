@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 
-ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.9"
+ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.10"
 
 ADVISOR_KNOWN_LIMITATIONS = [
     "Only user-selected moves are included in the payload.",
     "Empty move slots are omitted.",
-    "Selected move damage estimate, when present, uses default assumptions and is not final battle damage.",
+    "Move damage estimates, when present, use default assumptions and are not final battle damage.",
     "Do not infer damage, OHKO/2HKO, or KO chance unless damage data is explicitly provided.",
     "Opponent moves may be missing in v0.8.",
     "Base stats are species reference data, not EVs or final calculated battle stats.",
-    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.9.",
+    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.10.",
     "Terastallization is banned in PoChamps and must not be considered.",
     "Do not assume unprovided EVs, IVs, nature, held items, boosts, weather, terrain, exact HP, move sets, or Tera types.",
     "Speed tier, OHKO/2HKO, KO chance, and survival claims are uncertain unless explicit calculated fields are provided.",
@@ -38,11 +38,12 @@ ADVISOR_DAMAGE_LIMITATIONS = [
     "This is not final battle damage.",
     "EV/IV/nature/item/final stats are not connected.",
     "Use as rough reference only.",
-    "OHKO/2HKO/KO chance is not provided in v0.9.",
+    "OHKO/2HKO/KO chance is not provided in v0.10.",
 ]
 
 ADVISOR_DAMAGE_ESTIMATE_STATUSES = {
     "available_with_default_assumptions",
+    "unavailable_missing_move",
     "unavailable_no_selected_move",
     "unavailable_status_move",
     "unavailable_missing_power",

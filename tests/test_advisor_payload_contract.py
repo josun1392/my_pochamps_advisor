@@ -24,7 +24,7 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
 
     assert payload["scenario"]["mode"] == ADVISOR_PAYLOAD_MODE
     assert payload["scenario"]["known_limitations"] == ADVISOR_KNOWN_LIMITATIONS
-    assert "Selected move damage estimate, when present, uses default assumptions and is not final battle damage." in payload[
+    assert "Move damage estimates, when present, use default assumptions and are not final battle damage." in payload[
         "scenario"
     ]["known_limitations"]
     assert "Terastallization is banned in PoChamps and must not be considered." in payload["scenario"][
@@ -72,6 +72,30 @@ def test_ui_payload_attaches_selected_move_damage_estimate() -> None:
     assert "limitations" in estimate
     assert "ko_chance" not in estimate
     assert "ohko_chance" not in estimate
+
+
+def test_ui_payload_attaches_available_move_damage_estimates() -> None:
+    window = MainWindow.__new__(MainWindow)
+    window.selected_slots = {"team_my": 0, "team_enemy": 0}
+    my_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower"), _move("air-slash")])
+    opponent_panel = _panel("garchomp", selected_move_index=None, selected_moves=[])
+
+    def _slot_panel(self, column_name: str, slot_index: int):
+        del slot_index
+        return my_panel if column_name == "team_my" else opponent_panel
+
+    window._slot_panel = MethodType(_slot_panel, window)
+
+    payload = window._build_llm_battle_input()
+    estimates = [move["damage_estimate"] for move in payload["moves"]["my_available_moves"]]
+
+    assert payload["moves"]["move_data_status"] == "four_move_damage_comparison_v0.10"
+    assert len(estimates) == 2
+    assert {estimate["scope"] for estimate in estimates} == {"available_move_comparison"}
+    assert all(estimate["status"] == "available_with_default_assumptions" for estimate in estimates)
+    assert all("damage_range" in estimate for estimate in estimates)
+    assert all("percent_range" in estimate for estimate in estimates)
+    assert all("ko_chance" not in estimate for estimate in estimates)
 
 
 def test_pokemon_payload_marks_base_stats_as_reference_data_only() -> None:

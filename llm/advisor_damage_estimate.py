@@ -21,10 +21,21 @@ DEFAULT_BOOSTS = StatBlock(hp=0, atk=0, def_=0, spa=0, spd=0, spe=0)
 
 
 def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[str, Any]:
-    """Return a copy of ``battle_input`` with the selected-move estimate attached."""
+    """Return a copy of ``battle_input`` with v0.10 damage estimates attached."""
     result = deepcopy(battle_input)
-    estimate = build_selected_move_damage_estimate(result)
     moves = result.setdefault("moves", {})
+
+    available_moves = moves.get("my_available_moves")
+    if isinstance(available_moves, list):
+        for move in available_moves:
+            if isinstance(move, dict):
+                move["damage_estimate"] = build_move_damage_estimate(
+                    result,
+                    move,
+                    scope="available_move_comparison",
+                )
+
+    estimate = build_selected_move_damage_estimate(result)
     selected_move = moves.get("my_selected_move")
     if isinstance(selected_move, dict):
         selected_move["damage_estimate"] = estimate
@@ -34,53 +45,77 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
 
 
 def build_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[str, Any]:
-    """Build a v0.9 selected-move damage estimate from an advisor payload."""
+    """Build a selected-move damage estimate from an advisor payload."""
+    moves = battle_input.get("moves", {})
+    selected_move = moves.get("my_selected_move") if isinstance(moves, dict) else None
+    return build_move_damage_estimate(
+        battle_input,
+        selected_move,
+        scope="selected_move_only",
+        missing_move_status="unavailable_no_selected_move",
+        missing_move_reason="No selected move is assigned to the selected move slot.",
+    )
+
+
+def build_move_damage_estimate(
+    battle_input: dict[str, Any],
+    move: dict[str, Any] | None,
+    *,
+    scope: str,
+    missing_move_status: str = "unavailable_missing_move",
+    missing_move_reason: str = "No move payload is available for this move slot.",
+) -> dict[str, Any]:
+    """Build a default-assumption damage estimate for one user-confirmed move."""
     try:
         pokemon = battle_input.get("pokemon", {})
-        moves = battle_input.get("moves", {})
         attacker = pokemon.get("my_active")
         defender = pokemon.get("opponent_active")
-        selected_move = moves.get("my_selected_move")
 
-        if not isinstance(selected_move, dict):
+        if not isinstance(move, dict):
             return _unavailable(
-                "unavailable_no_selected_move",
-                "No selected move is assigned to the selected move slot.",
+                missing_move_status,
+                missing_move_reason,
+                scope=scope,
             )
         if not isinstance(attacker, dict) or not isinstance(defender, dict):
             return _unavailable(
                 "unavailable_missing_pokemon",
                 "Selected attacker or defender Pokemon data is missing.",
-                selected_move,
+                move,
+                scope=scope,
             )
 
-        category = _required_str(selected_move, "category")
+        category = _required_str(move, "category")
         if category is None:
             return _unavailable(
                 "unavailable_unsupported_category",
-                "Selected move category is missing.",
-                selected_move,
+                "Move category is missing.",
+                move,
+                scope=scope,
             )
         category = category.lower()
         if category == "status":
             return _unavailable(
                 "unavailable_status_move",
-                "Selected move is a status move.",
-                selected_move,
+                "Move is a status move.",
+                move,
+                scope=scope,
             )
         if category not in ("physical", "special"):
             return _unavailable(
                 "unavailable_unsupported_category",
-                "Selected move category is not supported in v0.9.",
-                selected_move,
+                "Move category is not supported in v0.10.",
+                move,
+                scope=scope,
             )
 
-        power = selected_move.get("power")
+        power = move.get("power")
         if not isinstance(power, int) or power <= 0:
             return _unavailable(
                 "unavailable_missing_power",
-                "Selected move has no usable base power.",
-                selected_move,
+                "Move has no usable base power.",
+                move,
+                scope=scope,
             )
 
         attacker_types = _types(attacker)
@@ -89,7 +124,8 @@ def build_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[st
             return _unavailable(
                 "unavailable_missing_type",
                 "Attacker or defender type data is missing.",
-                selected_move,
+                move,
+                scope=scope,
             )
 
         attacker_stats = _default_stats(attacker)
@@ -98,7 +134,8 @@ def build_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[st
             return _unavailable(
                 "unavailable_missing_base_stats",
                 "Attacker or defender base stats are missing.",
-                selected_move,
+                move,
+                scope=scope,
             )
 
         is_physical = category == "physical"
@@ -107,13 +144,14 @@ def build_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[st
         attack_stat_name = "atk" if is_physical else "spa"
         defense_stat_name = "def" if is_physical else "spd"
 
-        move_type = _required_str(selected_move, "type")
-        move_id = _required_str(selected_move, "move_id")
+        move_type = _required_str(move, "type")
+        move_id = _required_str(move, "move_id")
         if move_type is None:
             return _unavailable(
                 "unavailable_missing_type",
-                "Selected move type is missing.",
-                selected_move,
+                "Move type is missing.",
+                move,
+                scope=scope,
             )
         if move_id is None:
             move_id = move_type
@@ -146,13 +184,14 @@ def build_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[st
     except Exception:
         return _unavailable(
             "unavailable_engine_error",
-            "Damage engine failed while calculating the selected move estimate.",
-            battle_input.get("moves", {}).get("my_selected_move") if isinstance(battle_input.get("moves"), dict) else None,
+            "Damage engine failed while calculating the move estimate.",
+            move,
+            scope=scope,
         )
 
     return {
         "status": "available_with_default_assumptions",
-        "scope": "selected_move_only",
+        "scope": scope,
         "is_final_battle_damage": False,
         "selected_move_id": move_id,
         "damage_range": {
@@ -185,10 +224,12 @@ def _unavailable(
     status: str,
     reason: str,
     selected_move: dict[str, Any] | None = None,
+    *,
+    scope: str = "selected_move_only",
 ) -> dict[str, Any]:
     estimate: dict[str, Any] = {
         "status": status,
-        "scope": "selected_move_only",
+        "scope": scope,
         "is_final_battle_damage": False,
         "reason": reason,
         "assumptions": dict(ADVISOR_DAMAGE_ASSUMPTIONS),
