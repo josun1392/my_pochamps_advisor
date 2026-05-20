@@ -639,3 +639,39 @@ Out of scope maintained:
 - No candidate sorting polish.
 - No UI changes.
 - No `advisor/damage/` or `advisor/probability/` engine changes.
+
+---
+
+## v0.12 - Opponent Known Move Damage Estimate
+
+Purpose:
+- Add default-assumption damage estimates for user-confirmed opponent known moves.
+- Let the advisor reason about how threatening a confirmed opponent move is against `my_active`.
+
+Implemented:
+- Generalized the LLM damage estimate helper so the attacker and defender payload keys can be selected.
+- Added an opponent known move wrapper that calculates `opponent_moves.known_moves[*].damage_estimate`.
+- Set opponent known move damage `scope` to `opponent_known_move_only`.
+- Set opponent known move damage `target` to `my_active`.
+- Kept the same default assumptions as v0.9/v0.10:
+  - level 50
+  - IV 31 all
+  - EV 0 all
+  - neutral nature
+  - no item, boosts, weather, terrain, screens, critical hit, doubles, or unselected ability effects
+- Updated advisor payload contract guardrails for v0.12.
+
+Maintained boundaries:
+- Candidate moves do not receive `damage_estimate`.
+- OHKO/2HKO/KO chance is not included.
+- Speed order, Turn Engine, final stats, EV/IV/nature/item UI, switch recommendation, and lead recommendation remain out of scope.
+- No `advisor/damage/` or `advisor/probability/` engine changes.
+
+Verification:
+- Confirmed opponent known move estimates are attached under `opponent_moves.known_moves[*].damage_estimate`.
+- Confirmed opponent known move estimates use `target: "my_active"`.
+- Confirmed candidate moves do not receive `damage_estimate`.
+- Confirmed status known moves return `unavailable_status_move`.
+- Confirmed v0.10 my-side damage estimate regression remains covered.
+- `uv run pytest -q`
+- Result: 661 passed, 2 deselected.

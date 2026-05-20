@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from llm.advisor_damage_estimate import (
+    attach_opponent_known_move_damage_estimates,
     attach_selected_move_damage_estimate,
+    build_opponent_known_move_damage_estimate,
     build_selected_move_damage_estimate,
 )
 
@@ -80,7 +82,7 @@ def test_damaging_selected_move_returns_default_assumption_range() -> None:
     assert estimate["assumptions"]["ivs"] == "31 all"
     assert estimate["assumptions"]["evs"] == "0 all"
     assert estimate["assumptions"]["ability_effects"] == "not_applied_unselected"
-    assert "OHKO/2HKO/KO chance is not provided in v0.11.2." in estimate["limitations"]
+    assert "OHKO/2HKO/KO chance is not provided in v0.12." in estimate["limitations"]
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -129,6 +131,59 @@ def test_attach_handles_no_selected_move_with_unavailable_schema() -> None:
     estimate = result["moves"]["my_selected_move"]["damage_estimate"]
     assert estimate["status"] == "unavailable_no_selected_move"
     assert "damage_range" not in estimate
+
+
+def test_opponent_known_move_returns_damage_against_my_active() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    earthquake = _earthquake()
+
+    estimate = build_opponent_known_move_damage_estimate(payload, earthquake)
+
+    assert estimate["status"] == "available_with_default_assumptions"
+    assert estimate["scope"] == "opponent_known_move_only"
+    assert estimate["target"] == "my_active"
+    assert estimate["is_final_battle_damage"] is False
+    assert estimate["selected_move_id"] == "earthquake"
+    assert estimate["damage_range"]["min"] >= 0
+    assert estimate["damage_range"]["max"] >= estimate["damage_range"]["min"]
+    assert estimate["percent_range"]["min"] >= 0
+    assert estimate["percent_range"]["max"] >= estimate["percent_range"]["min"]
+    assert estimate["percent_range"]["denominator"] == "default_defender_max_hp"
+    assert len(estimate["rolls"]) == 16
+    assert "Opponent item, ability, EV/IV/nature, boosts, and final stats are not connected." in estimate[
+        "limitations"
+    ]
+    assert "OHKO/2HKO/KO chance is not provided in v0.12." in estimate["limitations"]
+    assert "ohko_chance" not in estimate
+    assert "ko_chance" not in estimate
+
+
+def test_opponent_status_known_move_returns_unavailable_with_target() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+
+    estimate = build_opponent_known_move_damage_estimate(payload, _will_o_wisp())
+
+    assert estimate["status"] == "unavailable_status_move"
+    assert estimate["target"] == "my_active"
+    assert estimate["selected_move_id"] == "will-o-wisp"
+    assert "damage_range" not in estimate
+
+
+def test_attach_opponent_known_damage_skips_candidate_moves() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["opponent_moves"] = {
+        "known_moves": [{**_earthquake(), "source": "user_confirmed"}],
+        "candidate_moves": [{**_air_slash(), "source": "champions_movepool"}],
+    }
+
+    result = attach_opponent_known_move_damage_estimates(payload)
+
+    known_move = result["opponent_moves"]["known_moves"][0]
+    candidate_move = result["opponent_moves"]["candidate_moves"][0]
+    assert known_move["damage_estimate"]["target"] == "my_active"
+    assert known_move["damage_estimate"]["scope"] == "opponent_known_move_only"
+    assert "damage_estimate" not in candidate_move
+    assert "damage_estimate" not in payload["opponent_moves"]["known_moves"][0]
 
 
 def _battle_input(selected_move: dict | None, available_moves: list[dict] | None = None) -> dict:
@@ -231,4 +286,18 @@ def _will_o_wisp() -> dict:
         "power": None,
         "accuracy": 85,
         "pp": 15,
+    }
+
+
+def _earthquake() -> dict:
+    return {
+        "slot": 0,
+        "move_id": "earthquake",
+        "name_en": "Earthquake",
+        "name_ko": "Earthquake",
+        "type": "ground",
+        "category": "physical",
+        "power": 100,
+        "accuracy": 100,
+        "pp": 10,
     }

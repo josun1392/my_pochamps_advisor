@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.11"
+ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.12"
 
 ADVISOR_KNOWN_LIMITATIONS = [
     "Only user-selected moves and explicitly labeled opponent move data are included in the payload.",
@@ -14,11 +14,12 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "Opponent candidate moves are possible Champions moves, not confirmed moves.",
     "Do not assume the opponent has a candidate move unless it appears in known_moves.",
     "Candidate moves may be mentioned as possible threats only when labeled as unconfirmed.",
-    "Opponent move damage is not calculated in v0.11.2.",
+    "Opponent known move damage estimates, when present, are default-assumption reference values only.",
+    "Opponent candidate move damage is not calculated in v0.12.",
     "Opponent item, selected ability, final stats, speed order, and Turn Engine state remain unknown.",
     "Use my_available_moves damage_estimates to compare the user's own move options.",
     "Base stats are species reference data, not EVs or final calculated battle stats.",
-    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.11.",
+    "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.12.",
     "Terastallization is banned in PoChamps and must not be considered.",
     "Do not assume unprovided EVs, IVs, nature, held items, boosts, weather, terrain, exact HP, move sets, or Tera types.",
     "Speed tier, OHKO/2HKO, KO chance, and survival claims are uncertain unless explicit calculated fields are provided.",
@@ -44,7 +45,14 @@ ADVISOR_DAMAGE_LIMITATIONS = [
     "This is not final battle damage.",
     "EV/IV/nature/item/final stats are not connected.",
     "Use as rough reference only.",
-    "OHKO/2HKO/KO chance is not provided in v0.11.2.",
+    "OHKO/2HKO/KO chance is not provided in v0.12.",
+]
+
+ADVISOR_OPPONENT_DAMAGE_LIMITATIONS = [
+    "This is not final battle damage.",
+    "Opponent item, ability, EV/IV/nature, boosts, and final stats are not connected.",
+    "Use as rough threat reference only.",
+    "OHKO/2HKO/KO chance is not provided in v0.12.",
 ]
 
 ADVISOR_DAMAGE_ESTIMATE_STATUSES = {

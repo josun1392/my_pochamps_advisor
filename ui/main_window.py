@@ -20,7 +20,10 @@ from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository, MoveView
 from core.pokemon_repository import PokemonRepository
 from core.search_engine import SearchEngine
-from llm.advisor_damage_estimate import attach_selected_move_damage_estimate
+from llm.advisor_damage_estimate import (
+    attach_opponent_known_move_damage_estimates,
+    attach_selected_move_damage_estimate,
+)
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import run_ui_selected_advice
 from ui.shortcuts import GlobalShortcuts
@@ -373,11 +376,14 @@ class MainWindow(QMainWindow):
                     "Empty move slots are omitted.",
                     "Cache learnsets are used only as search candidates.",
                     "User-confirmed move damage estimates use default assumptions only.",
+                    "Opponent known move damage estimates use default assumptions only.",
                 ],
             },
             "opponent_moves": self._opponent_moves_payload(opponent_panel),
         }
-        return attach_selected_move_damage_estimate(battle_input)
+        return attach_opponent_known_move_damage_estimates(
+            attach_selected_move_damage_estimate(battle_input)
+        )
 
     @staticmethod
     def _panel_moves_payload(panel) -> list[dict]:
@@ -442,7 +448,8 @@ class MainWindow(QMainWindow):
                 "Known opponent moves are user-confirmed only.",
                 "Candidate moves are possible moves, not confirmed opponent moves.",
                 "Do not assume the opponent has a candidate move unless user-confirmed.",
-                "Opponent move damage is not calculated in v0.11.",
+                "Opponent known move damage estimates use default assumptions only.",
+                "Candidate move damage is not calculated in v0.12.",
             ],
         }
 

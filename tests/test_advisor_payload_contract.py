@@ -31,7 +31,11 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
     assert "Candidate moves may be mentioned as possible threats only when labeled as unconfirmed." in payload[
         "scenario"
     ]["known_limitations"]
-    assert "Opponent move damage is not calculated in v0.11.2." in payload["scenario"]["known_limitations"]
+    assert (
+        "Opponent known move damage estimates, when present, are default-assumption reference values only."
+        in payload["scenario"]["known_limitations"]
+    )
+    assert "Opponent candidate move damage is not calculated in v0.12." in payload["scenario"]["known_limitations"]
     assert "Use my_available_moves damage_estimates to compare the user's own move options." in payload["scenario"][
         "known_limitations"
     ]
@@ -121,23 +125,21 @@ def test_opponent_selected_moves_become_known_moves() -> None:
     opponent_moves = payload["opponent_moves"]
 
     assert opponent_moves["status"] == "known_and_candidates"
-    assert opponent_moves["known_moves"] == [
-        {
-            "slot": 0,
-            "move_id": "earthquake",
-            "name_en": "Earthquake",
-            "name_ko": "Earthquake",
-            "type": "ground",
-            "category": "physical",
-            "power": 100,
-            "accuracy": 100,
-            "pp": 10,
-            "source": "user_confirmed",
-        }
-    ]
+    known_move = opponent_moves["known_moves"][0]
+    assert len(opponent_moves["known_moves"]) == 1
+    assert known_move["slot"] == 0
+    assert known_move["move_id"] == "earthquake"
+    assert known_move["source"] == "user_confirmed"
+    assert known_move["damage_estimate"]["status"] == "available_with_default_assumptions"
+    assert known_move["damage_estimate"]["scope"] == "opponent_known_move_only"
+    assert known_move["damage_estimate"]["target"] == "my_active"
+    assert known_move["damage_estimate"]["is_final_battle_damage"] is False
+    assert "damage_range" in known_move["damage_estimate"]
+    assert "percent_range" in known_move["damage_estimate"]
+    assert "ko_chance" not in known_move["damage_estimate"]
+    assert "ohko_chance" not in known_move["damage_estimate"]
     assert "earthquake" not in {candidate["move_id"] for candidate in opponent_moves["candidate_moves"]}
     assert all("damage_estimate" not in candidate for candidate in opponent_moves["candidate_moves"])
-    assert all("damage_estimate" not in move for move in opponent_moves["known_moves"])
 
 
 def test_missing_opponent_fixture_does_not_fallback_to_pokeapi_learnset() -> None:
@@ -226,7 +228,8 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "known_moves as user-confirmed" in prompt
     assert "candidate_moves only as possible, not confirmed" in prompt
     assert "label them as unconfirmed" in prompt
-    assert "Opponent move damage is not calculated" in prompt
+    assert "Opponent known move damage estimates" in prompt
+    assert "Opponent candidate move damage is not calculated in v0.12" in prompt
     assert "Use my_available_moves damage_estimates to compare the user's own move options" in prompt
     assert "Do not claim OHKO, 2HKO, KO chance, survival, or speed order" in prompt
 

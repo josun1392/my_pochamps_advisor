@@ -89,9 +89,11 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "fields are explicitly provided. If opponent_moves is present, treat "
         "known_moves as user-confirmed and candidate_moves only as possible, "
         "not confirmed, opponent moves. You may mention candidate moves as "
-        "possible threats, but label them as unconfirmed. Opponent move damage "
-        "is not calculated. Use my_available_moves damage_estimates to compare "
-        "the user's own move options.\n\n"
+        "possible threats, but label them as unconfirmed. Opponent known move "
+        "damage estimates, when present, are rough default-assumption threat "
+        "references against my_active. Opponent candidate move damage is not "
+        "calculated in v0.12. Use my_available_moves damage_estimates to "
+        "compare the user's own move options.\n\n"
         f"{json.dumps(battle_input, ensure_ascii=False, indent=2)}"
     )
 
