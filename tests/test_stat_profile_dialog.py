@@ -102,22 +102,54 @@ def test_validate_final_stats_rejects_values_above_champions_limits() -> None:
 def test_stat_profile_dialog_shows_and_enforces_champions_limits() -> None:
     app = QApplication.instance() or QApplication([])
     del app
-    limits = {
-        "hp": 215,
-        "atk": 200,
-        "def": 161,
-        "spa": 144,
-        "spd": 150,
-        "spe": 169,
+    base_stats = {
+        "hp": 108,
+        "attack": 130,
+        "defense": 95,
+        "special-attack": 80,
+        "special-defense": 85,
+        "speed": 102,
     }
     dialog = StatProfileDialog(
         pokemon_name="Garchomp",
         current_stats=None,
-        stat_limits=limits,
+        base_stats=base_stats,
+        stat_limits=champions_final_stat_limits(base_stats),
     )
 
-    assert dialog._spinboxes["hp"].maximum() == 215
-    assert dialog._spinboxes["atk"].maximum() == 200
+    assert dialog._spinboxes["hp"].maximum() == 32
+    assert dialog._spinboxes["atk"].maximum() == 32
     dialog._spinboxes["hp"].setValue(999)
-    assert dialog._spinboxes["hp"].value() == 215
+    assert dialog._spinboxes["hp"].value() == 32
+    dialog._save_and_accept()
+    assert dialog.final_stats is not None
+    assert dialog.final_stats["hp"] == 215
+    dialog.close()
+
+
+def test_stat_profile_dialog_enforces_total_stat_point_cap() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+    base_stats = {
+        "hp": 108,
+        "attack": 130,
+        "defense": 95,
+        "special-attack": 80,
+        "special-defense": 85,
+        "speed": 102,
+    }
+    dialog = StatProfileDialog(
+        pokemon_name="Garchomp",
+        current_stats=None,
+        base_stats=base_stats,
+        stat_limits=champions_final_stat_limits(base_stats),
+    )
+
+    dialog._spinboxes["hp"].setValue(32)
+    dialog._spinboxes["atk"].setValue(32)
+    dialog._spinboxes["def"].setValue(32)
+
+    total = sum(spinbox.value() for spinbox in dialog._spinboxes.values())
+    assert total == 66
+    assert dialog._spinboxes["def"].value() == 2
     dialog.close()

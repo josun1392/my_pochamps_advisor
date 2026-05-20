@@ -88,12 +88,32 @@ def champions_final_stat_limits(base_stats: dict[str, int] | None) -> dict[str, 
     return limits
 
 
+def champions_neutral_final_stats(base_stats: dict[str, int] | None) -> dict[str, int] | None:
+    if base_stats is None:
+        return None
+    stats: dict[str, int] = {}
+    try:
+        for key in STAT_KEYS:
+            stats[key] = calc_stat_gen9(
+                base=int(base_stats[BASE_STAT_KEYS[key]]),
+                ev=0,
+                iv=CHAMPIONS_IV,
+                level=CHAMPIONS_LEVEL,
+                nature_mod=1.0,
+                is_hp=key == "hp",
+            )
+    except (KeyError, TypeError, ValueError):
+        return None
+    return stats
+
+
 class StatProfileDialog(QDialog):
     def __init__(
         self,
         *,
         pokemon_name: str,
         current_stats: dict[str, int] | None = None,
+        base_stats: dict[str, int] | None = None,
         stat_limits: dict[str, int] | None = None,
         parent: QWidget | None = None,
     ) -> None:
@@ -101,13 +121,15 @@ class StatProfileDialog(QDialog):
         self.setWindowTitle("Final Stats (Champions)")
         self._result_stats: dict[str, int] | None = None
         self._spinboxes: dict[str, QSpinBox] = {}
+        self._base_final_stats = champions_neutral_final_stats(base_stats)
         self._stat_limits = stat_limits
+        self._updating_spinboxes = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(10)
 
-        title = QLabel(f"{pokemon_name} final stats")
+        title = QLabel(f"{pokemon_name} 포챔스 스탯 포인트")
         title.setStyleSheet("font-weight: 700; color: #17202A;")
         layout.addWidget(title)
 
@@ -116,22 +138,23 @@ class StatProfileDialog(QDialog):
         normalized = validate_final_stats(current_stats, stat_limits)
         for key in STAT_KEYS:
             spinbox = QSpinBox()
-            limit = stat_limits[key] if stat_limits is not None else 999
-            spinbox.setRange(1, limit)
-            spinbox.setValue(normalized[key] if normalized is not None else 1)
+            spinbox.setRange(0, CHAMPIONS_STAT_POINT_PER_STAT_CAP)
+            point_value = 0
+            if normalized is not None and self._base_final_stats is not None:
+                point_value = max(0, min(CHAMPIONS_STAT_POINT_PER_STAT_CAP, normalized[key] - self._base_final_stats[key]))
+            spinbox.setValue(point_value)
             spinbox.setKeyboardTracking(False)
+            spinbox.valueChanged.connect(lambda _value, changed_key=key: self._enforce_total_cap(changed_key))
             self._spinboxes[key] = spinbox
-            label = STAT_LABELS[key]
-            if stat_limits is not None:
-                label = f"{label} (max {limit})"
+            label = f"{STAT_LABELS[key]} SP (max {CHAMPIONS_STAT_POINT_PER_STAT_CAP})"
             form.addRow(label, spinbox)
         layout.addLayout(form)
 
         hint = QLabel(
-            "Pokemon Champions Stat Points: max 32 per stat / 66 total, not Gen 9 252/510 EVs. "
-            "These fields are final stats, capped by the selected Pokemon's Champions limits. "
-            "Total allocation is shown as the rules limit; exact nature/SP allocation validation is not connected yet. "
-            "Clear returns to default assumptions."
+            "포켓몬 챔피언스 스탯 포인트 기준: 한 능력치 최대 32 / 총합 66입니다. "
+            "총합이 66을 넘으면 입력 중인 항목이 자동으로 조정됩니다. "
+            "저장하면 선택한 포켓몬의 기준 최종 스탯에 입력한 포인트를 더해 계산에 사용합니다. "
+            "Clear를 누르면 기본 가정으로 돌아갑니다."
         )
         hint.setWordWrap(True)
         hint.setStyleSheet("font-size: 11px; color: #52616F;")
@@ -154,8 +177,26 @@ class StatProfileDialog(QDialog):
     def final_stats(self) -> dict[str, int] | None:
         return self._result_stats
 
+    def _enforce_total_cap(self, changed_key: str) -> None:
+        if self._updating_spinboxes:
+            return
+        total = sum(spinbox.value() for spinbox in self._spinboxes.values())
+        if total <= CHAMPIONS_STAT_POINT_TOTAL_CAP:
+            return
+        overflow = total - CHAMPIONS_STAT_POINT_TOTAL_CAP
+        changed_spinbox = self._spinboxes[changed_key]
+        self._updating_spinboxes = True
+        changed_spinbox.setValue(max(0, changed_spinbox.value() - overflow))
+        self._updating_spinboxes = False
+
     def _save_and_accept(self) -> None:
-        self._result_stats = {key: spinbox.value() for key, spinbox in self._spinboxes.items()}
+        if self._base_final_stats is None:
+            self._result_stats = {key: spinbox.value() for key, spinbox in self._spinboxes.items()}
+        else:
+            self._result_stats = {
+                key: self._base_final_stats[key] + spinbox.value()
+                for key, spinbox in self._spinboxes.items()
+            }
         self.accept()
 
     def _clear_and_accept(self) -> None:

@@ -559,6 +559,7 @@ class MainWindow(QMainWindow):
         dialog = StatProfileDialog(
             pokemon_name=view.ko or view.en,
             current_stats=getattr(panel, "final_stats", None),
+            base_stats=view.base_stats,
             stat_limits=champions_final_stat_limits(view.base_stats),
             parent=self,
         )
