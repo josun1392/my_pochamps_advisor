@@ -97,6 +97,7 @@ Opponent move data is split into separate categories:
 - `unknown_moves`: explicit state for missing or partial opponent move information.
 
 Opponent candidate moves are capped by `candidate_moves_limit`. Candidate moves and known opponent moves do not include `damage_estimate` in v0.11.
+Candidate moves may be mentioned as possible threats only when clearly labeled as unconfirmed. The advisor should use `my_available_moves[*].damage_estimate` to compare the user's own move options.
 
 ## Explicitly Missing
 
@@ -129,6 +130,7 @@ The LLM must not:
 - treat `opponent_moves.candidate_moves` as confirmed opponent moves
 - assume the opponent has a candidate move unless it appears in `opponent_moves.known_moves`
 - claim opponent move damage, speed order, or turn order from v0.11 opponent move metadata
+- invent opponent item, selected ability, EVs, IVs, nature, boosts, speed order, turn outcome, or final stats
 - consider Terastallization, which is banned in PoChamps
 
 The LLM may:
@@ -138,6 +140,8 @@ The LLM may:
 - discuss `damage_estimate` only under its stated default assumptions
 - discuss `opponent_moves.known_moves` as user-confirmed opponent moves
 - discuss `opponent_moves.candidate_moves` only as possible, not confirmed, Champions moves
+- mention candidate moves as possible threats only when they are labeled as unconfirmed
+- use `my_available_moves[*].damage_estimate` to compare the user's own move options
 - recommend a direction while naming the missing information that prevents a confident damage-based call
 - ask for or point out missing final stats, items, field state, opponent moves, or damage estimates
 

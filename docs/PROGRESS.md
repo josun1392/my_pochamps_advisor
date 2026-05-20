@@ -607,3 +607,35 @@ Verification:
 Remaining limitations:
 - More local Gemini runs are needed to judge whether the model consistently uses `known_moves` as confirmed and `candidate_moves` as possible only.
 - Opponent damage estimate remains out of scope until v0.12.
+
+---
+
+## v0.11.2 - Opponent Move Awareness Prompt/Guardrail Polish
+
+Purpose:
+- Make Gemini's interpretation of `opponent_moves` more explicit without changing the payload schema.
+- Encourage use of known opponent moves and cautious discussion of candidate moves.
+
+Implemented:
+- Added a concise prompt guardrail that:
+  - treats `opponent_moves.known_moves` as user-confirmed opponent moves
+  - treats `opponent_moves.candidate_moves` as possible, not confirmed, moves
+  - allows candidate moves to be mentioned as possible threats only when labeled unconfirmed
+  - states opponent move damage is not calculated
+  - tells the model to use `my_available_moves` damage estimates for comparing the user's own move options
+- Strengthened `ADVISOR_KNOWN_LIMITATIONS` with the same opponent-move semantics.
+- Updated the advisor payload contract docs.
+
+Manual verification checklist for T1:
+- Confirm a known opponent move is reflected in the response when relevant.
+- Confirm candidate moves are not described as confirmed moves.
+- Confirm candidate moves, if mentioned, are labeled as possible/unconfirmed threats.
+- Confirm opponent damage is not described as calculated.
+- Confirm my four-move damage comparison remains part of the recommendation.
+
+Out of scope maintained:
+- No payload schema change.
+- No opponent damage estimate.
+- No candidate sorting polish.
+- No UI changes.
+- No `advisor/damage/` or `advisor/probability/` engine changes.

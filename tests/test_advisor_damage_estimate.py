@@ -80,7 +80,7 @@ def test_damaging_selected_move_returns_default_assumption_range() -> None:
     assert estimate["assumptions"]["ivs"] == "31 all"
     assert estimate["assumptions"]["evs"] == "0 all"
     assert estimate["assumptions"]["ability_effects"] == "not_applied_unselected"
-    assert "OHKO/2HKO/KO chance is not provided in v0.10." in estimate["limitations"]
+    assert "OHKO/2HKO/KO chance is not provided in v0.11.2." in estimate["limitations"]
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -136,7 +136,7 @@ def _battle_input(selected_move: dict | None, available_moves: list[dict] | None
         available_moves = [_flamethrower()] if selected_move else []
     return {
         "scenario": {
-            "mode": "ui-selected-pokemon-v0.10",
+            "mode": "ui-selected-pokemon-v0.11",
             "known_limitations": [],
         },
         "pokemon": {

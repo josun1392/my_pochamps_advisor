@@ -13,8 +13,10 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "Known opponent moves are user-confirmed only.",
     "Opponent candidate moves are possible Champions moves, not confirmed moves.",
     "Do not assume the opponent has a candidate move unless it appears in known_moves.",
-    "Opponent move damage is not calculated in v0.11.",
+    "Candidate moves may be mentioned as possible threats only when labeled as unconfirmed.",
+    "Opponent move damage is not calculated in v0.11.2.",
     "Opponent item, selected ability, final stats, speed order, and Turn Engine state remain unknown.",
+    "Use my_available_moves damage_estimates to compare the user's own move options.",
     "Base stats are species reference data, not EVs or final calculated battle stats.",
     "EV/IV/nature/items/boosts/weather/terrain/exact HP are not connected in v0.11.",
     "Terastallization is banned in PoChamps and must not be considered.",
@@ -42,7 +44,7 @@ ADVISOR_DAMAGE_LIMITATIONS = [
     "This is not final battle damage.",
     "EV/IV/nature/item/final stats are not connected.",
     "Use as rough reference only.",
-    "OHKO/2HKO/KO chance is not provided in v0.10.",
+    "OHKO/2HKO/KO chance is not provided in v0.11.2.",
 ]
 
 ADVISOR_DAMAGE_ESTIMATE_STATUSES = {

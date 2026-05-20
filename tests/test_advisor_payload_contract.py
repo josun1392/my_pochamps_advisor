@@ -8,6 +8,7 @@ from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveView
 from core.move_repository import MoveRepository
 from core.pokemon_repository import PokemonView
+from llm.advisor_client import _build_ui_selected_prompt
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from ui.main_window import MainWindow
 
@@ -25,6 +26,13 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
         "scenario"
     ]["known_limitations"]
     assert "Opponent candidate moves are possible Champions moves, not confirmed moves." in payload["scenario"][
+        "known_limitations"
+    ]
+    assert "Candidate moves may be mentioned as possible threats only when labeled as unconfirmed." in payload[
+        "scenario"
+    ]["known_limitations"]
+    assert "Opponent move damage is not calculated in v0.11.2." in payload["scenario"]["known_limitations"]
+    assert "Use my_available_moves damage_estimates to compare the user's own move options." in payload["scenario"][
         "known_limitations"
     ]
     assert "Terastallization is banned in PoChamps and must not be considered." in payload["scenario"][
@@ -195,6 +203,32 @@ def test_ui_cost_text_includes_pricing_status() -> None:
         )
         == "Pricing unknown | input 1000 / output 100"
     )
+
+
+def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
+    prompt = _build_ui_selected_prompt(
+        {
+            "moves": {
+                "my_available_moves": [
+                    {
+                        "move_id": "flamethrower",
+                        "damage_estimate": {"status": "available_with_default_assumptions"},
+                    }
+                ]
+            },
+            "opponent_moves": {
+                "known_moves": [{"move_id": "earthquake", "source": "user_confirmed"}],
+                "candidate_moves": [{"move_id": "rock-slide", "confidence": "possible_not_confirmed"}],
+            },
+        }
+    )
+
+    assert "known_moves as user-confirmed" in prompt
+    assert "candidate_moves only as possible, not confirmed" in prompt
+    assert "label them as unconfirmed" in prompt
+    assert "Opponent move damage is not calculated" in prompt
+    assert "Use my_available_moves damage_estimates to compare the user's own move options" in prompt
+    assert "Do not claim OHKO, 2HKO, KO chance, survival, or speed order" in prompt
 
 
 def _panel(

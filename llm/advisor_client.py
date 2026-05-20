@@ -88,7 +88,10 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "
         "fields are explicitly provided. If opponent_moves is present, treat "
         "known_moves as user-confirmed and candidate_moves only as possible, "
-        "not confirmed, opponent moves.\n\n"
+        "not confirmed, opponent moves. You may mention candidate moves as "
+        "possible threats, but label them as unconfirmed. Opponent move damage "
+        "is not calculated. Use my_available_moves damage_estimates to compare "
+        "the user's own move options.\n\n"
         f"{json.dumps(battle_input, ensure_ascii=False, indent=2)}"
     )
 
