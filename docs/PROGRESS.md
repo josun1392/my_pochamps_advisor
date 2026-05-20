@@ -590,10 +590,20 @@ Gemini:
 - The Codex tool environment returned `API_KEY_INVALID`, so Gemini response quality could not be verified in this run.
 - No API key or secret value was printed or committed.
 
+T1 local app verification:
+- Gemini call succeeded from the local PySide app.
+- Status bar showed Free Tier cost semantics: `Free tier | input 6473 / output 75 | $0.0000000`.
+- In a Charizard vs Garchomp scenario, Gemini recommended `Earthquake` based on the four-move damage comparison.
+- The response mentioned the default-assumption limitation.
+- The response did not claim KO, OHKO, or 2HKO.
+- The response did not assert EVs, IVs, nature, items, boosts, speed order, or final stats.
+- No candidate-move overclaim was observed.
+- Opponent known/candidate move usage was not strongly visible in the response and needs more observation.
+
 Verification:
 - `uv run pytest -q`
 - Result: 657 passed, 2 deselected.
 
 Remaining limitations:
-- A valid local Gemini run is still needed to judge whether the model consistently treats `known_moves` as confirmed and `candidate_moves` as possible only.
+- More local Gemini runs are needed to judge whether the model consistently uses `known_moves` as confirmed and `candidate_moves` as possible only.
 - Opponent damage estimate remains out of scope until v0.12.
