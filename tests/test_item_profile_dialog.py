@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel
 
 from ui.widgets.item_profile_dialog import (
     default_item_profile_for_role,
@@ -27,6 +27,20 @@ def test_item_profile_dialog_exposes_v018_options() -> None:
     assert "life-orb" in options
     assert "muscle-band" in options
     assert "wise-glasses" in options
+    dialog.close()
+
+
+def test_item_profile_dialog_guidance_is_korean() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp")
+
+    label_texts = [label.text() for label in dialog.findChildren(QLabel)]
+    guidance = "\n".join(label_texts)
+    assert "현재는 데미지 보정 아이템 일부만 지원합니다." in guidance
+    assert "구애 고정, 반동, 스피드, 회복, 생존 효과, KO 확률은 미지원입니다." in guidance
+    assert "v0.18 supports only" not in guidance
     dialog.close()
 
 

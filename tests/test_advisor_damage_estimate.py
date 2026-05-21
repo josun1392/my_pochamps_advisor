@@ -389,6 +389,46 @@ def test_unsupported_item_does_not_modify_damage() -> None:
     _assert_default_assumption_profile(estimate)
 
 
+def test_unknown_and_none_items_do_not_modify_damage() -> None:
+    unknown_payload = _battle_input(selected_move=_flamethrower())
+    unknown_payload["item_profiles"] = {
+        "my_active": {
+            "status": "unknown",
+            "source": "user_unconfirmed",
+            "item_id": None,
+            "name_en": None,
+            "name_ko": None,
+            "effects_scope": [],
+            "damage_modifier_status": "not_applicable",
+        },
+        "opponent_active": _item_profile(None),
+    }
+    no_item_payload = _battle_input(selected_move=_flamethrower())
+    no_item_payload["item_profiles"] = {
+        "my_active": {
+            "status": "none",
+            "source": "user_confirmed",
+            "item_id": None,
+            "name_en": None,
+            "name_ko": None,
+            "effects_scope": [],
+            "damage_modifier_status": "not_applicable",
+        },
+        "opponent_active": _item_profile(None),
+    }
+
+    default_estimate = build_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    unknown_estimate = build_selected_move_damage_estimate(unknown_payload)
+    no_item_estimate = build_selected_move_damage_estimate(no_item_payload)
+
+    assert unknown_estimate["damage_range"] == default_estimate["damage_range"]
+    assert no_item_estimate["damage_range"] == default_estimate["damage_range"]
+    assert unknown_estimate["item_effects"]["attacker_item"]["status"] == "unknown"
+    assert no_item_estimate["item_effects"]["attacker_item"]["status"] == "none"
+    assert "ko_chance" not in unknown_estimate
+    assert "ohko_chance" not in no_item_estimate
+
+
 def test_opponent_known_move_uses_opponent_attacker_item() -> None:
     payload = _battle_input(selected_move=_flamethrower())
     payload["item_profiles"] = _item_profiles(opponent_item="life-orb")

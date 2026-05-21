@@ -1037,3 +1037,53 @@ Maintained boundaries:
 Test:
 - `uv run pytest -q`
 - Result: 693 passed, 2 deselected.
+
+---
+
+## v0.18.1 - Minimal item selector verification and Korean UI polish
+
+Purpose:
+- Polish the minimal item selector UI text for Korean users.
+- Verify that supported item selections continue to flow through `item_profiles` and `damage_estimate.item_effects`.
+
+Implemented:
+- Localized the `ItemProfileDialog` guidance text to Korean.
+- Kept the v0.18 item selector scope unchanged.
+
+Verification:
+- Confirmed `ItemProfileDialog` guidance is Korean:
+  - "현재는 데미지 보정 아이템 일부만 지원합니다."
+  - "구애 고정, 반동, 스피드, 회복, 생존 효과, KO 확률은 미지원입니다."
+- Confirmed `Life Orb` is emitted as a user-confirmed item profile.
+- Confirmed `Life Orb` item effects mark `damage_modifier` as applied.
+- Confirmed `Life Orb` recoil remains an unapplied effect.
+- Confirmed `Choice Band` applies only to physical move damage.
+- Confirmed `Choice Specs` applies only to special move damage.
+- Confirmed `Unknown` item does not modify damage.
+- Confirmed `No item` does not modify damage.
+- Confirmed `opponent_active` default item state remains `unknown`.
+- Confirmed KO/OHKO/2HKO fields remain absent.
+
+Gemini verification:
+- Not run in this Codex verification pass.
+- T1 local valid-key app verification is still recommended for confirming natural-language wording around item modifiers.
+
+Maintained boundaries:
+- No legal item cache.
+- No scraping.
+- No unsupported item UI.
+- No Expert Belt or Assault Vest.
+- No Choice Scarf speed.
+- No Focus Sash survival.
+- No Leftovers/Sitrus recovery.
+- No Choice lock.
+- No Life Orb recoil.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Test:
+- `uv run pytest tests/test_item_profile_dialog.py tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`
+- Result: 45 passed.
+- `uv run pytest -q`
+- Result: 695 passed, 2 deselected.

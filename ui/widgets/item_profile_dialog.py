@@ -187,8 +187,8 @@ class ItemProfileDialog(QDialog):
         layout.addWidget(self.item_combo)
 
         hint = QLabel(
-            "v0.18 supports only a minimal damage item subset. Choice lock, "
-            "Life Orb recoil, speed, recovery, survival, and KO odds are not modeled."
+            "현재는 데미지 보정 아이템 일부만 지원합니다.\n"
+            "구애 고정, 반동, 스피드, 회복, 생존 효과, KO 확률은 미지원입니다."
         )
         hint.setWordWrap(True)
         hint.setStyleSheet("font-size: 11px; color: #52616F;")
