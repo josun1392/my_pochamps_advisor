@@ -1,14 +1,14 @@
 # Advisor Payload Contract
 
-**Milestone:** v0.14 - Final Stats Input
-**Payload mode:** `ui-selected-pokemon-v0.14`
+**Milestone:** v0.16 - Minimal Damage Item Assumption
+**Payload mode:** `ui-selected-pokemon-v0.16`
 **Status:** Current contract for the PySide6 UI to Gemini LLM advisor path.
 
 ## Purpose
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat model used. The app does not yet send EV/IV/nature breakdowns, items, KO odds, turn order, candidate move damage estimates, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. The app does not yet send EV/IV/nature breakdowns, item UI state, KO odds, turn order, candidate move damage estimates, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -17,12 +17,13 @@ Top-level sections:
 - `scenario`
 - `pokemon`
 - `stat_profiles`
+- `item_profiles`
 - `moves`
 - `opponent_moves`
 
 `scenario` contains:
 
-- `mode`: currently `ui-selected-pokemon-v0.14`
+- `mode`: currently `ui-selected-pokemon-v0.16`
 - `format_note`: explains that this is selected Pokemon identity plus default-assumption user-confirmed move estimates and opponent move context, not full battle state
 - `known_limitations`: guardrails the prompt and UI must preserve
 
@@ -56,6 +57,24 @@ Each active stat profile contains:
 - `item`
 - `notes`
 
+`item_profiles` contains:
+
+- `my_active`
+- `opponent_active`
+
+Each active item profile contains:
+
+- `status`: `unknown`, `none`, `system_default_none`, or `user_confirmed`
+- `source`
+- `item_id`
+- `name_en`
+- `name_ko`
+- `effects_scope`
+- `damage_modifier_status`
+- `notes`
+
+In v0.16 the UI emits `system_default_none` for both active Pokemon. Test/helper payloads may provide user-confirmed item profiles for the minimal damage item subset.
+
 `moves` contains:
 
 - `my_selected_move_index`
@@ -67,7 +86,7 @@ Each active stat profile contains:
 - `move_data_status`
 - `notes`
 
-`moves.opponent_available_moves` remains a legacy compatibility field and is empty in v0.14. New opponent move semantics live in `opponent_moves`.
+`moves.opponent_available_moves` remains a legacy compatibility field and is empty in v0.16. New opponent move semantics live in `opponent_moves`.
 
 `opponent_moves` contains:
 
@@ -100,6 +119,7 @@ Each move `damage_estimate` contains:
 - `scope`
 - `is_final_battle_damage`
 - `assumption_profile`
+- `item_effects`
 - `target` when the estimate is for opponent known move damage against `my_active`
 - `selected_move_id` when available
 - `damage_range` when available
@@ -117,16 +137,49 @@ Opponent move data is split into separate categories:
 - `candidate_moves`: possible moves from the Serebii-derived Champions movepool cache. These include `confidence: "possible_not_confirmed"` and are not the opponent's known moveset.
 - `unknown_moves`: explicit state for missing or partial opponent move information.
 
-Opponent candidate moves are capped by `candidate_moves_limit`. Known opponent moves may include `damage_estimate` in v0.14 when they are user-confirmed moves. Candidate moves do not include `damage_estimate` in v0.14.
+Opponent candidate moves are capped by `candidate_moves_limit`. Known opponent moves may include `damage_estimate` in v0.16 when they are user-confirmed moves. Candidate moves do not include `damage_estimate` in v0.16.
 Candidate moves may be mentioned as possible threats only when clearly labeled as unconfirmed. The advisor should use `my_available_moves[*].damage_estimate` to compare the user's own move options.
 Opponent known move damage estimates use `target: "my_active"` and are rough threat references only.
 
+## Item Semantics
+
+Item state is separate from stat state:
+
+- `unknown`: the item is not known.
+- `none`: the user confirmed no held item.
+- `system_default_none`: the calculation assumes no held item by default.
+- `user_confirmed`: the user or a test/helper payload supplied an item.
+
+`unknown` and `none` must not be treated as the same thing.
+
+Only this first attacker-side damage item subset may affect v0.16 damage estimates:
+
+- `choice-band`: physical move damage modifier only
+- `choice-specs`: special move damage modifier only
+- `life-orb`: damage modifier only
+- `muscle-band`: physical move damage modifier only
+- `wise-glasses`: special move damage modifier only
+
+Excluded from v0.16 item application:
+
+- Expert Belt
+- Assault Vest
+- Choice Scarf speed
+- Focus Sash survival
+- Leftovers/Sitrus recovery
+- Choice lock
+- Life Orb recoil
+- candidate move damage
+- KO/OHKO/2HKO
+
+`damage_estimate.item_effects` is the source of truth for whether an item effect was applied to a specific calculation.
+
 ## Explicitly Missing
 
-The v0.14 payload does not contain:
+The v0.16 payload does not contain:
 
 - EV/IV/nature
-- held item
+- item UI state beyond `item_profiles`
 - selected ability certainty
 - weather
 - terrain
@@ -150,11 +203,14 @@ The LLM must not:
 - treat cache learnsets or unselected moves as available moves
 - treat `opponent_moves.candidate_moves` as confirmed opponent moves
 - assume the opponent has a candidate move unless it appears in `opponent_moves.known_moves`
-- claim candidate move damage, speed order, or turn order from v0.14 opponent move metadata
+- claim candidate move damage, speed order, or turn order from v0.16 opponent move metadata
 - describe opponent known move damage estimates as final battle damage
 - ignore `assumption_profile` when explaining damage estimate confidence
 - invent opponent item, selected ability, EVs, IVs, nature, boosts, speed order, turn outcome, or missing final stats
 - infer EVs, IVs, nature, or item from user-confirmed final stats
+- treat `unknown` item as `none`
+- claim item effects are applied unless `damage_estimate.item_effects` marks them as `applied`
+- claim Choice lock, Life Orb recoil, Choice Scarf speed, Focus Sash survival, or Leftovers recovery is modeled
 - consider Terastallization, which is banned in PoChamps
 
 The LLM may:
@@ -163,6 +219,8 @@ The LLM may:
 - discuss user-confirmed move metadata such as type, category, power, accuracy, and PP
 - discuss `damage_estimate` only under its stated default assumptions
 - discuss `assumption_profile` as the stat model used for an estimate
+- discuss `damage_estimate.item_effects` as the item effect summary for that estimate
+- say a supported item damage modifier is applied only when `damage_estimate.item_effects` says `status: "applied"`
 - discuss user-confirmed final stats as user-provided stat values when `stat_profiles` says so
 - discuss `opponent_moves.known_moves` as user-confirmed opponent moves
 - discuss `opponent_moves.known_moves[*].damage_estimate` only as default-assumption damage against `my_active`
@@ -182,6 +240,18 @@ Each damage estimate includes this default assumption profile:
   "label": "Default Level 50 / IV 31 / EV 0 / neutral nature / no item",
   "source": "system_default",
   "confidence": "rough_reference",
+  "is_user_confirmed": false
+}
+```
+
+When a supported damage item modifier is applied with default stats, the profile changes to:
+
+```json
+{
+  "id": "default_level50_ivs31_evs0_neutral_with_damage_item",
+  "label": "Default Level 50 / IV 31 / EV 0 / neutral nature / supported damage item",
+  "source": "system_default_and_user_input",
+  "confidence": "rough_reference_with_user_confirmed_item",
   "is_user_confirmed": false
 }
 ```
@@ -215,7 +285,19 @@ When `stat_profiles` provides six user-confirmed final stats for an active Pokem
 }
 ```
 
-Even with user-confirmed final stats, `is_final_battle_damage` remains `false` because item, selected ability, boosts, weather, terrain, screens, exact current HP, and KO odds are not connected.
+When user-confirmed final stats and a supported damage item modifier are both used, the profile changes to:
+
+```json
+{
+  "id": "user_confirmed_final_stats_level50_with_damage_item",
+  "label": "User-confirmed final stats / Level 50 / supported damage item",
+  "source": "user_input",
+  "confidence": "higher_confidence_reference",
+  "is_user_confirmed": true
+}
+```
+
+Even with user-confirmed final stats and supported damage item modifiers, `is_final_battle_damage` remains `false` because selected ability, boosts, weather, terrain, screens, exact current HP, non-damage item effects, and KO odds are not connected.
 
 Unavailable statuses include:
 

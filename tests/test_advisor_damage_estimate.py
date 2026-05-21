@@ -82,8 +82,11 @@ def test_damaging_selected_move_returns_default_assumption_range() -> None:
     assert estimate["assumptions"]["level"] == 50
     assert estimate["assumptions"]["ivs"] == "31 all"
     assert estimate["assumptions"]["evs"] == "0 all"
+    assert estimate["assumptions"]["item"] == "none"
     assert estimate["assumptions"]["ability_effects"] == "not_applied_unselected"
-    assert "OHKO/2HKO/KO chance is not provided in v0.14." in estimate["limitations"]
+    assert estimate["item_effects"]["attacker_item"]["status"] == "system_default_none"
+    assert estimate["item_effects"]["defender_item"]["status"] == "system_default_none"
+    assert "OHKO/2HKO/KO chance is not provided in v0.16." in estimate["limitations"]
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -153,10 +156,10 @@ def test_opponent_known_move_returns_damage_against_my_active() -> None:
     assert estimate["percent_range"]["denominator"] == "default_defender_max_hp"
     assert len(estimate["rolls"]) == 16
     _assert_default_assumption_profile(estimate)
-    assert "Opponent item, ability, EV/IV/nature, boosts, and final stats are not connected." in estimate[
+    assert "Opponent ability, EV/IV/nature, boosts, and final stats may be missing or defaulted." in estimate[
         "limitations"
     ]
-    assert "OHKO/2HKO/KO chance is not provided in v0.14." in estimate["limitations"]
+    assert "OHKO/2HKO/KO chance is not provided in v0.16." in estimate["limitations"]
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -259,6 +262,115 @@ def test_partial_final_stats_falls_back_to_default_profile() -> None:
     estimate = build_selected_move_damage_estimate(payload)
 
     _assert_default_assumption_profile(estimate)
+
+
+def test_choice_band_applies_to_my_physical_move_only() -> None:
+    physical_payload = _battle_input(selected_move=_dragon_claw())
+    physical_payload["item_profiles"] = _item_profiles(my_item="choice-band")
+    special_payload = _battle_input(selected_move=_flamethrower())
+    special_payload["item_profiles"] = _item_profiles(my_item="choice-band")
+
+    physical_default = build_selected_move_damage_estimate(_battle_input(selected_move=_dragon_claw()))
+    physical_estimate = build_selected_move_damage_estimate(physical_payload)
+    special_default = build_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    special_estimate = build_selected_move_damage_estimate(special_payload)
+
+    assert physical_estimate["damage_range"]["max"] > physical_default["damage_range"]["max"]
+    assert physical_estimate["item_effects"]["attacker_item"] == {
+        "item_id": "choice-band",
+        "status": "applied",
+        "applied_effects": ["damage_modifier"],
+        "unapplied_effects": ["choice_lock"],
+    }
+    assert physical_estimate["assumption_profile"]["id"] == "default_level50_ivs31_evs0_neutral_with_damage_item"
+    assert special_estimate["damage_range"] == special_default["damage_range"]
+    assert special_estimate["item_effects"]["attacker_item"]["status"] == "not_applicable"
+    assert "choice_lock" in special_estimate["item_effects"]["attacker_item"]["unapplied_effects"]
+
+
+def test_choice_specs_applies_to_my_special_move_only() -> None:
+    special_payload = _battle_input(selected_move=_flamethrower())
+    special_payload["item_profiles"] = _item_profiles(my_item="choice-specs")
+    physical_payload = _battle_input(selected_move=_dragon_claw())
+    physical_payload["item_profiles"] = _item_profiles(my_item="choice-specs")
+
+    special_default = build_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    special_estimate = build_selected_move_damage_estimate(special_payload)
+    physical_default = build_selected_move_damage_estimate(_battle_input(selected_move=_dragon_claw()))
+    physical_estimate = build_selected_move_damage_estimate(physical_payload)
+
+    assert special_estimate["damage_range"]["max"] > special_default["damage_range"]["max"]
+    assert special_estimate["item_effects"]["attacker_item"]["status"] == "applied"
+    assert special_estimate["item_effects"]["attacker_item"]["unapplied_effects"] == ["choice_lock"]
+    assert physical_estimate["damage_range"] == physical_default["damage_range"]
+    assert physical_estimate["item_effects"]["attacker_item"]["status"] == "not_applicable"
+
+
+def test_life_orb_applies_damage_and_marks_recoil_unapplied() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(my_item="life-orb")
+
+    default_estimate = build_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    estimate = build_selected_move_damage_estimate(payload)
+
+    assert estimate["damage_range"]["max"] > default_estimate["damage_range"]["max"]
+    assert estimate["item_effects"]["attacker_item"] == {
+        "item_id": "life-orb",
+        "status": "applied",
+        "applied_effects": ["damage_modifier"],
+        "unapplied_effects": ["recoil"],
+    }
+    assert estimate["assumptions"]["item"] == "supported_attacker_damage_item_applied"
+    assert estimate["is_final_battle_damage"] is False
+    assert "ko_chance" not in estimate
+
+
+def test_muscle_band_and_wise_glasses_apply_by_move_category() -> None:
+    muscle_payload = _battle_input(selected_move=_dragon_claw())
+    muscle_payload["item_profiles"] = _item_profiles(my_item="muscle-band")
+    wise_payload = _battle_input(selected_move=_flamethrower())
+    wise_payload["item_profiles"] = _item_profiles(my_item="wise-glasses")
+
+    physical_default = build_selected_move_damage_estimate(_battle_input(selected_move=_dragon_claw()))
+    special_default = build_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    muscle_estimate = build_selected_move_damage_estimate(muscle_payload)
+    wise_estimate = build_selected_move_damage_estimate(wise_payload)
+
+    assert muscle_estimate["damage_range"]["max"] > physical_default["damage_range"]["max"]
+    assert muscle_estimate["item_effects"]["attacker_item"]["status"] == "applied"
+    assert wise_estimate["damage_range"]["max"] > special_default["damage_range"]["max"]
+    assert wise_estimate["item_effects"]["attacker_item"]["status"] == "applied"
+
+
+def test_unsupported_item_does_not_modify_damage() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(my_item="expert-belt")
+
+    default_estimate = build_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    estimate = build_selected_move_damage_estimate(payload)
+
+    assert estimate["damage_range"] == default_estimate["damage_range"]
+    assert estimate["item_effects"]["attacker_item"]["status"] == "unsupported_item"
+    assert "item_damage_modifier_not_supported_in_v0.16" in estimate["item_effects"]["attacker_item"][
+        "unapplied_effects"
+    ]
+    _assert_default_assumption_profile(estimate)
+
+
+def test_opponent_known_move_uses_opponent_attacker_item() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="life-orb")
+
+    default_estimate = build_opponent_known_move_damage_estimate(_battle_input(selected_move=_flamethrower()), _rock_slide())
+    estimate = build_opponent_known_move_damage_estimate(payload, _rock_slide())
+
+    assert estimate["damage_range"]["max"] > default_estimate["damage_range"]["max"]
+    assert estimate["target"] == "my_active"
+    assert estimate["item_effects"]["attacker_item"]["item_id"] == "life-orb"
+    assert estimate["item_effects"]["attacker_item"]["status"] == "applied"
+    assert estimate["item_effects"]["defender_item"]["status"] == "system_default_none"
+    assert "ko_chance" not in estimate
 
 
 def _battle_input(selected_move: dict | None, available_moves: list[dict] | None = None) -> dict:
@@ -386,6 +498,35 @@ def _user_final_stats(
     }
 
 
+def _item_profiles(my_item: str | None = None, opponent_item: str | None = None) -> dict:
+    return {
+        "my_active": _item_profile(my_item),
+        "opponent_active": _item_profile(opponent_item),
+    }
+
+
+def _item_profile(item_id: str | None) -> dict:
+    if item_id is None:
+        return {
+            "status": "system_default_none",
+            "source": "system_default",
+            "item_id": None,
+            "name_en": None,
+            "name_ko": None,
+            "effects_scope": [],
+            "damage_modifier_status": "not_applicable",
+        }
+    return {
+        "status": "user_confirmed",
+        "source": "user_input",
+        "item_id": item_id,
+        "name_en": item_id,
+        "name_ko": None,
+        "effects_scope": ["damage_modifier"],
+        "damage_modifier_status": "not_applied",
+    }
+
+
 def _flamethrower() -> dict:
     return {
         "slot": 0,
@@ -439,6 +580,20 @@ def _earthquake() -> dict:
         "power": 100,
         "accuracy": 100,
         "pp": 10,
+    }
+
+
+def _dragon_claw() -> dict:
+    return {
+        "slot": 0,
+        "move_id": "dragon-claw",
+        "name_en": "Dragon Claw",
+        "name_ko": "Dragon Claw",
+        "type": "dragon",
+        "category": "physical",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 15,
     }
 
 

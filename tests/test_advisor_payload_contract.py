@@ -42,7 +42,13 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
     assert "User-confirmed final stats may be used when stat_profiles provides all six stats." in payload["scenario"][
         "known_limitations"
     ]
-    assert "Opponent candidate move damage is not calculated in v0.14." in payload["scenario"]["known_limitations"]
+    assert "item_profiles distinguishes unknown, none, system_default_none, and user_confirmed item state." in payload[
+        "scenario"
+    ]["known_limitations"]
+    assert "Only item effects marked as applied in damage_estimate.item_effects are included in damage numbers." in payload[
+        "scenario"
+    ]["known_limitations"]
+    assert "Opponent candidate move damage is not calculated in v0.16." in payload["scenario"]["known_limitations"]
     assert "Use my_available_moves damage_estimates to compare the user's own move options." in payload["scenario"][
         "known_limitations"
     ]
@@ -106,6 +112,7 @@ def test_ui_payload_attaches_available_move_damage_estimates() -> None:
     assert all("damage_range" in estimate for estimate in estimates)
     assert all("percent_range" in estimate for estimate in estimates)
     assert all("ko_chance" not in estimate for estimate in estimates)
+    assert all("item_effects" in estimate for estimate in estimates)
 
 
 def test_ui_payload_includes_default_stat_profiles() -> None:
@@ -121,6 +128,24 @@ def test_ui_payload_includes_default_stat_profiles() -> None:
     assert payload["stat_profiles"]["opponent_active"]["status"] == "default_assumption"
     assert payload["stat_profiles"]["opponent_active"]["source"] == "system_default"
     assert payload["stat_profiles"]["opponent_active"]["final_stats"] is None
+
+
+def test_ui_payload_includes_default_item_profiles() -> None:
+    my_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
+    opponent_panel = _panel("garchomp", selected_move_index=None, selected_moves=[])
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+
+    my_item = payload["item_profiles"]["my_active"]
+    opponent_item = payload["item_profiles"]["opponent_active"]
+    assert my_item["status"] == "system_default_none"
+    assert my_item["source"] == "system_default"
+    assert my_item["item_id"] is None
+    assert my_item["damage_modifier_status"] == "not_applicable"
+    assert opponent_item["status"] == "system_default_none"
+    assert opponent_item["source"] == "system_default"
+    assert opponent_item["item_id"] is None
 
 
 def test_ui_payload_includes_user_confirmed_final_stats() -> None:
@@ -304,7 +329,10 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "label them as unconfirmed" in prompt
     assert "Opponent known move damage estimates" in prompt
     assert "User-confirmed final stats may be used" in prompt
-    assert "Opponent candidate move damage is not calculated in v0.14" in prompt
+    assert "Opponent candidate move damage is not calculated in v0.14" not in prompt
+    assert "Opponent candidate move damage is not calculated in v0.16" in prompt
+    assert "Only item effects marked as applied in damage_estimate.item_effects" in prompt
+    assert "Choice lock, Life Orb recoil, Choice Scarf speed" in prompt
     assert "Use my_available_moves damage_estimates to compare the user's own move options" in prompt
     assert "Do not claim OHKO, 2HKO, KO chance, survival, or speed order" in prompt
 

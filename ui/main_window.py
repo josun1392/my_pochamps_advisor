@@ -24,6 +24,7 @@ from core.search_engine import SearchEngine
 from llm.advisor_damage_estimate import (
     attach_opponent_known_move_damage_estimates,
     attach_selected_move_damage_estimate,
+    default_item_profiles_payload,
 )
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import run_ui_selected_advice
@@ -373,6 +374,7 @@ class MainWindow(QMainWindow):
                 "my_active": _stat_profile_payload(my_panel),
                 "opponent_active": _stat_profile_payload(opponent_panel),
             },
+            "item_profiles": default_item_profiles_payload(),
             "moves": {
                 "my_selected_move_index": my_panel.selected_move_index,
                 "my_available_moves": self._panel_moves_payload(my_panel),

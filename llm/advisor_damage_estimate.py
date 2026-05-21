@@ -7,12 +7,15 @@ from typing import Any
 
 from advisor.damage.field import Field
 from advisor.damage.formula import DamageContext, calc_damage_rolls
+from advisor.damage.items import ItemEffect, get_item
 from advisor.damage.stats import StatBlock, StatInputs, final_stats, nature_from_name
 from llm.advisor_payload_contract import (
     ADVISOR_DAMAGE_ASSUMPTIONS,
     ADVISOR_DAMAGE_LIMITATIONS,
+    ADVISOR_DEFAULT_WITH_DAMAGE_ITEM_PROFILE,
     ADVISOR_DEFAULT_ASSUMPTION_PROFILE,
     ADVISOR_OPPONENT_DAMAGE_LIMITATIONS,
+    ADVISOR_USER_CONFIRMED_FINAL_STATS_WITH_DAMAGE_ITEM_PROFILE,
     ADVISOR_USER_CONFIRMED_FINAL_STATS_PROFILE,
 )
 
@@ -21,6 +24,21 @@ DEFAULT_LEVEL = 50
 DEFAULT_IVS = StatBlock(hp=31, atk=31, def_=31, spa=31, spd=31, spe=31)
 DEFAULT_EVS = StatBlock(hp=0, atk=0, def_=0, spa=0, spd=0, spe=0)
 DEFAULT_BOOSTS = StatBlock(hp=0, atk=0, def_=0, spa=0, spd=0, spe=0)
+SUPPORTED_ATTACKER_DAMAGE_ITEMS = {
+    "choice-band",
+    "choice-specs",
+    "life-orb",
+    "muscle-band",
+    "wise-glasses",
+}
+PHYSICAL_DAMAGE_ITEMS = {"choice-band", "muscle-band"}
+SPECIAL_DAMAGE_ITEMS = {"choice-specs", "wise-glasses"}
+ALWAYS_DAMAGE_ITEMS = {"life-orb"}
+ITEM_UNAPPLIED_EFFECTS = {
+    "choice-band": ["choice_lock"],
+    "choice-specs": ["choice_lock"],
+    "life-orb": ["recoil"],
+}
 
 
 def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[str, Any]:
@@ -218,6 +236,11 @@ def build_move_damage_estimate(
             )
         if move_id is None:
             move_id = move_type
+        attacker_item_effect = _attacker_item_for_damage(
+            battle_input,
+            attacker_key=attacker_key,
+            move_category=category,
+        )
 
         ctx = DamageContext(
             attacker_level=DEFAULT_LEVEL,
@@ -242,6 +265,7 @@ def build_move_damage_estimate(
             attacker_hp_max=attacker_stats.hp,
             defender_hp_current=None,
             defender_hp_max=defender_stats.hp,
+            attacker_item=attacker_item_effect,
         )
         rolls = calc_damage_rolls(ctx)
     except Exception:
@@ -253,6 +277,14 @@ def build_move_damage_estimate(
             target=target,
             limitations=estimate_limitations,
         )
+
+    item_effects = _item_effects_summary(
+        battle_input,
+        attacker_key=attacker_key,
+        defender_key=defender_key,
+        move_category=category,
+        applied_attacker_item=attacker_item_effect,
+    )
 
     estimate = {
         "status": "available_with_default_assumptions",
@@ -273,8 +305,10 @@ def build_move_damage_estimate(
             battle_input,
             attacker_key=attacker_key,
             defender_key=defender_key,
+            damage_item_applied=item_effects["attacker_item"]["status"] == "applied",
         ),
-        "assumptions": dict(ADVISOR_DAMAGE_ASSUMPTIONS),
+        "item_effects": item_effects,
+        "assumptions": _assumptions_for_item_effects(item_effects),
         "derived_stats": {
             "attacker": {
                 "attack_stat_used": attack_stat,
@@ -291,6 +325,14 @@ def build_move_damage_estimate(
     if target is not None:
         estimate["target"] = target
     return estimate
+
+
+def default_item_profiles_payload() -> dict[str, dict[str, Any]]:
+    """Build the default v0.16 no-item item profile payload."""
+    return {
+        "my_active": _system_default_none_item_profile(),
+        "opponent_active": _system_default_none_item_profile(),
+    }
 
 
 def _unavailable(
@@ -400,15 +442,29 @@ def _assumption_profile_for_roles(
     *,
     attacker_key: str,
     defender_key: str,
+    damage_item_applied: bool = False,
 ) -> dict[str, Any]:
     attacker_status = _stat_profile_status(battle_input, attacker_key)
     defender_status = _stat_profile_status(battle_input, defender_key)
     if attacker_status == "user_confirmed_final_stats" or defender_status == "user_confirmed_final_stats":
-        profile = dict(ADVISOR_USER_CONFIRMED_FINAL_STATS_PROFILE)
+        profile = dict(
+            ADVISOR_USER_CONFIRMED_FINAL_STATS_WITH_DAMAGE_ITEM_PROFILE
+            if damage_item_applied
+            else ADVISOR_USER_CONFIRMED_FINAL_STATS_PROFILE
+        )
         profile["stats_used"] = {
             "attacker": attacker_status,
             "defender": defender_status,
         }
+        profile["damage_item_applied"] = damage_item_applied
+        return profile
+    if damage_item_applied:
+        profile = dict(ADVISOR_DEFAULT_WITH_DAMAGE_ITEM_PROFILE)
+        profile["stats_used"] = {
+            "attacker": attacker_status,
+            "defender": defender_status,
+        }
+        profile["damage_item_applied"] = True
         return profile
     return dict(ADVISOR_DEFAULT_ASSUMPTION_PROFILE)
 
@@ -437,3 +493,139 @@ def _percent(damage: int, hp: int) -> float:
     if hp <= 0:
         return 0.0
     return round(damage / hp * 100, 1)
+
+
+def _system_default_none_item_profile() -> dict[str, Any]:
+    return {
+        "status": "system_default_none",
+        "source": "system_default",
+        "item_id": None,
+        "name_en": None,
+        "name_ko": None,
+        "effects_scope": [],
+        "damage_modifier_status": "not_applicable",
+        "notes": ["No item is assumed by default."],
+    }
+
+
+def _assumptions_for_item_effects(item_effects: dict[str, Any]) -> dict[str, Any]:
+    assumptions = dict(ADVISOR_DAMAGE_ASSUMPTIONS)
+    attacker_item = item_effects.get("attacker_item")
+    if isinstance(attacker_item, dict) and attacker_item.get("status") == "applied":
+        assumptions["item"] = "supported_attacker_damage_item_applied"
+    return assumptions
+
+
+def _item_profile(battle_input: dict[str, Any], role_key: str) -> dict[str, Any]:
+    item_profiles = battle_input.get("item_profiles")
+    if not isinstance(item_profiles, dict):
+        return _system_default_none_item_profile()
+    profile = item_profiles.get(role_key)
+    if not isinstance(profile, dict):
+        return _system_default_none_item_profile()
+    return profile
+
+
+def _attacker_item_for_damage(
+    battle_input: dict[str, Any],
+    *,
+    attacker_key: str,
+    move_category: str,
+) -> ItemEffect | None:
+    profile = _item_profile(battle_input, attacker_key)
+    item_id = profile.get("item_id")
+    if not isinstance(item_id, str) or not item_id:
+        return None
+    item_id = item_id.lower()
+    if not _is_supported_attacker_item_for_category(item_id, move_category):
+        return None
+    return get_item(item_id)
+
+
+def _is_supported_attacker_item_for_category(item_id: str, move_category: str) -> bool:
+    if item_id not in SUPPORTED_ATTACKER_DAMAGE_ITEMS:
+        return False
+    if item_id in ALWAYS_DAMAGE_ITEMS:
+        return True
+    if item_id in PHYSICAL_DAMAGE_ITEMS:
+        return move_category == "physical"
+    if item_id in SPECIAL_DAMAGE_ITEMS:
+        return move_category == "special"
+    return False
+
+
+def _item_effects_summary(
+    battle_input: dict[str, Any],
+    *,
+    attacker_key: str,
+    defender_key: str,
+    move_category: str,
+    applied_attacker_item: ItemEffect | None,
+) -> dict[str, Any]:
+    attacker_profile = _item_profile(battle_input, attacker_key)
+    defender_profile = _item_profile(battle_input, defender_key)
+    return {
+        "attacker_item": _item_effect_summary(
+            attacker_profile,
+            role="attacker",
+            move_category=move_category,
+            applied_item=applied_attacker_item,
+        ),
+        "defender_item": _item_effect_summary(
+            defender_profile,
+            role="defender",
+            move_category=move_category,
+            applied_item=None,
+        ),
+    }
+
+
+def _item_effect_summary(
+    profile: dict[str, Any],
+    *,
+    role: str,
+    move_category: str,
+    applied_item: ItemEffect | None,
+) -> dict[str, Any]:
+    status = str(profile.get("status", "system_default_none"))
+    item_id_value = profile.get("item_id")
+    item_id = item_id_value.lower() if isinstance(item_id_value, str) and item_id_value else None
+    if item_id is None:
+        return {
+            "item_id": None,
+            "status": status,
+            "applied_effects": [],
+            "unapplied_effects": [],
+        }
+
+    unapplied_effects = list(ITEM_UNAPPLIED_EFFECTS.get(item_id, []))
+    if role != "attacker":
+        return {
+            "item_id": item_id,
+            "status": "not_applied",
+            "applied_effects": [],
+            "unapplied_effects": ["defender_item_effects_not_supported_in_v0.16", *unapplied_effects],
+        }
+    if applied_item is not None:
+        return {
+            "item_id": item_id,
+            "status": "applied",
+            "applied_effects": ["damage_modifier"],
+            "unapplied_effects": unapplied_effects,
+        }
+    if item_id in SUPPORTED_ATTACKER_DAMAGE_ITEMS:
+        return {
+            "item_id": item_id,
+            "status": "not_applicable",
+            "applied_effects": [],
+            "unapplied_effects": [
+                f"damage_modifier_not_applicable_to_{move_category}_move",
+                *unapplied_effects,
+            ],
+        }
+    return {
+        "item_id": item_id,
+        "status": "unsupported_item",
+        "applied_effects": [],
+        "unapplied_effects": ["item_damage_modifier_not_supported_in_v0.16", *unapplied_effects],
+    }

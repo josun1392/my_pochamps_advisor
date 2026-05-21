@@ -806,6 +806,55 @@ Verification:
 
 ---
 
+## v0.16 - Minimal Damage Item Assumption
+
+Purpose:
+- Add item profile payload structure without adding item UI.
+- Apply a small attacker-side damage item subset to existing my move and opponent known move damage estimates.
+- Make applied and unapplied item effects explicit for the LLM.
+
+Implemented:
+- Added top-level `item_profiles.my_active` and `item_profiles.opponent_active`.
+- Default UI payload emits `system_default_none` for both active Pokemon.
+- Added support for user-confirmed attacker-side damage items in helper/test payloads.
+- Applied the v0.16 subset through the existing damage engine item path:
+  - `choice-band` for physical damage.
+  - `choice-specs` for special damage.
+  - `life-orb` for damage, with recoil marked as unapplied.
+  - `muscle-band` for physical damage.
+  - `wise-glasses` for special damage.
+- Added `damage_estimate.item_effects` to available damage estimates.
+- Updated `assumption_profile` ids when a supported damage item modifier is applied.
+- Kept `is_final_battle_damage` as `false`.
+- Updated advisor payload contract and prompt guardrails for item semantics.
+
+Maintained boundaries:
+- No item UI.
+- No legal item scraping or cache generation.
+- No Expert Belt or Assault Vest.
+- No Choice Scarf speed.
+- No Focus Sash survival.
+- No Leftovers/Sitrus recovery.
+- No Choice lock.
+- No Life Orb recoil.
+- No candidate move damage.
+- No KO/OHKO/2HKO.
+- No speed order or Turn Engine.
+- No `advisor/damage/` or `advisor/probability/` engine changes.
+
+Verification:
+- Confirmed default item profiles are emitted as `system_default_none`.
+- Confirmed `choice-band` modifies physical move damage and not special move damage.
+- Confirmed `choice-specs` modifies special move damage and not physical move damage.
+- Confirmed `life-orb` modifies damage and records recoil in `unapplied_effects`.
+- Confirmed `muscle-band` and `wise-glasses` apply only to their matching move categories.
+- Confirmed unsupported items do not modify damage and are marked `unsupported_item`.
+- Confirmed opponent known move damage uses `item_profiles.opponent_active` as attacker item.
+- Confirmed candidate moves still do not receive `damage_estimate`.
+- Confirmed KO/OHKO/2HKO fields remain absent.
+
+---
+
 ## v0.14.1 - Final Stats Input local verification
 
 Purpose:
