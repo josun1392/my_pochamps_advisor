@@ -1132,3 +1132,19 @@ Test:
 - Result: 17 passed.
 - `uv run pytest -q`
 - Result: 696 passed, 2 deselected.
+
+T1 local valid-key verification:
+- Confirmed Gemini now mentions supported item damage modifiers when applied.
+- Choice Band case:
+  - Gemini recommended `Iron Head`.
+  - Gemini stated that the Choice Band damage modifier is applied to the physical move damage estimates.
+  - Gemini did not claim Choice lock is modeled.
+  - Gemini did not claim KO/OHKO/2HKO.
+- Life Orb case:
+  - Gemini recommended `Iron Head`.
+  - Gemini described the estimate as `default assumptions plus the supported Life Orb damage modifier`.
+  - Gemini mentioned the opponent item is unknown.
+  - Gemini did not describe the estimate as final battle damage.
+- Remaining response polish:
+  - Gemini may surface the raw type-effectiveness label `super_effective` instead of natural wording like `super effective`.
+  - Life Orb recoil is not always explicitly mentioned as unmodeled, even though it remains excluded in the payload/contract.
