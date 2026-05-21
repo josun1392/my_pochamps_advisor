@@ -1289,3 +1289,32 @@ Maintained boundaries:
 Test:
 - `uv run pytest tests/test_item_profile_dialog.py -q`
 - Result: 6 passed.
+
+---
+
+## v0.20.2 - Local item selector and Gemini verification
+
+T1 local valid-key verification:
+- Life Orb selected state produced a successful Gemini response.
+- Gemini recommended `Iron Head`.
+- Gemini reflected the expected damage range: `140-166`.
+- Gemini explicitly mentioned that the Life Orb damage modifier was applied.
+- Gemini explicitly mentioned that Life Orb recoil is not modeled.
+- Gemini mentioned that `Outrage` has no effect.
+- Gemini mentioned that the opponent held item is unknown.
+- Gemini used natural wording (`super effective`) instead of the raw `super_effective` label.
+- Gemini did not overclaim final battle damage.
+- Gemini did not claim KO/OHKO/2HKO certainty.
+- Item selector behavior was confirmed locally.
+
+Remaining follow-up:
+- ItemProfileDialog guidance length/truncation can receive one more visual check in the running app.
+
+Maintained boundaries:
+- Documentation-only update.
+- No code changes.
+- No UI changes.
+- No legal item selector implementation.
+- No repository/UI integration.
+- No item effect additions.
+- No `advisor/damage/` or `advisor/probability` engine changes.
