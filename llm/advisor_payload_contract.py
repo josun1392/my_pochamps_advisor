@@ -14,6 +14,8 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "item_profiles distinguishes unknown, none, system_default_none, and user_confirmed item state.",
     "system_default_none means damage was calculated with a no-item assumption.",
     "Only item effects marked as applied in damage_estimate.item_effects are included in damage numbers.",
+    "Type matchup descriptions must use damage_estimate.type_effectiveness when present.",
+    "Do not call a move super effective, resisted, or immune unless type_effectiveness explicitly supports it.",
     "Choice lock, Life Orb recoil, Choice Scarf speed, Focus Sash survival, and Leftovers recovery are not connected.",
     "Do not infer damage, OHKO/2HKO, or KO chance unless damage data is explicitly provided.",
     "Known opponent moves are user-confirmed only.",

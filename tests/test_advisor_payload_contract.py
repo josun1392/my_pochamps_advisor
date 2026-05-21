@@ -48,6 +48,9 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
     assert "Only item effects marked as applied in damage_estimate.item_effects are included in damage numbers." in payload[
         "scenario"
     ]["known_limitations"]
+    assert "Type matchup descriptions must use damage_estimate.type_effectiveness when present." in payload[
+        "scenario"
+    ]["known_limitations"]
     assert "Opponent candidate move damage is not calculated in v0.16." in payload["scenario"]["known_limitations"]
     assert "Use my_available_moves damage_estimates to compare the user's own move options." in payload["scenario"][
         "known_limitations"
@@ -87,6 +90,7 @@ def test_ui_payload_attaches_selected_move_damage_estimate() -> None:
     _assert_default_assumption_profile(estimate)
     assert "damage_range" in estimate
     assert "percent_range" in estimate
+    assert "type_effectiveness" in estimate
     assert "assumptions" in estimate
     assert "limitations" in estimate
     assert "ko_chance" not in estimate
@@ -333,6 +337,8 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Opponent candidate move damage is not calculated in v0.16" in prompt
     assert "Only item effects marked as applied in damage_estimate.item_effects" in prompt
     assert "Choice lock, Life Orb recoil, Choice Scarf speed" in prompt
+    assert "use damage_estimate.type_effectiveness" in prompt
+    assert "super effective, resisted, or immune" in prompt
     assert "Use my_available_moves damage_estimates to compare the user's own move options" in prompt
     assert "Do not claim OHKO, 2HKO, KO chance, survival, or speed order" in prompt
 

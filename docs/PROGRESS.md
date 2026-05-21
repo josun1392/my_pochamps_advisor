@@ -800,6 +800,45 @@ Verification:
 - Confirmed `damage_estimate.assumption_profile` changes to `user_confirmed_final_stats_level50`.
 - Confirmed `is_final_battle_damage` remains `false`.
 - Confirmed KO/OHKO/2HKO fields remain absent.
+
+---
+
+## v0.16.1 - Type Effectiveness Metadata
+
+Purpose:
+- Prevent LLM type matchup explanation overclaims.
+- Add calculated type effectiveness metadata to each available damage estimate.
+- Give Gemini an explicit source for immune / resisted / neutral / super-effective wording.
+
+Context:
+- T1 local Gemini testing correctly reflected damage comparison and Ground immunity, but incorrectly described Dragon damage against Corviknight as super effective.
+- Corviknight is Flying/Steel, so Dragon is resisted by Steel and should be labeled `not_very_effective`.
+
+Implemented:
+- Added `damage_estimate.type_effectiveness`.
+- Added `multiplier` and `label` fields.
+- Label mapping:
+  - `0.0` -> `immune`
+  - greater than `0.0` and less than `1.0` -> `not_very_effective`
+  - `1.0` -> `neutral`
+  - greater than `1.0` -> `super_effective`
+- Updated prompt guardrails so type matchup wording must use `damage_estimate.type_effectiveness` when present.
+- Updated advisor payload contract documentation and guardrails.
+
+Maintained boundaries:
+- No type chart changes.
+- No new damage formula.
+- No item UI.
+- No speed order.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No candidate move damage.
+- No `advisor/damage/` or `advisor/probability/` engine changes.
+
+Verification:
+- Confirmed Dragon Claw/Outrage-style Dragon damage into Corviknight is labeled `not_very_effective`.
+- Confirmed Earthquake into Corviknight is labeled `immune` and has 0 damage.
+- Confirmed prompt and contract mention `damage_estimate.type_effectiveness`.
 - Offscreen UI smoke confirmed `Master Ball Advisor v0.14` launches and Pokemon panels expose Stats buttons.
 - `uv run pytest -q`
 - Result: 670 passed, 2 deselected.

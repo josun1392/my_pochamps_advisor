@@ -8,7 +8,9 @@ from typing import Any
 from advisor.damage.field import Field
 from advisor.damage.formula import DamageContext, calc_damage_rolls
 from advisor.damage.items import ItemEffect, get_item
+from advisor.damage.modifiers.core import type_effectiveness_with_field
 from advisor.damage.stats import StatBlock, StatInputs, final_stats, nature_from_name
+from advisor.damage.types import load_type_chart
 from llm.advisor_payload_contract import (
     ADVISOR_DAMAGE_ASSUMPTIONS,
     ADVISOR_DAMAGE_LIMITATIONS,
@@ -242,6 +244,14 @@ def build_move_damage_estimate(
             move_category=category,
         )
 
+        field = Field(is_doubles=False)
+        type_effectiveness = type_effectiveness_with_field(
+            move_type,
+            defender_types,
+            load_type_chart(),
+            field,
+        )
+
         ctx = DamageContext(
             attacker_level=DEFAULT_LEVEL,
             move_power=power,
@@ -254,7 +264,7 @@ def build_move_damage_estimate(
             is_physical=is_physical,
             is_critical=False,
             is_spread=False,
-            field=Field(is_doubles=False),
+            field=field,
             attacker_species=str(attacker.get("name_en", "")),
             defender_species=str(defender.get("name_en", "")),
             attacker_stats=attacker_stats,
@@ -299,6 +309,10 @@ def build_move_damage_estimate(
             "min": _percent(min(rolls), defender_stats.hp),
             "max": _percent(max(rolls), defender_stats.hp),
             "denominator": "default_defender_max_hp",
+        },
+        "type_effectiveness": {
+            "multiplier": type_effectiveness,
+            "label": _type_effectiveness_label(type_effectiveness),
         },
         "rolls": list(rolls),
         "assumption_profile": _assumption_profile_for_roles(
@@ -493,6 +507,16 @@ def _percent(damage: int, hp: int) -> float:
     if hp <= 0:
         return 0.0
     return round(damage / hp * 100, 1)
+
+
+def _type_effectiveness_label(multiplier: float) -> str:
+    if multiplier == 0.0:
+        return "immune"
+    if multiplier < 1.0:
+        return "not_very_effective"
+    if multiplier > 1.0:
+        return "super_effective"
+    return "neutral"
 
 
 def _system_default_none_item_profile() -> dict[str, Any]:

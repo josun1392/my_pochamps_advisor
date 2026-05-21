@@ -124,6 +124,7 @@ Each move `damage_estimate` contains:
 - `selected_move_id` when available
 - `damage_range` when available
 - `percent_range` when available
+- `type_effectiveness` when available
 - `rolls` when available
 - `assumptions`
 - `derived_stats` when available
@@ -174,6 +175,28 @@ Excluded from v0.16 item application:
 
 `damage_estimate.item_effects` is the source of truth for whether an item effect was applied to a specific calculation.
 
+## Type Effectiveness Semantics
+
+Damage estimates include explicit type effectiveness metadata:
+
+```json
+{
+  "type_effectiveness": {
+    "multiplier": 0.5,
+    "label": "not_very_effective"
+  }
+}
+```
+
+Labels:
+
+- `immune`: multiplier `0`
+- `not_very_effective`: multiplier greater than `0` and less than `1`
+- `neutral`: multiplier `1`
+- `super_effective`: multiplier greater than `1`
+
+The LLM must use this field when explaining type matchups. It must not call a move super effective, resisted, or immune from general Pokemon knowledge when this field says otherwise.
+
 ## Explicitly Missing
 
 The v0.16 payload does not contain:
@@ -211,6 +234,7 @@ The LLM must not:
 - treat `unknown` item as `none`
 - claim item effects are applied unless `damage_estimate.item_effects` marks them as `applied`
 - claim Choice lock, Life Orb recoil, Choice Scarf speed, Focus Sash survival, or Leftovers recovery is modeled
+- describe a move as super effective, resisted, or immune unless `damage_estimate.type_effectiveness` supports that label
 - consider Terastallization, which is banned in PoChamps
 
 The LLM may:
@@ -220,6 +244,7 @@ The LLM may:
 - discuss `damage_estimate` only under its stated default assumptions
 - discuss `assumption_profile` as the stat model used for an estimate
 - discuss `damage_estimate.item_effects` as the item effect summary for that estimate
+- discuss `damage_estimate.type_effectiveness` as the source for type matchup explanations
 - say a supported item damage modifier is applied only when `damage_estimate.item_effects` says `status: "applied"`
 - discuss user-confirmed final stats as user-provided stat values when `stat_profiles` says so
 - discuss `opponent_moves.known_moves` as user-confirmed opponent moves

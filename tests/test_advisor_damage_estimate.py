@@ -75,6 +75,10 @@ def test_damaging_selected_move_returns_default_assumption_range() -> None:
     assert estimate["percent_range"]["min"] > 0
     assert estimate["percent_range"]["max"] >= estimate["percent_range"]["min"]
     assert estimate["percent_range"]["denominator"] == "default_defender_max_hp"
+    assert estimate["type_effectiveness"] == {
+        "multiplier": 0.5,
+        "label": "not_very_effective",
+    }
     assert len(estimate["rolls"]) == 16
     assert estimate["rolls"][0] == estimate["damage_range"]["min"]
     assert estimate["rolls"][-1] == estimate["damage_range"]["max"]
@@ -89,6 +93,33 @@ def test_damaging_selected_move_returns_default_assumption_range() -> None:
     assert "OHKO/2HKO/KO chance is not provided in v0.16." in estimate["limitations"]
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
+
+
+def test_type_effectiveness_metadata_marks_corviknight_resisting_dragon() -> None:
+    payload = _battle_input(selected_move=_dragon_claw())
+    payload["pokemon"]["opponent_active"] = _corviknight_payload()
+
+    estimate = build_selected_move_damage_estimate(payload)
+
+    assert estimate["status"] == "available_with_default_assumptions"
+    assert estimate["selected_move_id"] == "dragon-claw"
+    assert estimate["type_effectiveness"] == {
+        "multiplier": 0.5,
+        "label": "not_very_effective",
+    }
+
+
+def test_type_effectiveness_metadata_marks_ground_immunity() -> None:
+    payload = _battle_input(selected_move=_earthquake())
+    payload["pokemon"]["opponent_active"] = _corviknight_payload()
+
+    estimate = build_selected_move_damage_estimate(payload)
+
+    assert estimate["damage_range"] == {"min": 0, "max": 0}
+    assert estimate["type_effectiveness"] == {
+        "multiplier": 0.0,
+        "label": "immune",
+    }
 
 
 def test_attach_places_estimate_under_my_selected_move() -> None:
@@ -594,6 +625,28 @@ def _dragon_claw() -> dict:
         "power": 80,
         "accuracy": 100,
         "pp": 15,
+    }
+
+
+def _corviknight_payload() -> dict:
+    return {
+        "slot_index": 0,
+        "name_en": "corviknight",
+        "name_ko": "Corviknight",
+        "types": ["flying", "steel"],
+        "types_ko": ["Flying", "Steel"],
+        "base_stats": {
+            "hp": 98,
+            "attack": 87,
+            "defense": 105,
+            "special-attack": 53,
+            "special-defense": 85,
+            "speed": 67,
+        },
+        "abilities": ["pressure", "unnerve"],
+        "abilities_ko": ["Pressure", "Unnerve"],
+        "hp_percent": 100,
+        "selected_move_index": None,
     }
 
 
