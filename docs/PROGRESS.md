@@ -937,3 +937,48 @@ Maintained boundaries:
 Test:
 - `uv run pytest -q`
 - Result: 670 passed, 2 deselected.
+
+---
+
+## v0.16.2 - Type Effectiveness Metadata local Gemini verification
+
+Purpose:
+- Verify the v0.16.1 `damage_estimate.type_effectiveness` metadata with a local valid-key Gemini call.
+- Confirm Gemini uses the structured type-effectiveness metadata instead of inventing type matchup wording.
+
+Scenario:
+- My active Pokemon: Garchomp.
+- Opponent active Pokemon: Corviknight.
+- My available moves included `Outrage`, `Earthquake`, and `Rock Slide`.
+- Opponent known moves were not required for this check.
+
+Payload verification:
+- Confirmed `Outrage` includes `damage_estimate.type_effectiveness.label: "not_very_effective"`.
+- Confirmed `Outrage` damage range was `41-48`.
+- Confirmed `Earthquake` includes `damage_estimate.type_effectiveness.label: "immune"`.
+- Confirmed `Earthquake` damage range was `0-0`.
+- Confirmed `Rock Slide` includes `damage_estimate.type_effectiveness.label: "neutral"`.
+- Confirmed KO/OHKO/2HKO fields remain absent.
+- Confirmed candidate moves remain outside damage estimate generation.
+
+Gemini verification:
+- Local valid-key Gemini call succeeded with `gemini-2.5-flash`.
+- Gemini recommended `Outrage` based on the available move damage estimates.
+- Gemini described `Outrage` as dealing more than `Rock Slide` despite being not very effective.
+- Gemini described `Earthquake` as doing 0 damage because Corviknight is immune.
+- Gemini did not call Dragon damage against Corviknight super effective.
+- Gemini did not contradict `damage_estimate.type_effectiveness`.
+- Gemini kept the limitation that estimates are reference values based on default assumptions, not final battle damage.
+
+Maintained boundaries:
+- No code changes.
+- No prompt changes.
+- No payload schema changes.
+- No item UI.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Test:
+- `uv run pytest -q`
+- Result: 686 passed, 2 deselected.
