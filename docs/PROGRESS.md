@@ -982,3 +982,58 @@ Maintained boundaries:
 Test:
 - `uv run pytest -q`
 - Result: 686 passed, 2 deselected.
+
+---
+
+## v0.18 - Minimal Supported Item Selector
+
+Purpose:
+- Add a minimal app UI path for selecting supported held items.
+- Connect selected item state to top-level `item_profiles` so existing v0.16 item damage helpers can apply supported attacker-side item modifiers.
+
+Implemented:
+- Added `ItemProfileDialog` with v0.18 options:
+  - Unknown item
+  - No item
+  - Choice Band
+  - Choice Specs
+  - Life Orb
+  - Muscle Band
+  - Wise Glasses
+- Added compact `Item` button state to Pokemon panels.
+- Added item profile state to Pokemon panels.
+- Reset item profile state when a panel's Pokemon changes or is cleared.
+- `my_active` defaults to `system_default_none`.
+- `opponent_active` defaults to `unknown`.
+- User-confirmed supported items are emitted in `item_profiles`.
+- Existing damage helpers now receive UI-selected item profiles through `MainWindow._build_llm_battle_input()`.
+- Updated advisor payload mode to `ui-selected-pokemon-v0.18`.
+- Updated advisor payload contract for the minimal item selector and opponent unknown-item default.
+
+Verification:
+- Confirmed `ItemProfileDialog` exposes the full v0.18 option set.
+- Confirmed Unknown, No item, and supported item selections produce distinct payload profiles.
+- Confirmed default `my_active` item profile is `system_default_none`.
+- Confirmed default `opponent_active` item profile is `unknown`.
+- Confirmed user-selected `Choice Band` is reflected in `item_profiles.my_active`.
+- Confirmed user-selected `Life Orb` is reflected in `item_profiles.opponent_active`.
+- Confirmed selected supported items flow into damage estimates through `item_effects`.
+- Confirmed Life Orb recoil remains listed as an unapplied effect.
+- Confirmed panel item profile resets on Pokemon change/clear.
+- Confirmed offscreen `MainWindow` smoke creates both team columns with Item buttons.
+
+Maintained boundaries:
+- No legal item cache.
+- No scraping.
+- No unsupported legal item selector.
+- No Expert Belt or Assault Vest.
+- No Choice Scarf, Focus Sash, Leftovers, or Sitrus Berry.
+- No Choice lock.
+- No Life Orb recoil.
+- No speed order or Turn Engine.
+- No KO/OHKO/2HKO.
+- No `advisor/damage/` or `advisor/probability/` engine changes.
+
+Test:
+- `uv run pytest -q`
+- Result: 693 passed, 2 deselected.

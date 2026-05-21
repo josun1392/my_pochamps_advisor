@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.16"
+ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.18"
 
 ADVISOR_KNOWN_LIMITATIONS = [
     "Only user-selected moves and explicitly labeled opponent move data are included in the payload.",
@@ -12,6 +12,8 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "Every damage estimate includes an assumption_profile that identifies the stat model used.",
     "User-confirmed final stats may be used when stat_profiles provides all six stats.",
     "item_profiles distinguishes unknown, none, system_default_none, and user_confirmed item state.",
+    "v0.18 item UI supports Unknown, No item, Choice Band, Choice Specs, Life Orb, Muscle Band, and Wise Glasses only.",
+    "Opponent item defaults to unknown unless T1 confirms no item or selects an item.",
     "system_default_none means damage was calculated with a no-item assumption.",
     "Only item effects marked as applied in damage_estimate.item_effects are included in damage numbers.",
     "Type matchup descriptions must use damage_estimate.type_effectiveness when present.",
@@ -23,7 +25,7 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "Do not assume the opponent has a candidate move unless it appears in known_moves.",
     "Candidate moves may be mentioned as possible threats only when labeled as unconfirmed.",
     "Opponent known move damage estimates, when present, are default-assumption reference values only.",
-    "Opponent candidate move damage is not calculated in v0.16.",
+    "Opponent candidate move damage is not calculated in v0.18.",
     "Selected ability, speed order, and Turn Engine state remain unknown; item state is limited to item_profiles.",
     "Use my_available_moves damage_estimates to compare the user's own move options.",
     "Base stats are species reference data, not EVs or final calculated battle stats.",

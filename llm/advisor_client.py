@@ -102,7 +102,7 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "use damage_estimate.type_effectiveness if present and do not call a "
         "move super effective, resisted, or immune unless that field supports "
         "it. Opponent candidate move damage is not "
-        "calculated in v0.16. Use my_available_moves damage_estimates to "
+        "calculated in v0.18. Use my_available_moves damage_estimates to "
         "compare the user's own move options.\n\n"
         f"{json.dumps(battle_input, ensure_ascii=False, indent=2)}"
     )

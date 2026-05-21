@@ -1,14 +1,14 @@
 # Advisor Payload Contract
 
-**Milestone:** v0.16 - Minimal Damage Item Assumption
-**Payload mode:** `ui-selected-pokemon-v0.16`
+**Milestone:** v0.18 - Minimal Supported Item Selector
+**Payload mode:** `ui-selected-pokemon-v0.18`
 **Status:** Current contract for the PySide6 UI to Gemini LLM advisor path.
 
 ## Purpose
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. The app does not yet send EV/IV/nature breakdowns, item UI state, KO odds, turn order, candidate move damage estimates, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.18 adds a minimal item selector for Unknown, No item, Choice Band, Choice Specs, Life Orb, Muscle Band, and Wise Glasses. The app does not yet send EV/IV/nature breakdowns, full legal item selector state, KO odds, turn order, candidate move damage estimates, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -23,7 +23,7 @@ Top-level sections:
 
 `scenario` contains:
 
-- `mode`: currently `ui-selected-pokemon-v0.16`
+- `mode`: currently `ui-selected-pokemon-v0.18`
 - `format_note`: explains that this is selected Pokemon identity plus default-assumption user-confirmed move estimates and opponent move context, not full battle state
 - `known_limitations`: guardrails the prompt and UI must preserve
 
@@ -73,7 +73,7 @@ Each active item profile contains:
 - `damage_modifier_status`
 - `notes`
 
-In v0.16 the UI emits `system_default_none` for both active Pokemon. Test/helper payloads may provide user-confirmed item profiles for the minimal damage item subset.
+In v0.18 the UI can emit `system_default_none`, `unknown`, `none`, or `user_confirmed` item profiles for active Pokemon. My active defaults to `system_default_none` for compatibility with the previous no-item calculation assumption. Opponent active defaults to `unknown` unless T1 confirms no item or selects one of the supported damage items.
 
 `moves` contains:
 
@@ -86,7 +86,7 @@ In v0.16 the UI emits `system_default_none` for both active Pokemon. Test/helper
 - `move_data_status`
 - `notes`
 
-`moves.opponent_available_moves` remains a legacy compatibility field and is empty in v0.16. New opponent move semantics live in `opponent_moves`.
+`moves.opponent_available_moves` remains a legacy compatibility field and is empty in v0.18. New opponent move semantics live in `opponent_moves`.
 
 `opponent_moves` contains:
 
@@ -138,7 +138,7 @@ Opponent move data is split into separate categories:
 - `candidate_moves`: possible moves from the Serebii-derived Champions movepool cache. These include `confidence: "possible_not_confirmed"` and are not the opponent's known moveset.
 - `unknown_moves`: explicit state for missing or partial opponent move information.
 
-Opponent candidate moves are capped by `candidate_moves_limit`. Known opponent moves may include `damage_estimate` in v0.16 when they are user-confirmed moves. Candidate moves do not include `damage_estimate` in v0.16.
+Opponent candidate moves are capped by `candidate_moves_limit`. Known opponent moves may include `damage_estimate` in v0.18 when they are user-confirmed moves. Candidate moves do not include `damage_estimate` in v0.18.
 Candidate moves may be mentioned as possible threats only when clearly labeled as unconfirmed. The advisor should use `my_available_moves[*].damage_estimate` to compare the user's own move options.
 Opponent known move damage estimates use `target: "my_active"` and are rough threat references only.
 
@@ -153,7 +153,7 @@ Item state is separate from stat state:
 
 `unknown` and `none` must not be treated as the same thing.
 
-Only this first attacker-side damage item subset may affect v0.16 damage estimates:
+Only this first attacker-side damage item subset may affect v0.18 damage estimates:
 
 - `choice-band`: physical move damage modifier only
 - `choice-specs`: special move damage modifier only
@@ -161,7 +161,7 @@ Only this first attacker-side damage item subset may affect v0.16 damage estimat
 - `muscle-band`: physical move damage modifier only
 - `wise-glasses`: special move damage modifier only
 
-Excluded from v0.16 item application:
+Excluded from v0.18 item application:
 
 - Expert Belt
 - Assault Vest
@@ -199,10 +199,10 @@ The LLM must use this field when explaining type matchups. It must not call a mo
 
 ## Explicitly Missing
 
-The v0.16 payload does not contain:
+The v0.18 payload does not contain:
 
 - EV/IV/nature
-- item UI state beyond `item_profiles`
+- full legal item selector/cache state beyond the minimal `item_profiles` selector
 - selected ability certainty
 - weather
 - terrain
@@ -226,7 +226,7 @@ The LLM must not:
 - treat cache learnsets or unselected moves as available moves
 - treat `opponent_moves.candidate_moves` as confirmed opponent moves
 - assume the opponent has a candidate move unless it appears in `opponent_moves.known_moves`
-- claim candidate move damage, speed order, or turn order from v0.16 opponent move metadata
+- claim candidate move damage, speed order, or turn order from v0.18 opponent move metadata
 - describe opponent known move damage estimates as final battle damage
 - ignore `assumption_profile` when explaining damage estimate confidence
 - invent opponent item, selected ability, EVs, IVs, nature, boosts, speed order, turn outcome, or missing final stats

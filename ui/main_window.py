@@ -24,13 +24,17 @@ from core.search_engine import SearchEngine
 from llm.advisor_damage_estimate import (
     attach_opponent_known_move_damage_estimates,
     attach_selected_move_damage_estimate,
-    default_item_profiles_payload,
 )
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import run_ui_selected_advice
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
+from ui.widgets.item_profile_dialog import (
+    default_item_profile_for_role,
+    item_button_text,
+    ItemProfileDialog,
+)
 from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
@@ -375,7 +379,10 @@ class MainWindow(QMainWindow):
                 "my_active": _stat_profile_payload(my_panel),
                 "opponent_active": _stat_profile_payload(opponent_panel),
             },
-            "item_profiles": default_item_profiles_payload(),
+            "item_profiles": {
+                "my_active": _item_profile_payload(my_panel, role_key="my_active"),
+                "opponent_active": _item_profile_payload(opponent_panel, role_key="opponent_active"),
+            },
             "moves": {
                 "my_selected_move_index": my_panel.selected_move_index,
                 "my_available_moves": self._panel_moves_payload(my_panel),
@@ -544,6 +551,9 @@ class MainWindow(QMainWindow):
                 panel.stat_profile_requested.connect(
                     lambda slot, name=column_name: self._on_stat_profile_requested(name, slot)
                 )
+                panel.item_profile_requested.connect(
+                    lambda slot, name=column_name: self._on_item_profile_requested(name, slot)
+                )
 
     @Slot(str, int, int)
     def _on_move_slot_selected(self, column_name: str, slot_index: int, move_index: int) -> None:
@@ -573,6 +583,38 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Stats cleared | {view.ko or view.en}")
         else:
             self.statusBar().showMessage(f"Stats set | {view.ko or view.en}")
+
+    @Slot(str, int)
+    def _on_item_profile_requested(self, column_name: str, slot_index: int) -> None:
+        panel = self._slot_panel(column_name, slot_index)
+        self.select_slot(column_name, slot_index)
+        view = getattr(panel, "pokemon_view", None)
+        if view is None:
+            self.statusBar().showMessage("Failed | Select a Pokemon first.")
+            return
+        role_key = "opponent_active" if column_name == "team_enemy" else "my_active"
+        dialog = ItemProfileDialog(
+            pokemon_name=view.ko or view.en,
+            current_profile=getattr(panel, "item_profile", None),
+            role_key=role_key,
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        panel.set_item_profile(
+            dialog.item_profile,
+            item_button_text(dialog.item_profile, role_key=role_key),
+        )
+        profile = _item_profile_payload(panel, role_key=role_key)
+        item_id = profile.get("item_id")
+        if profile.get("status") == "user_confirmed" and isinstance(item_id, str):
+            self.statusBar().showMessage(f"Item set | {view.ko or view.en}: {item_id}")
+        elif profile.get("status") == "none":
+            self.statusBar().showMessage(f"Item set | {view.ko or view.en}: no item")
+        elif profile.get("status") == "unknown":
+            self.statusBar().showMessage(f"Item set | {view.ko or view.en}: unknown")
+        else:
+            self.statusBar().showMessage(f"Item reset | {view.ko or view.en}")
 
     def _refresh_move_selection_styles(self) -> None:
         for column_name, team_column in (
@@ -677,6 +719,13 @@ def _stat_profile_payload(panel) -> dict:
             "EV/IV/nature breakdown is not connected.",
         ],
     }
+
+
+def _item_profile_payload(panel, *, role_key: str) -> dict:
+    profile = getattr(panel, "item_profile", None)
+    if isinstance(profile, dict):
+        return dict(profile)
+    return default_item_profile_for_role(role_key)
 
 
 def _opponent_moves_status(

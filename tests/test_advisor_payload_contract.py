@@ -11,6 +11,7 @@ from core.pokemon_repository import PokemonView
 from llm.advisor_client import _build_ui_selected_prompt
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from ui.main_window import MainWindow
+from ui.widgets.item_profile_dialog import item_profile_from_option
 
 
 def test_ui_payload_uses_advisor_contract_guardrails() -> None:
@@ -51,7 +52,7 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
     assert "Type matchup descriptions must use damage_estimate.type_effectiveness when present." in payload[
         "scenario"
     ]["known_limitations"]
-    assert "Opponent candidate move damage is not calculated in v0.16." in payload["scenario"]["known_limitations"]
+    assert "Opponent candidate move damage is not calculated in v0.18." in payload["scenario"]["known_limitations"]
     assert "Use my_available_moves damage_estimates to compare the user's own move options." in payload["scenario"][
         "known_limitations"
     ]
@@ -147,9 +148,53 @@ def test_ui_payload_includes_default_item_profiles() -> None:
     assert my_item["source"] == "system_default"
     assert my_item["item_id"] is None
     assert my_item["damage_modifier_status"] == "not_applicable"
-    assert opponent_item["status"] == "system_default_none"
-    assert opponent_item["source"] == "system_default"
+    assert opponent_item["status"] == "unknown"
+    assert opponent_item["source"] == "user_unconfirmed"
     assert opponent_item["item_id"] is None
+
+
+def test_ui_payload_includes_user_selected_item_profiles() -> None:
+    my_panel = _panel(
+        "garchomp",
+        selected_move_index=0,
+        selected_moves=[_move("earthquake")],
+        item_profile=item_profile_from_option("choice-band"),
+    )
+    opponent_panel = _panel(
+        "corviknight",
+        selected_move_index=0,
+        selected_moves=[_move("drill-peck")],
+        item_profile=item_profile_from_option("life-orb", role_key="opponent_active"),
+    )
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+
+    assert payload["item_profiles"]["my_active"]["item_id"] == "choice-band"
+    assert payload["item_profiles"]["my_active"]["status"] == "user_confirmed"
+    assert payload["item_profiles"]["opponent_active"]["item_id"] == "life-orb"
+    assert payload["item_profiles"]["opponent_active"]["status"] == "user_confirmed"
+    my_estimate = payload["moves"]["my_available_moves"][0]["damage_estimate"]
+    opponent_estimate = payload["opponent_moves"]["known_moves"][0]["damage_estimate"]
+    assert my_estimate["item_effects"]["attacker_item"]["status"] == "applied"
+    assert opponent_estimate["item_effects"]["attacker_item"]["status"] == "applied"
+    assert "recoil" in opponent_estimate["item_effects"]["attacker_item"]["unapplied_effects"]
+
+
+def test_ui_payload_distinguishes_unknown_and_no_item() -> None:
+    my_panel = _panel(
+        "charizard",
+        selected_move_index=0,
+        selected_moves=[_move("flamethrower")],
+        item_profile=item_profile_from_option("none"),
+    )
+    opponent_panel = _panel("garchomp", selected_move_index=None, selected_moves=[])
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+
+    assert payload["item_profiles"]["my_active"]["status"] == "none"
+    assert payload["item_profiles"]["opponent_active"]["status"] == "unknown"
 
 
 def test_ui_payload_includes_user_confirmed_final_stats() -> None:
@@ -334,7 +379,8 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Opponent known move damage estimates" in prompt
     assert "User-confirmed final stats may be used" in prompt
     assert "Opponent candidate move damage is not calculated in v0.14" not in prompt
-    assert "Opponent candidate move damage is not calculated in v0.16" in prompt
+    assert "Opponent candidate move damage is not calculated in v0.16" not in prompt
+    assert "Opponent candidate move damage is not calculated in v0.18" in prompt
     assert "Only item effects marked as applied in damage_estimate.item_effects" in prompt
     assert "Choice lock, Life Orb recoil, Choice Scarf speed" in prompt
     assert "use damage_estimate.type_effectiveness" in prompt
@@ -349,6 +395,7 @@ def _panel(
     selected_move_index: int | None,
     selected_moves: list[MoveView | None],
     final_stats: dict | None = None,
+    item_profile: dict | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         pokemon_view=_pokemon(name),
@@ -356,6 +403,7 @@ def _panel(
         selected_move_index=selected_move_index,
         selected_moves=selected_moves + [None] * (4 - len(selected_moves)),
         final_stats=final_stats,
+        item_profile=item_profile,
     )
 
 
@@ -439,6 +487,24 @@ def _pokemon(name: str) -> PokemonView:
             abilities_ko=[],
             moves_en=[],
         )
+    if name == "corviknight":
+        return PokemonView(
+            en="corviknight",
+            ko="Corviknight",
+            types_en=["flying", "steel"],
+            types_ko=["Flying", "Steel"],
+            base_stats={
+                "hp": 98,
+                "attack": 87,
+                "defense": 105,
+                "special-attack": 53,
+                "special-defense": 85,
+                "speed": 67,
+            },
+            abilities_en=["pressure", "unnerve"],
+            abilities_ko=["Pressure", "Unnerve"],
+            moves_en=["drill-peck"],
+        )
     return PokemonView(
         en="charizard",
         ko="Charizard",
@@ -480,6 +546,17 @@ def _move(move_id: str) -> MoveView:
             power=75,
             accuracy=95,
             pp=15,
+        )
+    if move_id == "drill-peck":
+        return MoveView(
+            move_id="drill-peck",
+            name_en="Drill Peck",
+            name_ko="Drill Peck",
+            type="flying",
+            category="physical",
+            power=80,
+            accuracy=100,
+            pp=20,
         )
     return MoveView(
         move_id="flamethrower",

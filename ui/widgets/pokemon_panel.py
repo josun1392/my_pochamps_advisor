@@ -28,6 +28,7 @@ class PokemonPanel(QFrame):
     slot_clicked = Signal(int)
     move_slot_selected = Signal(int)
     stat_profile_requested = Signal(int)
+    item_profile_requested = Signal(int)
 
     def __init__(self, slot_number: int, is_active: bool = False) -> None:
         super().__init__()
@@ -39,6 +40,7 @@ class PokemonPanel(QFrame):
         self.selected_move_index: int | None = None
         self.selected_moves: list[MoveView | None] = [None, None, None, None]
         self.final_stats: dict[str, int] | None = None
+        self.item_profile: dict | None = None
         self.move_buttons: list[QPushButton] = []
 
         self.setFixedHeight(136)
@@ -110,6 +112,29 @@ class PokemonPanel(QFrame):
         )
 
         active_indicator = QLabel("●" if is_active else "○")
+        self.item_button = QPushButton("Item")
+        self.item_button.setFixedHeight(20)
+        self.item_button.setFixedWidth(50)
+        self.item_button.clicked.connect(
+            lambda checked=False: self.item_profile_requested.emit(self.slot_number - 1)
+        )
+        self.item_button.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #F7F9FC;
+                color: #243447;
+                border: 1px solid #CAD6E2;
+                border-radius: 4px;
+                font-size: 10px;
+                padding: 1px 4px;
+            }
+            QPushButton:hover {
+                background-color: #EEF6FF;
+                border-color: #6BA8E8;
+            }
+            """
+        )
+
         active_indicator.setStyleSheet(
             "color: #2ECC71; font-size: 13px;" if is_active else "color: #B0B8C1; font-size: 13px;"
         )
@@ -118,6 +143,7 @@ class PokemonPanel(QFrame):
         top_row.addLayout(title_column, 1)
         top_row.addStretch()
         top_row.addLayout(type_row)
+        top_row.addWidget(self.item_button)
         top_row.addWidget(self.stats_button)
         top_row.addWidget(active_indicator)
         root_layout.addLayout(top_row)
@@ -180,7 +206,9 @@ class PokemonPanel(QFrame):
         self.selected_move_index = None
         self.selected_moves = [None, None, None, None]
         self.final_stats = None
+        self.item_profile = None
         self.stats_button.setText("Stats")
+        self.item_button.setText("Item")
         self.name_label.setText(view.ko)
         stats = view.base_stats
         self.detail_label.setText(
@@ -201,7 +229,9 @@ class PokemonPanel(QFrame):
         self.selected_move_index = None
         self.selected_moves = [None, None, None, None]
         self.final_stats = None
+        self.item_profile = None
         self.stats_button.setText("Stats")
+        self.item_button.setText("Item")
         self.name_label.setText(f"포켓몬 #{self.slot_number}")
         self.detail_label.setText("타입 / 스탯 대기")
         for badge in self.type_badges:
@@ -266,6 +296,10 @@ class PokemonPanel(QFrame):
     def set_final_stats(self, stats: dict[str, int] | None) -> None:
         self.final_stats = dict(stats) if stats is not None else None
         self.stats_button.setText("Stats*" if self.final_stats is not None else "Stats")
+
+    def set_item_profile(self, profile: dict | None, button_text: str = "Item") -> None:
+        self.item_profile = dict(profile) if profile is not None else None
+        self.item_button.setText(button_text)
 
     def _reset_move_buttons(self) -> None:
         for index, (key, button) in enumerate(zip(("Q", "W", "E", "R"), self.move_buttons)):
