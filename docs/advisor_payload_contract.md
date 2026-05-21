@@ -177,6 +177,8 @@ Excluded from v0.18 item application:
 
 When `damage_estimate.item_effects.attacker_item.status` is `applied`, the LLM should explicitly mention that the supported item damage modifier is included in that estimate. It should describe the number as being calculated under the stated assumptions plus the supported item modifier, not as only default assumptions. Non-damage item effects remain unmodeled.
 
+If Life Orb is applied, the LLM should say the damage modifier is applied and Life Orb recoil is not modeled. If Choice Band or Choice Specs is applied, the LLM should say the relevant damage modifier is applied and choice lock is not modeled.
+
 ## Type Effectiveness Semantics
 
 Damage estimates include explicit type effectiveness metadata:
@@ -198,6 +200,13 @@ Labels:
 - `super_effective`: multiplier greater than `1`
 
 The LLM must use this field when explaining type matchups. It must not call a move super effective, resisted, or immune from general Pokemon knowledge when this field says otherwise.
+
+The LLM must not print raw labels such as `super_effective` or `not_very_effective` directly. It should convert labels to natural wording:
+
+- `super_effective` -> "super effective"
+- `not_very_effective` -> "not very effective" or "resisted"
+- `immune` -> "immune" or "no effect"
+- `neutral` -> "neutral"
 
 ## Explicitly Missing
 
@@ -237,6 +246,7 @@ The LLM must not:
 - claim item effects are applied unless `damage_estimate.item_effects` marks them as `applied`
 - omit an applied attacker item modifier when explaining why one move did more damage
 - describe an item-applied estimate as only default assumptions when `item_effects.attacker_item.status` is `applied`
+- print raw `type_effectiveness` labels such as `super_effective` or `not_very_effective`
 - claim Choice lock, Life Orb recoil, Choice Scarf speed, Focus Sash survival, or Leftovers recovery is modeled
 - describe a move as super effective, resisted, or immune unless `damage_estimate.type_effectiveness` supports that label
 - consider Terastallization, which is banned in PoChamps
@@ -252,6 +262,7 @@ The LLM may:
 - say a supported item damage modifier is applied only when `damage_estimate.item_effects` says `status: "applied"`
 - mention applied attacker item damage modifiers when they are part of the damage estimate
 - say Life Orb recoil or Choice lock is not modeled when those effects appear in `unapplied_effects`
+- convert `type_effectiveness` labels into natural wording such as "super effective", "not very effective", "immune", or "neutral"
 - discuss user-confirmed final stats as user-provided stat values when `stat_profiles` says so
 - discuss `opponent_moves.known_moves` as user-confirmed opponent moves
 - discuss `opponent_moves.known_moves[*].damage_estimate` only as default-assumption damage against `my_active`

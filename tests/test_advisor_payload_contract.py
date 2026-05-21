@@ -384,9 +384,17 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Only item effects marked as applied in damage_estimate.item_effects" in prompt
     assert "If an attacker item effect is applied" in prompt
     assert "default assumptions plus the supported item modifier" in prompt
+    assert "If Life Orb is applied, say recoil is not modeled" in prompt
+    assert "If Choice Band or Choice Specs is applied, say choice lock is not modeled" in prompt
     assert "Choice lock, Life Orb recoil, Choice Scarf speed" in prompt
     assert "use damage_estimate.type_effectiveness" in prompt
     assert "super effective, resisted, or immune" in prompt
+    assert "Do not print raw type_effectiveness labels" in prompt
+    assert "super_effective" in prompt
+    assert "not_very_effective" in prompt
+    assert "super effective" in prompt
+    assert "not very effective" in prompt
+    assert "immune/no effect" in prompt
     assert "Use my_available_moves damage_estimates to compare the user's own move options" in prompt
     assert "Do not claim OHKO, 2HKO, KO chance, survival, or speed order" in prompt
 
@@ -398,6 +406,12 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "If an item damage modifier is applied, describe the estimate as default assumptions plus the supported item modifier, not only default assumptions."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "If Life Orb is applied, say Life Orb recoil is not modeled." in ADVISOR_KNOWN_LIMITATIONS
+    assert "If Choice Band or Choice Specs is applied, say choice lock is not modeled." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Do not print raw type_effectiveness labels like super_effective or not_very_effective; convert them to natural wording."
         in ADVISOR_KNOWN_LIMITATIONS
     )
 

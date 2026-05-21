@@ -1132,6 +1132,8 @@ Test:
 - Result: 17 passed.
 - `uv run pytest -q`
 - Result: 696 passed, 2 deselected.
+- `uv run pytest -q`
+- Result: 696 passed, 2 deselected.
 
 T1 local valid-key verification:
 - Confirmed Gemini now mentions supported item damage modifiers when applied.
@@ -1148,3 +1150,46 @@ T1 local valid-key verification:
 - Remaining response polish:
   - Gemini may surface the raw type-effectiveness label `super_effective` instead of natural wording like `super effective`.
   - Life Orb recoil is not always explicitly mentioned as unmodeled, even though it remains excluded in the payload/contract.
+
+---
+
+## v0.18.3 - Response wording polish for type labels and item effects
+
+Purpose:
+- Reduce awkward or misleading wording in Gemini responses without changing payload schema or damage calculation.
+- Ensure raw type-effectiveness labels are converted to natural language.
+- Make non-damage item limitations more consistently visible when supported item modifiers are applied.
+
+Implemented:
+- Strengthened prompt guidance:
+  - do not print raw `type_effectiveness` labels such as `super_effective` or `not_very_effective`.
+  - convert labels to natural wording such as `super effective`, `not very effective`, `immune/no effect`, or `neutral`.
+  - if Life Orb is applied, say recoil is not modeled.
+  - if Choice Band or Choice Specs is applied, say choice lock is not modeled.
+  - avoid describing item-applied estimates as only default assumptions.
+- Added the same wording guardrails to `ADVISOR_KNOWN_LIMITATIONS`.
+- Updated `docs/advisor_payload_contract.md` with explicit type label and item-effect wording rules.
+
+Verification:
+- Confirmed prompt includes raw-label avoidance guidance.
+- Confirmed prompt includes `super_effective` -> natural wording guidance.
+- Confirmed prompt includes `not_very_effective` -> natural wording guidance.
+- Confirmed prompt includes `immune/no effect` guidance.
+- Confirmed prompt includes Life Orb recoil-not-modeled guidance.
+- Confirmed prompt includes Choice Band/Specs choice-lock-not-modeled guidance.
+- Confirmed contract limitations include the same guardrails.
+
+Maintained boundaries:
+- No payload schema change.
+- No damage calculation change.
+- No item calculation change.
+- No item UI change.
+- No legal item cache.
+- No scraping.
+- No recoil, Choice lock, speed, survival, recovery, or KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Test:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`
+- Result: 17 passed.
