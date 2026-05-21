@@ -16,9 +16,11 @@ from advisor.damage.calculator import calculate
 from advisor.damage.field import Field
 from advisor.damage.formula import DamageContext, calc_damage_rolls
 from advisor.probability.single_hit import ko_chance_from_outcomes
+from config.env_loader import load_dotenv
 from llm.token_logger import TokenLogger
 
 
+load_dotenv()
 DEFAULT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-flash")
 
 
