@@ -20,7 +20,7 @@ from config.env_loader import load_dotenv
 from llm.token_logger import TokenLogger
 
 
-load_dotenv()
+load_dotenv(override=True)
 DEFAULT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-flash")
 
 

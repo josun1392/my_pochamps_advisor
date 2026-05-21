@@ -34,3 +34,13 @@ def test_load_dotenv_does_not_override_existing_env(tmp_path, monkeypatch) -> No
     load_dotenv(env_path)
 
     assert os.environ["GEMINI_MODEL"] == "gemini-existing"
+
+
+def test_load_dotenv_can_override_existing_env(tmp_path, monkeypatch) -> None:
+    env_path = tmp_path / ".env"
+    env_path.write_text("GEMINI_MODEL=gemini-2.5-flash\n", encoding="utf-8")
+    monkeypatch.setenv("GEMINI_MODEL", "gemini-existing")
+
+    load_dotenv(env_path, override=True)
+
+    assert os.environ["GEMINI_MODEL"] == "gemini-2.5-flash"

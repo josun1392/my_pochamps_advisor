@@ -73,10 +73,11 @@ class LLMAdviceWorker(QObject):
 
     @staticmethod
     def _friendly_runtime_error(message: str) -> str:
+        if "API_KEY_INVALID" in message or "API key not valid" in message:
+            return "API key가 유효하지 않습니다. Google AI Studio에서 복사한 키를 다시 확인해주세요."
         if (
             "GEMINI_API_KEY" in message
             or "GOOGLE_API_KEY" in message
-            or "API_KEY_INVALID" in message
             or "API Key not found" in message
         ):
             return "API key\uAC00 \uC124\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4."
