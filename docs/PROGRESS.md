@@ -1087,3 +1087,48 @@ Test:
 - Result: 45 passed.
 - `uv run pytest -q`
 - Result: 695 passed, 2 deselected.
+
+---
+
+## v0.18.2 - Item modifier Gemini response guardrail
+
+Purpose:
+- Make Gemini's natural-language response reflect supported item damage modifiers when they are already applied in `damage_estimate.item_effects`.
+- Avoid confusing wording where an item-applied estimate is described as only default assumptions.
+
+Context:
+- T1 local Gemini checks showed correct move recommendations and type-effectiveness handling.
+- However, when `Life Orb` or `Choice Band` was selected, Gemini often omitted the applied item modifier and only said "default assumptions."
+
+Implemented:
+- Strengthened the UI-selected advisor prompt:
+  - if `damage_estimate.item_effects.attacker_item.status` is `applied`, mention the supported item damage modifier.
+  - describe item-applied numbers as default assumptions plus the supported item modifier, not only default assumptions.
+  - keep Choice lock, Life Orb recoil, speed, survival, recovery, and KO odds unmodeled.
+- Added the same guardrail to `ADVISOR_KNOWN_LIMITATIONS`.
+- Updated the advisor payload contract with explicit allowed/disallowed item explanation semantics.
+
+Verification:
+- Confirmed prompt text includes the applied-item explanation guardrail.
+- Confirmed contract limitations include the same guardrail.
+- Confirmed existing item-effect, type-effectiveness, and opponent-move guardrails remain present.
+
+Gemini verification:
+- Not run in this Codex verification pass.
+- T1 local valid-key app verification is recommended to confirm Gemini now mentions Life Orb / Choice Band / Choice Specs damage modifiers when applied.
+
+Maintained boundaries:
+- No payload schema change.
+- No item UI change.
+- No legal item cache.
+- No scraping.
+- No unsupported item UI.
+- No recoil, Choice lock, speed, survival, recovery, or KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Test:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`
+- Result: 17 passed.
+- `uv run pytest -q`
+- Result: 696 passed, 2 deselected.

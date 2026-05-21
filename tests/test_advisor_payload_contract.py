@@ -382,11 +382,24 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Opponent candidate move damage is not calculated in v0.16" not in prompt
     assert "Opponent candidate move damage is not calculated in v0.18" in prompt
     assert "Only item effects marked as applied in damage_estimate.item_effects" in prompt
+    assert "If an attacker item effect is applied" in prompt
+    assert "default assumptions plus the supported item modifier" in prompt
     assert "Choice lock, Life Orb recoil, Choice Scarf speed" in prompt
     assert "use damage_estimate.type_effectiveness" in prompt
     assert "super effective, resisted, or immune" in prompt
     assert "Use my_available_moves damage_estimates to compare the user's own move options" in prompt
     assert "Do not claim OHKO, 2HKO, KO chance, survival, or speed order" in prompt
+
+
+def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
+    assert (
+        "When item_effects.attacker_item.status is applied, mention that the supported item damage modifier is applied."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "If an item damage modifier is applied, describe the estimate as default assumptions plus the supported item modifier, not only default assumptions."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
 
 
 def _panel(

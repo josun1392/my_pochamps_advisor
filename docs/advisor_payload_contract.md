@@ -175,6 +175,8 @@ Excluded from v0.18 item application:
 
 `damage_estimate.item_effects` is the source of truth for whether an item effect was applied to a specific calculation.
 
+When `damage_estimate.item_effects.attacker_item.status` is `applied`, the LLM should explicitly mention that the supported item damage modifier is included in that estimate. It should describe the number as being calculated under the stated assumptions plus the supported item modifier, not as only default assumptions. Non-damage item effects remain unmodeled.
+
 ## Type Effectiveness Semantics
 
 Damage estimates include explicit type effectiveness metadata:
@@ -233,6 +235,8 @@ The LLM must not:
 - infer EVs, IVs, nature, or item from user-confirmed final stats
 - treat `unknown` item as `none`
 - claim item effects are applied unless `damage_estimate.item_effects` marks them as `applied`
+- omit an applied attacker item modifier when explaining why one move did more damage
+- describe an item-applied estimate as only default assumptions when `item_effects.attacker_item.status` is `applied`
 - claim Choice lock, Life Orb recoil, Choice Scarf speed, Focus Sash survival, or Leftovers recovery is modeled
 - describe a move as super effective, resisted, or immune unless `damage_estimate.type_effectiveness` supports that label
 - consider Terastallization, which is banned in PoChamps
@@ -246,6 +250,8 @@ The LLM may:
 - discuss `damage_estimate.item_effects` as the item effect summary for that estimate
 - discuss `damage_estimate.type_effectiveness` as the source for type matchup explanations
 - say a supported item damage modifier is applied only when `damage_estimate.item_effects` says `status: "applied"`
+- mention applied attacker item damage modifiers when they are part of the damage estimate
+- say Life Orb recoil or Choice lock is not modeled when those effects appear in `unapplied_effects`
 - discuss user-confirmed final stats as user-provided stat values when `stat_profiles` says so
 - discuss `opponent_moves.known_moves` as user-confirmed opponent moves
 - discuss `opponent_moves.known_moves[*].damage_estimate` only as default-assumption damage against `my_active`

@@ -16,6 +16,8 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "Opponent item defaults to unknown unless T1 confirms no item or selects an item.",
     "system_default_none means damage was calculated with a no-item assumption.",
     "Only item effects marked as applied in damage_estimate.item_effects are included in damage numbers.",
+    "When item_effects.attacker_item.status is applied, mention that the supported item damage modifier is applied.",
+    "If an item damage modifier is applied, describe the estimate as default assumptions plus the supported item modifier, not only default assumptions.",
     "Type matchup descriptions must use damage_estimate.type_effectiveness when present.",
     "Do not call a move super effective, resisted, or immune unless type_effectiveness explicitly supports it.",
     "Choice lock, Life Orb recoil, Choice Scarf speed, Focus Sash survival, and Leftovers recovery are not connected.",
