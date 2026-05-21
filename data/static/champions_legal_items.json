@@ -1,0 +1,270 @@
+{
+  "format": "pokemon_champions",
+  "regulation": "m_a",
+  "source_kind": "third_party_cross_checked",
+  "fetched_at": "2026-05-21",
+  "source_refs": [
+    {
+      "name": "MetaVGC",
+      "url": "https://metavgc.com/guides/pokemon-champions-format-legal-pokemon-items-moves",
+      "role": "primary_legal_snapshot"
+    },
+    {
+      "name": "RotomPicks",
+      "url": "https://rotompicks.com/en/items/",
+      "role": "category_and_cross_check"
+    },
+    {
+      "name": "Serebii",
+      "url": "https://www.serebii.net/pokemonchampions/items.shtml",
+      "role": "cross_check"
+    },
+    {
+      "name": "ChampDex",
+      "url": "https://champdex.com/guides/held-items",
+      "role": "contextual_guide"
+    }
+  ],
+  "notes": [
+    "This is a manually curated sentinel fixture, not the full 117-item Regulation M-A list.",
+    "Champions legality and damage-engine support are intentionally modeled as separate concepts.",
+    "PokeAPI item metadata is not a Champions legality source."
+  ],
+  "items": [
+    {
+      "item_id": "choice-scarf",
+      "name_en": "Choice Scarf",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "effect_support": {
+        "damage_modifier": "not_supported",
+        "speed_order": "not_supported",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_supported"
+      },
+      "notes": [
+        "Legal item candidate in the audited Regulation M-A sources.",
+        "Speed boost and choice lock are not modeled."
+      ]
+    },
+    {
+      "item_id": "focus-sash",
+      "name_en": "Focus Sash",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_supported",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable"
+      },
+      "notes": [
+        "Legal item candidate in the audited Regulation M-A sources.",
+        "Survival effects are not modeled."
+      ]
+    },
+    {
+      "item_id": "leftovers",
+      "name_en": "Leftovers",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_supported",
+        "choice_lock": "not_applicable"
+      },
+      "notes": [
+        "Legal item candidate in the audited Regulation M-A sources.",
+        "Recovery and turn sequencing are not modeled."
+      ]
+    },
+    {
+      "item_id": "sitrus-berry",
+      "name_en": "Sitrus Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_supported",
+        "choice_lock": "not_applicable"
+      },
+      "notes": [
+        "Legal berry candidate in the audited Regulation M-A sources.",
+        "HP threshold and recovery effects are not modeled."
+      ]
+    },
+    {
+      "item_id": "metal-coat",
+      "name_en": "Metal Coat",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable"
+      },
+      "notes": [
+        "Legal item candidate in the audited Regulation M-A sources.",
+        "Steel-type damage modifier exists in the current static damage item catalog.",
+        "This item is not exposed in the v0.18 minimal item selector."
+      ]
+    },
+    {
+      "item_id": "charcoal",
+      "name_en": "Charcoal",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable"
+      },
+      "notes": [
+        "Legal item candidate in the audited Regulation M-A sources.",
+        "Fire-type damage modifier exists in the current static damage item catalog.",
+        "This item is not exposed in the v0.18 minimal item selector."
+      ]
+    }
+  ],
+  "damage_supported_non_legal_items": [
+    {
+      "item_id": "choice-band",
+      "name_en": "Choice Band",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": false,
+      "legality_status": "not_legal_or_unconfirmed",
+      "legality_confidence": "likely_illegal_in_reg_m_a",
+      "effect_support_status": "damage_supported_but_not_champions_legal",
+      "ui_status": "damage_test_only",
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "choice_lock": "not_supported"
+      },
+      "notes": [
+        "Damage modifier is supported by the current helper.",
+        "This item appears absent from current Champions Reg M-A legal sources.",
+        "Do not expose as a normal legal item until legality is confirmed."
+      ]
+    },
+    {
+      "item_id": "choice-specs",
+      "name_en": "Choice Specs",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": false,
+      "legality_status": "not_legal_or_unconfirmed",
+      "legality_confidence": "likely_illegal_in_reg_m_a",
+      "effect_support_status": "damage_supported_but_not_champions_legal",
+      "ui_status": "damage_test_only",
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "choice_lock": "not_supported"
+      },
+      "notes": [
+        "Damage modifier is supported by the current helper.",
+        "This item appears absent from current Champions Reg M-A legal sources.",
+        "Do not expose as a normal legal item until legality is confirmed."
+      ]
+    },
+    {
+      "item_id": "life-orb",
+      "name_en": "Life Orb",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": false,
+      "legality_status": "not_legal_or_unconfirmed",
+      "legality_confidence": "likely_illegal_in_reg_m_a",
+      "effect_support_status": "damage_supported_but_not_champions_legal",
+      "ui_status": "damage_test_only",
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "recoil": "not_supported"
+      },
+      "notes": [
+        "Damage modifier is supported by the current helper.",
+        "This item appears absent from current Champions Reg M-A legal sources.",
+        "Life Orb recoil is not modeled.",
+        "Do not expose as a normal legal item until legality is confirmed."
+      ]
+    },
+    {
+      "item_id": "muscle-band",
+      "name_en": "Muscle Band",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": false,
+      "legality_status": "unconfirmed",
+      "legality_confidence": "unconfirmed_absent_from_audited_sources",
+      "effect_support_status": "damage_supported_but_not_champions_legal",
+      "ui_status": "damage_test_only",
+      "effect_support": {
+        "damage_modifier": "supported_by_engine"
+      },
+      "notes": [
+        "Damage modifier is supported by the current helper.",
+        "Legality was not confirmed in the audited Regulation M-A source pass.",
+        "Keep this out of a normal legal item selector until legality is confirmed."
+      ]
+    },
+    {
+      "item_id": "wise-glasses",
+      "name_en": "Wise Glasses",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": false,
+      "legality_status": "unconfirmed",
+      "legality_confidence": "unconfirmed_absent_from_audited_sources",
+      "effect_support_status": "damage_supported_but_not_champions_legal",
+      "ui_status": "damage_test_only",
+      "effect_support": {
+        "damage_modifier": "supported_by_engine"
+      },
+      "notes": [
+        "Damage modifier is supported by the current helper.",
+        "Legality was not confirmed in the audited Regulation M-A source pass.",
+        "Keep this out of a normal legal item selector until legality is confirmed."
+      ]
+    }
+  ]
+}

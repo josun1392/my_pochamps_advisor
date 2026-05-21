@@ -1130,6 +1130,7 @@ Maintained boundaries:
 Test:
 - `uv run pytest tests/test_advisor_payload_contract.py -q`
 - Result: 17 passed.
+
 - `uv run pytest -q`
 - Result: 696 passed, 2 deselected.
 - `uv run pytest -q`
@@ -1193,3 +1194,68 @@ Maintained boundaries:
 Test:
 - `uv run pytest tests/test_advisor_payload_contract.py -q`
 - Result: 17 passed.
+
+---
+
+## v0.20 - Champions legal item fixture and repository
+
+Purpose:
+- Start separating Pokemon Champions Regulation M-A item legality from current damage-engine item support.
+- Prevent the v0.18 minimal item selector from being mistaken for a Champions legal item selector.
+
+Implemented:
+- Added `data/static/champions_legal_items.json` as a manually curated sentinel fixture.
+- Added `core/champions_item_repository.py`.
+- Added repository helpers for:
+  - fixture loading and schema validation.
+  - item lookup and normalization.
+  - legal item listing.
+  - damage-supported-but-not-legal item listing.
+  - item classification.
+- Added tests for source refs, Regulation M-A metadata, legal sentinels, damage-supported mismatch sentinels, unknown items, list helpers, and fixture validation.
+
+Fixture scope:
+- This is not the full 117-item Regulation M-A list.
+- Included legal sentinel items:
+  - `choice-scarf`
+  - `focus-sash`
+  - `leftovers`
+  - `sitrus-berry`
+  - `metal-coat`
+  - `charcoal`
+- Included damage-supported-but-not-normal-legal-selector sentinels:
+  - `choice-band`
+  - `choice-specs`
+  - `life-orb`
+  - `muscle-band`
+  - `wise-glasses`
+
+Source policy:
+- Primary legal snapshot: MetaVGC.
+- Cross-check candidates: RotomPicks and Serebii.
+- Contextual held-item guide: ChampDex.
+- Existing `data/static/items.json` and `data/static/items_damage.json` remain metadata/effect-support references, not Champions legality sources.
+- PokeAPI remains metadata fallback only, not a Champions legality source.
+
+Important classification result:
+- `Choice Band`, `Choice Specs`, and `Life Orb` remain damage-supported by the current helper, but are not treated as normal Champions legal selector items.
+- `Muscle Band` and `Wise Glasses` are kept as unconfirmed damage-supported mismatch sentinels until legality is confirmed.
+- Legal-but-not-modeled items such as `Choice Scarf`, `Focus Sash`, `Leftovers`, and `Sitrus Berry` are recognized without applying speed, survival, recovery, or turn effects.
+
+Maintained boundaries:
+- No UI changes.
+- No legal item selector integration.
+- No scraping or build script.
+- No `data/cache` generation.
+- No item damage effect additions.
+- No Expert Belt or Assault Vest additions.
+- No Choice Scarf speed, Focus Sash survival, Leftovers/Sitrus recovery, Choice lock, Life Orb recoil, speed order, KO/OHKO/2HKO, or Turn Engine implementation.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Test:
+- `uv run pytest tests/test_champions_item_repository.py -q`
+- Result: 16 passed.
+- `uv run pytest tests/test_items.py tests/test_item_modifiers.py tests/test_item_profile_dialog.py tests/test_advisor_damage_estimate.py -q`
+- Result: 47 passed.
+- `uv run pytest -q`
+- Result: 712 passed, 2 deselected.
