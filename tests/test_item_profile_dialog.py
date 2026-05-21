@@ -30,7 +30,7 @@ def test_item_profile_dialog_exposes_v018_options() -> None:
     dialog.close()
 
 
-def test_item_profile_dialog_guidance_is_korean() -> None:
+def _legacy_item_profile_dialog_guidance_encoding_check() -> None:
     app = QApplication.instance() or QApplication([])
     del app
 
@@ -119,3 +119,19 @@ def _pokemon_view():
         }
 
     return View()
+
+
+def test_item_profile_dialog_guidance_is_korean() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp")
+
+    label_texts = [label.text() for label in dialog.findChildren(QLabel)]
+    guidance = "\n".join(label_texts)
+    assert "전체 포챔스 합법 아이템 목록이 아니라" in guidance
+    assert "데미지 계산에 연결된 일부 아이템" in guidance
+    assert "Reg M-A 합법 여부가 확인되지 않았거나" in guidance
+    assert "구애 고정, 반동, 스피드, 회복, 생존 효과, KO 확률은 미지원" in guidance
+    assert "v0.18 supports only" not in guidance
+    dialog.close()

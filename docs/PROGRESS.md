@@ -1259,3 +1259,33 @@ Test:
 - Result: 47 passed.
 - `uv run pytest -q`
 - Result: 712 passed, 2 deselected.
+
+---
+
+## v0.20.1 - Item selector label clarification
+
+Purpose:
+- Clarify that the current ItemProfileDialog is not a full Pokemon Champions legal item selector.
+- Reduce the risk that damage-supported test items are mistaken for confirmed Regulation M-A legal items.
+
+Implemented:
+- Updated ItemProfileDialog guidance text in Korean.
+- The guidance now states:
+  - the current list is not the full Pokemon Champions legal item list.
+  - only some items connected to damage calculation are shown.
+  - some items may be unconfirmed or differ from the actual Reg M-A legal list.
+  - Choice lock, recoil, speed, recovery, survival effects, and KO odds are unsupported.
+- Added test coverage for the clarified guidance text.
+
+Maintained boundaries:
+- No legal item selector implementation.
+- No repository/UI integration.
+- No legal item fixture changes.
+- No scraping or build script.
+- No `data/cache` generation.
+- No item effect additions.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Test:
+- `uv run pytest tests/test_item_profile_dialog.py -q`
+- Result: 6 passed.

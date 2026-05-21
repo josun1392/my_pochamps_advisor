@@ -190,6 +190,12 @@ class ItemProfileDialog(QDialog):
             "현재는 데미지 보정 아이템 일부만 지원합니다.\n"
             "구애 고정, 반동, 스피드, 회복, 생존 효과, KO 확률은 미지원입니다."
         )
+        hint.setText(
+            "지원 범위 안내: 현재 목록은 전체 포챔스 합법 아이템 목록이 아니라, "
+            "데미지 계산에 연결된 일부 아이템입니다.\n"
+            "일부 아이템은 Reg M-A 합법 여부가 확인되지 않았거나 실제 합법 목록과 다를 수 있습니다.\n"
+            "구애 고정, 반동, 스피드, 회복, 생존 효과, KO 확률은 미지원입니다."
+        )
         hint.setWordWrap(True)
         hint.setStyleSheet("font-size: 11px; color: #52616F;")
         layout.addWidget(hint)
