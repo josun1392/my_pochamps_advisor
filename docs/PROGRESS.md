@@ -1564,3 +1564,49 @@ Maintained boundaries:
 - No Korean item mapping implementation.
 - No scraping or build script.
 - No `advisor/damage/` or `advisor/probability` engine changes.
+
+---
+
+## v0.24 - Item selector search
+
+Purpose:
+- Add search filtering to `ItemProfileDialog` so T1 can find legal items quickly in the 117-item Regulation M-A fixture list.
+
+Implemented:
+- Added an item search input to `ItemProfileDialog`.
+- Search placeholder: `아이템 검색...`.
+- Filters repository-backed item options by:
+  - visible label
+  - `name_en`
+  - `item_id`
+- Search is case-insensitive.
+- Search normalizes spaces and underscores to hyphens, so `focus sash`, `focus-sash`, and `focus_sash` all match `focus-sash`.
+- `Unknown item` and `No item` remain pinned and accessible while searching.
+- Filtered selection/save behavior continues to produce the same `item_profiles` payload shape.
+
+Verified:
+- `focus`, `focus sash`, `focus-sash`, and `FOCUS` find `Focus Sash`.
+- `left` finds `Leftovers`.
+- `sitrus` finds `Sitrus Berry`.
+- `Choice Band`, `Choice Specs`, and `Life Orb` remain hidden from normal selector options and search results.
+- Reset behavior remains unchanged.
+- Existing legal-but-not-modeled damage unchanged tests continue to pass.
+- Existing Champions item repository tests continue to pass.
+
+Maintained boundaries:
+- No Korean item name mapping.
+- No category grouping.
+- No legal item fixture changes.
+- No Champions item repository data changes.
+- No damage-supported non-legal item exposure in normal UI.
+- No scraping or build script.
+- No `data/cache` generation.
+- No item effect additions.
+- No Choice Scarf speed, Focus Sash survival, Leftovers/Sitrus recovery, Choice lock, Life Orb recoil, KO/OHKO/2HKO, or Turn Engine implementation.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Tests:
+- `uv run pytest tests/test_item_profile_dialog.py tests/test_champions_item_repository.py tests/test_advisor_damage_estimate.py -q`
+- Result: 57 passed.
+- `uv run pytest -q`
+- Result: 724 passed, 2 deselected.

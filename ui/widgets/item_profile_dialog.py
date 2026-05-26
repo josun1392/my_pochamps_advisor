@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -169,6 +170,10 @@ def legal_item_options_from_repository(repository: Any) -> list[dict[str, Any]]:
     return options
 
 
+def normalized_item_search_text(value: str) -> str:
+    return value.strip().lower().replace("_", "-").replace(" ", "-")
+
+
 def legacy_damage_test_item_options() -> list[dict[str, Any]]:
     return [
         unknown_item_option(),
@@ -259,14 +264,18 @@ class ItemProfileDialog(QDialog):
         title.setStyleSheet("font-weight: 700; color: #17202A;")
         layout.addWidget(title)
 
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("아이템 검색...")
+        self.search_input.textChanged.connect(self._filter_item_options)
+        layout.addWidget(self.search_input)
+
         self.item_combo = QComboBox()
-        for option in self._item_options:
-            self.item_combo.addItem(str(option["label"]), option["option_id"])
         selected = option_from_item_profile(
             current_profile,
             role_key=role_key,
             item_options=self._item_options,
         )
+        self._populate_item_combo(self._item_options)
         index = self.item_combo.findData(selected)
         if index >= 0:
             self.item_combo.setCurrentIndex(index)
@@ -316,6 +325,38 @@ class ItemProfileDialog(QDialog):
         self._result_profile = None
         self.accept()
 
+    def _filter_item_options(self, text: str) -> None:
+        current_option = str(self.item_combo.currentData() or "")
+        filtered = self._filtered_item_options(text)
+        self._populate_item_combo(filtered)
+        index = self.item_combo.findData(current_option)
+        if index >= 0:
+            self.item_combo.setCurrentIndex(index)
+
+    def _filtered_item_options(self, text: str) -> list[dict[str, Any]]:
+        query = normalized_item_search_text(text)
+        if not query:
+            return list(self._item_options)
+        pinned = [
+            option
+            for option in self._item_options
+            if option.get("option_id") in {"unknown", "none"}
+        ]
+        matches = [
+            option
+            for option in self._item_options
+            if option.get("option_id") not in {"unknown", "none"}
+            and _matches_item_option(option, query)
+        ]
+        return [*pinned, *matches]
+
+    def _populate_item_combo(self, item_options: list[dict[str, Any]]) -> None:
+        self.item_combo.blockSignals(True)
+        self.item_combo.clear()
+        for option in item_options:
+            self.item_combo.addItem(str(option["label"]), option["option_id"])
+        self.item_combo.blockSignals(False)
+
 
 def _find_item_option(
     option_id: str,
@@ -327,6 +368,17 @@ def _find_item_option(
         if option.get("option_id") == option_id:
             return option
     return None
+
+
+def _matches_item_option(option: dict[str, Any], query: str) -> bool:
+    profile = option.get("profile") if isinstance(option.get("profile"), dict) else {}
+    values = [
+        str(option.get("label") or ""),
+        str(option.get("option_id") or ""),
+        str(profile.get("item_id") or ""),
+        str(profile.get("name_en") or ""),
+    ]
+    return any(query in normalized_item_search_text(value) for value in values)
 
 
 def _legal_item_label(item: dict[str, Any]) -> str:

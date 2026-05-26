@@ -9,6 +9,7 @@ from ui.widgets.item_profile_dialog import (
     item_profile_from_option,
     ItemProfileDialog,
     legal_item_options_from_repository,
+    normalized_item_search_text,
 )
 from ui.widgets.pokemon_panel import PokemonPanel
 
@@ -34,6 +35,77 @@ def test_item_profile_dialog_accepts_repository_backed_legal_options() -> None:
     assert "choice-specs" not in options
     assert "life-orb" not in options
     dialog.close()
+
+
+def test_item_profile_dialog_has_search_input() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
+
+    assert dialog.search_input.placeholderText() == "아이템 검색..."
+    dialog.close()
+
+
+def test_item_profile_dialog_filters_items_by_search_text() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
+
+    for query in ("focus", "focus sash", "focus-sash", "FOCUS"):
+        dialog.search_input.setText(query)
+        options = _combo_options(dialog)
+        assert "focus-sash" in options
+        assert "unknown" in options
+        assert "none" in options
+
+    dialog.search_input.setText("left")
+    assert "leftovers" in _combo_options(dialog)
+
+    dialog.search_input.setText("sitrus")
+    assert "sitrus-berry" in _combo_options(dialog)
+
+    dialog.close()
+
+
+def test_item_profile_dialog_search_keeps_non_legal_damage_items_hidden() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
+
+    for query in ("choice", "choice band", "life", "life-orb"):
+        dialog.search_input.setText(query)
+        options = _combo_options(dialog)
+        assert "choice-band" not in options
+        assert "choice-specs" not in options
+        assert "life-orb" not in options
+        assert "unknown" in options
+        assert "none" in options
+
+    dialog.close()
+
+
+def test_item_profile_dialog_saves_filtered_item_selection() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
+
+    dialog.search_input.setText("focus sash")
+    dialog.item_combo.setCurrentIndex(dialog.item_combo.findData("focus-sash"))
+    dialog._save_and_accept()
+
+    assert dialog.item_profile is not None
+    assert dialog.item_profile["item_id"] == "focus-sash"
+    assert dialog.item_profile["status"] == "user_confirmed"
+    assert dialog.item_profile["effect_support_status"] == "legal_but_not_modeled"
+
+
+def test_item_search_normalization_treats_spaces_and_hyphens_alike() -> None:
+    assert normalized_item_search_text("Focus Sash") == "focus-sash"
+    assert normalized_item_search_text("focus_sash") == "focus-sash"
 
 
 def test_item_profile_dialog_saves_unknown_and_none() -> None:
@@ -127,6 +199,10 @@ def test_item_profile_dialog_guidance_explains_legal_but_not_modeled_boundary() 
     assert "item_effects" in guidance
     assert "KO" in guidance
     dialog.close()
+
+
+def _combo_options(dialog: ItemProfileDialog) -> list[str]:
+    return [str(dialog.item_combo.itemData(index)) for index in range(dialog.item_combo.count())]
 
 
 def _pokemon_view():
