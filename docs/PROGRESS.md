@@ -1744,3 +1744,53 @@ Maintained boundaries:
 - No category grouping implementation.
 - No item effect additions.
 - No `advisor/damage/` or `advisor/probability` engine changes.
+
+---
+
+## v0.26 - Item category grouping and display polish
+
+Purpose:
+- Improve `ItemProfileDialog` legal item scanability after search and Korean-name support.
+- Keep the normal selector legal-only while making item order more natural.
+
+Implemented:
+- Applied category-based sorting to repository-backed legal item options.
+- Sort order:
+  - `Unknown item`
+  - `No item`
+  - `hold_item`
+  - `type_boosting_item`
+  - `berry`
+  - `mega_stone`
+  - unknown/other category
+- Kept Korean + English display for mapped items.
+- Kept compact status labels instead of long text such as `legal, effect not modeled`.
+- Chose category sorting without visible category headers/tags to avoid making labels too long.
+
+Verified:
+- `Unknown item` and `No item` remain pinned first.
+- `hold_item` entries appear before `type_boosting_item` entries.
+- `type_boosting_item` entries appear before berries and Mega Stones.
+- Berries appear before Mega Stones.
+- Korean + English labels remain intact.
+- Korean search still works.
+- English and item-id search still work.
+- `Choice Band`, `Choice Specs`, and `Life Orb` remain hidden from normal selector options and search results.
+- Selection/save payload remains compatible.
+- Legal-but-not-modeled items still do not change damage estimates.
+- Existing Champions item repository tests continue to pass.
+
+Maintained boundaries:
+- No legal item fixture changes.
+- No Korean mapping expansion.
+- No item effect additions.
+- No Choice Scarf speed, Focus Sash survival, Leftovers/Sitrus recovery, Choice lock, Life Orb recoil, KO/OHKO/2HKO, or Turn Engine implementation.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+- No scraping or build script.
+- No `data/cache` generation.
+
+Tests:
+- `uv run pytest tests/test_item_profile_dialog.py tests/test_champions_item_repository.py tests/test_advisor_damage_estimate.py -q`
+- Result: 63 passed.
+- `uv run pytest -q`
+- Result: 730 passed, 2 deselected.

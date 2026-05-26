@@ -18,6 +18,12 @@ from PySide6.QtWidgets import (
 LEGAL_BUT_NOT_MODELED = "legal_but_not_modeled"
 LEGAL_AND_DAMAGE_SUPPORTED = "legal_and_damage_supported"
 DAMAGE_SUPPORTED_BUT_NOT_CHAMPIONS_LEGAL = "damage_supported_but_not_champions_legal"
+CATEGORY_SORT_ORDER = {
+    "hold_item": 0,
+    "type_boosting_item": 1,
+    "berry": 2,
+    "mega_stone": 3,
+}
 
 DAMAGE_TEST_ITEM_OPTIONS = (
     "choice-band",
@@ -159,7 +165,7 @@ def no_item_option() -> dict[str, Any]:
 
 def legal_item_options_from_repository(repository: Any) -> list[dict[str, Any]]:
     options = [unknown_item_option(), no_item_option()]
-    for item in repository.list_legal_items():
+    for item in sorted(repository.list_legal_items(), key=_legal_item_sort_key):
         options.append(
             {
                 "option_id": str(item["item_id"]),
@@ -168,6 +174,13 @@ def legal_item_options_from_repository(repository: Any) -> list[dict[str, Any]]:
             }
         )
     return options
+
+
+def _legal_item_sort_key(item: dict[str, Any]) -> tuple[int, str, str]:
+    category = str(item.get("category") or "")
+    name_en = str(item.get("name_en") or item.get("item_id") or "")
+    item_id = str(item.get("item_id") or "")
+    return (CATEGORY_SORT_ORDER.get(category, 99), name_en.casefold(), item_id)
 
 
 def normalized_item_search_text(value: str) -> str:

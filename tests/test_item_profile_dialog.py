@@ -37,6 +37,21 @@ def test_item_profile_dialog_accepts_repository_backed_legal_options() -> None:
     dialog.close()
 
 
+def test_item_profile_dialog_orders_options_by_category() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
+
+    options = _combo_options(dialog)
+    assert options[:2] == ["unknown", "none"]
+    assert options.index("focus-sash") < options.index("fairy-feather")
+    assert options.index("fairy-feather") < options.index("sitrus-berry")
+    assert options.index("sitrus-berry") < options.index("abomasite")
+    assert options.index("leftovers") < options.index("audinite")
+    dialog.close()
+
+
 def test_item_profile_dialog_displays_korean_and_english_item_names() -> None:
     app = QApplication.instance() or QApplication([])
     del app
@@ -59,6 +74,18 @@ def test_item_profile_dialog_falls_back_to_english_when_korean_name_is_missing()
     label = _option_label(dialog, "abomasite")
     assert "Abomasite" in label
     assert " (" not in label
+    dialog.close()
+
+
+def test_item_profile_dialog_uses_short_modeled_status_labels() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
+
+    label = _option_label(dialog, "focus-sash")
+    assert "legal, effect not modeled" not in label
+    assert "effect not modeled" not in label
     dialog.close()
 
 
