@@ -51,6 +51,8 @@ def test_fixture_loads_with_source_refs_and_regulation() -> None:
 
     assert data["regulation"] == "m_a"
     assert data["format"] == "pokemon_champions"
+    assert data["source_kind"] == "third_party_cross_checked"
+    assert data["fetched_at"]
     assert data["expected_legal_item_count"] == 117
     assert {source["name"] for source in data["source_refs"]} >= {
         "MetaVGC",
@@ -68,6 +70,11 @@ def test_full_fixture_has_expected_count_and_categories() -> None:
     assert data["counts"]["legal_items"] == 117
     assert sum(1 for item in legal_items if item["category"] == "hold_item") == 12
     assert sum(1 for item in legal_items if item["category"] == "type_boosting_item") == 18
+    assert sum(
+        1
+        for item in legal_items
+        if item["category"] in {"hold_item", "type_boosting_item"}
+    ) == 30
     assert sum(1 for item in legal_items if item["category"] == "mega_stone") == 59
     assert sum(1 for item in legal_items if item["category"] == "berry") == 28
 
@@ -87,12 +94,41 @@ def test_every_fixture_item_has_required_fields_and_allowed_statuses() -> None:
 
     for item in [*data["items"], *data["damage_supported_non_legal_items"]]:
         assert REQUIRED_ITEM_FIELDS <= set(item)
+        assert item["item_id"] == normalize_item_id(item["item_id"])
+        assert item["name_en"]
         assert item["category"] in ALLOWED_CATEGORIES
         assert item["legality_status"] in ALLOWED_LEGALITY_STATUSES
         assert item["effect_support_status"] in ALLOWED_EFFECT_SUPPORT_STATUSES
         assert item["ui_status"] in ALLOWED_UI_STATUSES
         assert isinstance(item["effect_support"], dict)
         assert isinstance(item["notes"], list)
+
+
+def test_source_conflict_and_unconfirmed_items_are_explicitly_tracked() -> None:
+    data = load_champions_legal_items()
+    all_items = [*data["items"], *data["damage_supported_non_legal_items"]]
+
+    conflict_or_unconfirmed = [
+        item
+        for item in all_items
+        if item["legality_status"] in {"source_conflict", "unconfirmed"}
+    ]
+
+    assert {item["item_id"] for item in conflict_or_unconfirmed} == {
+        "muscle-band",
+        "wise-glasses",
+    }
+
+
+def test_damage_supported_non_legal_items_are_not_in_normal_legal_items() -> None:
+    data = load_champions_legal_items()
+    legal_item_ids = {item["item_id"] for item in data["items"]}
+    damage_test_item_ids = {
+        item["item_id"] for item in data["damage_supported_non_legal_items"]
+    }
+
+    assert {"choice-band", "choice-specs", "life-orb"} <= damage_test_item_ids
+    assert not {"choice-band", "choice-specs", "life-orb"} & legal_item_ids
 
 
 @pytest.mark.parametrize("item_id", ["choice-scarf", "focus-sash", "leftovers", "sitrus-berry"])
@@ -181,7 +217,7 @@ def test_repository_supports_normalized_lookup() -> None:
     assert repo.get_effect_support_status("choice_scarf") == LEGAL_BUT_NOT_MODELED
     assert repo.get_ui_status("CHOICE-SCARF") == "recognized_not_modeled"
     assert repo.get_legality_status("King's Rock") == "legal"
-    assert normalize_item_id("King’s Rock") == "kings-rock"
+    assert normalize_item_id("King\u2019s Rock") == "kings-rock"
 
 
 def test_invalid_fixture_missing_required_fields_raises(tmp_path) -> None:

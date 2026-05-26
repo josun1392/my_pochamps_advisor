@@ -1405,3 +1405,64 @@ Tests:
 - Result: 60 passed.
 - `uv run pytest -q`
 - Result: 715 passed, 2 deselected.
+
+---
+
+## v0.22c - Champions legal item fixture quality verification
+
+Purpose:
+- Add explicit quality checks for the expanded Regulation M-A legal item fixture.
+- Record that the full fixture remains separated from damage-supported non-legal/debug items.
+
+Verified:
+- Legal item count remains 117.
+- Category counts remain:
+  - `mega_stone`: 59
+  - `berry`: 28
+  - `hold_item` + `type_boosting_item`: 30
+- No duplicate `item_id` values across legal and damage-supported non-legal sections.
+- All fixture items include required fields:
+  - `item_id`
+  - `name_en`
+  - `name_ko`
+  - `category`
+  - `legal`
+  - `legality_status`
+  - `legality_confidence`
+  - `effect_support_status`
+  - `ui_status`
+  - `effect_support`
+  - `notes`
+- Every `item_id` satisfies repository normalization.
+- Every item has a non-empty `name_en`.
+- `source_refs`, `source_kind`, `fetched_at`, and `regulation` are present.
+- `source_conflict` / `unconfirmed` handling is explicit:
+  - `muscle-band`
+  - `wise-glasses`
+- `choice-band`, `choice-specs`, and `life-orb` are not present in normal legal items.
+- `choice-band`, `choice-specs`, and `life-orb` remain in `damage_supported_non_legal_items`.
+- `list_legal_items()` returns 117 legal entries.
+- `list_damage_supported_non_legal_items()` returns the expected mismatch/debug items.
+- Unknown item classification remains stable.
+
+Implemented:
+- Added fixture quality tests in `tests/test_champions_item_repository.py`.
+- Tightened ASCII-safe item id normalization coverage for apostrophe variants.
+- No fixture data changes were required.
+
+Maintained boundaries:
+- No UI changes.
+- No legal item selector implementation.
+- No scraping or build script.
+- No `data/cache` generation.
+- No item effect additions.
+- No Choice Scarf speed, Focus Sash survival, Leftovers/Sitrus recovery, Choice lock, Life Orb recoil, KO/OHKO/2HKO, or Turn Engine implementation.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Tests:
+- `uv run pytest tests/test_champions_item_repository.py -q`
+- Result: 21 passed.
+- `uv run pytest tests/test_items.py tests/test_item_modifiers.py tests/test_advisor_damage_estimate.py tests/test_champions_item_repository.py -q`
+- Result: 62 passed.
+- `uv run pytest -q`
+- Result: 717 passed, 2 deselected.
