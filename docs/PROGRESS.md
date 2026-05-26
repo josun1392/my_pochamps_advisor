@@ -1610,3 +1610,49 @@ Tests:
 - Result: 57 passed.
 - `uv run pytest -q`
 - Result: 724 passed, 2 deselected.
+
+---
+
+## v0.24.1 - Item selector search local verification
+
+Purpose:
+- Record T1 local app verification for the v0.24 item selector search UX.
+
+Verified locally:
+- `ItemProfileDialog` search input is displayed.
+- Placeholder is shown as `아이템 검색...`.
+- Searching `fair` filters the list to show `Fairy Feather`.
+- `Unknown item` and `No item` remain accessible while searching.
+- Clearing the search restores the legal item list.
+- Legal items visible in the list include:
+  - `Fairy Feather`
+  - `Aspear Berry`
+  - `Audinite`
+  - `Babiri Berry`
+  - `Banettite`
+  - `Beedrillite`
+  - `Black Belt`
+  - `Black Glasses`
+  - `Blastoisinite`
+  - `Bright Powder`
+  - `Cameruptite`
+- Damage-supported non-legal items remain hidden from the normal selector:
+  - `Choice Band`
+  - `Choice Specs`
+  - `Life Orb`
+- T1 judged the search feature to be working correctly.
+
+UX findings:
+- Korean item name mapping is still missing.
+- Next candidate: `v0.25 Korean Item Name Mapping`.
+
+Maintained boundaries:
+- Documentation-only record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No test changes.
+- No Korean item mapping implementation.
+- No category grouping.
+- No item effect additions.
+- No `advisor/damage/` or `advisor/probability` engine changes.
