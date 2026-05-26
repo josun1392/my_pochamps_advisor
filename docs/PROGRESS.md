@@ -1713,3 +1713,34 @@ Tests:
 - Result: 61 passed.
 - `uv run pytest -q`
 - Result: 728 passed, 2 deselected.
+
+---
+
+## v0.25.1 - Korean item mapping local verification
+
+Purpose:
+- Record T1 local app verification for the v0.25 Korean item name mapping.
+
+Verified locally:
+- Korean item name display works.
+- Korean + English combined display works.
+- Korean item search works.
+- Existing English search still works.
+- Damage-supported non-legal items remain hidden from the normal selector and search results:
+  - `Choice Band`
+  - `Choice Specs`
+  - `Life Orb`
+- T1 local verification passed.
+
+Next candidate:
+- `v0.26 Item Category Grouping / Display Polish`
+
+Maintained boundaries:
+- Documentation-only record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No Korean mapping additions or edits.
+- No category grouping implementation.
+- No item effect additions.
+- No `advisor/damage/` or `advisor/probability` engine changes.
