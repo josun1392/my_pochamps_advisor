@@ -1318,3 +1318,42 @@ Maintained boundaries:
 - No repository/UI integration.
 - No item effect additions.
 - No `advisor/damage/` or `advisor/probability` engine changes.
+
+---
+
+## v0.22a - Full legal item fixture expansion plan
+
+Purpose:
+- Plan the next data step before any legal item selector UI integration.
+- Define how to expand the current sentinel `champions_legal_items.json` fixture toward a full Regulation M-A legal item fixture.
+- Keep Champions legality separate from local damage-effect support.
+
+Documented:
+- Current v0.20/v0.21 state: legal item repository exists, but the fixture is sentinel-only.
+- Source strategy:
+  - MetaVGC as the primary legal snapshot.
+  - RotomPicks and Serebii as cross-check sources.
+  - ChampDex as contextual guide for cut/missing held items.
+  - PokeAPI and existing static files as metadata/effect fallback only, not legality sources.
+- Fixture expansion options:
+  - manual
+  - semi-manual static JSON expansion
+  - scraper/build script
+- Recommended v0.22b direction: semi-manual static JSON expansion before legal selector UI work.
+- Fixture schema plan, item ID normalization rules, category rules, source conflict policy, repository impact, tests plan, and v0.22b candidate scope.
+- Damage-supported but non-legal item policy for `Choice Band`, `Choice Specs`, `Life Orb`, `Muscle Band`, and `Wise Glasses`.
+
+Maintained boundaries:
+- Design/documentation only.
+- No code implementation.
+- No `data/static/champions_legal_items.json` changes.
+- No fixture expansion implementation.
+- No UI changes.
+- No legal item selector implementation.
+- No scraping or build script.
+- No `data/cache` generation.
+- No item effect additions.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Test:
+- Not run; documentation-only planning update.
