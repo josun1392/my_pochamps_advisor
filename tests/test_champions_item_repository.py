@@ -11,6 +11,7 @@ from core.champions_item_repository import (
     UNKNOWN,
     ChampionsItemRepository,
     load_champions_legal_items,
+    load_item_names_ko,
     normalize_item_id,
 )
 
@@ -60,6 +61,18 @@ def test_fixture_loads_with_source_refs_and_regulation() -> None:
         "Serebii",
         "ChampDex",
     }
+
+
+def test_korean_item_name_mapping_loads_and_enriches_repository() -> None:
+    mapping = load_item_names_ko()
+    repo = ChampionsItemRepository()
+
+    assert mapping["focus-sash"] == "기합의띠"
+    assert mapping["leftovers"] == "먹다남은음식"
+    assert mapping["choice-scarf"] == "구애스카프"
+    assert repo.classify_item("focus-sash")["name_ko"] == "기합의띠"
+    assert repo.classify_item("leftovers")["name_ko"] == "먹다남은음식"
+    assert repo.classify_item("choice-scarf")["name_ko"] == "구애스카프"
 
 
 def test_full_fixture_has_expected_count_and_categories() -> None:

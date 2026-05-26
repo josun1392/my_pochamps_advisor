@@ -171,7 +171,7 @@ def legal_item_options_from_repository(repository: Any) -> list[dict[str, Any]]:
 
 
 def normalized_item_search_text(value: str) -> str:
-    return value.strip().lower().replace("_", "-").replace(" ", "-")
+    return value.strip().casefold().replace("_", "-").replace(" ", "-")
 
 
 def legacy_damage_test_item_options() -> list[dict[str, Any]]:
@@ -235,7 +235,7 @@ def item_button_text(profile: dict[str, Any] | None, *, role_key: str = "my_acti
     if status == "none":
         return "NoItem"
     if status == "user_confirmed":
-        label = str(effective.get("name_en") or effective.get("item_id") or "Item")
+        label = str(effective.get("name_ko") or effective.get("name_en") or effective.get("item_id") or "Item")
         return label[:8]
     return "Item"
 
@@ -377,13 +377,22 @@ def _matches_item_option(option: dict[str, Any], query: str) -> bool:
         str(option.get("option_id") or ""),
         str(profile.get("item_id") or ""),
         str(profile.get("name_en") or ""),
+        str(profile.get("name_ko") or ""),
     ]
     return any(query in normalized_item_search_text(value) for value in values)
 
 
 def _legal_item_label(item: dict[str, Any]) -> str:
-    name = str(item.get("name_en") or item.get("item_id"))
+    name = _display_item_name(item)
     effect_support_status = str(item.get("effect_support_status", ""))
     if effect_support_status == LEGAL_AND_DAMAGE_SUPPORTED:
-        return f"{name} (legal, damage support recognized)"
-    return f"{name} (legal, effect not modeled)"
+        return f"{name} [데미지 보정 인식]"
+    return f"{name} [효과 미계산]"
+
+
+def _display_item_name(item: dict[str, Any]) -> str:
+    name_en = str(item.get("name_en") or item.get("item_id"))
+    name_ko = item.get("name_ko")
+    if isinstance(name_ko, str) and name_ko.strip():
+        return f"{name_ko.strip()} ({name_en})"
+    return name_en

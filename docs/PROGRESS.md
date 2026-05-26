@@ -1656,3 +1656,60 @@ Maintained boundaries:
 - No category grouping.
 - No item effect additions.
 - No `advisor/damage/` or `advisor/probability` engine changes.
+
+---
+
+## v0.25 - Korean item name mapping
+
+Purpose:
+- Add Korean item name support for the legal item selector without changing Champions legality data.
+- Improve `ItemProfileDialog` display labels and search for common legal items.
+
+Implemented:
+- Added `data/static/item_names_ko.json` as a separate manual-curated display/search mapping.
+- `ChampionsItemRepository` now enriches classified items with `name_ko` from the mapping when the legal fixture entry does not provide one.
+- `ItemProfileDialog` displays Korean + English names when `name_ko` is available.
+- Examples:
+  - `기합의띠 (Focus Sash) [효과 미계산]`
+  - `먹다남은음식 (Leftovers) [효과 미계산]`
+  - `구애스카프 (Choice Scarf) [효과 미계산]`
+- Items without `name_ko` fall back to the English label.
+- Search now includes:
+  - `name_ko`
+  - `name_en`
+  - `item_id`
+  - visible label
+- Existing English and item-id search behavior remains intact.
+- Label suffixes were shortened from long English wording to compact Korean status labels:
+  - `[효과 미계산]`
+  - `[데미지 보정 인식]`
+
+Verified:
+- Korean name mapping loads successfully.
+- `Focus Sash`, `Leftovers`, and `Choice Scarf` display with Korean + English names.
+- English fallback works for items without a Korean mapping.
+- Korean searches work:
+  - `기합` finds `Focus Sash`
+  - `먹다` finds `Leftovers`
+  - `구애` finds `Choice Scarf`
+- Existing searches such as `focus`, `focus sash`, and `focus-sash` still work.
+- `Unknown item` and `No item` remain pinned while searching.
+- `Choice Band`, `Choice Specs`, and `Life Orb` remain hidden from normal selector options and search results.
+- Selected item payload still preserves stable `item_id` and `name_en`, with `name_ko` added as display/search metadata.
+- Legal-but-not-modeled items still do not change damage estimates.
+- Existing Champions item repository tests continue to pass.
+
+Maintained boundaries:
+- No item effect additions.
+- No Choice Scarf speed, Focus Sash survival, Leftovers/Sitrus recovery, Choice lock, Life Orb recoil, KO/OHKO/2HKO, or Turn Engine implementation.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+- No legality changes.
+- No re-exposure of Choice Band / Choice Specs / Life Orb in the normal selector.
+- No scraping or build script.
+- No `data/cache` generation.
+
+Tests:
+- `uv run pytest tests/test_item_profile_dialog.py tests/test_champions_item_repository.py tests/test_advisor_damage_estimate.py -q`
+- Result: 61 passed.
+- `uv run pytest -q`
+- Result: 728 passed, 2 deselected.

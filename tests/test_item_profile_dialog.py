@@ -37,6 +37,31 @@ def test_item_profile_dialog_accepts_repository_backed_legal_options() -> None:
     dialog.close()
 
 
+def test_item_profile_dialog_displays_korean_and_english_item_names() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
+
+    assert "기합의띠 (Focus Sash)" in _option_label(dialog, "focus-sash")
+    assert "먹다남은음식 (Leftovers)" in _option_label(dialog, "leftovers")
+    assert "구애스카프 (Choice Scarf)" in _option_label(dialog, "choice-scarf")
+    assert "[효과 미계산]" in _option_label(dialog, "focus-sash")
+    dialog.close()
+
+
+def test_item_profile_dialog_falls_back_to_english_when_korean_name_is_missing() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
+
+    label = _option_label(dialog, "abomasite")
+    assert "Abomasite" in label
+    assert " (" not in label
+    dialog.close()
+
+
 def test_item_profile_dialog_has_search_input() -> None:
     app = QApplication.instance() or QApplication([])
     del app
@@ -65,6 +90,26 @@ def test_item_profile_dialog_filters_items_by_search_text() -> None:
 
     dialog.search_input.setText("sitrus")
     assert "sitrus-berry" in _combo_options(dialog)
+
+    dialog.close()
+
+
+def test_item_profile_dialog_filters_items_by_korean_search_text() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
+
+    dialog.search_input.setText("기합")
+    assert "focus-sash" in _combo_options(dialog)
+    assert "unknown" in _combo_options(dialog)
+    assert "none" in _combo_options(dialog)
+
+    dialog.search_input.setText("먹다")
+    assert "leftovers" in _combo_options(dialog)
+
+    dialog.search_input.setText("구애")
+    assert "choice-scarf" in _combo_options(dialog)
 
     dialog.close()
 
@@ -166,7 +211,9 @@ def test_item_profile_defaults_and_button_text() -> None:
     assert default_item_profile_for_role("my_active")["status"] == "system_default_none"
     assert default_item_profile_for_role("opponent_active")["status"] == "unknown"
     assert item_profile_from_option("choice-band")["item_id"] == "choice-band"
-    assert item_button_text(item_profile_from_option("choice-scarf", item_options=_legal_options())) == "Choice S"
+    assert item_button_text(item_profile_from_option("choice-scarf", item_options=_legal_options())).startswith(
+        "구애스카프"
+    )
     assert item_button_text(None, role_key="opponent_active") == "Item?"
 
 
@@ -203,6 +250,12 @@ def test_item_profile_dialog_guidance_explains_legal_but_not_modeled_boundary() 
 
 def _combo_options(dialog: ItemProfileDialog) -> list[str]:
     return [str(dialog.item_combo.itemData(index)) for index in range(dialog.item_combo.count())]
+
+
+def _option_label(dialog: ItemProfileDialog, option_id: str) -> str:
+    index = dialog.item_combo.findData(option_id)
+    assert index >= 0
+    return dialog.item_combo.itemText(index)
 
 
 def _pokemon_view():

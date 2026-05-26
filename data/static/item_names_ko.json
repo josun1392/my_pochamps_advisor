@@ -1,0 +1,39 @@
+{
+  "source_kind": "manual_curated",
+  "notes": [
+    "Korean item names are used for UI display and search only.",
+    "Missing entries should fall back to English names.",
+    "Do not use this file as a Champions legality source."
+  ],
+  "items": {
+    "black-belt": "검은띠",
+    "black-glasses": "검은안경",
+    "bright-powder": "반짝가루",
+    "charcoal": "목탄",
+    "choice-scarf": "구애스카프",
+    "dragon-fang": "용의이빨",
+    "focus-band": "기합의머리띠",
+    "focus-sash": "기합의띠",
+    "hard-stone": "딱딱한돌",
+    "kings-rock": "왕의징표석",
+    "leftovers": "먹다남은음식",
+    "magnet": "자석",
+    "mental-herb": "멘탈허브",
+    "metal-coat": "금속코트",
+    "miracle-seed": "기적의씨",
+    "mystic-water": "신비의물방울",
+    "never-melt-ice": "녹지않는얼음",
+    "poison-barb": "독바늘",
+    "quick-claw": "선제공격손톱",
+    "scope-lens": "초점렌즈",
+    "sharp-beak": "예리한부리",
+    "shell-bell": "조개껍질방울",
+    "silk-scarf": "실크스카프",
+    "silver-powder": "은빛가루",
+    "sitrus-berry": "자뭉열매",
+    "soft-sand": "부드러운모래",
+    "spell-tag": "저주의부적",
+    "twisted-spoon": "휘어진스푼",
+    "white-herb": "하양허브"
+  }
+}

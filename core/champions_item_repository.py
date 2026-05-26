@@ -7,6 +7,7 @@ from typing import Any
 
 
 DEFAULT_CHAMPIONS_LEGAL_ITEMS_PATH = Path("data/static/champions_legal_items.json")
+DEFAULT_ITEM_NAMES_KO_PATH = Path("data/static/item_names_ko.json")
 
 LEGAL_AND_DAMAGE_SUPPORTED = "legal_and_damage_supported"
 LEGAL_BUT_NOT_MODELED = "legal_but_not_modeled"
@@ -54,10 +55,36 @@ def load_champions_legal_items(path: Path | None = None) -> dict[str, Any]:
     return data
 
 
+def load_item_names_ko(path: Path | None = None) -> dict[str, str]:
+    mapping_path = path or DEFAULT_ITEM_NAMES_KO_PATH
+    if not mapping_path.exists():
+        return {}
+    data = json.loads(mapping_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("Korean item name mapping must be a JSON object.")
+    items = data.get("items")
+    if not isinstance(items, dict):
+        raise ValueError("Korean item name mapping must include an items object.")
+    mapping: dict[str, str] = {}
+    for item_id, name_ko in items.items():
+        if not isinstance(item_id, str) or not item_id:
+            raise ValueError("Korean item name mapping contains an invalid item id.")
+        if not isinstance(name_ko, str) or not name_ko.strip():
+            raise ValueError(f"Korean item name mapping for {item_id} must be a non-empty string.")
+        mapping[normalize_item_id(item_id)] = name_ko.strip()
+    return mapping
+
+
 class ChampionsItemRepository:
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(
+        self,
+        path: Path | None = None,
+        *,
+        item_names_ko_path: Path | None = None,
+    ) -> None:
         self.path = path or DEFAULT_CHAMPIONS_LEGAL_ITEMS_PATH
         self.data = load_champions_legal_items(self.path)
+        self.item_names_ko = load_item_names_ko(item_names_ko_path)
         self._legal_items = self._index_items(self.data.get("items", []))
         self._damage_supported_non_legal_items = self._index_items(
             self.data.get("damage_supported_non_legal_items", [])
@@ -131,15 +158,15 @@ class ChampionsItemRepository:
                 indexed[normalize_item_id(item_id)] = item
         return indexed
 
-    @staticmethod
-    def _classification_for_fixture_item(item: dict[str, Any]) -> ChampionsItemClassification:
+    def _classification_for_fixture_item(self, item: dict[str, Any]) -> ChampionsItemClassification:
         effect_support_status = _string_value(item, "effect_support_status", UNKNOWN)
         legal = bool(item.get("legal", False))
+        item_id = normalize_item_id(_string_value(item, "item_id", ""))
         classification = _classification_from_item(legal, effect_support_status)
         return ChampionsItemClassification(
-            item_id=normalize_item_id(_string_value(item, "item_id", "")),
+            item_id=item_id,
             name_en=_nullable_string(item.get("name_en")),
-            name_ko=_nullable_string(item.get("name_ko")),
+            name_ko=_nullable_string(item.get("name_ko")) or self.item_names_ko.get(item_id),
             category=_nullable_string(item.get("category")),
             legal=legal,
             classification=classification,
