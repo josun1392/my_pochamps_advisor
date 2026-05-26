@@ -11,7 +11,39 @@ from core.champions_item_repository import (
     UNKNOWN,
     ChampionsItemRepository,
     load_champions_legal_items,
+    normalize_item_id,
 )
+
+
+REQUIRED_ITEM_FIELDS = {
+    "item_id",
+    "name_en",
+    "name_ko",
+    "category",
+    "legal",
+    "legality_status",
+    "legality_confidence",
+    "effect_support_status",
+    "ui_status",
+    "effect_support",
+    "notes",
+}
+ALLOWED_CATEGORIES = {"mega_stone", "berry", "hold_item", "type_boosting_item", "utility_item"}
+ALLOWED_LEGALITY_STATUSES = {"legal", "not_legal_or_unconfirmed", "unconfirmed", "source_conflict"}
+ALLOWED_EFFECT_SUPPORT_STATUSES = {
+    LEGAL_AND_DAMAGE_SUPPORTED,
+    LEGAL_BUT_NOT_MODELED,
+    DAMAGE_SUPPORTED_BUT_NOT_CHAMPIONS_LEGAL,
+    "unsupported_or_unknown",
+    "not_applicable",
+}
+ALLOWED_UI_STATUSES = {
+    "recognized_not_modeled",
+    "recognized_modeled",
+    "selectable_not_modeled",
+    "hidden_normal_ui",
+    "damage_test_only",
+}
 
 
 def test_fixture_loads_with_source_refs_and_regulation() -> None:
@@ -19,12 +51,48 @@ def test_fixture_loads_with_source_refs_and_regulation() -> None:
 
     assert data["regulation"] == "m_a"
     assert data["format"] == "pokemon_champions"
+    assert data["expected_legal_item_count"] == 117
     assert {source["name"] for source in data["source_refs"]} >= {
         "MetaVGC",
         "RotomPicks",
         "Serebii",
         "ChampDex",
     }
+
+
+def test_full_fixture_has_expected_count_and_categories() -> None:
+    data = load_champions_legal_items()
+    legal_items = data["items"]
+
+    assert len(legal_items) == 117
+    assert data["counts"]["legal_items"] == 117
+    assert sum(1 for item in legal_items if item["category"] == "hold_item") == 12
+    assert sum(1 for item in legal_items if item["category"] == "type_boosting_item") == 18
+    assert sum(1 for item in legal_items if item["category"] == "mega_stone") == 59
+    assert sum(1 for item in legal_items if item["category"] == "berry") == 28
+
+
+def test_fixture_item_ids_are_unique_across_sections() -> None:
+    data = load_champions_legal_items()
+    item_ids = [
+        item["item_id"]
+        for item in [*data["items"], *data["damage_supported_non_legal_items"]]
+    ]
+
+    assert len(item_ids) == len(set(item_ids))
+
+
+def test_every_fixture_item_has_required_fields_and_allowed_statuses() -> None:
+    data = load_champions_legal_items()
+
+    for item in [*data["items"], *data["damage_supported_non_legal_items"]]:
+        assert REQUIRED_ITEM_FIELDS <= set(item)
+        assert item["category"] in ALLOWED_CATEGORIES
+        assert item["legality_status"] in ALLOWED_LEGALITY_STATUSES
+        assert item["effect_support_status"] in ALLOWED_EFFECT_SUPPORT_STATUSES
+        assert item["ui_status"] in ALLOWED_UI_STATUSES
+        assert isinstance(item["effect_support"], dict)
+        assert isinstance(item["notes"], list)
 
 
 @pytest.mark.parametrize("item_id", ["choice-scarf", "focus-sash", "leftovers", "sitrus-berry"])
@@ -90,7 +158,7 @@ def test_list_legal_items_returns_only_legal_fixture_items() -> None:
 
     legal_items = repo.list_legal_items()
 
-    assert legal_items
+    assert len(legal_items) == 117
     assert all(item["legal"] is True for item in legal_items)
     assert {item["item_id"] for item in legal_items} >= {"choice-scarf", "focus-sash", "leftovers"}
     assert "choice-band" not in {item["item_id"] for item in legal_items}
@@ -112,6 +180,8 @@ def test_repository_supports_normalized_lookup() -> None:
     assert repo.get_legality_status("Choice Scarf") == "legal"
     assert repo.get_effect_support_status("choice_scarf") == LEGAL_BUT_NOT_MODELED
     assert repo.get_ui_status("CHOICE-SCARF") == "recognized_not_modeled"
+    assert repo.get_legality_status("King's Rock") == "legal"
+    assert normalize_item_id("King’s Rock") == "kings-rock"
 
 
 def test_invalid_fixture_missing_required_fields_raises(tmp_path) -> None:

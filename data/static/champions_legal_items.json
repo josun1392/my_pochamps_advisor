@@ -2,7 +2,15 @@
   "format": "pokemon_champions",
   "regulation": "m_a",
   "source_kind": "third_party_cross_checked",
-  "fetched_at": "2026-05-21",
+  "fetched_at": "2026-05-26",
+  "expected_legal_item_count": 117,
+  "counts": {
+    "legal_items": 117,
+    "hold_items": 30,
+    "mega_stones": 59,
+    "berries": 28,
+    "damage_supported_non_legal_items": 5
+  },
   "source_refs": [
     {
       "name": "MetaVGC",
@@ -26,11 +34,137 @@
     }
   ],
   "notes": [
-    "This is a manually curated sentinel fixture, not the full 117-item Regulation M-A list.",
-    "Champions legality and damage-engine support are intentionally modeled as separate concepts.",
-    "PokeAPI item metadata is not a Champions legality source."
+    "This fixture was expanded from a sentinel fixture toward the full 117-item Regulation M-A legal item list.",
+    "MetaVGC is treated as the primary legal snapshot; RotomPicks provides category/count cross-checks; Serebii is retained as a cross-check source; ChampDex is contextual guidance.",
+    "Champions legality and local damage-engine support are intentionally modeled as separate concepts.",
+    "PokeAPI item metadata and existing repo static item files are metadata/effect-support fallback only, not Champions legality sources.",
+    "Damage-supported but not confirmed Champions-legal items remain in damage_supported_non_legal_items and must not be exposed as normal legal selector entries."
   ],
   "items": [
+    {
+      "item_id": "black-belt",
+      "name_en": "Black Belt",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "black-glasses",
+      "name_en": "Black Glasses",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "bright-powder",
+      "name_en": "Bright Powder",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Utility effect is not modeled."
+      ]
+    },
+    {
+      "item_id": "charcoal",
+      "name_en": "Charcoal",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
     {
       "item_id": "choice-scarf",
       "name_en": "Choice Scarf",
@@ -41,16 +175,118 @@
       "legality_confidence": "third_party_cross_checked",
       "effect_support_status": "legal_but_not_modeled",
       "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
       "effect_support": {
-        "damage_modifier": "not_supported",
+        "damage_modifier": "not_applicable",
         "speed_order": "not_supported",
         "survival": "not_applicable",
         "recovery": "not_applicable",
-        "choice_lock": "not_supported"
+        "choice_lock": "not_supported",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
       },
       "notes": [
-        "Legal item candidate in the audited Regulation M-A sources.",
-        "Speed boost and choice lock are not modeled."
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Speed/order effects are not modeled."
+      ]
+    },
+    {
+      "item_id": "dragon-fang",
+      "name_en": "Dragon Fang",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "fairy-feather",
+      "name_en": "Fairy Feather",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_supported",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting item is legal, but the matching damage modifier is not currently modeled in the local helper."
+      ]
+    },
+    {
+      "item_id": "focus-band",
+      "name_en": "Focus Band",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_supported",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Survival effects are not modeled."
       ]
     },
     {
@@ -63,16 +299,87 @@
       "legality_confidence": "third_party_cross_checked",
       "effect_support_status": "legal_but_not_modeled",
       "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
       "effect_support": {
         "damage_modifier": "not_applicable",
         "speed_order": "not_applicable",
         "survival": "not_supported",
         "recovery": "not_applicable",
-        "choice_lock": "not_applicable"
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
       },
       "notes": [
-        "Legal item candidate in the audited Regulation M-A sources.",
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
         "Survival effects are not modeled."
+      ]
+    },
+    {
+      "item_id": "hard-stone",
+      "name_en": "Hard Stone",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "kings-rock",
+      "name_en": "King's Rock",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Utility effect is not modeled."
       ]
     },
     {
@@ -85,16 +392,3171 @@
       "legality_confidence": "third_party_cross_checked",
       "effect_support_status": "legal_but_not_modeled",
       "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
       "effect_support": {
         "damage_modifier": "not_applicable",
         "speed_order": "not_applicable",
         "survival": "not_applicable",
         "recovery": "not_supported",
-        "choice_lock": "not_applicable"
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
       },
       "notes": [
-        "Legal item candidate in the audited Regulation M-A sources.",
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
         "Recovery and turn sequencing are not modeled."
+      ]
+    },
+    {
+      "item_id": "light-ball",
+      "name_en": "Light Ball",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Utility effect is not modeled."
+      ]
+    },
+    {
+      "item_id": "magnet",
+      "name_en": "Magnet",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "mental-herb",
+      "name_en": "Mental Herb",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Utility effect is not modeled."
+      ]
+    },
+    {
+      "item_id": "metal-coat",
+      "name_en": "Metal Coat",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "miracle-seed",
+      "name_en": "Miracle Seed",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "mystic-water",
+      "name_en": "Mystic Water",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "never-melt-ice",
+      "name_en": "Never-Melt Ice",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "poison-barb",
+      "name_en": "Poison Barb",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "quick-claw",
+      "name_en": "Quick Claw",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_supported",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Speed/order effects are not modeled."
+      ]
+    },
+    {
+      "item_id": "scope-lens",
+      "name_en": "Scope Lens",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Utility effect is not modeled."
+      ]
+    },
+    {
+      "item_id": "sharp-beak",
+      "name_en": "Sharp Beak",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "shell-bell",
+      "name_en": "Shell Bell",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_supported",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Recovery and turn sequencing are not modeled."
+      ]
+    },
+    {
+      "item_id": "silk-scarf",
+      "name_en": "Silk Scarf",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "silver-powder",
+      "name_en": "Silver Powder",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "soft-sand",
+      "name_en": "Soft Sand",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "spell-tag",
+      "name_en": "Spell Tag",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "twisted-spoon",
+      "name_en": "Twisted Spoon",
+      "name_ko": null,
+      "category": "type_boosting_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_and_damage_supported",
+      "ui_status": "recognized_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "supported_by_engine",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-boosting damage modifier exists in the local static damage item catalog."
+      ]
+    },
+    {
+      "item_id": "white-herb",
+      "name_en": "White Herb",
+      "name_ko": null,
+      "category": "hold_item",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Utility effect is not modeled."
+      ]
+    },
+    {
+      "item_id": "abomasite",
+      "name_en": "Abomasite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "absolite",
+      "name_en": "Absolite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "aerodactylite",
+      "name_en": "Aerodactylite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "aggronite",
+      "name_en": "Aggronite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "alakazite",
+      "name_en": "Alakazite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "altarianite",
+      "name_en": "Altarianite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "ampharosite",
+      "name_en": "Ampharosite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "audinite",
+      "name_en": "Audinite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "banettite",
+      "name_en": "Banettite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "beedrillite",
+      "name_en": "Beedrillite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "blastoisinite",
+      "name_en": "Blastoisinite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "cameruptite",
+      "name_en": "Cameruptite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "chandelurite",
+      "name_en": "Chandelurite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "charizardite-x",
+      "name_en": "Charizardite X",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "charizardite-y",
+      "name_en": "Charizardite Y",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "chesnaughtite",
+      "name_en": "Chesnaughtite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "chimechite",
+      "name_en": "Chimechite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "clefablite",
+      "name_en": "Clefablite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "crabominite",
+      "name_en": "Crabominite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "delphoxite",
+      "name_en": "Delphoxite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "dragoninite",
+      "name_en": "Dragoninite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "drampanite",
+      "name_en": "Drampanite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "emboarite",
+      "name_en": "Emboarite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "excadrite",
+      "name_en": "Excadrite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "feraligite",
+      "name_en": "Feraligite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "floettite",
+      "name_en": "Floettite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "froslassite",
+      "name_en": "Froslassite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "galladite",
+      "name_en": "Galladite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "garchompite",
+      "name_en": "Garchompite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "gardevoirite",
+      "name_en": "Gardevoirite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "gengarite",
+      "name_en": "Gengarite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "glalitite",
+      "name_en": "Glalitite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "glimmoranite",
+      "name_en": "Glimmoranite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "golurkite",
+      "name_en": "Golurkite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "greninjite",
+      "name_en": "Greninjite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "gyaradosite",
+      "name_en": "Gyaradosite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "hawluchanite",
+      "name_en": "Hawluchanite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "heracronite",
+      "name_en": "Heracronite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "houndoominite",
+      "name_en": "Houndoominite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "kangaskhanite",
+      "name_en": "Kangaskhanite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "lopunnite",
+      "name_en": "Lopunnite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "lucarionite",
+      "name_en": "Lucarionite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "manectite",
+      "name_en": "Manectite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "medichamite",
+      "name_en": "Medichamite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "meganiumite",
+      "name_en": "Meganiumite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "meowsticite",
+      "name_en": "Meowsticite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "pidgeotite",
+      "name_en": "Pidgeotite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "pinsirite",
+      "name_en": "Pinsirite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "sablenite",
+      "name_en": "Sablenite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "scizorite",
+      "name_en": "Scizorite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "scovillainite",
+      "name_en": "Scovillainite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "sharpedonite",
+      "name_en": "Sharpedonite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "skarmorite",
+      "name_en": "Skarmorite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "slowbronite",
+      "name_en": "Slowbronite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "starminite",
+      "name_en": "Starminite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "steelixite",
+      "name_en": "Steelixite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "tyranitarite",
+      "name_en": "Tyranitarite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "venusaurite",
+      "name_en": "Venusaurite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "victreebelite",
+      "name_en": "Victreebelite",
+      "name_ko": null,
+      "category": "mega_stone",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_supported",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Mega evolution state is not modeled."
+      ]
+    },
+    {
+      "item_id": "aspear-berry",
+      "name_en": "Aspear Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Status/PP berry trigger and consumption are not modeled."
+      ]
+    },
+    {
+      "item_id": "babiri-berry",
+      "name_en": "Babiri Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "charti-berry",
+      "name_en": "Charti Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "cheri-berry",
+      "name_en": "Cheri Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Status/PP berry trigger and consumption are not modeled."
+      ]
+    },
+    {
+      "item_id": "chesto-berry",
+      "name_en": "Chesto Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Status/PP berry trigger and consumption are not modeled."
+      ]
+    },
+    {
+      "item_id": "chilan-berry",
+      "name_en": "Chilan Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "chople-berry",
+      "name_en": "Chople Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "coba-berry",
+      "name_en": "Coba Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "colbur-berry",
+      "name_en": "Colbur Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "haban-berry",
+      "name_en": "Haban Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "kasib-berry",
+      "name_en": "Kasib Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "kebia-berry",
+      "name_en": "Kebia Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "leppa-berry",
+      "name_en": "Leppa Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Status/PP berry trigger and consumption are not modeled."
+      ]
+    },
+    {
+      "item_id": "lum-berry",
+      "name_en": "Lum Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Status/PP berry trigger and consumption are not modeled."
+      ]
+    },
+    {
+      "item_id": "occa-berry",
+      "name_en": "Occa Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "oran-berry",
+      "name_en": "Oran Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_supported",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Recovery and turn sequencing are not modeled."
+      ]
+    },
+    {
+      "item_id": "passho-berry",
+      "name_en": "Passho Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "payapa-berry",
+      "name_en": "Payapa Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "pecha-berry",
+      "name_en": "Pecha Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Status/PP berry trigger and consumption are not modeled."
+      ]
+    },
+    {
+      "item_id": "persim-berry",
+      "name_en": "Persim Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Status/PP berry trigger and consumption are not modeled."
+      ]
+    },
+    {
+      "item_id": "rawst-berry",
+      "name_en": "Rawst Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Status/PP berry trigger and consumption are not modeled."
+      ]
+    },
+    {
+      "item_id": "rindo-berry",
+      "name_en": "Rindo Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "roseli-berry",
+      "name_en": "Roseli Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "shuca-berry",
+      "name_en": "Shuca Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
       ]
     },
     {
@@ -107,62 +3569,121 @@
       "legality_confidence": "third_party_cross_checked",
       "effect_support_status": "legal_but_not_modeled",
       "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
       "effect_support": {
         "damage_modifier": "not_applicable",
         "speed_order": "not_applicable",
         "survival": "not_applicable",
         "recovery": "not_supported",
-        "choice_lock": "not_applicable"
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_applicable"
       },
       "notes": [
-        "Legal berry candidate in the audited Regulation M-A sources.",
-        "HP threshold and recovery effects are not modeled."
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Recovery and turn sequencing are not modeled."
       ]
     },
     {
-      "item_id": "metal-coat",
-      "name_en": "Metal Coat",
+      "item_id": "tanga-berry",
+      "name_en": "Tanga Berry",
       "name_ko": null,
-      "category": "hold_item",
+      "category": "berry",
       "legal": true,
       "legality_status": "legal",
       "legality_confidence": "third_party_cross_checked",
-      "effect_support_status": "legal_and_damage_supported",
-      "ui_status": "recognized_modeled",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
       "effect_support": {
-        "damage_modifier": "supported_by_engine",
+        "damage_modifier": "not_applicable",
         "speed_order": "not_applicable",
         "survival": "not_applicable",
         "recovery": "not_applicable",
-        "choice_lock": "not_applicable"
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
       },
       "notes": [
-        "Legal item candidate in the audited Regulation M-A sources.",
-        "Steel-type damage modifier exists in the current static damage item catalog.",
-        "This item is not exposed in the v0.18 minimal item selector."
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
       ]
     },
     {
-      "item_id": "charcoal",
-      "name_en": "Charcoal",
+      "item_id": "wacan-berry",
+      "name_en": "Wacan Berry",
       "name_ko": null,
-      "category": "hold_item",
+      "category": "berry",
       "legal": true,
       "legality_status": "legal",
       "legality_confidence": "third_party_cross_checked",
-      "effect_support_status": "legal_and_damage_supported",
-      "ui_status": "recognized_modeled",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
       "effect_support": {
-        "damage_modifier": "supported_by_engine",
+        "damage_modifier": "not_applicable",
         "speed_order": "not_applicable",
         "survival": "not_applicable",
         "recovery": "not_applicable",
-        "choice_lock": "not_applicable"
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
       },
       "notes": [
-        "Legal item candidate in the audited Regulation M-A sources.",
-        "Fire-type damage modifier exists in the current static damage item catalog.",
-        "This item is not exposed in the v0.18 minimal item selector."
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
+      ]
+    },
+    {
+      "item_id": "yache-berry",
+      "name_en": "Yache Berry",
+      "name_ko": null,
+      "category": "berry",
+      "legal": true,
+      "legality_status": "legal",
+      "legality_confidence": "third_party_cross_checked",
+      "effect_support_status": "legal_but_not_modeled",
+      "ui_status": "recognized_not_modeled",
+      "source_presence": {
+        "metavgc": true,
+        "rotompicks": true,
+        "serebii": "cross_check_candidate",
+        "champdex": "contextual_only"
+      },
+      "effect_support": {
+        "damage_modifier": "not_applicable",
+        "speed_order": "not_applicable",
+        "survival": "not_applicable",
+        "recovery": "not_applicable",
+        "choice_lock": "not_applicable",
+        "mega_evolution": "not_applicable",
+        "utility_effect": "not_supported",
+        "damage_reduction": "not_supported"
+      },
+      "notes": [
+        "Listed in the Regulation M-A legal item fixture.",
+        "Legality and local effect modeling are tracked separately.",
+        "Type-resist berry trigger/consumption is not modeled."
       ]
     }
   ],
@@ -177,14 +3698,22 @@
       "legality_confidence": "likely_illegal_in_reg_m_a",
       "effect_support_status": "damage_supported_but_not_champions_legal",
       "ui_status": "damage_test_only",
+      "source_presence": {
+        "metavgc": false,
+        "rotompicks": false,
+        "serebii": "not_confirmed",
+        "champdex": "listed_as_cut_or_absent"
+      },
       "effect_support": {
         "damage_modifier": "supported_by_engine",
-        "choice_lock": "not_supported"
+        "choice_lock": "not_supported",
+        "recoil": "not_applicable"
       },
       "notes": [
         "Damage modifier is supported by the current helper.",
-        "This item appears absent from current Champions Reg M-A legal sources.",
-        "Do not expose as a normal legal item until legality is confirmed."
+        "This item is not included in the normal Champions legal item list in this fixture.",
+        "Choice lock is not modeled.",
+        "Do not expose as a normal legal item unless Champions legality is confirmed."
       ]
     },
     {
@@ -197,14 +3726,22 @@
       "legality_confidence": "likely_illegal_in_reg_m_a",
       "effect_support_status": "damage_supported_but_not_champions_legal",
       "ui_status": "damage_test_only",
+      "source_presence": {
+        "metavgc": false,
+        "rotompicks": false,
+        "serebii": "not_confirmed",
+        "champdex": "listed_as_cut_or_absent"
+      },
       "effect_support": {
         "damage_modifier": "supported_by_engine",
-        "choice_lock": "not_supported"
+        "choice_lock": "not_supported",
+        "recoil": "not_applicable"
       },
       "notes": [
         "Damage modifier is supported by the current helper.",
-        "This item appears absent from current Champions Reg M-A legal sources.",
-        "Do not expose as a normal legal item until legality is confirmed."
+        "This item is not included in the normal Champions legal item list in this fixture.",
+        "Choice lock is not modeled.",
+        "Do not expose as a normal legal item unless Champions legality is confirmed."
       ]
     },
     {
@@ -217,15 +3754,22 @@
       "legality_confidence": "likely_illegal_in_reg_m_a",
       "effect_support_status": "damage_supported_but_not_champions_legal",
       "ui_status": "damage_test_only",
+      "source_presence": {
+        "metavgc": false,
+        "rotompicks": false,
+        "serebii": "not_confirmed",
+        "champdex": "listed_as_cut_or_absent"
+      },
       "effect_support": {
         "damage_modifier": "supported_by_engine",
+        "choice_lock": "not_applicable",
         "recoil": "not_supported"
       },
       "notes": [
         "Damage modifier is supported by the current helper.",
-        "This item appears absent from current Champions Reg M-A legal sources.",
+        "This item is not included in the normal Champions legal item list in this fixture.",
         "Life Orb recoil is not modeled.",
-        "Do not expose as a normal legal item until legality is confirmed."
+        "Do not expose as a normal legal item unless Champions legality is confirmed."
       ]
     },
     {
@@ -238,13 +3782,22 @@
       "legality_confidence": "unconfirmed_absent_from_audited_sources",
       "effect_support_status": "damage_supported_but_not_champions_legal",
       "ui_status": "damage_test_only",
+      "source_presence": {
+        "metavgc": false,
+        "rotompicks": false,
+        "serebii": "not_confirmed",
+        "champdex": "not_confirmed"
+      },
       "effect_support": {
-        "damage_modifier": "supported_by_engine"
+        "damage_modifier": "supported_by_engine",
+        "choice_lock": "not_applicable",
+        "recoil": "not_applicable"
       },
       "notes": [
         "Damage modifier is supported by the current helper.",
+        "This item is not included in the normal Champions legal item list in this fixture.",
         "Legality was not confirmed in the audited Regulation M-A source pass.",
-        "Keep this out of a normal legal item selector until legality is confirmed."
+        "Do not expose as a normal legal item unless Champions legality is confirmed."
       ]
     },
     {
@@ -257,13 +3810,22 @@
       "legality_confidence": "unconfirmed_absent_from_audited_sources",
       "effect_support_status": "damage_supported_but_not_champions_legal",
       "ui_status": "damage_test_only",
+      "source_presence": {
+        "metavgc": false,
+        "rotompicks": false,
+        "serebii": "not_confirmed",
+        "champdex": "not_confirmed"
+      },
       "effect_support": {
-        "damage_modifier": "supported_by_engine"
+        "damage_modifier": "supported_by_engine",
+        "choice_lock": "not_applicable",
+        "recoil": "not_applicable"
       },
       "notes": [
         "Damage modifier is supported by the current helper.",
+        "This item is not included in the normal Champions legal item list in this fixture.",
         "Legality was not confirmed in the audited Regulation M-A source pass.",
-        "Keep this out of a normal legal item selector until legality is confirmed."
+        "Do not expose as a normal legal item unless Champions legality is confirmed."
       ]
     }
   ]

@@ -153,7 +153,14 @@ class ChampionsItemRepository:
 
 
 def normalize_item_id(item_id: str) -> str:
-    return item_id.strip().lower().replace("_", "-").replace(" ", "-")
+    return (
+        item_id.strip()
+        .lower()
+        .replace("'", "")
+        .replace("’", "")
+        .replace("_", "-")
+        .replace(" ", "-")
+    )
 
 
 def _classification_from_item(legal: bool, effect_support_status: str) -> str:
@@ -176,7 +183,10 @@ def _validate_fixture(data: Any) -> None:
         "regulation",
         "source_kind",
         "fetched_at",
+        "expected_legal_item_count",
+        "counts",
         "source_refs",
+        "notes",
         "items",
         "damage_supported_non_legal_items",
     }
@@ -194,7 +204,19 @@ def _validate_fixture(data: Any) -> None:
 def _validate_item_list(items: Any, field_name: str) -> None:
     if not isinstance(items, list):
         raise ValueError(f"Champions legal item fixture field {field_name} must be a list.")
-    required = {"item_id", "legal", "legality_status", "effect_support_status", "ui_status"}
+    required = {
+        "item_id",
+        "name_en",
+        "name_ko",
+        "category",
+        "legal",
+        "legality_status",
+        "legality_confidence",
+        "effect_support_status",
+        "ui_status",
+        "effect_support",
+        "notes",
+    }
     for item in items:
         if not isinstance(item, dict):
             raise ValueError(f"Champions legal item fixture field {field_name} contains a non-object item.")

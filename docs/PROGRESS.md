@@ -1357,3 +1357,51 @@ Maintained boundaries:
 
 Test:
 - Not run; documentation-only planning update.
+
+---
+
+## v0.22b - Champions legal item full fixture expansion
+
+Purpose:
+- Expand `data/static/champions_legal_items.json` from a sentinel fixture toward the full Pokemon Champions Regulation M-A legal item fixture.
+- Preserve the distinction between Champions legality and local damage-effect modeling.
+
+Implemented:
+- Expanded `champions_legal_items.json` to 117 legal item entries.
+- Added fixture-level `expected_legal_item_count` and category counts:
+  - legal items: 117
+  - hold-item bucket from sources represented as 12 `hold_item` + 18 `type_boosting_item`
+  - Mega Stones: 59
+  - Berries: 28
+- Preserved `damage_supported_non_legal_items` for damage-supported mismatch/debug items:
+  - `choice-band`
+  - `choice-specs`
+  - `life-orb`
+  - `muscle-band`
+  - `wise-glasses`
+- Kept source strategy explicit:
+  - MetaVGC as primary legal snapshot
+  - RotomPicks as category/count cross-check
+  - Serebii as cross-check
+  - ChampDex as contextual guide
+  - PokeAPI/static repo data as metadata/effect fallback only
+- Strengthened repository fixture validation and item id normalization.
+- Added tests for full fixture count, duplicate item IDs, required fields, category/status fields, normalized lookup, legal sentinel classifications, and damage-supported non-legal separation.
+
+Maintained boundaries:
+- No ItemProfileDialog changes.
+- No PokemonPanel/MainWindow UI changes.
+- No legal item selector UI implementation.
+- No scraping or build script.
+- No `data/cache` generation.
+- No item effect additions.
+- No Choice Scarf speed, Focus Sash survival, Leftovers/Sitrus recovery, Choice lock, Life Orb recoil, KO/OHKO/2HKO, speed order, or Turn Engine implementation.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Tests:
+- `uv run pytest tests/test_champions_item_repository.py -q`
+- Result: 19 passed.
+- `uv run pytest tests/test_items.py tests/test_item_modifiers.py tests/test_advisor_damage_estimate.py tests/test_champions_item_repository.py -q`
+- Result: 60 passed.
+- `uv run pytest -q`
+- Result: 715 passed, 2 deselected.
