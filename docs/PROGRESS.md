@@ -1466,3 +1466,52 @@ Tests:
 - Result: 62 passed.
 - `uv run pytest -q`
 - Result: 717 passed, 2 deselected.
+
+---
+
+## v0.23 - Legal item selector integration
+
+Purpose:
+- Connect `ItemProfileDialog` to Champions legal item repository-backed options.
+- Keep normal UI focused on legal item fixture entries instead of damage-test items.
+
+Implemented:
+- Added repository-backed item option construction for `ItemProfileDialog`.
+- `MainWindow` now injects Champions legal item options from `ChampionsItemRepository`.
+- Preserved `Unknown item` and `No item` choices.
+- Legal-but-not-modeled items such as `choice-scarf`, `focus-sash`, `leftovers`, and `sitrus-berry` are selectable.
+- Selected legal-but-not-modeled items are recorded in `item_profiles` as `user_confirmed` with:
+  - `legality_status: legal`
+  - `effect_support_status: legal_but_not_modeled`
+  - `damage_modifier_status: not_applied`
+- Normal selector options hide damage-supported non-legal/debug items:
+  - `choice-band`
+  - `choice-specs`
+  - `life-orb`
+- Legacy damage-test helper paths remain available for regression tests, but are not normal UI options.
+- Updated advisor prompt/contract wording to distinguish legal items from modeled item effects.
+
+Verified:
+- `ItemProfileDialog` accepts injected repository-backed legal item options.
+- `Unknown item` and `No item` remain selectable.
+- `choice-scarf`, `focus-sash`, `leftovers`, and `sitrus-berry` are selectable legal options.
+- `choice-band`, `choice-specs`, and `life-orb` are hidden from normal selector options.
+- Legal-but-not-modeled attacker items do not change damage estimates.
+- `item_effects.attacker_item.status` reports `not_applied` for selected legal-but-not-modeled items.
+- Opponent default item state remains `unknown`.
+- My default item state remains `system_default_none`.
+- Pokemon change/clear still resets item profile state.
+
+Maintained boundaries:
+- No scraping or build script.
+- No `data/cache` generation.
+- No legal item fixture expansion or large data changes.
+- No new item damage effects.
+- No Choice Scarf speed, Focus Sash survival, Leftovers/Sitrus recovery, Choice lock, Life Orb recoil, KO/OHKO/2HKO, speed order, or Turn Engine implementation.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Tests:
+- `uv run pytest tests/test_item_profile_dialog.py tests/test_champions_item_repository.py tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`
+- Result: 69 passed.
+- `uv run pytest -q`
+- Result: 719 passed, 2 deselected.

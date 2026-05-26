@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.cache_manager import CacheManager
+from core.champions_item_repository import ChampionsItemRepository
 from core.champions_move_pool import ChampionsMovePoolRepository
 from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository, MoveView
@@ -34,6 +35,7 @@ from ui.widgets.item_profile_dialog import (
     default_item_profile_for_role,
     item_button_text,
     ItemProfileDialog,
+    legal_item_options_from_repository,
 )
 from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
@@ -152,6 +154,7 @@ class MainWindow(QMainWindow):
         self.repo = PokemonRepository(self.cache, self.ko_loader)
         self.move_repo = MoveRepository(self.cache, self.ko_loader)
         self.champions_move_pool_repo = ChampionsMovePoolRepository()
+        self.champions_item_repo = ChampionsItemRepository()
         for move_id, name_en in self.champions_move_pool_repo.iter_move_search_entries():
             self.search_engine.add_entry("move", move_id, name_en)
 
@@ -597,6 +600,7 @@ class MainWindow(QMainWindow):
             pokemon_name=view.ko or view.en,
             current_profile=getattr(panel, "item_profile", None),
             role_key=role_key,
+            item_options=self._legal_item_options(),
             parent=self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
@@ -648,6 +652,9 @@ class MainWindow(QMainWindow):
         )
         if empty_message is not None:
             self.statusBar().showMessage(f"Move search unavailable | {view.ko}: Champions sample fixture missing")
+
+    def _legal_item_options(self) -> list[dict]:
+        return legal_item_options_from_repository(self.champions_item_repo)
 
     @staticmethod
     def _cached_pokemon_names() -> dict[str, str | None]:

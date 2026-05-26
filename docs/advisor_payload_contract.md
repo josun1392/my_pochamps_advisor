@@ -1,6 +1,6 @@
 # Advisor Payload Contract
 
-**Milestone:** v0.18 - Minimal Supported Item Selector
+**Milestone:** v0.23 - Legal Item Selector Integration
 **Payload mode:** `ui-selected-pokemon-v0.18`
 **Status:** Current contract for the PySide6 UI to Gemini LLM advisor path.
 
@@ -8,7 +8,7 @@
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.18 adds a minimal item selector for Unknown, No item, Choice Band, Choice Specs, Life Orb, Muscle Band, and Wise Glasses. The app does not yet send EV/IV/nature breakdowns, full legal item selector state, KO odds, turn order, candidate move damage estimates, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. The app does not yet send EV/IV/nature breakdowns, KO odds, turn order, candidate move damage estimates, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -73,7 +73,7 @@ Each active item profile contains:
 - `damage_modifier_status`
 - `notes`
 
-In v0.18 the UI can emit `system_default_none`, `unknown`, `none`, or `user_confirmed` item profiles for active Pokemon. My active defaults to `system_default_none` for compatibility with the previous no-item calculation assumption. Opponent active defaults to `unknown` unless T1 confirms no item or selects one of the supported damage items.
+In v0.23 the UI can emit `system_default_none`, `unknown`, `none`, or `user_confirmed` item profiles for active Pokemon. My active defaults to `system_default_none` for compatibility with the previous no-item calculation assumption. Opponent active defaults to `unknown` unless T1 confirms no item or selects a legal item from the repository-backed selector.
 
 `moves` contains:
 
@@ -153,7 +153,13 @@ Item state is separate from stat state:
 
 `unknown` and `none` must not be treated as the same thing.
 
-Only this first attacker-side damage item subset may affect v0.18 damage estimates:
+The normal v0.23 selector is legal-item based. Legal item and modeled item are separate concepts:
+
+- `legal_but_not_modeled`: selectable as user-confirmed item information, but the item effect does not change damage.
+- `legal_and_damage_supported`: recognized by the legal fixture as having local damage support, but damage still counts the item only when `damage_estimate.item_effects` marks the effect as `applied`.
+- `damage_supported_but_not_champions_legal`: debug/test only and not exposed in the normal selector.
+
+The legacy damage-test subset remains available to tests/helpers, not the normal legal selector:
 
 - `choice-band`: physical move damage modifier only
 - `choice-specs`: special move damage modifier only
@@ -161,7 +167,7 @@ Only this first attacker-side damage item subset may affect v0.18 damage estimat
 - `muscle-band`: physical move damage modifier only
 - `wise-glasses`: special move damage modifier only
 
-Excluded from v0.18 item application:
+Excluded from v0.23 item application:
 
 - Expert Belt
 - Assault Vest
@@ -172,6 +178,12 @@ Excluded from v0.18 item application:
 - Life Orb recoil
 - candidate move damage
 - KO/OHKO/2HKO
+
+Legal-but-not-modeled examples:
+
+- Choice Scarf: selectable, but speed order and choice lock are not modeled.
+- Focus Sash: selectable, but survival is not modeled.
+- Leftovers / Sitrus Berry: selectable, but recovery and turn sequencing are not modeled.
 
 `damage_estimate.item_effects` is the source of truth for whether an item effect was applied to a specific calculation.
 
@@ -213,7 +225,7 @@ The LLM must not print raw labels such as `super_effective` or `not_very_effecti
 The v0.18 payload does not contain:
 
 - EV/IV/nature
-- full legal item selector/cache state beyond the minimal `item_profiles` selector
+- full battle item effect modeling beyond the legal `item_profiles` selector
 - selected ability certainty
 - weather
 - terrain
@@ -243,6 +255,8 @@ The LLM must not:
 - invent opponent item, selected ability, EVs, IVs, nature, boosts, speed order, turn outcome, or missing final stats
 - infer EVs, IVs, nature, or item from user-confirmed final stats
 - treat `unknown` item as `none`
+- treat a selected legal item as modeled unless `damage_estimate.item_effects` marks its effect as `applied`
+- present damage-supported non-legal/debug items as normal Champions legal selections
 - claim item effects are applied unless `damage_estimate.item_effects` marks them as `applied`
 - omit an applied attacker item modifier when explaining why one move did more damage
 - describe an item-applied estimate as only default assumptions when `item_effects.attacker_item.status` is `applied`

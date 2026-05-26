@@ -41,6 +41,14 @@ ITEM_UNAPPLIED_EFFECTS = {
     "choice-specs": ["choice_lock"],
     "life-orb": ["recoil"],
 }
+LEGAL_UNMODELED_ITEM_EFFECTS = {
+    "choice-scarf": ["speed_order", "choice_lock"],
+    "focus-band": ["survival"],
+    "focus-sash": ["survival"],
+    "leftovers": ["recovery"],
+    "sitrus-berry": ["recovery"],
+    "quick-claw": ["speed_order"],
+}
 
 
 def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[str, Any]:
@@ -630,6 +638,13 @@ def _item_effect_summary(
             "applied_effects": [],
             "unapplied_effects": ["defender_item_effects_not_supported_in_v0.16", *unapplied_effects],
         }
+    if _is_legal_item_not_applied(profile):
+        return {
+            "item_id": item_id,
+            "status": "not_applied",
+            "applied_effects": [],
+            "unapplied_effects": _legal_unmodeled_effects(item_id),
+        }
     if applied_item is not None:
         return {
             "item_id": item_id,
@@ -653,3 +668,11 @@ def _item_effect_summary(
         "applied_effects": [],
         "unapplied_effects": ["item_damage_modifier_not_supported_in_v0.16", *unapplied_effects],
     }
+
+
+def _is_legal_item_not_applied(profile: dict[str, Any]) -> bool:
+    return profile.get("effect_support_status") == "legal_but_not_modeled"
+
+
+def _legal_unmodeled_effects(item_id: str) -> list[str]:
+    return LEGAL_UNMODELED_ITEM_EFFECTS.get(item_id, ["item_effect_not_modeled_in_v0.23"])

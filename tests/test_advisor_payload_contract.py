@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import MethodType, SimpleNamespace
 
 from core.cache_manager import CacheManager
+from core.champions_item_repository import ChampionsItemRepository
 from core.champions_move_pool import ChampionsMovePoolRepository
 from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveView
@@ -11,7 +12,7 @@ from core.pokemon_repository import PokemonView
 from llm.advisor_client import _build_ui_selected_prompt
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from ui.main_window import MainWindow
-from ui.widgets.item_profile_dialog import item_profile_from_option
+from ui.widgets.item_profile_dialog import item_profile_from_option, legal_item_options_from_repository
 
 
 def test_ui_payload_uses_advisor_contract_guardrails() -> None:
@@ -154,31 +155,33 @@ def test_ui_payload_includes_default_item_profiles() -> None:
 
 
 def test_ui_payload_includes_user_selected_item_profiles() -> None:
+    item_options = legal_item_options_from_repository(ChampionsItemRepository())
     my_panel = _panel(
         "garchomp",
         selected_move_index=0,
         selected_moves=[_move("earthquake")],
-        item_profile=item_profile_from_option("choice-band"),
+        item_profile=item_profile_from_option("choice-scarf", item_options=item_options),
     )
     opponent_panel = _panel(
         "corviknight",
         selected_move_index=0,
         selected_moves=[_move("drill-peck")],
-        item_profile=item_profile_from_option("life-orb", role_key="opponent_active"),
+        item_profile=item_profile_from_option("focus-sash", role_key="opponent_active", item_options=item_options),
     )
     window = _window(my_panel, opponent_panel)
 
     payload = window._build_llm_battle_input()
 
-    assert payload["item_profiles"]["my_active"]["item_id"] == "choice-band"
+    assert payload["item_profiles"]["my_active"]["item_id"] == "choice-scarf"
     assert payload["item_profiles"]["my_active"]["status"] == "user_confirmed"
-    assert payload["item_profiles"]["opponent_active"]["item_id"] == "life-orb"
+    assert payload["item_profiles"]["my_active"]["effect_support_status"] == "legal_but_not_modeled"
+    assert payload["item_profiles"]["my_active"]["damage_modifier_status"] == "not_applied"
+    assert payload["item_profiles"]["opponent_active"]["item_id"] == "focus-sash"
     assert payload["item_profiles"]["opponent_active"]["status"] == "user_confirmed"
     my_estimate = payload["moves"]["my_available_moves"][0]["damage_estimate"]
     opponent_estimate = payload["opponent_moves"]["known_moves"][0]["damage_estimate"]
-    assert my_estimate["item_effects"]["attacker_item"]["status"] == "applied"
-    assert opponent_estimate["item_effects"]["attacker_item"]["status"] == "applied"
-    assert "recoil" in opponent_estimate["item_effects"]["attacker_item"]["unapplied_effects"]
+    assert my_estimate["item_effects"]["attacker_item"]["status"] == "not_applied"
+    assert opponent_estimate["item_effects"]["attacker_item"]["status"] == "not_applied"
 
 
 def test_ui_payload_distinguishes_unknown_and_no_item() -> None:
@@ -382,6 +385,9 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Opponent candidate move damage is not calculated in v0.16" not in prompt
     assert "Opponent candidate move damage is not calculated in v0.18" in prompt
     assert "Only item effects marked as applied in damage_estimate.item_effects" in prompt
+    assert "Legal items and modeled item effects are separate concepts" in prompt
+    assert "legal_but_not_modeled selected item may be user-confirmed" in prompt
+    assert "Damage-supported non-legal/debug items are not normal legal selector options" in prompt
     assert "If an attacker item effect is applied" in prompt
     assert "default assumptions plus the supported item modifier" in prompt
     assert "If Life Orb is applied, say recoil is not modeled" in prompt
@@ -468,6 +474,7 @@ def _window(my_panel, opponent_panel):
     window.selected_slots = {"team_my": 0, "team_enemy": 0}
     window.move_repo = MoveRepository(CacheManager(), KoMappingLoader())
     window.champions_move_pool_repo = ChampionsMovePoolRepository()
+    window.champions_item_repo = ChampionsItemRepository()
 
     def _slot_panel(self, column_name: str, slot_index: int):
         del slot_index

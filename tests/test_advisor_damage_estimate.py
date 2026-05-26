@@ -429,6 +429,24 @@ def test_unknown_and_none_items_do_not_modify_damage() -> None:
     assert "ohko_chance" not in no_item_estimate
 
 
+def test_legal_but_not_modeled_items_do_not_modify_damage() -> None:
+    default_estimate = build_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    for item_id in ("choice-scarf", "focus-sash", "leftovers"):
+        payload = _battle_input(selected_move=_flamethrower())
+        payload["item_profiles"] = {
+            "my_active": _legal_but_not_modeled_item_profile(item_id),
+            "opponent_active": _item_profile(None),
+        }
+
+        estimate = build_selected_move_damage_estimate(payload)
+
+        assert estimate["damage_range"] == default_estimate["damage_range"]
+        assert estimate["item_effects"]["attacker_item"]["item_id"] == item_id
+        assert estimate["item_effects"]["attacker_item"]["status"] == "not_applied"
+        assert "ko_chance" not in estimate
+
+
 def test_opponent_known_move_uses_opponent_attacker_item() -> None:
     payload = _battle_input(selected_move=_flamethrower())
     payload["item_profiles"] = _item_profiles(opponent_item="life-orb")
@@ -595,6 +613,22 @@ def _item_profile(item_id: str | None) -> dict:
         "name_ko": None,
         "effects_scope": ["damage_modifier"],
         "damage_modifier_status": "not_applied",
+    }
+
+
+def _legal_but_not_modeled_item_profile(item_id: str) -> dict:
+    return {
+        "status": "user_confirmed",
+        "source": "user_input",
+        "item_id": item_id,
+        "name_en": item_id,
+        "name_ko": None,
+        "effects_scope": [],
+        "legality_status": "legal",
+        "effect_support_status": "legal_but_not_modeled",
+        "damage_modifier_status": "not_applied",
+        "ui_status": "recognized_not_modeled",
+        "notes": [],
     }
 
 

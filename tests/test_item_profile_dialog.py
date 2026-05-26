@@ -2,45 +2,37 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QApplication, QLabel
 
+from core.champions_item_repository import ChampionsItemRepository
 from ui.widgets.item_profile_dialog import (
     default_item_profile_for_role,
     item_button_text,
     item_profile_from_option,
     ItemProfileDialog,
-    SUPPORTED_ITEM_OPTIONS,
+    legal_item_options_from_repository,
 )
 from ui.widgets.pokemon_panel import PokemonPanel
 
 
-def test_item_profile_dialog_exposes_v018_options() -> None:
+def _legal_options() -> list[dict]:
+    return legal_item_options_from_repository(ChampionsItemRepository())
+
+
+def test_item_profile_dialog_accepts_repository_backed_legal_options() -> None:
     app = QApplication.instance() or QApplication([])
     del app
 
-    dialog = ItemProfileDialog(pokemon_name="Garchomp")
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
 
     options = [dialog.item_combo.itemData(index) for index in range(dialog.item_combo.count())]
-    assert options == list(SUPPORTED_ITEM_OPTIONS)
     assert "unknown" in options
     assert "none" in options
-    assert "choice-band" in options
-    assert "choice-specs" in options
-    assert "life-orb" in options
-    assert "muscle-band" in options
-    assert "wise-glasses" in options
-    dialog.close()
-
-
-def _legacy_item_profile_dialog_guidance_encoding_check() -> None:
-    app = QApplication.instance() or QApplication([])
-    del app
-
-    dialog = ItemProfileDialog(pokemon_name="Garchomp")
-
-    label_texts = [label.text() for label in dialog.findChildren(QLabel)]
-    guidance = "\n".join(label_texts)
-    assert "현재는 데미지 보정 아이템 일부만 지원합니다." in guidance
-    assert "구애 고정, 반동, 스피드, 회복, 생존 효과, KO 확률은 미지원입니다." in guidance
-    assert "v0.18 supports only" not in guidance
+    assert "choice-scarf" in options
+    assert "focus-sash" in options
+    assert "leftovers" in options
+    assert "sitrus-berry" in options
+    assert "choice-band" not in options
+    assert "choice-specs" not in options
+    assert "life-orb" not in options
     dialog.close()
 
 
@@ -48,42 +40,61 @@ def test_item_profile_dialog_saves_unknown_and_none() -> None:
     app = QApplication.instance() or QApplication([])
     del app
 
-    dialog = ItemProfileDialog(pokemon_name="Corviknight", role_key="opponent_active")
+    options = _legal_options()
+    dialog = ItemProfileDialog(
+        pokemon_name="Corviknight",
+        role_key="opponent_active",
+        item_options=options,
+    )
     dialog.item_combo.setCurrentIndex(dialog.item_combo.findData("unknown"))
     dialog._save_and_accept()
     assert dialog.item_profile is not None
     assert dialog.item_profile["status"] == "unknown"
 
-    dialog = ItemProfileDialog(pokemon_name="Garchomp")
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=options)
     dialog.item_combo.setCurrentIndex(dialog.item_combo.findData("none"))
     dialog._save_and_accept()
     assert dialog.item_profile is not None
     assert dialog.item_profile["status"] == "none"
+    assert dialog.item_profile["source"] == "user_input"
     assert dialog.item_profile["item_id"] is None
 
 
-def test_item_profile_dialog_saves_supported_damage_item() -> None:
+def test_item_profile_dialog_saves_legal_but_not_modeled_item() -> None:
     app = QApplication.instance() or QApplication([])
     del app
 
-    dialog = ItemProfileDialog(pokemon_name="Garchomp")
-    dialog.item_combo.setCurrentIndex(dialog.item_combo.findData("life-orb"))
+    options = _legal_options()
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=options)
+    dialog.item_combo.setCurrentIndex(dialog.item_combo.findData("choice-scarf"))
     dialog._save_and_accept()
 
     profile = dialog.item_profile
     assert profile is not None
     assert profile["status"] == "user_confirmed"
     assert profile["source"] == "user_input"
-    assert profile["item_id"] == "life-orb"
+    assert profile["item_id"] == "choice-scarf"
+    assert profile["legality_status"] == "legal"
+    assert profile["effect_support_status"] == "legal_but_not_modeled"
+    assert profile["damage_modifier_status"] == "not_applied"
+    assert profile["ui_status"] == "recognized_not_modeled"
+
+
+def test_legacy_damage_test_helper_still_builds_supported_item_profile() -> None:
+    profile = item_profile_from_option("choice-band")
+
+    assert profile["item_id"] == "choice-band"
+    assert profile["status"] == "user_confirmed"
+    assert profile["effect_support_status"] == "damage_supported_but_not_champions_legal"
+    assert profile["ui_status"] == "damage_test_only"
     assert profile["damage_modifier_status"] == "applied"
-    assert "Life Orb recoil is not connected." in profile["notes"]
 
 
 def test_item_profile_defaults_and_button_text() -> None:
     assert default_item_profile_for_role("my_active")["status"] == "system_default_none"
     assert default_item_profile_for_role("opponent_active")["status"] == "unknown"
     assert item_profile_from_option("choice-band")["item_id"] == "choice-band"
-    assert item_button_text(item_profile_from_option("choice-specs")) == "Choice S"
+    assert item_button_text(item_profile_from_option("choice-scarf", item_options=_legal_options())) == "Choice S"
     assert item_button_text(None, role_key="opponent_active") == "Item?"
 
 
@@ -91,17 +102,31 @@ def test_pokemon_panel_resets_item_profile_on_pokemon_change_and_clear() -> None
     app = QApplication.instance() or QApplication([])
     del app
     panel = PokemonPanel(1)
-    panel.set_item_profile(item_profile_from_option("life-orb"), "Life Orb")
+    panel.set_item_profile(item_profile_from_option("choice-scarf", item_options=_legal_options()), "Choice S")
     assert panel.item_profile is not None
 
     panel.set_pokemon(_pokemon_view())
     assert panel.item_profile is None
     assert panel.item_button.text() == "Item"
 
-    panel.set_item_profile(item_profile_from_option("choice-band"), "Choice B")
+    panel.set_item_profile(item_profile_from_option("choice-scarf", item_options=_legal_options()), "Choice S")
     panel.clear_pokemon()
     assert panel.item_profile is None
     assert panel.item_button.text() == "Item"
+
+
+def test_item_profile_dialog_guidance_explains_legal_but_not_modeled_boundary() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    dialog = ItemProfileDialog(pokemon_name="Garchomp", item_options=_legal_options())
+
+    label_texts = [label.text() for label in dialog.findChildren(QLabel)]
+    guidance = "\n".join(label_texts)
+    assert "Regulation M-A legal item fixture" in guidance
+    assert "item_effects" in guidance
+    assert "KO" in guidance
+    dialog.close()
 
 
 def _pokemon_view():
@@ -119,19 +144,3 @@ def _pokemon_view():
         }
 
     return View()
-
-
-def test_item_profile_dialog_guidance_is_korean() -> None:
-    app = QApplication.instance() or QApplication([])
-    del app
-
-    dialog = ItemProfileDialog(pokemon_name="Garchomp")
-
-    label_texts = [label.text() for label in dialog.findChildren(QLabel)]
-    guidance = "\n".join(label_texts)
-    assert "전체 포챔스 합법 아이템 목록이 아니라" in guidance
-    assert "데미지 계산에 연결된 일부 아이템" in guidance
-    assert "Reg M-A 합법 여부가 확인되지 않았거나" in guidance
-    assert "구애 고정, 반동, 스피드, 회복, 생존 효과, KO 확률은 미지원" in guidance
-    assert "v0.18 supports only" not in guidance
-    dialog.close()
