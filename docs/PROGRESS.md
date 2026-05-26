@@ -1515,3 +1515,52 @@ Tests:
 - Result: 69 passed.
 - `uv run pytest -q`
 - Result: 719 passed, 2 deselected.
+
+---
+
+## v0.23.1 - Legal item selector local verification and UX findings
+
+Purpose:
+- Record T1 local app verification of the v0.23 legal item selector integration.
+- Capture UX findings for the next item selector milestones.
+
+Verified locally:
+- `ItemProfileDialog` opens normally.
+- The selector shows repository-backed legal item options.
+- `No item` is selectable.
+- Legal fixture items such as `Abomasite`, `Absolite`, and `Aerodactylite` are visible.
+- `Choice Band`, `Choice Specs`, and `Life Orb` are hidden from the normal legal selector.
+- This direction is correct because those items remain damage-supported/debug items, not normal Champions legal item options.
+- The guidance text explains that the list is based on the Regulation M-A legal item fixture.
+- The guidance text also explains that some legal item effects may not be modeled.
+- The guidance continues to state that choice lock, recoil, speed, recovery, survival effects, and KO odds are not calculated yet.
+
+UX findings:
+- 117 legal items in one combo box is difficult to scan; item search is needed.
+- Korean item name mapping is needed.
+- Korean + English display is preferred for readability, for example:
+  - `기합의띠 (Focus Sash)`
+  - `먹다남은음식 (Leftovers)`
+  - `구애스카프 (Choice Scarf)`
+- Repeated labels such as `(legal, effect not modeled)` are accurate but long.
+- Future label polish could use shorter wording such as `[효과 미계산]` or `[not modeled]`.
+- Alphabetical sorting makes many Mega Stones appear first, so category grouping or category sorting may be needed.
+- Candidate categories:
+  - regular held items
+  - type-boosting items
+  - berries
+  - Mega Stones
+
+Next candidates:
+- `v0.24 Item Selector Search`
+- `v0.25 Korean Item Name Mapping`
+
+Maintained boundaries:
+- Documentation-only record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No item search implementation.
+- No Korean item mapping implementation.
+- No scraping or build script.
+- No `advisor/damage/` or `advisor/probability` engine changes.
