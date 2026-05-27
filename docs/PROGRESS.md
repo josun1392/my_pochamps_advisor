@@ -2485,3 +2485,81 @@ Maintained boundaries:
 Verification:
 - `uv run pytest tests/test_pokemon_stat_sample_repository.py -q`: 20 passed.
 - `uv run pytest -q`: 761 passed, 2 deselected.
+
+---
+
+## v0.36 - Opponent multi-sample assumption design
+
+Purpose:
+- Shift opponent sample modeling from selecting one exact sample to representing multiple possible opponent profiles with uncertainty.
+
+Designed:
+- Added `docs/spike_v0.36_opponent_multi_sample_assumption_design.md`.
+- Documented the principle: `possible sample != confirmed opponent set`.
+- Defined information states:
+  - `not_confirmed`
+  - `partially_confirmed`
+  - `user_confirmed`
+- Proposed future `opponent_assumptions` payload shape with:
+  - `known_status`
+  - `user_confirmed_fields`
+  - `possible_samples`
+  - `samples_meta`
+  - `observation_history`
+  - static `update_policy`
+- Defined required `possible_samples` fields:
+  - `sample_id`
+  - `species_id`
+  - `label_en`
+  - `label_ko`
+  - `source`
+  - `source_type`
+  - `confidence`
+  - `prior_probability`
+  - `evidence_basis`
+  - `is_user_confirmed`
+  - `possible_item`
+  - `possible_stats`
+  - `notes`
+  - `limitations`
+- Designed prior/evidence policy:
+  - `prior_probability` is an estimated model prior, not a confirmed probability.
+  - `evidence_basis` explains the source of the prior.
+  - manual priors must remain clearly labeled as estimates.
+- Designed Top-K and coverage metadata:
+  - `total_known_archetypes`
+  - `included_top_k`
+  - `coverage_probability`
+  - `omitted_archetypes_note`
+- Added a future update hook for observation-based updates while keeping v0.36 static.
+- Defined user override policy:
+  - `user_confirmed_fields` outrank sample priors.
+  - conflicting samples should be filtered or marked as conflicts.
+  - fully user-confirmed state can disable multi-sample reasoning.
+- Defined future calculation modes only:
+  - `worst_case`
+  - `most_likely`
+  - `expected_value`
+  - `range`
+- Added LLM guardrails and BAD/GOOD wording examples for possible sample language.
+- Recommended small UI touch points later, such as viewing possible sample distribution from the existing Stats dialog, without forcing a single sample selection.
+- Proposed repository/data direction:
+  - keep `PokemonStatSampleRepository` as read-only data loader
+  - add a future `opponent_assumption_builder` for Top-K, filtering, and payload construction
+- Recommended `v0.37 - Opponent Possible Sample Payload Design` before implementation.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No data fixture changes.
+- No repository implementation.
+- No UI changes.
+- No automatic sample selection.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No Bayesian update implementation.
+- No calculation mode implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No damage/probability engine changes.
