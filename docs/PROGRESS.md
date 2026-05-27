@@ -2061,3 +2061,42 @@ Tests:
 - Added raw-slower/effective-faster relation coverage.
 - Updated prompt/contract guardrail tests.
 - Full pytest result: `736 passed, 2 deselected`.
+
+---
+
+## v0.30.1 - Choice Scarf Effective Speed Local Gemini Verification
+
+Purpose:
+- Record T1 local Gemini verification for v0.30 Choice Scarf effective Speed behavior.
+
+Local verification:
+- Gemini actual call succeeded in the local valid-key app environment.
+- With both active Pokemon final stats entered, Gemini distinguished raw Speed from effective Speed.
+- Observed wording:
+  - "Garchomp appears faster than Charizard based on raw Speed (154 vs 152) and significantly faster with its Choice Scarf (effective Speed 231 vs 152), though this is not a final turn order."
+- Confirmed Choice Scarf's supported `1.5x` Speed modifier appeared in the effective Speed explanation.
+- Confirmed Gemini did not claim final turn order or say the user would definitely move first.
+- Confirmed choice lock was described as not modeled.
+- Priority, Tailwind, Trick Room, paralysis, Speed stages, and Turn Engine behavior remain unmodeled.
+
+Additional observation:
+- When only Garchomp final stats were entered and Charizard final stats were not user-confirmed, Gemini still avoided final turn order claims and described choice lock as not modeled.
+- Minor wording polish candidate:
+  - The phrase "Choice Scarf speed boost is not modeled" can be misleading when the real blocker is missing confirmed final Speed on one side.
+  - Prefer future wording such as "effective Speed comparison requires both Pokemon's user-confirmed final Speed."
+
+Result:
+- v0.30 local Gemini verification passed.
+
+Next candidates:
+- `v0.30.2 Speed Context Wording Polish`
+- `v0.31 Opponent Stat Sample Assumption Design`
+
+Maintained boundaries:
+- Documentation-only record.
+- No code changes.
+- No UI changes.
+- No `speed_context` schema changes.
+- No prompt changes.
+- No tests changed.
+- No Choice lock, priority, Tailwind, Trick Room, paralysis, Speed stages, Turn Engine, KO/OHKO/2HKO, or damage/probability engine implementation.
