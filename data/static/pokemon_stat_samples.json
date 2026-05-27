@@ -1,0 +1,114 @@
+{
+  "schema_version": "0.1",
+  "format": "pokemon_champions",
+  "samples": {
+    "charizard": [
+      {
+        "sample_id": "charizard_special_attacker_01",
+        "species_id": "charizard",
+        "label_en": "Special attacker sample",
+        "label_ko": "특수 공격형 샘플",
+        "source": "manual_sample",
+        "confidence": "estimated",
+        "status": "sample_assumed",
+        "is_user_confirmed": false,
+        "stats": {
+          "hp": 153,
+          "atk": 104,
+          "def": 98,
+          "spa": 193,
+          "spd": 105,
+          "spe": 167
+        },
+        "assumptions": {
+          "sp_distribution": {
+            "hp": 0,
+            "atk": 0,
+            "def": 0,
+            "spa": 32,
+            "spd": 2,
+            "spe": 32
+          },
+          "nature": null,
+          "item": null
+        },
+        "limitations": [
+          "Estimated sample, not user-confirmed.",
+          "Do not treat as exact opponent stats."
+        ]
+      }
+    ],
+    "corviknight": [
+      {
+        "sample_id": "corviknight_bulky_01",
+        "species_id": "corviknight",
+        "label_en": "Bulky sample",
+        "label_ko": "내구형 샘플",
+        "source": "manual_sample",
+        "confidence": "estimated",
+        "status": "sample_assumed",
+        "is_user_confirmed": false,
+        "stats": {
+          "hp": 205,
+          "atk": 107,
+          "def": 157,
+          "spa": 73,
+          "spd": 107,
+          "spe": 87
+        },
+        "assumptions": {
+          "sp_distribution": {
+            "hp": 32,
+            "atk": 0,
+            "def": 32,
+            "spa": 0,
+            "spd": 2,
+            "spe": 0
+          },
+          "nature": null,
+          "item": null
+        },
+        "limitations": [
+          "Estimated sample, not user-confirmed.",
+          "Do not treat as exact opponent stats."
+        ]
+      }
+    ],
+    "garchomp": [
+      {
+        "sample_id": "garchomp_fast_physical_01",
+        "species_id": "garchomp",
+        "label_en": "Fast physical sample",
+        "label_ko": "고속 물리형 샘플",
+        "source": "manual_sample",
+        "confidence": "estimated",
+        "status": "sample_assumed",
+        "is_user_confirmed": false,
+        "stats": {
+          "hp": 183,
+          "atk": 150,
+          "def": 115,
+          "spa": 90,
+          "spd": 105,
+          "spe": 154
+        },
+        "assumptions": {
+          "sp_distribution": {
+            "hp": 0,
+            "atk": 32,
+            "def": 0,
+            "spa": 0,
+            "spd": 2,
+            "spe": 32
+          },
+          "nature": null,
+          "item": null
+        },
+        "limitations": [
+          "Estimated sample, not user-confirmed.",
+          "Do not treat as exact opponent stats."
+        ]
+      }
+    ]
+  }
+}

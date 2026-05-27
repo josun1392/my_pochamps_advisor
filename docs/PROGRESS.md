@@ -2376,3 +2376,51 @@ Maintained boundaries:
 - No sample stats applied to damage or speed.
 - No automatic opponent sample selection.
 - No KO/OHKO/2HKO, Turn Engine, item effect, or damage/probability engine changes.
+
+---
+
+## v0.35 - Opponent stat sample repository and fixture
+
+Purpose:
+- Add a minimal read-only opponent stat sample foundation without connecting sample stats to UI, damage estimates, or speed context.
+
+Implemented:
+- Added `data/static/pokemon_stat_samples.json` sentinel fixture.
+- Added one estimated/manual `sample_assumed` sample for each sentinel species:
+  - `garchomp_fast_physical_01`
+  - `charizard_special_attacker_01`
+  - `corviknight_bulky_01`
+- Added `core/pokemon_stat_sample_repository.py`.
+- Added schema validation for:
+  - top-level schema/version fields
+  - normalized species ids
+  - globally unique sample ids
+  - `status: sample_assumed`
+  - `is_user_confirmed: false`
+  - `confidence: estimated`
+  - complete `hp/atk/def/spa/spd/spe` stats
+  - complete SP distribution keys
+  - limitations that state samples are not user-confirmed
+- Added lookup helpers:
+  - `load_samples()`
+  - `validate_sample_schema()`
+  - `normalize_species_id()`
+  - `PokemonStatSampleRepository.list_species()`
+  - `PokemonStatSampleRepository.list_samples_for_species()`
+  - `PokemonStatSampleRepository.get_sample()`
+- Added `tests/test_pokemon_stat_sample_repository.py`.
+
+Maintained boundaries:
+- No UI selector.
+- No automatic sample application.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No sample treated as `user_confirmed_final_stats`.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No damage/probability engine changes.
+
+Verification:
+- `uv run pytest tests/test_pokemon_stat_sample_repository.py -q`: 15 passed.
+- `uv run pytest -q`: 756 passed, 2 deselected.
