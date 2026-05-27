@@ -2160,3 +2160,75 @@ Next decisions:
 - Whether v0.32 should be Type Boosting Item Damage Modifier Design or a small implementation.
 - Whether item effect coverage should live in a separate `item_effect_coverage.json` or be derived by repository helpers.
 - Whether Focus Sash/Leftovers-style Turn Engine items should remain design-only until after direct damage item coverage.
+
+---
+
+## v0.32 - Type Boosting Item Damage Modifier Design
+
+Purpose:
+- Design how legal type boosting items should connect to `damage_estimate` without expanding into broader item, turn, or probability systems.
+- Prepare a safe v0.33 implementation path.
+
+Designed:
+- Added `docs/spike_v0.32_type_boosting_item_damage_modifier_design.md`.
+- Confirmed the legal fixture has 18 `type_boosting_item` entries.
+- Confirmed 17 are currently marked `legal_and_damage_supported` and exist in `data/static/items_damage.json`.
+- Identified `fairy-feather` as legal but not currently present in the local damage item catalog.
+- Recommended v0.33 initially support only the 17 catalog-backed legal type boosting items.
+
+Candidate item list:
+- `black-belt`
+- `black-glasses`
+- `charcoal`
+- `dragon-fang`
+- `hard-stone`
+- `magnet`
+- `metal-coat`
+- `miracle-seed`
+- `mystic-water`
+- `never-melt-ice`
+- `poison-barb`
+- `sharp-beak`
+- `silk-scarf`
+- `silver-powder`
+- `soft-sand`
+- `spell-tag`
+- `twisted-spoon`
+
+Deferred:
+- `fairy-feather` until catalog support is added and tested.
+
+Rules proposed:
+- Apply only attacker-side.
+- Apply only when the item is user-confirmed, legal, `legal_and_damage_supported`, present in the local damage item catalog, and the move type matches the item's boosted type.
+- Do not apply to status moves.
+- Keep defender-side item effects out of scope.
+- Keep non-legal damage-supported/debug items out of the normal legal path.
+
+Payload direction:
+- Extend `damage_estimate.item_effects.attacker_item` with additive fields such as:
+  - `effect_type`
+  - `boosted_type`
+  - `modifier`
+  - `reason`
+- Continue to use `status == applied` as the only signal that the item changed damage.
+- Use `not_applicable` when the selected item is supported but move type does not match.
+
+v0.33 candidate:
+- `Type Boosting Item Damage Modifier Implementation`
+- Reuse `DamageContext.attacker_item`.
+- Reuse `advisor.damage.items.get_item`.
+- Add tests for my moves, selected move, opponent known move, not-applicable mismatch, and hidden non-legal item separation.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No damage modifier implementation.
+- No fixture changes.
+- No UI changes.
+- No Expert Belt, Assault Vest, Focus Sash, Leftovers/Sitrus, Choice Band/Specs/Life Orb normal legal path, KO/OHKO/2HKO, Turn Engine, or damage/probability engine redesign.
+
+Next decisions:
+- Whether v0.33 should proceed as the small implementation.
+- Whether to approve the proposed `item_effects.attacker_item` additive schema.
+- Whether to keep `fairy-feather` deferred until local catalog support exists.
