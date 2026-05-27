@@ -1794,3 +1794,48 @@ Tests:
 - Result: 63 passed.
 - `uv run pytest -q`
 - Result: 730 passed, 2 deselected.
+
+---
+
+## v0.27 - Speed / Turn Order Design
+
+Purpose:
+- Design how future speed and turn-order information should enter the advisor payload without overclaiming final action order.
+- Separate raw Speed comparison from effective Speed, move priority, and full action order.
+
+Designed:
+- Added `docs/spike_v0.27_speed_turn_order_design.md`.
+- Defined concept boundaries:
+  - `raw_speed`: final Spe value from user-confirmed final stats or explicit default assumptions.
+  - `effective_speed`: future Speed after item/status/field/stage modifiers.
+  - `move_priority`: future move priority metadata, not currently exposed by `MoveView`.
+  - `action_order`: future Turn Engine-level result, not available yet.
+- Proposed top-level `speed_context` payload candidate for a future v0.28.
+- Recommended v0.28 candidate:
+  - `Raw Speed Comparison Payload`
+  - use `stat_profiles.*.final_stats.spe`
+  - emit raw relation and margin
+  - keep `is_final_turn_order: false`
+  - no UI change
+
+Guardrail direction:
+- LLM must not treat raw Speed comparison as final turn order.
+- If `speed_context.is_final_turn_order` is false, the advisor should avoid claims such as "will move first".
+- Choice Scarf may be selected as a legal item, but its speed effect remains not modeled.
+- Trick Room, Tailwind, paralysis, Speed stages, priority, ability speed effects, and Turn Engine state remain unmodeled.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No UI implementation.
+- No Speed calculation implementation.
+- No Choice Scarf speed, priority, Tailwind, Trick Room, paralysis, Speed stage, ability speed effect, or Turn Engine implementation.
+- No KO/OHKO/2HKO implementation.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+- No item effect additions.
+
+Next decisions:
+- Whether v0.28 should proceed as `Raw Speed Comparison Payload`.
+- Whether raw Speed comparison should require user-confirmed final stats on both sides or allow clearly labeled default fallback.
+- Whether to approve `speed_context` as a top-level payload section.
+- Whether v0.28 should remain payload/LLM-only with no UI changes.
