@@ -2563,3 +2563,87 @@ Maintained boundaries:
 - No Turn Engine.
 - No item effect changes.
 - No damage/probability engine changes.
+
+---
+
+## v0.37 - Opponent possible sample payload design
+
+Purpose:
+- Design the future `opponent_assumptions` payload section for possible opponent samples while keeping samples context-only and non-confirmed.
+
+Designed:
+- Added `docs/spike_v0.37_opponent_possible_sample_payload_design.md`.
+- Compared top-level section options:
+  - `opponent_assumptions`
+  - `possible_opponent_profiles`
+  - `battle_assumptions.opponent_samples`
+- Recommended top-level `opponent_assumptions` because possible samples are incomplete-information context, not deterministic calculation state.
+- Proposed v0.37 candidate schema with:
+  - `mode: multi_sample_assumption_v0.37_candidate`
+  - `available`
+  - `scope: opponent_active`
+  - `is_confirmed_information: false`
+  - `calculation_usage: context_only`
+  - `opponent_active.known_status`
+  - `user_confirmed_fields`
+  - `possible_samples`
+  - `samples_meta`
+  - `observation_history`
+  - static `update_policy`
+  - top-level limitations
+- Defined availability behavior:
+  - species with samples -> `available: true`
+  - no species samples -> `available: false`, `reason: no_samples_for_species`
+  - missing opponent -> `reason: opponent_active_missing`
+  - repository failure -> `reason: repository_unavailable`
+- Defined calculation usage policy:
+  - v0.37 candidate uses `calculation_usage: context_only`
+  - no direct damage, Speed, KO, survival, or final turn order usage
+- Designed prior policy:
+  - sentinel samples may use `prior_probability: null`
+  - `prior_probability_type` candidates are `usage_derived`, `manual_estimate`, `heuristic`, and `not_available`
+  - null prior is not zero probability
+  - numeric priors may be unnormalized because the payload may be Top-K
+- Designed Top-K and coverage policy:
+  - default `top_k` candidate is `3`
+  - `included_top_k` records actual included samples
+  - `total_known_archetypes` records repository/builder candidates
+  - `coverage_probability` may be null
+  - `omitted_archetypes_note` is required
+- Designed user-confirmed override policy:
+  - `user_confirmed_fields` outrank sample assumptions
+  - conflicting samples should be removed or marked as `conflicts_with_confirmed_fields`
+- Added LLM BAD/GOOD examples and contract guardrails:
+  - possible samples are not confirmed sets
+  - sample stats are not user-confirmed stats
+  - null prior is not zero probability
+  - omitted Top-K archetypes are not impossible
+  - context-only samples must not be described as damage/speed calculation inputs
+- Designed prompt integration direction:
+  - summarize only top risks
+  - avoid long sample dumps
+  - mention context-only limits when relevant
+  - do not invent samples when unavailable
+- Proposed future builder/helper names:
+  - `build_opponent_assumptions_payload()`
+  - `select_possible_samples()`
+  - `attach_samples_meta()`
+  - `apply_user_confirmed_field_filter()`
+  - `normalize_prior_probabilities()` or `leave_prior_unnormalized()`
+  - `validate_opponent_assumptions_payload()`
+- Recommended `v0.38 - Opponent Possible Sample Payload Implementation`.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No data fixture changes.
+- No repository changes.
+- No UI changes.
+- No automatic sample selection.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
