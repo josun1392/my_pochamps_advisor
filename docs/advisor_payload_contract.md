@@ -291,7 +291,7 @@ Excluded from v0.30 item application:
 
 Legal item modeling examples:
 
-- Choice Scarf: selectable; its supported speed modifier may be applied in `speed_context` when user-confirmed, but speed order and choice lock are not modeled.
+- Choice Scarf: selectable; its supported speed modifier may be applied in `speed_context` when user-confirmed, but speed order and Choice Scarf choice lock are not modeled.
 - Focus Sash: selectable, but survival is not modeled.
 - Leftovers / Sitrus Berry: selectable, but recovery and turn sequencing are not modeled.
 
@@ -299,9 +299,11 @@ Legal item modeling examples:
 
 When `damage_estimate.item_effects.attacker_item.status` is `applied`, the LLM should explicitly mention that the supported item damage modifier is included in that estimate. It should describe the number as being calculated under the stated assumptions plus the supported item modifier, not as only default assumptions. Non-damage item effects remain unmodeled.
 
-If Life Orb is applied, the LLM should say the damage modifier is applied and Life Orb recoil is not modeled. If Choice Band or Choice Specs is applied, the LLM should say the relevant damage modifier is applied and choice lock is not modeled.
+If Life Orb is applied, the LLM should say the damage modifier is applied and Life Orb recoil is not modeled. If Choice Scarf, Choice Band, or Choice Specs is applied, the LLM should say the relevant supported effect is applied and choice lock is not modeled.
 
 For type boosting items, the LLM should say the damage modifier is included only when `damage_estimate.item_effects.attacker_item.status` is `applied`. It must not say the item boosted damage when the move type does not match, when the item is unsupported, or merely because the item is legal. Fairy Feather should be described as legal but not damage-modeled until a catalog-backed modifier exists.
+
+For non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, or Focus Sash, the LLM must not say choice lock is not modeled. Choice lock is relevant only to Choice Scarf, Choice Band, and Choice Specs.
 
 ## Opponent Assumption Semantics
 
@@ -321,6 +323,9 @@ The LLM may say:
 - "These are assumptions, not confirmed opponent stats."
 - "The sample is context only and was not used directly for damage or speed calculation."
 - "Prior probability is not available for this sentinel sample."
+- "Garchomp has possible sample assumptions, but they are context only and not confirmed."
+- "A possible fast physical Garchomp sample exists, but it was not used directly for damage or speed calculation."
+- "The opponent's exact set is still unknown."
 
 The LLM must not say:
 
@@ -331,6 +336,8 @@ The LLM must not say:
 - "This sample confirms turn order, KO, or survival."
 
 User-confirmed fields override possible sample assumptions. If a future payload marks conflicts between `user_confirmed_fields` and possible samples, conflicting samples must not drive advice.
+
+When `opponent_assumptions.available` is `true` and `possible_samples` is non-empty, the LLM may briefly mention the existence of possible sample context when relevant. It should not dump all sample metadata by default.
 
 ## Speed Context Semantics
 
@@ -346,7 +353,7 @@ Effective Speed in v0.30 may include only:
 
 Choice Scarf uses a `1.5` speed modifier in `speed_context.*.speed_modifiers`.
 
-Choice lock is not modeled.
+Choice Scarf choice lock is not modeled.
 
 It does not model:
 
@@ -452,7 +459,8 @@ The LLM must not:
 - omit an applied attacker item modifier when explaining why one move did more damage
 - describe an item-applied estimate as only default assumptions when `item_effects.attacker_item.status` is `applied`
 - print raw `type_effectiveness` labels such as `super_effective` or `not_very_effective`
-- claim Choice lock, Life Orb recoil, Focus Sash survival, or Leftovers recovery is modeled
+- claim choice lock, Life Orb recoil, Focus Sash survival, or Leftovers recovery is modeled
+- mention choice lock for non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, or Focus Sash
 - describe a move as super effective, resisted, or immune unless `damage_estimate.type_effectiveness` supports that label
 - consider Terastallization, which is banned in PoChamps
 
@@ -471,7 +479,7 @@ The LLM may:
 - distinguish raw Speed relation from effective Speed relation when they differ
 - say a supported item damage modifier is applied only when `damage_estimate.item_effects` says `status: "applied"`
 - mention applied attacker item damage modifiers when they are part of the damage estimate
-- say Life Orb recoil or Choice lock is not modeled when those effects appear in `unapplied_effects`
+- say Life Orb recoil or Choice item lock is not modeled when those effects appear in `unapplied_effects`
 - convert `type_effectiveness` labels into natural wording such as "super effective", "not very effective", "immune", or "neutral"
 - discuss user-confirmed final stats as user-provided stat values when `stat_profiles` says so
 - discuss `opponent_moves.known_moves` as user-confirmed opponent moves

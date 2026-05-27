@@ -72,6 +72,10 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
         "opponent_assumptions.calculation_usage context_only means samples are not used directly for damage or speed calculations."
         in payload["scenario"]["known_limitations"]
     )
+    assert (
+        "When opponent_assumptions.available is true and possible_samples exist, briefly mention that possible sample context exists when relevant."
+        in payload["scenario"]["known_limitations"]
+    )
     assert "Use my_available_moves damage_estimates to compare the user's own move options." in payload["scenario"][
         "known_limitations"
     ]
@@ -687,7 +691,7 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "If effective_speed is present" in prompt
     assert "supported speed modifier estimate" in prompt
     assert "Choice Scarf speed may be included only when speed_context marks it applied" in prompt
-    assert "choice lock is still not modeled" in prompt
+    assert "for Choice Scarf, choice lock is still not modeled" in prompt
     assert "raw Speed and effective Speed disagree" in prompt
     assert "priority, Tailwind, Trick Room, paralysis, Speed stages" in prompt
     assert "Legal items and modeled item effects are separate concepts" in prompt
@@ -700,8 +704,11 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "If an attacker item effect is applied" in prompt
     assert "default assumptions plus the supported item modifier" in prompt
     assert "If Life Orb is applied, say recoil is not modeled" in prompt
-    assert "If Choice Band or Choice Specs is applied, say choice lock is not modeled" in prompt
-    assert "Choice lock, Life Orb recoil, Focus Sash survival, and Leftovers recovery" in prompt
+    assert "If Choice Scarf, Choice Band, or Choice Specs is applied, say choice lock is not modeled" in prompt
+    assert "Do not mention choice lock for non-Choice items such as Charcoal" in prompt
+    assert "Life Orb recoil, Focus Sash survival, and Leftovers recovery" in prompt
+    assert "Choice lock for Charcoal" not in prompt
+    assert "Charcoal choice lock" not in prompt
     assert "use damage_estimate.type_effectiveness" in prompt
     assert "super effective, resisted, or immune" in prompt
     assert "Do not print raw type_effectiveness labels" in prompt
@@ -719,6 +726,8 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "do not say those samples changed damage_estimate or speed_context" in prompt
     assert "Do not interpret null prior_probability as zero probability" in prompt
     assert "Do not infer final turn order, KO, survival, or exact stats from possible samples" in prompt
+    assert "briefly mention when relevant that possible sample context exists" in prompt
+    assert "possible opponent samples exist, but they are context only and not confirmed" in prompt
 
 
 def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
@@ -744,7 +753,11 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert "If Life Orb is applied, say Life Orb recoil is not modeled." in ADVISOR_KNOWN_LIMITATIONS
-    assert "If Choice Band or Choice Specs is applied, say choice lock is not modeled." in ADVISOR_KNOWN_LIMITATIONS
+    assert "If Choice Scarf, Choice Band, or Choice Specs is applied, say choice lock is not modeled." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Do not mention choice lock for non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, or Focus Sash."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
     assert (
         "Do not print raw type_effectiveness labels like super_effective or not_very_effective; convert them to natural wording."
         in ADVISOR_KNOWN_LIMITATIONS
@@ -767,7 +780,7 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "Choice lock remains not modeled even when Choice Scarf speed is applied."
+        "Choice lock remains not modeled when a user-confirmed Choice item is applied."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
@@ -776,6 +789,10 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "opponent_assumptions.calculation_usage context_only means samples are not used directly for damage or speed calculations."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When opponent_assumptions.available is true and possible_samples exist, briefly mention that possible sample context exists when relevant."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert "Do not describe sample_assumed opponent samples as user-confirmed information." in ADVISOR_KNOWN_LIMITATIONS

@@ -2727,3 +2727,45 @@ Maintained boundaries:
 Verification:
 - `uv run pytest tests/test_opponent_assumptions.py tests/test_advisor_payload_contract.py -q`: 32 passed.
 - `uv run pytest -q`: 769 passed, 2 deselected.
+
+---
+
+## v0.38.2 - Opponent assumptions and choice lock wording polish
+
+Purpose:
+- Polish Gemini prompt and payload contract wording after local validation showed opponent sample context was too quiet and choice lock could be mentioned for non-Choice items.
+
+Implemented:
+- Updated advisor prompt guardrails so available `opponent_assumptions` with `possible_samples` may be mentioned briefly when relevant.
+- Kept opponent samples as context-only, non-confirmed assumptions.
+- Kept guardrails that sample stats are not used directly for damage or Speed calculations.
+- Added example wording direction:
+  - possible opponent samples exist, but they are context only and not confirmed.
+- Tightened choice lock wording:
+  - Choice lock may be mentioned only for Choice Scarf, Choice Band, or Choice Specs.
+  - Non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, and Focus Sash must not get choice-lock wording.
+- Preserved type boosting item wording:
+  - Charcoal-like items may mention their supported damage modifier when applied.
+  - Type mismatch still should say the item does not boost that move.
+- Updated `docs/advisor_payload_contract.md`.
+- Updated `tests/test_advisor_payload_contract.py`.
+
+Maintained boundaries:
+- No UI changes.
+- No fixture expansion.
+- No external scraping or build script.
+- No automatic sample application.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No sample treated as `user_confirmed_final_stats`.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No damage/probability engine changes.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py tests/test_opponent_assumptions.py -q`: 32 passed.
+- `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: 1 passed.
+- `uv run pytest -q`: 769 passed, 2 deselected.
