@@ -9,6 +9,14 @@ from typing import Any
 DEFAULT_POKEMON_STAT_SAMPLES_PATH = Path("data/static/pokemon_stat_samples.json")
 REQUIRED_STAT_KEYS = ("hp", "atk", "def", "spa", "spd", "spe")
 SAMPLE_ASSUMED = "sample_assumed"
+ALLOWED_SOURCE_TYPES = {
+    "manual_estimate",
+    "usage_based_estimate",
+    "team_article_manual_extract",
+    "calculator_derived",
+    "official_or_replica_team",
+    "unknown",
+}
 
 
 def load_samples(path: Path | None = None) -> dict[str, Any]:
@@ -124,7 +132,17 @@ def _validate_sample(
         "label_en",
         "label_ko",
         "source",
+        "source_type",
+        "source_name",
+        "source_url",
+        "source_note",
+        "regulation",
+        "season",
+        "is_official",
         "confidence",
+        "confidence_reason",
+        "created_by",
+        "last_reviewed",
         "status",
         "is_user_confirmed",
         "stats",
@@ -148,8 +166,19 @@ def _validate_sample(
         raise ValueError(f"Pokemon stat sample {sample_id} must have status sample_assumed.")
     if sample["is_user_confirmed"] is not False:
         raise ValueError(f"Pokemon stat sample {sample_id} must not be user-confirmed.")
+    source_type = _required_string(sample, "source_type")
+    if source_type not in ALLOWED_SOURCE_TYPES:
+        raise ValueError(f"Pokemon stat sample {sample_id} has unsupported source_type: {source_type}")
+    _required_string(sample, "source_name")
+    source_url = sample.get("source_url")
+    if source_url is not None and not isinstance(source_url, str):
+        raise ValueError(f"Pokemon stat sample {sample_id} source_url must be a string or null.")
+    _required_string(sample, "regulation")
+    if not isinstance(sample["is_official"], bool):
+        raise ValueError(f"Pokemon stat sample {sample_id} is_official must be a boolean.")
     if sample["confidence"] != "estimated":
         raise ValueError(f"Pokemon stat sample {sample_id} confidence must be estimated.")
+    _required_string(sample, "confidence_reason")
     _validate_required_int_stats(sample["stats"], sample_id=sample_id, field_name="stats")
 
     assumptions = sample["assumptions"]
@@ -163,7 +192,7 @@ def _validate_sample(
     )
 
     limitations = sample["limitations"]
-    if not isinstance(limitations, list) or not all(isinstance(item, str) for item in limitations):
+    if not isinstance(limitations, list) or not limitations or not all(isinstance(item, str) for item in limitations):
         raise ValueError(f"Pokemon stat sample {sample_id} limitations must be a string list.")
     if not any("not user-confirmed" in limitation.lower() for limitation in limitations):
         raise ValueError(f"Pokemon stat sample {sample_id} must state that it is not user-confirmed.")

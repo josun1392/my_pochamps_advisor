@@ -9,7 +9,17 @@
         "label_en": "Special attacker sample",
         "label_ko": "특수 공격형 샘플",
         "source": "manual_sample",
+        "source_type": "manual_estimate",
+        "source_name": "T1 curated sentinel sample",
+        "source_url": null,
+        "source_note": "Sentinel sample for repository/schema validation, not a verified metagame spread.",
+        "regulation": "M-A",
+        "season": null,
+        "is_official": false,
         "confidence": "estimated",
+        "confidence_reason": "Manually estimated sentinel sample; not derived from confirmed opponent stats.",
+        "created_by": "project",
+        "last_reviewed": "2026-05-27",
         "status": "sample_assumed",
         "is_user_confirmed": false,
         "stats": {
@@ -34,7 +44,8 @@
         },
         "limitations": [
           "Estimated sample, not user-confirmed.",
-          "Do not treat as exact opponent stats."
+          "Do not treat as exact opponent stats.",
+          "Do not use as final battle truth."
         ]
       }
     ],
@@ -45,7 +56,17 @@
         "label_en": "Bulky sample",
         "label_ko": "내구형 샘플",
         "source": "manual_sample",
+        "source_type": "manual_estimate",
+        "source_name": "T1 curated sentinel sample",
+        "source_url": null,
+        "source_note": "Sentinel sample for repository/schema validation, not a verified metagame spread.",
+        "regulation": "M-A",
+        "season": null,
+        "is_official": false,
         "confidence": "estimated",
+        "confidence_reason": "Manually estimated sentinel sample; not derived from confirmed opponent stats.",
+        "created_by": "project",
+        "last_reviewed": "2026-05-27",
         "status": "sample_assumed",
         "is_user_confirmed": false,
         "stats": {
@@ -70,7 +91,8 @@
         },
         "limitations": [
           "Estimated sample, not user-confirmed.",
-          "Do not treat as exact opponent stats."
+          "Do not treat as exact opponent stats.",
+          "Do not use as final battle truth."
         ]
       }
     ],
@@ -81,7 +103,17 @@
         "label_en": "Fast physical sample",
         "label_ko": "고속 물리형 샘플",
         "source": "manual_sample",
+        "source_type": "manual_estimate",
+        "source_name": "T1 curated sentinel sample",
+        "source_url": null,
+        "source_note": "Sentinel sample for repository/schema validation, not a verified metagame spread.",
+        "regulation": "M-A",
+        "season": null,
+        "is_official": false,
         "confidence": "estimated",
+        "confidence_reason": "Manually estimated sentinel sample; not derived from confirmed opponent stats.",
+        "created_by": "project",
+        "last_reviewed": "2026-05-27",
         "status": "sample_assumed",
         "is_user_confirmed": false,
         "stats": {
@@ -106,7 +138,8 @@
         },
         "limitations": [
           "Estimated sample, not user-confirmed.",
-          "Do not treat as exact opponent stats."
+          "Do not treat as exact opponent stats.",
+          "Do not use as final battle truth."
         ]
       }
     ]

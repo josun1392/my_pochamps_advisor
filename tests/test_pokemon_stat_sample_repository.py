@@ -5,6 +5,7 @@ import json
 import pytest
 
 from core.pokemon_stat_sample_repository import (
+    ALLOWED_SOURCE_TYPES,
     REQUIRED_STAT_KEYS,
     SAMPLE_ASSUMED,
     PokemonStatSampleRepository,
@@ -83,6 +84,47 @@ def test_samples_are_sample_assumed_and_not_user_confirmed() -> None:
             assert sample["confidence"] == "estimated"
 
 
+def test_samples_have_required_source_metadata() -> None:
+    repo = PokemonStatSampleRepository()
+    required_fields = {
+        "source_type",
+        "source_name",
+        "source_url",
+        "source_note",
+        "regulation",
+        "season",
+        "is_official",
+        "confidence",
+        "confidence_reason",
+        "created_by",
+        "last_reviewed",
+    }
+
+    for species_id in repo.list_species():
+        for sample in repo.list_samples_for_species(species_id):
+            assert required_fields <= set(sample)
+            assert sample["source_type"] in ALLOWED_SOURCE_TYPES
+            assert sample["source_name"] == "T1 curated sentinel sample"
+            assert sample["source_url"] is None
+            assert sample["regulation"] == "M-A"
+            assert sample["season"] is None
+            assert sample["is_official"] is False
+            assert sample["confidence_reason"]
+            assert sample["created_by"] == "project"
+            assert sample["last_reviewed"] == "2026-05-27"
+
+
+def test_sentinel_samples_are_manual_estimates_not_official_sources() -> None:
+    repo = PokemonStatSampleRepository()
+
+    for species_id in repo.list_species():
+        for sample in repo.list_samples_for_species(species_id):
+            assert sample["source_type"] == "manual_estimate"
+            assert sample["is_official"] is False
+            assert sample["confidence"] == "estimated"
+            assert "not derived from confirmed opponent stats" in sample["confidence_reason"].lower()
+
+
 def test_samples_have_required_stats_and_sp_distribution() -> None:
     repo = PokemonStatSampleRepository()
 
@@ -106,6 +148,7 @@ def test_samples_limitations_state_not_user_confirmed() -> None:
             limitations = " ".join(sample["limitations"]).lower()
             assert "not user-confirmed" in limitations
             assert "exact opponent stats" in limitations
+            assert "final battle truth" in limitations
 
 
 def test_repository_returns_copies() -> None:
@@ -152,4 +195,31 @@ def test_validate_sample_schema_rejects_missing_sp_distribution_key() -> None:
     del copied["samples"]["garchomp"][0]["assumptions"]["sp_distribution"]["spe"]
 
     with pytest.raises(ValueError, match="missing stat keys"):
+        validate_sample_schema(copied)
+
+
+def test_validate_sample_schema_rejects_invalid_source_type() -> None:
+    data = load_samples()
+    copied = json.loads(json.dumps(data))
+    copied["samples"]["garchomp"][0]["source_type"] = "forum_guess"
+
+    with pytest.raises(ValueError, match="unsupported source_type"):
+        validate_sample_schema(copied)
+
+
+def test_validate_sample_schema_allows_null_source_url() -> None:
+    data = load_samples()
+
+    validate_sample_schema(data)
+    for samples in data["samples"].values():
+        for sample in samples:
+            assert sample["source_url"] is None
+
+
+def test_validate_sample_schema_rejects_non_boolean_is_official() -> None:
+    data = load_samples()
+    copied = json.loads(json.dumps(data))
+    copied["samples"]["garchomp"][0]["is_official"] = "false"
+
+    with pytest.raises(ValueError, match="is_official must be a boolean"):
         validate_sample_schema(copied)

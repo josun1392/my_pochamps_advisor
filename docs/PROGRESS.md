@@ -2424,3 +2424,64 @@ Maintained boundaries:
 Verification:
 - `uv run pytest tests/test_pokemon_stat_sample_repository.py -q`: 15 passed.
 - `uv run pytest -q`: 756 passed, 2 deselected.
+
+---
+
+## v0.35.1 - Opponent stat sample source metadata polish
+
+Purpose:
+- Clarify source metadata and policy for opponent stat sentinel samples so they cannot be confused with user-confirmed or official opponent spreads.
+
+Implemented:
+- Expanded `data/static/pokemon_stat_samples.json` sample metadata with:
+  - `source_type`
+  - `source_name`
+  - `source_url`
+  - `source_note`
+  - `regulation`
+  - `season`
+  - `is_official`
+  - `confidence_reason`
+  - `created_by`
+  - `last_reviewed`
+- Kept all sentinel samples as:
+  - `source_type: manual_estimate`
+  - `status: sample_assumed`
+  - `is_user_confirmed: false`
+  - `confidence: estimated`
+  - `is_official: false`
+- Added the limitation: `Do not use as final battle truth.`
+- Expanded repository validation to require source metadata and reject unsupported `source_type` values.
+- Added allowed `source_type` policy values:
+  - `manual_estimate`
+  - `usage_based_estimate`
+  - `team_article_manual_extract`
+  - `calculator_derived`
+  - `official_or_replica_team`
+  - `unknown`
+- Added tests for required source metadata, manual estimate sentinel policy, null `source_url`, invalid `source_type`, and boolean `is_official`.
+
+Source tier policy:
+- Tier 1: direct stat usage or direct stat source candidates, such as future Pokebase-like stat usage sources.
+- Tier 2: usage, item, moveset, or team-context sources, such as Pikalytics or Pokemon Zone.
+- Tier 3: team article, replica team, or manual extraction sources, such as DevonCorp team articles, replica team codes, or team pastes.
+- Tier 4: rules validation sources, such as Pokeos or Bulbapedia SP rules.
+- Tier 5: manual estimates, including T1/project curated sentinel samples. These must keep `confidence: estimated` and must never be treated as user-confirmed.
+
+Maintained boundaries:
+- No UI selector.
+- No automatic sample application.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No sample treated as `user_confirmed_final_stats`.
+- No official or confirmed-spread claims.
+- No large sample DB buildout.
+- No external scraping or build script.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No damage/probability engine changes.
+
+Verification:
+- `uv run pytest tests/test_pokemon_stat_sample_repository.py -q`: 20 passed.
+- `uv run pytest -q`: 761 passed, 2 deselected.
