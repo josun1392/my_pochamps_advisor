@@ -1,6 +1,6 @@
 # Advisor Payload Contract
 
-**Milestone:** v0.28 - Raw Speed Comparison Payload
+**Milestone:** v0.30 - Choice Scarf Effective Speed Payload
 **Payload mode:** `ui-selected-pokemon-v0.18`
 **Status:** Current contract for the PySide6 UI to Gemini LLM advisor path.
 
@@ -8,7 +8,7 @@
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, raw Speed comparison context, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. The app does not yet send EV/IV/nature breakdowns, KO odds, final turn order, candidate move damage estimates, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, raw/effective Speed comparison context, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. The app does not yet send EV/IV/nature breakdowns, KO odds, final turn order, candidate move damage estimates, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -76,33 +76,42 @@ Each active item profile contains:
 
 In v0.23 the UI can emit `system_default_none`, `unknown`, `none`, or `user_confirmed` item profiles for active Pokemon. My active defaults to `system_default_none` for compatibility with the previous no-item calculation assumption. Opponent active defaults to `unknown` unless T1 confirms no item or selects a legal item from the repository-backed selector.
 
-`speed_context` contains raw Speed comparison metadata. It is not final turn order.
+`speed_context` contains raw and supported effective Speed comparison metadata. It is not final turn order.
 
 When both active Pokemon have user-confirmed final stats with `spe`, `speed_context` contains:
 
-- `mode`: `raw_speed_comparison_v0.28`
+- `mode`: `choice_scarf_effective_speed_v0.30`
 - `available`: `true`
 - `my_active.raw_speed`
+- `my_active.effective_speed`
 - `my_active.source`: `user_confirmed_final_stats`
 - `my_active.is_user_confirmed`
+- `my_active.speed_modifiers`
 - `opponent_active.raw_speed`
+- `opponent_active.effective_speed`
 - `opponent_active.source`: `user_confirmed_final_stats`
 - `opponent_active.is_user_confirmed`
+- `opponent_active.speed_modifiers`
 - `comparison.raw_speed_relation`: `my_active_faster`, `opponent_active_faster`, or `speed_tie`
-- `comparison.speed_margin`
-- `comparison.speed_tie`
+- `comparison.raw_speed_margin`
+- `comparison.raw_speed_tie`
+- `comparison.effective_speed_relation`
+- `comparison.effective_speed_margin`
+- `comparison.effective_speed_tie`
+- `comparison.speed_margin`: raw Speed margin compatibility alias
+- `comparison.speed_tie`: raw Speed tie compatibility alias
 - `limitations`
 - `is_final_turn_order`: always `false`
 
 When either active Pokemon is missing user-confirmed final Speed, `speed_context` contains:
 
-- `mode`: `raw_speed_comparison_v0.28`
+- `mode`: `choice_scarf_effective_speed_v0.30`
 - `available`: `false`
 - `reason`: `insufficient_confirmed_final_stats`
 - `limitations`
 - `is_final_turn_order`: always `false`
 
-Default Speed fallback is not used in v0.28.
+Default Speed fallback is not used in v0.30.
 
 `moves` contains:
 
@@ -196,11 +205,10 @@ The legacy damage-test subset remains available to tests/helpers, not the normal
 - `muscle-band`: physical move damage modifier only
 - `wise-glasses`: special move damage modifier only
 
-Excluded from v0.23 item application:
+Excluded from v0.30 item application:
 
 - Expert Belt
 - Assault Vest
-- Choice Scarf speed
 - Focus Sash survival
 - Leftovers/Sitrus recovery
 - Choice lock
@@ -208,9 +216,9 @@ Excluded from v0.23 item application:
 - candidate move damage
 - KO/OHKO/2HKO
 
-Legal-but-not-modeled examples:
+Legal item modeling examples:
 
-- Choice Scarf: selectable, but speed order and choice lock are not modeled.
+- Choice Scarf: selectable; its supported speed modifier may be applied in `speed_context` when user-confirmed, but speed order and choice lock are not modeled.
 - Focus Sash: selectable, but survival is not modeled.
 - Leftovers / Sitrus Berry: selectable, but recovery and turn sequencing are not modeled.
 
@@ -222,14 +230,23 @@ If Life Orb is applied, the LLM should say the damage modifier is applied and Li
 
 ## Speed Context Semantics
 
-`speed_context` is raw Speed comparison only.
+`speed_context` is raw and supported effective Speed comparison only.
 
 It may compare `stat_profiles.my_active.final_stats.spe` and `stat_profiles.opponent_active.final_stats.spe` only when both active Pokemon have `status: "user_confirmed_final_stats"`.
+
+Effective Speed in v0.30 may include only:
+
+- Choice Scarf speed modifier
+- only when `item_profiles.*.status` is `user_confirmed`
+- only when `item_profiles.*.item_id` is `choice-scarf`
+
+Choice Scarf uses a `1.5` speed modifier in `speed_context.*.speed_modifiers`.
+
+Choice lock is not modeled.
 
 It does not model:
 
 - priority
-- Choice Scarf speed
 - Tailwind
 - Trick Room
 - paralysis
@@ -241,12 +258,13 @@ It does not model:
 The LLM may say:
 
 - "Based on raw Speed only, your Pokemon appears faster."
-- "This does not confirm final turn order because priority, Choice Scarf, Tailwind, Trick Room, and Speed changes are not modeled."
+- "With the supported Choice Scarf speed modifier, your Pokemon appears faster by effective Speed estimate."
+- "This does not confirm final turn order because priority, Tailwind, Trick Room, paralysis, Speed stages, and ability speed effects are not modeled."
 
 The LLM must not say:
 
 - "You will move first."
-- "Choice Scarf makes you faster."
+- "Choice Scarf guarantees you move first."
 - "This guarantees turn order."
 
 If `speed_context.available` is `false`, the LLM should not compare Speed and should mention that raw Speed comparison requires user-confirmed final Speed for both active Pokemon.
@@ -308,7 +326,8 @@ The LLM must not:
 - infer OHKO/2HKO, KO chance, survival, or speed order unless explicit calculated fields are present
 - treat `speed_context` as final turn order
 - claim a Pokemon will move first when `speed_context.is_final_turn_order` is `false`
-- apply Choice Scarf speed, priority, Tailwind, Trick Room, paralysis, Speed stages, or ability speed effects from `speed_context`
+- apply Choice Scarf speed unless `speed_context.*.speed_modifiers` marks it as applied from a user-confirmed item
+- apply priority, Tailwind, Trick Room, paralysis, Speed stages, or ability speed effects from `speed_context`
 - treat cache learnsets or unselected moves as available moves
 - treat `opponent_moves.candidate_moves` as confirmed opponent moves
 - assume the opponent has a candidate move unless it appears in `opponent_moves.known_moves`
@@ -324,7 +343,7 @@ The LLM must not:
 - omit an applied attacker item modifier when explaining why one move did more damage
 - describe an item-applied estimate as only default assumptions when `item_effects.attacker_item.status` is `applied`
 - print raw `type_effectiveness` labels such as `super_effective` or `not_very_effective`
-- claim Choice lock, Life Orb recoil, Choice Scarf speed, Focus Sash survival, or Leftovers recovery is modeled
+- claim Choice lock, Life Orb recoil, Focus Sash survival, or Leftovers recovery is modeled
 - describe a move as super effective, resisted, or immune unless `damage_estimate.type_effectiveness` supports that label
 - consider Terastallization, which is banned in PoChamps
 
@@ -336,8 +355,11 @@ The LLM may:
 - discuss `assumption_profile` as the stat model used for an estimate
 - discuss `damage_estimate.item_effects` as the item effect summary for that estimate
 - discuss `damage_estimate.type_effectiveness` as the source for type matchup explanations
-- discuss `speed_context` as raw Speed comparison only when available
+- discuss `speed_context` as raw and supported effective Speed comparison only when available
 - say "based on raw Speed only" or "appears faster by raw Speed" when explaining `speed_context`
+- discuss Choice Scarf as a supported effective Speed estimate only when `speed_context.*.speed_modifiers` marks it applied
+- say choice lock is not modeled when Choice Scarf speed is applied
+- distinguish raw Speed relation from effective Speed relation when they differ
 - say a supported item damage modifier is applied only when `damage_estimate.item_effects` says `status: "applied"`
 - mention applied attacker item damage modifiers when they are part of the damage estimate
 - say Life Orb recoil or Choice lock is not modeled when those effects appear in `unapplied_effects`

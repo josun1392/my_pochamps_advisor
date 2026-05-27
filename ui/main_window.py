@@ -48,21 +48,22 @@ from ui.widgets.stat_profile_dialog import (
 
 
 OPPONENT_CANDIDATE_MOVES_LIMIT = 24
-SPEED_CONTEXT_MODE = "raw_speed_comparison_v0.28"
+SPEED_CONTEXT_MODE = "choice_scarf_effective_speed_v0.30"
 SPEED_CONTEXT_LIMITATIONS = [
-    "This is raw Speed comparison only.",
+    "Effective Speed includes only supported speed modifiers.",
+    "Choice Scarf speed is modeled only when the item is user-confirmed.",
+    "Choice lock is not modeled.",
     "This does not confirm final turn order.",
     "Priority moves are not modeled.",
-    "Choice Scarf speed is not modeled.",
-    "Tailwind is not modeled.",
     "Trick Room is not modeled.",
-    "Speed stages are not modeled.",
+    "Tailwind is not modeled.",
     "Paralysis is not modeled.",
+    "Speed stages are not modeled.",
     "Ability speed effects are not modeled.",
 ]
 SPEED_CONTEXT_UNAVAILABLE_LIMITATIONS = [
-    "Raw Speed comparison requires user-confirmed final Speed for both active Pokemon.",
-    "Default Speed fallback is not used in v0.28.",
+    "Effective Speed comparison requires user-confirmed final Speed for both active Pokemon.",
+    "Default Speed fallback is not used in v0.30.",
     "This does not confirm final turn order.",
 ]
 
@@ -389,6 +390,10 @@ class MainWindow(QMainWindow):
             "my_active": _stat_profile_payload(my_panel),
             "opponent_active": _stat_profile_payload(opponent_panel),
         }
+        item_profiles = {
+            "my_active": _item_profile_payload(my_panel, role_key="my_active"),
+            "opponent_active": _item_profile_payload(opponent_panel, role_key="opponent_active"),
+        }
         battle_input = {
             "scenario": {
                 "mode": ADVISOR_PAYLOAD_MODE,
@@ -400,11 +405,8 @@ class MainWindow(QMainWindow):
                 "opponent_active": self._panel_to_llm_payload(opponent_panel, opponent_slot_index),
             },
             "stat_profiles": stat_profiles,
-            "item_profiles": {
-                "my_active": _item_profile_payload(my_panel, role_key="my_active"),
-                "opponent_active": _item_profile_payload(opponent_panel, role_key="opponent_active"),
-            },
-            "speed_context": _speed_context_payload(stat_profiles),
+            "item_profiles": item_profiles,
+            "speed_context": _speed_context_payload(stat_profiles, item_profiles),
             "moves": {
                 "my_selected_move_index": my_panel.selected_move_index,
                 "my_available_moves": self._panel_moves_payload(my_panel),
@@ -754,7 +756,7 @@ def _item_profile_payload(panel, *, role_key: str) -> dict:
     return default_item_profile_for_role(role_key)
 
 
-def _speed_context_payload(stat_profiles: dict) -> dict:
+def _speed_context_payload(stat_profiles: dict, item_profiles: dict | None = None) -> dict:
     my_speed = _confirmed_raw_speed(stat_profiles.get("my_active"))
     opponent_speed = _confirmed_raw_speed(stat_profiles.get("opponent_active"))
     if my_speed is None or opponent_speed is None:
@@ -766,28 +768,38 @@ def _speed_context_payload(stat_profiles: dict) -> dict:
             "is_final_turn_order": False,
         }
 
-    if my_speed > opponent_speed:
-        relation = "my_active_faster"
-    elif my_speed < opponent_speed:
-        relation = "opponent_active_faster"
-    else:
-        relation = "speed_tie"
+    item_profiles = item_profiles if isinstance(item_profiles, dict) else {}
+    my_modifiers = _speed_modifiers_for_item(item_profiles.get("my_active"))
+    opponent_modifiers = _speed_modifiers_for_item(item_profiles.get("opponent_active"))
+    my_effective_speed = _effective_speed(my_speed, my_modifiers)
+    opponent_effective_speed = _effective_speed(opponent_speed, opponent_modifiers)
+    raw_relation = _speed_relation(my_speed, opponent_speed)
+    effective_relation = _speed_relation(my_effective_speed, opponent_effective_speed)
 
     return {
         "mode": SPEED_CONTEXT_MODE,
         "available": True,
         "my_active": {
             "raw_speed": my_speed,
+            "effective_speed": my_effective_speed,
             "source": "user_confirmed_final_stats",
             "is_user_confirmed": True,
+            "speed_modifiers": my_modifiers,
         },
         "opponent_active": {
             "raw_speed": opponent_speed,
+            "effective_speed": opponent_effective_speed,
             "source": "user_confirmed_final_stats",
             "is_user_confirmed": True,
+            "speed_modifiers": opponent_modifiers,
         },
         "comparison": {
-            "raw_speed_relation": relation,
+            "raw_speed_relation": raw_relation,
+            "raw_speed_margin": abs(my_speed - opponent_speed),
+            "raw_speed_tie": my_speed == opponent_speed,
+            "effective_speed_relation": effective_relation,
+            "effective_speed_margin": abs(my_effective_speed - opponent_effective_speed),
+            "effective_speed_tie": my_effective_speed == opponent_effective_speed,
             "speed_margin": abs(my_speed - opponent_speed),
             "speed_tie": my_speed == opponent_speed,
         },
@@ -806,6 +818,39 @@ def _confirmed_raw_speed(profile: object) -> int | None:
         return None
     speed = final_stats.get("spe")
     return speed if isinstance(speed, int) and speed > 0 else None
+
+
+def _speed_modifiers_for_item(profile: object) -> list[dict]:
+    if not isinstance(profile, dict):
+        return []
+    if profile.get("status") != "user_confirmed" or profile.get("item_id") != "choice-scarf":
+        return []
+    return [
+        {
+            "source": "item",
+            "item_id": "choice-scarf",
+            "name_en": str(profile.get("name_en") or "Choice Scarf"),
+            "modifier": 1.5,
+            "applied": True,
+            "unsupported_effects": ["choice_lock"],
+        }
+    ]
+
+
+def _effective_speed(raw_speed: int, speed_modifiers: list[dict]) -> int:
+    value = raw_speed
+    for modifier in speed_modifiers:
+        if modifier.get("item_id") == "choice-scarf" and modifier.get("applied") is True:
+            value = (value * 3) // 2
+    return value
+
+
+def _speed_relation(my_speed: int, opponent_speed: int) -> str:
+    if my_speed > opponent_speed:
+        return "my_active_faster"
+    if my_speed < opponent_speed:
+        return "opponent_active_faster"
+    return "speed_tie"
 
 
 def _opponent_moves_status(

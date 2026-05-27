@@ -2011,3 +2011,53 @@ Next decisions:
 - Whether effective Speed fields should extend `speed_context`.
 - Whether Choice Scarf should be marked modeled in repository/fixture speed effect support.
 - Whether v0.30 should remain payload/helper-only with no UI changes.
+
+---
+
+## v0.30 - Choice Scarf Effective Speed Payload
+
+Purpose:
+- Extend `speed_context` with a minimal supported effective Speed estimate for user-confirmed Choice Scarf.
+- Keep raw Speed comparison and final turn order separate.
+
+Implemented:
+- Added `effective_speed` to `speed_context.my_active` and `speed_context.opponent_active`.
+- Added `speed_modifiers` entries when a side has `item_profiles.*.status == user_confirmed` and `item_id == choice-scarf`.
+- Applied Choice Scarf as a `1.5` Speed modifier only for user-confirmed Choice Scarf.
+- Kept `raw_speed` unchanged.
+- Added separate raw and effective comparison fields:
+  - `raw_speed_relation`
+  - `raw_speed_margin`
+  - `raw_speed_tie`
+  - `effective_speed_relation`
+  - `effective_speed_margin`
+  - `effective_speed_tie`
+- Preserved `speed_margin` and `speed_tie` as raw Speed compatibility aliases.
+- Kept unavailable handling from v0.28 when either side lacks user-confirmed final Speed.
+
+Guardrails:
+- `is_final_turn_order` remains `false`.
+- Choice lock remains unmodeled and is listed in `unsupported_effects` / limitations.
+- Prompt and contract now describe effective Speed as a supported speed modifier estimate, not final turn order.
+- Raw Speed and effective Speed must be distinguished when they differ.
+
+Still excluded:
+- UI changes.
+- Choice lock.
+- Priority moves.
+- Tailwind.
+- Trick Room.
+- Paralysis.
+- Speed stages.
+- Ability speed effects.
+- Turn Engine.
+- KO/OHKO/2HKO.
+- Damage/probability engine changes.
+
+Tests:
+- Added coverage for no-item raw/effective equality.
+- Added my-side and opponent-side user-confirmed Choice Scarf effective Speed.
+- Added unconfirmed/unknown/no item no-modifier cases.
+- Added raw-slower/effective-faster relation coverage.
+- Updated prompt/contract guardrail tests.
+- Full pytest result: `736 passed, 2 deselected`.

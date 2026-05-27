@@ -48,14 +48,14 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
         "scenario"
     ]["known_limitations"]
     assert (
-        "speed_context, when present, is raw Speed comparison only and is not final turn order."
+        "speed_context, when present, is raw/effective Speed comparison only and is not final turn order."
         in payload["scenario"]["known_limitations"]
     )
     assert (
-        "Raw Speed comparison is available only when both active Pokemon have user-confirmed final Speed in v0.28."
+        "Raw/effective Speed comparison is available only when both active Pokemon have user-confirmed final Speed in v0.30."
         in payload["scenario"]["known_limitations"]
     )
-    assert "Default Speed fallback is not used in v0.28." in payload["scenario"]["known_limitations"]
+    assert "Default Speed fallback is not used in v0.30." in payload["scenario"]["known_limitations"]
     assert "Only item effects marked as applied in damage_estimate.item_effects are included in damage numbers." in payload[
         "scenario"
     ]["known_limitations"]
@@ -146,7 +146,7 @@ def test_ui_payload_includes_default_stat_profiles() -> None:
     assert payload["speed_context"]["available"] is False
     assert payload["speed_context"]["reason"] == "insufficient_confirmed_final_stats"
     assert payload["speed_context"]["is_final_turn_order"] is False
-    assert "Default Speed fallback is not used in v0.28." in payload["speed_context"]["limitations"]
+    assert "Default Speed fallback is not used in v0.30." in payload["speed_context"]["limitations"]
 
 
 def test_ui_payload_includes_default_item_profiles() -> None:
@@ -246,11 +246,22 @@ def test_ui_payload_includes_user_confirmed_final_stats() -> None:
     assert speed_context["my_active"]["raw_speed"] == 167
     assert speed_context["my_active"]["source"] == "user_confirmed_final_stats"
     assert speed_context["opponent_active"]["raw_speed"] == 167
+    assert speed_context["my_active"]["effective_speed"] == 167
+    assert speed_context["my_active"]["speed_modifiers"] == []
+    assert speed_context["opponent_active"]["effective_speed"] == 167
+    assert speed_context["opponent_active"]["speed_modifiers"] == []
     assert speed_context["comparison"]["raw_speed_relation"] == "speed_tie"
+    assert speed_context["comparison"]["raw_speed_margin"] == 0
+    assert speed_context["comparison"]["raw_speed_tie"] is True
+    assert speed_context["comparison"]["effective_speed_relation"] == "speed_tie"
+    assert speed_context["comparison"]["effective_speed_margin"] == 0
+    assert speed_context["comparison"]["effective_speed_tie"] is True
     assert speed_context["comparison"]["speed_margin"] == 0
     assert speed_context["comparison"]["speed_tie"] is True
     assert speed_context["is_final_turn_order"] is False
-    assert "Choice Scarf speed is not modeled." in speed_context["limitations"]
+    assert "Effective Speed includes only supported speed modifiers." in speed_context["limitations"]
+    assert "Choice Scarf speed is modeled only when the item is user-confirmed." in speed_context["limitations"]
+    assert "Choice lock is not modeled." in speed_context["limitations"]
 
 
 def test_speed_context_my_active_faster_with_confirmed_final_stats() -> None:
@@ -272,8 +283,12 @@ def test_speed_context_my_active_faster_with_confirmed_final_stats() -> None:
 
     assert speed_context["available"] is True
     assert speed_context["comparison"]["raw_speed_relation"] == "my_active_faster"
+    assert speed_context["comparison"]["effective_speed_relation"] == "my_active_faster"
+    assert speed_context["comparison"]["raw_speed_margin"] == 68
+    assert speed_context["comparison"]["effective_speed_margin"] == 68
     assert speed_context["comparison"]["speed_margin"] == 68
     assert speed_context["comparison"]["speed_tie"] is False
+    assert speed_context["comparison"]["effective_speed_tie"] is False
     assert speed_context["is_final_turn_order"] is False
 
 
@@ -296,6 +311,9 @@ def test_speed_context_opponent_active_faster_with_confirmed_final_stats() -> No
 
     assert speed_context["available"] is True
     assert speed_context["comparison"]["raw_speed_relation"] == "opponent_active_faster"
+    assert speed_context["comparison"]["effective_speed_relation"] == "opponent_active_faster"
+    assert speed_context["comparison"]["raw_speed_margin"] == 44
+    assert speed_context["comparison"]["effective_speed_margin"] == 44
     assert speed_context["comparison"]["speed_margin"] == 44
     assert speed_context["comparison"]["speed_tie"] is False
 
@@ -314,12 +332,12 @@ def test_speed_context_requires_both_sides_user_confirmed_final_stats() -> None:
 
     assert speed_context["available"] is False
     assert speed_context["reason"] == "insufficient_confirmed_final_stats"
-    assert "Default Speed fallback is not used in v0.28." in speed_context["limitations"]
+    assert "Default Speed fallback is not used in v0.30." in speed_context["limitations"]
     assert "my_active" not in speed_context
     assert "opponent_active" not in speed_context
 
 
-def test_speed_context_does_not_apply_choice_scarf_speed() -> None:
+def test_speed_context_applies_user_confirmed_choice_scarf_speed() -> None:
     item_options = legal_item_options_from_repository(ChampionsItemRepository())
     my_panel = _panel(
         "garchomp",
@@ -342,8 +360,82 @@ def test_speed_context_does_not_apply_choice_scarf_speed() -> None:
     assert payload["item_profiles"]["my_active"]["item_id"] == "choice-scarf"
     assert payload["item_profiles"]["my_active"]["effect_support_status"] == "legal_but_not_modeled"
     assert speed_context["my_active"]["raw_speed"] == 100
+    assert speed_context["my_active"]["effective_speed"] == 150
+    assert speed_context["my_active"]["speed_modifiers"] == [
+        {
+            "source": "item",
+            "item_id": "choice-scarf",
+            "name_en": "Choice Scarf",
+            "modifier": 1.5,
+            "applied": True,
+            "unsupported_effects": ["choice_lock"],
+        }
+    ]
+    assert speed_context["opponent_active"]["effective_speed"] == 120
     assert speed_context["comparison"]["raw_speed_relation"] == "opponent_active_faster"
-    assert "Choice Scarf speed is not modeled." in speed_context["limitations"]
+    assert speed_context["comparison"]["effective_speed_relation"] == "my_active_faster"
+    assert speed_context["comparison"]["raw_speed_margin"] == 20
+    assert speed_context["comparison"]["effective_speed_margin"] == 30
+    assert "Choice Scarf speed is modeled only when the item is user-confirmed." in speed_context["limitations"]
+    assert "Choice lock is not modeled." in speed_context["limitations"]
+    assert speed_context["is_final_turn_order"] is False
+
+
+def test_speed_context_applies_opponent_user_confirmed_choice_scarf_speed() -> None:
+    item_options = legal_item_options_from_repository(ChampionsItemRepository())
+    my_panel = _panel(
+        "garchomp",
+        selected_move_index=0,
+        selected_moves=[_move("earthquake")],
+        final_stats=_final_stats(spe=160),
+    )
+    opponent_panel = _panel(
+        "corviknight",
+        selected_move_index=0,
+        selected_moves=[_move("drill-peck")],
+        final_stats=_final_stats(spe=120),
+        item_profile=item_profile_from_option("choice-scarf", role_key="opponent_active", item_options=item_options),
+    )
+    window = _window(my_panel, opponent_panel)
+
+    speed_context = window._build_llm_battle_input()["speed_context"]
+
+    assert speed_context["my_active"]["effective_speed"] == 160
+    assert speed_context["opponent_active"]["raw_speed"] == 120
+    assert speed_context["opponent_active"]["effective_speed"] == 180
+    assert speed_context["opponent_active"]["speed_modifiers"][0]["item_id"] == "choice-scarf"
+    assert speed_context["comparison"]["raw_speed_relation"] == "my_active_faster"
+    assert speed_context["comparison"]["effective_speed_relation"] == "opponent_active_faster"
+
+
+def test_speed_context_ignores_unconfirmed_unknown_and_no_item_choice_scarf() -> None:
+    cases = [
+        {"status": "unknown", "source": "user_unconfirmed", "item_id": "choice-scarf", "name_en": "Choice Scarf"},
+        item_profile_from_option("unknown"),
+        item_profile_from_option("none"),
+    ]
+
+    for item_profile in cases:
+        my_panel = _panel(
+            "garchomp",
+            selected_move_index=0,
+            selected_moves=[_move("earthquake")],
+            final_stats=_final_stats(spe=100),
+            item_profile=item_profile,
+        )
+        opponent_panel = _panel(
+            "corviknight",
+            selected_move_index=0,
+            selected_moves=[_move("drill-peck")],
+            final_stats=_final_stats(spe=120),
+        )
+        window = _window(my_panel, opponent_panel)
+
+        speed_context = window._build_llm_battle_input()["speed_context"]
+
+        assert speed_context["my_active"]["effective_speed"] == 100
+        assert speed_context["my_active"]["speed_modifiers"] == []
+        assert speed_context["comparison"]["effective_speed_relation"] == "opponent_active_faster"
 
 
 def test_partial_final_stats_remain_default_assumption() -> None:
@@ -502,13 +594,18 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Opponent candidate move damage is not calculated in v0.18" in prompt
     assert "Only item effects marked as applied in damage_estimate.item_effects" in prompt
     assert "speed_context is present" in prompt
-    assert "raw Speed comparison only" in prompt
+    assert "raw/effective Speed comparison only" in prompt
     assert "not final turn order" in prompt
     assert "speed_context.is_final_turn_order is false" in prompt
     assert "based on raw Speed only" in prompt
     assert "appears faster by raw Speed" in prompt
-    assert "Default Speed fallback is not used in v0.28" in prompt
-    assert "Choice Scarf speed, priority, Tailwind, Trick Room, paralysis, Speed stages" in prompt
+    assert "Default Speed fallback is not used in v0.30" in prompt
+    assert "If effective_speed is present" in prompt
+    assert "supported speed modifier estimate" in prompt
+    assert "Choice Scarf speed may be included only when speed_context marks it applied" in prompt
+    assert "choice lock is still not modeled" in prompt
+    assert "raw Speed and effective Speed disagree" in prompt
+    assert "priority, Tailwind, Trick Room, paralysis, Speed stages" in prompt
     assert "Legal items and modeled item effects are separate concepts" in prompt
     assert "legal_but_not_modeled selected item may be user-confirmed" in prompt
     assert "Damage-supported non-legal/debug items are not normal legal selector options" in prompt
@@ -516,7 +613,7 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "default assumptions plus the supported item modifier" in prompt
     assert "If Life Orb is applied, say recoil is not modeled" in prompt
     assert "If Choice Band or Choice Specs is applied, say choice lock is not modeled" in prompt
-    assert "Choice lock, Life Orb recoil, Choice Scarf speed" in prompt
+    assert "Choice lock, Life Orb recoil, Focus Sash survival, and Leftovers recovery" in prompt
     assert "use damage_estimate.type_effectiveness" in prompt
     assert "super effective, resisted, or immune" in prompt
     assert "Do not print raw type_effectiveness labels" in prompt
@@ -545,12 +642,24 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "speed_context, when present, is raw Speed comparison only and is not final turn order."
+        "speed_context, when present, is raw/effective Speed comparison only and is not final turn order."
         in ADVISOR_KNOWN_LIMITATIONS
     )
-    assert "Default Speed fallback is not used in v0.28." in ADVISOR_KNOWN_LIMITATIONS
+    assert "Default Speed fallback is not used in v0.30." in ADVISOR_KNOWN_LIMITATIONS
     assert (
         "Do not say a Pokemon will move first when speed_context.is_final_turn_order is false."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "effective_speed, when present, is a supported speed modifier estimate and is not final turn order."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Choice Scarf speed may be applied in speed_context only when the item is user-confirmed."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Choice lock remains not modeled even when Choice Scarf speed is applied."
         in ADVISOR_KNOWN_LIMITATIONS
     )
 
