@@ -1955,3 +1955,59 @@ Maintained boundaries:
 - No prompt changes.
 - No tests changed.
 - No Choice Scarf speed, priority, Tailwind, Trick Room, paralysis, Speed stages, Turn Engine, KO/OHKO/2HKO, or damage/probability engine implementation.
+
+---
+
+## v0.29 - Effective Speed Assumption Design
+
+Purpose:
+- Design how to extend v0.28 raw Speed comparison into limited effective Speed assumptions without claiming final turn order.
+- Prepare a safe v0.30 candidate before implementing Choice Scarf speed support.
+
+Designed:
+- Added `docs/spike_v0.29_effective_speed_assumption_design.md`.
+- Separated:
+  - `raw_speed`: final Spe from user-confirmed final stats, already implemented in v0.28.
+  - `effective_speed`: raw Speed plus supported speed modifiers.
+  - `priority_bracket`: future move priority metadata.
+  - `field_speed_rule`: future Trick Room/Tailwind-style field rules.
+  - `final_action_order`: future Turn Engine-level action order.
+- Compared options:
+  - keep raw Speed only
+  - Choice Scarf only effective Speed
+  - Choice Scarf + paralysis/Tailwind/stages
+  - effective Speed + priority
+  - full Turn Engine
+- Recommended v0.30 candidate:
+  - `Choice Scarf Effective Speed Payload`
+  - no UI changes if possible
+  - use existing user-confirmed final Spe and ItemProfileDialog Choice Scarf selection
+  - keep `is_final_turn_order=false`
+
+Payload direction:
+- Prefer extending existing `speed_context` instead of adding a separate `effective_speed_context`.
+- Add `effective_speed`, `speed_modifiers`, raw/effective relations, and explicit limitations when implemented.
+- Keep choice lock unmodeled.
+
+Guardrail direction:
+- Effective Speed is still not final turn order.
+- Do not say "will move first" or "guaranteed outspeed".
+- If Choice Scarf is applied in a future payload, describe it as a supported effective Speed estimate.
+- Continue to state that priority, Trick Room, Tailwind, paralysis, Speed stages, ability speed effects, and Turn Engine state are not modeled.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No UI implementation.
+- No effective Speed calculation implementation.
+- No Choice Scarf speed implementation.
+- No priority, Tailwind, Trick Room, paralysis, Speed stage, ability speed effect, final turn order, or Turn Engine implementation.
+- No KO/OHKO/2HKO implementation.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+
+Next decisions:
+- Whether v0.30 should proceed as `Choice Scarf Effective Speed Payload`.
+- Whether Choice Scarf should apply only when `item_profiles.*.status == user_confirmed`.
+- Whether effective Speed fields should extend `speed_context`.
+- Whether Choice Scarf should be marked modeled in repository/fixture speed effect support.
+- Whether v0.30 should remain payload/helper-only with no UI changes.
