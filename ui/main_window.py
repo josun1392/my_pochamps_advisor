@@ -48,6 +48,23 @@ from ui.widgets.stat_profile_dialog import (
 
 
 OPPONENT_CANDIDATE_MOVES_LIMIT = 24
+SPEED_CONTEXT_MODE = "raw_speed_comparison_v0.28"
+SPEED_CONTEXT_LIMITATIONS = [
+    "This is raw Speed comparison only.",
+    "This does not confirm final turn order.",
+    "Priority moves are not modeled.",
+    "Choice Scarf speed is not modeled.",
+    "Tailwind is not modeled.",
+    "Trick Room is not modeled.",
+    "Speed stages are not modeled.",
+    "Paralysis is not modeled.",
+    "Ability speed effects are not modeled.",
+]
+SPEED_CONTEXT_UNAVAILABLE_LIMITATIONS = [
+    "Raw Speed comparison requires user-confirmed final Speed for both active Pokemon.",
+    "Default Speed fallback is not used in v0.28.",
+    "This does not confirm final turn order.",
+]
 
 
 class LLMAdviceWorker(QObject):
@@ -368,6 +385,10 @@ class MainWindow(QMainWindow):
 
         my_panel = self._slot_panel("team_my", my_slot_index)
         opponent_panel = self._slot_panel("team_enemy", opponent_slot_index)
+        stat_profiles = {
+            "my_active": _stat_profile_payload(my_panel),
+            "opponent_active": _stat_profile_payload(opponent_panel),
+        }
         battle_input = {
             "scenario": {
                 "mode": ADVISOR_PAYLOAD_MODE,
@@ -378,14 +399,12 @@ class MainWindow(QMainWindow):
                 "my_active": self._panel_to_llm_payload(my_panel, my_slot_index),
                 "opponent_active": self._panel_to_llm_payload(opponent_panel, opponent_slot_index),
             },
-            "stat_profiles": {
-                "my_active": _stat_profile_payload(my_panel),
-                "opponent_active": _stat_profile_payload(opponent_panel),
-            },
+            "stat_profiles": stat_profiles,
             "item_profiles": {
                 "my_active": _item_profile_payload(my_panel, role_key="my_active"),
                 "opponent_active": _item_profile_payload(opponent_panel, role_key="opponent_active"),
             },
+            "speed_context": _speed_context_payload(stat_profiles),
             "moves": {
                 "my_selected_move_index": my_panel.selected_move_index,
                 "my_available_moves": self._panel_moves_payload(my_panel),
@@ -733,6 +752,60 @@ def _item_profile_payload(panel, *, role_key: str) -> dict:
     if isinstance(profile, dict):
         return dict(profile)
     return default_item_profile_for_role(role_key)
+
+
+def _speed_context_payload(stat_profiles: dict) -> dict:
+    my_speed = _confirmed_raw_speed(stat_profiles.get("my_active"))
+    opponent_speed = _confirmed_raw_speed(stat_profiles.get("opponent_active"))
+    if my_speed is None or opponent_speed is None:
+        return {
+            "mode": SPEED_CONTEXT_MODE,
+            "available": False,
+            "reason": "insufficient_confirmed_final_stats",
+            "limitations": list(SPEED_CONTEXT_UNAVAILABLE_LIMITATIONS),
+            "is_final_turn_order": False,
+        }
+
+    if my_speed > opponent_speed:
+        relation = "my_active_faster"
+    elif my_speed < opponent_speed:
+        relation = "opponent_active_faster"
+    else:
+        relation = "speed_tie"
+
+    return {
+        "mode": SPEED_CONTEXT_MODE,
+        "available": True,
+        "my_active": {
+            "raw_speed": my_speed,
+            "source": "user_confirmed_final_stats",
+            "is_user_confirmed": True,
+        },
+        "opponent_active": {
+            "raw_speed": opponent_speed,
+            "source": "user_confirmed_final_stats",
+            "is_user_confirmed": True,
+        },
+        "comparison": {
+            "raw_speed_relation": relation,
+            "speed_margin": abs(my_speed - opponent_speed),
+            "speed_tie": my_speed == opponent_speed,
+        },
+        "limitations": list(SPEED_CONTEXT_LIMITATIONS),
+        "is_final_turn_order": False,
+    }
+
+
+def _confirmed_raw_speed(profile: object) -> int | None:
+    if not isinstance(profile, dict):
+        return None
+    if profile.get("status") != "user_confirmed_final_stats" or profile.get("source") != "user_input":
+        return None
+    final_stats = profile.get("final_stats")
+    if not isinstance(final_stats, dict):
+        return None
+    speed = final_stats.get("spe")
+    return speed if isinstance(speed, int) and speed > 0 else None
 
 
 def _opponent_moves_status(

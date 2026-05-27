@@ -1839,3 +1839,71 @@ Next decisions:
 - Whether raw Speed comparison should require user-confirmed final stats on both sides or allow clearly labeled default fallback.
 - Whether to approve `speed_context` as a top-level payload section.
 - Whether v0.28 should remain payload/LLM-only with no UI changes.
+
+---
+
+## v0.28 - Raw Speed Comparison Payload
+
+Purpose:
+- Add a top-level raw Speed comparison payload without claiming final turn order.
+- Use only user-confirmed final Speed values from both active Pokemon.
+
+Implemented:
+- Added top-level `speed_context` to the UI LLM battle payload.
+- `speed_context.mode` is `raw_speed_comparison_v0.28`.
+- When both active Pokemon have user-confirmed final stats:
+  - `speed_context.available` is `true`.
+  - `my_active.raw_speed` comes from `stat_profiles.my_active.final_stats.spe`.
+  - `opponent_active.raw_speed` comes from `stat_profiles.opponent_active.final_stats.spe`.
+  - `comparison.raw_speed_relation` reports:
+    - `my_active_faster`
+    - `opponent_active_faster`
+    - `speed_tie`
+  - `comparison.speed_margin` records the absolute raw Speed difference.
+  - `comparison.speed_tie` records tie state.
+- When either side lacks user-confirmed final Speed:
+  - `speed_context.available` is `false`.
+  - `reason` is `insufficient_confirmed_final_stats`.
+- `is_final_turn_order` is always `false`.
+
+Guardrails:
+- Updated advisor prompt and payload contract to state that `speed_context` is raw Speed comparison only.
+- The LLM must not say a Pokemon will move first when `speed_context.is_final_turn_order` is false.
+- Recommended wording is limited to phrases such as "based on raw Speed only" or "appears faster by raw Speed".
+- Default Speed fallback is not used in v0.28.
+
+Verified:
+- my active faster relation works.
+- opponent active faster relation works.
+- raw Speed tie relation works.
+- insufficient confirmed stats returns unavailable.
+- Choice Scarf selection does not modify raw Speed.
+- Speed limitations include:
+  - priority not modeled
+  - Choice Scarf speed not modeled
+  - Tailwind not modeled
+  - Trick Room not modeled
+  - Speed stages not modeled
+  - paralysis not modeled
+  - ability speed effects not modeled
+- Existing advisor payload contract tests pass.
+
+Maintained boundaries:
+- No UI changes.
+- No Speed input UI.
+- No default Speed fallback.
+- No Choice Scarf speed implementation.
+- No priority move implementation.
+- No Tailwind, Trick Room, paralysis, Speed stage, or ability speed effect implementation.
+- No Turn Engine.
+- No KO/OHKO/2HKO implementation.
+- No `advisor/damage/` or `advisor/probability` engine changes.
+- No item effect additions.
+- No legal item fixture changes.
+- No item selector UI changes.
+
+Tests:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`
+- Result: 21 passed.
+- `uv run pytest -q`
+- Result: 734 passed, 2 deselected.

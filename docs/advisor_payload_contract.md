@@ -1,6 +1,6 @@
 # Advisor Payload Contract
 
-**Milestone:** v0.23 - Legal Item Selector Integration
+**Milestone:** v0.28 - Raw Speed Comparison Payload
 **Payload mode:** `ui-selected-pokemon-v0.18`
 **Status:** Current contract for the PySide6 UI to Gemini LLM advisor path.
 
@@ -8,7 +8,7 @@
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. The app does not yet send EV/IV/nature breakdowns, KO odds, turn order, candidate move damage estimates, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, raw Speed comparison context, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. The app does not yet send EV/IV/nature breakdowns, KO odds, final turn order, candidate move damage estimates, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -18,6 +18,7 @@ Top-level sections:
 - `pokemon`
 - `stat_profiles`
 - `item_profiles`
+- `speed_context`
 - `moves`
 - `opponent_moves`
 
@@ -74,6 +75,34 @@ Each active item profile contains:
 - `notes`
 
 In v0.23 the UI can emit `system_default_none`, `unknown`, `none`, or `user_confirmed` item profiles for active Pokemon. My active defaults to `system_default_none` for compatibility with the previous no-item calculation assumption. Opponent active defaults to `unknown` unless T1 confirms no item or selects a legal item from the repository-backed selector.
+
+`speed_context` contains raw Speed comparison metadata. It is not final turn order.
+
+When both active Pokemon have user-confirmed final stats with `spe`, `speed_context` contains:
+
+- `mode`: `raw_speed_comparison_v0.28`
+- `available`: `true`
+- `my_active.raw_speed`
+- `my_active.source`: `user_confirmed_final_stats`
+- `my_active.is_user_confirmed`
+- `opponent_active.raw_speed`
+- `opponent_active.source`: `user_confirmed_final_stats`
+- `opponent_active.is_user_confirmed`
+- `comparison.raw_speed_relation`: `my_active_faster`, `opponent_active_faster`, or `speed_tie`
+- `comparison.speed_margin`
+- `comparison.speed_tie`
+- `limitations`
+- `is_final_turn_order`: always `false`
+
+When either active Pokemon is missing user-confirmed final Speed, `speed_context` contains:
+
+- `mode`: `raw_speed_comparison_v0.28`
+- `available`: `false`
+- `reason`: `insufficient_confirmed_final_stats`
+- `limitations`
+- `is_final_turn_order`: always `false`
+
+Default Speed fallback is not used in v0.28.
 
 `moves` contains:
 
@@ -191,6 +220,37 @@ When `damage_estimate.item_effects.attacker_item.status` is `applied`, the LLM s
 
 If Life Orb is applied, the LLM should say the damage modifier is applied and Life Orb recoil is not modeled. If Choice Band or Choice Specs is applied, the LLM should say the relevant damage modifier is applied and choice lock is not modeled.
 
+## Speed Context Semantics
+
+`speed_context` is raw Speed comparison only.
+
+It may compare `stat_profiles.my_active.final_stats.spe` and `stat_profiles.opponent_active.final_stats.spe` only when both active Pokemon have `status: "user_confirmed_final_stats"`.
+
+It does not model:
+
+- priority
+- Choice Scarf speed
+- Tailwind
+- Trick Room
+- paralysis
+- Speed stages
+- ability speed effects
+- final turn order
+- Turn Engine state
+
+The LLM may say:
+
+- "Based on raw Speed only, your Pokemon appears faster."
+- "This does not confirm final turn order because priority, Choice Scarf, Tailwind, Trick Room, and Speed changes are not modeled."
+
+The LLM must not say:
+
+- "You will move first."
+- "Choice Scarf makes you faster."
+- "This guarantees turn order."
+
+If `speed_context.available` is `false`, the LLM should not compare Speed and should mention that raw Speed comparison requires user-confirmed final Speed for both active Pokemon.
+
 ## Type Effectiveness Semantics
 
 Damage estimates include explicit type effectiveness metadata:
@@ -233,7 +293,7 @@ The v0.18 payload does not contain:
 - exact current HP integer
 - candidate move damage estimates
 - OHKO/2HKO/KO chance
-- turn order
+- final turn order
 - speed tie
 - status duration
 - Turn Engine state
@@ -246,6 +306,9 @@ The LLM must not:
 - treat `base_stats` as final battle stats
 - describe `damage_estimate` as final battle damage
 - infer OHKO/2HKO, KO chance, survival, or speed order unless explicit calculated fields are present
+- treat `speed_context` as final turn order
+- claim a Pokemon will move first when `speed_context.is_final_turn_order` is `false`
+- apply Choice Scarf speed, priority, Tailwind, Trick Room, paralysis, Speed stages, or ability speed effects from `speed_context`
 - treat cache learnsets or unselected moves as available moves
 - treat `opponent_moves.candidate_moves` as confirmed opponent moves
 - assume the opponent has a candidate move unless it appears in `opponent_moves.known_moves`
@@ -273,6 +336,8 @@ The LLM may:
 - discuss `assumption_profile` as the stat model used for an estimate
 - discuss `damage_estimate.item_effects` as the item effect summary for that estimate
 - discuss `damage_estimate.type_effectiveness` as the source for type matchup explanations
+- discuss `speed_context` as raw Speed comparison only when available
+- say "based on raw Speed only" or "appears faster by raw Speed" when explaining `speed_context`
 - say a supported item damage modifier is applied only when `damage_estimate.item_effects` says `status: "applied"`
 - mention applied attacker item damage modifiers when they are part of the damage estimate
 - say Life Orb recoil or Choice lock is not modeled when those effects appear in `unapplied_effects`

@@ -47,6 +47,15 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
     assert "item_profiles distinguishes unknown, none, system_default_none, and user_confirmed item state." in payload[
         "scenario"
     ]["known_limitations"]
+    assert (
+        "speed_context, when present, is raw Speed comparison only and is not final turn order."
+        in payload["scenario"]["known_limitations"]
+    )
+    assert (
+        "Raw Speed comparison is available only when both active Pokemon have user-confirmed final Speed in v0.28."
+        in payload["scenario"]["known_limitations"]
+    )
+    assert "Default Speed fallback is not used in v0.28." in payload["scenario"]["known_limitations"]
     assert "Only item effects marked as applied in damage_estimate.item_effects are included in damage numbers." in payload[
         "scenario"
     ]["known_limitations"]
@@ -134,6 +143,10 @@ def test_ui_payload_includes_default_stat_profiles() -> None:
     assert payload["stat_profiles"]["opponent_active"]["status"] == "default_assumption"
     assert payload["stat_profiles"]["opponent_active"]["source"] == "system_default"
     assert payload["stat_profiles"]["opponent_active"]["final_stats"] is None
+    assert payload["speed_context"]["available"] is False
+    assert payload["speed_context"]["reason"] == "insufficient_confirmed_final_stats"
+    assert payload["speed_context"]["is_final_turn_order"] is False
+    assert "Default Speed fallback is not used in v0.28." in payload["speed_context"]["limitations"]
 
 
 def test_ui_payload_includes_default_item_profiles() -> None:
@@ -228,6 +241,109 @@ def test_ui_payload_includes_user_confirmed_final_stats() -> None:
     assert my_estimate["assumption_profile"]["is_user_confirmed"] is True
     assert opponent_estimate["assumption_profile"]["id"] == "user_confirmed_final_stats_level50"
     assert opponent_estimate["is_final_battle_damage"] is False
+    speed_context = payload["speed_context"]
+    assert speed_context["available"] is True
+    assert speed_context["my_active"]["raw_speed"] == 167
+    assert speed_context["my_active"]["source"] == "user_confirmed_final_stats"
+    assert speed_context["opponent_active"]["raw_speed"] == 167
+    assert speed_context["comparison"]["raw_speed_relation"] == "speed_tie"
+    assert speed_context["comparison"]["speed_margin"] == 0
+    assert speed_context["comparison"]["speed_tie"] is True
+    assert speed_context["is_final_turn_order"] is False
+    assert "Choice Scarf speed is not modeled." in speed_context["limitations"]
+
+
+def test_speed_context_my_active_faster_with_confirmed_final_stats() -> None:
+    my_panel = _panel(
+        "garchomp",
+        selected_move_index=0,
+        selected_moves=[_move("earthquake")],
+        final_stats=_final_stats(spe=169),
+    )
+    opponent_panel = _panel(
+        "corviknight",
+        selected_move_index=0,
+        selected_moves=[_move("drill-peck")],
+        final_stats=_final_stats(spe=101),
+    )
+    window = _window(my_panel, opponent_panel)
+
+    speed_context = window._build_llm_battle_input()["speed_context"]
+
+    assert speed_context["available"] is True
+    assert speed_context["comparison"]["raw_speed_relation"] == "my_active_faster"
+    assert speed_context["comparison"]["speed_margin"] == 68
+    assert speed_context["comparison"]["speed_tie"] is False
+    assert speed_context["is_final_turn_order"] is False
+
+
+def test_speed_context_opponent_active_faster_with_confirmed_final_stats() -> None:
+    my_panel = _panel(
+        "garchomp",
+        selected_move_index=0,
+        selected_moves=[_move("earthquake")],
+        final_stats=_final_stats(spe=90),
+    )
+    opponent_panel = _panel(
+        "corviknight",
+        selected_move_index=0,
+        selected_moves=[_move("drill-peck")],
+        final_stats=_final_stats(spe=134),
+    )
+    window = _window(my_panel, opponent_panel)
+
+    speed_context = window._build_llm_battle_input()["speed_context"]
+
+    assert speed_context["available"] is True
+    assert speed_context["comparison"]["raw_speed_relation"] == "opponent_active_faster"
+    assert speed_context["comparison"]["speed_margin"] == 44
+    assert speed_context["comparison"]["speed_tie"] is False
+
+
+def test_speed_context_requires_both_sides_user_confirmed_final_stats() -> None:
+    my_panel = _panel(
+        "garchomp",
+        selected_move_index=0,
+        selected_moves=[_move("earthquake")],
+        final_stats=_final_stats(spe=169),
+    )
+    opponent_panel = _panel("corviknight", selected_move_index=0, selected_moves=[_move("drill-peck")])
+    window = _window(my_panel, opponent_panel)
+
+    speed_context = window._build_llm_battle_input()["speed_context"]
+
+    assert speed_context["available"] is False
+    assert speed_context["reason"] == "insufficient_confirmed_final_stats"
+    assert "Default Speed fallback is not used in v0.28." in speed_context["limitations"]
+    assert "my_active" not in speed_context
+    assert "opponent_active" not in speed_context
+
+
+def test_speed_context_does_not_apply_choice_scarf_speed() -> None:
+    item_options = legal_item_options_from_repository(ChampionsItemRepository())
+    my_panel = _panel(
+        "garchomp",
+        selected_move_index=0,
+        selected_moves=[_move("earthquake")],
+        final_stats=_final_stats(spe=100),
+        item_profile=item_profile_from_option("choice-scarf", item_options=item_options),
+    )
+    opponent_panel = _panel(
+        "corviknight",
+        selected_move_index=0,
+        selected_moves=[_move("drill-peck")],
+        final_stats=_final_stats(spe=120),
+    )
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+    speed_context = payload["speed_context"]
+
+    assert payload["item_profiles"]["my_active"]["item_id"] == "choice-scarf"
+    assert payload["item_profiles"]["my_active"]["effect_support_status"] == "legal_but_not_modeled"
+    assert speed_context["my_active"]["raw_speed"] == 100
+    assert speed_context["comparison"]["raw_speed_relation"] == "opponent_active_faster"
+    assert "Choice Scarf speed is not modeled." in speed_context["limitations"]
 
 
 def test_partial_final_stats_remain_default_assumption() -> None:
@@ -385,6 +501,14 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Opponent candidate move damage is not calculated in v0.16" not in prompt
     assert "Opponent candidate move damage is not calculated in v0.18" in prompt
     assert "Only item effects marked as applied in damage_estimate.item_effects" in prompt
+    assert "speed_context is present" in prompt
+    assert "raw Speed comparison only" in prompt
+    assert "not final turn order" in prompt
+    assert "speed_context.is_final_turn_order is false" in prompt
+    assert "based on raw Speed only" in prompt
+    assert "appears faster by raw Speed" in prompt
+    assert "Default Speed fallback is not used in v0.28" in prompt
+    assert "Choice Scarf speed, priority, Tailwind, Trick Room, paralysis, Speed stages" in prompt
     assert "Legal items and modeled item effects are separate concepts" in prompt
     assert "legal_but_not_modeled selected item may be user-confirmed" in prompt
     assert "Damage-supported non-legal/debug items are not normal legal selector options" in prompt
@@ -418,6 +542,15 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     assert "If Choice Band or Choice Specs is applied, say choice lock is not modeled." in ADVISOR_KNOWN_LIMITATIONS
     assert (
         "Do not print raw type_effectiveness labels like super_effective or not_very_effective; convert them to natural wording."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "speed_context, when present, is raw Speed comparison only and is not final turn order."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Default Speed fallback is not used in v0.28." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Do not say a Pokemon will move first when speed_context.is_final_turn_order is false."
         in ADVISOR_KNOWN_LIMITATIONS
     )
 
