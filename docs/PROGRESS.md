@@ -1907,3 +1907,51 @@ Tests:
 - Result: 21 passed.
 - `uv run pytest -q`
 - Result: 734 passed, 2 deselected.
+
+---
+
+## v0.28.1 - Raw speed comparison local Gemini verification
+
+Purpose:
+- Record T1 local app verification for the v0.28 raw Speed comparison payload and Gemini guardrails.
+
+Verified locally:
+- Actual Gemini call succeeded with both active Pokemon using user-confirmed final stats.
+- Gemini reflected the raw Speed comparison in the response.
+- Confirmed response wording:
+  - "Garchomp appears faster by raw Speed only."
+- Gemini did not claim final turn order.
+- Gemini did not use hard turn-order wording such as "will move first".
+- Charizard could hold Choice Scarf without Gemini claiming the Choice Scarf speed effect was applied.
+- Confirmed response wording:
+  - "Charizard's Choice Scarf speed effect is not modeled."
+- The v0.28 policy held:
+  - raw Speed comparison only
+  - `is_final_turn_order=false`
+  - no default Speed fallback
+  - no Choice Scarf speed application
+
+Unsupported speed mechanics remain excluded:
+- priority
+- Tailwind
+- Trick Room
+- paralysis
+- Speed stages
+- ability speed effects
+- Turn Engine
+
+Result:
+- v0.28 local Gemini verification passed.
+
+Next candidates:
+- More detailed speed limitation wording polish, if T1 wants clearer natural-language caveats.
+- `v0.29 Effective Speed Assumption Design`, if T1/T2 want to start planning Choice Scarf/status/field Speed assumptions.
+
+Maintained boundaries:
+- Documentation-only record.
+- No code changes.
+- No UI changes.
+- No `speed_context` schema changes.
+- No prompt changes.
+- No tests changed.
+- No Choice Scarf speed, priority, Tailwind, Trick Room, paralysis, Speed stages, Turn Engine, KO/OHKO/2HKO, or damage/probability engine implementation.
