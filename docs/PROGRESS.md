@@ -2769,3 +2769,69 @@ Verification:
 - `uv run pytest tests/test_advisor_payload_contract.py tests/test_opponent_assumptions.py -q`: 32 passed.
 - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: 1 passed.
 - `uv run pytest -q`: 769 passed, 2 deselected.
+
+---
+
+## v0.38.3 - Opponent assumption and choice lock local Gemini re-verification
+
+Purpose:
+- Record T1 local Gemini actual-call re-verification for the v0.38 opponent assumptions payload and v0.38.2 choice-lock wording polish.
+
+Verification source:
+- T1 local app Gemini actual call.
+- Code, UI, schema, prompt, tests, and fixtures were not changed in this step.
+
+Charcoal / Tyranitar case:
+- My Pokemon: Charizard.
+- Item: Charcoal / 목탄.
+- Move: Heat Wave.
+- Opponent Pokemon: Tyranitar.
+- Gemini response confirmed:
+  - "Use Heat Wave. It deals an estimated 34-41 damage, which is not very effective against Tyranitar."
+  - "Charcoal's Fire-type damage modifier is applied to the estimate."
+  - "Main limitation: Damage estimates use default assumptions, and the opponent's item and move set are unconfirmed."
+- Result:
+  - Charcoal Fire-type damage modifier wording is correct.
+  - No incorrect "Choice lock for Charcoal is not modeled" wording appeared.
+  - Opponent item and moveset remained unconfirmed.
+  - Damage was not overstated as final battle damage.
+
+Garchomp possible sample context case:
+- My Pokemon: Charizard.
+- Item: Charcoal / 목탄.
+- Move: Heat Wave.
+- Opponent Pokemon: Garchomp.
+- Opponent stats were not user-confirmed.
+- Gemini response confirmed:
+  - "Possible opponent samples exist for Garchomp but are context-only and not confirmed, so candidate moves like Earthquake are unconfirmed possible threats."
+- Result:
+  - Possible opponent sample context was mentioned briefly.
+  - The sample context was described as context-only.
+  - The sample context was described as not confirmed.
+  - Gemini did not say sample stats were used directly for damage or Speed calculation.
+  - Gemini did not treat the possible sample as a confirmed opponent set.
+  - Damage estimate was not overstated as final battle damage.
+
+Conclusion:
+- Gemini actual call succeeded.
+- v0.38.3 local verification passed.
+
+Next candidates:
+- `v0.39 - Opponent Assumptions Response Concision / Visibility Polish`
+- `v0.39 - Sample Payload UI/Debug Inspection Design`
+- `v0.39 - Opponent Sample Expansion Source Plan`
+
+Maintained boundaries:
+- Documentation-only record.
+- No code implementation.
+- No UI changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No sample fixture changes.
+- No damage/speed integration.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
