@@ -2100,3 +2100,63 @@ Maintained boundaries:
 - No prompt changes.
 - No tests changed.
 - No Choice lock, priority, Tailwind, Trick Room, paralysis, Speed stages, Turn Engine, KO/OHKO/2HKO, or damage/probability engine implementation.
+
+---
+
+## v0.31 - Item Effect Coverage Map Design
+
+Purpose:
+- Design an item effect coverage map for the 117 Champions Reg M-A legal items and the legacy damage-supported non-legal/debug item subset.
+- Clarify that selectable legal items and modeled item effects remain separate concepts.
+
+Designed:
+- Added `docs/spike_v0.31_item_effect_coverage_map_design.md`.
+- Documented current coverage:
+  - legal fixture has 117 items.
+  - `legal_and_damage_supported`: 17 items.
+  - `legal_but_not_modeled`: 100 items.
+  - `damage_supported_non_legal_items`: 5 items.
+- Classified item effect families:
+  - damage modifiers
+  - speed modifiers
+  - survival modifiers
+  - recovery modifiers
+  - stat modifiers
+  - accuracy/evasion
+  - crit
+  - flinch/secondary effects
+  - Mega Evolution/form effects
+  - berry/status/misc effects
+  - unsupported or unknown effects
+- Recorded current modeled effects:
+  - Choice Scarf effective Speed in `speed_context`, only when user-confirmed.
+  - Legacy damage helper support for Choice Band, Choice Specs, Life Orb, Muscle Band, and Wise Glasses remains debug/test-only because these are not normal legal selector options.
+- Proposed coverage status vocabulary:
+  - `modeled`
+  - `partially_modeled`
+  - `recognized_not_modeled`
+  - `requires_turn_engine`
+  - `requires_probability_engine`
+  - `requires_status_engine`
+  - `requires_transform_or_form_engine`
+  - `legal_but_unknown_effect`
+  - `damage_supported_but_not_champions_legal`
+
+Recommended priority:
+- v0.32 should focus on Type Boosting Item Damage Modifier Design before Focus Sash, recovery, probability, flinch, or Mega Evolution effects.
+- Type boosting items are the safest next target because they attach directly to `damage_estimate` and do not require Turn Engine state.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No fixture changes.
+- No `item_effect_coverage.json` creation.
+- No item effect additions.
+- No damage/probability engine changes.
+- No UI changes.
+- No Turn Engine, KO/OHKO/2HKO, recovery, survival, crit, flinch, or Mega Evolution implementation.
+
+Next decisions:
+- Whether v0.32 should be Type Boosting Item Damage Modifier Design or a small implementation.
+- Whether item effect coverage should live in a separate `item_effect_coverage.json` or be derived by repository helpers.
+- Whether Focus Sash/Leftovers-style Turn Engine items should remain design-only until after direct damage item coverage.
