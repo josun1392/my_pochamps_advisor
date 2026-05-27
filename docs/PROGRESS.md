@@ -2835,3 +2835,109 @@ Maintained boundaries:
 - No KO/OHKO/2HKO.
 - No Turn Engine.
 - No item effect changes.
+
+---
+
+## v0.39 - Opponent sample expansion source plan
+
+Purpose:
+- Design a source policy and manual expansion plan for growing opponent sample coverage without treating possible samples as confirmed opponent sets.
+
+Designed:
+- Added `docs/spike_v0.39_opponent_sample_expansion_source_plan.md`.
+- Reviewed the current sentinel sample fixture, sample repository validation, opponent assumptions payload builder, payload contract, and v0.34/v0.36/v0.37 design docs.
+- Confirmed current state:
+  - `opponent_assumptions` exists as a top-level payload section.
+  - `calculation_usage` remains `context_only`.
+  - possible samples remain `sample_assumed` and `is_user_confirmed: false`.
+  - sample stats are not connected to damage estimates or speed context.
+  - current sample coverage is sentinel-only and too small for real multi-sample advisor distribution.
+- Defined source tier policy:
+  - Tier 1: direct stat / stat usage sources.
+  - Tier 2: usage / item / move / team context sources.
+  - Tier 3: team article / replica team / manual extract sources.
+  - Tier 4: rules validation sources.
+  - Tier 5: manual estimates.
+- Proposed future source metadata requirements:
+  - `source_type`
+  - `source_name`
+  - `source_url`
+  - `source_note`
+  - `regulation`
+  - `season`
+  - `last_reviewed`
+  - `is_official`
+  - `confidence`
+  - `confidence_reason`
+  - `evidence_basis`
+  - `reviewer_notes`
+  - `limitations`
+- Proposed confidence model:
+  - `confirmed`
+  - `usage_derived`
+  - `team_extract`
+  - `estimated`
+  - `unknown`
+- Documented that higher source confidence still does not make a sample user-confirmed or the actual opponent set.
+- Proposed archetype-oriented sample fields:
+  - `archetype_id`
+  - `archetype_tags`
+  - `role`
+  - `likely_item`
+  - `possible_items`
+  - `likely_moves`
+  - `possible_moves`
+  - `stat_focus`
+  - `speed_tier_label`
+  - `risk_notes`
+- Recommended initial expansion scope for v0.40:
+  - 10 to 15 core species.
+  - 1 to 3 archetypes per species.
+  - initial candidates include `garchomp`, `charizard`, `tyranitar`, `corviknight`, `archaludon`, and optional `pikachu`.
+- Defined a manual review workflow:
+  - collect source candidate
+  - assign source tier and `source_type`
+  - confirm item/move/ability/role evidence
+  - record direct stat/SP evidence when available
+  - mark indirect stats as estimates
+  - write limitations
+  - validate schema
+  - add reviewer notes
+  - add tests
+  - request T1/T2 review before commit
+- Kept a no-scraping policy for v0.39.
+- Documented future scraping prerequisites:
+  - source terms review
+  - rate limit review
+  - data freshness policy
+  - generated vs curated data separation
+  - mandatory manual review
+- Designed payload impact:
+  - `top_k` default remains `3`
+  - `coverage_probability` remains null for manual-only samples
+  - `prior_probability` remains null unless evidence supports it
+  - omitted Top-K archetypes remain possible
+- Added LLM guardrail direction:
+  - sample source confidence is not actual opponent confirmation
+  - manual estimates should be described as low-confidence risk cues
+  - usage-based samples still do not prove the live opponent set
+  - do not invent probabilities when no prior is provided
+  - do not say samples were used for damage or Speed calculations unless a future integration explicitly does that
+- Proposed future tests for source metadata, confidence enum, archetype fields, Top-K behavior, null prior handling, and existing opponent assumptions regression.
+- Recommended `v0.40 - Opponent Sample Expansion Sentinel Pack` as the next candidate, with `v0.40 - Opponent Sample Archetype Schema Polish` as the fallback if source review is not ready.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No fixture changes.
+- No sample additions.
+- No repository changes.
+- No UI changes.
+- No scraping or build script.
+- No automatic sample application.
+- No damage/speed integration.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
