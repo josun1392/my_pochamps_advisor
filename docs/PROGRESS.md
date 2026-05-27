@@ -2232,3 +2232,48 @@ Next decisions:
 - Whether v0.33 should proceed as the small implementation.
 - Whether to approve the proposed `item_effects.attacker_item` additive schema.
 - Whether to keep `fairy-feather` deferred until local catalog support exists.
+
+---
+
+## v0.33 - Type boosting item damage modifier implementation
+
+Purpose:
+- Apply legal catalog-backed type boosting item damage modifiers to advisor damage estimates without expanding UI, Turn Engine, KO, or probability scope.
+
+Implemented:
+- Connected legal catalog-backed `type_boosting_item` entries to attacker-side `damage_estimate` calculations.
+- Applied a `1.2x` modifier when a user-confirmed legal type boosting item matches the move type.
+- Recorded `damage_estimate.item_effects.attacker_item` with `applied`, `not_applicable`, or `unsupported_item`.
+- Added additive item effect fields:
+  - `effect_type`
+  - `boosted_type`
+  - `modifier`
+  - `reason`
+- Applied the modifier to:
+  - `moves.my_available_moves[*].damage_estimate`
+  - `moves.my_selected_move.damage_estimate`
+  - `opponent_moves.known_moves[*].damage_estimate`
+- Kept opponent `candidate_moves` excluded from `damage_estimate`.
+- Kept `fairy-feather` unmodeled as `unsupported_item` while no catalog-backed modifier exists.
+- Updated advisor payload contract and prompt guardrails so the LLM may mention type boosting damage only when `item_effects.attacker_item.status == applied`.
+
+Maintained boundaries:
+- No UI changes.
+- No fixture changes.
+- No Expert Belt, Assault Vest, Focus Sash, Leftovers/Sitrus, recovery, KO/OHKO/2HKO, Turn Engine, or probability implementation.
+- No Choice Band, Choice Specs, Life Orb, Muscle Band, or Wise Glasses normal legal path exposure.
+- Defender item effects remain out of scope.
+
+Verification:
+- Charcoal + Fire move applies the modifier.
+- Charcoal + non-Fire move records `not_applicable` and leaves damage unchanged.
+- Mystic Water + Water move applies the modifier.
+- Black Belt + Fighting move applies the modifier.
+- Metal Coat + Steel move applies the modifier.
+- Sharp Beak + Flying move applies the modifier.
+- `item_effects.attacker_item` records `boosted_type`, `modifier`, `effect_type`, and `status`.
+- my selected, my available, and opponent known move estimates receive the applicable item effect.
+- opponent candidate moves still do not include `damage_estimate`.
+- `fairy-feather` remains unsupported/not modeled.
+- Existing item selector, damage parity, speed context, and payload contract regressions remain covered.
+- `uv run pytest -q`: 741 passed, 2 deselected.

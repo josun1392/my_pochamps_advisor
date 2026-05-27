@@ -374,6 +374,119 @@ def test_muscle_band_and_wise_glasses_apply_by_move_category() -> None:
     assert wise_estimate["item_effects"]["attacker_item"]["status"] == "applied"
 
 
+def test_legal_type_boosting_item_applies_when_move_type_matches() -> None:
+    cases = [
+        ("charcoal", "Charcoal", _flamethrower(), "fire"),
+        ("mystic-water", "Mystic Water", _water_pulse(), "water"),
+        ("black-belt", "Black Belt", _brick_break(), "fighting"),
+        ("metal-coat", "Metal Coat", _iron_head(), "steel"),
+        ("sharp-beak", "Sharp Beak", _air_slash(), "flying"),
+    ]
+
+    for item_id, name_en, move, boosted_type in cases:
+        default_estimate = build_selected_move_damage_estimate(_battle_input(selected_move=move))
+        payload = _battle_input(selected_move=move)
+        payload["item_profiles"] = {
+            "my_active": _legal_type_boosting_item_profile(item_id, name_en=name_en),
+            "opponent_active": _item_profile(None),
+        }
+
+        estimate = build_selected_move_damage_estimate(payload)
+
+        assert estimate["damage_range"]["max"] > default_estimate["damage_range"]["max"]
+        assert estimate["item_effects"]["attacker_item"] == {
+            "item_id": item_id,
+            "name_en": name_en,
+            "effect_type": "type_boosting_damage_modifier",
+            "boosted_type": boosted_type,
+            "modifier": 1.2,
+            "status": "applied",
+            "applied_effects": ["damage_modifier"],
+            "unapplied_effects": [],
+            "reason": "Move type matches item boosted type.",
+        }
+        assert estimate["assumptions"]["item"] == "supported_attacker_damage_item_applied"
+
+
+def test_legal_type_boosting_item_mismatch_is_not_applicable_without_damage_change() -> None:
+    default_estimate = build_selected_move_damage_estimate(_battle_input(selected_move=_air_slash()))
+    payload = _battle_input(selected_move=_air_slash())
+    payload["item_profiles"] = {
+        "my_active": _legal_type_boosting_item_profile("charcoal", name_en="Charcoal"),
+        "opponent_active": _item_profile(None),
+    }
+
+    estimate = build_selected_move_damage_estimate(payload)
+
+    assert estimate["damage_range"] == default_estimate["damage_range"]
+    assert estimate["item_effects"]["attacker_item"]["status"] == "not_applicable"
+    assert estimate["item_effects"]["attacker_item"]["item_id"] == "charcoal"
+    assert estimate["item_effects"]["attacker_item"]["name_en"] == "Charcoal"
+    assert estimate["item_effects"]["attacker_item"]["effect_type"] == "type_boosting_damage_modifier"
+    assert estimate["item_effects"]["attacker_item"]["boosted_type"] == "fire"
+    assert estimate["item_effects"]["attacker_item"]["modifier"] == 1.2
+    assert estimate["item_effects"]["attacker_item"]["reason"] == "Move type does not match item boosted type."
+    _assert_default_assumption_profile(estimate)
+
+
+def test_legal_type_boosting_item_applies_to_available_selected_and_opponent_known_moves() -> None:
+    payload = _battle_input(
+        selected_move=_flamethrower(),
+        available_moves=[_flamethrower(), _air_slash()],
+    )
+    payload["item_profiles"] = {
+        "my_active": _legal_type_boosting_item_profile("charcoal", name_en="Charcoal"),
+        "opponent_active": _legal_type_boosting_item_profile("sharp-beak", name_en="Sharp Beak"),
+    }
+    payload["opponent_moves"] = {
+        "known_moves": [{**_air_slash(), "source": "user_confirmed"}],
+        "candidate_moves": [{**_air_slash(), "source": "champions_movepool"}],
+    }
+
+    with_my_estimates = attach_selected_move_damage_estimate(payload)
+    result = attach_opponent_known_move_damage_estimates(with_my_estimates)
+
+    available = result["moves"]["my_available_moves"]
+    selected = result["moves"]["my_selected_move"]["damage_estimate"]
+    known_move = result["opponent_moves"]["known_moves"][0]
+    candidate_move = result["opponent_moves"]["candidate_moves"][0]
+    assert available[0]["damage_estimate"]["item_effects"]["attacker_item"]["status"] == "applied"
+    assert available[1]["damage_estimate"]["item_effects"]["attacker_item"]["status"] == "not_applicable"
+    assert selected["item_effects"]["attacker_item"]["status"] == "applied"
+    assert known_move["damage_estimate"]["item_effects"]["attacker_item"]["status"] == "applied"
+    assert known_move["damage_estimate"]["item_effects"]["attacker_item"]["item_id"] == "sharp-beak"
+    assert known_move["damage_estimate"]["target"] == "my_active"
+    assert "damage_estimate" not in candidate_move
+
+
+def test_fairy_feather_remains_unsupported_without_catalog_damage_change() -> None:
+    default_estimate = build_selected_move_damage_estimate(_battle_input(selected_move=_moonblast()))
+    payload = _battle_input(selected_move=_moonblast())
+    payload["item_profiles"] = {
+        "my_active": _legal_type_boosting_item_profile(
+            "fairy-feather",
+            name_en="Fairy Feather",
+            effect_support_status="legal_but_not_modeled",
+            ui_status="recognized_not_modeled",
+        ),
+        "opponent_active": _item_profile(None),
+    }
+
+    estimate = build_selected_move_damage_estimate(payload)
+
+    assert estimate["damage_range"] == default_estimate["damage_range"]
+    assert estimate["item_effects"]["attacker_item"] == {
+        "item_id": "fairy-feather",
+        "name_en": "Fairy Feather",
+        "status": "unsupported_item",
+        "effect_type": "type_boosting_damage_modifier",
+        "applied_effects": [],
+        "unapplied_effects": ["unsupported_catalog_missing"],
+        "reason": "No catalog-backed damage modifier is available yet.",
+    }
+    _assert_default_assumption_profile(estimate)
+
+
 def test_unsupported_item_does_not_modify_damage() -> None:
     payload = _battle_input(selected_move=_flamethrower())
     payload["item_profiles"] = _item_profiles(my_item="expert-belt")
@@ -632,6 +745,30 @@ def _legal_but_not_modeled_item_profile(item_id: str) -> dict:
     }
 
 
+def _legal_type_boosting_item_profile(
+    item_id: str,
+    *,
+    name_en: str,
+    effect_support_status: str = "legal_and_damage_supported",
+    ui_status: str = "recognized_modeled",
+) -> dict:
+    return {
+        "status": "user_confirmed",
+        "source": "user_input",
+        "item_id": item_id,
+        "name_en": name_en,
+        "name_ko": None,
+        "effects_scope": ["damage_modifier"],
+        "category": "type_boosting_item",
+        "legal": True,
+        "legality_status": "legal",
+        "effect_support_status": effect_support_status,
+        "damage_modifier_status": "not_applied",
+        "ui_status": ui_status,
+        "notes": [],
+    }
+
+
 def _flamethrower() -> dict:
     return {
         "slot": 0,
@@ -685,6 +822,62 @@ def _earthquake() -> dict:
         "power": 100,
         "accuracy": 100,
         "pp": 10,
+    }
+
+
+def _water_pulse() -> dict:
+    return {
+        "slot": 0,
+        "move_id": "water-pulse",
+        "name_en": "Water Pulse",
+        "name_ko": "Water Pulse",
+        "type": "water",
+        "category": "special",
+        "power": 60,
+        "accuracy": 100,
+        "pp": 20,
+    }
+
+
+def _brick_break() -> dict:
+    return {
+        "slot": 0,
+        "move_id": "brick-break",
+        "name_en": "Brick Break",
+        "name_ko": "Brick Break",
+        "type": "fighting",
+        "category": "physical",
+        "power": 75,
+        "accuracy": 100,
+        "pp": 15,
+    }
+
+
+def _iron_head() -> dict:
+    return {
+        "slot": 0,
+        "move_id": "iron-head",
+        "name_en": "Iron Head",
+        "name_ko": "Iron Head",
+        "type": "steel",
+        "category": "physical",
+        "power": 80,
+        "accuracy": 100,
+        "pp": 15,
+    }
+
+
+def _moonblast() -> dict:
+    return {
+        "slot": 0,
+        "move_id": "moonblast",
+        "name_en": "Moonblast",
+        "name_ko": "Moonblast",
+        "type": "fairy",
+        "category": "special",
+        "power": 95,
+        "accuracy": 100,
+        "pp": 15,
     }
 
 

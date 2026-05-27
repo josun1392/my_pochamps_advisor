@@ -33,6 +33,7 @@ SUPPORTED_ATTACKER_DAMAGE_ITEMS = {
     "muscle-band",
     "wise-glasses",
 }
+TYPE_BOOSTING_DAMAGE_MODIFIER = 1.2
 PHYSICAL_DAMAGE_ITEMS = {"choice-band", "muscle-band"}
 SPECIAL_DAMAGE_ITEMS = {"choice-specs", "wise-glasses"}
 ALWAYS_DAMAGE_ITEMS = {"life-orb"}
@@ -250,6 +251,7 @@ def build_move_damage_estimate(
             battle_input,
             attacker_key=attacker_key,
             move_category=category,
+            move_type=move_type,
         )
 
         field = Field(is_doubles=False)
@@ -301,6 +303,7 @@ def build_move_damage_estimate(
         attacker_key=attacker_key,
         defender_key=defender_key,
         move_category=category,
+        move_type=move_type,
         applied_attacker_item=attacker_item_effect,
     )
 
@@ -563,12 +566,16 @@ def _attacker_item_for_damage(
     *,
     attacker_key: str,
     move_category: str,
+    move_type: str,
 ) -> ItemEffect | None:
     profile = _item_profile(battle_input, attacker_key)
     item_id = profile.get("item_id")
     if not isinstance(item_id, str) or not item_id:
         return None
     item_id = item_id.lower()
+    type_boost_item = _catalog_type_boost_item(profile)
+    if type_boost_item is not None and move_type.lower() in type_boost_item.boosted_types:
+        return type_boost_item
     if not _is_supported_attacker_item_for_category(item_id, move_category):
         return None
     return get_item(item_id)
@@ -592,6 +599,7 @@ def _item_effects_summary(
     attacker_key: str,
     defender_key: str,
     move_category: str,
+    move_type: str,
     applied_attacker_item: ItemEffect | None,
 ) -> dict[str, Any]:
     attacker_profile = _item_profile(battle_input, attacker_key)
@@ -601,12 +609,14 @@ def _item_effects_summary(
             attacker_profile,
             role="attacker",
             move_category=move_category,
+            move_type=move_type,
             applied_item=applied_attacker_item,
         ),
         "defender_item": _item_effect_summary(
             defender_profile,
             role="defender",
             move_category=move_category,
+            move_type=move_type,
             applied_item=None,
         ),
     }
@@ -617,6 +627,7 @@ def _item_effect_summary(
     *,
     role: str,
     move_category: str,
+    move_type: str,
     applied_item: ItemEffect | None,
 ) -> dict[str, Any]:
     status = str(profile.get("status", "system_default_none"))
@@ -638,6 +649,14 @@ def _item_effect_summary(
             "applied_effects": [],
             "unapplied_effects": ["defender_item_effects_not_supported_in_v0.16", *unapplied_effects],
         }
+    type_boost_summary = _type_boosting_item_effect_summary(
+        profile,
+        item_id=item_id,
+        move_type=move_type,
+        applied_item=applied_item,
+    )
+    if type_boost_summary is not None:
+        return type_boost_summary
     if _is_legal_item_not_applied(profile):
         return {
             "item_id": item_id,
@@ -676,3 +695,79 @@ def _is_legal_item_not_applied(profile: dict[str, Any]) -> bool:
 
 def _legal_unmodeled_effects(item_id: str) -> list[str]:
     return LEGAL_UNMODELED_ITEM_EFFECTS.get(item_id, ["item_effect_not_modeled_in_v0.23"])
+
+
+def _catalog_type_boost_item(profile: dict[str, Any]) -> ItemEffect | None:
+    if not _is_user_confirmed_legal_type_boosting_profile(profile):
+        return None
+    item_id_value = profile.get("item_id")
+    item_id = item_id_value.lower() if isinstance(item_id_value, str) else ""
+    item = get_item(item_id)
+    if item is None or item.kind != "type_boost":
+        return None
+    return item
+
+
+def _is_user_confirmed_legal_type_boosting_profile(profile: dict[str, Any]) -> bool:
+    if profile.get("status") != "user_confirmed":
+        return False
+    legal = profile.get("legal") is True or profile.get("legality_status") == "legal"
+    if not legal:
+        return False
+    item_id_value = profile.get("item_id")
+    item_id = item_id_value.lower() if isinstance(item_id_value, str) and item_id_value else ""
+    support_status = profile.get("effect_support_status")
+    if support_status == "legal_and_damage_supported":
+        item = get_item(item_id)
+        return item is not None and item.kind == "type_boost"
+    if support_status == "legal_but_not_modeled":
+        return profile.get("category") == "type_boosting_item" or item_id == "fairy-feather"
+    return False
+
+
+def _type_boosting_item_effect_summary(
+    profile: dict[str, Any],
+    *,
+    item_id: str,
+    move_type: str,
+    applied_item: ItemEffect | None,
+) -> dict[str, Any] | None:
+    if not _is_user_confirmed_legal_type_boosting_profile(profile):
+        return None
+
+    name_en = profile.get("name_en") if isinstance(profile.get("name_en"), str) else item_id
+    catalog_item = get_item(item_id)
+    if catalog_item is None or catalog_item.kind != "type_boost":
+        return {
+            "item_id": item_id,
+            "name_en": name_en,
+            "status": "unsupported_item",
+            "effect_type": "type_boosting_damage_modifier",
+            "applied_effects": [],
+            "unapplied_effects": ["unsupported_catalog_missing"],
+            "reason": "No catalog-backed damage modifier is available yet.",
+        }
+
+    boosted_type = catalog_item.boosted_types[0] if catalog_item.boosted_types else None
+    base = {
+        "item_id": item_id,
+        "name_en": name_en,
+        "effect_type": "type_boosting_damage_modifier",
+        "boosted_type": boosted_type,
+        "modifier": TYPE_BOOSTING_DAMAGE_MODIFIER,
+    }
+    if applied_item is not None and move_type.lower() in catalog_item.boosted_types:
+        return {
+            **base,
+            "status": "applied",
+            "applied_effects": ["damage_modifier"],
+            "unapplied_effects": [],
+            "reason": "Move type matches item boosted type.",
+        }
+    return {
+        **base,
+        "status": "not_applicable",
+        "applied_effects": [],
+        "unapplied_effects": ["move_type_does_not_match_boosted_type"],
+        "reason": "Move type does not match item boosted type.",
+    }

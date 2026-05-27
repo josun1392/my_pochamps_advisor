@@ -16,6 +16,7 @@ from advisor.damage.ability_modifiers import (
 from advisor.damage.field import Field
 from advisor.damage.grounded import GroundedInputs, is_grounded
 from advisor.damage.item_modifiers import (
+    attacker_base_power_item_mod,
     defense_stat_item_mod,
     defender_berry_mod,
     get_atk_item_modifier,
@@ -180,9 +181,19 @@ def calc_damage_rolls(
     bp = ctx.move_power
     move_category = "physical" if ctx.is_physical else "special"
     attacker_item_id = ctx.attacker_item.item_id if ctx.attacker_item else ""
+    bp_item_modifier = (
+        attacker_base_power_item_mod(
+            ctx.attacker_item,
+            ctx.move_type,
+            ctx.attacker_species,
+            ctx.is_physical,
+        )
+        if ctx.attacker_item is not None and ctx.attacker_item.kind == "type_boost"
+        else get_bp_item_modifier(attacker_item_id, move_category=move_category)
+    )
     bp = apply_damage_modifier(
         bp,
-        get_bp_item_modifier(attacker_item_id, move_category=move_category),
+        bp_item_modifier,
     )
     pass1_move_flags = set(move_flags)
     if has_secondary_effect(move_id):

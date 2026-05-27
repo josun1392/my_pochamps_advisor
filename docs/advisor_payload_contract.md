@@ -205,6 +205,17 @@ The legacy damage-test subset remains available to tests/helpers, not the normal
 - `muscle-band`: physical move damage modifier only
 - `wise-glasses`: special move damage modifier only
 
+Legal catalog-backed type boosting items may apply as attacker-side damage modifiers:
+
+- when `item_profiles.<attacker>.status` is `user_confirmed`
+- when the item is a Champions legal `type_boosting_item`
+- when a local catalog-backed damage modifier exists
+- when the move type matches the item's boosted type
+
+When applied, these items use a `1.2x` damage modifier and `damage_estimate.item_effects.attacker_item.status` is `applied`.
+When the move type does not match the boosted type, `status` is `not_applicable` and damage is unchanged.
+When a legal item such as Fairy Feather has no catalog-backed damage modifier, `status` is `unsupported_item` and damage is unchanged.
+
 Excluded from v0.30 item application:
 
 - Expert Belt
@@ -227,6 +238,8 @@ Legal item modeling examples:
 When `damage_estimate.item_effects.attacker_item.status` is `applied`, the LLM should explicitly mention that the supported item damage modifier is included in that estimate. It should describe the number as being calculated under the stated assumptions plus the supported item modifier, not as only default assumptions. Non-damage item effects remain unmodeled.
 
 If Life Orb is applied, the LLM should say the damage modifier is applied and Life Orb recoil is not modeled. If Choice Band or Choice Specs is applied, the LLM should say the relevant damage modifier is applied and choice lock is not modeled.
+
+For type boosting items, the LLM should say the damage modifier is included only when `damage_estimate.item_effects.attacker_item.status` is `applied`. It must not say the item boosted damage when the move type does not match, when the item is unsupported, or merely because the item is legal. Fairy Feather should be described as legal but not damage-modeled until a catalog-backed modifier exists.
 
 ## Speed Context Semantics
 

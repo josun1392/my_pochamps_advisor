@@ -197,6 +197,31 @@ def test_ui_payload_includes_user_selected_item_profiles() -> None:
     assert opponent_estimate["item_effects"]["attacker_item"]["status"] == "not_applied"
 
 
+def test_ui_payload_applies_legal_type_boosting_item_to_matching_move() -> None:
+    item_options = legal_item_options_from_repository(ChampionsItemRepository())
+    my_panel = _panel(
+        "charizard",
+        selected_move_index=0,
+        selected_moves=[_move("flamethrower"), _move("air-slash")],
+        item_profile=item_profile_from_option("charcoal", item_options=item_options),
+    )
+    opponent_panel = _panel("garchomp", selected_move_index=None, selected_moves=[])
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+
+    selected_estimate = payload["moves"]["my_selected_move"]["damage_estimate"]
+    available_estimates = [move["damage_estimate"] for move in payload["moves"]["my_available_moves"]]
+    assert payload["item_profiles"]["my_active"]["item_id"] == "charcoal"
+    assert payload["item_profiles"]["my_active"]["effect_support_status"] == "legal_and_damage_supported"
+    assert selected_estimate["item_effects"]["attacker_item"]["status"] == "applied"
+    assert selected_estimate["item_effects"]["attacker_item"]["effect_type"] == "type_boosting_damage_modifier"
+    assert selected_estimate["item_effects"]["attacker_item"]["boosted_type"] == "fire"
+    assert selected_estimate["item_effects"]["attacker_item"]["modifier"] == 1.2
+    assert available_estimates[0]["item_effects"]["attacker_item"]["status"] == "applied"
+    assert available_estimates[1]["item_effects"]["attacker_item"]["status"] == "not_applicable"
+
+
 def test_ui_payload_distinguishes_unknown_and_no_item() -> None:
     my_panel = _panel(
         "charizard",
@@ -608,6 +633,10 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "priority, Tailwind, Trick Room, paralysis, Speed stages" in prompt
     assert "Legal items and modeled item effects are separate concepts" in prompt
     assert "legal_but_not_modeled selected item may be user-confirmed" in prompt
+    assert "For type boosting items, say the damage modifier is included only" in prompt
+    assert "when damage_estimate.item_effects.attacker_item.status is applied" in prompt
+    assert "do not say a type boosting item boosted damage when the move type does not match" in prompt
+    assert "Fairy Feather is legal but not damage-modeled" in prompt
     assert "Damage-supported non-legal/debug items are not normal legal selector options" in prompt
     assert "If an attacker item effect is applied" in prompt
     assert "default assumptions plus the supported item modifier" in prompt
@@ -629,6 +658,19 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
 def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     assert (
         "When item_effects.attacker_item.status is applied, mention that the supported item damage modifier is applied."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Type boosting item damage is included only when item_effects.attacker_item.status is applied."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say a type boosting item boosted damage when the move type does not match or the item is unsupported."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Legal item selection does not imply the selected item has a modeled effect." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Fairy Feather is legal but not damage-modeled until a catalog-backed modifier exists."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
