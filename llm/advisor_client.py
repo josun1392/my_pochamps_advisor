@@ -135,7 +135,14 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "or not_very_effective; convert them to natural wording: super effective, "
         "not very effective, immune/no effect, or neutral. Opponent candidate move damage is not "
         "calculated in v0.18. Use my_available_moves damage_estimates to "
-        "compare the user's own move options.\n\n"
+        "compare the user's own move options. If opponent_assumptions is "
+        "present, treat possible_samples only as context-only risk profiles, "
+        "not confirmed opponent sets. Do not describe sample_assumed data as "
+        "user-confirmed information. If calculation_usage is context_only, do "
+        "not say those samples changed damage_estimate or speed_context. Do "
+        "not interpret null prior_probability as zero probability, and do not "
+        "claim Top-K omitted archetypes are impossible. Do not infer final "
+        "turn order, KO, survival, or exact stats from possible samples.\n\n"
         f"{json.dumps(battle_input, ensure_ascii=False, indent=2)}"
     )
 

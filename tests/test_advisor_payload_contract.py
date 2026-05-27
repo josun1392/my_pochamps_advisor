@@ -9,6 +9,7 @@ from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveView
 from core.move_repository import MoveRepository
 from core.pokemon_repository import PokemonView
+from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
 from llm.advisor_client import _build_ui_selected_prompt
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from ui.main_window import MainWindow
@@ -63,6 +64,14 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
         "scenario"
     ]["known_limitations"]
     assert "Opponent candidate move damage is not calculated in v0.18." in payload["scenario"]["known_limitations"]
+    assert (
+        "opponent_assumptions, when present, contains possible opponent profiles, not confirmed sets."
+        in payload["scenario"]["known_limitations"]
+    )
+    assert (
+        "opponent_assumptions.calculation_usage context_only means samples are not used directly for damage or speed calculations."
+        in payload["scenario"]["known_limitations"]
+    )
     assert "Use my_available_moves damage_estimates to compare the user's own move options." in payload["scenario"][
         "known_limitations"
     ]
@@ -147,6 +156,54 @@ def test_ui_payload_includes_default_stat_profiles() -> None:
     assert payload["speed_context"]["reason"] == "insufficient_confirmed_final_stats"
     assert payload["speed_context"]["is_final_turn_order"] is False
     assert "Default Speed fallback is not used in v0.30." in payload["speed_context"]["limitations"]
+
+
+def test_ui_payload_includes_opponent_assumptions_for_species_with_samples() -> None:
+    my_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
+    opponent_panel = _panel("garchomp", selected_move_index=None, selected_moves=[])
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+    assumptions = payload["opponent_assumptions"]
+
+    assert assumptions["mode"] == "multi_sample_assumption_v0.38"
+    assert assumptions["available"] is True
+    assert assumptions["scope"] == "opponent_active"
+    assert assumptions["is_confirmed_information"] is False
+    assert assumptions["calculation_usage"] == "context_only"
+    opponent = assumptions["opponent_active"]
+    assert opponent["species_id"] == "garchomp"
+    assert opponent["known_status"] == "not_confirmed"
+    assert opponent["is_user_confirmed"] is False
+    assert opponent["user_confirmed_fields"] == {}
+    assert opponent["observation_history"] == []
+    assert opponent["update_policy"]["mode"] == "static"
+    assert opponent["samples_meta"]["default_top_k"] == 3
+    assert opponent["samples_meta"]["included_top_k"] == 1
+    sample = opponent["possible_samples"][0]
+    assert sample["sample_id"] == "garchomp_fast_physical_01"
+    assert sample["is_user_confirmed"] is False
+    assert sample["prior_probability"] is None
+    assert sample["prior_probability_type"] == "not_available"
+    assert sample["possible_stats"]["spe"] == 154
+
+
+def test_opponent_assumptions_do_not_feed_damage_or_speed_context() -> None:
+    my_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
+    opponent_panel = _panel("garchomp", selected_move_index=None, selected_moves=[])
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+
+    assert payload["opponent_assumptions"]["available"] is True
+    assert payload["opponent_assumptions"]["opponent_active"]["possible_samples"][0]["possible_stats"]["spe"] == 154
+    assert payload["stat_profiles"]["opponent_active"]["status"] == "default_assumption"
+    assert payload["stat_profiles"]["opponent_active"]["final_stats"] is None
+    assert payload["moves"]["my_selected_move"]["damage_estimate"]["assumption_profile"]["id"] == (
+        "default_level50_ivs31_evs0_neutral_no_item"
+    )
+    assert payload["speed_context"]["available"] is False
+    assert payload["speed_context"]["reason"] == "insufficient_confirmed_final_stats"
 
 
 def test_ui_payload_includes_default_item_profiles() -> None:
@@ -538,6 +595,8 @@ def test_missing_opponent_fixture_does_not_fallback_to_pokeapi_learnset() -> Non
     assert opponent_moves["known_moves"] == []
     assert opponent_moves["candidate_moves"] == []
     assert payload["moves"]["opponent_available_moves"] == []
+    assert payload["opponent_assumptions"]["available"] is False
+    assert payload["opponent_assumptions"]["reason"] == "no_samples_for_species"
 
 
 def test_pokemon_payload_marks_base_stats_as_reference_data_only() -> None:
@@ -653,6 +712,13 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "immune/no effect" in prompt
     assert "Use my_available_moves damage_estimates to compare the user's own move options" in prompt
     assert "Do not claim OHKO, 2HKO, KO chance, survival, or speed order" in prompt
+    assert "opponent_assumptions is present" in prompt
+    assert "possible_samples only as context-only risk profiles" in prompt
+    assert "not confirmed opponent sets" in prompt
+    assert "calculation_usage is context_only" in prompt
+    assert "do not say those samples changed damage_estimate or speed_context" in prompt
+    assert "Do not interpret null prior_probability as zero probability" in prompt
+    assert "Do not infer final turn order, KO, survival, or exact stats from possible samples" in prompt
 
 
 def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
@@ -704,6 +770,16 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         "Choice lock remains not modeled even when Choice Scarf speed is applied."
         in ADVISOR_KNOWN_LIMITATIONS
     )
+    assert (
+        "opponent_assumptions, when present, contains possible opponent profiles, not confirmed sets."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "opponent_assumptions.calculation_usage context_only means samples are not used directly for damage or speed calculations."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Do not describe sample_assumed opponent samples as user-confirmed information." in ADVISOR_KNOWN_LIMITATIONS
+    assert "Do not interpret prior_probability null as zero probability." in ADVISOR_KNOWN_LIMITATIONS
 
 
 def _panel(
@@ -759,6 +835,7 @@ def _window(my_panel, opponent_panel):
     window.move_repo = MoveRepository(CacheManager(), KoMappingLoader())
     window.champions_move_pool_repo = ChampionsMovePoolRepository()
     window.champions_item_repo = ChampionsItemRepository()
+    window.pokemon_stat_sample_repo = PokemonStatSampleRepository()
 
     def _slot_panel(self, column_name: str, slot_index: int):
         del slot_index

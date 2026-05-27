@@ -1,6 +1,6 @@
 # Advisor Payload Contract
 
-**Milestone:** v0.30 - Choice Scarf Effective Speed Payload
+**Milestone:** v0.38 - Opponent Possible Sample Payload
 **Payload mode:** `ui-selected-pokemon-v0.18`
 **Status:** Current contract for the PySide6 UI to Gemini LLM advisor path.
 
@@ -8,7 +8,7 @@
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, raw/effective Speed comparison context, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. The app does not yet send EV/IV/nature breakdowns, KO odds, final turn order, candidate move damage estimates, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, context-only opponent sample assumptions, raw/effective Speed comparison context, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. v0.38 adds `opponent_assumptions` as context-only possible opponent sample profiles. The app does not yet send EV/IV/nature breakdowns, KO odds, final turn order, candidate move damage estimates, sample-based damage or Speed calculations, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -18,6 +18,7 @@ Top-level sections:
 - `pokemon`
 - `stat_profiles`
 - `item_profiles`
+- `opponent_assumptions`
 - `speed_context`
 - `moves`
 - `opponent_moves`
@@ -75,6 +76,67 @@ Each active item profile contains:
 - `notes`
 
 In v0.23 the UI can emit `system_default_none`, `unknown`, `none`, or `user_confirmed` item profiles for active Pokemon. My active defaults to `system_default_none` for compatibility with the previous no-item calculation assumption. Opponent active defaults to `unknown` unless T1 confirms no item or selects a legal item from the repository-backed selector.
+
+`opponent_assumptions` contains possible opponent sample profiles for the active opponent species. It is context-only in v0.38 and is not confirmed battle information.
+
+When samples are available, `opponent_assumptions` contains:
+
+- `mode`: `multi_sample_assumption_v0.38`
+- `available`: `true`
+- `scope`: `opponent_active`
+- `is_confirmed_information`: always `false`
+- `calculation_usage`: `context_only`
+- `opponent_active.species_id`
+- `opponent_active.known_status`: currently `not_confirmed`
+- `opponent_active.is_user_confirmed`: `false`
+- `opponent_active.user_confirmed_fields`: currently `{}`
+- `opponent_active.possible_samples`
+- `opponent_active.samples_meta`
+- `opponent_active.observation_history`: currently `[]`
+- `opponent_active.update_policy.mode`: `static`
+- `limitations`
+
+Each `possible_samples` entry contains:
+
+- `sample_id`
+- `species_id`
+- `label_en`
+- `label_ko`
+- `source`: `sample_assumed`
+- `source_type`
+- `confidence`
+- `prior_probability`: currently `null`
+- `prior_probability_type`: `not_available`
+- `evidence_basis`
+- `is_user_confirmed`: `false`
+- `possible_item`
+- `possible_stats`
+- `limitations`
+
+`samples_meta` contains:
+
+- `total_known_archetypes`
+- `included_top_k`
+- `default_top_k`: `3`
+- `coverage_probability`: currently `null`
+- `coverage_probability_type`: `not_available`
+- `omitted_archetypes_note`
+
+When samples are unavailable, `opponent_assumptions.available` is `false` and `reason` is one of:
+
+- `no_samples_for_species`
+- `opponent_active_missing`
+- `repository_unavailable`
+
+The LLM must not invent possible samples when `available` is `false`.
+
+`opponent_assumptions.calculation_usage` is `context_only` in v0.38:
+
+- possible samples are not used by `damage_estimate`
+- possible samples are not used by `speed_context`
+- possible samples do not provide KO, OHKO, 2HKO, survival, or final turn order
+- `prior_probability: null` means the prior is unavailable, not zero probability
+- Top-K omission does not mean omitted archetypes are impossible
 
 `speed_context` contains raw and supported effective Speed comparison metadata. It is not final turn order.
 
@@ -241,6 +303,35 @@ If Life Orb is applied, the LLM should say the damage modifier is applied and Li
 
 For type boosting items, the LLM should say the damage modifier is included only when `damage_estimate.item_effects.attacker_item.status` is `applied`. It must not say the item boosted damage when the move type does not match, when the item is unsupported, or merely because the item is legal. Fairy Feather should be described as legal but not damage-modeled until a catalog-backed modifier exists.
 
+## Opponent Assumption Semantics
+
+`opponent_assumptions` is a context-only risk section for possible opponent sample profiles.
+
+It must not be treated like:
+
+- `stat_profiles`
+- `opponent_moves.known_moves`
+- user-confirmed final stats
+- damage calculation input
+- Speed calculation input
+
+The LLM may say:
+
+- "Possible opponent samples include a fast physical Garchomp sample."
+- "These are assumptions, not confirmed opponent stats."
+- "The sample is context only and was not used directly for damage or speed calculation."
+- "Prior probability is not available for this sentinel sample."
+
+The LLM must not say:
+
+- "The opponent is this sample."
+- "The opponent definitely has 154 Speed."
+- "This sample proves the opponent item."
+- "prior_probability is null, so this set is impossible."
+- "This sample confirms turn order, KO, or survival."
+
+User-confirmed fields override possible sample assumptions. If a future payload marks conflicts between `user_confirmed_fields` and possible samples, conflicting samples must not drive advice.
+
 ## Speed Context Semantics
 
 `speed_context` is raw and supported effective Speed comparison only.
@@ -343,6 +434,11 @@ The LLM must not:
 - apply priority, Tailwind, Trick Room, paralysis, Speed stages, or ability speed effects from `speed_context`
 - treat cache learnsets or unselected moves as available moves
 - treat `opponent_moves.candidate_moves` as confirmed opponent moves
+- treat `opponent_assumptions.possible_samples` as confirmed opponent sets
+- treat `sample_assumed` opponent samples as user-confirmed information
+- interpret `prior_probability: null` as zero probability
+- claim Top-K omitted opponent sample archetypes are impossible
+- say context-only samples changed `damage_estimate` or `speed_context`
 - assume the opponent has a candidate move unless it appears in `opponent_moves.known_moves`
 - claim candidate move damage, speed order, or turn order from v0.18 opponent move metadata
 - describe opponent known move damage estimates as final battle damage
@@ -381,6 +477,9 @@ The LLM may:
 - discuss `opponent_moves.known_moves` as user-confirmed opponent moves
 - discuss `opponent_moves.known_moves[*].damage_estimate` only as default-assumption damage against `my_active`
 - discuss `opponent_moves.candidate_moves` only as possible, not confirmed, Champions moves
+- discuss `opponent_assumptions.possible_samples` only as context-only possible profiles
+- mention that possible samples are assumptions, not confirmed opponent sets
+- mention that context-only samples were not used directly for damage or speed calculations
 - mention candidate moves as possible threats only when they are labeled as unconfirmed
 - use `my_available_moves[*].damage_estimate` to compare the user's own move options
 - recommend a direction while naming the missing information that prevents a confident damage-based call

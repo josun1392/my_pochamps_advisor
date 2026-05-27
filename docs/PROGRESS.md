@@ -2647,3 +2647,83 @@ Maintained boundaries:
 - No KO/OHKO/2HKO.
 - No Turn Engine.
 - No item effect changes.
+
+---
+
+## v0.38 - Opponent possible sample payload
+
+Purpose:
+- Add a minimal top-level `opponent_assumptions` payload section that gives Gemini context-only possible opponent sample profiles without connecting samples to damage, Speed, KO, or turn-order calculations.
+
+Implemented:
+- Added `llm/opponent_assumptions.py`.
+- Added `build_opponent_assumptions_payload()` for active opponent species sample lookup.
+- Added helper functions:
+  - `select_possible_samples()`
+  - `build_samples_meta()`
+  - `validate_opponent_assumptions_payload()`
+- Added top-level `opponent_assumptions` to the UI-built advisor payload.
+- Used `PokemonStatSampleRepository` to load manually curated sentinel samples.
+- Kept `top_k` default at `3`.
+- For available species, payload includes:
+  - `mode: multi_sample_assumption_v0.38`
+  - `available: true`
+  - `scope: opponent_active`
+  - `is_confirmed_information: false`
+  - `calculation_usage: context_only`
+  - `known_status: not_confirmed`
+  - `user_confirmed_fields: {}`
+  - `possible_samples`
+  - `samples_meta`
+  - `observation_history: []`
+  - static `update_policy`
+- For unavailable species, payload returns:
+  - `available: false`
+  - `reason: no_samples_for_species`
+- Added unavailable handling for:
+  - `opponent_active_missing`
+  - `repository_unavailable`
+- Kept all possible samples as:
+  - `source: sample_assumed`
+  - `is_user_confirmed: false`
+  - `confidence: estimated`
+  - `prior_probability: null`
+  - `prior_probability_type: not_available`
+- Added advisor contract and prompt guardrails:
+  - possible samples are not confirmed opponent sets
+  - sample assumptions are not user-confirmed information
+  - null prior is not zero probability
+  - Top-K omitted archetypes are not impossible
+  - context-only samples are not damage or Speed calculation inputs
+  - sample context must not be used to claim final turn order, KO, or survival
+- Added tests for:
+  - available species sample payload
+  - unknown species unavailable payload
+  - missing opponent unavailable payload
+  - repository unavailable payload
+  - possible sample `is_user_confirmed: false`
+  - `calculation_usage: context_only`
+  - `samples_meta`
+  - static `update_policy`
+  - null prior handling
+  - prompt and contract guardrails
+  - no automatic damage or Speed integration
+
+Maintained boundaries:
+- No UI changes.
+- No fixture expansion.
+- No external scraping or build script.
+- No automatic sample application.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No sample treated as `user_confirmed_final_stats`.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No damage/probability engine changes.
+
+Verification:
+- `uv run pytest tests/test_opponent_assumptions.py tests/test_advisor_payload_contract.py -q`: 32 passed.
+- `uv run pytest -q`: 769 passed, 2 deselected.

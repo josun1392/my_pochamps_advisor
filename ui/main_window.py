@@ -20,12 +20,14 @@ from core.champions_item_repository import ChampionsItemRepository
 from core.champions_move_pool import ChampionsMovePoolRepository
 from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository, MoveView
+from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
 from core.pokemon_repository import PokemonRepository
 from core.search_engine import SearchEngine
 from llm.advisor_damage_estimate import (
     attach_opponent_known_move_damage_estimates,
     attach_selected_move_damage_estimate,
 )
+from llm.opponent_assumptions import build_opponent_assumptions_payload
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import run_ui_selected_advice
 from ui.shortcuts import GlobalShortcuts
@@ -173,6 +175,10 @@ class MainWindow(QMainWindow):
         self.move_repo = MoveRepository(self.cache, self.ko_loader)
         self.champions_move_pool_repo = ChampionsMovePoolRepository()
         self.champions_item_repo = ChampionsItemRepository()
+        try:
+            self.pokemon_stat_sample_repo = PokemonStatSampleRepository()
+        except Exception:
+            self.pokemon_stat_sample_repo = None
         for move_id, name_en in self.champions_move_pool_repo.iter_move_search_entries():
             self.search_engine.add_entry("move", move_id, name_en)
 
@@ -394,18 +400,23 @@ class MainWindow(QMainWindow):
             "my_active": _item_profile_payload(my_panel, role_key="my_active"),
             "opponent_active": _item_profile_payload(opponent_panel, role_key="opponent_active"),
         }
+        pokemon_payloads = {
+            "my_active": self._panel_to_llm_payload(my_panel, my_slot_index),
+            "opponent_active": self._panel_to_llm_payload(opponent_panel, opponent_slot_index),
+        }
         battle_input = {
             "scenario": {
                 "mode": ADVISOR_PAYLOAD_MODE,
                 "format_note": "Selected Pokemon identity plus default-assumption damage estimates for user-confirmed moves; no full battle state.",
                 "known_limitations": list(ADVISOR_KNOWN_LIMITATIONS),
             },
-            "pokemon": {
-                "my_active": self._panel_to_llm_payload(my_panel, my_slot_index),
-                "opponent_active": self._panel_to_llm_payload(opponent_panel, opponent_slot_index),
-            },
+            "pokemon": pokemon_payloads,
             "stat_profiles": stat_profiles,
             "item_profiles": item_profiles,
+            "opponent_assumptions": build_opponent_assumptions_payload(
+                pokemon_payloads.get("opponent_active"),
+                getattr(self, "pokemon_stat_sample_repo", None),
+            ),
             "speed_context": _speed_context_payload(stat_profiles, item_profiles),
             "moves": {
                 "my_selected_move_index": my_panel.selected_move_index,
