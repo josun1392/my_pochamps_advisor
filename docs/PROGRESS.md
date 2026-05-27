@@ -2323,3 +2323,56 @@ Maintained boundaries:
 - No test changes.
 - No item effect additions.
 - No Fairy Feather, Focus Sash, recovery, KO/OHKO/2HKO, Turn Engine, or damage/probability engine implementation.
+
+---
+
+## v0.34 - Opponent Stat Sample Assumption Design
+
+Purpose:
+- Design how opponent stats should be represented when they are user-confirmed, sample-assumed, default-assumed, or unknown.
+- Prepare a safe path for future Pokemon stat sample files without treating samples as confirmed opponent stats.
+
+Designed:
+- Added `docs/spike_v0.34_opponent_stat_sample_assumption_design.md`.
+- Reviewed current final stats, damage estimate, speed context, payload contract, and previous speed/item design boundaries.
+- Defined stat source categories:
+  - `user_confirmed_final_stats`
+  - `sample_assumed_stats`
+  - `default_assumption_stats`
+  - `unknown_stats`
+- Proposed future fixture shape for `data/static/pokemon_stat_samples.json`.
+- Recommended keeping `stat_profiles.*` as the first source-of-truth location for stat source metadata.
+- Recommended that sample stats may be used only when explicitly selected in a future implementation.
+- Recommended that sample stats get a distinct assumption profile and never appear as user-confirmed stats.
+- Recommended keeping v0.35 speed behavior user-confirmed-only; sample Speed should not feed the existing confirmed `speed_context` path yet.
+- Compared UI options:
+  - sample file only
+  - explicit Opponent Stat Sample Selector
+  - auto-suggest sample
+- Recommended v0.35 as repository/fixture only and v0.36+ for any explicit UI selector.
+- Proposed future repository/helper names:
+  - `core/pokemon_stat_sample_repository.py`
+  - `load_stat_samples()`
+  - `list_samples_for_species()`
+  - `get_sample()`
+  - `validate_sample_schema()`
+  - `classify_stat_source()`
+- Added LLM guardrail direction that sample-assumed stats must be described as assumptions, not confirmed stats.
+
+v0.35 candidate:
+- `v0.35 - Opponent Stat Sample Repository / Fixture`
+- Include a sentinel sample fixture, repository loader, schema validation tests, and source model documentation.
+- Exclude UI selector, automatic sample application, damage/speed integration, Turn Engine, and KO/OHKO/2HKO.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No data fixture creation.
+- No repository implementation.
+- No UI changes.
+- No payload schema implementation.
+- No prompt changes.
+- No tests changed.
+- No sample stats applied to damage or speed.
+- No automatic opponent sample selection.
+- No KO/OHKO/2HKO, Turn Engine, item effect, or damage/probability engine changes.
