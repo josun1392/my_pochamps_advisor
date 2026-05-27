@@ -2277,3 +2277,49 @@ Verification:
 - `fairy-feather` remains unsupported/not modeled.
 - Existing item selector, damage parity, speed context, and payload contract regressions remain covered.
 - `uv run pytest -q`: 741 passed, 2 deselected.
+
+---
+
+## v0.33.1 - Type boosting item damage local Gemini verification
+
+Purpose:
+- Record T1 local app Gemini verification for the v0.33 type boosting item damage modifier behavior.
+
+Verified:
+- Gemini actual call succeeded in the local app.
+- Mismatch case:
+  - My Pokemon: Charizard.
+  - User-confirmed item: Charcoal.
+  - Selected move: Dragon Claw.
+  - Opponent: Garchomp.
+  - Gemini correctly explained that Charcoal does not boost Dragon Claw damage.
+  - Confirmed wording: "Charizard's user-confirmed Charcoal item does not boost Dragon Claw's damage."
+  - This confirms Charcoal + non-Fire move reports the `not_applicable` behavior correctly.
+- Applied case:
+  - My Pokemon: Charizard.
+  - User-confirmed item: Charcoal.
+  - Selected move: Overheat.
+  - Opponent: Garchomp.
+  - Gemini correctly explained that the Charcoal type boosting damage modifier was applied.
+  - Confirmed wording: "with the 1.2x Charcoal item modifier applied."
+  - This confirms Charcoal + Fire move reports the `applied` behavior correctly.
+- Gemini did not exaggerate the estimate as final battle damage.
+- Gemini preserved the limitation that Garchomp stats/item were default assumptions.
+
+Result:
+- v0.33 local verification passed.
+
+Next candidates:
+- Fairy Feather catalog support design.
+- Focus Sash survival design.
+- Opponent stat sample assumption design.
+
+Maintained boundaries:
+- Documentation-only record.
+- No code changes.
+- No UI changes.
+- No payload schema changes.
+- No prompt changes.
+- No test changes.
+- No item effect additions.
+- No Fairy Feather, Focus Sash, recovery, KO/OHKO/2HKO, Turn Engine, or damage/probability engine implementation.
