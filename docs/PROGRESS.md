@@ -3052,3 +3052,89 @@ Maintained boundaries:
 - No stats auto-correction.
 - No scraping or build script.
 - No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
+## v0.41 - Repo-native minimal sample pack design
+
+Purpose:
+- Design a safer repo-native path for the next opponent sample fixture update after the v0.40 candidate failed validation.
+
+Designed:
+- Added `docs/spike_v0.41_repo_native_minimal_sample_pack_design.md`.
+- Reviewed:
+  - `data/static/pokemon_stat_samples.json`
+  - `core/pokemon_stat_sample_repository.py`
+  - `tests/test_pokemon_stat_sample_repository.py`
+  - `llm/opponent_assumptions.py`
+  - `tests/test_opponent_assumptions.py`
+  - `advisor/damage/stats.py`
+  - `core/champions_item_repository.py`
+  - `data/static/champions_legal_items.json`
+  - `docs/spike_v0.40_opponent_sample_candidate_validation.md`
+- Summarized v0.40 failure causes:
+  - candidate schema was not repo-native
+  - manual final stats did not match `advisor.damage.stats.final_stats`
+  - some species had no local cache/base stats for validation
+  - `rotom_wash` conflicted with repo normalization to `rotom-wash`
+  - candidate `possible_items` included illegal/unknown items
+  - Korean/ability fields had unresolved cases
+- Established new sample principle:
+  - T1/T2 may propose SP distributions and archetypes
+  - final stats must be generated or verified by repo calculator
+  - species without local base stats are excluded
+  - `possible_items` should include Champions legal items only
+  - non-legal/unknown item ideas belong in notes, not `possible_items`
+- Recommended preserving the existing species-keyed fixture shape.
+- Recommended using `species_id` only and repo-normalized slugs such as `rotom-wash`.
+- Designed stats generation policy:
+  - `stats_truth_source: repo_calculator_from_sp_distribution`
+  - `stats_calculator: advisor.damage.stats.final_stats`
+  - explicit nature, IV, level, and SP assumptions
+  - no T2 manual final stats copied into fixture
+- Classified v0.42 species eligibility:
+  - likely eligible: `garchomp`, `charizard`, `corviknight`, `tyranitar`, `archaludon`, `dragonite`, `rotom-wash`, `kingambit`
+  - deferred: `gholdengo`, `amoonguss`, `metagross`
+- Recommended v0.42 minimal scope:
+  - 5 to 7 species
+  - 1 sample per species
+  - repo-calculated stats only
+  - legal-item-only `possible_items`
+- Proposed simple validation archetypes:
+  - `garchomp`: `fast_physical`
+  - `charizard`: `special_attacker`
+  - `corviknight`: `defensive_pivot`
+  - `tyranitar`: `bulky_physical`
+  - `archaludon`: `special_tank`
+  - `dragonite`: `physical_setup`
+  - `rotom-wash`: `defensive_pivot`
+- Designed v0.42 test direction:
+  - recompute fixture stats with repo calculator
+  - validate species normalization
+  - validate legal-item-only `possible_items`
+  - keep no damage/speed integration regression
+  - keep `opponent_assumptions` Top-K regression
+- Kept LLM/payload guardrails:
+  - sample remains context-only
+  - sample stats are not damage/speed inputs
+  - legal possible items are not confirmed held items
+  - null prior is not zero probability
+- Recommended `v0.42 - Repo-Native Minimal Sample Pack Implementation`.
+- Listed `v0.42 - Stat Sample Generator Helper Design` as an alternative if implementation inputs are not ready.
+
+Maintained boundaries:
+- Documentation-only design.
+- No fixture changes.
+- No sample additions.
+- No code implementation.
+- No repository implementation.
+- No tests changed.
+- No UI changes.
+- No scraping or build script.
+- No damage/speed integration.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
