@@ -3496,6 +3496,71 @@ Maintained boundaries:
 
 ---
 
+## v0.47 - Opponent assumptions minimal metadata enrichment
+
+Purpose:
+- Populate safe, minimal sample metadata in `opponent_assumptions.possible_samples` so developer debug summaries show useful role/archetype/item context.
+
+Implemented:
+- Enriched `opponent_assumptions.possible_samples` with minimal metadata:
+  - `role`
+  - `archetype_id`
+  - `possible_items`
+  - `calculation_usage`
+- Kept existing safety metadata:
+  - `confidence`
+  - `is_user_confirmed: false`
+  - `prior_probability: null`
+  - `prior_probability_type: not_available`
+- Removed `possible_stats` from `possible_samples` to avoid full stats exposure.
+- Kept full stats and SP distribution out of `possible_samples`.
+- Kept source URL, source note, full source metadata, long reviewer notes, and full update policy out of `possible_samples`.
+- Updated debug summary behavior so repo-native samples can show:
+  - non-null `role`
+  - non-null `archetype_id`
+  - legal-only `possible_items`
+  - `used_for_damage: false`
+  - `used_for_speed: false`
+- Updated advisor prompt and payload contract guardrails:
+  - sample role/archetype/possible_items are context-only metadata
+  - possible_items are possible assumptions, not confirmed held items
+  - do not enumerate sample metadata by default
+  - keep sample visibility concise
+- Updated `docs/advisor_payload_contract.md` with minimal metadata field semantics.
+- Added/updated tests for:
+  - role/archetype_id/possible_items in `possible_samples`
+  - no `possible_stats`, full `stats`, or `sp_distribution`
+  - no source metadata dump
+  - debug summary metadata population
+  - `used_for_damage: false`
+  - `used_for_speed: false`
+  - prompt/contract guardrails
+  - no damage/speed integration regression
+
+Maintained boundaries:
+- No fixture changes.
+- No sample additions.
+- No repository sample data changes.
+- No UI changes.
+- No full stats exposure.
+- No full payload export.
+- No damage/speed integration.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No sample treated as user-confirmed.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No scraping or build script.
+
+Verification:
+- `uv run pytest tests/test_opponent_assumptions.py tests/test_advisor_payload_contract.py -q`: 40 passed.
+- `uv run pytest -q`: 784 passed, 2 deselected.
+
+---
+
 ## v0.44 - Opponent sample debug inspection design
 
 Purpose:

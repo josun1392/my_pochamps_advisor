@@ -43,7 +43,9 @@ def test_build_opponent_assumptions_payload_for_species_with_samples() -> None:
     assert sample["prior_probability_type"] == "not_available"
     assert sample["is_user_confirmed"] is False
     assert sample["possible_item"] is None
-    assert sample["possible_stats"]["spe"] == 154
+    assert "possible_stats" not in sample
+    assert "stats" not in sample
+    assert "sp_distribution" not in sample
     assert "not confirmed" in " ".join(sample["limitations"]).lower()
 
     meta = opponent["samples_meta"]
@@ -75,8 +77,18 @@ def test_build_opponent_assumptions_payload_for_repo_native_species() -> None:
     sample = opponent["possible_samples"][0]
     assert sample["sample_id"] == "rotom_wash_defensive_pivot_repo_v42"
     assert sample["species_id"] == "rotom-wash"
+    assert sample["role"] == "defensive_pivot"
+    assert sample["archetype_id"] == "rotom_wash_defensive_pivot_repo_v42"
+    assert sample["possible_items"] == ["leftovers", "sitrus-berry"]
+    assert sample["calculation_usage"] == "context_only"
     assert sample["is_user_confirmed"] is False
     assert sample["prior_probability"] is None
+    assert "possible_stats" not in sample
+    assert "stats" not in sample
+    assert "sp_distribution" not in sample
+    assert "source_url" not in sample
+    assert "source_note" not in sample
+    assert "reviewer_notes" not in sample
 
     validate_opponent_assumptions_payload(payload)
 
@@ -169,8 +181,9 @@ def test_build_debug_summary_for_available_opponent_assumptions() -> None:
     sample = summary["possible_samples"][0]
     assert sample["sample_id"] == "rotom_wash_defensive_pivot_repo_v42"
     assert sample["species_id"] == "rotom-wash"
-    assert "role" in sample
-    assert "archetype_id" in sample
+    assert sample["role"] == "defensive_pivot"
+    assert sample["archetype_id"] == "rotom_wash_defensive_pivot_repo_v42"
+    assert sample["possible_items"] == ["leftovers", "sitrus-berry"]
     assert sample["confidence"] == "estimated"
     assert sample["is_user_confirmed"] is False
     assert sample["used_for_damage"] is False
@@ -207,6 +220,7 @@ def test_build_debug_summary_from_full_payload_uses_only_opponent_assumptions() 
     assert "must-not-leak" not in rendered
     assert "possible_stats" not in rendered
     assert '"stats"' not in rendered
+    assert "sp_distribution" not in rendered
 
 
 def test_build_debug_summary_for_unavailable_opponent_assumptions() -> None:
@@ -281,6 +295,28 @@ def test_debug_summary_preserves_optional_sample_fields_without_full_stats_dump(
     }
     assert "possible_stats" not in rendered
     assert "source_metadata" not in rendered
+
+
+def test_possible_sample_metadata_is_minimal_and_context_only() -> None:
+    payload = build_opponent_assumptions_payload(
+        {"name_en": "rotom_wash"},
+        PokemonStatSampleRepository(),
+    )
+    sample = payload["opponent_active"]["possible_samples"][0]
+
+    assert sample["role"] == "defensive_pivot"
+    assert sample["archetype_id"] == "rotom_wash_defensive_pivot_repo_v42"
+    assert sample["possible_items"] == ["leftovers", "sitrus-berry"]
+    assert all(isinstance(item_id, str) for item_id in sample["possible_items"])
+    assert sample["confidence"] == "estimated"
+    assert sample["is_user_confirmed"] is False
+    assert sample["calculation_usage"] == "context_only"
+    assert "possible_stats" not in sample
+    assert "stats" not in sample
+    assert "sp_distribution" not in sample
+    assert "source_url" not in sample
+    assert "source_note" not in sample
+    assert "reviewer_notes" not in sample
 
 
 def test_format_opponent_assumptions_debug_json_is_pretty_and_copy_ready() -> None:

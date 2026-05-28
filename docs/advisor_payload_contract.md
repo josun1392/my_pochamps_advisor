@@ -110,8 +110,13 @@ Each `possible_samples` entry contains:
 - `evidence_basis`
 - `is_user_confirmed`: `false`
 - `possible_item`
-- `possible_stats`
+- `role`: estimated sample role when available
+- `archetype_id`: estimated sample archetype label when available
+- `possible_items`: possible item assumptions, not confirmed held items
+- `calculation_usage`: `context_only`
 - `limitations`
+
+`possible_samples` deliberately excludes full stats, SP distribution, source URL, source note, long reviewer notes, and full source metadata. Role, archetype, and possible item metadata are context-only labels. They must not be treated as confirmed opponent role, confirmed opponent item, damage calculation input, or Speed calculation input.
 
 `samples_meta` contains:
 
@@ -348,6 +353,8 @@ Concision guardrail:
 - Do not dump `sample_id`, full stats, source metadata, `update_policy`, `coverage_probability`, or full Top-K sample lists into the response.
 - Do not let sample context become longer than the main damage recommendation.
 - If `opponent_assumptions.available` is `false`, do not invent samples or force a sample limitation.
+- Do not enumerate role, archetype, or possible item metadata by default.
+- `possible_items` are possible assumptions, not confirmed held items.
 
 ## Opponent Assumptions Debug Summary
 

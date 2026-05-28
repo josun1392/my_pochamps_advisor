@@ -151,7 +151,11 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "they are context only and not confirmed. Do not dump sample_id, full "
         "stats, source metadata, update_policy, coverage_probability, or full "
         "Top-K sample lists into the response. If opponent_assumptions is "
-        "unavailable, do not invent samples or force a sample limitation.\n\n"
+        "unavailable, do not invent samples or force a sample limitation. "
+        "Opponent sample role, archetype_id, and possible_items are context-only "
+        "metadata, not confirmed opponent information. Possible_items are "
+        "possible assumptions, not confirmed held items. Do not enumerate "
+        "opponent sample metadata by default; keep sample visibility concise.\n\n"
         f"{json.dumps(battle_input, ensure_ascii=False, indent=2)}"
     )
 

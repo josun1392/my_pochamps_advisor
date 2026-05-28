@@ -201,7 +201,9 @@ def test_ui_payload_includes_opponent_assumptions_for_species_with_samples() -> 
     assert sample["is_user_confirmed"] is False
     assert sample["prior_probability"] is None
     assert sample["prior_probability_type"] == "not_available"
-    assert sample["possible_stats"]["spe"] == 154
+    assert "possible_stats" not in sample
+    assert "stats" not in sample
+    assert "sp_distribution" not in sample
 
 
 def test_opponent_assumptions_do_not_feed_damage_or_speed_context() -> None:
@@ -212,7 +214,7 @@ def test_opponent_assumptions_do_not_feed_damage_or_speed_context() -> None:
     payload = window._build_llm_battle_input()
 
     assert payload["opponent_assumptions"]["available"] is True
-    assert payload["opponent_assumptions"]["opponent_active"]["possible_samples"][0]["possible_stats"]["spe"] == 154
+    assert "possible_stats" not in payload["opponent_assumptions"]["opponent_active"]["possible_samples"][0]
     assert payload["stat_profiles"]["opponent_active"]["status"] == "default_assumption"
     assert payload["stat_profiles"]["opponent_active"]["final_stats"] is None
     assert payload["moves"]["my_selected_move"]["damage_estimate"]["assumption_profile"]["id"] == (
@@ -743,6 +745,9 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Do not dump sample_id, full stats, source metadata, update_policy, coverage_probability" in prompt
     assert "full Top-K sample lists" in prompt
     assert "If opponent_assumptions is unavailable, do not invent samples" in prompt
+    assert "Opponent sample role, archetype_id, and possible_items are context-only metadata" in prompt
+    assert "Possible_items are possible assumptions, not confirmed held items" in prompt
+    assert "Do not enumerate opponent sample metadata by default" in prompt
 
 
 def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
@@ -820,6 +825,18 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "When opponent_assumptions.available is false, do not invent samples or force a sample limitation."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Opponent sample role, archetype_id, and possible_items are context-only metadata, not confirmed opponent information."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Opponent sample possible_items are possible assumptions, not confirmed held items."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not enumerate opponent sample metadata by default; keep sample visibility concise."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert "Do not describe sample_assumed opponent samples as user-confirmed information." in ADVISOR_KNOWN_LIMITATIONS
