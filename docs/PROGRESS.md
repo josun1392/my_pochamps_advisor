@@ -3414,6 +3414,88 @@ Maintained boundaries:
 
 ---
 
+## v0.46 - Opponent assumptions metadata enrichment design
+
+Purpose:
+- Design how to safely expose minimal sample metadata so `opponent_assumptions` debug summaries are more useful without changing battle math or overloading Gemini responses.
+
+Designed:
+- Documented current limitation from v0.45.1:
+  - debug summary safety fields work
+  - `role`, `archetype_id`, and `possible_items` are null or empty because `opponent_assumptions.possible_samples` does not carry those repository fields
+- Defined the problem:
+  - `sample_id` alone is weak for debugging
+  - empty `possible_items` makes legal item filtering hard to inspect
+  - too much metadata could make Gemini over-explain or overclaim possible samples
+- Identified metadata candidates:
+  - `role`
+  - `archetype_id`
+  - `archetype_tags`
+  - `possible_items`
+  - `confidence`
+  - `source_type`
+  - `calculation_usage`
+  - `is_user_confirmed`
+  - `limitations`
+- Set source-of-truth principle:
+  - fixture remains sample metadata source
+  - repository remains validation/normalization boundary
+  - `opponent_assumptions` should include only LLM-safe metadata
+  - debug summary should summarize only metadata already present in `opponent_assumptions`
+  - debug summary should not re-query repository and diverge from what Gemini saw
+- Compared enrichment options:
+  - enrich `opponent_assumptions.possible_samples`
+  - debug summary only repository re-query
+  - nested `debug_metadata`
+  - separate developer_debug object outside LLM payload
+- Recommended v0.47 path:
+  - Option A minimal enrichment in `possible_samples`
+  - add `role`, `archetype_id`, `possible_items`, and `calculation_usage`
+  - keep full stats/source metadata excluded
+  - keep Option D for future richer debug needs
+- Proposed minimal metadata set and explicit exclusions:
+  - exclude full stats
+  - exclude full SP distribution
+  - exclude source URL/source note
+  - exclude full update policy
+  - exclude long reviewer notes
+- Documented LLM guardrail impact:
+  - role/archetype/possible_items are context-only metadata
+  - possible items are not confirmed held items
+  - do not enumerate sample metadata by default
+  - never use metadata as damage or Speed input
+- Designed expected debug summary improvement:
+  - non-null `role`
+  - non-null `archetype_id`
+  - legal-only `possible_items`
+  - `used_for_damage: false`
+  - `used_for_speed: false`
+- Added future tests plan for:
+  - metadata presence in `possible_samples`
+  - debug summary population
+  - legal-only possible items
+  - no full stats dump
+  - no damage/speed integration regression
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No fixture changes.
+- No sample additions.
+- No repository sample data changes.
+- No UI changes.
+- No damage/speed integration.
+- No user-confirmed treatment changes.
+- No calculation mode.
+- No Bayesian update.
+- No Turn Engine.
+- No full stats exposure.
+- No full payload export.
+- No scraping or build script.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.44 - Opponent sample debug inspection design
 
 Purpose:
