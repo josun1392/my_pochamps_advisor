@@ -183,7 +183,7 @@ def test_ui_payload_includes_opponent_assumptions_for_species_with_samples() -> 
     assert opponent["observation_history"] == []
     assert opponent["update_policy"]["mode"] == "static"
     assert opponent["samples_meta"]["default_top_k"] == 3
-    assert opponent["samples_meta"]["included_top_k"] == 1
+    assert opponent["samples_meta"]["included_top_k"] == 2
     sample = opponent["possible_samples"][0]
     assert sample["sample_id"] == "garchomp_fast_physical_01"
     assert sample["is_user_confirmed"] is False

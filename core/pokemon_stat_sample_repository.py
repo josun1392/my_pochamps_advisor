@@ -196,6 +196,77 @@ def _validate_sample(
         raise ValueError(f"Pokemon stat sample {sample_id} limitations must be a string list.")
     if not any("not user-confirmed" in limitation.lower() for limitation in limitations):
         raise ValueError(f"Pokemon stat sample {sample_id} must state that it is not user-confirmed.")
+    if "calculation_usage" in sample:
+        _validate_repo_native_sample_fields(sample, sample_id=sample_id)
+
+
+def _validate_repo_native_sample_fields(sample: dict[str, Any], *, sample_id: str) -> None:
+    required = {
+        "stats_truth_source",
+        "stats_calculator",
+        "calculation_usage",
+        "prior_probability",
+        "prior_probability_type",
+        "coverage_probability",
+        "coverage_probability_type",
+        "archetype_id",
+        "archetype_tags",
+        "role",
+        "stat_focus",
+        "possible_items",
+        "possible_moves",
+        "risk_notes",
+        "reviewer_notes",
+    }
+    missing = sorted(required - set(sample))
+    if missing:
+        raise ValueError(f"Pokemon stat sample {sample_id} missing repo-native fields: {missing}")
+    if sample["stats_truth_source"] != "repo_calculator_from_sp_distribution":
+        raise ValueError(f"Pokemon stat sample {sample_id} must use repo calculator stats truth source.")
+    if sample["stats_calculator"] != "advisor.damage.stats.final_stats":
+        raise ValueError(f"Pokemon stat sample {sample_id} must name the repo stats calculator.")
+    if sample["calculation_usage"] != "context_only":
+        raise ValueError(f"Pokemon stat sample {sample_id} calculation_usage must be context_only.")
+    if sample["prior_probability"] is not None:
+        raise ValueError(f"Pokemon stat sample {sample_id} prior_probability must be null.")
+    if sample["prior_probability_type"] != "not_available":
+        raise ValueError(f"Pokemon stat sample {sample_id} prior_probability_type must be not_available.")
+    if sample["coverage_probability"] is not None:
+        raise ValueError(f"Pokemon stat sample {sample_id} coverage_probability must be null.")
+    if sample["coverage_probability_type"] != "not_available":
+        raise ValueError(f"Pokemon stat sample {sample_id} coverage_probability_type must be not_available.")
+    _required_string(sample, "archetype_id")
+    _required_string(sample, "role")
+    _required_string(sample, "stat_focus")
+    _required_string(sample, "risk_notes")
+    _required_string(sample, "reviewer_notes")
+    _validate_string_list(sample, "archetype_tags", sample_id=sample_id)
+    _validate_string_list(sample, "possible_items", sample_id=sample_id)
+    _validate_string_list(sample, "possible_moves", sample_id=sample_id, allow_empty=True)
+
+    assumptions = sample["assumptions"]
+    if not isinstance(assumptions, dict):
+        raise ValueError(f"Pokemon stat sample {sample_id} assumptions must be an object.")
+    sp_distribution = assumptions.get("sp_distribution")
+    _validate_sp_distribution_caps(sp_distribution, sample_id=sample_id)
+    nature = assumptions.get("nature")
+    if not isinstance(nature, dict):
+        raise ValueError(f"Pokemon stat sample {sample_id} nature assumption must be an object.")
+    if nature.get("plus") is not None:
+        _required_string(nature, "plus")
+    if nature.get("minus") is not None:
+        _required_string(nature, "minus")
+    if assumptions.get("iv_assumption") != "31_all":
+        raise ValueError(f"Pokemon stat sample {sample_id} iv_assumption must be 31_all.")
+    if assumptions.get("level") != 50:
+        raise ValueError(f"Pokemon stat sample {sample_id} level must be 50.")
+    if assumptions.get("stats_truth_source") != sample["stats_truth_source"]:
+        raise ValueError(f"Pokemon stat sample {sample_id} assumptions stats_truth_source must match.")
+    if assumptions.get("stats_calculator") != sample["stats_calculator"]:
+        raise ValueError(f"Pokemon stat sample {sample_id} assumptions stats_calculator must match.")
+    limitations = " ".join(sample["limitations"]).lower()
+    if "final battle truth" not in limitations or "context-only" not in limitations:
+        raise ValueError(f"Pokemon stat sample {sample_id} limitations must include final-truth and context-only caveats.")
 
 
 def _validate_required_int_stats(
@@ -221,9 +292,43 @@ def _validate_required_int_stats(
             raise ValueError(f"Pokemon stat sample {sample_id} {field_name}.{key} must be positive.")
 
 
+def _validate_sp_distribution_caps(value: Any, *, sample_id: str) -> None:
+    _validate_required_int_stats(
+        value,
+        sample_id=sample_id,
+        field_name="sp_distribution",
+        allow_zero=True,
+    )
+    assert isinstance(value, dict)
+    total = 0
+    for key in REQUIRED_STAT_KEYS:
+        stat_value = value[key]
+        if stat_value > 32:
+            raise ValueError(f"Pokemon stat sample {sample_id} sp_distribution.{key} must be <= 32.")
+        total += stat_value
+    if total > 66:
+        raise ValueError(f"Pokemon stat sample {sample_id} sp_distribution total must be <= 66.")
+
+
 def _required_string(sample: dict[str, Any], key: str) -> str:
     value = sample.get(key)
     if not isinstance(value, str) or not value.strip():
         sample_id = sample.get("sample_id", "<missing sample_id>")
         raise ValueError(f"Pokemon stat sample {sample_id} field {key} must be a non-empty string.")
     return value.strip()
+
+
+def _validate_string_list(
+    sample: dict[str, Any],
+    key: str,
+    *,
+    sample_id: str,
+    allow_empty: bool = False,
+) -> None:
+    value = sample.get(key)
+    if not isinstance(value, list):
+        raise ValueError(f"Pokemon stat sample {sample_id} field {key} must be a list.")
+    if not allow_empty and not value:
+        raise ValueError(f"Pokemon stat sample {sample_id} field {key} must be non-empty.")
+    if not all(isinstance(item, str) and item.strip() for item in value):
+        raise ValueError(f"Pokemon stat sample {sample_id} field {key} must contain strings.")

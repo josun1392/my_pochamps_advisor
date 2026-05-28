@@ -3138,3 +3138,78 @@ Maintained boundaries:
 - No Turn Engine.
 - No item effect changes.
 - No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
+## v0.42 - Repo-native minimal sample pack
+
+Purpose:
+- Add a small repo-native opponent sample pack using only species with local base stats, repo-calculated final stats, and Champions legal possible items.
+
+Implemented:
+- Kept `data/static/pokemon_stat_samples.json` as a species-keyed dictionary.
+- Added 7 repo-native validation samples:
+  - `garchomp_fast_physical_repo_v42`
+  - `charizard_special_attacker_repo_v42`
+  - `corviknight_defensive_pivot_repo_v42`
+  - `tyranitar_bulky_physical_repo_v42`
+  - `archaludon_special_tank_repo_v42`
+  - `dragonite_physical_setup_repo_v42`
+  - `rotom_wash_defensive_pivot_repo_v42`
+- Added 4 new sample species keys:
+  - `archaludon`
+  - `dragonite`
+  - `rotom-wash`
+  - `tyranitar`
+- Preserved existing 3 sentinel samples.
+- Used repo-normalized `rotom-wash` for the Rotom-Wash sample.
+- Generated all v0.42 sample stats with `advisor.damage.stats.final_stats`.
+- Recorded calculator provenance:
+  - `stats_truth_source: repo_calculator_from_sp_distribution`
+  - `stats_calculator: advisor.damage.stats.final_stats`
+- Kept SP distributions simple and within Champions limits:
+  - per-stat SP `0..32`
+  - total SP `<= 66`
+- Kept all v0.42 samples as:
+  - `status: sample_assumed`
+  - `is_user_confirmed: false`
+  - `source_type: manual_estimate`
+  - `confidence: estimated`
+  - `calculation_usage: context_only`
+  - `prior_probability: null`
+  - `coverage_probability: null`
+- Used Champions legal item repository checked `possible_items` only.
+- Excluded v0.40 illegal/non-legal items such as `choice-specs`, `choice-band`, and `life-orb`.
+- Excluded v0.40 unknown items such as `heavy-duty-boots`, `loaded-dice`, `weakness-policy`, `assault-vest`, `power-herb`, `covert-cloak`, `air-balloon`, `black-sludge`, and `rocky-helmet`.
+- Added repository validation for optional repo-native sample fields when `calculation_usage` is present.
+- Added tests for:
+  - v0.42 sample count
+  - species key normalization
+  - repo-native required fields
+  - SP caps and total
+  - repo calculator stat recomputation
+  - legal-only `possible_items`
+  - context-only limitations
+  - `opponent_assumptions` regression for expanded sample species
+
+Maintained boundaries:
+- No UI changes.
+- No external scraping or build script.
+- No automatic sample application.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No sample treated as user-confirmed.
+- No T2 manual final stats used.
+- No `possible_items` object array schema.
+- No usage-derived or confirmed confidence.
+- No numeric prior or coverage probabilities.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+
+Verification:
+- `uv run pytest tests/test_pokemon_stat_sample_repository.py tests/test_opponent_assumptions.py -q`: 34 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py::test_ui_payload_includes_opponent_assumptions_for_species_with_samples tests/test_pokemon_stat_sample_repository.py tests/test_opponent_assumptions.py -q`: 35 passed.
+- `uv run pytest -q`: 777 passed, 2 deselected.

@@ -44,12 +44,36 @@ def test_build_opponent_assumptions_payload_for_species_with_samples() -> None:
     assert "not confirmed" in " ".join(sample["limitations"]).lower()
 
     meta = opponent["samples_meta"]
-    assert meta["total_known_archetypes"] == 1
-    assert meta["included_top_k"] == 1
+    assert meta["total_known_archetypes"] == 2
+    assert meta["included_top_k"] == 2
     assert meta["default_top_k"] == OPPONENT_ASSUMPTIONS_DEFAULT_TOP_K
     assert meta["coverage_probability"] is None
     assert meta["coverage_probability_type"] == "not_available"
     assert meta["omitted_archetypes_note"]
+
+    validate_opponent_assumptions_payload(payload)
+
+
+def test_build_opponent_assumptions_payload_for_repo_native_species() -> None:
+    payload = build_opponent_assumptions_payload(
+        {"name_en": "rotom_wash"},
+        PokemonStatSampleRepository(),
+    )
+
+    assert payload["available"] is True
+    assert payload["calculation_usage"] == "context_only"
+    assert "damage_estimate" not in payload
+    assert "speed_context" not in payload
+
+    opponent = payload["opponent_active"]
+    assert opponent["species_id"] == "rotom_wash"
+    assert opponent["samples_meta"]["included_top_k"] == 1
+
+    sample = opponent["possible_samples"][0]
+    assert sample["sample_id"] == "rotom_wash_defensive_pivot_repo_v42"
+    assert sample["species_id"] == "rotom-wash"
+    assert sample["is_user_confirmed"] is False
+    assert sample["prior_probability"] is None
 
     validate_opponent_assumptions_payload(payload)
 
