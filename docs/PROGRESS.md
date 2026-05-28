@@ -3716,6 +3716,80 @@ Verification:
 
 ---
 
+## v0.52 - Item / survival roadmap return design
+
+Purpose:
+- Close the opponent sample/debug stabilization line for now and return to the item effect, survival, and KO roadmap.
+
+Designed:
+- Documented current state:
+  - type boosting item damage modifiers are implemented
+  - Choice Scarf effective Speed is implemented in `speed_context`
+  - opponent sample/debug/versioning/CLI support is stable enough to pause
+  - Focus Sash, Leftovers, Sitrus Berry, Bright Powder, Scope Lens, and King's Rock effects remain unconnected
+  - KO/OHKO/2HKO is not connected to advisor responses
+  - Turn Engine does not exist
+- Compared candidate feature areas:
+  - Focus Sash survival support
+  - Sitrus Berry / Leftovers recovery context
+  - Bright Powder accuracy context
+  - Scope Lens critical-hit context
+  - King's Rock flinch context
+  - KO/OHKO/2HKO probability
+- Recommended next direction:
+  - `v0.53 - Focus Sash Survival Design`
+  - `v0.54 - Focus Sash Limited Survival Implementation`
+  - `v0.55 - Focus Sash Local Gemini Verification`
+
+Focus Sash limited scope proposal:
+- user-confirmed Focus Sash only
+- full HP or full-HP-compatible state only
+- lethal damage estimate can produce limited survival context
+- raw damage rolls remain unchanged
+- wording should be "may survive at 1 HP due to Focus Sash under limited assumptions"
+- exclude:
+  - multi-hit moves
+  - hazards
+  - residual damage
+  - weather chip
+  - ability interactions
+  - prior damage ambiguity
+  - item consumption tracking
+  - exact turn sequencing
+  - final battle truth claims
+
+Payload / LLM direction:
+- Compared top-level `survival_context` vs nested `damage_estimate.survival_context`.
+- Recommended designing around explicit survival context that does not alter raw damage rolls.
+- Guardrails:
+  - do not say "definitely survives"
+  - do not infer Focus Sash unless item is user-confirmed
+  - do not claim multi-hit/hazard/residual behavior unless modeled
+  - do not create KO/OHKO/2HKO claims from limited survival context
+
+Roadmap proposal:
+- `v0.53 - Focus Sash Survival Design`
+- `v0.54 - Focus Sash Limited Survival Implementation`
+- `v0.55 - Focus Sash Local Gemini Verification`
+- `v0.56 - KO/OHKO/2HKO Probability Design`
+- `v0.57 - Sitrus/Leftovers Recovery Design`
+- `v0.58 - Accuracy/Crit/Flinch Item Coverage Design`
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No item effect implementation.
+- No survival calculation implementation.
+- No KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No damage/speed integration changes.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
