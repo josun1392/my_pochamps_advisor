@@ -76,6 +76,18 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
         "When opponent_assumptions.available is true and possible_samples exist, briefly mention that possible sample context exists when relevant."
         in payload["scenario"]["known_limitations"]
     )
+    assert (
+        "When possible sample context is mentioned, keep it to at most one short limitation sentence."
+        in payload["scenario"]["known_limitations"]
+    )
+    assert (
+        "Do not dump sample_id, full stats, source metadata, update_policy, coverage_probability, or full Top-K sample lists into the response."
+        in payload["scenario"]["known_limitations"]
+    )
+    assert (
+        "When opponent_assumptions.available is false, do not invent samples or force a sample limitation."
+        in payload["scenario"]["known_limitations"]
+    )
     assert "Use my_available_moves damage_estimates to compare the user's own move options." in payload["scenario"][
         "known_limitations"
     ]
@@ -726,8 +738,11 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "do not say those samples changed damage_estimate or speed_context" in prompt
     assert "Do not interpret null prior_probability as zero probability" in prompt
     assert "Do not infer final turn order, KO, survival, or exact stats from possible samples" in prompt
-    assert "briefly mention when relevant that possible sample context exists" in prompt
+    assert "include at most one short limitation sentence that possible sample context exists" in prompt
     assert "possible opponent samples exist, but they are context only and not confirmed" in prompt
+    assert "Do not dump sample_id, full stats, source metadata, update_policy, coverage_probability" in prompt
+    assert "full Top-K sample lists" in prompt
+    assert "If opponent_assumptions is unavailable, do not invent samples" in prompt
 
 
 def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
@@ -793,6 +808,18 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "When opponent_assumptions.available is true and possible_samples exist, briefly mention that possible sample context exists when relevant."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When possible sample context is mentioned, keep it to at most one short limitation sentence."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not dump sample_id, full stats, source metadata, update_policy, coverage_probability, or full Top-K sample lists into the response."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When opponent_assumptions.available is false, do not invent samples or force a sample limitation."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert "Do not describe sample_assumed opponent samples as user-confirmed information." in ADVISOR_KNOWN_LIMITATIONS

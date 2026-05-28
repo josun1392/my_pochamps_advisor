@@ -337,7 +337,17 @@ The LLM must not say:
 
 User-confirmed fields override possible sample assumptions. If a future payload marks conflicts between `user_confirmed_fields` and possible samples, conflicting samples must not drive advice.
 
-When `opponent_assumptions.available` is `true` and `possible_samples` is non-empty, the LLM may briefly mention the existence of possible sample context when relevant. It should not dump all sample metadata by default.
+When `opponent_assumptions.available` is `true` and `possible_samples` is non-empty, the LLM should briefly mention the existence of possible sample context when relevant, preferably as one short limitation sentence:
+
+- "Possible opponent samples exist, but they are context-only and not confirmed."
+
+This sentence is a visibility cue, not a calculation claim. The LLM must not say sample stats were used for damage, Speed, KO, survival, or final turn order unless a future payload explicitly provides that calculated field.
+
+Concision guardrail:
+
+- Do not dump `sample_id`, full stats, source metadata, `update_policy`, `coverage_probability`, or full Top-K sample lists into the response.
+- Do not let sample context become longer than the main damage recommendation.
+- If `opponent_assumptions.available` is `false`, do not invent samples or force a sample limitation.
 
 ## Speed Context Semantics
 

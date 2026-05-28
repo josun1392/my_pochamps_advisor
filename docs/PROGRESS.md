@@ -3271,3 +3271,51 @@ Maintained boundaries:
 - No damage/speed integration.
 - No sample additions.
 - No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
+## v0.43 - Opponent sample visibility prompt polish
+
+Purpose:
+- Improve response visibility for context-only opponent samples after v0.42.1 found Sample visibility WEAK.
+
+Implemented:
+- Strengthened advisor prompt and payload contract wording for `opponent_assumptions`.
+- Added a one-line visibility rule:
+  - when `opponent_assumptions.available` is true and `possible_samples` exist, the response may include at most one short limitation sentence that possible sample context exists.
+- Preserved the safety wording that possible samples are:
+  - context-only
+  - not confirmed
+  - not user-confirmed
+  - not direct damage or Speed calculation inputs
+- Added concision guardrails:
+  - do not dump `sample_id`
+  - do not dump full stats
+  - do not dump source metadata
+  - do not dump `update_policy`
+  - do not dump `coverage_probability`
+  - do not dump full Top-K sample lists
+- Added unavailable-case guardrail:
+  - if `opponent_assumptions.available` is false, do not invent samples or force a sample limitation.
+- Updated `docs/advisor_payload_contract.md`.
+- Added advisor payload contract tests for the one-line visibility, concision, and unavailable/no-invent guardrails.
+
+Maintained boundaries:
+- No fixture changes.
+- No sample additions.
+- No repository changes.
+- No UI changes.
+- No damage/speed integration.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No sample treated as user-confirmed.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No scraping or build script.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 26 passed.
+- `uv run pytest -q`: 777 passed, 2 deselected.

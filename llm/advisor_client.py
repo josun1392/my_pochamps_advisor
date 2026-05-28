@@ -146,9 +146,12 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "claim Top-K omitted archetypes are impossible. Do not infer final "
         "turn order, KO, survival, or exact stats from possible samples. When "
         "opponent_assumptions.available is true and possible_samples exist, "
-        "briefly mention when relevant that possible sample context exists, "
-        "for example: possible opponent samples exist, but they are context "
-        "only and not confirmed.\n\n"
+        "include at most one short limitation sentence that possible sample "
+        "context exists, for example: possible opponent samples exist, but "
+        "they are context only and not confirmed. Do not dump sample_id, full "
+        "stats, source metadata, update_policy, coverage_probability, or full "
+        "Top-K sample lists into the response. If opponent_assumptions is "
+        "unavailable, do not invent samples or force a sample limitation.\n\n"
         f"{json.dumps(battle_input, ensure_ascii=False, indent=2)}"
     )
 
