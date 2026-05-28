@@ -3561,6 +3561,74 @@ Verification:
 
 ---
 
+## v0.47.1 - Opponent metadata debug summary local verification
+
+Purpose:
+- Verify that the v0.47 minimal metadata enrichment appears in the developer debug summary output.
+
+Local verification:
+- Tested species: `rotom_wash`.
+- Built `opponent_assumptions` with:
+  - `build_opponent_assumptions_payload({"name_en": "rotom_wash"}, PokemonStatSampleRepository())`
+- Built debug summary with:
+  - `build_opponent_assumptions_debug_summary(payload)`
+- Rendered copy-ready JSON with:
+  - `format_opponent_assumptions_debug_json(summary)`
+
+Observed debug summary:
+- `opponent_assumptions_available`: `true`.
+- `opponent_species_id`: `rotom_wash`.
+- `possible_sample_count`: `1`.
+- `included_top_k`: `1`.
+- `possible_samples[0].sample_id`: `rotom_wash_defensive_pivot_repo_v42`.
+- `possible_samples[0].species_id`: `rotom-wash`.
+- `possible_samples[0].role`: `defensive_pivot`.
+- `possible_samples[0].archetype_id`: `rotom_wash_defensive_pivot_repo_v42`.
+- `possible_samples[0].possible_items`: `["leftovers", "sitrus-berry"]`.
+- `possible_samples[0].confidence`: `estimated`.
+- `possible_samples[0].is_user_confirmed`: `false`.
+- `possible_samples[0].used_for_damage`: `false`.
+- `possible_samples[0].used_for_speed`: `false`.
+- Guardrails were all `true`:
+  - `context_only`
+  - `not_confirmed`
+  - `not_damage_input`
+  - `not_speed_input`
+  - `not_final_turn_order`
+
+Safety checks:
+- No full stats dump appeared.
+- No `sp_distribution` dump appeared.
+- No full source metadata dump appeared.
+- No full LLM payload export appeared.
+- No `secret_api_key`, `env`, API key, token, or token usage raw log fields appeared.
+- Output remained pretty-printed and copy-ready.
+
+Verdict:
+- v0.47.1 local debug summary verification: PASS.
+- Metadata population: PASS.
+- Safety / no full stats / no SP distribution / no source metadata / no full payload / no secrets: PASS.
+- Guardrails: PASS.
+
+Next candidates:
+- `v0.48 - Payload Versioning Design`.
+- `v0.48 - Developer Debug Access Design`.
+- `v0.48 - Opponent Sample Pack Expansion Plan`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No damage/speed integration.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.44 - Opponent sample debug inspection design
 
 Purpose:
