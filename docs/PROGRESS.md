@@ -3274,6 +3274,82 @@ Maintained boundaries:
 
 ---
 
+## v0.45 - Opponent assumptions debug export
+
+Purpose:
+- Add a developer/debug helper that creates a safe, copy-ready summary of the current `opponent_assumptions` payload section.
+
+Implemented:
+- Added opponent assumptions debug summary builders in `llm/opponent_assumptions.py`:
+  - `build_opponent_assumptions_debug_summary(payload)`
+  - `build_opponent_assumptions_debug_summary_from_assumptions(opponent_assumptions)`
+  - `format_opponent_assumptions_debug_json(summary)`
+- Supported `available=true` summaries with:
+  - opponent species id
+  - availability
+  - `calculation_usage`
+  - `is_confirmed_information`
+  - possible sample count
+  - included Top-K count
+  - sample id / species id / role / archetype id / confidence / possible items
+  - `is_user_confirmed: false`
+  - `used_for_damage: false`
+  - `used_for_speed: false`
+- Supported `available=false` summaries with:
+  - unavailable reason
+  - zero sample count
+  - empty sample list
+  - safety guardrails
+- Added guardrail booleans:
+  - `not_confirmed`
+  - `not_damage_input`
+  - `not_speed_input`
+  - `not_final_turn_order`
+  - `context_only`
+- Added copy/export-ready pretty JSON formatting.
+- Kept export scope to `opponent_assumptions` summary only.
+- Deferred full LLM payload export.
+- Did not add file writing in v0.45.
+- Did not add a UI debug panel.
+- Updated `docs/advisor_payload_contract.md` with developer-only debug summary policy:
+  - not automatically inserted into Gemini responses
+  - not a full payload export
+  - no API keys, secrets, `.env`, token logs, full stats, full source metadata, or full Top-K dumps
+  - future file export should use a git-ignored path such as `logs/debug_payloads/`
+- Added tests for:
+  - available debug summary
+  - unavailable debug summary
+  - missing assumptions safety
+  - full payload input not leaking unrelated payload fields
+  - no secret-like fields
+  - no full stats dump
+  - optional role/archetype/possible_items preservation
+  - pretty JSON formatting
+
+Maintained boundaries:
+- No UI panel.
+- No user-facing advice injection.
+- No full LLM payload export.
+- No fixture changes.
+- No sample additions.
+- No repository sample changes.
+- No damage/speed integration.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No sample treated as user-confirmed.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No scraping or build script.
+
+Verification:
+- `uv run pytest tests/test_opponent_assumptions.py -q`: 13 passed.
+- `uv run pytest -q`: 783 passed, 2 deselected.
+
+---
+
 ## v0.44 - Opponent sample debug inspection design
 
 Purpose:

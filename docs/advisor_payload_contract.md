@@ -349,6 +349,42 @@ Concision guardrail:
 - Do not let sample context become longer than the main damage recommendation.
 - If `opponent_assumptions.available` is `false`, do not invent samples or force a sample limitation.
 
+## Opponent Assumptions Debug Summary
+
+The developer debug summary is a copy/export-ready view of `opponent_assumptions` only. It is not a full LLM payload export and must not be automatically inserted into the Gemini response.
+
+Debug summary policy:
+
+- developer-only
+- `opponent_assumptions` summary only
+- no full LLM payload export in v0.45
+- no API keys, secrets, `.env` values, or token usage logs
+- no full stats dump
+- no full source metadata dump
+- no `update_policy` dump
+- no full Top-K metadata dump
+- no UI debug panel in v0.45
+
+The summary may include:
+
+- opponent species id
+- availability and unavailable reason
+- `calculation_usage`
+- `is_confirmed_information`
+- possible sample count
+- included Top-K count
+- sample id
+- sample species id
+- role / archetype id when present
+- confidence
+- `is_user_confirmed`
+- possible items
+- `used_for_damage: false`
+- `used_for_speed: false`
+- guardrail booleans such as `not_confirmed`, `not_damage_input`, `not_speed_input`, `not_final_turn_order`, and `context_only`
+
+If a future file export is added, it should write only to a git-ignored debug path such as `logs/debug_payloads/`. Debug exports remain outside commits.
+
 ## Speed Context Semantics
 
 `speed_context` is raw and supported effective Speed comparison only.

@@ -6,6 +6,9 @@ from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
 from llm.opponent_assumptions import (
     OPPONENT_ASSUMPTIONS_DEFAULT_TOP_K,
     build_opponent_assumptions_payload,
+    build_opponent_assumptions_debug_summary,
+    build_opponent_assumptions_debug_summary_from_assumptions,
+    format_opponent_assumptions_debug_json,
     validate_opponent_assumptions_payload,
 )
 
@@ -145,3 +148,150 @@ def test_validate_opponent_assumptions_rejects_numeric_prior_in_v038() -> None:
 
     with pytest.raises(ValueError, match="null prior_probability"):
         validate_opponent_assumptions_payload(payload)
+
+
+def test_build_debug_summary_for_available_opponent_assumptions() -> None:
+    assumptions = build_opponent_assumptions_payload(
+        {"name_en": "rotom_wash"},
+        PokemonStatSampleRepository(),
+    )
+
+    summary = build_opponent_assumptions_debug_summary_from_assumptions(assumptions)
+
+    assert summary["opponent_species_id"] == "rotom_wash"
+    assert summary["opponent_assumptions_available"] is True
+    assert summary["reason"] is None
+    assert summary["calculation_usage"] == "context_only"
+    assert summary["is_confirmed_information"] is False
+    assert summary["possible_sample_count"] == 1
+    assert summary["included_top_k"] == 1
+
+    sample = summary["possible_samples"][0]
+    assert sample["sample_id"] == "rotom_wash_defensive_pivot_repo_v42"
+    assert sample["species_id"] == "rotom-wash"
+    assert "role" in sample
+    assert "archetype_id" in sample
+    assert sample["confidence"] == "estimated"
+    assert sample["is_user_confirmed"] is False
+    assert sample["used_for_damage"] is False
+    assert sample["used_for_speed"] is False
+
+    guardrails = summary["guardrails"]
+    assert guardrails["context_only"] is True
+    assert guardrails["not_confirmed"] is True
+    assert guardrails["not_damage_input"] is True
+    assert guardrails["not_speed_input"] is True
+    assert guardrails["not_final_turn_order"] is True
+
+
+def test_build_debug_summary_from_full_payload_uses_only_opponent_assumptions() -> None:
+    assumptions = build_opponent_assumptions_payload(
+        {"name_en": "garchomp"},
+        PokemonStatSampleRepository(),
+    )
+    full_payload = {
+        "opponent_assumptions": assumptions,
+        "pokemon": {"my_active": {"name_en": "charizard"}},
+        "secret_api_key": "must-not-leak",
+        "env": {"TOKEN": "must-not-leak"},
+    }
+
+    summary = build_opponent_assumptions_debug_summary(full_payload)
+    rendered = format_opponent_assumptions_debug_json(summary)
+
+    assert summary["opponent_assumptions_available"] is True
+    assert summary["possible_sample_count"] == 2
+    assert "pokemon" not in summary
+    assert "secret_api_key" not in summary
+    assert "env" not in summary
+    assert "must-not-leak" not in rendered
+    assert "possible_stats" not in rendered
+    assert '"stats"' not in rendered
+
+
+def test_build_debug_summary_for_unavailable_opponent_assumptions() -> None:
+    assumptions = build_opponent_assumptions_payload(
+        {"name_en": "missingno"},
+        PokemonStatSampleRepository(),
+    )
+
+    summary = build_opponent_assumptions_debug_summary_from_assumptions(assumptions)
+
+    assert summary["opponent_species_id"] == "missingno"
+    assert summary["opponent_assumptions_available"] is False
+    assert summary["reason"] == "no_samples_for_species"
+    assert summary["calculation_usage"] == "context_only"
+    assert summary["is_confirmed_information"] is False
+    assert summary["possible_sample_count"] == 0
+    assert summary["included_top_k"] == 0
+    assert summary["possible_samples"] == []
+    assert summary["guardrails"]["context_only"] is True
+    assert summary["guardrails"]["not_damage_input"] is True
+    assert summary["guardrails"]["not_speed_input"] is True
+
+
+def test_build_debug_summary_for_missing_assumptions_is_safe() -> None:
+    summary = build_opponent_assumptions_debug_summary({})
+
+    assert summary["opponent_species_id"] == "unknown"
+    assert summary["opponent_assumptions_available"] is False
+    assert summary["reason"] == "opponent_assumptions_missing"
+    assert summary["calculation_usage"] == "context_only"
+    assert summary["possible_samples"] == []
+
+
+def test_debug_summary_preserves_optional_sample_fields_without_full_stats_dump() -> None:
+    assumptions = {
+        "available": True,
+        "calculation_usage": "context_only",
+        "is_confirmed_information": False,
+        "opponent_active": {
+            "species_id": "garchomp",
+            "possible_samples": [
+                {
+                    "sample_id": "garchomp_fast_physical_debug",
+                    "species_id": "garchomp",
+                    "role": "fast_physical",
+                    "archetype_id": "fast_physical",
+                    "confidence": "estimated",
+                    "is_user_confirmed": False,
+                    "possible_items": ["choice-scarf"],
+                    "possible_stats": {"spe": 154},
+                    "source_metadata": {"source_url": "example"},
+                }
+            ],
+            "samples_meta": {"included_top_k": 1},
+        },
+    }
+
+    summary = build_opponent_assumptions_debug_summary_from_assumptions(assumptions)
+    sample = summary["possible_samples"][0]
+    rendered = format_opponent_assumptions_debug_json(summary)
+
+    assert sample == {
+        "sample_id": "garchomp_fast_physical_debug",
+        "species_id": "garchomp",
+        "role": "fast_physical",
+        "archetype_id": "fast_physical",
+        "confidence": "estimated",
+        "is_user_confirmed": False,
+        "possible_items": ["choice-scarf"],
+        "used_for_damage": False,
+        "used_for_speed": False,
+    }
+    assert "possible_stats" not in rendered
+    assert "source_metadata" not in rendered
+
+
+def test_format_opponent_assumptions_debug_json_is_pretty_and_copy_ready() -> None:
+    summary = {
+        "opponent_species_id": "rotom-wash",
+        "opponent_assumptions_available": True,
+        "guardrails": {"context_only": True},
+    }
+
+    rendered = format_opponent_assumptions_debug_json(summary)
+
+    assert rendered.startswith("{\n")
+    assert '  "guardrails": {' in rendered
+    assert '"opponent_species_id": "rotom-wash"' in rendered

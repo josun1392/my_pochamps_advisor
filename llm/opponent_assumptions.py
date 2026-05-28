@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
@@ -25,6 +26,13 @@ OPPONENT_ASSUMPTIONS_UNAVAILABLE_LIMITATIONS = {
         "Opponent sample repository is unavailable.",
         "Do not invent opponent samples.",
     ],
+}
+OPPONENT_ASSUMPTIONS_DEBUG_GUARDRAILS = {
+    "not_confirmed": True,
+    "not_damage_input": True,
+    "not_speed_input": True,
+    "not_final_turn_order": True,
+    "context_only": True,
 }
 
 
@@ -133,6 +141,63 @@ def validate_opponent_assumptions_payload(payload: dict[str, Any]) -> None:
             raise ValueError("v0.38 opponent possible samples must use null prior_probability.")
 
 
+def build_opponent_assumptions_debug_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    opponent_assumptions = payload.get("opponent_assumptions") if isinstance(payload, dict) else None
+    return build_opponent_assumptions_debug_summary_from_assumptions(opponent_assumptions)
+
+
+def build_opponent_assumptions_debug_summary_from_assumptions(
+    opponent_assumptions: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if not isinstance(opponent_assumptions, dict):
+        return _debug_unavailable_summary(reason="opponent_assumptions_missing")
+
+    opponent_active = opponent_assumptions.get("opponent_active")
+    opponent_species_id = "unknown"
+    possible_samples: list[dict[str, Any]] = []
+    included_top_k = 0
+    if isinstance(opponent_active, dict):
+        species_id = opponent_active.get("species_id")
+        if isinstance(species_id, str) and species_id.strip():
+            opponent_species_id = species_id.strip()
+        raw_samples = opponent_active.get("possible_samples")
+        if isinstance(raw_samples, list):
+            possible_samples = [sample for sample in raw_samples if isinstance(sample, dict)]
+        samples_meta = opponent_active.get("samples_meta")
+        if isinstance(samples_meta, dict) and isinstance(samples_meta.get("included_top_k"), int):
+            included_top_k = samples_meta["included_top_k"]
+
+    available = opponent_assumptions.get("available") is True
+    if not available:
+        return {
+            "opponent_species_id": opponent_species_id,
+            "opponent_assumptions_available": False,
+            "reason": opponent_assumptions.get("reason"),
+            "calculation_usage": opponent_assumptions.get("calculation_usage"),
+            "is_confirmed_information": opponent_assumptions.get("is_confirmed_information"),
+            "possible_sample_count": 0,
+            "included_top_k": 0,
+            "possible_samples": [],
+            "guardrails": dict(OPPONENT_ASSUMPTIONS_DEBUG_GUARDRAILS),
+        }
+
+    return {
+        "opponent_species_id": opponent_species_id,
+        "opponent_assumptions_available": True,
+        "reason": None,
+        "calculation_usage": opponent_assumptions.get("calculation_usage"),
+        "is_confirmed_information": opponent_assumptions.get("is_confirmed_information"),
+        "possible_sample_count": len(possible_samples),
+        "included_top_k": included_top_k or len(possible_samples),
+        "possible_samples": [_debug_sample_summary(sample) for sample in possible_samples],
+        "guardrails": dict(OPPONENT_ASSUMPTIONS_DEBUG_GUARDRAILS),
+    }
+
+
+def format_opponent_assumptions_debug_json(summary: dict[str, Any]) -> str:
+    return json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)
+
+
 def _possible_sample_payload(sample: dict[str, Any]) -> dict[str, Any]:
     assumptions = sample.get("assumptions")
     possible_item = assumptions.get("item") if isinstance(assumptions, dict) else None
@@ -155,6 +220,44 @@ def _possible_sample_payload(sample: dict[str, Any]) -> dict[str, Any]:
             "Do not treat this as exact opponent stats.",
         ],
     }
+
+
+def _debug_unavailable_summary(*, reason: str) -> dict[str, Any]:
+    return {
+        "opponent_species_id": "unknown",
+        "opponent_assumptions_available": False,
+        "reason": reason,
+        "calculation_usage": "context_only",
+        "is_confirmed_information": False,
+        "possible_sample_count": 0,
+        "included_top_k": 0,
+        "possible_samples": [],
+        "guardrails": dict(OPPONENT_ASSUMPTIONS_DEBUG_GUARDRAILS),
+    }
+
+
+def _debug_sample_summary(sample: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "sample_id": sample.get("sample_id"),
+        "species_id": sample.get("species_id"),
+        "role": sample.get("role"),
+        "archetype_id": sample.get("archetype_id"),
+        "confidence": sample.get("confidence"),
+        "is_user_confirmed": sample.get("is_user_confirmed"),
+        "possible_items": _debug_possible_items(sample),
+        "used_for_damage": False,
+        "used_for_speed": False,
+    }
+
+
+def _debug_possible_items(sample: dict[str, Any]) -> list[str]:
+    possible_items = sample.get("possible_items")
+    if isinstance(possible_items, list):
+        return [item for item in possible_items if isinstance(item, str)]
+    possible_item = sample.get("possible_item")
+    if isinstance(possible_item, str) and possible_item:
+        return [possible_item]
+    return []
 
 
 def _unavailable_payload(*, reason: str, species_id: str | None = None) -> dict[str, Any]:
