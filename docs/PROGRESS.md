@@ -3213,3 +3213,61 @@ Verification:
 - `uv run pytest tests/test_pokemon_stat_sample_repository.py tests/test_opponent_assumptions.py -q`: 34 passed.
 - `uv run pytest tests/test_advisor_payload_contract.py::test_ui_payload_includes_opponent_assumptions_for_species_with_samples tests/test_pokemon_stat_sample_repository.py tests/test_opponent_assumptions.py -q`: 35 passed.
 - `uv run pytest -q`: 777 passed, 2 deselected.
+
+---
+
+## v0.42.1 - Repo-native sample local Gemini verification
+
+Purpose:
+- Record local Gemini actual-call verification after the v0.42 repo-native minimal sample pack.
+
+Observed local cases:
+- Tyranitar case:
+  - Player Pokemon: Charizard.
+  - Player item: Charcoal.
+  - Selected move: Heat Wave.
+  - Opponent Pokemon: Tyranitar.
+  - Opponent stats: not user-confirmed.
+  - Gemini recommended Heat Wave and described an estimated 34-41 damage range against Tyranitar using default assumptions plus Charcoal's 1.2x Fire-type modifier.
+  - Gemini stated speed context was not available.
+  - Gemini mentioned Tyranitar possible unconfirmed candidate moves such as Earthquake, Stone Edge, and Crunch.
+- Rotom-Wash case:
+  - Player Pokemon: Charizard.
+  - Player item: Charcoal.
+  - Selected move: Heat Wave.
+  - Opponent Pokemon: Rotom-Wash.
+  - Opponent stats: not user-confirmed.
+  - Gemini recognized Rotom-Wash without slug/normalization problems.
+  - Gemini described Heat Wave as boosted by Charcoal and avoided final speed-order claims.
+  - Gemini stated the opponent item was unknown.
+
+Confirmed safety behavior:
+- Gemini actual call succeeded.
+- Charcoal Fire-type damage modifier wording was correct.
+- No Charcoal choice-lock hallucination appeared.
+- No final turn order was asserted.
+- Gemini did not claim sample stats were directly used for damage or speed calculation.
+- Gemini did not present possible samples as confirmed opponent sets.
+- Damage was not overstated as final battle truth.
+
+Partial-pass finding:
+- v0.42.1 local Gemini verification: PARTIAL PASS.
+- Safety: PASS.
+- Sample visibility: WEAK.
+- In the Tyranitar case, possible sample context did not clearly say `context-only` / `not confirmed`.
+- In the Rotom-Wash case, possible sample context was barely surfaced.
+
+Next candidate:
+- `v0.43 - Opponent Sample Visibility Prompt Polish`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No damage/speed integration.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
