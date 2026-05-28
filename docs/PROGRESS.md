@@ -3350,6 +3350,70 @@ Verification:
 
 ---
 
+## v0.45.1 - Debug summary local verification
+
+Purpose:
+- Verify that the v0.45 opponent assumptions debug summary helper produces a human-readable, copy-ready JSON string.
+
+Local verification:
+- Tested species: `rotom_wash`.
+- Built `opponent_assumptions` with:
+  - `build_opponent_assumptions_payload({"name_en": "rotom_wash"}, PokemonStatSampleRepository())`
+- Built debug summary with:
+  - `build_opponent_assumptions_debug_summary(payload)`
+- Rendered copy-ready JSON with:
+  - `format_opponent_assumptions_debug_json(summary)`
+
+Observed debug summary:
+- `opponent_species_id`: `rotom_wash`.
+- `opponent_assumptions_available`: `true`.
+- `calculation_usage`: `context_only`.
+- `possible_sample_count`: `1`.
+- `included_top_k`: `1`.
+- `possible_samples[0].sample_id`: `rotom_wash_defensive_pivot_repo_v42`.
+- `possible_samples[0].species_id`: `rotom-wash`.
+- `possible_samples[0].confidence`: `estimated`.
+- `possible_samples[0].is_user_confirmed`: `false`.
+- `possible_samples[0].used_for_damage`: `false`.
+- `possible_samples[0].used_for_speed`: `false`.
+- Guardrails were all `true`:
+  - `context_only`
+  - `not_confirmed`
+  - `not_damage_input`
+  - `not_speed_input`
+  - `not_final_turn_order`
+
+Safety checks:
+- No full stats dump appeared.
+- No full LLM payload dump appeared.
+- No `secret_api_key`, `env`, API key, token, or token usage raw log fields appeared.
+- Output was pretty-printed and copy-ready.
+
+Metadata completeness note:
+- The summary included `role`, `archetype_id`, and `possible_items` keys.
+- In this local output, `role` and `archetype_id` were `null`, and `possible_items` was an empty list because the current `opponent_assumptions` payload does not carry those repository metadata fields into `possible_samples`.
+- This is safe, but less informative than the v0.44 target summary shape.
+
+Verdict:
+- v0.45.1 local debug summary verification: PARTIAL PASS.
+- JSON formatting: PASS.
+- Availability / count / sample identity: PASS.
+- Safety / no full stats / no full payload / no secrets: PASS.
+- Metadata completeness: WEAK.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No damage/speed integration.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.44 - Opponent sample debug inspection design
 
 Purpose:
