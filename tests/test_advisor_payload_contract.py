@@ -69,6 +69,14 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
         in payload["scenario"]["known_limitations"]
     )
     assert (
+        "opponent_assumptions mode is a historical behavior label; schema_version and metadata_version describe the current payload shape."
+        in payload["scenario"]["known_limitations"]
+    )
+    assert (
+        "Opponent assumptions version fields are developer/contract metadata and should not be mentioned in user-facing battle advice."
+        in payload["scenario"]["known_limitations"]
+    )
+    assert (
         "opponent_assumptions.calculation_usage context_only means samples are not used directly for damage or speed calculations."
         in payload["scenario"]["known_limitations"]
     )
@@ -183,6 +191,15 @@ def test_ui_payload_includes_opponent_assumptions_for_species_with_samples() -> 
     assumptions = payload["opponent_assumptions"]
 
     assert assumptions["mode"] == "multi_sample_assumption_v0.38"
+    assert assumptions["schema_version"] == "opponent_assumptions_v0.47"
+    assert assumptions["metadata_version"] == "minimal_metadata_v1"
+    assert assumptions["payload_features"] == {
+        "possible_samples": True,
+        "minimal_metadata": True,
+        "debug_summary_supported": True,
+        "full_stats_excluded": True,
+        "damage_speed_integration": False,
+    }
     assert assumptions["available"] is True
     assert assumptions["scope"] == "opponent_active"
     assert assumptions["is_confirmed_information"] is False
@@ -734,6 +751,8 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Use my_available_moves damage_estimates to compare the user's own move options" in prompt
     assert "Do not claim OHKO, 2HKO, KO chance, survival, or speed order" in prompt
     assert "opponent_assumptions is present" in prompt
+    assert "Opponent assumptions version fields are developer/contract metadata" in prompt
+    assert "do not mention schema_version, metadata_version, or payload_features" in prompt
     assert "possible_samples only as context-only risk profiles" in prompt
     assert "not confirmed opponent sets" in prompt
     assert "calculation_usage is context_only" in prompt
@@ -805,6 +824,14 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "opponent_assumptions, when present, contains possible opponent profiles, not confirmed sets."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "opponent_assumptions mode is a historical behavior label; schema_version and metadata_version describe the current payload shape."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Opponent assumptions version fields are developer/contract metadata and should not be mentioned in user-facing battle advice."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

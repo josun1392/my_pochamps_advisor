@@ -20,10 +20,19 @@ def test_build_opponent_assumptions_payload_for_species_with_samples() -> None:
     )
 
     assert payload["mode"] == "multi_sample_assumption_v0.38"
+    assert payload["schema_version"] == "opponent_assumptions_v0.47"
+    assert payload["metadata_version"] == "minimal_metadata_v1"
     assert payload["available"] is True
     assert payload["scope"] == "opponent_active"
     assert payload["is_confirmed_information"] is False
     assert payload["calculation_usage"] == "context_only"
+    assert payload["payload_features"] == {
+        "possible_samples": True,
+        "minimal_metadata": True,
+        "debug_summary_supported": True,
+        "full_stats_excluded": True,
+        "damage_speed_integration": False,
+    }
 
     opponent = payload["opponent_active"]
     assert opponent["species_id"] == "garchomp"
@@ -101,6 +110,9 @@ def test_build_opponent_assumptions_payload_unknown_species_is_unavailable() -> 
 
     assert payload["available"] is False
     assert payload["reason"] == "no_samples_for_species"
+    assert payload["schema_version"] == "opponent_assumptions_v0.47"
+    assert payload["metadata_version"] == "minimal_metadata_v1"
+    assert payload["payload_features"]["damage_speed_integration"] is False
     assert payload["is_confirmed_information"] is False
     assert payload["calculation_usage"] == "context_only"
     assert "Do not invent opponent samples." in payload["limitations"]
@@ -114,6 +126,8 @@ def test_build_opponent_assumptions_payload_missing_opponent_is_unavailable() ->
 
     assert payload["available"] is False
     assert payload["reason"] == "opponent_active_missing"
+    assert payload["schema_version"] == "opponent_assumptions_v0.47"
+    assert payload["metadata_version"] == "minimal_metadata_v1"
     assert payload["is_confirmed_information"] is False
     assert payload["calculation_usage"] == "context_only"
     assert "Do not invent opponent samples." in payload["limitations"]
@@ -173,8 +187,14 @@ def test_build_debug_summary_for_available_opponent_assumptions() -> None:
     assert summary["opponent_species_id"] == "rotom_wash"
     assert summary["opponent_assumptions_available"] is True
     assert summary["reason"] is None
+    assert summary["schema_version"] == "opponent_assumptions_v0.47"
+    assert summary["metadata_version"] == "minimal_metadata_v1"
     assert summary["calculation_usage"] == "context_only"
     assert summary["is_confirmed_information"] is False
+    assert summary["payload_features"]["minimal_metadata"] is True
+    assert summary["payload_features"]["debug_summary_supported"] is True
+    assert summary["payload_features"]["full_stats_excluded"] is True
+    assert summary["payload_features"]["damage_speed_integration"] is False
     assert summary["possible_sample_count"] == 1
     assert summary["included_top_k"] == 1
 
@@ -234,6 +254,8 @@ def test_build_debug_summary_for_unavailable_opponent_assumptions() -> None:
     assert summary["opponent_species_id"] == "missingno"
     assert summary["opponent_assumptions_available"] is False
     assert summary["reason"] == "no_samples_for_species"
+    assert summary["schema_version"] == "opponent_assumptions_v0.47"
+    assert summary["metadata_version"] == "minimal_metadata_v1"
     assert summary["calculation_usage"] == "context_only"
     assert summary["is_confirmed_information"] is False
     assert summary["possible_sample_count"] == 0
@@ -250,7 +272,10 @@ def test_build_debug_summary_for_missing_assumptions_is_safe() -> None:
     assert summary["opponent_species_id"] == "unknown"
     assert summary["opponent_assumptions_available"] is False
     assert summary["reason"] == "opponent_assumptions_missing"
+    assert summary["schema_version"] == "legacy"
+    assert summary["metadata_version"] == "legacy"
     assert summary["calculation_usage"] == "context_only"
+    assert summary["payload_features"]["debug_summary_supported"] is True
     assert summary["possible_samples"] == []
 
 
@@ -331,3 +356,29 @@ def test_format_opponent_assumptions_debug_json_is_pretty_and_copy_ready() -> No
     assert rendered.startswith("{\n")
     assert '  "guardrails": {' in rendered
     assert '"opponent_species_id": "rotom-wash"' in rendered
+
+
+def test_debug_summary_handles_legacy_payload_without_version_fields() -> None:
+    assumptions = {
+        "mode": "multi_sample_assumption_v0.38",
+        "available": True,
+        "calculation_usage": "context_only",
+        "is_confirmed_information": False,
+        "opponent_active": {
+            "species_id": "garchomp",
+            "possible_samples": [],
+            "samples_meta": {"included_top_k": 0},
+        },
+    }
+
+    summary = build_opponent_assumptions_debug_summary_from_assumptions(assumptions)
+
+    assert summary["schema_version"] == "legacy"
+    assert summary["metadata_version"] == "legacy"
+    assert summary["payload_features"] == {
+        "possible_samples": False,
+        "minimal_metadata": False,
+        "debug_summary_supported": True,
+        "full_stats_excluded": True,
+        "damage_speed_integration": False,
+    }

@@ -82,10 +82,13 @@ In v0.23 the UI can emit `system_default_none`, `unknown`, `none`, or `user_conf
 When samples are available, `opponent_assumptions` contains:
 
 - `mode`: `multi_sample_assumption_v0.38`
+- `schema_version`: current payload shape, currently `opponent_assumptions_v0.47`
+- `metadata_version`: current `possible_samples` metadata shape, currently `minimal_metadata_v1`
 - `available`: `true`
 - `scope`: `opponent_active`
 - `is_confirmed_information`: always `false`
 - `calculation_usage`: `context_only`
+- `payload_features`: developer/debug feature flags
 - `opponent_active.species_id`
 - `opponent_active.known_status`: currently `not_confirmed`
 - `opponent_active.is_user_confirmed`: `false`
@@ -95,6 +98,16 @@ When samples are available, `opponent_assumptions` contains:
 - `opponent_active.observation_history`: currently `[]`
 - `opponent_active.update_policy.mode`: `static`
 - `limitations`
+
+`mode` is a historical behavior label. It remains `multi_sample_assumption_v0.38` for compatibility. `schema_version` describes the current payload shape, and `metadata_version` describes the minimal metadata shape inside `possible_samples`. These version fields are additive developer/contract metadata. The LLM should not mention version fields in user-facing battle advice.
+
+`payload_features` currently contains:
+
+- `possible_samples`: `true`
+- `minimal_metadata`: `true`
+- `debug_summary_supported`: `true`
+- `full_stats_excluded`: `true`
+- `damage_speed_integration`: `false`
 
 Each `possible_samples` entry contains:
 

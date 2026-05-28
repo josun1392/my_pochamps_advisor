@@ -7,7 +7,16 @@ from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
 
 
 OPPONENT_ASSUMPTIONS_MODE = "multi_sample_assumption_v0.38"
+OPPONENT_ASSUMPTIONS_SCHEMA_VERSION = "opponent_assumptions_v0.47"
+OPPONENT_ASSUMPTIONS_METADATA_VERSION = "minimal_metadata_v1"
 OPPONENT_ASSUMPTIONS_DEFAULT_TOP_K = 3
+OPPONENT_ASSUMPTIONS_PAYLOAD_FEATURES = {
+    "possible_samples": True,
+    "minimal_metadata": True,
+    "debug_summary_supported": True,
+    "full_stats_excluded": True,
+    "damage_speed_integration": False,
+}
 OPPONENT_ASSUMPTIONS_LIMITATIONS = [
     "Opponent samples are assumptions, not confirmed sets.",
     "Samples are not used directly for damage or speed calculations in this version.",
@@ -62,10 +71,13 @@ def build_opponent_assumptions_payload(
     possible_samples = [_possible_sample_payload(sample) for sample in selected_samples]
     return {
         "mode": OPPONENT_ASSUMPTIONS_MODE,
+        "schema_version": OPPONENT_ASSUMPTIONS_SCHEMA_VERSION,
+        "metadata_version": OPPONENT_ASSUMPTIONS_METADATA_VERSION,
         "available": True,
         "scope": "opponent_active",
         "is_confirmed_information": False,
         "calculation_usage": "context_only",
+        "payload_features": dict(OPPONENT_ASSUMPTIONS_PAYLOAD_FEATURES),
         "opponent_active": {
             "species_id": str(species_id).strip(),
             "known_status": "not_confirmed",
@@ -173,8 +185,11 @@ def build_opponent_assumptions_debug_summary_from_assumptions(
             "opponent_species_id": opponent_species_id,
             "opponent_assumptions_available": False,
             "reason": opponent_assumptions.get("reason"),
+            "schema_version": _version_or_legacy(opponent_assumptions.get("schema_version")),
+            "metadata_version": _version_or_legacy(opponent_assumptions.get("metadata_version")),
             "calculation_usage": opponent_assumptions.get("calculation_usage"),
             "is_confirmed_information": opponent_assumptions.get("is_confirmed_information"),
+            "payload_features": _payload_features_or_fallback(opponent_assumptions.get("payload_features")),
             "possible_sample_count": 0,
             "included_top_k": 0,
             "possible_samples": [],
@@ -185,8 +200,11 @@ def build_opponent_assumptions_debug_summary_from_assumptions(
         "opponent_species_id": opponent_species_id,
         "opponent_assumptions_available": True,
         "reason": None,
+        "schema_version": _version_or_legacy(opponent_assumptions.get("schema_version")),
+        "metadata_version": _version_or_legacy(opponent_assumptions.get("metadata_version")),
         "calculation_usage": opponent_assumptions.get("calculation_usage"),
         "is_confirmed_information": opponent_assumptions.get("is_confirmed_information"),
+        "payload_features": _payload_features_or_fallback(opponent_assumptions.get("payload_features")),
         "possible_sample_count": len(possible_samples),
         "included_top_k": included_top_k or len(possible_samples),
         "possible_samples": [_debug_sample_summary(sample) for sample in possible_samples],
@@ -230,8 +248,11 @@ def _debug_unavailable_summary(*, reason: str) -> dict[str, Any]:
         "opponent_species_id": "unknown",
         "opponent_assumptions_available": False,
         "reason": reason,
+        "schema_version": "legacy",
+        "metadata_version": "legacy",
         "calculation_usage": "context_only",
         "is_confirmed_information": False,
+        "payload_features": _legacy_payload_features(),
         "possible_sample_count": 0,
         "included_top_k": 0,
         "possible_samples": [],
@@ -269,14 +290,43 @@ def _safe_string_list(value: Any) -> list[str]:
     return [item for item in value if isinstance(item, str)]
 
 
+def _version_or_legacy(value: Any) -> str:
+    return value if isinstance(value, str) and value else "legacy"
+
+
+def _payload_features_or_fallback(value: Any) -> dict[str, bool]:
+    if isinstance(value, dict):
+        return {
+            "possible_samples": bool(value.get("possible_samples")),
+            "minimal_metadata": bool(value.get("minimal_metadata")),
+            "debug_summary_supported": bool(value.get("debug_summary_supported")),
+            "full_stats_excluded": bool(value.get("full_stats_excluded")),
+            "damage_speed_integration": bool(value.get("damage_speed_integration")),
+        }
+    return _legacy_payload_features()
+
+
+def _legacy_payload_features() -> dict[str, bool]:
+    return {
+        "possible_samples": False,
+        "minimal_metadata": False,
+        "debug_summary_supported": True,
+        "full_stats_excluded": True,
+        "damage_speed_integration": False,
+    }
+
+
 def _unavailable_payload(*, reason: str, species_id: str | None = None) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "mode": OPPONENT_ASSUMPTIONS_MODE,
+        "schema_version": OPPONENT_ASSUMPTIONS_SCHEMA_VERSION,
+        "metadata_version": OPPONENT_ASSUMPTIONS_METADATA_VERSION,
         "available": False,
         "scope": "opponent_active",
         "reason": reason,
         "is_confirmed_information": False,
         "calculation_usage": "context_only",
+        "payload_features": dict(OPPONENT_ASSUMPTIONS_PAYLOAD_FEATURES),
         "limitations": list(
             OPPONENT_ASSUMPTIONS_UNAVAILABLE_LIMITATIONS.get(
                 reason,

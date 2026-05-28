@@ -49,6 +49,8 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "Opponent known move damage estimates, when present, are default-assumption reference values only.",
     "Opponent candidate move damage is not calculated in v0.18.",
     "opponent_assumptions, when present, contains possible opponent profiles, not confirmed sets.",
+    "opponent_assumptions mode is a historical behavior label; schema_version and metadata_version describe the current payload shape.",
+    "Opponent assumptions version fields are developer/contract metadata and should not be mentioned in user-facing battle advice.",
     "opponent_assumptions.calculation_usage context_only means samples are not used directly for damage or speed calculations.",
     "When opponent_assumptions.available is true and possible_samples exist, briefly mention that possible sample context exists when relevant.",
     "When possible sample context is mentioned, keep it to at most one short limitation sentence.",

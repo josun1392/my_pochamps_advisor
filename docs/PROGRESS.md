@@ -3354,6 +3354,75 @@ Maintained boundaries:
 
 ---
 
+## v0.49 - Opponent assumptions payload versioning
+
+Purpose:
+- Add additive version fields to `opponent_assumptions` while preserving the existing historical mode string.
+
+Implemented:
+- Kept `mode: multi_sample_assumption_v0.38`.
+- Added additive `schema_version: opponent_assumptions_v0.47`.
+- Added additive `metadata_version: minimal_metadata_v1`.
+- Added additive `payload_features`:
+  - `possible_samples: true`
+  - `minimal_metadata: true`
+  - `debug_summary_supported: true`
+  - `full_stats_excluded: true`
+  - `damage_speed_integration: false`
+- Added version fields to available and unavailable opponent assumptions payloads.
+- Updated debug summary helper to include:
+  - `schema_version`
+  - `metadata_version`
+  - compact `payload_features`
+- Preserved old payload compatibility:
+  - missing `schema_version` renders as `legacy`
+  - missing `metadata_version` renders as `legacy`
+  - missing `payload_features` gets safe fallback flags
+- Added advisor contract guardrails:
+  - mode is historical behavior label
+  - schema/metadata versions describe current payload shape
+  - version fields are developer/contract metadata
+  - version info should not be mentioned in user-facing battle advice
+- Updated `docs/advisor_payload_contract.md` to document:
+  - `mode`
+  - `schema_version`
+  - `metadata_version`
+  - `payload_features`
+  - additive compatibility semantics
+- Added tests for:
+  - mode unchanged
+  - schema_version present
+  - metadata_version present
+  - payload_features values
+  - debug summary version display
+  - legacy payload without version fields
+  - user-facing version silence guardrail
+
+Maintained boundaries:
+- No mode rename.
+- No fixture changes.
+- No sample additions.
+- No repository sample data changes.
+- No UI changes.
+- No full stats exposure.
+- No full payload export.
+- No damage/speed integration.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No sample treated as user-confirmed.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No scraping or build script.
+
+Verification:
+- `uv run pytest tests/test_opponent_assumptions.py tests/test_advisor_payload_contract.py -q`: 41 passed.
+- `uv run pytest -q`: 785 passed, 2 deselected.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
