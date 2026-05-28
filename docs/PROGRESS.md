@@ -3274,6 +3274,86 @@ Maintained boundaries:
 
 ---
 
+## v0.48 - Opponent assumptions payload versioning design
+
+Purpose:
+- Design a backward-compatible versioning policy for `opponent_assumptions` after v0.47 minimal metadata enrichment.
+
+Designed:
+- Documented current state:
+  - `opponent_assumptions` was introduced in v0.38
+  - current `mode` remains `multi_sample_assumption_v0.38`
+  - actual payload shape has evolved through v0.42, v0.43, v0.45, and v0.47
+  - sample assumptions remain `context_only` and not damage/speed inputs
+- Defined versioning problem:
+  - stale mode name does not describe current payload shape
+  - future code may treat current payload as original v0.38
+  - additive metadata vs breaking schema changes are not explicit
+  - debug summary helper needs version semantics
+- Set goals:
+  - backward compatibility
+  - clear payload evolution
+  - distinguish behavior mode from schema shape
+  - avoid confusing metadata evolution with calculation integration
+- Compared options:
+  - keep mode unchanged and add `schema_version`
+  - rename mode to latest version
+  - add feature flags
+  - introduce `contract_version` / semantic mode
+- Recommended v0.49 path:
+  - keep `mode: multi_sample_assumption_v0.38`
+  - add `schema_version: opponent_assumptions_v0.47`
+  - add `metadata_version: minimal_metadata_v1`
+  - add compact `payload_features`
+- Proposed fields:
+  - `mode`
+  - `schema_version`
+  - `metadata_version`
+  - `calculation_usage`
+  - `payload_features`
+- Proposed payload features:
+  - `possible_samples: true`
+  - `minimal_metadata: true`
+  - `debug_summary_supported: true`
+  - `full_stats_excluded: true`
+  - `damage_speed_integration: false`
+- Defined compatibility policy:
+  - additive fields only
+  - old payloads without schema fields should still be handled
+  - debug summary may show legacy/null versions
+  - Gemini should not mention version fields in user advice
+- Added future tests plan for:
+  - schema/metadata version fields
+  - mode backward compatibility
+  - payload feature flags
+  - legacy payload handling
+  - debug summary version display
+  - existing regression tests
+- Documented docs/contract impact:
+  - mode is historical behavior label
+  - schema_version is current payload shape
+  - metadata_version is possible sample metadata shape
+  - payload_features is developer/debug-oriented
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No payload version field added.
+- No fixture changes.
+- No sample additions.
+- No UI changes.
+- No damage/speed integration.
+- No user-confirmed treatment changes.
+- No calculation mode.
+- No Bayesian update.
+- No Turn Engine.
+- No full stats exposure.
+- No full payload export.
+- No scraping or build script.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
