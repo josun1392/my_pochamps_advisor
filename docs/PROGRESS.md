@@ -3631,6 +3631,91 @@ Maintained boundaries:
 
 ---
 
+## v0.51 - Opponent assumptions debug CLI script
+
+Purpose:
+- Add a developer CLI that prints the safe `opponent_assumptions` debug summary JSON for a requested species.
+
+Implemented:
+- Added `scripts/debug_opponent_assumptions.py`.
+- Added required CLI argument:
+  - `--species`
+- Added optional CLI argument:
+  - `--top-k`, defaulting to the existing opponent assumptions default of `3`.
+- The CLI:
+  - builds an opponent-active payload from the provided species id
+  - uses `PokemonStatSampleRepository`
+  - calls `build_opponent_assumptions_payload`
+  - calls `build_opponent_assumptions_debug_summary`
+  - prints `format_opponent_assumptions_debug_json(summary)` to stdout
+- Known species with samples return `opponent_assumptions_available: true`.
+- Unknown species return safe unavailable JSON with `reason: no_samples_for_species`.
+
+Safety and privacy:
+- No Gemini call.
+- No file writes.
+- No `logs/debug_payloads/` output.
+- No full LLM payload export.
+- No full stats dump.
+- No `sp_distribution` dump.
+- No source URL/source note/reviewer notes/full source metadata dump.
+- No Gemini prompt or response output.
+- No API key, `.env`, secrets, environment dump, or token usage logs.
+
+Docs:
+- Updated `docs/advisor_payload_contract.md` with CLI usage:
+  - `uv run python scripts/debug_opponent_assumptions.py --species rotom-wash`
+- Documented that the CLI is developer-only, stdout-only, and summary-only.
+
+Tests:
+- Added CLI tests for:
+  - script existence
+  - known species output
+  - unknown species output
+  - valid JSON stdout
+  - schema and metadata version fields
+  - role/archetype/possible items
+  - `used_for_damage=false`
+  - `used_for_speed=false`
+  - guardrails
+  - no full stats
+  - no `sp_distribution`
+  - no full payload
+  - no secrets/env/token logs
+  - `--top-k` limiting behavior
+
+Next candidates:
+- `v0.52 - Item / Survival Roadmap Return Design`.
+- `v0.52 - Focus Sash / Survival Item Design`.
+
+Maintained boundaries:
+- No UI button.
+- No hotkey.
+- No debug panel.
+- No Gemini call.
+- No full payload export.
+- No file write.
+- No fixture changes.
+- No sample additions.
+- No repository sample data changes.
+- No damage/speed integration.
+- No sample stats connected to `damage_estimate`.
+- No sample stats connected to `speed_context`.
+- No sample treated as user-confirmed.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No scraping or build script.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+Verification:
+- `uv run pytest tests/test_debug_opponent_assumptions_cli.py tests/test_opponent_assumptions.py -q`: 19 passed.
+- `uv run pytest -q`: 789 passed, 2 deselected.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

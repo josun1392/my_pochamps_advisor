@@ -405,6 +405,14 @@ The summary may include:
 
 If a future file export is added, it should write only to a git-ignored debug path such as `logs/debug_payloads/`. Debug exports remain outside commits.
 
+v0.51 adds a developer CLI for this summary:
+
+```powershell
+uv run python scripts/debug_opponent_assumptions.py --species rotom-wash
+```
+
+The CLI prints the safe `opponent_assumptions` debug summary JSON to stdout. It does not call Gemini, does not write files, does not export the full LLM payload, and does not read or print API keys, `.env` values, secrets, or token logs. `--top-k` can be used to limit possible samples.
+
 ## Speed Context Semantics
 
 `speed_context` is raw and supported effective Speed comparison only.
