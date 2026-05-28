@@ -2941,3 +2941,114 @@ Maintained boundaries:
 - No KO/OHKO/2HKO.
 - No Turn Engine.
 - No item effect changes.
+
+---
+
+## v0.40 - Opponent sample candidate validation
+
+Purpose:
+- Record the validation-first review of the T2-1 `v0.40.0-final` 19-sample candidate package before any fixture merge.
+
+Validation record:
+- Added `docs/spike_v0.40_opponent_sample_candidate_validation.md`.
+- Treated the T2-1 package as candidate input, not as trusted final fixture data.
+- Confirmed the existing fixture structure:
+  - `data/static/pokemon_stat_samples.json`
+  - species-keyed dictionary
+  - `samples: { species_id: [sample...] }`
+  - current sample count: 3
+- Confirmed the candidate structure differs:
+  - `existing_samples`
+  - `new_samples_v40`
+  - sample entries use `species`
+  - top-level `sp_distribution`
+  - additional v0.40 fields such as `archetype_id`, `stats_truth_source`, `possible_items`, `calculation_usage`, and `existing_pre_v40`
+- Marked the candidate as requiring schema-extension/migration planning before any direct merge.
+
+Stats validation:
+- Repo stat calculator exists:
+  - `advisor.damage.stats.final_stats`
+- Candidate stats were cross-checked against repo-native calculation where local base stats were available.
+- Matched samples: 0.
+- Mismatched samples: 13.
+- Unverified samples: 6.
+- Conclusion:
+  - T2-1 manual stats must not be merged as-is.
+  - Samples without repo base stats must remain unmerged until validation data exists.
+
+Species key validation:
+- Candidate uses `rotom_wash`.
+- Repo normalization converts `rotom_wash` to `rotom-wash`.
+- Local repo cache contains `data/cache/pokemon/rotom-wash.json`.
+- Conclusion:
+  - raw `rotom_wash` should not be merged without a repo-native normalization policy.
+
+Korean / ability validation:
+- Confirmed:
+  - `tyranitar` ability `모래날림`
+  - `archaludon` ability `지구력`
+  - `rotom-wash` ability `부유`
+- Suspicious:
+  - `garchomp` ability_korean `사기`; repo/data mapping indicates Rough Skin as `까칠한피부`
+  - `kingambit` korean_name `키랑이`; not confirmed from repo-backed data during validation
+- Unresolved:
+  - `amoonguss`
+  - `gholdengo`
+  - `metagross`
+  - `amoonguss` ability_korean `포자`
+
+Item legality validation:
+- Legal in current Champions item repository:
+  - `black-glasses`
+  - `choice-scarf`
+  - `leftovers`
+  - `lum-berry`
+  - `mental-herb`
+  - `metal-coat`
+  - `occa-berry`
+  - `sitrus-berry`
+- Illegal / not normal Champions legal in current fixture:
+  - `choice-specs`
+  - `choice-band`
+  - `life-orb`
+- Unknown in current Champions item repository:
+  - `heavy-duty-boots`
+  - `loaded-dice`
+  - `weakness-policy`
+  - `assault-vest`
+  - `throat-spray`
+  - `power-herb`
+  - `covert-cloak`
+  - `air-balloon`
+  - `black-sludge`
+  - `rocky-helmet`
+- Banned pseudo-item check:
+  - no `metagrossite-banned`
+  - no item id containing `banned`
+
+Decision:
+- `merge_allowed: false`
+- `data/static/pokemon_stat_samples.json` was not modified.
+- No repository schema changes were made.
+- No tests were changed.
+- No commit was created during validation.
+- The validation stop worked as intended before fixture mutation.
+
+Next candidates:
+- `v0.41 - Repo-Native Minimal Sample Pack Design`
+- `v0.41 - Legal Item Filter for Possible Sample Items`
+- `v0.41 - Stat Calculator Based Sample Generation Plan`
+
+Maintained boundaries:
+- Documentation-only record.
+- No fixture changes.
+- No sample additions.
+- No schema migration.
+- No repository changes.
+- No tests changed.
+- No UI changes.
+- No damage/speed integration.
+- No possible item auto-deletion.
+- No stats auto-correction.
+- No scraping or build script.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
