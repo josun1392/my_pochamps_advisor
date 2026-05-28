@@ -3274,6 +3274,78 @@ Maintained boundaries:
 
 ---
 
+## v0.44 - Opponent sample debug inspection design
+
+Purpose:
+- Design a developer/debug-only way to inspect which `opponent_assumptions` and `possible_samples` are present for the current active opponent.
+
+Designed:
+- Documented current state:
+  - `opponent_assumptions` payload exists
+  - repo-native minimal sample pack exists
+  - Gemini now surfaces one-line possible sample context
+  - developers still cannot directly inspect the runtime sample payload in the app
+- Defined debug inspection goals:
+  - developer/debug-only
+  - show `calculation_usage: context_only`
+  - show samples are not user-confirmed
+  - show samples are not damage or Speed inputs
+  - keep user-facing battle advice simple
+- Compared options:
+  - debug log only
+  - payload export / copy button
+  - developer-only debug panel
+  - AI analysis panel bottom summary
+  - CLI/debug script
+- Recommended v0.45 direction:
+  - prefer `Opponent Assumptions Debug Export Implementation`
+  - start with `opponent_assumptions` summary export/copy
+  - defer general UI debug panel
+  - keep CLI/debug script as a smaller alternative
+- Proposed debug summary shape with:
+  - opponent species id
+  - availability
+  - calculation usage
+  - possible sample count
+  - included Top-K count
+  - sample id / role / archetype / possible items
+  - `used_for_damage: false`
+  - `used_for_speed: false`
+  - safety guardrails
+- Designed payload export scope:
+  - prefer `opponent_assumptions` summary only first
+  - full LLM payload export remains optional/deferred
+  - any file export should use a git-ignored path such as `logs/debug_payloads/`
+- Documented safety/privacy/git hygiene:
+  - no API keys, `.env`, secrets, or raw auth data
+  - `logs/` remains uncommitted
+  - debug export is developer-only
+- Added future tests plan for:
+  - available/unavailable summary
+  - `is_user_confirmed: false`
+  - `used_for_damage: false`
+  - `used_for_speed: false`
+  - no secret-like fields in export
+  - existing opponent assumptions and payload contract regressions
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No UI implementation.
+- No fixture changes.
+- No sample additions.
+- No damage/speed integration.
+- No sample treated as user-confirmed.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No KO/OHKO/2HKO.
+- No Turn Engine.
+- No item effect changes.
+- No scraping or build script.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.43 - Opponent sample visibility prompt polish
 
 Purpose:
