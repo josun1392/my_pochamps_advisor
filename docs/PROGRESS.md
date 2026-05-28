@@ -3423,6 +3423,100 @@ Verification:
 
 ---
 
+## v0.49.1 - Opponent assumptions versioning debug verification
+
+Purpose:
+- Record local verification that v0.49 versioning fields are visible in developer debug summaries while staying silent in user-facing advice.
+
+Local verification:
+- Tested species: `rotom-wash`.
+- Built `opponent_assumptions` with:
+  - `build_opponent_assumptions_payload({"name_en": "rotom-wash"})`
+- Built debug summary with:
+  - `build_opponent_assumptions_debug_summary(payload)`
+- Rendered copy-ready JSON with:
+  - `format_opponent_assumptions_debug_json(summary)`
+
+Confirmed versioning output:
+- `mode` remained `multi_sample_assumption_v0.38`.
+- `schema_version` rendered as `opponent_assumptions_v0.47`.
+- `metadata_version` rendered as `minimal_metadata_v1`.
+- `payload_features` rendered with:
+  - `possible_samples: true`
+  - `minimal_metadata: true`
+  - `debug_summary_supported: true`
+  - `full_stats_excluded: true`
+  - `damage_speed_integration: false`
+
+Confirmed sample metadata remained visible:
+- `opponent_assumptions_available: true`.
+- `possible_sample_count: 1`.
+- `sample_id: rotom_wash_defensive_pivot_repo_v42`.
+- `species_id: rotom-wash`.
+- `role: defensive_pivot`.
+- `archetype_id: rotom_wash_defensive_pivot_repo_v42`.
+- `possible_items: ["leftovers", "sitrus-berry"]`.
+- `confidence: estimated`.
+- `is_user_confirmed: false`.
+
+Confirmed guardrails:
+- `used_for_damage: false`.
+- `used_for_speed: false`.
+- `guardrails.context_only: true`.
+- `guardrails.not_confirmed: true`.
+- `guardrails.not_damage_input: true`.
+- `guardrails.not_speed_input: true`.
+- `guardrails.not_final_turn_order: true`.
+
+Legacy fallback verification:
+- Removed `schema_version`, `metadata_version`, and `payload_features` from a generated `opponent_assumptions` object.
+- Debug summary helper completed without crashing.
+- Missing `schema_version` rendered as `legacy`.
+- Missing `metadata_version` rendered as `legacy`.
+- Missing `payload_features` used safe fallback flags:
+  - `possible_samples: false`
+  - `minimal_metadata: false`
+  - `debug_summary_supported: true`
+  - `full_stats_excluded: true`
+  - `damage_speed_integration: false`
+- Legacy summary preserved `used_for_damage: false`, `used_for_speed: false`, and context-only guardrails.
+
+Safety and silence checks:
+- No full stats dump appeared.
+- No `sp_distribution` dump appeared.
+- No full source metadata dump appeared.
+- No full LLM payload export appeared.
+- No secrets, `.env`, API keys, or token logs appeared.
+- User-facing version silence was confirmed by prompt/contract regression:
+  - advisor prompt says version fields are developer/contract metadata
+  - advisor prompt says not to mention `schema_version`, `metadata_version`, or `payload_features` in user-facing battle advice
+
+Verdict:
+- v0.49.1 debug summary versioning verification: PASS.
+- Version display: PASS.
+- Legacy fallback: PASS.
+- User-facing version silence: PASS by prompt/contract regression.
+- Safety / no full stats / no SP distribution / no source metadata / no full payload / no secrets: PASS.
+
+Next candidates:
+- `v0.50 - Developer Debug Access Design`.
+- `v0.50 - Debug Export Access Surface Design`.
+- `v0.50 - Sample/Item Roadmap Return Plan`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No damage/speed integration.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
