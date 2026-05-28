@@ -3517,6 +3517,120 @@ Maintained boundaries:
 
 ---
 
+## v0.50 - Developer debug access design
+
+Purpose:
+- Design a developer-only access path for the existing `opponent_assumptions` debug summary without exposing general user-facing UI or full payload exports.
+
+Designed:
+- Documented current state:
+  - debug summary helper exists
+  - pretty JSON formatter exists
+  - local verification confirmed safe summary output
+  - no app button, menu, hotkey, or CLI access surface exists yet
+- Defined problems:
+  - active opponent sample payload is hard to inspect during app use
+  - helper exists but is not exposed to developers
+  - visible UI debug controls could confuse regular users
+  - full payload export is too broad and creates hygiene risk
+- Defined goals:
+  - developer-only access
+  - `opponent_assumptions` summary only
+  - no full LLM payload
+  - no full stats or SP distribution
+  - no secrets, `.env`, API keys, or token logs
+  - keep normal UI simple
+
+Options compared:
+- Option A - CLI/debug script.
+- Option B - copy debug JSON button in app.
+- Option C - hidden developer hotkey.
+- Option D - debug log only.
+- Option E - developer-only collapsible panel.
+
+Recommendation:
+- Prefer Option A as the safest next step:
+  - `v0.51 - Opponent Assumptions Debug CLI Script Implementation`
+  - input species id
+  - build `opponent_assumptions`
+  - print safe debug summary JSON to stdout
+  - no UI
+  - no full payload
+  - no file writes by default
+- Defer live app copy/hotkey design until the CLI access path is stable.
+- Defer a visible debug panel until a later version.
+
+Debug access scope:
+- Include:
+  - species id
+  - availability
+  - mode/schema/metadata versions
+  - compact payload features
+  - possible sample count
+  - sample id/species id
+  - role/archetype id
+  - confidence
+  - possible items
+  - `is_user_confirmed`
+  - `used_for_damage`
+  - `used_for_speed`
+  - guardrails
+- Exclude:
+  - full LLM payload
+  - Gemini prompt
+  - full stats
+  - SP distribution
+  - full source metadata
+  - API key
+  - `.env`
+  - token logs
+  - arbitrary environment variables
+
+Git hygiene:
+- Prefer stdout for v0.51.
+- Do not commit generated debug JSON.
+- If future file export is added, use a git-ignored path such as `logs/debug_payloads/` and verify/document ignore coverage.
+- Keep `logs/token_usage.jsonl` unrelated and uncommitted.
+
+Tests planned for v0.51:
+- available species output
+- unknown species output
+- no secrets in output
+- no full stats or SP distribution in output
+- no full payload in output
+- version fields display
+- role/archetype/possible items display
+- `used_for_damage=false`
+- `used_for_speed=false`
+- guardrails display
+- existing `opponent_assumptions` regressions
+
+Return to main roadmap:
+- After minimal debug access, return to item/survival/KO roadmap candidates:
+  - item effect expansion
+  - survival/recovery item design
+  - KO/OHKO/2HKO design
+  - Focus Sash / Leftovers / Sitrus Berry / Bright Powder work
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No UI implementation.
+- No CLI script implementation.
+- No hotkey implementation.
+- No fixture changes.
+- No sample additions.
+- No damage/speed integration.
+- No user-confirmed treatment changes.
+- No full payload export.
+- No full stats exposure.
+- No calculation mode implementation.
+- No Bayesian update implementation.
+- No Turn Engine.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
