@@ -3319,3 +3319,57 @@ Maintained boundaries:
 Verification:
 - `uv run pytest tests/test_advisor_payload_contract.py -q`: 26 passed.
 - `uv run pytest -q`: 777 passed, 2 deselected.
+
+---
+
+## v0.43.1 - Opponent sample visibility local Gemini verification
+
+Purpose:
+- Record local Gemini actual-call verification after v0.43 opponent sample visibility prompt polish.
+
+Observed local case:
+- Rotom-Wash case:
+  - Player Pokemon: Charizard.
+  - Player item: Charcoal.
+  - Selected move: Heat Wave.
+  - Opponent Pokemon: Rotom-Wash.
+  - Opponent stats: not user-confirmed.
+  - Gemini recommended Heat Wave and described an estimated 26.4-31.2% damage range that is not very effective against Rotom-Wash.
+  - Gemini stated the estimate includes a 1.2x Fire-type damage boost from the user-confirmed Charcoal and is based on default assumptions.
+  - Gemini stated Rotom-Wash's item is unknown, speed order is uncertain, and unconfirmed Electric-type candidate moves are a possible threat.
+  - Gemini included the concise sample visibility sentence: "Possible opponent samples exist, but they are context only and not confirmed."
+
+Confirmed behavior:
+- Gemini actual call succeeded.
+- Rotom-Wash recognition was normal.
+- Charcoal 1.2x Fire-type modifier wording was correct.
+- Possible opponent sample context appeared as one concise line.
+- `context only` and `not confirmed` wording appeared.
+- Gemini did not present possible samples as confirmed opponent sets.
+- Gemini did not claim sample stats were directly used for damage or speed calculation.
+- Gemini did not assert final turn order.
+- No `sample_id`, full stats, source metadata, `update_policy`, or Top-K sample dump appeared.
+- Response concision was acceptable.
+
+Verdict:
+- v0.43.1 local Gemini verification: PASS.
+- Safety: PASS.
+- Sample visibility: PASS.
+- Concision: PASS.
+
+Next candidates:
+- `v0.44 - Opponent Sample Expansion Plan`.
+- `v0.44 - Legal Item Coverage Expansion Design`.
+- `v0.44 - Opponent Sample Debug Inspection Design`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No damage/speed integration.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
