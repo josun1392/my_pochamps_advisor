@@ -4003,6 +4003,63 @@ Maintained boundaries:
 
 ---
 
+## v0.55 - Focus Sash prompt polish
+
+Purpose:
+- Polish Focus Sash wording after v0.54.1 local Gemini verification showed safety and visibility were good, but limitation wording was weak.
+
+Implemented:
+- Strengthened advisor prompt guardrails so available Focus Sash `survival_context` should include one concise limitation sentence.
+- Added the target limitation wording:
+  - multi-hit moves are not modeled
+  - hazards are not modeled
+  - chip damage is not modeled
+  - exact turn sequencing is not modeled
+- Kept the Focus Sash limitation short so it does not dominate the recommendation.
+- Preserved existing wording requirements:
+  - use "may survive at 1 HP"
+  - do not say "will survive"
+  - do not say "definitely survives"
+  - do not say Focus Sash guarantees survival
+  - raw damage estimate is unchanged
+  - Focus Sash is not damage reduction
+  - Focus Sash applies only when user-confirmed and HP is full
+- Preserved unavailable-case guardrail:
+  - do not infer Focus Sash when item is unknown or unconfirmed
+  - do not force Focus Sash limitation wording when `survival_context.available` is false or no `survival_context` is present
+
+Docs and tests:
+- Updated `docs/advisor_payload_contract.md` with one-line Focus Sash limitation examples and unavailable-case wording.
+- Updated advisor payload contract guardrails.
+- Updated prompt/contract regression tests for:
+  - one-line limitation rule
+  - multi-hit / hazards / chip damage / exact turn sequencing wording
+  - `may survive at 1 HP`
+  - `will survive` / `definitely survives` prohibition
+  - raw damage unchanged
+  - not damage reduction
+  - no unknown/unconfirmed Focus Sash inference
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py tests/test_advisor_damage_estimate.py -q`: 63 passed.
+- `uv run pytest -q`: 798 passed, 2 deselected.
+
+Maintained boundaries:
+- No `survival_context` structure changes.
+- No survival calculation changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No multi-hit support.
+- No hazards/residual/weather/status chip support.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

@@ -365,11 +365,18 @@ The LLM may say:
 
 - "Focus Sash may allow survival at 1 HP if the Pokemon is at full HP, but this is limited context and does not change the raw damage estimate."
 - "Without considering Focus Sash, the damage range could be lethal; with a user-confirmed Focus Sash and full HP, survival at 1 HP is possible under limited assumptions."
+- "Focus Sash survival is limited context; multi-hit moves, hazards, chip damage, and exact turn sequencing are not modeled."
+- "This Focus Sash note assumes single-hit damage from full HP; multi-hit, hazards, chip damage, and turn sequencing are not modeled."
+
+When `survival_context.available` is `true`, `survival_effect.type` is `focus_sash`, and `may_survive_at_1_hp` is true, the LLM should include one concise limitation sentence. The limitation should stay short and should not become longer than the recommendation.
+
+If `survival_context.available` is false, or no `survival_context` is present for a move, the LLM should not invent Focus Sash survival or force the Focus Sash limitation sentence.
 
 The LLM must not say:
 
 - "Focus Sash reduces the damage."
 - "The Pokemon definitely survives."
+- "The Pokemon will survive."
 - "Focus Sash guarantees survival in this turn."
 - "Focus Sash applies when the item is unknown or unconfirmed."
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
