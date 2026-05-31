@@ -3790,6 +3790,105 @@ Maintained boundaries:
 
 ---
 
+## v0.53 - Focus Sash survival design
+
+Purpose:
+- Design limited Focus Sash survival context without changing raw damage rolls or introducing Turn Engine state.
+
+Designed:
+- Documented current state:
+  - type boosting item damage modifiers are implemented
+  - Choice Scarf effective Speed is implemented in `speed_context`
+  - Focus Sash is legal/selectable but survival is not connected
+  - `damage_estimate` remains raw damage range and roll centered
+  - KO/OHKO/2HKO and Turn Engine remain unimplemented
+- Defined Focus Sash as survival context, not damage reduction.
+- Established core principle:
+  - Focus Sash may affect survival wording
+  - Focus Sash must not alter raw damage rolls
+
+Scope proposal for v0.54:
+- Include only:
+  - defender item profile is `user_confirmed`
+  - defender item id is `focus-sash`
+  - defender HP is full or full-compatible
+  - incoming damage estimate exists
+  - at least one incoming roll can be lethal
+  - move is not known to be multi-hit
+- Exclude:
+  - multi-hit moves
+  - hazards
+  - residual damage
+  - weather/status chip
+  - prior damage ambiguity
+  - ability interactions
+  - item suppression
+  - Mold Breaker-like exceptions
+  - exact turn sequencing
+  - KO probability integration
+
+Data requirements:
+- defender item profile status and item id
+- defender HP state:
+  - exact current/max HP if available
+  - otherwise current UI `hp_percent`
+- damage estimate min/max and rolls
+- move metadata sufficient to exclude multi-hit when known
+
+Payload direction:
+- Prefer additive `survival_context` beside the relevant move `damage_estimate`.
+- Do not mutate `damage_range`, `rolls`, type effectiveness, or item damage modifier math.
+- Direction rules:
+  - my selected move: defender is `opponent_active`
+  - opponent known move: defender is `my_active`
+
+LLM guardrails:
+- Say "may survive at 1 HP", not "will survive".
+- Say this is limited context.
+- Say raw damage is unchanged.
+- Do not infer Focus Sash unless item is user-confirmed.
+- Do not describe Focus Sash as damage reduction.
+- Do not claim final battle truth, final turn order, or KO/OHKO/2HKO probability.
+
+Reason codes proposed:
+- `no_focus_sash`
+- `item_not_user_confirmed`
+- `hp_not_full`
+- `hp_unknown`
+- `damage_not_lethal`
+- `multi_hit_not_supported`
+- `damage_estimate_missing`
+- `defender_max_hp_missing`
+- `unsupported_turn_engine_required`
+
+v0.54 candidate:
+- `v0.54 - Focus Sash Limited Survival Context Implementation`
+- Add helper and additive payload context.
+- User-confirmed Focus Sash only.
+- Full HP only.
+- Lethal damage only.
+- Raw damage unchanged.
+- No Turn Engine.
+- No KO probability.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No actual `survival_context` field addition.
+- No item effect implementation.
+- No damage formula changes.
+- No raw damage roll changes.
+- No KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No multi-hit support.
+- No hazard/residual/weather/status chip.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
