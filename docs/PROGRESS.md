@@ -3941,6 +3941,68 @@ Maintained boundaries:
 
 ---
 
+## v0.54.1 - Focus Sash survival local Gemini verification
+
+Purpose:
+- Record local Gemini actual-call verification for v0.54 limited Focus Sash `survival_context`.
+
+Local verification:
+- Gemini actual call succeeded.
+- Case run: Case B, opponent Focus Sash survival.
+  - Player Pokemon: Charizard.
+  - Selected move: Flamethrower.
+  - Opponent Pokemon: Garchomp.
+  - Opponent item: user-confirmed `focus-sash`.
+  - Opponent HP: full / 100%.
+  - Local payload included available `survival_context`.
+  - Incoming damage context: 31-37 damage, `could_be_lethal_without_item=true`, `guaranteed_lethal_without_item=false`.
+- Gemini response summary:
+  - Recommended Flamethrower.
+  - Stated it deals 31-37 damage with default assumptions and is not very effective.
+  - Stated Garchomp has a user-confirmed Focus Sash and may survive at 1 HP.
+  - Stated attacker stats are based on default assumptions.
+
+Confirmed behavior:
+- Focus Sash wording was present.
+- "may survive at 1 HP" wording was present.
+- Raw damage estimate remained visible as 31-37 and was not replaced by a reduced damage value.
+- No damage reduction hallucination appeared.
+- No "definitely survives", "will survive", or guaranteed final survival wording appeared.
+- Focus Sash was not inferred from unknown or unconfirmed item data.
+- No raw damage roll changes, KO/OHKO/2HKO claims, or final battle truth claims appeared.
+
+Weakness:
+- The response did not explicitly mention multi-hit, hazards, residual damage, weather/status chip, or exact turn sequencing limitations.
+- The response did not explicitly say raw damage rolls are unchanged, though it preserved the raw damage estimate and separated Focus Sash as survival wording.
+
+Verdict:
+- v0.54.1 local Gemini verification: PARTIAL PASS.
+- Safety: PASS.
+- Focus Sash visibility: PASS.
+- Limitation visibility: WEAK.
+
+Next candidates:
+- `v0.55 - Focus Sash Prompt Polish`.
+- `v0.55 - KO/OHKO/2HKO Design`.
+- `v0.55 - Sitrus/Leftovers Recovery Design`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No `survival_context` changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
