@@ -20,6 +20,7 @@ from llm.advisor_payload_contract import (
     ADVISOR_USER_CONFIRMED_FINAL_STATS_WITH_DAMAGE_ITEM_PROFILE,
     ADVISOR_USER_CONFIRMED_FINAL_STATS_PROFILE,
 )
+from llm.advisor_survival_context import build_focus_sash_survival_context
 
 
 DEFAULT_LEVEL = 50
@@ -61,9 +62,17 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
     if isinstance(available_moves, list):
         for move in available_moves:
             if isinstance(move, dict):
-                move["damage_estimate"] = build_move_damage_estimate(
+                estimate = build_move_damage_estimate(
                     result,
                     move,
+                    scope="available_move_comparison",
+                )
+                move["damage_estimate"] = estimate
+                move["survival_context"] = build_focus_sash_survival_context(
+                    result,
+                    estimate,
+                    move,
+                    defender_key="opponent_active",
                     scope="available_move_comparison",
                 )
 
@@ -71,8 +80,24 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
     selected_move = moves.get("my_selected_move")
     if isinstance(selected_move, dict):
         selected_move["damage_estimate"] = estimate
+        selected_move["survival_context"] = build_focus_sash_survival_context(
+            result,
+            estimate,
+            selected_move,
+            defender_key="opponent_active",
+            scope="selected_move_only",
+        )
     else:
-        moves["my_selected_move"] = {"damage_estimate": estimate}
+        moves["my_selected_move"] = {
+            "damage_estimate": estimate,
+            "survival_context": build_focus_sash_survival_context(
+                result,
+                estimate,
+                None,
+                defender_key="opponent_active",
+                scope="selected_move_only",
+            ),
+        }
     return result
 
 
@@ -89,7 +114,15 @@ def attach_opponent_known_move_damage_estimates(battle_input: dict[str, Any]) ->
 
     for move in known_moves:
         if isinstance(move, dict):
-            move["damage_estimate"] = build_opponent_known_move_damage_estimate(result, move)
+            estimate = build_opponent_known_move_damage_estimate(result, move)
+            move["damage_estimate"] = estimate
+            move["survival_context"] = build_focus_sash_survival_context(
+                result,
+                estimate,
+                move,
+                defender_key="my_active",
+                scope="opponent_known_move_only",
+            )
     return result
 
 

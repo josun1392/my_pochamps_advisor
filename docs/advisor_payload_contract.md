@@ -300,7 +300,6 @@ Excluded from v0.30 item application:
 
 - Expert Belt
 - Assault Vest
-- Focus Sash survival
 - Leftovers/Sitrus recovery
 - Choice lock
 - Life Orb recoil
@@ -310,7 +309,7 @@ Excluded from v0.30 item application:
 Legal item modeling examples:
 
 - Choice Scarf: selectable; its supported speed modifier may be applied in `speed_context` when user-confirmed, but speed order and Choice Scarf choice lock are not modeled.
-- Focus Sash: selectable, but survival is not modeled.
+- Focus Sash: selectable; its limited survival context may be included only when user-confirmed and full HP. It is not damage reduction and does not change raw damage estimates.
 - Leftovers / Sitrus Berry: selectable, but recovery and turn sequencing are not modeled.
 
 `damage_estimate.item_effects` is the source of truth for whether an item effect was applied to a specific calculation.
@@ -322,6 +321,60 @@ If Life Orb is applied, the LLM should say the damage modifier is applied and Li
 For type boosting items, the LLM should say the damage modifier is included only when `damage_estimate.item_effects.attacker_item.status` is `applied`. It must not say the item boosted damage when the move type does not match, when the item is unsupported, or merely because the item is legal. Fairy Feather should be described as legal but not damage-modeled until a catalog-backed modifier exists.
 
 For non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, or Focus Sash, the LLM must not say choice lock is not modeled. Choice lock is relevant only to Choice Scarf, Choice Band, and Choice Specs.
+
+## Survival Context Semantics
+
+`survival_context` is an additive limited context next to a relevant `damage_estimate`. It does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, or item damage modifier math.
+
+In v0.54, the only modeled survival context is limited Focus Sash context:
+
+- defender item profile must be `status: user_confirmed`
+- defender item id must be `focus-sash`
+- defender HP must be full by exact HP or `hp_percent == 100`
+- incoming damage must have `max >= current_hp`
+- `min >= current_hp` is represented separately as `guaranteed_lethal_without_item`
+
+Available Focus Sash context may include:
+
+- `mode`: `limited_item_survival_context`
+- `available`: `true`
+- `defender_side`: `my_active` or `opponent_active`
+- `item.item_id`: `focus-sash`
+- `item.status`: `user_confirmed`
+- `current_hp_is_full`: `true`
+- `incoming_damage.could_be_lethal_without_item`
+- `incoming_damage.guaranteed_lethal_without_item`
+- `survival_effect.type`: `focus_sash`
+- `survival_effect.may_survive_at_1_hp`: `true`
+- `survival_effect.raw_damage_rolls_changed`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `no_focus_sash`
+- `item_not_user_confirmed`
+- `hp_not_full`
+- `hp_unknown`
+- `damage_not_lethal`
+- `multi_hit_not_supported`
+- `damage_estimate_missing`
+- `defender_max_hp_missing`
+- `unsupported_turn_engine_required`
+
+The LLM may say:
+
+- "Focus Sash may allow survival at 1 HP if the Pokemon is at full HP, but this is limited context and does not change the raw damage estimate."
+- "Without considering Focus Sash, the damage range could be lethal; with a user-confirmed Focus Sash and full HP, survival at 1 HP is possible under limited assumptions."
+
+The LLM must not say:
+
+- "Focus Sash reduces the damage."
+- "The Pokemon definitely survives."
+- "Focus Sash guarantees survival in this turn."
+- "Focus Sash applies when the item is unknown or unconfirmed."
+- "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
+
+Candidate moves do not receive `damage_estimate` and do not receive `survival_context`.
 
 ## Opponent Assumption Semantics
 

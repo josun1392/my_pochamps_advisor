@@ -3889,6 +3889,58 @@ Maintained boundaries:
 
 ---
 
+## v0.54 - Focus Sash limited survival context
+
+Purpose:
+- Add limited Focus Sash `survival_context` beside relevant `damage_estimate` entries without changing raw damage math.
+
+Implemented:
+- Added a Focus Sash survival context helper in `llm/advisor_survival_context.py`.
+- Attached additive `survival_context` for:
+  - my selected move / available move damage against `opponent_active`
+  - opponent known move damage against `my_active`
+- Kept opponent candidate moves excluded from both `damage_estimate` and `survival_context`.
+- Modeled Focus Sash only when:
+  - defender item is user-confirmed
+  - defender item id is `focus-sash`
+  - defender HP is full by exact HP or 100% HP
+  - incoming damage max is at least current HP
+- Added lethal flags:
+  - `could_be_lethal_without_item` when max damage is at least current HP
+  - `guaranteed_lethal_without_item` when min damage is at least current HP
+- Added `survival_effect.may_survive_at_1_hp`.
+- Added `raw_damage_rolls_changed=false` and preserved raw damage min/max/rolls unchanged.
+
+Guardrails:
+- Focus Sash is limited survival context, not damage reduction.
+- Use "may survive at 1 HP" wording.
+- Do not say "definitely survives" or that Focus Sash guarantees survival in final battle.
+- Do not infer Focus Sash when item is unknown or unconfirmed.
+- Multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, and exact turn sequencing are not modeled.
+
+Docs and tests:
+- Updated `docs/advisor_payload_contract.md` with `survival_context` shape, reason codes, and LLM wording guardrails.
+- Updated advisor payload prompt/contract guardrails.
+- Added tests for full HP lethal, could-lethal vs guaranteed-lethal, no Focus Sash, unconfirmed Focus Sash, HP not full, HP unknown, non-lethal damage, opponent known move direction, candidate move exclusion, multi-hit unsupported, and raw damage unchanged.
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`: 63 passed.
+- `uv run pytest -q`: 798 passed, 2 deselected.
+
+Maintained boundaries:
+- No damage formula changes.
+- No raw damage roll changes.
+- No KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No multi-hit support.
+- No hazards/residual/weather/status chip support.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

@@ -737,7 +737,14 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "If Life Orb is applied, say recoil is not modeled" in prompt
     assert "If Choice Scarf, Choice Band, or Choice Specs is applied, say choice lock is not modeled" in prompt
     assert "Do not mention choice lock for non-Choice items such as Charcoal" in prompt
-    assert "Life Orb recoil, Focus Sash survival, and Leftovers recovery" in prompt
+    assert "Life Orb recoil and Leftovers recovery are not connected" in prompt
+    assert "Focus Sash survival may appear only as limited survival_context" in prompt
+    assert "not as damage reduction" in prompt
+    assert "it does not change raw damage_range or rolls" in prompt
+    assert "Focus Sash survival_context applies only when Focus Sash is user-confirmed and HP is full" in prompt
+    assert "say may survive at 1 HP" in prompt
+    assert "do not say definitely survives" in prompt
+    assert "Do not infer Focus Sash if the item is unknown or unconfirmed" in prompt
     assert "Choice lock for Charcoal" not in prompt
     assert "Charcoal choice lock" not in prompt
     assert "use damage_estimate.type_effectiveness" in prompt
@@ -793,6 +800,24 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert "If Life Orb is applied, say Life Orb recoil is not modeled." in ADVISOR_KNOWN_LIMITATIONS
     assert "If Choice Scarf, Choice Band, or Choice Specs is applied, say choice lock is not modeled." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Focus Sash survival may appear only as limited survival_context, not as damage reduction."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Focus Sash survival_context does not change raw damage_range or rolls." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Focus Sash survival_context applies only when Focus Sash is user-confirmed and HP is full."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When Focus Sash survival_context is available, say may survive at 1 HP; do not say definitely survives or guarantees survival."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, and exact turn sequencing are not modeled for Focus Sash survival_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Do not infer Focus Sash if the item is unknown or unconfirmed." in ADVISOR_KNOWN_LIMITATIONS
     assert (
         "Do not mention choice lock for non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, or Focus Sash."
         in ADVISOR_KNOWN_LIMITATIONS
