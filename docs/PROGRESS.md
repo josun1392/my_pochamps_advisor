@@ -5004,6 +5004,90 @@ Maintained boundaries:
 
 ---
 
+## v0.65 - Scope Lens critical-hit design
+
+Purpose:
+- Design a limited Scope Lens critical-hit context after the Bright Powder accuracy prompt line reached a stable enough point to move on.
+
+Designed:
+- Documented current state:
+  - `damage_estimate` provides raw damage min/max/rolls
+  - `ko_context` provides limited damage-roll KO/OHKO/2HKO context
+  - `survival_context` provides Focus Sash limited survival
+  - `recovery_context` provides Sitrus / Leftovers limited recovery
+  - `accuracy_context` provides Bright Powder limited hit reliability
+  - Scope Lens is legal/recognized but not connected to advisor payload context
+- Noted lower-level critical-hit utilities already exist in `advisor/damage/crit.py`:
+  - Scope Lens can contribute a critical-hit stage there
+  - stage-to-probability helpers exist
+  - crit damage modifier helpers exist
+  - these are not yet exposed as LLM payload context
+- Defined the problem:
+  - Scope Lens is not a direct always-on damage boost
+  - current raw damage estimates do not include crit chance
+  - raw `ko_context` does not include crit chance
+  - mixing Scope Lens into raw damage or KO context would imply unsupported crit-adjusted probability
+- Proposed additive `critical_context`:
+  - move-level sibling preferred
+  - damage-estimate sibling acceptable if repo structure requires it
+  - never nested inside `damage_estimate`
+  - never nested inside `ko_context`
+- Proposed payload fields:
+  - `mode: limited_critical_context`
+  - attacker side
+  - user-confirmed `scope-lens`
+  - `effect_label: may_increase_critical_hit_likelihood`
+  - `formula_label: scope_lens_limited_critical_modifier`
+  - `raw_damage_rolls_changed: false`
+  - `ko_context_changed: false`
+  - `crit_probability_integrated: false`
+  - `crit_adjusted_ko_integrated: false`
+- Recommended label-first policy:
+  - no final critical-hit probability in v0.66
+  - no crit-adjusted KO probability in v0.66
+  - validate Champions/PoChamps crit-stage compatibility before exposing numeric crit chance
+- Added LLM guardrail design:
+  - Scope Lens may increase critical-hit likelihood
+  - raw damage estimates are unchanged
+  - raw `ko_context` is unchanged
+  - KO/OHKO/2HKO estimates do not include crit chance
+  - crit-adjusted KO probability is not calculated
+  - do not claim a critical hit will occur
+  - do not describe Scope Lens as direct damage boost
+- Added future tests plan for:
+  - user-confirmed Scope Lens
+  - unconfirmed/no Scope Lens
+  - raw damage unchanged
+  - `ko_context` unchanged
+  - OHKO chance unchanged
+  - my move / opponent known move directions
+  - candidate move exclusion
+  - prompt guardrails
+  - existing Bright Powder, recovery, KO, Focus Sash, type item, speed, and opponent assumptions regressions
+
+v0.66 recommendation:
+- `v0.66 - Scope Lens Limited Critical Context Implementation`.
+- Alternative: `v0.66 - Critical Hit Rule Validation Design` if T1/T2 want exact crit stage / Scope Lens modifier validation first.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No `critical_context` implementation.
+- No final critical-hit probability.
+- No crit-adjusted KO probability.
+- No Turn Engine.
+- No critical-hit stage system in the LLM payload.
+- No ability/weather/item interaction modeling.
+- No KO context modification.
+- No raw damage roll modification.
+- No Focus Sash / Sitrus / Bright Powder interaction implementation.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
