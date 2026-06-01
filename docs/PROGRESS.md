@@ -4579,6 +4579,63 @@ Maintained boundaries:
 
 ---
 
+## v0.61 - Recovery prompt polish
+
+Purpose:
+- Polish recovery wording after v0.60.1 local Gemini verification showed Recovery visibility PASS but Limitation visibility PARTIAL.
+
+Implemented:
+- Strengthened advisor prompt and payload contract wording for `recovery_context`.
+- Clarified that `recovery_context` is limited context only.
+- Clarified that raw damage estimates are unchanged.
+- Clarified that `ko_context` is unchanged by recovery.
+- Clarified that KO/OHKO/2HKO estimates do not include recovery.
+- Strengthened follow-up wording:
+  - recovery may affect follow-up KO/2HKO only under limited assumptions
+- Strengthened timing and state limitations:
+  - exact activation timing is not modeled
+  - item consumption is not tracked
+  - turn sequencing is not modeled
+- Added explicit forbidden wording:
+  - do not say Sitrus Berry definitely activates
+  - do not say KO chance includes recovery
+  - do not say recovery changes the damage range
+- Preserved unavailable/no-invent guardrail for unknown or unconfirmed Sitrus Berry / Leftovers.
+
+Docs and tests:
+- Updated `docs/advisor_payload_contract.md`.
+- Updated prompt/contract regression tests for:
+  - limited recovery context
+  - raw damage unchanged
+  - `ko_context` unchanged
+  - recovery not included in KO/OHKO/2HKO estimates
+  - follow-up KO/2HKO limited assumptions
+  - exact timing / item consumption / turn sequencing limitations
+  - forbidden recovery overclaims
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 26 passed.
+- `uv run pytest -q`: 814 passed, 2 deselected.
+- No v0.60 perf flake reproduced during v0.61 full pytest.
+
+Maintained boundaries:
+- No `recovery_context` structure changes.
+- No recovery calculation changes.
+- No `ko_context` changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Turn Engine.
+- No item consumption tracking.
+- No exact KO/2HKO/3HKO simulation.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No perf threshold changes.
+- No test skip or xfail.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

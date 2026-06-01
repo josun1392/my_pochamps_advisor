@@ -750,15 +750,21 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Do not mention choice lock for non-Choice items such as Charcoal" in prompt
     assert "Life Orb recoil is not connected" in prompt
     assert "Sitrus Berry and Leftovers recovery may appear only as limited recovery_context" in prompt
-    assert "it does not change raw damage_range, rolls, or ko_context" in prompt
+    assert "it does not change raw damage_range or rolls" in prompt
+    assert "ko_context is unchanged by recovery_context" in prompt
+    assert "KO/OHKO/2HKO estimates do not include recovery" in prompt
     assert "recovery_context applies only when Sitrus Berry or Leftovers is user-confirmed" in prompt
     assert "defender max HP is available" in prompt
     assert "Sitrus Berry recovery_context is threshold recovery limited context" in prompt
     assert "item consumption are not tracked" in prompt
     assert "Leftovers recovery_context is end-of-turn limited context" in prompt
-    assert "Say recovery may affect follow-up KO/2HKO under limited assumptions" in prompt
+    assert "exact activation timing, item consumption, and turn sequencing are not modeled" in prompt
+    assert "Say recovery may affect follow-up KO/2HKO only under limited assumptions" in prompt
     assert "do not claim final 2HKO or 3HKO truth without Turn Engine" in prompt
     assert "do not infer recovery if the item is unknown or unconfirmed" in prompt
+    assert "Do not say Sitrus Berry definitely activates" in prompt
+    assert "KO chance includes recovery" in prompt
+    assert "recovery changes the damage range" in prompt
     assert "Focus Sash survival may appear only as limited survival_context" in prompt
     assert "not as damage reduction" in prompt
     assert "it does not change raw damage_range or rolls" in prompt
@@ -837,7 +843,11 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         "Sitrus Berry and Leftovers recovery may appear only as limited recovery_context."
         in ADVISOR_KNOWN_LIMITATIONS
     )
-    assert "recovery_context does not change raw damage_range, rolls, or ko_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert "recovery_context does not change raw damage_range or rolls." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "ko_context is unchanged by recovery_context and KO/OHKO/2HKO estimates do not include recovery."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
     assert (
         "recovery_context applies only when Sitrus Berry or Leftovers is user-confirmed and defender max HP is available."
         in ADVISOR_KNOWN_LIMITATIONS
@@ -851,11 +861,20 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
+        "When recovery_context is available, keep recovery wording concise and say exact activation timing, item consumption, and turn sequencing are not modeled."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Say recovery may affect follow-up KO/2HKO only under limited assumptions." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
         "Do not claim final 2HKO or 3HKO truth from recovery_context without Turn Engine."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
         "Do not infer Sitrus Berry or Leftovers recovery if the item is unknown or unconfirmed."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say Sitrus Berry definitely activates, KO chance includes recovery, or recovery changes the damage range."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

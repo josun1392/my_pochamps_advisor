@@ -383,7 +383,9 @@ Candidate moves do not receive `damage_estimate`, `survival_context`, or `recove
 
 ## Recovery Context Semantics
 
-`recovery_context` is an additive limited context next to a relevant `damage_estimate`. It does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, `ko_context`, type effectiveness, or item damage modifier math.
+`recovery_context` is an additive limited context next to a relevant `damage_estimate`. It does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, or item damage modifier math.
+
+`ko_context` is unchanged by `recovery_context`. KO/OHKO/2HKO estimates do not include recovery. The LLM may mention recovery as a follow-up limitation, but it must not say the raw KO chance already includes Sitrus Berry or Leftovers.
 
 In v0.60, the only modeled recovery context is limited Sitrus Berry / Leftovers context:
 
@@ -438,6 +440,7 @@ The LLM may say:
 - "Leftovers may affect follow-up KO/2HKO under limited assumptions, but exact end-of-turn recovery and sequencing are not modeled."
 - "Sitrus Berry recovery is shown as limited context only and does not change the raw damage or KO estimate."
 - "The raw KO estimate does not include recovery; recovery_context is a separate limited note."
+- "This recovery note does not change the raw damage estimate or the limited KO context."
 
 The LLM must not say:
 
@@ -448,6 +451,8 @@ The LLM must not say:
 - "Recovery changes the raw damage rolls."
 - "Recovery changes ko_context."
 - "Recovery applies when the item is unknown or unconfirmed."
+
+When `recovery_context.available` is true, the recovery note should stay concise, ideally one or two sentences, and should mention that exact activation timing, item consumption, and turn sequencing are not modeled. It should not become longer than the recommendation.
 
 Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, or `ko_context`.
 
