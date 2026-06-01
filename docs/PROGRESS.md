@@ -4354,6 +4354,71 @@ Maintained boundaries:
 
 ---
 
+## v0.59 - Sitrus / Leftovers recovery design
+
+Purpose:
+- Design how Sitrus Berry and Leftovers could be represented as limited recovery context without changing raw damage or raw KO context.
+
+Current state:
+- `damage_estimate` provides raw damage min/max/rolls.
+- Focus Sash has additive `survival_context`.
+- KO/OHKO/2HKO has additive `ko_context`.
+- Sitrus Berry and Leftovers are legal/selectable, but their recovery effects are not modeled.
+- `champions_legal_items.json` marks both recovery effects as `not_supported`.
+- Turn Engine, recovery sequencing, chip, hazards, weather/status, and item consumption tracking are absent.
+
+Design:
+- Proposed additive `recovery_context`.
+- Kept raw damage rolls unchanged.
+- Kept raw `ko_context` unchanged.
+- Recommended user-confirmed item only:
+  - `sitrus-berry`
+  - `leftovers`
+- Required defender max HP before computing a recovery amount.
+- Proposed conservative unavailable reasons such as:
+  - `no_recovery_item`
+  - `item_not_user_confirmed`
+  - `defender_max_hp_missing`
+  - `unsupported_recovery_item`
+  - `turn_engine_required`
+  - `item_consumption_not_tracked`
+
+Placement recommendation:
+- Prefer `recovery_context` as an additive sibling beside each relevant `damage_estimate`, matching `survival_context` and `ko_context`.
+- Keep Leftovers timing explicit as `end_of_turn_limited`.
+- Do not insert recovery into `ko_context`.
+- Consider a later top-level summary only if repeated Leftovers notes become noisy.
+
+LLM guardrails:
+- Recovery context is limited context only.
+- Raw damage estimates are unchanged.
+- Raw KO context is unchanged.
+- Recovery is not fully simulated.
+- Do not claim final 2HKO/3HKO truth without Turn Engine.
+- Do not assume item activation when item is unknown or unconfirmed.
+- Sitrus/Leftovers timing and item consumption are not fully modeled.
+
+v0.60 candidate:
+- `v0.60 - Sitrus / Leftovers Limited Recovery Context Implementation`.
+- Alternative: `v0.60 - Recovery Item Rule Validation Design` if T1/T2 want rule-source certainty before implementation.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No `recovery_context` implementation.
+- No Turn Engine.
+- No item consumption tracking.
+- No exact KO/2HKO/3HKO simulation.
+- No KO context modification.
+- No raw damage roll modification.
+- No Focus Sash interaction implementation.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
