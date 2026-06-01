@@ -4636,6 +4636,71 @@ Maintained boundaries:
 
 ---
 
+## v0.61.1 - Recovery prompt local Gemini verification
+
+Purpose:
+- Record local Gemini actual-call verification after v0.61 recovery prompt polish.
+
+Observed local case:
+- Case A - opponent Sitrus Berry:
+  - Player selected move: Heat Wave.
+  - Opponent Pokemon: Garchomp.
+  - Opponent item: user-confirmed Sitrus Berry.
+  - Raw damage estimate: 33-39.
+  - Recovery amount surfaced by Gemini: estimated 45 HP.
+
+Gemini response:
+> Use Heat Wave. It will deal 33-39 damage, which is not very effective against Garchomp.
+>
+> The main limitation is that damage estimates use default assumptions, exact KO context is not available, and Sitrus Berry recovery (estimated 45 HP) is not modeled for exact activation timing or item consumption. Possible opponent samples exist, but they are context only and not confirmed.
+
+Confirmed behavior:
+- Gemini actual call succeeded.
+- Sitrus Berry recovery estimated 45 HP was mentioned.
+- Exact activation timing and item consumption not modeled were mentioned.
+- Raw damage estimate 33-39 was preserved in the response.
+- Gemini did not say recovery changed the damage range.
+- Gemini did not say recovery was included in KO chance.
+- Gemini did not claim final KO, 2HKO, or 3HKO truth.
+- Gemini did not infer an unknown or unconfirmed recovery item.
+
+Gaps:
+- Gemini did not explicitly say "KO/OHKO/2HKO estimates do not include recovery."
+- Gemini used "exact KO context is not available", which is safe but a little ambiguous.
+- `ko_context` separation remains PARTIAL rather than full PASS.
+
+Verdict:
+- v0.61.1 local Gemini verification: PARTIAL PASS.
+- Safety: PASS.
+- Recovery visibility: PASS.
+- Limitation visibility: PASS.
+- `ko_context` separation: PARTIAL.
+
+Next candidates:
+- `v0.62 - Bright Powder Accuracy Design`.
+- `v0.62 - Damage Perf Test Stability Design`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No `recovery_context` changes.
+- No `ko_context` changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Turn Engine.
+- No item consumption tracking.
+- No exact KO simulation.
+- No perf threshold changes.
+- No test skip or xfail.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
