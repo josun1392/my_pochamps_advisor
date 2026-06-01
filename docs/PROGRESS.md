@@ -5239,6 +5239,66 @@ Maintained boundaries:
 
 ---
 
+## v0.68 - Damage perf test stability implementation
+
+Purpose:
+- Stabilize damage perf tests after the v0.60 full-suite perf flake without loosening thresholds or hiding tests.
+
+Implemented:
+- Updated `tests/test_damage_perf.py` only.
+- Added shared perf measurement helper:
+  - warmup calls before timing
+  - repeated measurement samples
+  - median average milliseconds assertion
+  - detailed failure message
+- Added constants:
+  - `PERF_ITERATIONS = 1000`
+  - `PERF_REPEATS = 5`
+  - `PERF_WARMUP_ITERATIONS = 100`
+- Applied median-based assertion to:
+  - `test_damage_calculation_under_5ms_average`
+  - `test_field_damage_calculation_under_6ms_average`
+  - `test_item_damage_calculation_under_point_12ms_average`
+  - `test_ability_damage_calculation_under_point_20ms_average`
+- Preserved existing thresholds:
+  - `< 5.0ms`
+  - `< 6.0ms`
+  - `< 0.12ms`
+  - `< 0.20ms`
+- Improved failure message with:
+  - median average
+  - threshold
+  - all measured samples
+  - min/max sample values
+  - isolated rerun command
+  - reminder to rerun isolated 3 times before changing threshold if only full-suite fails
+
+Verification:
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- Isolated repeated item perf runs:
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: 1 passed.
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: 1 passed.
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: 1 passed.
+- Item perf sample check:
+  - threshold: `< 0.12ms`
+  - median average: `0.040732ms`
+  - samples: `0.040732`, `0.042375`, `0.041486`, `0.040344`, `0.036867`
+- `uv run pytest -q`: 826 passed, 2 deselected.
+
+Maintained boundaries:
+- No threshold modification.
+- No skip or xfail.
+- No production code changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No LLM/context changes.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
