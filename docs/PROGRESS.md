@@ -4701,6 +4701,86 @@ Maintained boundaries:
 
 ---
 
+## v0.62 - Bright Powder accuracy design
+
+Purpose:
+- Design a limited Bright Powder accuracy/evasion context after v0.61.1 closed the recovery prompt verification line.
+
+Current state:
+- `damage_estimate` provides raw damage min/max/rolls.
+- `ko_context` provides limited damage-roll KO/OHKO/2HKO context.
+- `survival_context` provides limited Focus Sash survival context.
+- `recovery_context` provides limited Sitrus / Leftovers recovery context.
+- Bright Powder is legal and recognized in `champions_legal_items.json`, but its effect remains unmodeled.
+- No general accuracy/evasion/hit chance engine exists.
+- No Turn Engine exists.
+
+Designed direction:
+- Add a future `accuracy_context` as limited move-level context for user-confirmed Bright Powder.
+- Keep raw damage min/max/rolls unchanged.
+- Keep raw `ko_context` unchanged.
+- Do not calculate hit-adjusted KO probability in the first implementation.
+- Require known move accuracy before surfacing available accuracy context.
+- Treat missing move accuracy as unavailable or limited unknown-accuracy state.
+
+Recommended placement:
+- Prefer a move-level sibling `accuracy_context`.
+- If existing move payload patterns make sibling placement beside `damage_estimate` natural, that is acceptable.
+- Do not nest accuracy fields inside `damage_estimate` or `ko_context`.
+- Avoid top-level-only accuracy context for v0.63 because move accuracy is move-specific.
+
+Accuracy policy:
+- Bright Powder should be modeled only when the defender item is user-confirmed `bright-powder`.
+- Use label-first fields such as `limited_evasion_modifier`, `accuracy_risk_note`, or `estimated_hit_reliability_note`.
+- Do not expose final hit probability until Bright Powder modifier rules and Champions/PoChamps compatibility are confirmed.
+- Move accuracy missing should not trigger guessed accuracy math.
+
+LLM guardrails:
+- `accuracy_context` is limited context only.
+- Bright Powder may reduce hit reliability, not damage.
+- Raw damage estimates are unchanged.
+- Raw KO/OHKO/2HKO estimates do not include hit chance.
+- Do not claim the move will miss.
+- Do not claim final hit probability unless explicitly calculated.
+- Do not infer Bright Powder if item is unknown or unconfirmed.
+
+Future tests plan:
+- user-confirmed Bright Powder plus known move accuracy -> `accuracy_context.available=true`
+- unknown/unconfirmed Bright Powder no-invent behavior
+- no Bright Powder unavailable/absent behavior
+- move accuracy missing unavailable behavior
+- raw damage unchanged
+- raw `ko_context` unchanged
+- no OHKO chance alteration
+- my move and opponent known move directions
+- candidate moves excluded or documented
+- prompt guardrails
+- existing Focus Sash, KO, recovery, type item, Choice Scarf, and opponent assumptions regressions
+
+Recommended next candidate:
+- `v0.63 - Bright Powder Limited Accuracy Context Implementation`
+
+Alternative next candidate:
+- `v0.63 - Accuracy Item Rule Validation Design`
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No `accuracy_context` implementation.
+- No hit-adjusted KO probability.
+- No Turn Engine.
+- No accuracy/evasion stage system.
+- No ability/weather/item interaction modeling.
+- No KO context modification.
+- No raw damage roll modification.
+- No Focus Sash / Sitrus interaction implementation.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
