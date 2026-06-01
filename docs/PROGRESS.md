@@ -5180,6 +5180,65 @@ Maintained boundaries:
 
 ---
 
+## v0.67 - Damage perf test stability design
+
+Purpose:
+- Design a safer policy for stabilizing `tests/test_damage_perf.py` after the v0.60 one-off full-suite perf flake.
+
+Designed:
+- Documented current state:
+  - damage formula and raw rolls are core calculation paths
+  - `test_item_damage_calculation_under_point_12ms_average` guards item damage calculation performance
+  - v0.60 had one full-suite failure at about `0.149357ms` against `< 0.12ms`
+  - the same test passed three isolated reruns
+  - v0.60 touched LLM/context paths, not damage formula or raw roll code
+  - v0.61, v0.63, v0.64, and v0.66 full pytest runs passed afterward
+- Defined the problem:
+  - microbenchmark-style tests can be sensitive to environment load
+  - one timed sample can fail due to transient outliers
+  - threshold loosening or skip/xfail would risk hiding real regressions
+- Compared options:
+  - keep current behavior
+  - isolated perf mode
+  - repeated measurement / median basis
+  - warmup before measurement
+  - perf marker separation
+  - threshold adjustment
+- Recommended v0.68 direction:
+  - modify only `tests/test_damage_perf.py`
+  - add warmup calls
+  - add repeated measurements
+  - assert on median average time
+  - keep threshold unchanged unless separately approved
+  - improve failure messages with samples, threshold, and isolated rerun command
+- Documented test policy:
+  - full pytest remains the normal gate
+  - perf failures are not automatically ignored
+  - isolated rerun 3 times when a perf failure appears load-sensitive
+  - check whether damage formula / rolls / item modifier paths changed
+  - T1/T2 approval required for any exception push
+  - no threshold relaxation, skip, xfail, or unrelated optimization without a dedicated task
+
+v0.68 recommendation:
+- `v0.68 - Damage Perf Test Stability Implementation`.
+- Scope should be limited to test harness stability in `tests/test_damage_perf.py`.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No test implementation.
+- No threshold modification.
+- No skip or xfail.
+- No damage formula changes.
+- No raw damage roll changes.
+- No LLM/context changes.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
