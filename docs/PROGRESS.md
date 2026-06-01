@@ -4060,6 +4060,69 @@ Maintained boundaries:
 
 ---
 
+## v0.55.1 - Focus Sash prompt local Gemini verification
+
+Purpose:
+- Record local Gemini actual-call verification after v0.55 Focus Sash prompt polish.
+
+Local verification:
+- Gemini actual call succeeded.
+- Case run: Case B, opponent Focus Sash survival.
+  - Player Pokemon: Charizard.
+  - Selected move: Flamethrower.
+  - Opponent Pokemon: Garchomp.
+  - Opponent item: user-confirmed `focus-sash`.
+  - Opponent HP: full / 100%.
+  - Local payload included available `survival_context`.
+  - Incoming damage context: 31-37 damage, `could_be_lethal_without_item=true`, `guaranteed_lethal_without_item=false`.
+- Gemini response summary:
+  - Recommended Flamethrower.
+  - Stated Flamethrower is not very effective against Garchomp.
+  - Stated it deals 31-37 damage based on default assumptions for Charizard and user-confirmed stats for Garchomp.
+  - Stated Garchomp is holding a user-confirmed Focus Sash and may survive at 1 HP.
+  - Main limitation included that Charizard's final stats are default assumptions.
+  - Focus Sash limitation appeared as one sentence: Focus Sash survival context does not model multi-hit moves, hazards, or chip damage.
+
+Confirmed behavior:
+- Focus Sash wording was present.
+- "may survive at 1 HP" wording was present.
+- Raw damage estimate remained visible as 31-37 and was not replaced by a reduced damage value.
+- No damage reduction hallucination appeared.
+- No "definitely survives", "will survive", or guaranteed final survival wording appeared.
+- Focus Sash was not inferred from unknown or unconfirmed item data.
+- Multi-hit, hazards, and chip damage limitation wording appeared in one concise sentence.
+
+Weakness:
+- The limitation sentence did not explicitly mention exact turn sequencing.
+
+Verdict:
+- v0.55.1 local Gemini verification: PARTIAL PASS.
+- Safety: PASS.
+- Focus Sash visibility: PASS.
+- Limitation visibility: IMPROVED but still incomplete because exact turn sequencing was omitted.
+
+Next candidates:
+- `v0.56 - KO/OHKO/2HKO Design`.
+- `v0.56 - Sitrus/Leftovers Recovery Design`.
+- `v0.56 - Bright Powder Accuracy Design`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No `survival_context` changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
