@@ -4861,6 +4861,82 @@ Maintained boundaries:
 
 ---
 
+## v0.63.1 - Bright Powder accuracy local Gemini verification
+
+Purpose:
+- Record local Gemini actual-call verification after v0.63 Bright Powder limited `accuracy_context` implementation.
+
+Observed local case:
+- Case A - opponent Bright Powder:
+  - Player selected move: Heat Wave.
+  - Move accuracy metadata: 90.
+  - Opponent Pokemon: Garchomp.
+  - Opponent item: user-confirmed Bright Powder.
+  - `accuracy_context.available`: true.
+  - `accuracy_context.accuracy_effect.hit_probability_integrated`: false.
+  - Raw damage estimate: 33-39.
+  - `ko_context.ohko.possible`: false.
+  - `ko_context.ohko.chance`: 0.0.
+
+Gemini response:
+> Use **Heat Wave**. It deals 18.0-21.3% damage to Garchomp, but is not very effective. No OHKO or 2HKO is possible with this move.
+>
+> The main limitation is that Garchomp's user-confirmed Bright Powder may reduce Heat Wave's hit reliability, though this is not modeled in the damage rolls or KO context. The damage estimate uses default assumptions for your Charizard's stats and is not final battle damage.
+
+Confirmed behavior:
+- Gemini actual call succeeded.
+- Bright Powder was mentioned as user-confirmed.
+- Gemini used limited hit reliability wording:
+  - "may reduce Heat Wave's hit reliability"
+- Raw damage was preserved:
+  - response described 18.0-21.3%, matching 33-39 damage over 183 HP.
+- Gemini stated Bright Powder was not modeled in damage rolls or KO context.
+- Gemini did not say KO/OHKO/2HKO estimates include hit chance.
+- Gemini did not claim hit-adjusted KO probability.
+- Gemini did not describe Bright Powder as damage reduction.
+- Gemini did not say Heat Wave will miss or is guaranteed to miss.
+- Gemini did not infer an unknown or unconfirmed Bright Powder item.
+
+Gaps:
+- Gemini did not explicitly mention accuracy/evasion stages.
+- Gemini did not explicitly mention ability/weather interactions.
+- Gemini did not explicitly mention turn sequencing.
+- Limitation wording is safe but not complete.
+
+Verdict:
+- v0.63.1 local Gemini verification: PARTIAL PASS.
+- Safety: PASS.
+- Bright Powder visibility: PASS.
+- Limited accuracy context: PASS.
+- Raw damage unchanged: PASS.
+- `ko_context` / hit chance separation: PASS.
+- Limitation visibility: PARTIAL.
+
+Next candidates:
+- `v0.64 - Accuracy Prompt Polish`.
+- `v0.64 - Damage Perf Test Stability Design`.
+- `v0.64 - Scope Lens Critical Hit Design`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No `accuracy_context` changes.
+- No `ko_context` changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No final hit probability.
+- No hit-adjusted KO probability.
+- No Turn Engine.
+- No accuracy/evasion stage system.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
