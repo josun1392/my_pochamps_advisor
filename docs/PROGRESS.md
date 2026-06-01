@@ -4123,6 +4123,87 @@ Maintained boundaries:
 
 ---
 
+## v0.56 - KO / OHKO / 2HKO probability design
+
+Purpose:
+- Design how to expose KO, OHKO, and 2HKO context from existing raw damage rolls without introducing Turn Engine behavior or final battle truth.
+
+Designed:
+- Documented current state:
+  - `damage_estimate` already includes min/max and 16 raw rolls
+  - Focus Sash `survival_context` is additive and does not alter raw rolls
+  - Choice Scarf `speed_context` and opponent assumptions remain separate
+  - `advisor.damage.rolls.calc_ko_chance()` exists but is not connected to the LLM payload
+  - KO/OHKO/2HKO advice remains unimplemented
+- Defined the problem:
+  - players need "can this KO?" and "is this a 2HKO?" context
+  - full battle truth requires accuracy, Speed/order, recovery, chip, Focus Sash, and turn sequencing
+  - v0.56 should remain limited damage-roll context only
+
+Payload direction:
+- Prefer additive `ko_context` beside each relevant move `damage_estimate`.
+- Do not put KO fields inside raw `damage_range` or `rolls`.
+- Do not make it top-level only, because my moves and opponent known moves have different defender sides.
+- Candidate moves remain excluded unless they receive deterministic `damage_estimate` in a future version.
+
+OHKO logic:
+- Use current HP when exact/current target HP is available.
+- If HP is full and max HP reference is available, full-HP OHKO can use max HP reference.
+- Count rolls where `roll >= current_hp`.
+- `min >= current_hp` means guaranteed OHKO under limited assumptions.
+- `max < current_hp` means no OHKO under raw rolls.
+- Partial successful rolls produce `successful_rolls / total_rolls`.
+- If rolls are missing, min/max-only limited mode can set possible/guaranteed booleans but should not invent chance.
+
+2HKO logic:
+- Start with limited min/max classification:
+  - `min_damage * 2 >= hp` -> guaranteed 2HKO under limited assumptions
+  - `max_damage * 2 >= hp` -> possible 2HKO
+  - `max_damage * 2 < hp` -> no 2HKO
+- Defer roll-pair 2HKO probability even though `calc_ko_chance()` can compute pairwise outcomes.
+- Explicitly exclude healing, recovery, chip changes, Protect/Substitute, switching, accuracy, and turn order.
+
+Focus Sash interaction:
+- Keep Focus Sash `survival_context` separate from KO probability.
+- KO context is based on raw damage rolls.
+- Focus Sash may soften wording:
+  - raw damage could KO
+  - user-confirmed Focus Sash may allow survival at 1 HP
+- Do not say Focus Sash is included in KO probability.
+
+LLM guardrails:
+- Use "limited damage-roll context".
+- Do not describe KO context as final battle truth.
+- Say raw damage rolls are unchanged.
+- Say accuracy, speed order, priority, recovery, hazards, chip damage, switching, and turn sequencing are not modeled.
+- Do not overstate 2HKO as final turn simulation.
+
+v0.57 candidate:
+- `v0.57 - KO/OHKO/2HKO Limited Context Implementation`
+- Add additive `ko_context`.
+- Use roll-count OHKO chance when rolls exist.
+- Use min/max-limited 2HKO classification.
+- Preserve Focus Sash as separate context.
+- No Turn Engine.
+- No accuracy/recovery/chip integration.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No actual `ko_context` field addition.
+- No Turn Engine.
+- No accuracy calculation.
+- No priority or Speed order implementation.
+- No recovery implementation.
+- No hazards/chip/residual/weather/status implementation.
+- No Focus Sash KO probability integration.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
