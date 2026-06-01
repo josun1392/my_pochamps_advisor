@@ -4499,6 +4499,86 @@ Maintained boundaries:
 
 ---
 
+## v0.60.1 - Recovery context local Gemini verification
+
+Purpose:
+- Record local Gemini actual-call verification for v0.60 limited Sitrus / Leftovers `recovery_context`.
+
+Observed local case:
+- Case A - opponent Sitrus Berry:
+  - Player Pokemon: Charizard.
+  - Selected move: Heat Wave.
+  - Opponent Pokemon: Garchomp.
+  - Opponent item: user-confirmed Sitrus Berry.
+  - Opponent max HP: 183.
+  - Raw damage estimate: 75-90.
+  - `ko_context.ohko.possible`: false.
+  - `ko_context.two_hko.possible`: false.
+  - `recovery_context.recovery_effect.estimated_recovery_hp`: 45.
+  - `recovery_context.recovery_effect.formula_label`: `floor(max_hp / 4)`.
+
+Gemini response summary:
+- Gemini actual call succeeded.
+- Gemini recommended Heat Wave.
+- Gemini stated the raw estimate as 75-90 HP damage to Garchomp under default assumptions.
+- Gemini stated the move is not an OHKO.
+- Gemini recognized the user-confirmed Sitrus Berry.
+- Gemini stated Sitrus Berry may restore 45 HP.
+- Gemini described the recovery as limited context that may affect follow-up KOs.
+- Gemini stated exact activation timing and item consumption are not modeled.
+
+Confirmed behavior:
+- Recovery context was surfaced as limited context.
+- Recovery amount visibility worked.
+- Raw damage estimate remained visible as 75-90.
+- Gemini did not say recovery changed raw damage.
+- Gemini did not say KO/OHKO/2HKO context already includes recovery.
+- Gemini did not claim final KO, 2HKO, or 3HKO truth.
+- Gemini did not say Sitrus definitely activates.
+- Gemini did not infer an unknown or unconfirmed recovery item.
+
+Gaps:
+- Gemini did not explicitly say `ko_context` is unchanged.
+- Gemini did not explicitly mention turn sequencing in the limitation sentence.
+- Leftovers case was not exercised in this verification.
+
+Verdict:
+- v0.60.1 local Gemini verification: PARTIAL PASS.
+- Safety: PASS.
+- Recovery visibility: PASS.
+- Limitation visibility: PARTIAL.
+
+Perf flake note:
+- v0.60 full pytest was pushed under a one-time perf flake exception.
+- v0.60.1 is a documentation-only verification record.
+- No perf threshold, skip, xfail, damage formula, or raw roll changes were made.
+
+Next candidates:
+- `v0.61 - Recovery Prompt Polish`.
+- `v0.61 - Bright Powder Accuracy Design`.
+- `v0.61 - Damage Perf Test Stability Design`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No `recovery_context` changes.
+- No `ko_context` changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Turn Engine.
+- No item consumption tracking.
+- No exact KO simulation.
+- No perf threshold changes.
+- No test skip or xfail.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
