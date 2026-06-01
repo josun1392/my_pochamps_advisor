@@ -5088,6 +5088,98 @@ Maintained boundaries:
 
 ---
 
+## v0.66 - Scope Lens limited critical context
+
+Purpose:
+- Add limited Scope Lens critical-hit context as an additive move-level payload sibling without changing raw damage or raw KO context.
+
+Implemented:
+- Added `llm/advisor_critical_context.py`.
+- Added `build_critical_context(...)` for limited Scope Lens critical-hit context.
+- Attached `critical_context` to:
+  - `moves.my_available_moves[*]`
+  - `moves.my_selected_move`
+  - `opponent_moves.known_moves[*]`
+- Kept candidate moves excluded:
+  - no `damage_estimate`
+  - no `ko_context`
+  - no `recovery_context`
+  - no `accuracy_context`
+  - no `critical_context`
+  - no `survival_context`
+- Modeled only user-confirmed Scope Lens:
+  - `item_id: scope-lens`
+  - `status: user_confirmed`
+- Added unavailable fallbacks:
+  - `no_scope_lens`
+  - `item_not_user_confirmed`
+  - `damage_estimate_missing`
+- Added `critical_effect` fields:
+  - `type: scope_lens`
+  - `effect_label: may_increase_critical_hit_likelihood`
+  - `formula_label: scope_lens_limited_critical_modifier`
+  - `raw_damage_rolls_changed: false`
+  - `ko_context_changed: false`
+  - `crit_probability_integrated: false`
+  - `crit_adjusted_ko_integrated: false`
+- Added Scope Lens to legal-but-not-modeled item effect summary as `critical_hit`.
+- Preserved raw damage:
+  - no damage formula changes
+  - no raw min/max changes
+  - no raw rolls changes
+- Preserved raw KO context:
+  - `ko_context` unchanged
+  - OHKO chance unchanged
+  - no crit chance folded into KO/OHKO/2HKO estimates
+- Added prompt/contract guardrails:
+  - `critical_context` is limited critical-hit context only
+  - Scope Lens may increase critical-hit likelihood
+  - Scope Lens is not a direct damage boost
+  - raw damage estimates are unchanged
+  - raw `ko_context` is unchanged
+  - KO/OHKO/2HKO estimates do not include crit chance
+  - final critical-hit probability is not calculated
+  - crit-adjusted KO probability is not calculated
+  - do not say the move will crit or that crit is guaranteed
+  - do not infer Scope Lens if item is unknown or unconfirmed
+  - critical-hit stages, abilities, move-specific crit effects, and turn sequencing are not modeled
+- Updated `docs/advisor_payload_contract.md` with `critical_context` semantics, fields, reason codes, and LLM wording examples.
+- Added tests for:
+  - user-confirmed Scope Lens available context
+  - unconfirmed Scope Lens fallback
+  - no Scope Lens fallback
+  - damage estimate missing fallback
+  - raw damage unchanged
+  - `ko_context` unchanged
+  - OHKO chance unchanged
+  - my move attacker direction
+  - opponent known move attacker direction
+  - candidate move exclusion
+  - prompt/contract guardrails
+  - existing Bright Powder, recovery, KO, Focus Sash, type item, speed, and opponent assumptions regressions
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`: 91 passed.
+- `uv run pytest -q`: 826 passed, 2 deselected.
+
+Maintained boundaries:
+- No final critical-hit probability.
+- No crit-adjusted KO probability.
+- No critical-hit stage system in the LLM payload.
+- No Turn Engine.
+- No ability/weather/item interaction modeling.
+- No KO context modification.
+- No raw damage roll modification.
+- No damage formula changes.
+- No Focus Sash / Sitrus / Bright Powder interaction implementation.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No full payload export.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

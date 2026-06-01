@@ -379,7 +379,7 @@ The LLM must not say:
 - "Focus Sash applies when the item is unknown or unconfirmed."
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, or `ko_context`.
 
 ## Recovery Context Semantics
 
@@ -454,7 +454,7 @@ The LLM must not say:
 
 When `recovery_context.available` is true, the recovery note should stay concise, ideally one or two sentences, and should mention that exact activation timing, item consumption, and turn sequencing are not modeled. It should not become longer than the recommendation.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, or `ko_context`.
 
 ## Accuracy Context Semantics
 
@@ -522,7 +522,72 @@ When `accuracy_context.available` is true, the accuracy note should stay concise
 
 If `accuracy_context.available` is false, or no `accuracy_context` is present for a move, the LLM should not invent Bright Powder accuracy effects or force an accuracy limitation sentence.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, or `ko_context`.
+
+## Critical Context Semantics
+
+`critical_context` is an additive limited context for Scope Lens critical-hit likelihood. It is never nested inside `damage_estimate` or `ko_context`.
+
+`critical_context` does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, item damage modifier math, or `ko_context`.
+
+In v0.66, the only modeled critical-hit context is limited Scope Lens context:
+
+- attacker item profile must be `status: user_confirmed`
+- attacker item id must be `scope-lens`
+- final critical-hit probability is not calculated
+- crit-adjusted KO probability is not calculated
+- critical-hit damage is not folded into raw damage estimates
+- exact critical-hit stage math is not exposed in the LLM payload
+- abilities, move-specific crit effects, and turn sequencing are not modeled
+- raw damage and KO/OHKO/2HKO estimates do not include crit chance
+
+Available Scope Lens context may include:
+
+- `mode`: `limited_critical_context`
+- `available`: `true`
+- `attacker_side`: `my_active` or `opponent_active`
+- `item.item_id`: `scope-lens`
+- `item.status`: `user_confirmed`
+- `critical_effect.type`: `scope_lens`
+- `critical_effect.effect_label`: `may_increase_critical_hit_likelihood`
+- `critical_effect.formula_label`: `scope_lens_limited_critical_modifier`
+- `critical_effect.raw_damage_rolls_changed`: `false`
+- `critical_effect.ko_context_changed`: `false`
+- `critical_effect.crit_probability_integrated`: `false`
+- `critical_effect.crit_adjusted_ko_integrated`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `no_scope_lens`
+- `item_not_user_confirmed`
+- `unsupported_critical_item`
+- `critical_engine_missing`
+- `move_crit_metadata_missing`
+- `turn_engine_required`
+- `damage_estimate_missing`
+
+The LLM may say:
+
+- "Scope Lens may increase critical-hit likelihood as limited critical context, but the raw damage and KO estimates do not include crit chance."
+- "The raw KO chance is separate from any critical-hit possibility; crit-adjusted KO probability is not calculated."
+- "This is not a final critical-hit probability; critical-hit stages, abilities, move-specific crit effects, and turn sequencing are not modeled."
+
+The LLM must not say:
+
+- "Scope Lens boosts the damage directly."
+- "This move will crit."
+- "This move is guaranteed to crit."
+- "The KO chance already accounts for Scope Lens crit chance."
+- "The final critical-hit probability is confirmed."
+- "The crit-adjusted KO chance is 70%."
+- "Scope Lens applies when the item is unknown or unconfirmed."
+
+When `critical_context.available` is true, the critical-hit note should stay concise, ideally one or two sentences, and should mention that raw damage and KO/OHKO/2HKO estimates do not include crit chance. It should also state that final critical-hit probability and crit-adjusted KO probability are not calculated.
+
+If `critical_context.available` is false, or no `critical_context` is present for a move, the LLM should not invent Scope Lens critical-hit effects or force a critical-hit limitation sentence.
+
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, or `ko_context`.
 
 ## KO Context Semantics
 
@@ -580,7 +645,7 @@ The LLM must not say:
 - "Focus Sash is included in the KO probability."
 - "Accuracy, Speed order, priority, recovery, hazards, chip damage, switching, protection, or turn sequencing are modeled."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, or `ko_context`.
 
 ## Opponent Assumption Semantics
 

@@ -7,6 +7,7 @@ from llm.advisor_damage_estimate import (
     build_selected_move_damage_estimate,
 )
 from llm.advisor_accuracy_context import build_accuracy_context
+from llm.advisor_critical_context import build_critical_context
 from llm.advisor_ko_context import build_ko_context
 from llm.advisor_recovery_context import build_recovery_context
 
@@ -234,6 +235,7 @@ def test_attach_opponent_known_damage_skips_candidate_moves() -> None:
     assert "survival_context" not in candidate_move
     assert "recovery_context" not in candidate_move
     assert "accuracy_context" not in candidate_move
+    assert "critical_context" not in candidate_move
     assert "damage_estimate" not in payload["opponent_moves"]["known_moves"][0]
 
 
@@ -409,6 +411,7 @@ def test_ko_context_attaches_to_opponent_known_move_and_excludes_candidates() ->
     assert known_move["ko_context"]["scope"] == "opponent_known_move_only"
     assert known_move["ko_context"]["defender_side"] == "my_active"
     assert "ko_context" not in candidate_move
+    assert "critical_context" not in candidate_move
 
 
 def test_ko_context_coexists_with_focus_sash_without_integrating_survival() -> None:
@@ -564,6 +567,7 @@ def test_recovery_context_for_opponent_known_move_targets_my_active() -> None:
     assert context["defender_side"] == "my_active"
     assert context["recovery_effect"]["estimated_recovery_hp"] == 10
     assert "recovery_context" not in candidate_move
+    assert "critical_context" not in candidate_move
 
 
 def test_accuracy_context_available_for_user_confirmed_bright_powder() -> None:
@@ -680,6 +684,113 @@ def test_accuracy_context_for_opponent_known_move_targets_my_active_and_excludes
     assert context["defender_side"] == "my_active"
     assert context["move_accuracy"]["base_accuracy"] == 90
     assert "accuracy_context" not in candidate_move
+    assert "critical_context" not in candidate_move
+
+
+def test_critical_context_available_for_user_confirmed_scope_lens() -> None:
+    payload = _battle_input(selected_move=_air_slash())
+    payload["item_profiles"] = _item_profiles(my_item="scope-lens")
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["critical_context"]
+    assert context["available"] is True
+    assert context["mode"] == "limited_critical_context"
+    assert context["scope"] == "selected_move_only"
+    assert context["attacker_side"] == "my_active"
+    assert context["item"] == {"item_id": "scope-lens", "status": "user_confirmed"}
+    assert context["critical_effect"]["type"] == "scope_lens"
+    assert context["critical_effect"]["effect_label"] == "may_increase_critical_hit_likelihood"
+    assert context["critical_effect"]["formula_label"] == "scope_lens_limited_critical_modifier"
+    assert context["critical_effect"]["crit_probability_integrated"] is False
+    assert context["critical_effect"]["crit_adjusted_ko_integrated"] is False
+    assert context["critical_effect"]["raw_damage_rolls_changed"] is False
+    assert context["critical_effect"]["ko_context_changed"] is False
+    assert context["is_final_battle_truth"] is False
+
+
+def test_critical_context_requires_user_confirmed_scope_lens() -> None:
+    payload = _battle_input(selected_move=_air_slash())
+    payload["item_profiles"] = _item_profiles(my_item="scope-lens")
+    payload["item_profiles"]["my_active"]["status"] = "unknown"
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["critical_context"]
+    assert context["available"] is False
+    assert context["reason"] == "item_not_user_confirmed"
+
+
+def test_critical_context_unavailable_without_scope_lens() -> None:
+    payload = _battle_input(selected_move=_air_slash())
+    payload["item_profiles"] = _item_profiles(my_item=None)
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["critical_context"]
+    assert context["available"] is False
+    assert context["reason"] == "no_scope_lens"
+
+
+def test_critical_context_requires_damage_estimate() -> None:
+    payload = _battle_input(selected_move=_air_slash())
+    payload["item_profiles"] = _item_profiles(my_item="scope-lens")
+
+    context = build_critical_context(
+        payload,
+        {"status": "unavailable_status_move"},
+        attacker_key="my_active",
+        scope="selected_move_only",
+    )
+
+    assert context["available"] is False
+    assert context["reason"] == "damage_estimate_missing"
+
+
+def test_critical_context_does_not_change_raw_damage_or_ko_context() -> None:
+    payload = _battle_input(selected_move=_air_slash())
+    payload["item_profiles"] = _item_profiles(my_item="scope-lens")
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=35),
+    }
+    baseline = _battle_input(selected_move=_air_slash())
+    baseline["stat_profiles"] = payload["stat_profiles"]
+
+    baseline_estimate = build_selected_move_damage_estimate(baseline)
+    baseline_ko = build_ko_context(
+        baseline,
+        baseline_estimate,
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+    result = attach_selected_move_damage_estimate(payload)
+
+    move = result["moves"]["my_selected_move"]
+    assert move["critical_context"]["available"] is True
+    assert move["damage_estimate"]["damage_range"] == baseline_estimate["damage_range"]
+    assert move["damage_estimate"]["rolls"] == baseline_estimate["rolls"]
+    assert move["ko_context"]["ohko"] == baseline_ko["ohko"]
+    assert move["ko_context"]["two_hko"] == baseline_ko["two_hko"]
+
+
+def test_critical_context_for_opponent_known_move_targets_opponent_active_and_excludes_candidates() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="scope-lens")
+    payload["opponent_moves"] = {
+        "known_moves": [{**_rock_slide(), "source": "user_confirmed"}],
+        "candidate_moves": [{**_air_slash(), "source": "champions_movepool"}],
+    }
+
+    result = attach_opponent_known_move_damage_estimates(payload)
+
+    known_move = result["opponent_moves"]["known_moves"][0]
+    candidate_move = result["opponent_moves"]["candidate_moves"][0]
+    context = known_move["critical_context"]
+    assert context["available"] is True
+    assert context["scope"] == "opponent_known_move_only"
+    assert context["attacker_side"] == "opponent_active"
+    assert "critical_context" not in candidate_move
 
 
 def test_focus_sash_survival_context_for_my_move_when_full_hp_and_could_be_lethal() -> None:
@@ -826,6 +937,7 @@ def test_focus_sash_survival_context_for_opponent_known_move_targets_my_active()
     assert context["survival_effect"]["may_survive_at_1_hp"] is True
     assert "survival_context" not in candidate_move
     assert "accuracy_context" not in candidate_move
+    assert "critical_context" not in candidate_move
 
 
 def test_focus_sash_survival_context_marks_multi_hit_unsupported() -> None:
@@ -1082,6 +1194,7 @@ def test_legal_type_boosting_item_applies_to_available_selected_and_opponent_kno
     assert "ko_context" not in candidate_move
     assert "recovery_context" not in candidate_move
     assert "accuracy_context" not in candidate_move
+    assert "critical_context" not in candidate_move
 
 
 def test_fairy_feather_remains_unsupported_without_catalog_damage_change() -> None:

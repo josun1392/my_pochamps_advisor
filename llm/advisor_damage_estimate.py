@@ -21,6 +21,7 @@ from llm.advisor_payload_contract import (
     ADVISOR_USER_CONFIRMED_FINAL_STATS_PROFILE,
 )
 from llm.advisor_accuracy_context import build_accuracy_context
+from llm.advisor_critical_context import build_critical_context
 from llm.advisor_ko_context import build_ko_context
 from llm.advisor_recovery_context import build_recovery_context
 from llm.advisor_survival_context import build_focus_sash_survival_context
@@ -53,6 +54,7 @@ LEGAL_UNMODELED_ITEM_EFFECTS = {
     "leftovers": ["recovery"],
     "sitrus-berry": ["recovery"],
     "quick-claw": ["speed_order"],
+    "scope-lens": ["critical_hit"],
 }
 
 
@@ -90,6 +92,12 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
                     defender_key="opponent_active",
                     scope="available_move_comparison",
                 )
+                move["critical_context"] = build_critical_context(
+                    result,
+                    estimate,
+                    attacker_key="my_active",
+                    scope="available_move_comparison",
+                )
                 move["survival_context"] = build_focus_sash_survival_context(
                     result,
                     estimate,
@@ -121,6 +129,12 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
             defender_key="opponent_active",
             scope="selected_move_only",
         )
+        selected_move["critical_context"] = build_critical_context(
+            result,
+            estimate,
+            attacker_key="my_active",
+            scope="selected_move_only",
+        )
         selected_move["survival_context"] = build_focus_sash_survival_context(
             result,
             estimate,
@@ -148,6 +162,12 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
                 estimate,
                 None,
                 defender_key="opponent_active",
+                scope="selected_move_only",
+            ),
+            "critical_context": build_critical_context(
+                result,
+                estimate,
+                attacker_key="my_active",
                 scope="selected_move_only",
             ),
             "survival_context": build_focus_sash_survival_context(
@@ -193,6 +213,12 @@ def attach_opponent_known_move_damage_estimates(battle_input: dict[str, Any]) ->
                 estimate,
                 move,
                 defender_key="my_active",
+                scope="opponent_known_move_only",
+            )
+            move["critical_context"] = build_critical_context(
+                result,
+                estimate,
+                attacker_key="opponent_active",
                 scope="opponent_known_move_only",
             )
             move["survival_context"] = build_focus_sash_survival_context(
