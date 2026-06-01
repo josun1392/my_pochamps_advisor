@@ -6,6 +6,7 @@ from llm.advisor_damage_estimate import (
     build_opponent_known_move_damage_estimate,
     build_selected_move_damage_estimate,
 )
+from llm.advisor_ko_context import build_ko_context
 
 
 def test_selected_move_missing_returns_unavailable() -> None:
@@ -90,7 +91,10 @@ def test_damaging_selected_move_returns_default_assumption_range() -> None:
     assert estimate["assumptions"]["ability_effects"] == "not_applied_unselected"
     assert estimate["item_effects"]["attacker_item"]["status"] == "system_default_none"
     assert estimate["item_effects"]["defender_item"]["status"] == "system_default_none"
-    assert "OHKO/2HKO/KO chance is not provided in v0.16." in estimate["limitations"]
+    assert (
+        "KO/OHKO/2HKO context, when present, is limited damage-roll context only and not final battle truth."
+        in estimate["limitations"]
+    )
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -190,7 +194,10 @@ def test_opponent_known_move_returns_damage_against_my_active() -> None:
     assert "Opponent ability, EV/IV/nature, boosts, and final stats may be missing or defaulted." in estimate[
         "limitations"
     ]
-    assert "OHKO/2HKO/KO chance is not provided in v0.16." in estimate["limitations"]
+    assert (
+        "KO/OHKO/2HKO context, when present, is limited damage-roll context only and not final battle truth."
+        in estimate["limitations"]
+    )
     assert "ohko_chance" not in estimate
     assert "ko_chance" not in estimate
 
@@ -221,8 +228,201 @@ def test_attach_opponent_known_damage_skips_candidate_moves() -> None:
     assert known_move["damage_estimate"]["scope"] == "opponent_known_move_only"
     _assert_default_assumption_profile(known_move["damage_estimate"])
     assert "damage_estimate" not in candidate_move
+    assert "ko_context" not in candidate_move
     assert "survival_context" not in candidate_move
     assert "damage_estimate" not in payload["opponent_moves"]["known_moves"][0]
+
+
+def test_ko_context_marks_guaranteed_ohko_from_rolls() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["pokemon"]["opponent_active"]["current_hp"] = 30
+    payload["pokemon"]["opponent_active"]["max_hp"] = 100
+    estimate = _ko_damage_estimate(rolls=[30, 31, 32, 33])
+
+    context = build_ko_context(payload, estimate, defender_key="opponent_active", scope="selected_move_only")
+
+    assert context["available"] is True
+    assert context["ohko"]["possible"] is True
+    assert context["ohko"]["guaranteed"] is True
+    assert context["ohko"]["chance"] == 1.0
+    assert context["ohko"]["successful_rolls"] == 4
+    assert context["ohko"]["total_rolls"] == 4
+    assert context["damage"]["roll_count"] == 4
+
+
+def test_ko_context_marks_impossible_ohko_from_rolls() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["pokemon"]["opponent_active"]["current_hp"] = 50
+    payload["pokemon"]["opponent_active"]["max_hp"] = 100
+    estimate = _ko_damage_estimate(rolls=[30, 31, 32, 33])
+
+    context = build_ko_context(payload, estimate, defender_key="opponent_active", scope="selected_move_only")
+
+    assert context["ohko"]["possible"] is False
+    assert context["ohko"]["guaranteed"] is False
+    assert context["ohko"]["chance"] == 0.0
+    assert context["ohko"]["successful_rolls"] == 0
+    assert context["ohko"]["total_rolls"] == 4
+
+
+def test_ko_context_marks_partial_ohko_chance_from_rolls() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["pokemon"]["opponent_active"]["current_hp"] = 32
+    payload["pokemon"]["opponent_active"]["max_hp"] = 100
+    estimate = _ko_damage_estimate(rolls=[30, 31, 32, 33])
+
+    context = build_ko_context(payload, estimate, defender_key="opponent_active", scope="selected_move_only")
+
+    assert context["ohko"]["possible"] is True
+    assert context["ohko"]["guaranteed"] is False
+    assert context["ohko"]["chance"] == 0.5
+    assert context["ohko"]["successful_rolls"] == 2
+    assert context["ohko"]["total_rolls"] == 4
+
+
+def test_ko_context_no_roll_fallback_uses_min_max() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["pokemon"]["opponent_active"]["current_hp"] = 32
+    payload["pokemon"]["opponent_active"]["max_hp"] = 100
+
+    guaranteed = build_ko_context(
+        payload,
+        _ko_damage_estimate(min_damage=32, max_damage=40, rolls=None),
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+    possible = build_ko_context(
+        payload,
+        _ko_damage_estimate(min_damage=20, max_damage=40, rolls=None),
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+    impossible = build_ko_context(
+        payload,
+        _ko_damage_estimate(min_damage=20, max_damage=31, rolls=None),
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+
+    assert guaranteed["ohko"]["guaranteed"] is True
+    assert guaranteed["ohko"]["possible"] is True
+    assert guaranteed["ohko"]["chance"] is None
+    assert possible["ohko"]["guaranteed"] is False
+    assert possible["ohko"]["possible"] is True
+    assert possible["ohko"]["chance"] is None
+    assert impossible["ohko"]["guaranteed"] is False
+    assert impossible["ohko"]["possible"] is False
+    assert impossible["ohko"]["chance"] is None
+
+
+def test_ko_context_requires_known_hp() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    del payload["pokemon"]["opponent_active"]["hp_percent"]
+
+    context = build_ko_context(
+        payload,
+        _ko_damage_estimate(rolls=[30, 31, 32, 33]),
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+
+    assert context["available"] is False
+    assert context["reason"] == "hp_unknown"
+
+
+def test_ko_context_marks_two_hko_min_max_limited_outcomes() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["pokemon"]["opponent_active"]["current_hp"] = 80
+    payload["pokemon"]["opponent_active"]["max_hp"] = 100
+
+    guaranteed = build_ko_context(
+        payload,
+        _ko_damage_estimate(min_damage=40, max_damage=50, rolls=[40, 50]),
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+    possible = build_ko_context(
+        payload,
+        _ko_damage_estimate(min_damage=30, max_damage=40, rolls=[30, 40]),
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+    impossible = build_ko_context(
+        payload,
+        _ko_damage_estimate(min_damage=20, max_damage=39, rolls=[20, 39]),
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+
+    assert guaranteed["two_hko"]["guaranteed"] is True
+    assert guaranteed["two_hko"]["possible"] is True
+    assert guaranteed["two_hko"]["method"] == "limited_min_max"
+    assert possible["two_hko"]["guaranteed"] is False
+    assert possible["two_hko"]["possible"] is True
+    assert impossible["two_hko"]["guaranteed"] is False
+    assert impossible["two_hko"]["possible"] is False
+
+
+def test_ko_context_attaches_to_my_move_without_changing_raw_damage() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=35),
+    }
+    baseline = _battle_input(selected_move=_flamethrower())
+    baseline["stat_profiles"] = payload["stat_profiles"]
+
+    baseline_estimate = build_selected_move_damage_estimate(baseline)
+    result = attach_selected_move_damage_estimate(payload)
+
+    estimate = result["moves"]["my_selected_move"]["damage_estimate"]
+    context = result["moves"]["my_selected_move"]["ko_context"]
+    assert context["available"] is True
+    assert context["scope"] == "selected_move_only"
+    assert context["defender_side"] == "opponent_active"
+    assert context["raw_damage_rolls_changed"] is False
+    assert context["ohko"]["possible"] is True
+    assert estimate["damage_range"] == baseline_estimate["damage_range"]
+    assert estimate["rolls"] == baseline_estimate["rolls"]
+
+
+def test_ko_context_attaches_to_opponent_known_move_and_excludes_candidates() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["stat_profiles"] = {
+        "my_active": _user_final_stats(hp=45),
+        "opponent_active": _default_stat_profile(),
+    }
+    payload["opponent_moves"] = {
+        "known_moves": [{**_rock_slide(), "source": "user_confirmed"}],
+        "candidate_moves": [{**_air_slash(), "source": "champions_movepool"}],
+    }
+
+    result = attach_opponent_known_move_damage_estimates(payload)
+
+    known_move = result["opponent_moves"]["known_moves"][0]
+    candidate_move = result["opponent_moves"]["candidate_moves"][0]
+    assert known_move["ko_context"]["available"] is True
+    assert known_move["ko_context"]["scope"] == "opponent_known_move_only"
+    assert known_move["ko_context"]["defender_side"] == "my_active"
+    assert "ko_context" not in candidate_move
+
+
+def test_ko_context_coexists_with_focus_sash_without_integrating_survival() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="focus-sash")
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=35),
+    }
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    move = result["moves"]["my_selected_move"]
+    assert move["survival_context"]["available"] is True
+    assert move["ko_context"]["available"] is True
+    assert move["ko_context"]["ohko"]["chance"] > 0
+    assert "focus_sash" not in move["ko_context"]
+    assert "survival_context" not in move["ko_context"]
 
 
 def test_focus_sash_survival_context_for_my_move_when_full_hp_and_could_be_lethal() -> None:
@@ -621,6 +821,7 @@ def test_legal_type_boosting_item_applies_to_available_selected_and_opponent_kno
     assert known_move["damage_estimate"]["item_effects"]["attacker_item"]["item_id"] == "sharp-beak"
     assert known_move["damage_estimate"]["target"] == "my_active"
     assert "damage_estimate" not in candidate_move
+    assert "ko_context" not in candidate_move
 
 
 def test_fairy_feather_remains_unsupported_without_catalog_damage_change() -> None:
@@ -931,6 +1132,34 @@ def _legal_type_boosting_item_profile(
         "ui_status": ui_status,
         "notes": [],
     }
+
+
+def _ko_damage_estimate(
+    *,
+    min_damage: int = 30,
+    max_damage: int = 33,
+    rolls: list[int] | None = None,
+) -> dict:
+    estimate = {
+        "status": "available_with_default_assumptions",
+        "scope": "selected_move_only",
+        "damage_range": {
+            "min": min_damage,
+            "max": max_damage,
+        },
+        "derived_stats": {
+            "defender": {
+                "default_max_hp": 100,
+            },
+        },
+    }
+    if rolls is not None:
+        estimate["rolls"] = rolls
+        estimate["damage_range"] = {
+            "min": min(rolls),
+            "max": max(rolls),
+        }
+    return estimate
 
 
 def _flamethrower() -> dict:

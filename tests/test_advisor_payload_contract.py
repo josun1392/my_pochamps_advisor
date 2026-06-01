@@ -42,6 +42,11 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
         "Every damage estimate includes an assumption_profile that identifies the stat model used."
         in payload["scenario"]["known_limitations"]
     )
+    assert (
+        "ko_context, when present, is limited damage-roll context only and is not final battle truth."
+        in payload["scenario"]["known_limitations"]
+    )
+    assert "ko_context does not change raw damage_range or rolls." in payload["scenario"]["known_limitations"]
     assert "User-confirmed final stats may be used when stat_profiles provides all six stats." in payload["scenario"][
         "known_limitations"
     ]
@@ -134,6 +139,8 @@ def test_ui_payload_attaches_selected_move_damage_estimate() -> None:
     _assert_default_assumption_profile(estimate)
     assert "damage_range" in estimate
     assert "percent_range" in estimate
+    assert payload["moves"]["my_selected_move"]["ko_context"]["mode"] == "limited_damage_roll_ko_context"
+    assert payload["moves"]["my_selected_move"]["ko_context"]["is_final_battle_truth"] is False
     assert "type_effectiveness" in estimate
     assert "assumptions" in estimate
     assert "limitations" in estimate
@@ -159,6 +166,7 @@ def test_ui_payload_attaches_available_move_damage_estimates() -> None:
     )
     assert all("damage_range" in estimate for estimate in estimates)
     assert all("percent_range" in estimate for estimate in estimates)
+    assert all(move["ko_context"]["mode"] == "limited_damage_roll_ko_context" for move in payload["moves"]["my_available_moves"])
     assert all("ko_chance" not in estimate for estimate in estimates)
     assert all("item_effects" in estimate for estimate in estimates)
 
@@ -612,10 +620,13 @@ def test_opponent_selected_moves_become_known_moves() -> None:
     _assert_default_assumption_profile(known_move["damage_estimate"])
     assert "damage_range" in known_move["damage_estimate"]
     assert "percent_range" in known_move["damage_estimate"]
+    assert known_move["ko_context"]["mode"] == "limited_damage_roll_ko_context"
+    assert known_move["ko_context"]["is_final_battle_truth"] is False
     assert "ko_chance" not in known_move["damage_estimate"]
     assert "ohko_chance" not in known_move["damage_estimate"]
     assert "earthquake" not in {candidate["move_id"] for candidate in opponent_moves["candidate_moves"]}
     assert all("damage_estimate" not in candidate for candidate in opponent_moves["candidate_moves"])
+    assert all("ko_context" not in candidate for candidate in opponent_moves["candidate_moves"])
 
 
 def test_missing_opponent_fixture_does_not_fallback_to_pokeapi_learnset() -> None:
@@ -760,6 +771,14 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "immune/no effect" in prompt
     assert "Use my_available_moves damage_estimates to compare the user's own move options" in prompt
     assert "Do not claim OHKO, 2HKO, KO chance, survival, or speed order" in prompt
+    assert "If ko_context is present, treat it as limited damage-roll context only" in prompt
+    assert "ko_context does not change raw damage_range or rolls" in prompt
+    assert "OHKO chance is based on damage rolls only" in prompt
+    assert "2HKO context is a limited min/max estimate" in prompt
+    assert "not final turn simulation" in prompt
+    assert "does not model accuracy, speed order, priority, recovery, hazards, chip damage" in prompt
+    assert "Focus Sash survival_context is separate from raw ko_context" in prompt
+    assert "not included in KO probability" in prompt
     assert "opponent_assumptions is present" in prompt
     assert "Opponent assumptions version fields are developer/contract metadata" in prompt
     assert "do not mention schema_version, metadata_version, or payload_features" in prompt
@@ -825,6 +844,24 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert "Do not infer Focus Sash if the item is unknown or unconfirmed." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "ko_context, when present, is limited damage-roll context only and is not final battle truth."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "ko_context does not change raw damage_range or rolls." in ADVISOR_KNOWN_LIMITATIONS
+    assert "OHKO chance in ko_context is based on damage rolls only." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "2HKO context uses limited min/max assumptions and is not final turn simulation."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "ko_context does not model accuracy, speed order, priority, recovery, hazards, chip damage, switching, protection, or turn sequencing."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Focus Sash survival_context is separate from raw ko_context and is not included in KO probability."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
     assert (
         "Do not mention choice lock for non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, or Focus Sash."
         in ADVISOR_KNOWN_LIMITATIONS

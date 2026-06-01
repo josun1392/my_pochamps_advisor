@@ -8,7 +8,7 @@
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, context-only opponent sample assumptions, raw/effective Speed comparison context, damage estimates for the user's confirmed moves, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. v0.38 adds `opponent_assumptions` as context-only possible opponent sample profiles. The app does not yet send EV/IV/nature breakdowns, KO odds, final turn order, candidate move damage estimates, sample-based damage or Speed calculations, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, context-only opponent sample assumptions, raw/effective Speed comparison context, damage estimates for the user's confirmed moves, additive limited KO context, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. v0.38 adds `opponent_assumptions` as context-only possible opponent sample profiles. The app does not yet send EV/IV/nature breakdowns, final battle KO truth, final turn order, candidate move damage estimates, sample-based damage or Speed calculations, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -382,6 +382,64 @@ The LLM must not say:
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
 
 Candidate moves do not receive `damage_estimate` and do not receive `survival_context`.
+
+## KO Context Semantics
+
+`ko_context` is an additive limited context next to a relevant `damage_estimate`. It does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, item modifiers, or Focus Sash `survival_context`.
+
+In v0.57, KO context is limited damage-roll context:
+
+- OHKO chance is based on raw damage rolls when rolls are available.
+- `successful_rolls` counts rolls where `roll >= current_hp`.
+- `chance` is `successful_rolls / total_rolls`.
+- `ohko.guaranteed` is true only when every roll meets or exceeds current HP.
+- If rolls are missing, min/max fallback may set possible/guaranteed booleans but must not invent a chance.
+- 2HKO context uses limited min/max logic:
+  - `min_damage * 2 >= current_hp` means guaranteed 2HKO under limited assumptions.
+  - `max_damage * 2 >= current_hp` means possible 2HKO under limited assumptions.
+  - roll-pair 2HKO probability is not exposed in v0.57.
+
+Available KO context may include:
+
+- `mode`: `limited_damage_roll_ko_context`
+- `available`: `true`
+- `target_hp.current_hp`
+- `target_hp.max_hp`
+- `target_hp.hp_percent`
+- `damage.min`
+- `damage.max`
+- `damage.roll_count`
+- `ohko.possible`
+- `ohko.guaranteed`
+- `ohko.chance`
+- `ohko.successful_rolls`
+- `ohko.total_rolls`
+- `two_hko.possible`
+- `two_hko.guaranteed`
+- `two_hko.method`: `limited_min_max`
+- `raw_damage_rolls_changed`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `hp_unknown`
+- `damage_estimate_missing`
+
+The LLM may say:
+
+- "The raw damage rolls have a 6/16 chance to KO from the current HP, but this is limited damage-roll context."
+- "This is a limited 2HKO estimate assuming the same move is used twice with no healing, switching, protection, or chip changes."
+- "Raw damage could KO, but Focus Sash survival context is separate and may allow survival at 1 HP."
+
+The LLM must not say:
+
+- "This guarantees the KO in battle."
+- "This will always 2HKO."
+- "The opponent cannot survive."
+- "Focus Sash is included in the KO probability."
+- "Accuracy, Speed order, priority, recovery, hazards, chip damage, switching, protection, or turn sequencing are modeled."
+
+Candidate moves do not receive `damage_estimate`, `survival_context`, or `ko_context`.
 
 ## Opponent Assumption Semantics
 

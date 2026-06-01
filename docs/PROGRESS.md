@@ -4204,6 +4204,89 @@ Maintained boundaries:
 
 ---
 
+## v0.57 - KO/OHKO/2HKO limited context
+
+Purpose:
+- Add additive limited `ko_context` beside relevant `damage_estimate` entries using existing raw damage min/max/rolls.
+
+Implemented:
+- Added `llm/advisor_ko_context.py`.
+- Attached `ko_context` for:
+  - `moves.my_available_moves[*]`
+  - `moves.my_selected_move`
+  - `opponent_moves.known_moves[*]`
+- Kept opponent candidate moves excluded from `damage_estimate`, `survival_context`, and `ko_context`.
+- Kept raw `damage_range` and `rolls` unchanged.
+
+OHKO logic:
+- Uses current HP when exact `current_hp` is present.
+- Uses full HP reference when `hp_percent == 100` and max HP is available through `damage_estimate.derived_stats.defender.default_max_hp`.
+- Counts rolls where `roll >= current_hp`.
+- Exposes:
+  - `possible`
+  - `guaranteed`
+  - `chance`
+  - `successful_rolls`
+  - `total_rolls`
+  - `method: roll_count`
+- If rolls are missing, falls back to min/max limited mode:
+  - no invented roll chance
+  - `chance=null`
+  - `method: limited_min_max_no_rolls`
+
+2HKO logic:
+- Uses limited min/max classification:
+  - `min_damage * 2 >= current_hp` -> guaranteed 2HKO under limited assumptions
+  - `max_damage * 2 >= current_hp` -> possible 2HKO
+  - `max_damage * 2 < current_hp` -> no 2HKO
+- Does not compute roll-pair probability.
+- Includes assumptions that the same move is used twice and no healing, recovery, chip damage, protection, switching, item survival integration, or turn sequencing is modeled.
+
+Focus Sash interaction:
+- `survival_context` can coexist with `ko_context`.
+- Focus Sash is not included in KO probability.
+- KO context remains raw damage-roll context.
+- Prompt/contract guardrails tell the LLM that Focus Sash survival context is separate from raw KO context.
+
+Docs and tests:
+- Updated `docs/advisor_payload_contract.md` with `ko_context` semantics, OHKO chance logic, 2HKO limited logic, Focus Sash separation, and LLM wording guardrails.
+- Updated advisor prompt and known limitations.
+- Added tests for:
+  - guaranteed OHKO
+  - impossible OHKO
+  - partial OHKO chance
+  - successful rolls / total rolls
+  - no-roll min/max fallback
+  - HP unknown
+  - guaranteed/possible/impossible 2HKO
+  - raw damage unchanged
+  - my move direction
+  - opponent known move direction
+  - candidate move exclusion
+  - Focus Sash coexistence
+  - Focus Sash not integrated into KO chance
+  - prompt/contract guardrails
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`: 72 passed.
+- `uv run pytest -q`: 807 passed, 2 deselected.
+
+Maintained boundaries:
+- No Turn Engine.
+- No accuracy calculation.
+- No priority or Speed order integration.
+- No recovery implementation.
+- No hazards/chip/residual/weather/status implementation.
+- No Focus Sash KO probability integration.
+- No damage formula changes.
+- No raw damage roll changes.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

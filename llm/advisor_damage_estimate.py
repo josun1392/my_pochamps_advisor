@@ -20,6 +20,7 @@ from llm.advisor_payload_contract import (
     ADVISOR_USER_CONFIRMED_FINAL_STATS_WITH_DAMAGE_ITEM_PROFILE,
     ADVISOR_USER_CONFIRMED_FINAL_STATS_PROFILE,
 )
+from llm.advisor_ko_context import build_ko_context
 from llm.advisor_survival_context import build_focus_sash_survival_context
 
 
@@ -68,6 +69,12 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
                     scope="available_move_comparison",
                 )
                 move["damage_estimate"] = estimate
+                move["ko_context"] = build_ko_context(
+                    result,
+                    estimate,
+                    defender_key="opponent_active",
+                    scope="available_move_comparison",
+                )
                 move["survival_context"] = build_focus_sash_survival_context(
                     result,
                     estimate,
@@ -80,6 +87,12 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
     selected_move = moves.get("my_selected_move")
     if isinstance(selected_move, dict):
         selected_move["damage_estimate"] = estimate
+        selected_move["ko_context"] = build_ko_context(
+            result,
+            estimate,
+            defender_key="opponent_active",
+            scope="selected_move_only",
+        )
         selected_move["survival_context"] = build_focus_sash_survival_context(
             result,
             estimate,
@@ -90,6 +103,12 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
     else:
         moves["my_selected_move"] = {
             "damage_estimate": estimate,
+            "ko_context": build_ko_context(
+                result,
+                estimate,
+                defender_key="opponent_active",
+                scope="selected_move_only",
+            ),
             "survival_context": build_focus_sash_survival_context(
                 result,
                 estimate,
@@ -116,6 +135,12 @@ def attach_opponent_known_move_damage_estimates(battle_input: dict[str, Any]) ->
         if isinstance(move, dict):
             estimate = build_opponent_known_move_damage_estimate(result, move)
             move["damage_estimate"] = estimate
+            move["ko_context"] = build_ko_context(
+                result,
+                estimate,
+                defender_key="my_active",
+                scope="opponent_known_move_only",
+            )
             move["survival_context"] = build_focus_sash_survival_context(
                 result,
                 estimate,

@@ -48,7 +48,13 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "When Focus Sash survival_context is available, include one concise limitation sentence that multi-hit moves, hazards, chip damage, and exact turn sequencing are not modeled.",
     "Multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, and exact turn sequencing are not modeled for Focus Sash survival_context.",
     "Do not infer Focus Sash if the item is unknown or unconfirmed.",
-    "Do not infer damage, OHKO/2HKO, or KO chance unless damage data is explicitly provided.",
+    "ko_context, when present, is limited damage-roll context only and is not final battle truth.",
+    "ko_context does not change raw damage_range or rolls.",
+    "OHKO chance in ko_context is based on damage rolls only.",
+    "2HKO context uses limited min/max assumptions and is not final turn simulation.",
+    "ko_context does not model accuracy, speed order, priority, recovery, hazards, chip damage, switching, protection, or turn sequencing.",
+    "Focus Sash survival_context is separate from raw ko_context and is not included in KO probability.",
+    "Do not infer damage, OHKO/2HKO, or KO chance unless explicit calculated fields are provided.",
     "Known opponent moves are user-confirmed only.",
     "Opponent candidate moves are possible Champions moves, not confirmed moves.",
     "Do not assume the opponent has a candidate move unless it appears in known_moves.",
@@ -134,7 +140,7 @@ ADVISOR_DAMAGE_LIMITATIONS = [
     "Only supported attacker-side damage item modifiers are applied when item_effects marks them as applied.",
     "Recoil, speed, survival, recovery, and other non-damage item effects are not connected unless a specific supported field says otherwise.",
     "Use as rough reference only.",
-    "OHKO/2HKO/KO chance is not provided in v0.16.",
+    "KO/OHKO/2HKO context, when present, is limited damage-roll context only and not final battle truth.",
 ]
 
 ADVISOR_OPPONENT_DAMAGE_LIMITATIONS = [
@@ -143,7 +149,7 @@ ADVISOR_OPPONENT_DAMAGE_LIMITATIONS = [
     "Only supported attacker-side damage item modifiers are applied when item_effects marks them as applied.",
     "Recoil, speed, survival, recovery, and other non-damage item effects are not connected unless a specific supported field says otherwise.",
     "Use as rough threat reference only.",
-    "OHKO/2HKO/KO chance is not provided in v0.16.",
+    "KO/OHKO/2HKO context, when present, is limited damage-roll context only and not final battle truth.",
 ]
 
 ADVISOR_DAMAGE_ESTIMATE_STATUSES = {
@@ -169,7 +175,7 @@ ADVISOR_MISSING_FIELDS = [
     "stat boosts",
     "exact current HP integer",
     "opponent moves",
-    "OHKO/2HKO/KO chance",
+    "final KO/OHKO/2HKO truth",
     "turn order",
     "speed tie",
     "status duration",
