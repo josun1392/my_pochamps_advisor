@@ -300,17 +300,15 @@ Excluded from v0.30 item application:
 
 - Expert Belt
 - Assault Vest
-- Leftovers/Sitrus recovery
 - Choice lock
 - Life Orb recoil
 - candidate move damage
-- KO/OHKO/2HKO
 
 Legal item modeling examples:
 
 - Choice Scarf: selectable; its supported speed modifier may be applied in `speed_context` when user-confirmed, but speed order and Choice Scarf choice lock are not modeled.
 - Focus Sash: selectable; its limited survival context may be included only when user-confirmed and full HP. It is not damage reduction and does not change raw damage estimates.
-- Leftovers / Sitrus Berry: selectable, but recovery and turn sequencing are not modeled.
+- Leftovers / Sitrus Berry: selectable; limited recovery context may be included only when user-confirmed and max HP is available. Exact turn sequencing and item consumption are not modeled.
 
 `damage_estimate.item_effects` is the source of truth for whether an item effect was applied to a specific calculation.
 
@@ -381,7 +379,77 @@ The LLM must not say:
 - "Focus Sash applies when the item is unknown or unconfirmed."
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
 
-Candidate moves do not receive `damage_estimate` and do not receive `survival_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, or `recovery_context`.
+
+## Recovery Context Semantics
+
+`recovery_context` is an additive limited context next to a relevant `damage_estimate`. It does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, `ko_context`, type effectiveness, or item damage modifier math.
+
+In v0.60, the only modeled recovery context is limited Sitrus Berry / Leftovers context:
+
+- defender item profile must be `status: user_confirmed`
+- defender item id must be `sitrus-berry` or `leftovers`
+- defender max HP must be available
+- recovery amount is max-HP formula based
+- exact activation timing is not final battle truth
+- item consumption is not tracked
+
+Available Sitrus Berry context may include:
+
+- `mode`: `limited_item_recovery_context`
+- `available`: `true`
+- `defender_side`: `my_active` or `opponent_active`
+- `item.item_id`: `sitrus-berry`
+- `item.status`: `user_confirmed`
+- `recovery_effect.type`: `sitrus_berry`
+- `recovery_effect.timing`: `threshold_or_after_damage_limited`
+- `recovery_effect.estimated_recovery_hp`
+- `recovery_effect.formula_label`: `floor(max_hp / 4)`
+- `recovery_effect.raw_damage_rolls_changed`: `false`
+- `recovery_effect.ko_context_changed`: `false`
+- `is_final_battle_truth`: `false`
+
+Available Leftovers context may include:
+
+- `mode`: `limited_item_recovery_context`
+- `available`: `true`
+- `defender_side`: `my_active` or `opponent_active`
+- `item.item_id`: `leftovers`
+- `item.status`: `user_confirmed`
+- `recovery_effect.type`: `leftovers`
+- `recovery_effect.timing`: `end_of_turn_limited`
+- `recovery_effect.estimated_recovery_hp`
+- `recovery_effect.formula_label`: `floor(max_hp / 16)`
+- `recovery_effect.raw_damage_rolls_changed`: `false`
+- `recovery_effect.ko_context_changed`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `no_recovery_item`
+- `item_not_user_confirmed`
+- `defender_max_hp_missing`
+- `unsupported_recovery_item`
+- `damage_estimate_missing`
+- `turn_engine_required`
+
+The LLM may say:
+
+- "Leftovers may affect follow-up KO/2HKO under limited assumptions, but exact end-of-turn recovery and sequencing are not modeled."
+- "Sitrus Berry recovery is shown as limited context only and does not change the raw damage or KO estimate."
+- "The raw KO estimate does not include recovery; recovery_context is a separate limited note."
+
+The LLM must not say:
+
+- "This always becomes a 3HKO after Leftovers."
+- "Sitrus definitely activates here."
+- "The KO chance already includes recovery."
+- "Leftovers has been fully simulated."
+- "Recovery changes the raw damage rolls."
+- "Recovery changes ko_context."
+- "Recovery applies when the item is unknown or unconfirmed."
+
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, or `ko_context`.
 
 ## KO Context Semantics
 
@@ -439,7 +507,7 @@ The LLM must not say:
 - "Focus Sash is included in the KO probability."
 - "Accuracy, Speed order, priority, recovery, hazards, chip damage, switching, protection, or turn sequencing are modeled."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, or `ko_context`.
 
 ## Opponent Assumption Semantics
 

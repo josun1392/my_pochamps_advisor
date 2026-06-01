@@ -4419,6 +4419,86 @@ Maintained boundaries:
 
 ---
 
+## v0.60 - Sitrus / Leftovers limited recovery context
+
+Purpose:
+- Add additive limited `recovery_context` beside relevant `damage_estimate` entries for user-confirmed Sitrus Berry and Leftovers.
+
+Implemented:
+- Added `llm/advisor_recovery_context.py`.
+- Attached `recovery_context` for:
+  - `moves.my_available_moves[*]`
+  - `moves.my_selected_move`
+  - `opponent_moves.known_moves[*]`
+- Kept opponent candidate moves excluded from `damage_estimate`, `survival_context`, `recovery_context`, and `ko_context`.
+- Kept raw `damage_range` and `rolls` unchanged.
+- Kept `ko_context` unchanged.
+
+Recovery policy:
+- Sitrus Berry:
+  - user-confirmed `sitrus-berry` only
+  - `timing: threshold_or_after_damage_limited`
+  - `estimated_recovery_hp = floor(max_hp / 4)`
+  - `formula_label: floor(max_hp / 4)`
+  - exact activation timing and item consumption are not tracked
+- Leftovers:
+  - user-confirmed `leftovers` only
+  - `timing: end_of_turn_limited`
+  - `estimated_recovery_hp = floor(max_hp / 16)`
+  - `formula_label: floor(max_hp / 16)`
+  - exact end-of-turn sequencing is not modeled
+
+Guardrails:
+- `recovery_context` is limited context only.
+- Recovery does not change raw damage estimates.
+- Recovery does not change raw KO/OHKO/2HKO context.
+- Recovery is not fully simulated.
+- Unknown or unconfirmed recovery items are not inferred.
+- Item consumption is not tracked.
+- Final 2HKO/3HKO truth is not claimed without Turn Engine.
+- Focus Sash plus recovery interaction is not implemented.
+
+Docs and tests:
+- Updated `docs/advisor_payload_contract.md` with `recovery_context` semantics, reason codes, formula labels, and LLM wording guardrails.
+- Updated advisor prompt and known limitations.
+- Added tests for:
+  - user-confirmed Sitrus Berry context
+  - user-confirmed Leftovers context
+  - formula labels and floor-based recovery amounts
+  - unconfirmed item handling
+  - no recovery item handling
+  - missing max HP handling
+  - raw damage unchanged
+  - `ko_context` unchanged
+  - my move direction
+  - opponent known move direction
+  - candidate move exclusion
+  - prompt/contract guardrails
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`: 79 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 813 passed, 1 failed, 2 deselected.
+  - Failure was isolated to `tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average`.
+  - The isolated perf test passed when rerun by itself.
+  - No v0.60 damage formula, raw roll, or perf-path code was changed.
+
+Maintained boundaries:
+- No Turn Engine.
+- No item consumption tracking.
+- No exact 2HKO/3HKO simulation.
+- No KO context modification.
+- No raw damage roll modification.
+- No damage formula changes.
+- No Focus Sash interaction implementation.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No full payload export.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

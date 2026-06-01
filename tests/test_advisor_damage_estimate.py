@@ -7,6 +7,7 @@ from llm.advisor_damage_estimate import (
     build_selected_move_damage_estimate,
 )
 from llm.advisor_ko_context import build_ko_context
+from llm.advisor_recovery_context import build_recovery_context
 
 
 def test_selected_move_missing_returns_unavailable() -> None:
@@ -230,6 +231,7 @@ def test_attach_opponent_known_damage_skips_candidate_moves() -> None:
     assert "damage_estimate" not in candidate_move
     assert "ko_context" not in candidate_move
     assert "survival_context" not in candidate_move
+    assert "recovery_context" not in candidate_move
     assert "damage_estimate" not in payload["opponent_moves"]["known_moves"][0]
 
 
@@ -423,6 +425,143 @@ def test_ko_context_coexists_with_focus_sash_without_integrating_survival() -> N
     assert move["ko_context"]["ohko"]["chance"] > 0
     assert "focus_sash" not in move["ko_context"]
     assert "survival_context" not in move["ko_context"]
+
+
+def test_recovery_context_available_for_user_confirmed_sitrus_berry() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="sitrus-berry")
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=183),
+    }
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["recovery_context"]
+    assert context["available"] is True
+    assert context["mode"] == "limited_item_recovery_context"
+    assert context["defender_side"] == "opponent_active"
+    assert context["item"] == {"item_id": "sitrus-berry", "status": "user_confirmed"}
+    assert context["recovery_effect"]["type"] == "sitrus_berry"
+    assert context["recovery_effect"]["timing"] == "threshold_or_after_damage_limited"
+    assert context["recovery_effect"]["estimated_recovery_hp"] == 45
+    assert context["recovery_effect"]["formula_label"] == "floor(max_hp / 4)"
+    assert context["recovery_effect"]["raw_damage_rolls_changed"] is False
+    assert context["recovery_effect"]["ko_context_changed"] is False
+    assert context["is_final_battle_truth"] is False
+
+
+def test_recovery_context_available_for_user_confirmed_leftovers() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="leftovers")
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=183),
+    }
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["recovery_context"]
+    assert context["available"] is True
+    assert context["item"] == {"item_id": "leftovers", "status": "user_confirmed"}
+    assert context["recovery_effect"]["type"] == "leftovers"
+    assert context["recovery_effect"]["timing"] == "end_of_turn_limited"
+    assert context["recovery_effect"]["estimated_recovery_hp"] == 11
+    assert context["recovery_effect"]["formula_label"] == "floor(max_hp / 16)"
+    assert "Limited end-of-turn recovery context only." in context["limitations"]
+
+
+def test_recovery_context_requires_user_confirmed_item() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="sitrus-berry")
+    payload["item_profiles"]["opponent_active"]["status"] = "unknown"
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["recovery_context"]
+    assert context["available"] is False
+    assert context["reason"] == "item_not_user_confirmed"
+
+
+def test_recovery_context_unavailable_without_recovery_item() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item=None)
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["recovery_context"]
+    assert context["available"] is False
+    assert context["reason"] == "no_recovery_item"
+
+
+def test_recovery_context_requires_max_hp() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="leftovers")
+    estimate = {
+        "status": "available_with_default_assumptions",
+        "damage_range": {"min": 10, "max": 20},
+    }
+
+    context = build_recovery_context(
+        payload,
+        estimate,
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+
+    assert context["available"] is False
+    assert context["reason"] == "defender_max_hp_missing"
+
+
+def test_recovery_context_does_not_change_raw_damage_or_ko_context() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="sitrus-berry")
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=35),
+    }
+    baseline = _battle_input(selected_move=_flamethrower())
+    baseline["stat_profiles"] = payload["stat_profiles"]
+
+    baseline_estimate = build_selected_move_damage_estimate(baseline)
+    baseline_ko = build_ko_context(
+        baseline,
+        baseline_estimate,
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+    result = attach_selected_move_damage_estimate(payload)
+
+    move = result["moves"]["my_selected_move"]
+    assert move["recovery_context"]["available"] is True
+    assert move["damage_estimate"]["damage_range"] == baseline_estimate["damage_range"]
+    assert move["damage_estimate"]["rolls"] == baseline_estimate["rolls"]
+    assert move["ko_context"]["ohko"] == baseline_ko["ohko"]
+    assert move["ko_context"]["two_hko"] == baseline_ko["two_hko"]
+
+
+def test_recovery_context_for_opponent_known_move_targets_my_active() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(my_item="leftovers")
+    payload["stat_profiles"] = {
+        "my_active": _user_final_stats(hp=160),
+        "opponent_active": _default_stat_profile(),
+    }
+    payload["opponent_moves"] = {
+        "known_moves": [{**_rock_slide(), "source": "user_confirmed"}],
+        "candidate_moves": [{**_air_slash(), "source": "champions_movepool"}],
+    }
+
+    result = attach_opponent_known_move_damage_estimates(payload)
+
+    known_move = result["opponent_moves"]["known_moves"][0]
+    candidate_move = result["opponent_moves"]["candidate_moves"][0]
+    context = known_move["recovery_context"]
+    assert context["available"] is True
+    assert context["scope"] == "opponent_known_move_only"
+    assert context["defender_side"] == "my_active"
+    assert context["recovery_effect"]["estimated_recovery_hp"] == 10
+    assert "recovery_context" not in candidate_move
 
 
 def test_focus_sash_survival_context_for_my_move_when_full_hp_and_could_be_lethal() -> None:
@@ -822,6 +961,7 @@ def test_legal_type_boosting_item_applies_to_available_selected_and_opponent_kno
     assert known_move["damage_estimate"]["target"] == "my_active"
     assert "damage_estimate" not in candidate_move
     assert "ko_context" not in candidate_move
+    assert "recovery_context" not in candidate_move
 
 
 def test_fairy_feather_remains_unsupported_without_catalog_damage_change() -> None:

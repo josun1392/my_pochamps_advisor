@@ -748,7 +748,17 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "If Life Orb is applied, say recoil is not modeled" in prompt
     assert "If Choice Scarf, Choice Band, or Choice Specs is applied, say choice lock is not modeled" in prompt
     assert "Do not mention choice lock for non-Choice items such as Charcoal" in prompt
-    assert "Life Orb recoil and Leftovers recovery are not connected" in prompt
+    assert "Life Orb recoil is not connected" in prompt
+    assert "Sitrus Berry and Leftovers recovery may appear only as limited recovery_context" in prompt
+    assert "it does not change raw damage_range, rolls, or ko_context" in prompt
+    assert "recovery_context applies only when Sitrus Berry or Leftovers is user-confirmed" in prompt
+    assert "defender max HP is available" in prompt
+    assert "Sitrus Berry recovery_context is threshold recovery limited context" in prompt
+    assert "item consumption are not tracked" in prompt
+    assert "Leftovers recovery_context is end-of-turn limited context" in prompt
+    assert "Say recovery may affect follow-up KO/2HKO under limited assumptions" in prompt
+    assert "do not claim final 2HKO or 3HKO truth without Turn Engine" in prompt
+    assert "do not infer recovery if the item is unknown or unconfirmed" in prompt
     assert "Focus Sash survival may appear only as limited survival_context" in prompt
     assert "not as damage reduction" in prompt
     assert "it does not change raw damage_range or rolls" in prompt
@@ -822,6 +832,32 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert "If Life Orb is applied, say Life Orb recoil is not modeled." in ADVISOR_KNOWN_LIMITATIONS
     assert "If Choice Scarf, Choice Band, or Choice Specs is applied, say choice lock is not modeled." in ADVISOR_KNOWN_LIMITATIONS
+    assert "Life Orb recoil is not connected." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Sitrus Berry and Leftovers recovery may appear only as limited recovery_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "recovery_context does not change raw damage_range, rolls, or ko_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "recovery_context applies only when Sitrus Berry or Leftovers is user-confirmed and defender max HP is available."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Sitrus Berry recovery_context is threshold recovery limited context; exact activation timing and item consumption are not tracked."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Leftovers recovery_context is end-of-turn limited context; exact turn sequencing is not modeled."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not claim final 2HKO or 3HKO truth from recovery_context without Turn Engine."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not infer Sitrus Berry or Leftovers recovery if the item is unknown or unconfirmed."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
     assert (
         "Focus Sash survival may appear only as limited survival_context, not as damage reduction."
         in ADVISOR_KNOWN_LIMITATIONS
