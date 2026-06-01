@@ -470,6 +470,8 @@ In v0.63, the only modeled accuracy context is limited Bright Powder context:
 - final hit probability is not calculated
 - hit-adjusted KO probability is not calculated
 - exact accuracy/evasion stage math is not modeled
+- ability/weather interactions, multi-hit accuracy, and turn sequencing are not modeled
+- raw damage and KO/OHKO/2HKO estimates do not include hit chance
 
 Available Bright Powder context may include:
 
@@ -504,6 +506,7 @@ The LLM may say:
 - "Bright Powder may reduce hit reliability under limited accuracy context, but the raw damage and KO estimates do not include hit chance."
 - "The move can KO by raw damage rolls, but accuracy and Bright Powder effects are not integrated into that KO chance."
 - "This is not a final hit probability; accuracy/evasion stages, ability interactions, weather, multi-hit accuracy, and turn sequencing are not modeled."
+- "Final hit probability is not calculated, and hit-adjusted KO probability is not available."
 
 The LLM must not say:
 
@@ -512,7 +515,12 @@ The LLM must not say:
 - "This move is guaranteed to miss."
 - "The KO chance already accounts for Bright Powder."
 - "The final hit probability is confirmed."
+- "The hit-adjusted KO chance is 70%."
 - "Bright Powder applies when the item is unknown or unconfirmed."
+
+When `accuracy_context.available` is true, the accuracy note should stay concise, ideally one or two sentences, and should mention that raw damage and KO/OHKO/2HKO estimates do not include hit chance. It should also include one concise limitation sentence that final hit probability, accuracy/evasion stages, ability/weather interactions, multi-hit accuracy, and turn sequencing are not modeled.
+
+If `accuracy_context.available` is false, or no `accuracy_context` is present for a move, the LLM should not invent Bright Powder accuracy effects or force an accuracy limitation sentence.
 
 Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, or `ko_context`.
 

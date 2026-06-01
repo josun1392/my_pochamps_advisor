@@ -4615,6 +4615,7 @@ Docs and tests:
 
 Verification:
 - `uv run pytest tests/test_advisor_payload_contract.py -q`: 26 passed.
+- `uv run pytest -q`: 820 passed, 2 deselected.
 - `uv run pytest -q`: 814 passed, 2 deselected.
 - No v0.60 perf flake reproduced during v0.61 full pytest.
 
@@ -4933,6 +4934,72 @@ Maintained boundaries:
 - No hit-adjusted KO probability.
 - No Turn Engine.
 - No accuracy/evasion stage system.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
+## v0.64 - Accuracy prompt polish
+
+Purpose:
+- Polish Bright Powder `accuracy_context` wording after v0.63.1 local Gemini verification showed Limitation visibility PARTIAL.
+
+Implemented:
+- Strengthened advisor prompt and payload contract wording for `accuracy_context`.
+- Clarified that `accuracy_context` is limited context only.
+- Strengthened Bright Powder wording:
+  - Bright Powder may reduce hit reliability
+  - Bright Powder is not damage reduction
+- Strengthened raw context separation:
+  - raw damage estimates are unchanged
+  - raw `ko_context` is unchanged
+  - KO/OHKO/2HKO estimates do not include hit chance
+- Strengthened probability exclusions:
+  - final hit probability is not calculated
+  - hit-adjusted KO probability is not calculated
+  - do not state a hit-adjusted KO percent unless a future explicit field calculates it
+- Strengthened limitation sentence:
+  - final hit probability, accuracy/evasion stages, ability/weather interactions, multi-hit accuracy, and turn sequencing are not modeled
+- Preserved unavailable/no-invent guardrail:
+  - unknown/unconfirmed Bright Powder should not be inferred
+  - unavailable `accuracy_context` should not force Bright Powder wording
+
+Docs and tests:
+- Updated `docs/advisor_payload_contract.md`.
+- Updated prompt/contract regression tests for:
+  - limited accuracy context
+  - hit reliability wording
+  - raw damage unchanged
+  - `ko_context` unchanged
+  - KO/OHKO/2HKO estimates do not include hit chance
+  - final hit probability not calculated
+  - hit-adjusted KO probability not calculated
+  - accuracy/evasion stages not modeled
+  - ability/weather interactions not modeled
+  - multi-hit accuracy not modeled
+  - turn sequencing not modeled
+  - no damage reduction wording
+  - no will-miss or guaranteed-miss wording
+  - unknown/unconfirmed no-invent guardrail
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 26 passed.
+
+Maintained boundaries:
+- No `accuracy_context` structure changes.
+- No accuracy calculation changes.
+- No final hit probability.
+- No hit-adjusted KO probability.
+- No `ko_context` changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Turn Engine.
+- No accuracy/evasion stage system.
+- No ability/weather/item interaction modeling.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No perf threshold changes.
+- No test skip or xfail.
 - No logs, `.env`, secrets, API keys, or handoff capsule commits.
 
 ---

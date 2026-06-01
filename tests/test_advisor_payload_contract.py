@@ -771,13 +771,17 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "KO/OHKO/2HKO estimates do not include hit chance" in prompt
     assert "Bright Powder may reduce hit reliability" in prompt
     assert "not damage reduction" in prompt
+    assert "When accuracy_context is available, keep accuracy wording concise" in prompt
+    assert "raw damage and KO/OHKO/2HKO estimates do not include hit chance" in prompt
+    assert "Include one concise limitation sentence" in prompt
+    assert "final hit probability, accuracy/evasion stages, ability/weather interactions" in prompt
+    assert "multi-hit accuracy, and turn sequencing are not modeled" in prompt
     assert "Hit-adjusted KO probability is not calculated" in prompt
+    assert "Final hit probability is not calculated" in prompt
     assert "Do not claim the move will miss" in prompt
     assert "miss is guaranteed" in prompt
-    assert "do not claim final hit probability unless explicitly calculated" in prompt
+    assert "hit-adjusted KO chance is a percent" in prompt
     assert "Do not infer Bright Powder if the item is unknown or unconfirmed" in prompt
-    assert "Accuracy/evasion stages, ability interactions, weather" in prompt
-    assert "multi-hit accuracy, and turn sequencing are not modeled" in prompt
     assert "Focus Sash survival may appear only as limited survival_context" in prompt
     assert "not as damage reduction" in prompt
     assert "it does not change raw damage_range or rolls" in prompt
@@ -904,9 +908,22 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         "Bright Powder may reduce hit reliability, but it is not damage reduction."
         in ADVISOR_KNOWN_LIMITATIONS
     )
+    assert (
+        "When accuracy_context is available, keep accuracy wording concise and mention that raw damage and KO/OHKO/2HKO estimates do not include hit chance."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When accuracy_context is available, include one concise limitation sentence that final hit probability, accuracy/evasion stages, ability/weather interactions, multi-hit accuracy, and turn sequencing are not modeled."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
     assert "Hit-adjusted KO probability is not calculated in accuracy_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert "Final hit probability is not calculated in accuracy_context." in ADVISOR_KNOWN_LIMITATIONS
     assert (
         "Do not claim the move will miss or that a miss is guaranteed from accuracy_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say the hit-adjusted KO chance is a percent unless an explicit future field calculates it."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
