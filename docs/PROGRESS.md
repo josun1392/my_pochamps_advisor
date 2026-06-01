@@ -4287,6 +4287,73 @@ Maintained boundaries:
 
 ---
 
+## v0.58 - KO context local Gemini verification
+
+Purpose:
+- Record local Gemini actual-call verification for v0.57 limited `ko_context`.
+
+Observed local case:
+- Case A - roll-based OHKO chance:
+  - Player Pokemon: Charizard.
+  - Selected move: Heat Wave.
+  - Opponent Pokemon: Garchomp.
+  - Opponent current HP: 35.
+  - Raw damage estimate: 31-38.
+  - Damage rolls: 16 rolls with 8 rolls at or above current HP.
+  - `ko_context.ohko.chance`: 0.5.
+  - `ko_context.ohko.successful_rolls`: 8.
+  - `ko_context.ohko.total_rolls`: 16.
+  - `ko_context.two_hko.possible`: true.
+
+Gemini response summary:
+- Gemini actual call succeeded.
+- Gemini recommended Heat Wave.
+- Gemini stated the raw estimate as 31-38 damage to Garchomp under default assumptions.
+- Gemini stated there is a 50% chance to OHKO Garchomp based on its current 35 HP.
+- Gemini included a limitation sentence that this is limited damage-roll context only.
+- Gemini stated accuracy, speed order, priority, recovery, hazards, chip damage, switching, protection, and turn sequencing are not modeled.
+
+Confirmed behavior:
+- KO chance was expressed as roll-based limited context.
+- Raw damage estimate was unchanged.
+- Limited damage-roll context wording appeared.
+- Accuracy/speed/recovery/chip/turn sequencing limitation appeared.
+- Gemini did not claim final battle truth.
+- Gemini did not overclaim guaranteed KO in battle.
+- No Focus Sash coexistence case was exercised in this local verification.
+
+Verdict:
+- v0.58 local Gemini verification: PASS.
+- Safety: PASS.
+- KO context visibility: PASS.
+- Limitation visibility: PASS.
+- Focus Sash coexistence: not exercised in this verification.
+
+Next candidates:
+- `v0.59 - KO Context Prompt Polish`.
+- `v0.59 - Sitrus/Leftovers Recovery Design`.
+- `v0.59 - Bright Powder Accuracy Design`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No `ko_context` changes.
+- No `survival_context` changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Turn Engine.
+- No accuracy calculation.
+- No recovery implementation.
+- No hazards/chip/residual/weather/status implementation.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
