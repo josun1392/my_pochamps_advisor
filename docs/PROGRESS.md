@@ -4781,6 +4781,86 @@ Maintained boundaries:
 
 ---
 
+## v0.63 - Bright Powder limited accuracy context
+
+Purpose:
+- Add limited Bright Powder accuracy context without changing raw damage or raw KO context.
+
+Implemented:
+- Added `llm/advisor_accuracy_context.py`.
+- Added additive move-level `accuracy_context` for:
+  - my selected move / available moves targeting `opponent_active`
+  - opponent known moves targeting `my_active`
+- Kept opponent candidate moves excluded from `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, and `ko_context`.
+
+Bright Powder behavior:
+- Modeled only when defender item is user-confirmed `bright-powder`.
+- Requires known move accuracy metadata.
+- Returns unavailable for:
+  - no Bright Powder
+  - unknown/unconfirmed Bright Powder
+  - missing move accuracy
+  - missing damage estimate
+- Provides label/formula context only:
+  - `effect_label: may_reduce_hit_reliability`
+  - `formula_label: bright_powder_limited_modifier`
+- Does not calculate final hit probability.
+- Does not calculate hit-adjusted KO probability.
+
+Preserved raw contexts:
+- Raw damage min/max/rolls are unchanged.
+- `ko_context` is unchanged.
+- OHKO chance remains based on raw damage rolls only.
+- Bright Powder is not treated as damage reduction.
+
+Prompt / contract updates:
+- Documented `accuracy_context` field semantics.
+- Added Bright Powder limited assumptions.
+- Documented `base_accuracy`, `effect_label`, `formula_label`, and `hit_probability_integrated=false`.
+- Added guardrails:
+  - raw damage unchanged
+  - raw `ko_context` unchanged
+  - KO/OHKO/2HKO estimates do not include hit chance
+  - do not claim the move will miss
+  - do not claim guaranteed miss
+  - do not infer Bright Powder if item is unknown or unconfirmed
+  - accuracy/evasion stages, ability interactions, weather, multi-hit accuracy, and turn sequencing are not modeled
+
+Tests:
+- Added `accuracy_context` helper and payload attachment tests for:
+  - user-confirmed Bright Powder plus known move accuracy
+  - unknown/unconfirmed Bright Powder
+  - no Bright Powder
+  - missing move accuracy
+  - raw damage unchanged
+  - `ko_context` unchanged
+  - OHKO chance unchanged
+  - my move direction
+  - opponent known move direction
+  - candidate move exclusion
+- Added prompt/contract regression tests for Bright Powder guardrails.
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`: 85 passed.
+- `uv run pytest -q`: 820 passed, 2 deselected.
+
+Maintained boundaries:
+- No final hit probability.
+- No hit-adjusted KO probability.
+- No accuracy/evasion stage system.
+- No Turn Engine.
+- No ability/weather/item interaction modeling.
+- No KO context modification.
+- No raw damage roll modification.
+- No damage formula changes.
+- No Focus Sash / Sitrus interaction implementation.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

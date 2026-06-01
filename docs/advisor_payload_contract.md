@@ -379,7 +379,7 @@ The LLM must not say:
 - "Focus Sash applies when the item is unknown or unconfirmed."
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, or `recovery_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, or `ko_context`.
 
 ## Recovery Context Semantics
 
@@ -454,7 +454,67 @@ The LLM must not say:
 
 When `recovery_context.available` is true, the recovery note should stay concise, ideally one or two sentences, and should mention that exact activation timing, item consumption, and turn sequencing are not modeled. It should not become longer than the recommendation.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, or `ko_context`.
+
+## Accuracy Context Semantics
+
+`accuracy_context` is an additive limited context for move hit reliability. It is never nested inside `damage_estimate` or `ko_context`.
+
+`accuracy_context` does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, item damage modifier math, or `ko_context`.
+
+In v0.63, the only modeled accuracy context is limited Bright Powder context:
+
+- defender item profile must be `status: user_confirmed`
+- defender item id must be `bright-powder`
+- move accuracy metadata must be available
+- final hit probability is not calculated
+- hit-adjusted KO probability is not calculated
+- exact accuracy/evasion stage math is not modeled
+
+Available Bright Powder context may include:
+
+- `mode`: `limited_accuracy_context`
+- `available`: `true`
+- `defender_side`: `my_active` or `opponent_active`
+- `item.item_id`: `bright-powder`
+- `item.status`: `user_confirmed`
+- `move_accuracy.base_accuracy`
+- `move_accuracy.accuracy_source`: `move_metadata`
+- `move_accuracy.accuracy_known`: `true`
+- `accuracy_effect.type`: `bright_powder`
+- `accuracy_effect.effect_label`: `may_reduce_hit_reliability`
+- `accuracy_effect.formula_label`: `bright_powder_limited_modifier`
+- `accuracy_effect.raw_damage_rolls_changed`: `false`
+- `accuracy_effect.ko_context_changed`: `false`
+- `accuracy_effect.hit_probability_integrated`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `no_bright_powder`
+- `item_not_user_confirmed`
+- `move_accuracy_missing`
+- `unsupported_accuracy_item`
+- `accuracy_engine_missing`
+- `turn_engine_required`
+- `damage_estimate_missing`
+
+The LLM may say:
+
+- "Bright Powder may reduce hit reliability under limited accuracy context, but the raw damage and KO estimates do not include hit chance."
+- "The move can KO by raw damage rolls, but accuracy and Bright Powder effects are not integrated into that KO chance."
+- "This is not a final hit probability; accuracy/evasion stages, ability interactions, weather, multi-hit accuracy, and turn sequencing are not modeled."
+
+The LLM must not say:
+
+- "The damage is reduced by Bright Powder."
+- "This move will miss."
+- "This move is guaranteed to miss."
+- "The KO chance already accounts for Bright Powder."
+- "The final hit probability is confirmed."
+- "Bright Powder applies when the item is unknown or unconfirmed."
+
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, or `ko_context`.
 
 ## KO Context Semantics
 
@@ -512,7 +572,7 @@ The LLM must not say:
 - "Focus Sash is included in the KO probability."
 - "Accuracy, Speed order, priority, recovery, hazards, chip damage, switching, protection, or turn sequencing are modeled."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, or `ko_context`.
 
 ## Opponent Assumption Semantics
 

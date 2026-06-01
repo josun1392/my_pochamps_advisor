@@ -20,6 +20,7 @@ from llm.advisor_payload_contract import (
     ADVISOR_USER_CONFIRMED_FINAL_STATS_WITH_DAMAGE_ITEM_PROFILE,
     ADVISOR_USER_CONFIRMED_FINAL_STATS_PROFILE,
 )
+from llm.advisor_accuracy_context import build_accuracy_context
 from llm.advisor_ko_context import build_ko_context
 from llm.advisor_recovery_context import build_recovery_context
 from llm.advisor_survival_context import build_focus_sash_survival_context
@@ -82,6 +83,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
                     defender_key="opponent_active",
                     scope="available_move_comparison",
                 )
+                move["accuracy_context"] = build_accuracy_context(
+                    result,
+                    estimate,
+                    move,
+                    defender_key="opponent_active",
+                    scope="available_move_comparison",
+                )
                 move["survival_context"] = build_focus_sash_survival_context(
                     result,
                     estimate,
@@ -106,6 +114,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
             defender_key="opponent_active",
             scope="selected_move_only",
         )
+        selected_move["accuracy_context"] = build_accuracy_context(
+            result,
+            estimate,
+            selected_move,
+            defender_key="opponent_active",
+            scope="selected_move_only",
+        )
         selected_move["survival_context"] = build_focus_sash_survival_context(
             result,
             estimate,
@@ -125,6 +140,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
             "recovery_context": build_recovery_context(
                 result,
                 estimate,
+                defender_key="opponent_active",
+                scope="selected_move_only",
+            ),
+            "accuracy_context": build_accuracy_context(
+                result,
+                estimate,
+                None,
                 defender_key="opponent_active",
                 scope="selected_move_only",
             ),
@@ -163,6 +185,13 @@ def attach_opponent_known_move_damage_estimates(battle_input: dict[str, Any]) ->
             move["recovery_context"] = build_recovery_context(
                 result,
                 estimate,
+                defender_key="my_active",
+                scope="opponent_known_move_only",
+            )
+            move["accuracy_context"] = build_accuracy_context(
+                result,
+                estimate,
+                move,
                 defender_key="my_active",
                 scope="opponent_known_move_only",
             )
