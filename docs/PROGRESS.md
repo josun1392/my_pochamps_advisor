@@ -5620,6 +5620,92 @@ Next:
 
 ---
 
+## v0.72 - Loaded Dice / multi-hit context design
+
+Purpose:
+- Design a limited Loaded Dice multi-hit context after the King's Rock flinch prompt line reached a stable enough point to move on.
+
+Designed:
+- Documented current state:
+  - `damage_estimate` provides raw damage min/max/rolls
+  - `ko_context` provides limited damage-roll KO/OHKO/2HKO context
+  - `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, and `flinch_context` are additive limited contexts
+  - Loaded Dice is not connected to the LLM payload path as a multi-hit context
+  - lower-level multi-hit and probability utilities already exist
+  - `data/static/items.json` describes `loaded-dice` as a `multihit_modifier`
+- Defined the problem:
+  - Loaded Dice is hit-count reliability, not direct damage boost
+  - multi-hit touches raw damage aggregation, KO chance, Focus Sash, King's Rock, accuracy, crit, move metadata, and target HP
+  - mixing Loaded Dice into raw damage or `ko_context` would imply unsupported final multi-hit outcome modeling
+- Proposed additive `multi_hit_context`:
+  - mode: `limited_multi_hit_context`
+  - attacker-side item: user-confirmed `loaded-dice`
+  - move-level sibling preferred
+  - move metadata should identify multi-hit eligibility when available
+  - `effect_label`: `may_improve_multi_hit_reliability`
+  - `formula_label`: `loaded_dice_limited_multihit_modifier`
+  - `raw_damage_rolls_changed: false`
+  - `ko_context_changed: false`
+  - `hit_count_probability_integrated: false`
+  - `multi_hit_adjusted_ko_integrated: false`
+  - `is_final_battle_truth: false`
+- Compared placement options:
+  - move-level sibling field
+  - `damage_estimate` sibling if implementation structure requires it
+  - top-level `multi_hit_context`
+- Recommended move-level sibling placement for v0.73.
+- Designed multi-hit amount policy:
+  - label/formula only in first implementation
+  - no numeric final hit count probability
+  - no multi-hit-adjusted KO probability
+  - no guaranteed hit-count claim
+  - validate rule exposure, move eligibility, and Champions/PoChamps compatibility before numeric probability display
+- Added LLM guardrail design:
+  - Loaded Dice may improve multi-hit reliability for eligible moves
+  - raw damage estimates are unchanged
+  - raw `ko_context` is unchanged
+  - KO/OHKO/2HKO estimates do not include multi-hit count changes
+  - final hit count probability is not calculated
+  - multi-hit-adjusted KO probability is not calculated
+  - do not claim a specific number of hits will occur
+  - do not infer Loaded Dice if the item is unknown or unconfirmed
+  - do not describe Loaded Dice as a direct damage boost
+  - Focus Sash / King's Rock / accuracy / crit per-hit interactions are not modeled
+- Added future test plan for:
+  - user-confirmed Loaded Dice + known multi-hit move availability
+  - unknown/unconfirmed/no Loaded Dice unavailable behavior
+  - move-not-multi-hit and missing metadata behavior
+  - raw damage unchanged
+  - `ko_context` unchanged
+  - OHKO chance unchanged
+  - my move and opponent known move direction
+  - candidate moves excluded
+  - prompt guardrails
+  - existing flinch, critical, accuracy, recovery, KO, Focus Sash, type item, speed context, and opponent assumptions regressions
+
+v0.73 recommendation:
+- `v0.73 - Loaded Dice Limited Multi-hit Context Implementation`.
+- Alternative: `v0.73 - Multi-hit Rule Validation Design` if T1/T2 want Loaded Dice rule exposure / move eligibility validation first.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No `multi_hit_context` implementation.
+- No final hit count probability.
+- No multi-hit-adjusted KO probability.
+- No Turn Engine.
+- No multi-hit damage aggregation in the LLM payload.
+- No Focus Sash / King's Rock interaction implementation.
+- No accuracy/crit per-hit modeling.
+- No KO context modification.
+- No raw damage roll modification.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
