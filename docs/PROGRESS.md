@@ -6113,6 +6113,103 @@ Maintained boundaries:
 
 ---
 
+## v0.78 - Champions legal item coverage verification design
+
+Purpose:
+- Pause Power Herb `charge_context` implementation and verify whether implemented item contexts align with Champions legal item coverage.
+
+Verified item coverage:
+- `charcoal`
+  - Champions legal fixture: present legal
+  - `items.json`: present
+  - `items_damage.json`: present under `type_boost_items`
+  - coverage decision: aligned
+- `choice-scarf`
+  - Champions legal fixture: present legal
+  - `items.json`: present
+  - `items_damage.json`: present under `stat_boost_items`
+  - coverage decision: aligned
+- `focus-sash`
+  - Champions legal fixture: present legal
+  - `items.json`: not present
+  - `items_damage.json`: not present
+  - coverage decision: aligned via legal fixture; limited non-damage context
+- `sitrus-berry`
+  - Champions legal fixture: present legal
+  - `items.json`: not present
+  - `items_damage.json`: not present
+  - coverage decision: aligned via legal fixture; limited non-damage context
+- `leftovers`
+  - Champions legal fixture: present legal
+  - `items.json`: not present
+  - `items_damage.json`: not present
+  - coverage decision: aligned via legal fixture; limited non-damage context
+- `bright-powder`
+  - Champions legal fixture: present legal
+  - `items.json`: not present
+  - `items_damage.json`: not present
+  - coverage decision: aligned via legal fixture; limited non-damage context
+- `scope-lens`
+  - Champions legal fixture: present legal
+  - `items.json`: not present
+  - `items_damage.json`: not present
+  - coverage decision: aligned via legal fixture; limited non-damage context
+- `kings-rock`
+  - Champions legal fixture: present legal
+  - `items.json`: not present
+  - `items_damage.json`: not present
+  - coverage decision: aligned via legal fixture; limited non-damage context
+- `loaded-dice`
+  - Champions legal fixture: not present
+  - `items.json`: present
+  - `items_damage.json`: not present
+  - coverage decision: mismatch; future-only or blocked until legal coverage is confirmed
+- `power-herb`
+  - Champions legal fixture: not present
+  - `items.json`: not present
+  - `items_damage.json`: not present
+  - coverage decision: blocked; do not implement user-facing `charge_context`
+
+Designed policy:
+- Treat `data/static/champions_legal_items.json` as the gate for normal user-facing Champions item context exposure.
+- Do not treat `items.json` alone as legal coverage.
+- Do not treat `items_damage.json` alone as legal coverage.
+- Do not treat `data/static/charge_moves.json` as Power Herb legality.
+- Existing move metadata fixtures can remain because metadata is not user-facing item legality.
+- Items absent from legal coverage should be marked `blocked_by_legal_item_coverage` or `future_only_until_legal_confirmed`.
+- Do not implement new user-facing item contexts for items absent from Champions legal item coverage.
+
+Key decisions:
+- Power Herb `charge_context` remains blocked.
+- v0.77 charge move metadata fixture remains valid as generic move metadata.
+- Loaded Dice requires follow-up legal coverage decision because `multi_hit_context` exists while `loaded-dice` is absent from the Champions legal item fixture.
+
+Recommended next candidates:
+- `v0.79 - Legal Item Context Gating Design`.
+- Alternative: `v0.79 - Loaded Dice Legal Coverage Follow-up`.
+- Not recommended: `Power Herb Limited Charge Context Implementation` until Power Herb is legal-confirmed.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No fixture changes.
+- No legal item fixture changes.
+- No Power Herb `charge_context` implementation.
+- No Loaded Dice behavior changes.
+- No LLM payload changes.
+- No item consumption tracking.
+- No turn-sequence-adjusted KO probability.
+- No Turn Engine.
+- No weather interaction.
+- No damage formula changes.
+- No raw damage roll modifications.
+- No KO context changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
