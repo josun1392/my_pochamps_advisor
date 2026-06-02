@@ -6045,6 +6045,74 @@ Maintained boundaries:
 
 ---
 
+## v0.77 - Charge move metadata fixture implementation
+
+Purpose:
+- Add a repo-native charge move metadata fixture and safe repository/helper before implementing Power Herb `charge_context`.
+
+Implemented:
+- Added `data/static/charge_moves.json`.
+- Added `core/charge_move_repository.py`.
+- Added `tests/test_charge_move_repository.py`.
+- Implemented fixture loading and validation:
+  - `version` must equal `charge_moves_v1`
+  - `moves` must be an object
+  - move ids must be normalized lowercase hyphenated slugs
+  - every move entry must include `is_charge_move`, `power_herb_eligible`, `charge_type`, `source`, `confidence`, and `notes`
+  - optional `known_exceptions` must be a list of strings
+- Implemented helper behavior:
+  - `load_charge_moves()`
+  - `normalize_move_id(move_id)`
+  - `ChargeMoveRepository.get_charge_move_metadata(move_id)`
+  - `ChargeMoveRepository.is_charge_move(move_id)`
+  - `ChargeMoveRepository.is_power_herb_eligible(move_id)`
+- Added safe unknown handling:
+  - unknown moves return `None` for metadata
+  - unknown moves return `False` for charge move and Power Herb eligibility
+  - `None` move ids return safe unavailable-style results
+- Initial minimal move scope:
+  - `solar-beam`
+  - `solar-blade`
+  - `meteor-beam`
+  - `sky-attack`
+- Recorded deferred move candidates in fixture metadata:
+  - `skull-bash`
+  - `fly`
+  - `dig`
+  - `dive`
+  - `bounce`
+  - `razor-wind`
+  - `phantom-force`
+  - `shadow-force`
+  - `freeze-shock`
+  - `ice-burn`
+  - `geomancy`
+- Kept description parsing out of the repository.
+- Kept the repository independent from LLM modules.
+- Kept the repository independent from damage formula and raw damage roll modules.
+
+Verification:
+- `uv run pytest tests/test_charge_move_repository.py -q`: 14 passed.
+- `uv run pytest -q`: 853 passed, 2 deselected.
+
+Maintained boundaries:
+- No Power Herb `charge_context` implementation.
+- No LLM payload changes.
+- No `advisor_damage_estimate` connection.
+- No item consumption tracking.
+- No turn-sequence-adjusted KO probability.
+- No Turn Engine.
+- No weather interaction.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context modification.
+- No UI changes.
+- No sample additions.
+- No description parsing.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

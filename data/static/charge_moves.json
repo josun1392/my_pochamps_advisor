@@ -1,0 +1,88 @@
+{
+  "version": "charge_moves_v1",
+  "schema_notes": [
+    "Explicit curated metadata for limited charge-move usability context.",
+    "This fixture does not implement turn sequencing, weather, item consumption, or damage changes."
+  ],
+  "moves": {
+    "meteor-beam": {
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "standard_charge",
+      "known_exceptions": [
+        "secondary_effect_not_modeled"
+      ],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "Stat boost and secondary effects are not modeled."
+    },
+    "sky-attack": {
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "standard_charge",
+      "known_exceptions": [
+        "secondary_effect_not_modeled"
+      ],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "Secondary effects are not modeled."
+    },
+    "solar-beam": {
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "standard_charge",
+      "known_exceptions": [
+        "weather_interaction_not_modeled"
+      ],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "Weather interaction is not modeled."
+    },
+    "solar-blade": {
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "standard_charge",
+      "known_exceptions": [
+        "weather_interaction_not_modeled"
+      ],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "Weather interaction is not modeled."
+    }
+  },
+  "deferred_moves": {
+    "skull-bash": {
+      "reason": "present_in_some_repo_cache_paths_but_not_confirmed_for_initial_scope"
+    },
+    "fly": {
+      "reason": "semi_invulnerable_policy_deferred"
+    },
+    "dig": {
+      "reason": "semi_invulnerable_policy_deferred"
+    },
+    "dive": {
+      "reason": "semi_invulnerable_policy_deferred"
+    },
+    "bounce": {
+      "reason": "semi_invulnerable_policy_deferred"
+    },
+    "razor-wind": {
+      "reason": "not_observed_in_inspected_repo_cache_paths"
+    },
+    "phantom-force": {
+      "reason": "semi_invulnerable_policy_deferred"
+    },
+    "shadow-force": {
+      "reason": "not_observed_in_inspected_repo_cache_paths"
+    },
+    "freeze-shock": {
+      "reason": "not_observed_in_inspected_repo_cache_paths"
+    },
+    "ice-burn": {
+      "reason": "not_observed_in_inspected_repo_cache_paths"
+    },
+    "geomancy": {
+      "reason": "not_observed_in_inspected_repo_cache_paths"
+    }
+  }
+}
