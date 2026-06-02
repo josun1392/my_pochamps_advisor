@@ -5552,6 +5552,74 @@ Maintained boundaries:
 
 ---
 
+## v0.71 - Flinch prompt polish
+
+Purpose:
+- Improve King’s Rock `flinch_context` response wording after v0.70.1 local Gemini verification found safe but incomplete limitation visibility.
+
+Implemented:
+- Strengthened advisor prompt and payload contract wording for `flinch_context.available=true`.
+- Added explicit wording that:
+  - the raw damage estimate is unchanged
+  - raw `ko_context` is unchanged
+  - KO/OHKO/2HKO estimates do not include flinch chance
+  - final flinch probability is not calculated
+  - flinch-adjusted turn/outcome probability is not calculated
+  - speed order is not modeled
+  - target action state is not modeled
+  - abilities are not modeled
+  - multi-hit handling is not modeled
+  - turn sequencing is not modeled
+- Preserved King’s Rock wording:
+  - may add flinch pressure
+  - not a direct damage boost
+  - user-confirmed item only
+- Preserved no-invent guardrail:
+  - do not infer King’s Rock if item is unknown or unconfirmed
+  - do not force flinch limitation text when no `flinch_context` is present
+- Preserved definite-outcome guardrails:
+  - do not claim the target will flinch
+  - do not claim the target cannot move
+  - do not claim flinch is guaranteed
+- Updated `docs/advisor_payload_contract.md`.
+- Added payload contract tests for:
+  - limited flinch context wording
+  - raw damage unchanged wording
+  - raw `ko_context` unchanged wording
+  - KO/OHKO/2HKO estimates not including flinch chance
+  - final flinch probability not calculated
+  - flinch-adjusted outcome not calculated
+  - speed order / target action state / abilities / multi-hit handling / turn sequencing not modeled
+  - direct damage boost and definite flinch guardrails
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 26 passed.
+- `uv run pytest -q`: 832 passed, 2 deselected.
+
+Maintained boundaries:
+- No `flinch_context` structure changes.
+- No flinch calculation changes.
+- No final flinch probability.
+- No flinch-adjusted turn/outcome probability.
+- No speed/order integration.
+- No target action state.
+- No `ko_context` changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Turn Engine.
+- No ability/weather/item interaction implementation.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No perf threshold changes.
+- No skip or xfail.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+Next:
+- v0.71.1 local Gemini verification should confirm whether the strengthened flinch limitation sentence appears naturally.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

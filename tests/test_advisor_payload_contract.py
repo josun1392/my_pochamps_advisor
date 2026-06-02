@@ -802,8 +802,11 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "King's Rock may add flinch pressure" in prompt
     assert "not a direct damage boost" in prompt
     assert "flinch_context applies only when King's Rock is user-confirmed" in prompt
+    assert "say the raw damage estimate is unchanged and raw ko_context is unchanged" in prompt
     assert "Final flinch probability is not calculated" in prompt
     assert "Flinch-adjusted turn or outcome probability is not calculated" in prompt
+    assert "Include one concise limitation sentence that speed order, target action state, abilities" in prompt
+    assert "multi-hit handling, and turn sequencing are not modeled" in prompt
     assert "Do not claim the target will flinch" in prompt
     assert "cannot move" in prompt
     assert "flinch is guaranteed" in prompt
@@ -1002,7 +1005,15 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
+        "When flinch_context is available, say the raw damage estimate is unchanged and raw ko_context is unchanged."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
         "When flinch_context is available, keep flinch wording concise and mention that raw damage and KO/OHKO/2HKO estimates do not include flinch chance."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When flinch_context is available, include one concise limitation sentence that speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert "Final flinch probability is not calculated in flinch_context." in ADVISOR_KNOWN_LIMITATIONS

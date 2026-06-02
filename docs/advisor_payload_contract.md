@@ -650,6 +650,8 @@ The LLM must not say:
 
 When `flinch_context.available` is true, the flinch note should stay concise, ideally one or two sentences, and should mention that raw damage and KO/OHKO/2HKO estimates do not include flinch chance. It should also state that final flinch probability and flinch-adjusted turn or outcome probability are not calculated.
 
+When `flinch_context.available` is true, the LLM should say the raw damage estimate is unchanged and raw `ko_context` is unchanged. It should include one concise limitation sentence that speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled.
+
 If `flinch_context.available` is false, or no `flinch_context` is present for a move, the LLM should not invent King's Rock flinch effects or force a flinch limitation sentence.
 
 Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
