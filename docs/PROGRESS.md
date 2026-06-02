@@ -5775,6 +5775,90 @@ Maintained boundaries:
 
 ---
 
+## v0.74 - Power Herb / charge-turn context design
+
+Purpose:
+- Design a limited Power Herb charge-turn context after Loaded Dice `multi_hit_context` reached implementation and push.
+
+Designed:
+- Documented current state:
+  - `damage_estimate` provides raw damage min/max/rolls
+  - `ko_context` provides limited damage-roll KO/OHKO/2HKO context
+  - `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, and `multi_hit_context` are additive limited contexts
+  - Power Herb is not connected to the LLM payload path
+  - no LLM-facing charge move metadata, item consumption tracking, once-per-battle state, or Turn Engine exists
+  - inspected static item files did not show Power Herb metadata, so v0.75 needs either a small metadata source or a rule validation pass
+- Defined the problem:
+  - Power Herb is charge-move usability, not direct damage boost
+  - charge-turn behavior touches move eligibility, item consumption, weather, switching, protection, Speed/order, and final outcome simulation
+  - mixing Power Herb into raw damage or `ko_context` would imply unsupported turn sequencing or final KO claims
+- Proposed additive `charge_context`:
+  - mode: `limited_charge_move_context`
+  - attacker-side item: user-confirmed `power-herb`
+  - move-level sibling preferred
+  - move metadata should identify charge-move eligibility when available
+  - `effect_label`: `may_skip_charge_turn_for_eligible_move`
+  - `formula_label`: `power_herb_limited_charge_modifier`
+  - `raw_damage_rolls_changed: false`
+  - `ko_context_changed: false`
+  - `turn_sequence_integrated: false`
+  - `item_consumption_tracked: false`
+  - `is_final_battle_truth: false`
+- Compared placement options:
+  - move-level sibling field
+  - `damage_estimate` sibling if implementation structure requires it
+  - top-level `charge_context`
+- Recommended move-level sibling placement for v0.75.
+- Designed charge rule policy:
+  - label/formula only in first implementation
+  - no numeric final turn probability
+  - no charge-turn-adjusted KO probability
+  - no item consumption tracking
+  - validate charge move metadata, item legality, move eligibility, and Champions/PoChamps compatibility before stronger claims
+- Added LLM guardrail design:
+  - Power Herb may allow an eligible charge move to skip the charging turn
+  - raw damage estimates are unchanged
+  - raw `ko_context` is unchanged
+  - KO/OHKO/2HKO estimates do not include charge-turn sequencing
+  - item consumption is not tracked
+  - final turn outcome is not calculated
+  - do not infer Power Herb if item is unknown or unconfirmed
+  - do not claim Power Herb boosts damage directly
+  - do not claim the move definitely resolves in one turn unless eligibility and item state are explicitly modeled
+- Added future test plan for:
+  - user-confirmed Power Herb + charge move metadata availability
+  - unknown/unconfirmed/no Power Herb unavailable behavior
+  - move-not-charge and missing charge metadata behavior
+  - raw damage unchanged
+  - `ko_context` unchanged
+  - OHKO chance unchanged
+  - my move and opponent known move direction
+  - candidate moves excluded
+  - prompt guardrails
+  - existing Loaded Dice, King's Rock, Scope Lens, Bright Powder, recovery, KO, and Focus Sash regressions
+
+v0.75 recommendation:
+- `v0.75 - Power Herb Limited Charge Context Implementation` if a small explicit charge move metadata source can be safely defined without fixture churn.
+- Alternative: `v0.75 - Charge Move Rule Validation Design` if T1/T2 want Power Herb legality, move eligibility, charge metadata availability, or weather exceptions validated first.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No `charge_context` implementation.
+- No item consumption tracking.
+- No turn-sequence-adjusted KO probability.
+- No Turn Engine.
+- No charge move damage modification.
+- No weather interaction.
+- No KO context modification.
+- No raw damage roll modification.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
