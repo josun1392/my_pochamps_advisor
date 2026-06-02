@@ -6299,6 +6299,65 @@ Maintained boundaries:
 
 ---
 
+## v0.80 - Legal item gate implementation
+
+Purpose:
+- Gate user-facing modeled item contexts by Champions legal item fixture coverage.
+
+Implemented:
+- Added `core/champions_legal_item_repository.py` as a thin legal gate helper around the existing `ChampionsItemRepository`.
+- Added `llm/advisor_item_legal_gate.py` for LLM item-context blocking.
+- Added stable blocked reason:
+  - `blocked_by_legal_item_coverage`
+- Added safe helper behavior:
+  - `is_champions_legal_item(item_id)`
+  - `get_legal_item_status(item_id)`
+  - unknown/empty item ids return false safely
+  - normalization handles case, spaces, and underscores through existing item normalization
+- Applied legal gate to item context helpers:
+  - Focus Sash `survival_context`
+  - Sitrus / Leftovers `recovery_context`
+  - Bright Powder `accuracy_context`
+  - Scope Lens `critical_context`
+  - King's Rock `flinch_context`
+  - Loaded Dice `multi_hit_context`
+- Preserved existing legal item contexts:
+  - Focus Sash remains available when legal/user-confirmed/full HP/lethal conditions pass
+  - Sitrus Berry / Leftovers remain available when legal/user-confirmed/max HP conditions pass
+  - Bright Powder remains available when legal/user-confirmed/move accuracy conditions pass
+  - Scope Lens remains available when legal/user-confirmed conditions pass
+  - King's Rock remains available when legal/user-confirmed conditions pass
+- Blocked Loaded Dice user-facing modeled context because `loaded-dice` is absent from `data/static/champions_legal_items.json`.
+- Kept Power Herb blocked and did not add `charge_context`.
+- Updated `docs/advisor_payload_contract.md`:
+  - Champions legal fixture is the user-facing item context gate
+  - `items.json` / `items_damage.json` are not legal coverage sources
+  - `charge_moves.json` is move metadata and not Power Herb legality
+  - Loaded Dice is blocked/future-only until legal coverage is confirmed
+  - Power Herb remains blocked
+
+Verification:
+- `uv run pytest tests/test_champions_item_repository.py tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`: 139 passed.
+- `uv run pytest -q`: 866 passed, 2 deselected.
+
+Maintained boundaries:
+- No legal fixture mutation.
+- No Loaded Dice legal addition.
+- No Power Herb legal addition.
+- No Power Herb `charge_context` implementation.
+- No Loaded Dice behavior expansion.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context calculation change beyond legal-gated absence for non-legal item context.
+- No Turn Engine.
+- No item consumption tracking.
+- No UI changes.
+- No sample additions.
+- No external research.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

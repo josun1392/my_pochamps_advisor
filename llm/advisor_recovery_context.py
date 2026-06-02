@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from llm.advisor_item_legal_gate import legal_item_context_block_reason
+
 
 RECOVERY_CONTEXT_MODE = "limited_item_recovery_context"
 SUPPORTED_RECOVERY_ITEMS = {"sitrus-berry", "leftovers"}
@@ -45,6 +47,9 @@ def build_recovery_context(
         return _unavailable(base, "item_not_user_confirmed")
     if item_id not in SUPPORTED_RECOVERY_ITEMS:
         return _unavailable(base, "no_recovery_item")
+    legal_block_reason = legal_item_context_block_reason(item_id)
+    if legal_block_reason is not None:
+        return _unavailable(base, legal_block_reason)
 
     max_hp = _defender_max_hp(battle_input, damage_estimate, defender_key)
     if max_hp is None:

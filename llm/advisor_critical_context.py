@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from llm.advisor_item_legal_gate import legal_item_context_block_reason
+
 
 CRITICAL_CONTEXT_MODE = "limited_critical_context"
 SCOPE_LENS_ITEM_ID = "scope-lens"
@@ -39,6 +41,9 @@ def build_critical_context(
         return _unavailable(base, "item_not_user_confirmed")
     if item_id != SCOPE_LENS_ITEM_ID:
         return _unavailable(base, "no_scope_lens")
+    legal_block_reason = legal_item_context_block_reason(item_id)
+    if legal_block_reason is not None:
+        return _unavailable(base, legal_block_reason)
 
     return {
         **base,

@@ -912,31 +912,18 @@ def test_flinch_context_for_opponent_known_move_targets_opponent_active_and_excl
     assert "multi_hit_context" not in candidate_move
 
 
-def test_multi_hit_context_available_for_user_confirmed_loaded_dice() -> None:
+def test_multi_hit_context_blocks_user_confirmed_loaded_dice_without_legal_coverage() -> None:
     payload = _battle_input(selected_move=_bullet_seed())
     payload["item_profiles"] = _item_profiles(my_item="loaded-dice")
 
     result = attach_selected_move_damage_estimate(payload)
 
     context = result["moves"]["my_selected_move"]["multi_hit_context"]
-    assert context["available"] is True
+    assert context["available"] is False
     assert context["mode"] == "limited_multi_hit_context"
     assert context["scope"] == "selected_move_only"
     assert context["attacker_side"] == "my_active"
-    assert context["item"] == {"item_id": "loaded-dice", "status": "user_confirmed"}
-    assert context["move_metadata"] == {
-        "is_multi_hit": True,
-        "metadata_source": "move_metadata",
-        "multi_hit_known": True,
-    }
-    assert context["multi_hit_effect"]["type"] == "loaded_dice"
-    assert context["multi_hit_effect"]["effect_label"] == "may_improve_multi_hit_reliability"
-    assert context["multi_hit_effect"]["formula_label"] == "loaded_dice_limited_multihit_modifier"
-    assert context["multi_hit_effect"]["hit_count_probability_integrated"] is False
-    assert context["multi_hit_effect"]["multi_hit_adjusted_ko_integrated"] is False
-    assert context["multi_hit_effect"]["raw_damage_rolls_changed"] is False
-    assert context["multi_hit_effect"]["ko_context_changed"] is False
-    assert context["is_final_battle_truth"] is False
+    assert context["reason"] == "blocked_by_legal_item_coverage"
 
 
 def test_multi_hit_context_requires_user_confirmed_loaded_dice() -> None:
@@ -970,7 +957,7 @@ def test_multi_hit_context_unavailable_for_non_multi_hit_move() -> None:
 
     context = result["moves"]["my_selected_move"]["multi_hit_context"]
     assert context["available"] is False
-    assert context["reason"] == "move_not_multi_hit"
+    assert context["reason"] == "blocked_by_legal_item_coverage"
 
 
 def test_multi_hit_context_requires_move_metadata() -> None:
@@ -986,7 +973,7 @@ def test_multi_hit_context_requires_move_metadata() -> None:
     )
 
     assert context["available"] is False
-    assert context["reason"] == "move_multihit_metadata_missing"
+    assert context["reason"] == "blocked_by_legal_item_coverage"
 
 
 def test_multi_hit_context_does_not_change_raw_damage_or_ko_context() -> None:
@@ -1009,7 +996,8 @@ def test_multi_hit_context_does_not_change_raw_damage_or_ko_context() -> None:
     result = attach_selected_move_damage_estimate(payload)
 
     move = result["moves"]["my_selected_move"]
-    assert move["multi_hit_context"]["available"] is True
+    assert move["multi_hit_context"]["available"] is False
+    assert move["multi_hit_context"]["reason"] == "blocked_by_legal_item_coverage"
     assert move["damage_estimate"]["damage_range"] == baseline_estimate["damage_range"]
     assert move["damage_estimate"]["rolls"] == baseline_estimate["rolls"]
     assert move["ko_context"]["ohko"] == baseline_ko["ohko"]
@@ -1029,10 +1017,20 @@ def test_multi_hit_context_for_opponent_known_move_targets_opponent_active_and_e
     known_move = result["opponent_moves"]["known_moves"][0]
     candidate_move = result["opponent_moves"]["candidate_moves"][0]
     context = known_move["multi_hit_context"]
-    assert context["available"] is True
+    assert context["available"] is False
+    assert context["reason"] == "blocked_by_legal_item_coverage"
     assert context["scope"] == "opponent_known_move_only"
     assert context["attacker_side"] == "opponent_active"
     assert "multi_hit_context" not in candidate_move
+
+
+def test_power_herb_remains_blocked_without_charge_context() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(my_item="power-herb")
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    assert "charge_context" not in result["moves"]["my_selected_move"]
 
 
 def test_focus_sash_survival_context_for_my_move_when_full_hp_and_could_be_lethal() -> None:

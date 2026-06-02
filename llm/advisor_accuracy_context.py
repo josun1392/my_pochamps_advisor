@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from llm.advisor_item_legal_gate import legal_item_context_block_reason
+
 
 ACCURACY_CONTEXT_MODE = "limited_accuracy_context"
 BRIGHT_POWDER_ITEM_ID = "bright-powder"
@@ -40,6 +42,9 @@ def build_accuracy_context(
         return _unavailable(base, "item_not_user_confirmed")
     if item_id != BRIGHT_POWDER_ITEM_ID:
         return _unavailable(base, "no_bright_powder")
+    legal_block_reason = legal_item_context_block_reason(item_id)
+    if legal_block_reason is not None:
+        return _unavailable(base, legal_block_reason)
 
     base_accuracy = _move_accuracy(move)
     if base_accuracy is None:

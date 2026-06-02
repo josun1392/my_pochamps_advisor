@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from llm.advisor_item_legal_gate import legal_item_context_block_reason
+
 
 SURVIVAL_CONTEXT_MODE = "limited_item_survival_context"
 FOCUS_SASH_LIMITATIONS = [
@@ -42,6 +44,9 @@ def build_focus_sash_survival_context(
         return _unavailable(base, "item_not_user_confirmed")
     if item_id != "focus-sash":
         return _unavailable(base, "no_focus_sash")
+    legal_block_reason = legal_item_context_block_reason(item_id)
+    if legal_block_reason is not None:
+        return _unavailable(base, legal_block_reason)
 
     hp_state = _defender_hp_state(battle_input, damage_estimate, defender_key)
     if hp_state["status"] == "unknown":

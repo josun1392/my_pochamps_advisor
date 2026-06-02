@@ -14,6 +14,12 @@ from core.champions_item_repository import (
     load_item_names_ko,
     normalize_item_id,
 )
+from core.champions_legal_item_repository import (
+    BLOCKED_BY_LEGAL_ITEM_COVERAGE,
+    UNKNOWN_ITEM,
+    get_legal_item_status,
+    is_champions_legal_item,
+)
 
 
 REQUIRED_ITEM_FIELDS = {
@@ -200,6 +206,47 @@ def test_unknown_item_classifies_as_unknown() -> None:
     assert classification["legality_status"] == UNKNOWN
     assert classification["effect_support_status"] == UNKNOWN
     assert classification["ui_status"] == UNKNOWN
+
+
+@pytest.mark.parametrize(
+    "item_id",
+    [
+        "charcoal",
+        "choice-scarf",
+        "focus-sash",
+        "sitrus-berry",
+        "leftovers",
+        "bright-powder",
+        "scope-lens",
+        "kings-rock",
+    ],
+)
+def test_champions_legal_item_gate_allows_known_legal_context_items(item_id: str) -> None:
+    assert is_champions_legal_item(item_id) is True
+    status = get_legal_item_status(item_id)
+    assert status["legal"] is True
+    assert status["reason"] is None
+
+
+@pytest.mark.parametrize("item_id", ["loaded-dice", "power-herb"])
+def test_champions_legal_item_gate_blocks_unlisted_future_items(item_id: str) -> None:
+    assert is_champions_legal_item(item_id) is False
+    status = get_legal_item_status(item_id)
+    assert status["legal"] is False
+    assert status["reason"] == BLOCKED_BY_LEGAL_ITEM_COVERAGE
+
+
+def test_champions_legal_item_gate_handles_unknown_and_empty_items_safely() -> None:
+    assert is_champions_legal_item("mystery-item") is False
+    assert get_legal_item_status("mystery-item")["reason"] == BLOCKED_BY_LEGAL_ITEM_COVERAGE
+    assert is_champions_legal_item(None) is False
+    assert get_legal_item_status(None)["reason"] == UNKNOWN_ITEM
+
+
+def test_champions_legal_item_gate_normalizes_case_spaces_and_underscores() -> None:
+    assert is_champions_legal_item("Choice Scarf") is True
+    assert is_champions_legal_item("choice_scarf") is True
+    assert get_legal_item_status("Choice Scarf")["item_id"] == "choice-scarf"
 
 
 def test_list_legal_items_returns_only_legal_fixture_items() -> None:

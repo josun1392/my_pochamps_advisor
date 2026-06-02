@@ -310,6 +310,22 @@ Legal item modeling examples:
 - Focus Sash: selectable; its limited survival context may be included only when user-confirmed and full HP. It is not damage reduction and does not change raw damage estimates.
 - Leftovers / Sitrus Berry: selectable; limited recovery context may be included only when user-confirmed and max HP is available. Exact turn sequencing and item consumption are not modeled.
 
+### Legal Item Gate
+
+User-facing modeled item contexts require Champions legal item coverage from `data/static/champions_legal_items.json`.
+
+The following are not legal coverage sources by themselves:
+
+- `data/static/items.json`
+- `data/static/items_damage.json`
+- context helper existence
+- engine/debug metadata
+- `data/static/charge_moves.json`
+
+If an item is user-confirmed but absent from the Champions legal item fixture, the payload must not emit a modeled item context for that item. The stable unavailable reason is `blocked_by_legal_item_coverage`.
+
+Loaded Dice is currently implemented as future-only multi-hit context support but is blocked from user-facing modeled context until Loaded Dice legal coverage is confirmed. Power Herb remains blocked; `charge_moves.json` is move metadata and does not establish Power Herb legality.
+
 `damage_estimate.item_effects` is the source of truth for whether an item effect was applied to a specific calculation.
 
 When `damage_estimate.item_effects.attacker_item.status` is `applied`, the LLM should explicitly mention that the supported item damage modifier is included in that estimate. It should describe the number as being calculated under the stated assumptions plus the supported item modifier, not as only default assumptions. Non-damage item effects remain unmodeled.
@@ -662,10 +678,11 @@ Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_
 
 `multi_hit_context` does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, item damage modifier math, or `ko_context`.
 
-In v0.73, the only modeled multi-hit context is limited Loaded Dice context:
+In v0.73, the only implemented multi-hit context helper is limited Loaded Dice context. In v0.80, Loaded Dice is blocked from user-facing modeled context until Champions legal coverage is confirmed:
 
 - attacker item profile must be `status: user_confirmed`
 - attacker item id must be `loaded-dice`
+- attacker item id must also pass the Champions legal item gate
 - move metadata must identify the move as multi-hit
 - final hit count probability is not calculated
 - multi-hit-adjusted KO probability is not calculated
@@ -674,6 +691,8 @@ In v0.73, the only modeled multi-hit context is limited Loaded Dice context:
 - Focus Sash interaction, King's Rock interaction, accuracy/crit per-hit handling, and turn sequencing are not modeled
 
 Available Loaded Dice context may include:
+
+Note: while `loaded-dice` is absent from `data/static/champions_legal_items.json`, this available shape is future-only and should not appear in user-facing payloads.
 
 - `mode`: `limited_multi_hit_context`
 - `available`: `true`
@@ -696,6 +715,7 @@ Unavailable reason codes include:
 
 - `no_loaded_dice`
 - `item_not_user_confirmed`
+- `blocked_by_legal_item_coverage`
 - `unsupported_multi_hit_item`
 - `move_not_multi_hit`
 - `move_multihit_metadata_missing`

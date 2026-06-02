@@ -1048,14 +1048,17 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         "Speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled for flinch_context."
         in ADVISOR_KNOWN_LIMITATIONS
     )
-    assert "Loaded Dice multi-hit context may appear only as limited multi_hit_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Loaded Dice multi-hit context is blocked/future-only until Loaded Dice legal coverage is confirmed."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
     assert "multi_hit_context does not change raw damage_range or rolls." in ADVISOR_KNOWN_LIMITATIONS
     assert (
         "ko_context is unchanged by multi_hit_context and KO/OHKO/2HKO estimates do not include multi-hit count changes."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "multi_hit_context applies only when Loaded Dice is user-confirmed and move multi-hit metadata is available."
+        "multi_hit_context applies only when Loaded Dice is user-confirmed, legal coverage is confirmed, and move multi-hit metadata is available."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
@@ -1082,6 +1085,26 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "Focus Sash, King's Rock, accuracy, crit per-hit handling, and turn sequencing are not modeled for multi_hit_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "User-facing modeled item contexts require Champions legal item coverage from data/static/champions_legal_items.json."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "items.json and items_damage.json are item/effect metadata, not Champions legal coverage sources."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "If a user-confirmed item is absent from the Champions legal item fixture, do not emit modeled item context; use blocked_by_legal_item_coverage."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Loaded Dice multi-hit context is blocked/future-only until Loaded Dice legal coverage is confirmed."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Power Herb remains blocked; charge_moves.json is move metadata and does not establish Power Herb legality."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
