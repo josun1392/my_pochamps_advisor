@@ -5469,6 +5469,89 @@ Maintained boundaries:
 
 ---
 
+## v0.70.1 - King's Rock flinch local Gemini verification
+
+Purpose:
+- Record local Gemini actual-call verification for the v0.70 limited King's Rock `flinch_context`.
+
+Observed local case:
+- Case A - my Pokemon has user-confirmed King's Rock:
+  - Player Pokemon: Charizard.
+  - Player item: King's Rock.
+  - Item status: `user_confirmed`.
+  - Selected move: Flamethrower.
+  - Opponent Pokemon: Garchomp.
+  - Opponent current/max HP available through user-confirmed stat profile.
+  - Payload check before call:
+    - `flinch_context.available: true`
+    - `flinch_effect.effect_label: may_add_flinch_pressure`
+    - `damage_estimate.damage_range: 31-37`
+    - `ko_context.available: true`
+
+Gemini response:
+- "Use Flamethrower. It deals 31-37 HP (16.9-20.2%) damage, but is not very effective. Your Charizard's King's Rock may add flinch pressure, but final flinch probability is not modeled. Charizard's attacking stats are based on default assumptions."
+
+Confirmed behavior:
+- Gemini actual call succeeded.
+- User-confirmed King's Rock was mentioned.
+- Limited flinch context wording appeared:
+  - "may add flinch pressure"
+  - "final flinch probability is not modeled"
+- Raw damage estimate was preserved:
+  - response repeated `31-37 HP`
+  - no wording claimed King's Rock changed the damage range
+- `ko_context` / flinch chance separation was safe but incomplete:
+  - response did not say KO/OHKO/2HKO estimates include flinch chance
+  - response did not explicitly say KO/OHKO/2HKO estimates do not include flinch chance
+- Final flinch probability was not claimed.
+- Flinch-adjusted turn/outcome probability was not claimed.
+- No direct damage boost hallucination appeared.
+- No "will flinch", "cannot move", or "guaranteed flinch" wording appeared.
+- No unknown/unconfirmed item inference appeared.
+
+Limitation visibility:
+- Mentioned:
+  - final flinch probability is not modeled
+  - default attacking-stat assumptions
+- Missing or weak:
+  - KO/OHKO/2HKO estimates do not include flinch chance
+  - flinch-adjusted turn/outcome probability is not calculated
+  - speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled
+
+Verdict:
+- v0.70.1 local Gemini verification: PARTIAL PASS.
+- Safety: PASS.
+- King's Rock visibility: PASS.
+- Limited flinch context: PASS.
+- `ko_context` / flinch chance separation: PARTIAL.
+- Limitation visibility: PARTIAL.
+
+Next candidates:
+- `v0.71 - Flinch Prompt Polish`.
+- `v0.71 - Loaded Dice / Multi-hit Context Design`.
+- `v0.71 - Local Gemini Verification Batch`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No UI changes.
+- No fixture changes.
+- No schema changes.
+- No prompt changes.
+- No tests changed.
+- No `flinch_context` changes.
+- No `ko_context` changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No final flinch probability implementation.
+- No flinch-adjusted outcome implementation.
+- No speed/order integration.
+- No target action state.
+- No Turn Engine.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
