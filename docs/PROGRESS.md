@@ -5859,6 +5859,107 @@ Maintained boundaries:
 
 ---
 
+## v0.75 - Charge move rule validation design
+
+Purpose:
+- Validate the repo-native rule sources needed before implementing Power Herb `charge_context`.
+
+Investigated:
+- `docs/spike_v0.74_power_herb_charge_context_design.md`
+- `llm/advisor_damage_estimate.py`
+- `llm/advisor_payload_contract.py`
+- `docs/advisor_payload_contract.md`
+- `advisor/damage/items.py`
+- `advisor/damage/item_modifiers.py`
+- `data/static/items.json`
+- `data/static/items_damage.json`
+- `data/static/champions_legal_items.json`
+- `data/static/moves.json` - not present
+- `data/cache/moves/` - not present
+- `data/cache/pokeapi/moves/`
+- `tests/test_advisor_damage_estimate.py`
+- `tests/test_advisor_payload_contract.py`
+
+Validated:
+- Power Herb is not currently implemented as `charge_context`.
+- `data/static/moves.json` is not present.
+- `data/cache/moves/` is not present.
+- `data/cache/pokeapi/moves/` is present, but the inspected cache/index shape is not a reliable LLM-facing charge metadata source.
+- Champions movepool cache entries are present and include normalized move ids such as `solar-beam`, `meteor-beam`, `sky-attack`, `fly`, `dig`, `dive`, `bounce`, and `solar-blade`.
+- Champions movepool move entries expose ordinary move metadata such as `move_id`, names, type, category, power, accuracy, pp, source refs, confidence, and metadata source.
+- No confirmed repo-native charge-turn field such as `is_charge_move`, `charge_turn`, `two_turn`, or `power_herb_eligible` was found.
+- `data/static/move_flags.json` exists, but does not provide charge/charging flags.
+- `core.move_repository.MoveView` exposes move id/name/type/category/power/accuracy/pp only.
+- `data/static/items.json`, `data/static/items_damage.json`, and `data/static/champions_legal_items.json` do not contain a confirmed `power-herb` entry.
+- Champions legality for Power Herb is not confirmed in the current inspected static item files.
+- Move ids are already normalized as lowercase hyphenated ids in payload/cache paths; item normalization elsewhere uses strip/lowercase plus apostrophe removal and space/underscore-to-hyphen conversion.
+
+Designed:
+- Compared candidate rule sources:
+  - use existing move metadata field if a future field exists
+  - add a curated static charge move fixture, such as `data/static/charge_moves.json`
+  - parse move descriptions
+  - remain unsupported until explicit metadata exists
+- Recommended against description parsing because it is brittle and not repo-native.
+- Recommended `v0.76 - Charge Move Metadata Fixture Design` before implementation.
+- Deferred `Power Herb Limited Charge Context Implementation` until charge move metadata and eligibility policy are approved.
+- Defined eligibility policy:
+  - user-confirmed Power Herb only
+  - explicit charge metadata required
+  - normalized lowercase hyphenated move ids
+  - non-charge moves return `move_not_charge_move`
+  - missing metadata returns `move_charge_metadata_missing`
+  - no Power Herb returns `no_power_herb`
+  - unconfirmed Power Herb returns `item_not_user_confirmed`
+  - unsupported charge item returns `unsupported_charge_item`
+  - weather exceptions remain out of scope
+- Preserved safety policy:
+  - raw damage unchanged
+  - raw `ko_context` unchanged
+  - `turn_sequence_integrated=false`
+  - `item_consumption_tracked=false`
+  - final turn outcome not calculated
+  - item already consumed state not inferred
+  - unknown/unconfirmed Power Herb not inferred
+
+Future test plan:
+- known charge move + user-confirmed Power Herb -> `charge_context.available=true`
+- non-charge move + user-confirmed Power Herb -> `move_not_charge_move`
+- missing metadata -> `move_charge_metadata_missing`
+- no Power Herb -> `no_power_herb`
+- unconfirmed Power Herb -> `item_not_user_confirmed`
+- raw damage min/max/rolls unchanged
+- `ko_context` unchanged
+- candidate moves excluded
+- prompt guardrails
+- existing context regressions
+- full pytest
+
+v0.76 recommendation:
+- Prefer `v0.76 - Charge Move Metadata Fixture Design`.
+- Keep description parsing forbidden.
+- Consider static allowlist implementation only after fixture schema, source notes, and eligibility policy are approved.
+- Continue excluding weather interaction, item consumption tracking, Turn Engine, and turn-sequence-adjusted KO probability.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No `charge_context` implementation.
+- No fixture implementation.
+- No allowlist implementation.
+- No item consumption tracking.
+- No turn-sequence-adjusted KO probability.
+- No Turn Engine.
+- No weather interaction.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context modification.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
