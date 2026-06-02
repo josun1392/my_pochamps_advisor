@@ -5706,6 +5706,75 @@ Maintained boundaries:
 
 ---
 
+## v0.73 - Loaded Dice limited multi-hit context
+
+Purpose:
+- Add limited Loaded Dice `multi_hit_context` as an additive move-level sibling without changing raw damage rolls or KO context.
+
+Implemented:
+- Added `llm/advisor_multi_hit_context.py`.
+- Attached additive `multi_hit_context` to:
+  - my selected move
+  - my available moves
+  - opponent user-confirmed known moves
+- Limited modeled availability to:
+  - attacker item `loaded-dice`
+  - item `status: user_confirmed`
+  - move metadata identifying a multi-hit move
+- Added unavailable reason handling for:
+  - `no_loaded_dice`
+  - `item_not_user_confirmed`
+  - `move_not_multi_hit`
+  - `move_multihit_metadata_missing`
+  - `damage_estimate_missing`
+- Kept candidate moves excluded from `multi_hit_context`.
+- Added Loaded Dice to legal-but-not-modeled item effect reporting as `multi_hit`.
+
+Payload behavior:
+- `multi_hit_context.mode`: `limited_multi_hit_context`
+- `multi_hit_effect.effect_label`: `may_improve_multi_hit_reliability`
+- `multi_hit_effect.formula_label`: `loaded_dice_limited_multihit_modifier`
+- `raw_damage_rolls_changed: false`
+- `ko_context_changed: false`
+- `hit_count_probability_integrated: false`
+- `multi_hit_adjusted_ko_integrated: false`
+- `is_final_battle_truth: false`
+
+Guardrails:
+- Loaded Dice may improve multi-hit reliability for eligible moves.
+- Raw damage estimates are unchanged.
+- Raw `ko_context` is unchanged.
+- KO/OHKO/2HKO estimates do not include multi-hit count changes.
+- Final hit count probability is not calculated.
+- Multi-hit-adjusted KO probability is not calculated.
+- Do not claim a specific number of hits will occur or that 5 hits are guaranteed.
+- Do not claim Loaded Dice breaks Focus Sash unless explicitly modeled.
+- Do not infer Loaded Dice if item is unknown or unconfirmed.
+- Do not describe Loaded Dice as a direct damage boost.
+- Focus Sash / King's Rock / accuracy / crit per-hit handling and turn sequencing are not modeled.
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`: 104 passed.
+- `uv run pytest -q`: 839 passed, 2 deselected.
+
+Maintained boundaries:
+- No final hit count probability.
+- No multi-hit-adjusted KO probability.
+- No multi-hit damage aggregation.
+- No Focus Sash interaction implementation.
+- No King's Rock multi-hit interaction implementation.
+- No accuracy/crit per-hit modeling.
+- No Turn Engine.
+- No KO context modification.
+- No raw damage roll modification.
+- No damage formula changes.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

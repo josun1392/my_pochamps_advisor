@@ -24,6 +24,7 @@ from llm.advisor_accuracy_context import build_accuracy_context
 from llm.advisor_critical_context import build_critical_context
 from llm.advisor_flinch_context import build_flinch_context
 from llm.advisor_ko_context import build_ko_context
+from llm.advisor_multi_hit_context import build_multi_hit_context
 from llm.advisor_recovery_context import build_recovery_context
 from llm.advisor_survival_context import build_focus_sash_survival_context
 
@@ -57,6 +58,7 @@ LEGAL_UNMODELED_ITEM_EFFECTS = {
     "quick-claw": ["speed_order"],
     "scope-lens": ["critical_hit"],
     "kings-rock": ["flinch"],
+    "loaded-dice": ["multi_hit"],
 }
 
 
@@ -106,6 +108,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
                     attacker_key="my_active",
                     scope="available_move_comparison",
                 )
+                move["multi_hit_context"] = build_multi_hit_context(
+                    result,
+                    estimate,
+                    move,
+                    attacker_key="my_active",
+                    scope="available_move_comparison",
+                )
                 move["survival_context"] = build_focus_sash_survival_context(
                     result,
                     estimate,
@@ -149,6 +158,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
             attacker_key="my_active",
             scope="selected_move_only",
         )
+        selected_move["multi_hit_context"] = build_multi_hit_context(
+            result,
+            estimate,
+            selected_move,
+            attacker_key="my_active",
+            scope="selected_move_only",
+        )
         selected_move["survival_context"] = build_focus_sash_survival_context(
             result,
             estimate,
@@ -187,6 +203,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
             "flinch_context": build_flinch_context(
                 result,
                 estimate,
+                attacker_key="my_active",
+                scope="selected_move_only",
+            ),
+            "multi_hit_context": build_multi_hit_context(
+                result,
+                estimate,
+                None,
                 attacker_key="my_active",
                 scope="selected_move_only",
             ),
@@ -244,6 +267,13 @@ def attach_opponent_known_move_damage_estimates(battle_input: dict[str, Any]) ->
             move["flinch_context"] = build_flinch_context(
                 result,
                 estimate,
+                attacker_key="opponent_active",
+                scope="opponent_known_move_only",
+            )
+            move["multi_hit_context"] = build_multi_hit_context(
+                result,
+                estimate,
+                move,
                 attacker_key="opponent_active",
                 scope="opponent_known_move_only",
             )

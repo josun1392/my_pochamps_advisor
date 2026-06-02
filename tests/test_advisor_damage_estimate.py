@@ -10,6 +10,7 @@ from llm.advisor_accuracy_context import build_accuracy_context
 from llm.advisor_critical_context import build_critical_context
 from llm.advisor_flinch_context import build_flinch_context
 from llm.advisor_ko_context import build_ko_context
+from llm.advisor_multi_hit_context import build_multi_hit_context
 from llm.advisor_recovery_context import build_recovery_context
 
 
@@ -238,6 +239,7 @@ def test_attach_opponent_known_damage_skips_candidate_moves() -> None:
     assert "accuracy_context" not in candidate_move
     assert "critical_context" not in candidate_move
     assert "flinch_context" not in candidate_move
+    assert "multi_hit_context" not in candidate_move
     assert "damage_estimate" not in payload["opponent_moves"]["known_moves"][0]
 
 
@@ -415,6 +417,7 @@ def test_ko_context_attaches_to_opponent_known_move_and_excludes_candidates() ->
     assert "ko_context" not in candidate_move
     assert "critical_context" not in candidate_move
     assert "flinch_context" not in candidate_move
+    assert "multi_hit_context" not in candidate_move
 
 
 def test_ko_context_coexists_with_focus_sash_without_integrating_survival() -> None:
@@ -572,6 +575,7 @@ def test_recovery_context_for_opponent_known_move_targets_my_active() -> None:
     assert "recovery_context" not in candidate_move
     assert "critical_context" not in candidate_move
     assert "flinch_context" not in candidate_move
+    assert "multi_hit_context" not in candidate_move
 
 
 def test_accuracy_context_available_for_user_confirmed_bright_powder() -> None:
@@ -690,6 +694,7 @@ def test_accuracy_context_for_opponent_known_move_targets_my_active_and_excludes
     assert "accuracy_context" not in candidate_move
     assert "critical_context" not in candidate_move
     assert "flinch_context" not in candidate_move
+    assert "multi_hit_context" not in candidate_move
 
 
 def test_critical_context_available_for_user_confirmed_scope_lens() -> None:
@@ -797,6 +802,7 @@ def test_critical_context_for_opponent_known_move_targets_opponent_active_and_ex
     assert context["attacker_side"] == "opponent_active"
     assert "critical_context" not in candidate_move
     assert "flinch_context" not in candidate_move
+    assert "multi_hit_context" not in candidate_move
 
 
 def test_flinch_context_available_for_user_confirmed_kings_rock() -> None:
@@ -903,6 +909,130 @@ def test_flinch_context_for_opponent_known_move_targets_opponent_active_and_excl
     assert context["scope"] == "opponent_known_move_only"
     assert context["attacker_side"] == "opponent_active"
     assert "flinch_context" not in candidate_move
+    assert "multi_hit_context" not in candidate_move
+
+
+def test_multi_hit_context_available_for_user_confirmed_loaded_dice() -> None:
+    payload = _battle_input(selected_move=_bullet_seed())
+    payload["item_profiles"] = _item_profiles(my_item="loaded-dice")
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["multi_hit_context"]
+    assert context["available"] is True
+    assert context["mode"] == "limited_multi_hit_context"
+    assert context["scope"] == "selected_move_only"
+    assert context["attacker_side"] == "my_active"
+    assert context["item"] == {"item_id": "loaded-dice", "status": "user_confirmed"}
+    assert context["move_metadata"] == {
+        "is_multi_hit": True,
+        "metadata_source": "move_metadata",
+        "multi_hit_known": True,
+    }
+    assert context["multi_hit_effect"]["type"] == "loaded_dice"
+    assert context["multi_hit_effect"]["effect_label"] == "may_improve_multi_hit_reliability"
+    assert context["multi_hit_effect"]["formula_label"] == "loaded_dice_limited_multihit_modifier"
+    assert context["multi_hit_effect"]["hit_count_probability_integrated"] is False
+    assert context["multi_hit_effect"]["multi_hit_adjusted_ko_integrated"] is False
+    assert context["multi_hit_effect"]["raw_damage_rolls_changed"] is False
+    assert context["multi_hit_effect"]["ko_context_changed"] is False
+    assert context["is_final_battle_truth"] is False
+
+
+def test_multi_hit_context_requires_user_confirmed_loaded_dice() -> None:
+    payload = _battle_input(selected_move=_bullet_seed())
+    payload["item_profiles"] = _item_profiles(my_item="loaded-dice")
+    payload["item_profiles"]["my_active"]["status"] = "unknown"
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["multi_hit_context"]
+    assert context["available"] is False
+    assert context["reason"] == "item_not_user_confirmed"
+
+
+def test_multi_hit_context_unavailable_without_loaded_dice() -> None:
+    payload = _battle_input(selected_move=_bullet_seed())
+    payload["item_profiles"] = _item_profiles(my_item=None)
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["multi_hit_context"]
+    assert context["available"] is False
+    assert context["reason"] == "no_loaded_dice"
+
+
+def test_multi_hit_context_unavailable_for_non_multi_hit_move() -> None:
+    payload = _battle_input(selected_move=_air_slash())
+    payload["item_profiles"] = _item_profiles(my_item="loaded-dice")
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["multi_hit_context"]
+    assert context["available"] is False
+    assert context["reason"] == "move_not_multi_hit"
+
+
+def test_multi_hit_context_requires_move_metadata() -> None:
+    payload = _battle_input(selected_move=_bullet_seed())
+    payload["item_profiles"] = _item_profiles(my_item="loaded-dice")
+
+    context = build_multi_hit_context(
+        payload,
+        _ko_damage_estimate(),
+        {"name_en": "Mystery Strike", "power": 50, "category": "physical"},
+        attacker_key="my_active",
+        scope="selected_move_only",
+    )
+
+    assert context["available"] is False
+    assert context["reason"] == "move_multihit_metadata_missing"
+
+
+def test_multi_hit_context_does_not_change_raw_damage_or_ko_context() -> None:
+    payload = _battle_input(selected_move=_bullet_seed())
+    payload["item_profiles"] = _item_profiles(my_item="loaded-dice")
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=35),
+    }
+    baseline = _battle_input(selected_move=_bullet_seed())
+    baseline["stat_profiles"] = payload["stat_profiles"]
+
+    baseline_estimate = build_selected_move_damage_estimate(baseline)
+    baseline_ko = build_ko_context(
+        baseline,
+        baseline_estimate,
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+    result = attach_selected_move_damage_estimate(payload)
+
+    move = result["moves"]["my_selected_move"]
+    assert move["multi_hit_context"]["available"] is True
+    assert move["damage_estimate"]["damage_range"] == baseline_estimate["damage_range"]
+    assert move["damage_estimate"]["rolls"] == baseline_estimate["rolls"]
+    assert move["ko_context"]["ohko"] == baseline_ko["ohko"]
+    assert move["ko_context"]["two_hko"] == baseline_ko["two_hko"]
+
+
+def test_multi_hit_context_for_opponent_known_move_targets_opponent_active_and_excludes_candidates() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="loaded-dice")
+    payload["opponent_moves"] = {
+        "known_moves": [{**_bullet_seed(), "source": "user_confirmed"}],
+        "candidate_moves": [{**_air_slash(), "source": "champions_movepool"}],
+    }
+
+    result = attach_opponent_known_move_damage_estimates(payload)
+
+    known_move = result["opponent_moves"]["known_moves"][0]
+    candidate_move = result["opponent_moves"]["candidate_moves"][0]
+    context = known_move["multi_hit_context"]
+    assert context["available"] is True
+    assert context["scope"] == "opponent_known_move_only"
+    assert context["attacker_side"] == "opponent_active"
+    assert "multi_hit_context" not in candidate_move
 
 
 def test_focus_sash_survival_context_for_my_move_when_full_hp_and_could_be_lethal() -> None:
@@ -1051,6 +1181,7 @@ def test_focus_sash_survival_context_for_opponent_known_move_targets_my_active()
     assert "accuracy_context" not in candidate_move
     assert "critical_context" not in candidate_move
     assert "flinch_context" not in candidate_move
+    assert "multi_hit_context" not in candidate_move
 
 
 def test_focus_sash_survival_context_marks_multi_hit_unsupported() -> None:
@@ -1309,6 +1440,7 @@ def test_legal_type_boosting_item_applies_to_available_selected_and_opponent_kno
     assert "accuracy_context" not in candidate_move
     assert "critical_context" not in candidate_move
     assert "flinch_context" not in candidate_move
+    assert "multi_hit_context" not in candidate_move
 
 
 def test_fairy_feather_remains_unsupported_without_catalog_damage_change() -> None:
@@ -1674,6 +1806,20 @@ def _air_slash() -> dict:
         "power": 75,
         "accuracy": 95,
         "pp": 15,
+    }
+
+
+def _bullet_seed() -> dict:
+    return {
+        "slot": 1,
+        "move_id": "bullet-seed",
+        "name_en": "Bullet Seed",
+        "name_ko": "Bullet Seed",
+        "type": "grass",
+        "category": "physical",
+        "power": 25,
+        "accuracy": 100,
+        "pp": 30,
     }
 
 

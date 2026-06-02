@@ -812,6 +812,21 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "flinch is guaranteed" in prompt
     assert "Do not infer King's Rock if the item is unknown or unconfirmed" in prompt
     assert "Speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled" in prompt
+    assert "Loaded Dice multi-hit context may appear only as limited multi_hit_context" in prompt
+    assert "multi_hit_context does not change raw damage_range or rolls" in prompt
+    assert "ko_context is unchanged by multi_hit_context" in prompt
+    assert "KO/OHKO/2HKO estimates do not include multi-hit count changes" in prompt
+    assert "Loaded Dice may improve multi-hit reliability for eligible moves" in prompt
+    assert "not a direct damage boost" in prompt
+    assert "multi_hit_context applies only when Loaded Dice is user-confirmed" in prompt
+    assert "move multi-hit metadata is available" in prompt
+    assert "Final hit count probability is not calculated" in prompt
+    assert "Multi-hit-adjusted KO probability is not calculated" in prompt
+    assert "Do not claim a specific number of hits will occur" in prompt
+    assert "5 hits are guaranteed" in prompt
+    assert "Do not claim Loaded Dice breaks Focus Sash" in prompt
+    assert "Do not infer Loaded Dice if the item is unknown or unconfirmed" in prompt
+    assert "Focus Sash, King's Rock, accuracy, crit per-hit handling, and turn sequencing are not modeled" in prompt
     assert "Focus Sash survival may appear only as limited survival_context" in prompt
     assert "not as damage reduction" in prompt
     assert "it does not change raw damage_range or rolls" in prompt
@@ -1031,6 +1046,42 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "Speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled for flinch_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Loaded Dice multi-hit context may appear only as limited multi_hit_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert "multi_hit_context does not change raw damage_range or rolls." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "ko_context is unchanged by multi_hit_context and KO/OHKO/2HKO estimates do not include multi-hit count changes."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "multi_hit_context applies only when Loaded Dice is user-confirmed and move multi-hit metadata is available."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Loaded Dice may improve multi-hit reliability for eligible moves, but it is not a direct damage boost."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When multi_hit_context is available, keep multi-hit wording concise and mention that raw damage and KO/OHKO/2HKO estimates do not include multi-hit count changes."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Final hit count probability is not calculated in multi_hit_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert "Multi-hit-adjusted KO probability is not calculated in multi_hit_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Do not claim a specific number of hits will occur or that 5 hits are guaranteed from multi_hit_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not claim Loaded Dice breaks Focus Sash unless that interaction is explicitly modeled."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not infer Loaded Dice multi-hit effects if the item is unknown or unconfirmed."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Focus Sash, King's Rock, accuracy, crit per-hit handling, and turn sequencing are not modeled for multi_hit_context."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

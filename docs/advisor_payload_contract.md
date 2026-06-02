@@ -379,7 +379,7 @@ The LLM must not say:
 - "Focus Sash applies when the item is unknown or unconfirmed."
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
 
 ## Recovery Context Semantics
 
@@ -454,7 +454,7 @@ The LLM must not say:
 
 When `recovery_context.available` is true, the recovery note should stay concise, ideally one or two sentences, and should mention that exact activation timing, item consumption, and turn sequencing are not modeled. It should not become longer than the recommendation.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
 
 ## Accuracy Context Semantics
 
@@ -522,7 +522,7 @@ When `accuracy_context.available` is true, the accuracy note should stay concise
 
 If `accuracy_context.available` is false, or no `accuracy_context` is present for a move, the LLM should not invent Bright Powder accuracy effects or force an accuracy limitation sentence.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
 
 ## Critical Context Semantics
 
@@ -587,7 +587,7 @@ When `critical_context.available` is true, the critical-hit note should stay con
 
 If `critical_context.available` is false, or no `critical_context` is present for a move, the LLM should not invent Scope Lens critical-hit effects or force a critical-hit limitation sentence.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
 
 ## Flinch Context Semantics
 
@@ -654,7 +654,77 @@ When `flinch_context.available` is true, the LLM should say the raw damage estim
 
 If `flinch_context.available` is false, or no `flinch_context` is present for a move, the LLM should not invent King's Rock flinch effects or force a flinch limitation sentence.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
+
+## Multi-hit Context Semantics
+
+`multi_hit_context` is an additive limited context for Loaded Dice multi-hit reliability. It is never nested inside `damage_estimate` or `ko_context`.
+
+`multi_hit_context` does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, item damage modifier math, or `ko_context`.
+
+In v0.73, the only modeled multi-hit context is limited Loaded Dice context:
+
+- attacker item profile must be `status: user_confirmed`
+- attacker item id must be `loaded-dice`
+- move metadata must identify the move as multi-hit
+- final hit count probability is not calculated
+- multi-hit-adjusted KO probability is not calculated
+- hit count changes are not folded into raw damage estimates
+- raw damage and KO/OHKO/2HKO estimates do not include multi-hit count changes
+- Focus Sash interaction, King's Rock interaction, accuracy/crit per-hit handling, and turn sequencing are not modeled
+
+Available Loaded Dice context may include:
+
+- `mode`: `limited_multi_hit_context`
+- `available`: `true`
+- `attacker_side`: `my_active` or `opponent_active`
+- `item.item_id`: `loaded-dice`
+- `item.status`: `user_confirmed`
+- `move_metadata.is_multi_hit`: `true`
+- `move_metadata.metadata_source`: `move_metadata`
+- `move_metadata.multi_hit_known`: `true`
+- `multi_hit_effect.type`: `loaded_dice`
+- `multi_hit_effect.effect_label`: `may_improve_multi_hit_reliability`
+- `multi_hit_effect.formula_label`: `loaded_dice_limited_multihit_modifier`
+- `multi_hit_effect.raw_damage_rolls_changed`: `false`
+- `multi_hit_effect.ko_context_changed`: `false`
+- `multi_hit_effect.hit_count_probability_integrated`: `false`
+- `multi_hit_effect.multi_hit_adjusted_ko_integrated`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `no_loaded_dice`
+- `item_not_user_confirmed`
+- `unsupported_multi_hit_item`
+- `move_not_multi_hit`
+- `move_multihit_metadata_missing`
+- `multi_hit_engine_missing`
+- `turn_engine_required`
+- `damage_estimate_missing`
+
+The LLM may say:
+
+- "Loaded Dice may improve multi-hit reliability as limited context, but the raw damage and KO estimates do not include multi-hit count changes."
+- "The raw KO chance is separate from any Loaded Dice multi-hit possibility; multi-hit-adjusted KO probability is not calculated."
+- "This is not a final hit count distribution; Focus Sash, King's Rock, accuracy, crit per-hit handling, and turn sequencing are not modeled."
+
+The LLM must not say:
+
+- "Loaded Dice directly boosts the damage."
+- "This move will hit 5 times."
+- "This guarantees 5 hits."
+- "The KO chance already accounts for Loaded Dice hit count changes."
+- "Loaded Dice breaks Focus Sash here."
+- "The final hit count probability is confirmed."
+- "The multi-hit-adjusted KO chance is 70%."
+- "Loaded Dice applies when the item is unknown or unconfirmed."
+
+When `multi_hit_context.available` is true, the multi-hit note should stay concise, ideally one or two sentences, and should mention that raw damage and KO/OHKO/2HKO estimates do not include multi-hit count changes. It should also state that final hit count probability and multi-hit-adjusted KO probability are not calculated.
+
+If `multi_hit_context.available` is false, or no `multi_hit_context` is present for a move, the LLM should not invent Loaded Dice multi-hit effects or force a multi-hit limitation sentence.
+
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
 
 ## KO Context Semantics
 
@@ -712,7 +782,7 @@ The LLM must not say:
 - "Focus Sash is included in the KO probability."
 - "Accuracy, Speed order, priority, recovery, hazards, chip damage, switching, protection, or turn sequencing are modeled."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
 
 ## Opponent Assumption Semantics
 
