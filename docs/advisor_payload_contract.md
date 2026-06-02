@@ -379,7 +379,7 @@ The LLM must not say:
 - "Focus Sash applies when the item is unknown or unconfirmed."
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
 
 ## Recovery Context Semantics
 
@@ -454,7 +454,7 @@ The LLM must not say:
 
 When `recovery_context.available` is true, the recovery note should stay concise, ideally one or two sentences, and should mention that exact activation timing, item consumption, and turn sequencing are not modeled. It should not become longer than the recommendation.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
 
 ## Accuracy Context Semantics
 
@@ -522,7 +522,7 @@ When `accuracy_context.available` is true, the accuracy note should stay concise
 
 If `accuracy_context.available` is false, or no `accuracy_context` is present for a move, the LLM should not invent Bright Powder accuracy effects or force an accuracy limitation sentence.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
 
 ## Critical Context Semantics
 
@@ -587,7 +587,72 @@ When `critical_context.available` is true, the critical-hit note should stay con
 
 If `critical_context.available` is false, or no `critical_context` is present for a move, the LLM should not invent Scope Lens critical-hit effects or force a critical-hit limitation sentence.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
+
+## Flinch Context Semantics
+
+`flinch_context` is an additive limited context for King's Rock flinch pressure. It is never nested inside `damage_estimate` or `ko_context`.
+
+`flinch_context` does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, item damage modifier math, or `ko_context`.
+
+In v0.70, the only modeled flinch context is limited King's Rock context:
+
+- attacker item profile must be `status: user_confirmed`
+- attacker item id must be `kings-rock`
+- final flinch probability is not calculated
+- flinch-adjusted turn or outcome probability is not calculated
+- flinch pressure is not folded into raw damage estimates
+- exact speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled
+- raw damage and KO/OHKO/2HKO estimates do not include flinch chance
+
+Available King's Rock context may include:
+
+- `mode`: `limited_flinch_context`
+- `available`: `true`
+- `attacker_side`: `my_active` or `opponent_active`
+- `item.item_id`: `kings-rock`
+- `item.status`: `user_confirmed`
+- `flinch_effect.type`: `kings_rock`
+- `flinch_effect.effect_label`: `may_add_flinch_pressure`
+- `flinch_effect.formula_label`: `kings_rock_limited_flinch_modifier`
+- `flinch_effect.raw_damage_rolls_changed`: `false`
+- `flinch_effect.ko_context_changed`: `false`
+- `flinch_effect.flinch_probability_integrated`: `false`
+- `flinch_effect.turn_outcome_integrated`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `no_kings_rock`
+- `item_not_user_confirmed`
+- `unsupported_flinch_item`
+- `flinch_engine_missing`
+- `move_flinch_metadata_missing`
+- `turn_engine_required`
+- `damage_estimate_missing`
+
+The LLM may say:
+
+- "King's Rock may add flinch pressure as limited flinch context, but the raw damage and KO estimates do not include flinch chance."
+- "The raw KO chance is separate from any King's Rock flinch possibility; flinch-adjusted turn or outcome probability is not calculated."
+- "This is not a final flinch probability; speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled."
+
+The LLM must not say:
+
+- "King's Rock boosts the damage directly."
+- "This move will flinch the target."
+- "The target cannot move."
+- "This move is guaranteed to flinch."
+- "The KO chance already accounts for King's Rock flinch chance."
+- "The final flinch probability is confirmed."
+- "The flinch-adjusted KO chance is 70%."
+- "King's Rock applies when the item is unknown or unconfirmed."
+
+When `flinch_context.available` is true, the flinch note should stay concise, ideally one or two sentences, and should mention that raw damage and KO/OHKO/2HKO estimates do not include flinch chance. It should also state that final flinch probability and flinch-adjusted turn or outcome probability are not calculated.
+
+If `flinch_context.available` is false, or no `flinch_context` is present for a move, the LLM should not invent King's Rock flinch effects or force a flinch limitation sentence.
+
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
 
 ## KO Context Semantics
 
@@ -645,7 +710,7 @@ The LLM must not say:
 - "Focus Sash is included in the KO probability."
 - "Accuracy, Speed order, priority, recovery, hazards, chip damage, switching, protection, or turn sequencing are modeled."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, or `ko_context`.
 
 ## Opponent Assumption Semantics
 

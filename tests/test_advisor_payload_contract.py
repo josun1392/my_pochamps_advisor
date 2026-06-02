@@ -795,6 +795,20 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "critical hit is guaranteed" in prompt
     assert "Do not infer Scope Lens if the item is unknown or unconfirmed" in prompt
     assert "Critical-hit stages, abilities, move-specific crit effects, and turn sequencing are not modeled" in prompt
+    assert "King's Rock flinch context may appear only as limited flinch_context" in prompt
+    assert "flinch_context does not change raw damage_range or rolls" in prompt
+    assert "ko_context is unchanged by flinch_context" in prompt
+    assert "KO/OHKO/2HKO estimates do not include flinch chance" in prompt
+    assert "King's Rock may add flinch pressure" in prompt
+    assert "not a direct damage boost" in prompt
+    assert "flinch_context applies only when King's Rock is user-confirmed" in prompt
+    assert "Final flinch probability is not calculated" in prompt
+    assert "Flinch-adjusted turn or outcome probability is not calculated" in prompt
+    assert "Do not claim the target will flinch" in prompt
+    assert "cannot move" in prompt
+    assert "flinch is guaranteed" in prompt
+    assert "Do not infer King's Rock if the item is unknown or unconfirmed" in prompt
+    assert "Speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled" in prompt
     assert "Focus Sash survival may appear only as limited survival_context" in prompt
     assert "not as damage reduction" in prompt
     assert "it does not change raw damage_range or rolls" in prompt
@@ -974,6 +988,38 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "Critical-hit stages, abilities, move-specific crit effects, and turn sequencing are not modeled for critical_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "King's Rock flinch context may appear only as limited flinch_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert "flinch_context does not change raw damage_range or rolls." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "ko_context is unchanged by flinch_context and KO/OHKO/2HKO estimates do not include flinch chance."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "flinch_context applies only when King's Rock is user-confirmed." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "King's Rock may add flinch pressure, but it is not a direct damage boost."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When flinch_context is available, keep flinch wording concise and mention that raw damage and KO/OHKO/2HKO estimates do not include flinch chance."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Final flinch probability is not calculated in flinch_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Flinch-adjusted turn or outcome probability is not calculated in flinch_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not claim the target will flinch, cannot move, or that flinch is guaranteed from flinch_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not infer King's Rock flinch effects if the item is unknown or unconfirmed."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled for flinch_context."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

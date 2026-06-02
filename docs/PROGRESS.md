@@ -5382,6 +5382,93 @@ Maintained boundaries:
 
 ---
 
+## v0.70 - King's Rock limited flinch context
+
+Purpose:
+- Add limited King's Rock flinch context as an additive move-level payload sibling without changing raw damage or raw KO context.
+
+Implemented:
+- Added `llm/advisor_flinch_context.py`.
+- Added `build_flinch_context(...)` for limited King's Rock flinch pressure context.
+- Attached `flinch_context` to:
+  - `moves.my_available_moves[*]`
+  - `moves.my_selected_move`
+  - `opponent_moves.known_moves[*]`
+- Kept `opponent_moves.candidate_moves[*]` excluded from `damage_estimate`, `ko_context`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, and `flinch_context`.
+- Modeled only attacker-side user-confirmed King's Rock:
+  - item id: `kings-rock`
+  - item status: `user_confirmed`
+- Added unavailable behavior:
+  - `no_kings_rock`
+  - `item_not_user_confirmed`
+  - `damage_estimate_missing`
+- Added `flinch_effect` fields:
+  - `type: kings_rock`
+  - `effect_label: may_add_flinch_pressure`
+  - `formula_label: kings_rock_limited_flinch_modifier`
+  - `raw_damage_rolls_changed: false`
+  - `ko_context_changed: false`
+  - `flinch_probability_integrated: false`
+  - `turn_outcome_integrated: false`
+- Added limitations:
+  - limited flinch context only
+  - final flinch probability not modeled
+  - speed order not modeled
+  - target action state not modeled
+  - abilities not modeled
+  - multi-hit handling not modeled
+  - turn sequencing not modeled
+- Updated LLM prompt and payload contract guardrails:
+  - King's Rock may add flinch pressure
+  - King's Rock is not a direct damage boost
+  - raw damage estimates are unchanged
+  - raw `ko_context` is unchanged
+  - KO/OHKO/2HKO estimates do not include flinch chance
+  - final flinch probability is not calculated
+  - flinch-adjusted turn/outcome probability is not calculated
+  - do not claim the target will flinch, cannot move, or that flinch is guaranteed
+  - do not infer King's Rock if the item is unknown or unconfirmed
+- Updated `docs/advisor_payload_contract.md` with:
+  - `flinch_context` field semantics
+  - King's Rock limited assumptions
+  - effect labels
+  - reason codes
+  - LLM wording guardrails
+- Added tests for:
+  - user-confirmed King's Rock availability
+  - unknown/unconfirmed King's Rock unavailable behavior
+  - no King's Rock unavailable behavior
+  - damage-estimate missing unavailable behavior
+  - raw damage unchanged
+  - `ko_context` unchanged
+  - OHKO chance unchanged
+  - my move direction
+  - opponent known move direction
+  - candidate moves excluded
+  - prompt/contract guardrails
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`: 97 passed.
+- `uv run pytest -q`: 832 passed, 2 deselected.
+
+Maintained boundaries:
+- No final flinch probability.
+- No flinch-adjusted turn/outcome probability.
+- No speed/order integration.
+- No target action state.
+- No Turn Engine.
+- No ability/weather/item interaction implementation.
+- No KO context modification.
+- No raw damage roll modification.
+- No damage formula changes.
+- No Focus Sash / Sitrus / Bright Powder / Scope Lens interaction implementation.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
