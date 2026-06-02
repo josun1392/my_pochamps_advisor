@@ -6210,6 +6210,95 @@ Maintained boundaries:
 
 ---
 
+## v0.79 - Legal item context gating design
+
+Purpose:
+- Design a legal gate so user-facing Champions item contexts cannot drift ahead of `data/static/champions_legal_items.json`.
+
+Designed:
+- Restated current context coverage:
+  - Charcoal damage modifier
+  - Choice Scarf `speed_context`
+  - Focus Sash `survival_context`
+  - Sitrus Berry / Leftovers `recovery_context`
+  - Bright Powder `accuracy_context`
+  - Scope Lens `critical_context`
+  - King's Rock `flinch_context`
+  - Loaded Dice `multi_hit_context`
+- Defined the problem:
+  - `items.json` does not prove Champions legality
+  - `items_damage.json` does not prove Champions legality
+  - context helper existence does not prove Champions legality
+  - `charge_moves.json` does not prove Power Herb legality
+  - user-confirmed item status is necessary but not sufficient
+- Designed legal gate policy:
+  - modeled user-facing item context requires legal coverage in `champions_legal_items.json`
+  - user-confirmed but unlisted items should not emit modeled context
+  - stable reason candidates include `blocked_by_legal_item_coverage`, `future_only_until_legal_confirmed`, and `unknown_item`
+  - legal coverage, effect metadata, and LLM payload implementation remain separate review gates
+- Compared placement options:
+  - legal gate inside each context helper
+  - common legal item helper/repository
+  - payload assembly gate before context creation
+- Recommended hybrid direction:
+  - reuse `core.champions_item_repository.ChampionsItemRepository`
+  - apply a common legal gate in payload assembly before attaching user-facing contexts
+  - optionally add helper-level defensive checks later
+- Defined item status classifications:
+  - `legal_modeled`
+  - `legal_unmodeled`
+  - `implemented_but_not_legal`
+  - `future_only`
+  - `blocked_by_legal_item_coverage`
+  - `unknown_item`
+- Classified current items:
+  - `charcoal`, `choice-scarf`, `focus-sash`, `sitrus-berry`, `leftovers`, `bright-powder`, `scope-lens`, and `kings-rock`: `legal_modeled`
+  - `loaded-dice`: `implemented_but_not_legal` / `future_only`
+  - `power-herb`: `blocked_by_legal_item_coverage`
+- Loaded Dice policy:
+  - keep implementation as future-only code
+  - block user-facing context unless legal fixture coverage is added
+  - do not mutate legal fixture without separate approved legal coverage update
+- Power Herb policy:
+  - keep `charge_context` blocked
+  - do not expose Power Herb in user-facing payload
+  - do not treat charge move metadata as item legality
+
+v0.80 recommendation:
+- `v0.80 - Legal Item Gate Implementation`.
+- Reuse `ChampionsItemRepository`.
+- Keep legal fixture unchanged.
+- Add Loaded Dice blocked regression tests.
+- Keep Power Herb blocked.
+
+Future tests:
+- legal item passes gate
+- unlisted item fails gate
+- user-confirmed illegal item still blocked
+- `loaded-dice` blocked because absent from legal fixture
+- `power-herb` blocked
+- aligned item contexts still work
+- no legal fixture mutation
+- existing item context regressions
+- full pytest
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No legal gate implementation.
+- No legal fixture mutation.
+- No Loaded Dice behavior change.
+- No Power Herb `charge_context` implementation.
+- No external web/legal research.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context change.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
