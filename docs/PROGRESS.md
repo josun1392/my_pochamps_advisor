@@ -5960,6 +5960,91 @@ Maintained boundaries:
 
 ---
 
+## v0.76 - Charge move metadata fixture design
+
+Purpose:
+- Design a deterministic repo-native charge move metadata fixture before implementing Power Herb `charge_context`.
+
+Designed:
+- Confirmed current state from v0.75:
+  - no repo-native charge move field exists
+  - `data/static/moves.json` is not present
+  - `data/cache/moves/` is not present
+  - `data/cache/pokeapi/moves/` exists but is not an LLM-facing charge metadata source
+  - Power Herb metadata/legal status is not confirmed in inspected static item files
+  - description parsing remains forbidden
+- Compared fixture path options:
+  - `data/static/charge_moves.json`
+  - `data/static/move_metadata_overrides.json`
+  - `data/static/power_herb_eligible_moves.json`
+- Recommended `data/static/charge_moves.json` for v0.77 because it is narrow, explicit, and easy to test.
+- Deferred broad `move_metadata_overrides.json` until multiple independent move metadata override needs exist.
+- Rejected a Power-Herb-only eligible-move file because it hides the distinction between charge move metadata and item eligibility.
+- Designed schema:
+  - `version: charge_moves_v1`
+  - `moves` object keyed by normalized move id
+  - `is_charge_move`
+  - `power_herb_eligible`
+  - `charge_type`
+  - `known_exceptions`
+  - `source`
+  - `confidence`
+  - `notes`
+- Validated initial move-scope candidates against repo/cache presence:
+  - `solar-beam`, `solar-blade`, `meteor-beam`, and `sky-attack` are good initial fixture candidates
+  - `skull-bash` is present in pokemon cache / KO mapping / PokeAPI index but was not confirmed in Champions movepool during this pass, so it should be optional/deferred
+  - `fly`, `dig`, `dive`, `bounce`, and `phantom-force` are present but should be deferred for semi-invulnerable policy
+  - `razor-wind`, `shadow-force`, `freeze-shock`, `ice-burn`, and `geomancy` were not observed in inspected repo/cache paths, so they are deferred
+- Defined eligibility policy:
+  - lowercase hyphenated move ids
+  - user-confirmed Power Herb only
+  - fixture key + `is_charge_move=true` + `power_herb_eligible=true` required for available context
+  - absent fixture entry should mean `move_charge_metadata_missing`, not proof of non-charge status
+  - explicit non-charge entries can return `move_not_charge_move`
+  - weather exceptions remain notes/limitations only
+- Proposed repository/helper design:
+  - prefer `core/charge_move_repository.py`
+  - load and validate fixture
+  - normalize move ids
+  - expose `get_charge_move_metadata(move_id)`
+  - expose `is_power_herb_eligible(move_id)`
+  - provide safe unavailable reasons
+- Planned tests:
+  - fixture loads
+  - version exists
+  - move ids normalized
+  - required fields present
+  - Solar Beam / Meteor Beam examples
+  - unknown move safely unavailable
+  - no description parsing
+  - future charge context keeps raw damage and `ko_context` unchanged
+  - existing context regressions
+  - full pytest
+
+v0.77 recommendation:
+- `v0.77 - Charge Move Metadata Fixture Implementation`.
+- Add `data/static/charge_moves.json`, a narrow helper/repository, and tests only.
+- Do not add Power Herb LLM `charge_context` until v0.78.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No fixture implementation.
+- No `charge_context` implementation.
+- No Power Herb implementation.
+- No item consumption tracking.
+- No turn-sequence-adjusted KO probability.
+- No Turn Engine.
+- No weather interaction.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context modification.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
