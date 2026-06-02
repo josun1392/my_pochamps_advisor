@@ -6358,6 +6358,65 @@ Maintained boundaries:
 
 ---
 
+## v0.81 - Loaded Dice legal coverage follow-up design
+
+Purpose:
+- Decide how to treat Loaded Dice after v0.80 legal gating blocked it from user-facing modeled context.
+
+Designed:
+- Confirmed current state:
+  - Loaded Dice `multi_hit_context` implementation exists.
+  - `loaded-dice` is absent from `data/static/champions_legal_items.json`.
+  - `loaded-dice` is present in `data/static/items.json`, but `items.json` is not legal coverage.
+  - `loaded-dice` is absent from `data/static/items_damage.json`.
+  - v0.80 legal gate blocks user-facing modeled Loaded Dice context with `blocked_by_legal_item_coverage`.
+  - legal fixture remains unchanged.
+- Defined the policy problem:
+  - implemented context code does not prove Champions legality.
+  - exposing legal-unconfirmed Loaded Dice advice would be unsafe.
+  - deleting already-tested implementation would reduce future reuse if legal coverage is later confirmed.
+- Compared policy options:
+  - keep implemented but blocked.
+  - remove Loaded Dice context implementation.
+  - keep as future-only with explicit docs/tests.
+- Recommended Option C:
+  - keep implementation as future-only support.
+  - continue blocking user-facing modeled context through the legal gate.
+  - preserve regression tests that user-confirmed Loaded Dice is still blocked while legal fixture coverage is absent.
+  - require separate approved evidence before any legal fixture update.
+
+Loaded Dice status:
+- implementation status: implemented future-only support.
+- legal fixture status: absent.
+- user-facing status: blocked.
+- stable reason: `blocked_by_legal_item_coverage`.
+- `status=user_confirmed` remains necessary but not sufficient for modeled context.
+
+Proposed v0.82 candidates:
+- `v0.82 - Loaded Dice Future-only Documentation / Regression Polish`
+  - optional docs/test naming clarity; no behavior change.
+- `v0.82 - Return to Legal Item Feature Expansion`
+  - choose an item already confirmed legal in `data/static/champions_legal_items.json`.
+- `v0.82 - Local Gemini Verification Batch`
+  - run deferred local Gemini verifications for recent context wording.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No legal fixture mutation.
+- No Loaded Dice legal addition.
+- No Loaded Dice behavior expansion.
+- No Power Herb implementation.
+- No external research.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context change.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
