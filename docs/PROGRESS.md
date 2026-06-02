@@ -5299,6 +5299,89 @@ Maintained boundaries:
 
 ---
 
+## v0.69 - King's Rock flinch design
+
+Purpose:
+- Design a limited King's Rock flinch-pressure context after the Scope Lens critical-context line reached implementation.
+
+Designed:
+- Documented current state:
+  - `damage_estimate` provides raw damage min/max/rolls
+  - `ko_context` provides limited damage-roll KO/OHKO/2HKO context
+  - `survival_context`, `recovery_context`, `accuracy_context`, and `critical_context` are additive limited contexts
+  - King's Rock is legal/recognized in the item repository, but its flinch effect is not modeled
+  - `advisor/damage/move_categories.py` explicitly leaves item-added King's Rock flinch outside the current secondary-effect helper
+- Defined the problem:
+  - King's Rock is flinch pressure, not direct damage boost
+  - flinch usefulness depends on hit, speed/order, target action state, move eligibility, multi-hit behavior, abilities, and turn sequencing
+  - mixing flinch into raw damage or `ko_context` would imply unsupported final outcome probability
+- Proposed additive `flinch_context`:
+  - mode: `limited_flinch_context`
+  - attacker-side item: user-confirmed `kings-rock`
+  - move-level sibling preferred
+  - `effect_label`: `may_add_flinch_pressure`
+  - `formula_label`: `kings_rock_limited_flinch_modifier`
+  - `raw_damage_rolls_changed: false`
+  - `ko_context_changed: false`
+  - `final_flinch_probability_integrated: false`
+  - `flinch_adjusted_outcome_integrated: false`
+  - `is_final_battle_truth: false`
+- Compared placement options:
+  - move-level sibling field
+  - `damage_estimate` sibling if implementation structure requires it
+  - top-level `flinch_context`
+- Recommended move-level sibling placement for v0.70.
+- Designed flinch amount policy:
+  - label/formula only in first implementation
+  - no numeric final flinch probability
+  - no flinch-adjusted KO or outcome probability
+  - validate exact modifier, move eligibility, multi-hit behavior, and Champions/PoChamps compatibility before numeric probability display
+- Added LLM guardrail design:
+  - King's Rock may add flinch pressure
+  - raw damage estimates are unchanged
+  - raw `ko_context` is unchanged
+  - KO/OHKO/2HKO estimates do not include flinch chance
+  - final flinch probability is not calculated
+  - flinch-adjusted outcome probability is not calculated
+  - do not claim the target will flinch or cannot move
+  - do not infer King's Rock if the item is unknown or unconfirmed
+  - do not describe King's Rock as a direct damage boost
+  - speed/order, target action state, ability interactions, multi-hit handling, and turn sequencing are not modeled
+- Added future test plan for:
+  - user-confirmed King's Rock availability
+  - unknown/unconfirmed/no King's Rock unavailable behavior
+  - raw damage unchanged
+  - `ko_context` unchanged
+  - OHKO chance unchanged
+  - my move and opponent known move direction
+  - candidate moves excluded
+  - prompt guardrails
+  - existing critical, accuracy, recovery, KO, Focus Sash, type item, speed context, and opponent assumptions regressions
+
+v0.70 recommendation:
+- `v0.70 - King's Rock Limited Flinch Context Implementation`.
+- Alternative: `v0.70 - Flinch Rule Validation Design` if T1/T2 want exact King's Rock modifier / move eligibility validation first.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No `flinch_context` implementation.
+- No final flinch probability.
+- No flinch-adjusted outcome probability.
+- No Turn Engine.
+- No speed/order integration.
+- No target action state.
+- No ability/weather/item interaction modeling.
+- No multi-hit handling.
+- No KO context modification.
+- No raw damage roll modification.
+- No UI changes.
+- No fixture changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
