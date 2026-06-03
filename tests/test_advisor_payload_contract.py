@@ -838,6 +838,10 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "do not say Power Herb" in prompt
     assert "do not say the item is not modeled" in prompt
     assert "do not say the item effect is not included" in prompt
+    assert "Do not use generic substitutes such as the user-confirmed item effect" in prompt
+    assert "held item effect, selected item effect, or item-based limitation" in prompt
+    assert "Do not mention that a blocked item exists by saying its effect is absent" in prompt
+    assert "ignored, unavailable, excluded, unsupported, or outside the estimate" in prompt
     assert "Do not say Loaded Dice is not modeled or Power Herb is not modeled unless the user explicitly asks" in prompt
     assert "If the user explicitly asks about a blocked item" in prompt
     assert "Champions legal coverage is not confirmed" in prompt
@@ -1137,6 +1141,14 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "Do not say a blocked item effect is not included by default; keep blocked item explanations out of normal advice."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not use generic blocked item substitutes such as the user-confirmed item effect, held item effect, selected item effect, or item-based limitation in default advice."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not mention that a blocked item exists by saying its effect is absent, ignored, unavailable, excluded, unsupported, or outside the estimate."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

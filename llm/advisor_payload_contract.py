@@ -36,6 +36,8 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "In default advice, do not mention blocked item names, do not say user-confirmed Loaded Dice, and do not say Power Herb when those items are blocked by legal coverage.",
     "Do not say Loaded Dice is not modeled or Power Herb is not modeled by default when those items are blocked by legal coverage.",
     "Do not say a blocked item effect is not included by default; keep blocked item explanations out of normal advice.",
+    "Do not use generic blocked item substitutes such as the user-confirmed item effect, held item effect, selected item effect, or item-based limitation in default advice.",
+    "Do not mention that a blocked item exists by saying its effect is absent, ignored, unavailable, excluded, unsupported, or outside the estimate.",
     "If the user explicitly asks about a blocked item, explain only that Champions legal coverage is not confirmed, so the item effect is not reflected in advice.",
     "Do not imply blocked or future-only items are available in Champions.",
     "When item_effects.attacker_item.status is applied, mention that the supported item damage modifier is applied.",

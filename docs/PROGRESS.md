@@ -6790,6 +6790,70 @@ Maintained boundaries:
 
 ---
 
+## v0.85 - Blocked item payload silence hardening
+
+Purpose:
+- Harden blocked/future-only item silence after v0.84.1 improved item-name quietness but still allowed a generic "user-confirmed item effect" limitation to surface in default advice.
+
+Background:
+- v0.84.1 verified that Loaded Dice and Power Herb names stayed out of default advice.
+- Loaded Dice still leaked a generic blocked item-effect limitation:
+  - "The damage estimate does not include the effect of Charizard's user-confirmed item."
+- This was not a modeled illegal effect exposure, but it still revealed that a blocked/future-only item existed.
+
+Implemented:
+- Strengthened `llm/advisor_client.py` prompt guardrails so blocked/future-only items are fully silent in default advice.
+- Strengthened `llm/advisor_payload_contract.py` contract guardrails.
+- Updated `docs/advisor_payload_contract.md`.
+- Added/updated `tests/test_advisor_payload_contract.py` assertions.
+
+Blocked/future-only silence policy:
+- `blocked_by_legal_item_coverage` items are default-advice silent.
+- `future_only_until_legal_confirmed` items are default-advice silent.
+- The LLM must not mention:
+  - blocked item names
+  - blocked item effects
+  - "user-confirmed Loaded Dice"
+  - "Power Herb"
+  - "not modeled" for blocked item names
+  - "item effect is not included"
+  - generic substitutes such as "the user-confirmed item effect"
+  - "held item effect"
+  - "selected item effect"
+  - "item-based limitation"
+  - wording that says a blocked item effect is absent, ignored, unavailable, excluded, unsupported, or outside the estimate.
+
+Metadata handling:
+- Blocked reasons remain developer/debug/contract metadata.
+- Default user-facing advice should not explain blocked item status.
+- If the user explicitly asks about the blocked item, the LLM may briefly explain only that Champions legal coverage is not confirmed, so the item effect is not reflected in advice.
+
+Preserved legal item wording:
+- Bright Powder legal accuracy context wording remains available.
+- Scope Lens legal critical context wording remains available.
+- King's Rock legal flinch context wording remains available.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 26 passed.
+- `uv run pytest -q`: 866 passed, 2 deselected.
+
+Maintained boundaries:
+- No context helper changes.
+- No legal gate changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No Loaded Dice legal addition.
+- No Loaded Dice behavior change.
+- No Power Herb `charge_context` implementation.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context change.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
