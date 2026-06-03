@@ -7041,6 +7041,104 @@ Maintained boundaries:
 
 ---
 
+## v0.87 - Type-resist berry limited survival context design
+
+Purpose:
+- Design a safe limited context for Champions-legal type-resist berries without changing raw damage or `ko_context`.
+
+Current state:
+- Focus Sash `survival_context` is implemented as limited additive context.
+- Sitrus / Leftovers `recovery_context` is implemented as limited additive context.
+- KO/OHKO/2HKO `ko_context` is raw damage-roll based.
+- Legal gate uses `data/static/champions_legal_items.json`.
+- Type-resist berries are legal and mapped in `data/static/items_damage.json`.
+- No type-resist berry survival/damage context exists yet.
+
+Investigation:
+- `items_damage.json` has 18 `type_resist_berries`.
+- All 18 mapped resist berries are present in `data/static/champions_legal_items.json`.
+- 17 are standard super-effective type-resist berries.
+- `chilan-berry` is a special case with `always_resist=true` for Normal-type damage.
+
+Legal standard type-resist berries:
+- `babiri-berry`: steel
+- `charti-berry`: rock
+- `chople-berry`: fighting
+- `coba-berry`: flying
+- `colbur-berry`: dark
+- `haban-berry`: dragon
+- `kasib-berry`: ghost
+- `kebia-berry`: poison
+- `occa-berry`: fire
+- `passho-berry`: water
+- `payapa-berry`: psychic
+- `rindo-berry`: grass
+- `roseli-berry`: fairy
+- `shuca-berry`: ground
+- `tanga-berry`: bug
+- `wacan-berry`: electric
+- `yache-berry`: ice
+
+Special case:
+- `chilan-berry`: normal / `always_resist=true`
+- Recommended to defer Chilan from initial implementation or handle separately.
+
+Design recommendation:
+- Use a separate move-level `resist_berry_context`.
+- Do not extend Focus Sash `survival_context` in the first pass.
+- Keep raw damage min/max/rolls unchanged.
+- Keep `ko_context` unchanged.
+- Do not calculate berry-adjusted damage.
+- Do not calculate berry-adjusted KO probability.
+- Do not track item consumption.
+- Do not model multi-hit / per-hit berry application.
+- Do not model ability, weather, Tera, item suppression, or Turn Engine interactions.
+
+Availability policy:
+- Defender item must be `status=user_confirmed`.
+- Item must pass Champions legal item gate.
+- Item id -> resisted type mapping comes from `data/static/items_damage.json` `type_resist_berries`.
+- Incoming move type must be known.
+- Type matchup must show a qualifying super-effective hit for the standard berries.
+- Chilan Berry is deferred unless explicitly supported.
+
+LLM guardrail:
+- Resist berry context is limited context only.
+- Berry may reduce a qualifying super-effective hit.
+- Raw damage estimate is unchanged.
+- Raw `ko_context` is unchanged.
+- KO/OHKO/2HKO estimates do not include berry reduction.
+- Berry-adjusted damage is not calculated.
+- Berry-adjusted KO probability is not calculated.
+- Item consumption is not tracked.
+- Do not say the Pokemon definitely survives.
+- Do not infer berry effects if the item is unknown or unconfirmed.
+
+Recommended next step:
+- `v0.88 - Type-resist Berry Limited Context Implementation`.
+- Mapping is clear enough that a separate mapping fixture design is optional.
+- Initial implementation should support the 17 standard super-effective type-resist berries and defer `chilan-berry`.
+
+Artifacts:
+- Added `docs/spike_v0.87_type_resist_berry_survival_context_design.md`.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No `resist_berry_context` implementation.
+- No raw damage formula modification.
+- No berry-adjusted damage rolls.
+- No berry-adjusted KO probability.
+- No item consumption tracking.
+- No Turn Engine.
+- No ability/weather/Tera interaction.
+- No legal fixture mutation.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
