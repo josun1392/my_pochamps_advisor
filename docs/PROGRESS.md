@@ -6705,6 +6705,91 @@ Maintained boundaries:
 
 ---
 
+## v0.84.1 - Blocked item silence local Gemini verification
+
+Purpose:
+- Verify v0.84 blocked/future-only item silence with local Gemini actual calls.
+
+Execution:
+- Gemini actual call succeeded for all requested cases.
+- Cases executed:
+  - Case A: my Charizard user-confirmed Loaded Dice, blocked by Champions legal coverage.
+  - Case B: my Charizard user-confirmed Power Herb, no `charge_context`.
+  - Case C: opponent Garchomp user-confirmed Bright Powder.
+  - Case D: my Charizard user-confirmed King's Rock.
+
+Case A - Loaded Dice blocked quietness:
+- Payload/debug context confirmed `multi_hit_context.available=false` with `reason=blocked_by_legal_item_coverage`.
+- Gemini did not mention "Loaded Dice" by name.
+- Gemini did not say "user-confirmed Loaded Dice."
+- Gemini did not say "Loaded Dice is not modeled."
+- Gemini did not claim multi-hit reliability, a guaranteed hit count, or multi-hit-adjusted KO probability.
+- Raw damage was preserved as 9-11 HP.
+- Partial quietness issue remains: Gemini said "The damage estimate does not include the effect of Charizard's user-confirmed item." This avoided the blocked item name, but still surfaced a generic blocked item-effect limitation in default advice.
+
+Case B - Power Herb blocked quietness:
+- No `charge_context` was present.
+- Gemini did not mention "Power Herb" by name.
+- Gemini did not say "Power Herb is not modeled."
+- Gemini did not say "effect is not included."
+- Gemini did not infer instant charge, item consumption, or turn sequencing from Power Herb.
+- Gemini mentioned Solar Beam's two-turn move limitation and that turn sequencing is not modeled. This was treated as a move limitation, not a Power Herb effect claim.
+- Raw damage was preserved as 56-66 HP.
+
+Case C - Bright Powder:
+- Gemini said Garchomp's Bright Powder may reduce Heat Wave's hit reliability.
+- Raw damage was preserved as 33-39 HP / 18.0%-21.3%.
+- Gemini said hit chance is not included in damage estimates.
+- Gemini did not claim final hit probability.
+- Gemini did not describe Bright Powder as damage reduction.
+- Gemini did not say the move will miss or is guaranteed to miss.
+
+Case D - King's Rock:
+- Gemini said Charizard's King's Rock may add flinch pressure.
+- Raw damage was preserved as 52-63 HP / 28.4%-34.4%.
+- Gemini said King's Rock flinch chance and turn-order interaction are not modeled.
+- Gemini did not claim final flinch probability or flinch-adjusted turn/outcome probability.
+- Gemini did not say the target will flinch, cannot move, or is guaranteed to flinch.
+- KO/flinch separation was safe but still not fully explicit as "KO/OHKO/2HKO estimates do not include flinch chance."
+
+Verification summary:
+- Blocked item name exposure: PASS. Loaded Dice and Power Herb names stayed out of default advice.
+- No "not modeled" default wording for blocked item names: PASS.
+- No "effect not included" default wording: PARTIAL. Power Herb passed, but Loaded Dice produced a generic "user-confirmed item effect" limitation.
+- Illegal item modeled exposure: PASS. No Loaded Dice or Power Herb modeled effect was exposed.
+- Raw damage unchanged: PASS.
+- KO context separation: PASS for safety, with King's Rock explicitness still slightly weak.
+- Final probability claims: PASS.
+- Overall verdict: PARTIAL PASS.
+- Safety: PASS.
+- Blocked item name quietness: PASS.
+- Blocked item effect quietness: PARTIAL.
+- Legal item regressions: PASS for Bright Powder and King's Rock.
+
+Next candidates:
+- `v0.85 - Blocked Item Payload Silence Hardening`.
+- `v0.85 - Blocked Item Prompt Silence Polish II`.
+- `v0.85 - Actual Champions Legal Item Expansion Design`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No Loaded Dice legal addition.
+- No Loaded Dice behavior change.
+- No Power Herb `charge_context` implementation.
+- No prompt changes.
+- No tests changed.
+- No context helper changes.
+- No legal gate changes.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context change.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
