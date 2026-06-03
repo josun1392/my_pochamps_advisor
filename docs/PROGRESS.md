@@ -6417,6 +6417,105 @@ Maintained boundaries:
 
 ---
 
+## v0.82 - Local Gemini verification batch
+
+Purpose:
+- Record a local Gemini actual-call batch verification for recent item contexts and legal-gated future-only items.
+
+Execution:
+- Gemini actual call succeeded for all requested cases.
+- Cases executed:
+  - Case A: opponent Garchomp user-confirmed Bright Powder.
+  - Case B: my Charizard user-confirmed Scope Lens.
+  - Case C: my Charizard user-confirmed King's Rock.
+  - Case D: my Charizard user-confirmed Loaded Dice with multi-hit move metadata, blocked by legal coverage.
+  - Case E: my Charizard user-confirmed Power Herb, no `charge_context`.
+
+Case A - Bright Powder:
+- Gemini mentioned the opponent's user-confirmed Bright Powder.
+- Gemini said Bright Powder may reduce Heat Wave's hit reliability.
+- Raw damage was preserved as 18.0%-21.3% for Heat Wave.
+- Gemini did not say Bright Powder reduced damage.
+- Gemini did not claim final hit probability.
+- Gemini did not say the move will miss or is guaranteed to miss.
+- Gemini did not explicitly say KO/OHKO/2HKO estimates do not include hit chance.
+- Result: PARTIAL PASS.
+
+Case B - Scope Lens:
+- Gemini mentioned Charizard's user-confirmed Scope Lens.
+- Gemini said Scope Lens may increase critical-hit likelihood.
+- Raw damage was preserved as 33-39 damage / 18.0%-21.3%.
+- Gemini stated the critical-hit note is not included in raw damage and KO estimates.
+- Gemini did not claim final crit probability.
+- Gemini did not say the move will crit or that a critical hit is guaranteed.
+- Gemini did not describe Scope Lens as a direct damage boost.
+- Result: PASS.
+
+Case C - King's Rock:
+- Gemini mentioned Charizard's King's Rock.
+- Gemini said King's Rock may add flinch pressure.
+- Raw damage was preserved as 52-63 HP / 28.4%-34.4%.
+- Gemini did not say flinch chance was included in KO chance.
+- Gemini said flinch probability is not modeled.
+- Gemini did not claim flinch-adjusted turn or outcome probability.
+- Gemini did not say the target will flinch, cannot move, or is guaranteed to flinch.
+- Wording included "damage modifier is not included," which is safe in outcome but slightly awkward because King's Rock is not a damage modifier.
+- Speed/order, target action state, and turn sequencing limitations were not fully surfaced.
+- Result: PARTIAL PASS.
+
+Case D - Loaded Dice legal gate:
+- Payload had `multi_hit_context.available=false` with reason `blocked_by_legal_item_coverage`.
+- Gemini did not present Loaded Dice as legal-modeled context.
+- Gemini did not say Loaded Dice may improve multi-hit reliability.
+- Gemini did not say the move will hit 5 times or guarantee a hit count.
+- Gemini did not claim multi-hit-adjusted KO probability.
+- Gemini did mention "Loaded Dice's multi-hit effect is not modeled in this damage estimate."
+- This is safe, but it still surfaces the blocked item instead of staying completely quiet about future-only item behavior.
+- Result: PARTIAL PASS.
+
+Case E - Power Herb blocked:
+- Payload had no `charge_context`.
+- Gemini did not claim Power Herb makes Solar Beam fire instantly.
+- Gemini did not infer item consumption or turn sequencing.
+- Gemini did not claim turn-sequence-adjusted KO probability.
+- Gemini said "Power Herb effect is not modeled in the damage estimate."
+- This is safe, but it still surfaces the blocked item instead of staying completely quiet about future-only charge behavior.
+- Result: PARTIAL PASS.
+
+Overall verification:
+- Raw damage unchanged: PASS.
+- `ko_context` / secondary-effect probability separation: PARTIAL PASS.
+- Final probability claims: PASS.
+- Illegal/future-only item modeled exposure: PASS for modeled context, PARTIAL for natural-language quietness.
+- Hallucination safety: PARTIAL PASS.
+- Overall verdict: PARTIAL PASS.
+
+Next candidates:
+- `v0.83 - Verification Prompt Polish`
+- `v0.83 - Legal Item Gate Hardening`
+- `v0.83 - Actual Champions Legal Item Expansion Design`
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No Loaded Dice legal addition.
+- No Loaded Dice behavior change.
+- No Power Herb `charge_context` implementation.
+- No prompt changes.
+- No tests changed.
+- No context helper changes.
+- No legal gate changes.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context change.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
