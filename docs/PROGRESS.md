@@ -6934,6 +6934,113 @@ Maintained boundaries:
 
 ---
 
+## v0.86 - Actual Champions legal item expansion design
+
+Purpose:
+- Investigate `data/static/champions_legal_items.json` and choose the next item-context expansion candidate only from actual Champions legal fixture coverage.
+
+Current state:
+- Legal item gate is active and uses `data/static/champions_legal_items.json`.
+- Blocked/future-only item silence passed v0.85.1 local Gemini verification.
+- Loaded Dice remains implemented future-only support but blocked because it is absent from the Champions legal fixture.
+- Power Herb remains blocked.
+
+Inventory findings:
+- Total legal items: 117.
+- Legal hold items: 30.
+- Legal Mega Stones: 59.
+- Legal berries: 28.
+- Legal generic type boosting damage items already modeled: 17.
+- Legal non-damage contexts already modeled: 7.
+- Legal non-Mega unmodeled items: 34.
+- Mega Stones are legal but not a good fit for the current one-turn item-context track.
+
+Already modeled:
+- Type boosting damage items:
+  - `black-belt`
+  - `black-glasses`
+  - `charcoal`
+  - `dragon-fang`
+  - `hard-stone`
+  - `magnet`
+  - `metal-coat`
+  - `miracle-seed`
+  - `mystic-water`
+  - `never-melt-ice`
+  - `poison-barb`
+  - `sharp-beak`
+  - `silk-scarf`
+  - `silver-powder`
+  - `soft-sand`
+  - `spell-tag`
+  - `twisted-spoon`
+- Context items:
+  - `choice-scarf` / `speed_context`
+  - `focus-sash` / `survival_context`
+  - `sitrus-berry` / `recovery_context`
+  - `leftovers` / `recovery_context`
+  - `bright-powder` / `accuracy_context`
+  - `scope-lens` / `critical_context`
+  - `kings-rock` / `flinch_context`
+
+Blocked / not legal for expansion:
+- `loaded-dice`
+- `power-herb`
+- `choice-band`
+- `choice-specs`
+- `life-orb`
+- `expert-belt`
+- `muscle-band`
+- `wise-glasses`
+- `eviolite`
+- `assault-vest`
+- `rocky-helmet`
+- `black-sludge`
+
+Candidate findings:
+- `fairy-feather` is legal but missing local damage catalog support; it is a damage catalog gap, not the best limited context candidate.
+- `shell-bell` is legal but lacks inspected repo metadata and depends on damage-dealt recovery.
+- `focus-band` and `quick-claw` are legal but invite final probability / speed-order claims.
+- `light-ball` is legal and present in `items_damage.json`, but it is species-specific stat/damage integration.
+- Type-resist berries are legal and have repo-native metadata in `data/static/items_damage.json`.
+
+Recommendation:
+- Prefer `v0.87 - Type-resist Berry Limited Survival Context Design`.
+- Rationale:
+  - legal fixture coverage exists
+  - `items_damage.json` has `type_resist_berries` metadata
+  - user-facing value is high
+  - first design can keep raw damage and `ko_context` unchanged
+  - trigger, item consumption, exact damage reduction, multi-hit interaction, ability/weather interaction, and Turn Engine can remain out of scope
+
+Policy:
+- Do not recommend items absent from `data/static/champions_legal_items.json`.
+- Do not treat `items.json` as legal coverage.
+- Do not treat `items_damage.json` as legal coverage.
+- Keep Loaded Dice blocked/future-only.
+- Keep Power Herb blocked.
+- Do not mutate legal fixtures without explicit approval and evidence.
+- Do not use external research in this pass.
+
+Artifacts:
+- Added `docs/spike_v0.86_actual_champions_legal_item_expansion_design.md`.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No legal fixture mutation.
+- No Loaded Dice legal addition.
+- No Power Herb `charge_context`.
+- No external research.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context modification.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
