@@ -6566,6 +6566,89 @@ Maintained boundaries:
 
 ---
 
+## v0.83.1 - Local Gemini verification
+
+Purpose:
+- Verify v0.83 prompt polish with local Gemini actual calls.
+
+Execution:
+- Gemini actual call succeeded for all requested cases.
+- Cases executed:
+  - Case A: opponent Garchomp user-confirmed Bright Powder.
+  - Case B: my Charizard user-confirmed King's Rock.
+  - Case C: my Charizard user-confirmed Loaded Dice, blocked by legal coverage.
+  - Case D: my Charizard user-confirmed Power Herb, no `charge_context`.
+
+Case A - Bright Powder:
+- Gemini said Bright Powder may reduce hit reliability.
+- Raw damage was preserved as 33-39 HP / 18.0%-21.3%.
+- Gemini stated raw damage and KO estimates do not include hit chance.
+- Gemini did not claim final hit probability.
+- Gemini did not describe Bright Powder as damage reduction.
+- Gemini did not say the move will miss or is guaranteed to miss.
+- Result: PASS.
+
+Case B - King's Rock:
+- Gemini mentioned user-confirmed King's Rock.
+- Gemini said King's Rock may add flinch pressure.
+- Raw damage was preserved as 52-63 HP / 28.4%-34.4%.
+- Gemini stated raw damage and KO estimates do not include flinch chance.
+- Gemini did not claim final flinch probability or flinch-adjusted turn/outcome probability.
+- Gemini did not use the awkward "damage modifier is not included" wording.
+- Gemini did not say the target will flinch, cannot move, or is guaranteed to flinch.
+- Result: PASS.
+
+Case C - Loaded Dice blocked:
+- Payload had `multi_hit_context.available=false` with reason `blocked_by_legal_item_coverage`.
+- Gemini did not claim Loaded Dice may improve multi-hit reliability.
+- Gemini did not claim a guaranteed hit count or multi-hit-adjusted KO probability.
+- Gemini did not expose a modeled Loaded Dice context.
+- However, Gemini still mentioned "effects from your user-confirmed Loaded Dice" in the default recommendation.
+- This violates the v0.83 blocked/future-only quietness target.
+- Result: FAIL for blocked item quietness; safety around modeled mechanics remains PASS.
+
+Case D - Power Herb blocked:
+- Payload had no `charge_context`.
+- Gemini did not claim Solar Beam fires instantly.
+- Gemini did not infer item consumption or turn sequencing.
+- Gemini did not claim turn-sequence-adjusted KO probability.
+- However, Gemini still said "The effect of Power Herb is not included in this estimate" in the default recommendation.
+- This violates the v0.83 blocked/future-only quietness target.
+- Result: FAIL for blocked item quietness; safety around modeled mechanics remains PASS.
+
+Overall verification:
+- Raw damage unchanged: PASS.
+- `ko_context` / secondary-effect separation: PASS for Bright Powder and King's Rock.
+- Final probability claims: PASS.
+- Illegal/future-only modeled context exposure: PASS.
+- Blocked/future-only item quietness: FAIL.
+- Hallucination safety: PARTIAL PASS.
+- Overall verdict: FAIL for v0.83.1 because blocked/future-only items still surfaced in default advice.
+
+Next candidates:
+- `v0.84 - Legal Item Gate Hardening`
+- `v0.84 - Blocked Item Prompt Silence Polish`
+- `v0.84 - Actual Champions Legal Item Expansion Design`
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No Loaded Dice legal addition.
+- No Loaded Dice behavior change.
+- No Power Herb `charge_context` implementation.
+- No prompt changes.
+- No tests changed.
+- No context helper changes.
+- No legal gate changes.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context change.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
