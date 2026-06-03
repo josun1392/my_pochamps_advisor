@@ -6854,6 +6854,86 @@ Maintained boundaries:
 
 ---
 
+## v0.85.1 - Blocked item silence local Gemini verification
+
+Purpose:
+- Verify v0.85 generic blocked item silence with local Gemini actual calls.
+
+Execution:
+- Gemini actual call succeeded for all requested cases.
+- Cases executed:
+  - Case A: my Charizard user-confirmed Loaded Dice, blocked by Champions legal coverage.
+  - Case B: my Charizard user-confirmed Power Herb, no `charge_context`.
+  - Case C: opponent Garchomp user-confirmed Bright Powder legal item regression.
+
+Case A - Loaded Dice blocked quietness:
+- Payload/debug context confirmed `multi_hit_context.available=false` with `reason=blocked_by_legal_item_coverage`.
+- Gemini did not mention "Loaded Dice" by name.
+- Gemini did not say "user-confirmed Loaded Dice."
+- Gemini did not say "not modeled."
+- Gemini did not say "effect not included."
+- Gemini did not surface a generic blocked item-effect limitation such as "user-confirmed item effect," "held item effect," or "selected item effect."
+- Gemini did not claim multi-hit reliability, a guaranteed hit count, or multi-hit-adjusted KO probability.
+- Raw damage was preserved as 9-11 HP / 4.9%-6.0%.
+- Result: PASS.
+
+Case B - Power Herb blocked quietness:
+- No `charge_context` was present.
+- Gemini did not mention "Power Herb" by name.
+- Gemini did not say "not modeled."
+- Gemini did not say "effect not included."
+- Gemini did not surface a generic blocked item-effect limitation.
+- Gemini did not infer instant charge, item consumption, or turn sequencing from Power Herb.
+- Raw damage was preserved as 56-66 HP / 30.6%-36.1%.
+- Result: PASS.
+
+Case C - Bright Powder legal item regression:
+- Gemini mentioned the opponent's Bright Powder.
+- Gemini said Bright Powder may reduce hit reliability.
+- Raw damage was preserved as 33-39 HP / 18.0%-21.3%.
+- Gemini said raw damage/KO estimates do not include hit chance.
+- Gemini did not claim final hit probability.
+- Gemini did not say the move will miss or is guaranteed to miss.
+- Result: PASS.
+
+Verification summary:
+- Blocked item name exposure: PASS.
+- No "not modeled" default wording: PASS.
+- No "effect not included" default wording: PASS.
+- No generic blocked limitation: PASS.
+- Illegal item modeled exposure: PASS.
+- Raw damage unchanged: PASS.
+- KO context separation: PASS.
+- Final probability claims: PASS.
+- Overall verdict: PASS.
+- Safety: PASS.
+- Blocked item quietness: PASS.
+- Legal item regression: PASS.
+
+Next candidates:
+- `v0.86 - Actual Champions Legal Item Expansion Design`.
+- `v0.86 - Legal Item Gate Regression Polish`.
+- `v0.86 - Local Gemini Verification Batch Follow-up`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No Loaded Dice legal addition.
+- No Loaded Dice behavior change.
+- No Power Herb `charge_context` implementation.
+- No prompt changes.
+- No tests changed.
+- No context helper changes.
+- No legal gate changes.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context change.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
