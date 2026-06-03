@@ -326,7 +326,9 @@ If an item is user-confirmed but absent from the Champions legal item fixture, t
 
 Loaded Dice is currently implemented as future-only multi-hit context support but is blocked from user-facing modeled context until Loaded Dice legal coverage is confirmed. Power Herb remains blocked; `charge_moves.json` is move metadata and does not establish Power Herb legality.
 
-Blocked or future-only item reasons are developer/debug/contract metadata, not normal user-facing advice content. When an item is blocked by legal coverage, the LLM should not include the blocked item effect in the default recommendation text and should not say "Loaded Dice is not modeled" or "Power Herb is not modeled" unless the user explicitly asks about that item. The response must not imply blocked or future-only items are available in Champions.
+Blocked or future-only item reasons are developer/debug/contract metadata, not normal user-facing advice content. When an item is blocked by legal coverage, the LLM should not include the blocked item effect in the default recommendation text, mention the blocked item name, say "user-confirmed Loaded Dice," say "Power Herb," say "Loaded Dice is not modeled," say "Power Herb is not modeled," or say the blocked item effect is not included. The response must not imply blocked or future-only items are available in Champions.
+
+If the user explicitly asks about a blocked item, the LLM may give only a short explanation that Champions legal coverage is not confirmed, so the item effect is not reflected in advice. It must not calculate, strategize around, or imply availability for the blocked item.
 
 `damage_estimate.item_effects` is the source of truth for whether an item effect was applied to a specific calculation.
 
@@ -749,7 +751,7 @@ When `multi_hit_context.available` is true, the multi-hit note should stay conci
 
 If `multi_hit_context.available` is false, or no `multi_hit_context` is present for a move, the LLM should not invent Loaded Dice multi-hit effects or force a multi-hit limitation sentence.
 
-If `multi_hit_context.available` is false because the item is blocked by legal coverage, the blocked reason is developer/debug/contract metadata. The default user-facing recommendation should stay quiet about Loaded Dice and should not say "Loaded Dice is not modeled" unless the user explicitly asks about Loaded Dice.
+If `multi_hit_context.available` is false because the item is blocked by legal coverage, the blocked reason is developer/debug/contract metadata. The default user-facing recommendation should stay quiet about Loaded Dice and should not say "Loaded Dice," "user-confirmed Loaded Dice," "Loaded Dice is not modeled," or "Loaded Dice's effect is not included" unless the user explicitly asks about Loaded Dice.
 
 Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
 

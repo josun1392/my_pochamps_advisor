@@ -6649,6 +6649,62 @@ Maintained boundaries:
 
 ---
 
+## v0.84 - Blocked item prompt silence polish
+
+Purpose:
+- Strengthen blocked/future-only item silence after v0.83.1 found blocked item quietness failures.
+
+Background:
+- v0.83.1 verified that Bright Powder and King's Rock wording improved.
+- v0.83.1 also found that:
+  - Loaded Dice still appeared in default advice as "effects from your user-confirmed Loaded Dice."
+  - Power Herb still appeared in default advice as "The effect of Power Herb is not included."
+- The failure was not damage math, legal gating, or context construction. It was natural-language prompt quietness for blocked/future-only items.
+
+Implemented:
+- Strengthened prompt and contract wording so `blocked_by_legal_item_coverage` and `future_only_until_legal_confirmed` items stay silent in default advice.
+- Added explicit default-advice prohibitions:
+  - do not mention the blocked item name.
+  - do not mention the item effect.
+  - do not say the item is not modeled.
+  - do not say the item effect is not included.
+  - do not say "user-confirmed Loaded Dice."
+  - do not say "Power Herb."
+  - do not use the item in strategy recommendations.
+- Added explicit user-question exception:
+  - if the user directly asks about a blocked item, explain only that Champions legal coverage is not confirmed, so the item effect is not reflected in advice.
+- Preserved legal item contexts:
+  - Bright Powder
+  - Scope Lens
+  - King's Rock
+- Updated:
+  - `llm/advisor_client.py`
+  - `llm/advisor_payload_contract.py`
+  - `docs/advisor_payload_contract.md`
+  - `tests/test_advisor_payload_contract.py`
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 26 passed.
+- `uv run pytest -q`: 866 passed, 2 deselected.
+
+Maintained boundaries:
+- No context helper structure changes.
+- No legal gate changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No Loaded Dice legal addition.
+- No Loaded Dice behavior change.
+- No Power Herb `charge_context` implementation.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context change.
+- No UI changes.
+- No sample additions.
+- No external research.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

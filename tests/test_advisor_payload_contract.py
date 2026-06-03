@@ -833,8 +833,16 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "blocked by legal item coverage" in prompt
     assert "developer/debug/contract metadata" in prompt
     assert "do not include that item effect in normal user-facing recommendation text" in prompt
+    assert "do not mention the blocked item name" in prompt
+    assert "do not say user-confirmed Loaded Dice" in prompt
+    assert "do not say Power Herb" in prompt
+    assert "do not say the item is not modeled" in prompt
+    assert "do not say the item effect is not included" in prompt
     assert "Do not say Loaded Dice is not modeled or Power Herb is not modeled unless the user explicitly asks" in prompt
-    assert "do not imply blocked or future-only items are available in Champions" in prompt
+    assert "If the user explicitly asks about a blocked item" in prompt
+    assert "Champions legal coverage is not confirmed" in prompt
+    assert "item effect is not reflected in advice" in prompt
+    assert "Do not imply blocked or future-only items are available in Champions" in prompt
     assert "Focus Sash survival may appear only as limited survival_context" in prompt
     assert "not as damage reduction" in prompt
     assert "it does not change raw damage_range or rolls" in prompt
@@ -1120,7 +1128,19 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
+        "In default advice, do not mention blocked item names, do not say user-confirmed Loaded Dice, and do not say Power Herb when those items are blocked by legal coverage."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
         "Do not say Loaded Dice is not modeled or Power Herb is not modeled by default when those items are blocked by legal coverage."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say a blocked item effect is not included by default; keep blocked item explanations out of normal advice."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "If the user explicitly asks about a blocked item, explain only that Champions legal coverage is not confirmed, so the item effect is not reflected in advice."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert "Do not imply blocked or future-only items are available in Champions." in ADVISOR_KNOWN_LIMITATIONS
