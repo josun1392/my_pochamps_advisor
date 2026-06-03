@@ -326,6 +326,8 @@ If an item is user-confirmed but absent from the Champions legal item fixture, t
 
 Loaded Dice is currently implemented as future-only multi-hit context support but is blocked from user-facing modeled context until Loaded Dice legal coverage is confirmed. Power Herb remains blocked; `charge_moves.json` is move metadata and does not establish Power Herb legality.
 
+Blocked or future-only item reasons are developer/debug/contract metadata, not normal user-facing advice content. When an item is blocked by legal coverage, the LLM should not include the blocked item effect in the default recommendation text and should not say "Loaded Dice is not modeled" or "Power Herb is not modeled" unless the user explicitly asks about that item. The response must not imply blocked or future-only items are available in Champions.
+
 `damage_estimate.item_effects` is the source of truth for whether an item effect was applied to a specific calculation.
 
 When `damage_estimate.item_effects.attacker_item.status` is `applied`, the LLM should explicitly mention that the supported item damage modifier is included in that estimate. It should describe the number as being calculated under the stated assumptions plus the supported item modifier, not as only default assumptions. Non-damage item effects remain unmodeled.
@@ -651,6 +653,7 @@ The LLM may say:
 
 - "King's Rock may add flinch pressure as limited flinch context, but the raw damage and KO estimates do not include flinch chance."
 - "The raw KO chance is separate from any King's Rock flinch possibility; flinch-adjusted turn or outcome probability is not calculated."
+- "King's Rock flinch pressure is separate from the raw damage estimate; raw damage and raw `ko_context` are unchanged."
 - "This is not a final flinch probability; speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled."
 
 The LLM must not say:
@@ -667,6 +670,8 @@ The LLM must not say:
 When `flinch_context.available` is true, the flinch note should stay concise, ideally one or two sentences, and should mention that raw damage and KO/OHKO/2HKO estimates do not include flinch chance. It should also state that final flinch probability and flinch-adjusted turn or outcome probability are not calculated.
 
 When `flinch_context.available` is true, the LLM should say the raw damage estimate is unchanged and raw `ko_context` is unchanged. It should include one concise limitation sentence that speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled.
+
+When `flinch_context.available` is true, prefer "raw damage estimate is unchanged" over awkward wording such as "damage modifier is not included." King's Rock is not a direct damage boost, and flinch context should be framed as separate pressure, not as damage modifier bookkeeping.
 
 If `flinch_context.available` is false, or no `flinch_context` is present for a move, the LLM should not invent King's Rock flinch effects or force a flinch limitation sentence.
 
@@ -743,6 +748,8 @@ The LLM must not say:
 When `multi_hit_context.available` is true, the multi-hit note should stay concise, ideally one or two sentences, and should mention that raw damage and KO/OHKO/2HKO estimates do not include multi-hit count changes. It should also state that final hit count probability and multi-hit-adjusted KO probability are not calculated.
 
 If `multi_hit_context.available` is false, or no `multi_hit_context` is present for a move, the LLM should not invent Loaded Dice multi-hit effects or force a multi-hit limitation sentence.
+
+If `multi_hit_context.available` is false because the item is blocked by legal coverage, the blocked reason is developer/debug/contract metadata. The default user-facing recommendation should stay quiet about Loaded Dice and should not say "Loaded Dice is not modeled" unless the user explicitly asks about Loaded Dice.
 
 Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
 

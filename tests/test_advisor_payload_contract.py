@@ -803,6 +803,8 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "not a direct damage boost" in prompt
     assert "flinch_context applies only when King's Rock is user-confirmed" in prompt
     assert "say the raw damage estimate is unchanged and raw ko_context is unchanged" in prompt
+    assert "damage modifier is not included" in prompt
+    assert "say raw damage estimate is unchanged instead" in prompt
     assert "Final flinch probability is not calculated" in prompt
     assert "Flinch-adjusted turn or outcome probability is not calculated" in prompt
     assert "Include one concise limitation sentence that speed order, target action state, abilities" in prompt
@@ -819,6 +821,7 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Loaded Dice may improve multi-hit reliability for eligible moves" in prompt
     assert "not a direct damage boost" in prompt
     assert "multi_hit_context applies only when Loaded Dice is user-confirmed" in prompt
+    assert "Champions legal coverage is confirmed" in prompt
     assert "move multi-hit metadata is available" in prompt
     assert "Final hit count probability is not calculated" in prompt
     assert "Multi-hit-adjusted KO probability is not calculated" in prompt
@@ -827,6 +830,11 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Do not claim Loaded Dice breaks Focus Sash" in prompt
     assert "Do not infer Loaded Dice if the item is unknown or unconfirmed" in prompt
     assert "Focus Sash, King's Rock, accuracy, crit per-hit handling, and turn sequencing are not modeled" in prompt
+    assert "blocked by legal item coverage" in prompt
+    assert "developer/debug/contract metadata" in prompt
+    assert "do not include that item effect in normal user-facing recommendation text" in prompt
+    assert "Do not say Loaded Dice is not modeled or Power Herb is not modeled unless the user explicitly asks" in prompt
+    assert "do not imply blocked or future-only items are available in Champions" in prompt
     assert "Focus Sash survival may appear only as limited survival_context" in prompt
     assert "not as damage reduction" in prompt
     assert "it does not change raw damage_range or rolls" in prompt
@@ -1024,6 +1032,10 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
+        "When flinch_context is available, avoid wording like damage modifier is not included; prefer raw damage estimate is unchanged."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
         "When flinch_context is available, keep flinch wording concise and mention that raw damage and KO/OHKO/2HKO estimates do not include flinch chance."
         in ADVISOR_KNOWN_LIMITATIONS
     )
@@ -1099,6 +1111,19 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         "If a user-confirmed item is absent from the Champions legal item fixture, do not emit modeled item context; use blocked_by_legal_item_coverage."
         in ADVISOR_KNOWN_LIMITATIONS
     )
+    assert (
+        "Blocked or future-only item reasons are developer/debug/contract metadata, not normal user-facing advice content."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not include blocked or future-only item effects in user-facing recommendation text unless the user explicitly asks about that item."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say Loaded Dice is not modeled or Power Herb is not modeled by default when those items are blocked by legal coverage."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Do not imply blocked or future-only items are available in Champions." in ADVISOR_KNOWN_LIMITATIONS
     assert (
         "Loaded Dice multi-hit context is blocked/future-only until Loaded Dice legal coverage is confirmed."
         in ADVISOR_KNOWN_LIMITATIONS

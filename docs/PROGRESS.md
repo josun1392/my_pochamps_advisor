@@ -6516,6 +6516,56 @@ Maintained boundaries:
 
 ---
 
+## v0.83 - Verification prompt polish
+
+Purpose:
+- Polish prompt and contract wording after v0.82 local Gemini verification produced a PARTIAL PASS.
+
+Implemented:
+- Strengthened Bright Powder accuracy wording:
+  - hit reliability context is separate from raw damage and KO estimates.
+  - KO/OHKO/2HKO estimates do not include hit chance.
+  - final hit probability is not calculated.
+  - Bright Powder must not be described as damage reduction.
+- Strengthened King's Rock flinch wording:
+  - flinch pressure context is separate from raw damage and KO estimates.
+  - KO/OHKO/2HKO estimates do not include flinch chance.
+  - final flinch probability and flinch-adjusted turn/outcome probability are not calculated.
+  - speed order, target action state, abilities, multi-hit handling, and turn sequencing are not modeled.
+  - prefer "raw damage estimate is unchanged" over awkward wording such as "damage modifier is not included."
+- Strengthened blocked/future-only item quietness:
+  - blocked legal item reasons are developer/debug/contract metadata.
+  - Loaded Dice / Power Herb blocked or future-only effects should not appear in normal user-facing recommendation text.
+  - do not say "Loaded Dice is not modeled" or "Power Herb is not modeled" by default unless the user explicitly asks about that item.
+  - do not imply blocked or future-only items are available in Champions.
+- Updated:
+  - `llm/advisor_client.py`
+  - `llm/advisor_payload_contract.py`
+  - `docs/advisor_payload_contract.md`
+  - `tests/test_advisor_payload_contract.py`
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 26 passed.
+- `uv run pytest -q`: 866 passed, 2 deselected.
+
+Maintained boundaries:
+- No context helper structure changes.
+- No legal gate changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No Loaded Dice legal addition.
+- No Loaded Dice behavior change.
+- No Power Herb `charge_context` implementation.
+- No damage formula change.
+- No raw damage roll modification.
+- No KO context change.
+- No UI changes.
+- No sample additions.
+- No external research.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
