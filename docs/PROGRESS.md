@@ -7334,6 +7334,95 @@ Maintained boundaries:
 
 ---
 
+## v0.89.1 - Resist berry local Gemini verification
+
+Purpose:
+- Verify v0.89 resist berry wording and unavailable-case silence with local Gemini actual calls.
+
+Execution:
+- Gemini actual call succeeded for all requested cases.
+- Cases executed:
+  - Case A: opponent Garchomp user-confirmed Yache Berry, incoming Ice Beam, super-effective matchup.
+  - Case B: opponent Garchomp user-confirmed Yache Berry, incoming Flamethrower, not a qualifying super-effective hit.
+  - Case C: opponent Garchomp user-confirmed Chilan Berry deferred case.
+  - Case D: opponent Garchomp user-confirmed Focus Sash legal item regression.
+
+Case A - Yache Berry available:
+- Payload/debug context confirmed `resist_berry_context.available=true`.
+- Gemini mentioned the opponent's user-confirmed Yache Berry.
+- Gemini said Yache Berry may reduce the super-effective Ice-type hit.
+- Raw damage was preserved as 168-200 HP / 91.8%-109.3%.
+- Gemini stated the raw damage estimate and KO context do not include the berry reduction.
+- Gemini did not calculate berry-adjusted damage.
+- Gemini did not calculate berry-adjusted KO probability.
+- Gemini did not track item consumption or claim final turn outcome.
+- Gemini did not say Garchomp definitely survives or always survives.
+- Result: PASS.
+
+Case B - Yache Berry non-super-effective unavailable:
+- Payload/debug context confirmed `resist_berry_context.available=false` with `reason=move_not_super_effective`.
+- Raw damage was preserved as 31-37 HP / 16.9%-20.2%.
+- Gemini did not mention Yache Berry by name.
+- Gemini did not say "Yache Berry effect is not applied."
+- Gemini did not say "berry effect is not included."
+- Gemini did not say "berry is not modeled."
+- Gemini did not say Yache Berry reduced damage or changed KO odds.
+- Gemini did not calculate berry-adjusted damage or berry-adjusted KO probability.
+- Result: PASS.
+
+Case C - Chilan Berry deferred:
+- Payload/debug context confirmed `resist_berry_context.available=false` with `reason=chilan_berry_deferred`.
+- Raw damage was preserved as 14-17 HP / 7.7%-9.3%.
+- Gemini did not mention Chilan Berry by name.
+- Gemini did not claim Chilan Berry was modeled.
+- Gemini did not change raw damage or KO context.
+- However, Gemini still surfaced a generic "opponent's user-confirmed item effect is not included" sentence.
+- This is safe but noisier than the desired unavailable/deferred item quietness.
+- Result: PARTIAL PASS.
+
+Case D - Focus Sash legal regression:
+- Payload/debug context confirmed `survival_context.available=true`.
+- Raw damage was preserved as 31-37 HP / 88.6%-105.7% against the user-confirmed 35 HP profile.
+- Gemini mentioned user-confirmed Focus Sash and said it may allow Garchomp to survive at 1 HP.
+- Gemini did not say Focus Sash changed raw damage.
+- Gemini did not say guaranteed survival.
+- Result: PASS.
+
+Verification summary:
+- Raw damage unchanged: PASS.
+- `ko_context` separation: PASS for available Yache context.
+- Berry-adjusted damage claim: PASS.
+- Berry-adjusted KO claim: PASS.
+- Final survival claim: PASS.
+- Yache unavailable quietness: PASS.
+- Chilan deferred quietness: PARTIAL because a generic item-effect limitation surfaced.
+- Overall verdict: PARTIAL PASS.
+
+Next candidates:
+- `v0.90 - Generic Unavailable Item Effect Silence Polish`.
+- `v0.90 - Chilan Deferred Silence Polish`.
+- `v0.90 - Resist Berry Local Verification Follow-up`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No `resist_berry_context` changes.
+- No prompt changes.
+- No tests changed.
+- No raw damage formula changes.
+- No raw damage roll modification.
+- No KO context changes.
+- No berry-adjusted damage implementation.
+- No berry-adjusted KO implementation.
+- No item consumption tracking.
+- No Turn Engine.
+- No Chilan Berry full support.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
