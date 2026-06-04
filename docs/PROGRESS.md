@@ -7423,6 +7423,65 @@ Maintained boundaries:
 
 ---
 
+## v0.90 - Generic unavailable item effect silence polish
+
+Purpose:
+- Silence generic "item effect not included" wording for unavailable/deferred item contexts after v0.89.1 found Chilan Berry deferred still surfaced a generic item-effect limitation.
+
+Background:
+- v0.89.1 verified:
+  - Yache Berry available wording passed.
+  - Yache Berry non-super-effective unavailable quietness passed.
+  - Chilan Berry deferred did not expose the item name/effect, but Gemini still said the opponent's user-confirmed item effect was not included.
+
+Implemented:
+- Strengthened `llm/advisor_client.py` prompt guardrails for unavailable/deferred item contexts.
+- Added a general default-advice silence rule for:
+  - unavailable
+  - deferred
+  - blocked
+  - unconfirmed
+  - non-triggered
+  - absent item contexts
+- Marked unavailable/deferred item reasons as developer/debug/contract metadata by default.
+- Forbid default advice wording:
+  - "item effect is not included"
+  - "opponent's item effect is not included"
+  - "user-confirmed item effect is not included"
+  - "item is not modeled"
+  - "item effect is not applied"
+  - "not included in this estimate"
+  - "not reflected in the calculation"
+- Preserved the explicit user-ask exception.
+- Preserved legal available item wording.
+- Updated `llm/advisor_payload_contract.py`.
+- Updated `docs/advisor_payload_contract.md`.
+- Added payload contract tests for generic unavailable item-effect silence.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 26 passed.
+- `uv run pytest -q`: 876 passed, 2 deselected.
+
+Maintained boundaries:
+- No context helper changes.
+- No legal gate changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No `resist_berry_context` changes.
+- No raw damage formula changes.
+- No raw damage roll modification.
+- No `ko_context` changes.
+- No berry-adjusted damage implementation.
+- No berry-adjusted KO implementation.
+- No item consumption tracking.
+- No Turn Engine.
+- No Chilan Berry full support.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

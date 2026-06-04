@@ -865,6 +865,16 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Champions legal coverage is not confirmed" in prompt
     assert "item effect is not reflected in advice" in prompt
     assert "Do not imply blocked or future-only items are available in Champions" in prompt
+    assert "unavailable, deferred, blocked, unconfirmed, non-triggered, or absent item contexts" in prompt
+    assert "developer/debug/contract metadata by default" in prompt
+    assert "Do not say item effect is not included" in prompt
+    assert "opponent's item effect is not included" in prompt
+    assert "user-confirmed item effect is not included" in prompt
+    assert "item is not modeled" in prompt
+    assert "item effect is not applied" in prompt
+    assert "not included in this estimate" in prompt
+    assert "not reflected in the calculation" in prompt
+    assert "Do not mention unavailable or deferred item names or effects" in prompt
     assert "Focus Sash survival may appear only as limited survival_context" in prompt
     assert "not as damage reduction" in prompt
     assert "it does not change raw damage_range or rolls" in prompt
@@ -1219,6 +1229,22 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert "Do not imply blocked or future-only items are available in Champions." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "For unavailable, deferred, blocked, unconfirmed, non-triggered, or absent item contexts, treat the reason as developer/debug/contract metadata by default."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say item effect is not included, opponent's item effect is not included, or user-confirmed item effect is not included for unavailable item contexts in default advice."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say item is not modeled, item effect is not applied, not included in this estimate, or not reflected in the calculation for unavailable item contexts in default advice."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not mention unavailable or deferred item names or effects unless the user explicitly asks about that item."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
     assert (
         "Loaded Dice multi-hit context is blocked/future-only until Loaded Dice legal coverage is confirmed."
         in ADVISOR_KNOWN_LIMITATIONS

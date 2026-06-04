@@ -755,6 +755,31 @@ If `multi_hit_context.available` is false because the item is blocked by legal c
 
 Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `resist_berry_context`, or `ko_context`.
 
+## Unavailable Item Context Silence
+
+Unavailable, deferred, blocked, unconfirmed, non-triggered, or absent item context reasons are developer/debug/contract metadata by default. They should not be surfaced in ordinary battle advice.
+
+This applies to unavailable item contexts such as:
+
+- `blocked_by_legal_item_coverage`
+- `future_only_until_legal_confirmed`
+- `move_not_super_effective`
+- `chilan_berry_deferred`
+- `item_not_user_confirmed`
+- `no_resist_berry`
+
+Default user-facing advice must not say:
+
+- "item effect is not included"
+- "opponent's item effect is not included"
+- "user-confirmed item effect is not included"
+- "item is not modeled"
+- "item effect is not applied"
+- "not included in this estimate"
+- "not reflected in the calculation"
+
+Default user-facing advice should also avoid naming unavailable or deferred item effects. If the user explicitly asks about that item or reason, the response may briefly explain the relevant metadata state without implying that a final item-adjusted calculation exists.
+
 ## Resist Berry Context Semantics
 
 `resist_berry_context` is an additive limited context for standard type-resist berries. It is never nested inside `damage_estimate` or `ko_context`.
