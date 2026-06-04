@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from types import MethodType, SimpleNamespace
 
 from core.cache_manager import CacheManager
@@ -23,6 +24,19 @@ from tests.test_advisor_damage_estimate import (
 )
 from ui.main_window import MainWindow
 from ui.widgets.item_profile_dialog import item_profile_from_option, legal_item_options_from_repository
+
+
+UNAVAILABLE_ITEM_ADVICE_PAYLOAD_FORBIDDEN_TERMS = (
+    "Chilan Berry",
+    "chilan",
+    "effect is not applied",
+    "item effect is not included",
+    "not modeled",
+    "not reflected",
+    "unsupported",
+    "deferred",
+    "blocked",
+)
 
 
 def test_ui_payload_uses_advisor_contract_guardrails() -> None:
@@ -856,7 +870,8 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Item consumption is not tracked" in prompt
     assert "Do not say the Pokemon definitely survives" in prompt
     assert "Do not infer a resist berry if the item is unknown or unconfirmed" in prompt
-    assert "Unsupported resist berry edge cases are not modeled unless explicitly supported" in prompt
+    assert "Resist berry edge cases require explicit support before advice can use them" in prompt
+    assert "Unsupported resist berry edge cases" not in prompt
     assert "Chilan Berry and edge cases are not modeled unless explicitly supported" not in prompt
     assert "blocked by legal item coverage" in prompt
     assert "developer/debug/contract metadata" in prompt
@@ -951,7 +966,12 @@ def test_advice_payload_filters_unavailable_resist_berry_context_but_keeps_debug
     assert "ko_context" in advice_move
     assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
     assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
-    assert advice_move["ko_context"] == debug_move["ko_context"]
+    assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("move_not_super_effective", "yache-berry"),
+    )
 
 
 def test_advice_payload_hides_chilan_deferred_context_from_default_advice_payload() -> None:
@@ -969,6 +989,7 @@ def test_advice_payload_hides_chilan_deferred_context_from_default_advice_payloa
     assert "resist_berry_context" not in advice_move
     assert advice_payload["item_profiles"]["opponent_active"]["status"] == "unknown"
     assert advice_payload["item_profiles"]["opponent_active"]["item_id"] is None
+    _assert_forbidden_terms_absent_from_advice_payload(advice_payload)
     assert "chilan-berry" not in _build_ui_selected_prompt(enriched)
     assert "chilan_berry_deferred" not in _build_ui_selected_prompt(enriched)
 
@@ -989,6 +1010,10 @@ def test_advice_payload_hides_loaded_dice_blocked_context_and_item_profile() -> 
     assert "multi_hit_context" not in advice_move
     assert advice_payload["item_profiles"]["my_active"]["status"] == "unknown"
     assert advice_payload["item_profiles"]["my_active"]["item_id"] is None
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("Loaded Dice", "loaded-dice"),
+    )
     prompt = _build_ui_selected_prompt(enriched)
     assert '"loaded-dice"' not in prompt
     assert "blocked_by_legal_item_coverage" not in prompt
@@ -1007,6 +1032,10 @@ def test_advice_payload_hides_power_herb_non_legal_item_profile_without_charge_c
     assert advice_payload["item_profiles"]["my_active"]["status"] == "unknown"
     assert advice_payload["item_profiles"]["my_active"]["item_id"] is None
     assert "charge_context" not in advice_payload["moves"]["my_selected_move"]
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("Power Herb", "power-herb"),
+    )
     assert '"power-herb"' not in _build_ui_selected_prompt(enriched)
 
 
@@ -1021,11 +1050,24 @@ def test_advice_payload_preserves_available_yache_context_and_legal_contexts() -
     advice_payload = build_ui_advice_payload(enriched)
     advice_move = advice_payload["moves"]["my_selected_move"]
 
-    assert advice_move["resist_berry_context"] == debug_move["resist_berry_context"]
+    assert advice_move["resist_berry_context"]["available"] is True
+    assert advice_move["resist_berry_context"]["item"] == debug_move["resist_berry_context"]["item"]
+    assert advice_move["resist_berry_context"]["resist_effect"] == debug_move["resist_berry_context"]["resist_effect"]
     assert advice_payload["item_profiles"]["opponent_active"]["item_id"] == "yache-berry"
     assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
     assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
-    assert advice_move["ko_context"] == debug_move["ko_context"]
+    assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+
+
+def _assert_forbidden_terms_absent_from_advice_payload(
+    advice_payload: dict,
+    *,
+    extra_terms: tuple[str, ...] = (),
+) -> None:
+    rendered = json.dumps(advice_payload, ensure_ascii=False)
+    for term in (*UNAVAILABLE_ITEM_ADVICE_PAYLOAD_FORBIDDEN_TERMS, *extra_terms):
+        assert term.lower() not in rendered.lower()
 
 
 def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
@@ -1258,7 +1300,7 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "Unsupported resist berry edge cases are deferred from resist_berry_context until explicitly supported."
+        "Resist berry edge cases require explicit support before advice can use them."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

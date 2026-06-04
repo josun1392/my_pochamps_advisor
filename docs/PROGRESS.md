@@ -7674,6 +7674,99 @@ Maintained boundaries:
 
 ---
 
+## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
+
+Purpose:
+- Re-verify v0.92 advice-payload filtering with actual Gemini calls.
+- Harden regressions so unavailable/deferred/blocked item information cannot leak through default advice payload JSON, `item_profiles`, `damage_estimate.item_effects`, or generic limitation wording.
+
+Observed before hardening:
+- Actual Gemini calls after v0.92 no longer exposed Chilan Berry, Loaded Dice, or Power Herb item names/effects from unavailable item contexts.
+- However, the default advice payload could still contain generic debug-only limitation wording such as `not modeled` from nested non-item fields like `ko_context.limitations`.
+- Root cause: item context filtering removed `available=false` item context fields, but did not scrub debug-oriented `limitations` strings that could still invite generic natural-language caveats.
+
+Implemented:
+- Kept `available=false` item contexts removed from the default Gemini advice payload.
+- Kept enriched/debug payload reasons intact:
+  - `chilan_berry_deferred`
+  - `move_not_super_effective`
+  - `blocked_by_legal_item_coverage`
+- Added advice-payload limitation filtering for debug-only phrases:
+  - `effect is not applied`
+  - `item effect is not included`
+  - `not modeled`
+  - `not reflected`
+  - `unsupported`
+  - `deferred`
+  - `blocked`
+- Kept raw `damage_estimate` in the default advice payload.
+- Kept raw `ko_context` in the default advice payload while stripping only debug-only limitation strings from its `limitations` list.
+- Preserved available legal item contexts such as available Yache Berry `resist_berry_context`.
+- Reworded the resist berry edge-case prompt/contract guardrail away from `Unsupported...not modeled` wording to:
+  - `Resist berry edge cases require explicit support before advice can use them.`
+
+Actual Gemini verification:
+- Gemini actual call: succeeded.
+- Case A Chilan Berry deferred:
+  - enriched/debug payload kept `resist_berry_context.available=false`, reason `chilan_berry_deferred`.
+  - default advice payload removed `resist_berry_context`.
+  - default advice payload hid the opponent item profile as unknown.
+  - actual advice did not mention Chilan Berry, `chilan`, effect-not-applied wording, `not modeled`, `not reflected`, `unsupported`, `deferred`, or `blocked`.
+- Case B Yache Berry available:
+  - default advice payload retained `resist_berry_context.available=true`.
+  - raw damage range and rolls were preserved.
+  - `ko_context` remained present.
+  - actual advice kept the berry reduction separate from raw damage/KO context.
+- Case C Yache Berry non-super-effective unavailable:
+  - enriched/debug payload kept reason `move_not_super_effective`.
+  - default advice payload removed `resist_berry_context` and hid the item profile.
+  - actual advice did not mention Yache Berry, the unavailable reason, or generic item-effect limitation wording.
+- Case D Loaded Dice blocked:
+  - enriched/debug payload kept `multi_hit_context.available=false`, reason `blocked_by_legal_item_coverage`.
+  - default advice payload removed `multi_hit_context`, hid the item profile, and did not expose `loaded-dice` through `damage_estimate.item_effects`.
+  - actual advice did not mention Loaded Dice, blocked/not-modeled wording, 5-hit claims, or multi-hit-adjusted KO.
+- Case E Power Herb blocked:
+  - no `charge_context` was added.
+  - default advice payload hid the item profile and did not expose `power-herb`.
+  - actual advice did not mention Power Herb, instant charge, item consumption, or turn sequencing.
+
+Regression tests:
+- Strengthened `tests/test_advisor_payload_contract.py` to assert:
+  - Chilan deferred is hidden from default advice payload while debug reason remains.
+  - Yache non-SE unavailable is hidden from default advice payload while debug reason remains.
+  - Loaded Dice blocked is hidden from default advice payload while debug reason remains.
+  - Power Herb / non-legal item profile is hidden from default advice payload.
+  - Available Yache Berry context remains in default advice payload.
+  - raw damage range and rolls remain unchanged.
+  - `ko_context` remains present with OHKO/2HKO values preserved.
+  - unavailable/deferred/blocked reason strings and item names do not appear in serialized default advice payload.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 31 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 89 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: initially 1 known item perf failure, then 4 passed on rerun.
+- `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: passed on 3 isolated reruns.
+- `uv run pytest -q`: 881 passed, 2 deselected.
+
+Maintained boundaries:
+- No Chilan Berry full support.
+- No legal fixture mutation.
+- No fixture changes.
+- No damage formula changes.
+- No raw damage roll modification.
+- No KO context calculation changes.
+- No berry-adjusted damage implementation.
+- No berry-adjusted KO implementation.
+- No item consumption tracking.
+- No Turn Engine.
+- No Power Herb charge_context.
+- No Loaded Dice legal addition.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

@@ -761,6 +761,8 @@ Unavailable, deferred, blocked, unconfirmed, non-triggered, or absent item conte
 
 The default Gemini advice payload is filtered from the enriched/debug payload. Item context fields with `available=false` are removed from the default advice payload before prompt serialization, while the enriched/debug payload may retain the full context and `reason` for diagnostics and tests. This keeps unavailable/deferred reasons available to developers without giving Gemini default advice a reason to explain them.
 
+The default advice payload also strips debug-only limitation strings that contain unavailable/deferred/blocked wording such as "not modeled", "not reflected", "unsupported", "deferred", "blocked", "effect is not applied", or "item effect is not included". This applies to nested `limitations` lists as well, including otherwise legal raw contexts such as `ko_context`, so generic limitation wording does not leak unavailable item state into ordinary advice. The enriched/debug payload may keep those limitations for diagnostics.
+
 The filtering applies to item context fields such as:
 
 - `survival_context`
@@ -883,7 +885,7 @@ The LLM must not say:
 - "The damage range is reduced to X-Y."
 - "The berry-adjusted KO chance is 70%."
 - "The berry has already been consumed."
-- "Chilan Berry is modeled" unless a future explicit field supports it.
+- "A deferred resist berry edge case is modeled" unless a future explicit field supports it.
 
 When `resist_berry_context.available` is true, the resist berry note should stay concise, ideally one or two sentences, and should mention that raw damage and KO/OHKO/2HKO estimates do not include berry reduction. It should also state that berry-adjusted damage, berry-adjusted KO probability, and item consumption are not calculated.
 

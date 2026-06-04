@@ -33,6 +33,15 @@ ITEM_CONTEXT_FIELDS = frozenset(
         "charge_context",
     }
 )
+ADVICE_PAYLOAD_DEBUG_LIMITATION_PHRASES = (
+    "effect is not applied",
+    "item effect is not included",
+    "not modeled",
+    "not reflected",
+    "unsupported",
+    "deferred",
+    "blocked",
+)
 
 
 def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dict[str, Any]]:
@@ -82,6 +91,7 @@ def build_ui_advice_payload(battle_input: dict[str, Any]) -> dict[str, Any]:
     hidden_item_sides -= available_item_sides
     hidden_item_ids = _hide_advice_hidden_item_profiles(payload, hidden_item_sides)
     _hide_advice_hidden_item_effects(payload, hidden_item_ids)
+    _remove_debug_only_limitations(payload)
     return payload
 
 
@@ -292,8 +302,8 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "Berry-adjusted KO probability is not calculated. Item consumption "
         "is not tracked. Do not say the Pokemon definitely survives. Do not "
         "infer a resist berry if the item is unknown or unconfirmed. "
-        "Unsupported resist berry edge cases are not modeled unless explicitly "
-        "supported. "
+        "Resist berry edge cases require explicit support before advice can "
+        "use them. "
         "Focus Sash survival may appear only as limited "
         "survival_context, not as damage reduction; it does not change raw "
         "damage_range or rolls. Focus Sash survival_context applies only "
@@ -421,6 +431,29 @@ def _hide_advice_hidden_item_effects(value: Any, hidden_item_ids: set[str]) -> N
     elif isinstance(value, list):
         for item in value:
             _hide_advice_hidden_item_effects(item, hidden_item_ids)
+
+
+def _remove_debug_only_limitations(value: Any) -> None:
+    if isinstance(value, dict):
+        limitations = value.get("limitations")
+        if isinstance(limitations, list):
+            value["limitations"] = [
+                limitation
+                for limitation in limitations
+                if not _contains_debug_limitation_phrase(limitation)
+            ]
+        for child in value.values():
+            _remove_debug_only_limitations(child)
+    elif isinstance(value, list):
+        for item in value:
+            _remove_debug_only_limitations(item)
+
+
+def _contains_debug_limitation_phrase(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    lowered = value.lower()
+    return any(phrase in lowered for phrase in ADVICE_PAYLOAD_DEBUG_LIMITATION_PHRASES)
 
 
 def _log_advisor_call(

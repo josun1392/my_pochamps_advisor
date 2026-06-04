@@ -124,7 +124,7 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "ko_context is unchanged by resist_berry_context and KO/OHKO/2HKO estimates do not include berry reduction.",
     "When resist_berry_context is available, explicitly say the raw damage estimate is unchanged and raw ko_context is unchanged.",
     "resist_berry_context applies only when a standard type-resist berry is user-confirmed, legal coverage is confirmed, incoming move type is known, and the move is super-effective.",
-    "Unsupported resist berry edge cases are deferred from resist_berry_context until explicitly supported.",
+    "Resist berry edge cases require explicit support before advice can use them.",
     "A type-resist berry may reduce a qualifying super-effective hit, but berry-adjusted damage is not calculated.",
     "Berry-adjusted KO probability is not calculated in resist_berry_context.",
     "Item consumption is not tracked in resist_berry_context.",
