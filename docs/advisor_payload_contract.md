@@ -759,6 +759,21 @@ Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_
 
 Unavailable, deferred, blocked, unconfirmed, non-triggered, or absent item context reasons are developer/debug/contract metadata by default. They should not be surfaced in ordinary battle advice.
 
+The default Gemini advice payload is filtered from the enriched/debug payload. Item context fields with `available=false` are removed from the default advice payload before prompt serialization, while the enriched/debug payload may retain the full context and `reason` for diagnostics and tests. This keeps unavailable/deferred reasons available to developers without giving Gemini default advice a reason to explain them.
+
+The filtering applies to item context fields such as:
+
+- `survival_context`
+- `recovery_context`
+- `accuracy_context`
+- `critical_context`
+- `flinch_context`
+- `multi_hit_context`
+- `resist_berry_context`
+- future `charge_context`
+
+When a user-confirmed item is absent from Champions legal coverage, default advice payloads also hide that non-legal item profile as unknown. This prevents blocked item names such as Loaded Dice or future-only items such as Power Herb from appearing in ordinary advice JSON. The enriched/debug payload may still retain the original item profile and blocked context reason.
+
 This applies to unavailable item contexts such as:
 
 - `blocked_by_legal_item_coverage`
@@ -806,7 +821,7 @@ The first supported scope is the 17 standard type-resist berries whose `items_da
 - `wacan-berry`
 - `yache-berry`
 
-`chilan-berry` is deferred because `items_damage.json` marks it as `always_resist=true`, and that Normal-type edge case is not the same as a super-effective trigger.
+The Normal-type always-resist berry edge case is deferred because `items_damage.json` marks it as `always_resist=true`, and that edge case is not the same as a super-effective trigger.
 
 Available resist berry context requires:
 
@@ -874,7 +889,7 @@ When `resist_berry_context.available` is true, the resist berry note should stay
 
 When `resist_berry_context.available` is true, prefer wording such as "raw damage estimate is unchanged" and "raw ko_context is unchanged" over wording that implies the berry should have been part of the damage formula.
 
-If `resist_berry_context.available` is false, or no `resist_berry_context` is present for a move, the unavailable reason is developer/debug/contract metadata only. The LLM should not invent resist berry effects, force a resist berry limitation sentence, or mention the unavailable berry name/effect/reason in default advice.
+If `resist_berry_context.available` is false in the enriched/debug payload, the default advice payload should omit `resist_berry_context`. The unavailable reason is developer/debug/contract metadata only. The LLM should not invent resist berry effects, force a resist berry limitation sentence, or mention the unavailable berry name/effect/reason in default advice.
 
 For unavailable resist berry context, the LLM must not say:
 

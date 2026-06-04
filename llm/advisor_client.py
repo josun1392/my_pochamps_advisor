@@ -8,14 +8,30 @@ for the v0.5 spike.
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from typing import Any
 
+from core.champions_legal_item_repository import get_legal_item_status
 from llm.token_logger import UNKNOWN_MODEL_OR_UNKNOWN_PRICING, TokenLogger
 from scripts.spike_advisor import (
     DEFAULT_MODEL,
     build_prompt,
     call_gemini,
     collect_battle_data,
+)
+
+
+ITEM_CONTEXT_FIELDS = frozenset(
+    {
+        "survival_context",
+        "recovery_context",
+        "accuracy_context",
+        "critical_context",
+        "flinch_context",
+        "multi_hit_context",
+        "resist_berry_context",
+        "charge_context",
+    }
 )
 
 
@@ -58,6 +74,17 @@ def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dic
     return recommendation, usage, summary
 
 
+def build_ui_advice_payload(battle_input: dict[str, Any]) -> dict[str, Any]:
+    """Return the Gemini default-advice payload without debug-only item context."""
+    payload = deepcopy(battle_input)
+    available_item_sides = _collect_available_item_context_sides(payload)
+    hidden_item_sides = _remove_unavailable_item_contexts(payload)
+    hidden_item_sides -= available_item_sides
+    hidden_item_ids = _hide_advice_hidden_item_profiles(payload, hidden_item_sides)
+    _hide_advice_hidden_item_effects(payload, hidden_item_ids)
+    return payload
+
+
 def run_ui_selected_advice(
     battle_input: dict[str, Any],
     model: str | None = None,
@@ -79,6 +106,7 @@ def run_ui_selected_advice(
 
 
 def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
+    advice_payload = build_ui_advice_payload(battle_input)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
@@ -263,8 +291,9 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "super-effective hit, but berry-adjusted damage is not calculated. "
         "Berry-adjusted KO probability is not calculated. Item consumption "
         "is not tracked. Do not say the Pokemon definitely survives. Do not "
-        "infer a resist berry if the item is unknown or unconfirmed. Chilan "
-        "Berry and edge cases are not modeled unless explicitly supported. "
+        "infer a resist berry if the item is unknown or unconfirmed. "
+        "Unsupported resist berry edge cases are not modeled unless explicitly "
+        "supported. "
         "Focus Sash survival may appear only as limited "
         "survival_context, not as damage reduction; it does not change raw "
         "damage_range or rolls. Focus Sash survival_context applies only "
@@ -305,8 +334,93 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "metadata, not confirmed opponent information. Possible_items are "
         "possible assumptions, not confirmed held items. Do not enumerate "
         "opponent sample metadata by default; keep sample visibility concise.\n\n"
-        f"{json.dumps(battle_input, ensure_ascii=False, indent=2)}"
+        f"{json.dumps(advice_payload, ensure_ascii=False, indent=2)}"
     )
+
+
+def _remove_unavailable_item_contexts(value: Any) -> set[str]:
+    hidden_item_sides: set[str] = set()
+    if isinstance(value, dict):
+        for key in list(value.keys()):
+            child = value[key]
+            if key in ITEM_CONTEXT_FIELDS and isinstance(child, dict) and child.get("available") is False:
+                hidden_item_sides.update(_context_item_sides(child))
+                del value[key]
+                continue
+            hidden_item_sides.update(_remove_unavailable_item_contexts(child))
+    elif isinstance(value, list):
+        for item in value:
+            hidden_item_sides.update(_remove_unavailable_item_contexts(item))
+    return hidden_item_sides
+
+
+def _collect_available_item_context_sides(value: Any) -> set[str]:
+    available_item_sides: set[str] = set()
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key in ITEM_CONTEXT_FIELDS and isinstance(child, dict) and child.get("available") is True:
+                available_item_sides.update(_context_item_sides(child))
+            available_item_sides.update(_collect_available_item_context_sides(child))
+    elif isinstance(value, list):
+        for item in value:
+            available_item_sides.update(_collect_available_item_context_sides(item))
+    return available_item_sides
+
+
+def _context_item_sides(context: dict[str, Any]) -> set[str]:
+    sides = set()
+    for key in ("attacker_side", "defender_side"):
+        value = context.get(key)
+        if isinstance(value, str) and value:
+            sides.add(value)
+    return sides
+
+
+def _hide_advice_hidden_item_profiles(payload: dict[str, Any], hidden_item_sides: set[str]) -> set[str]:
+    item_profiles = payload.get("item_profiles")
+    if not isinstance(item_profiles, dict):
+        return set()
+
+    hidden_item_ids: set[str] = set()
+    for side, profile in list(item_profiles.items()):
+        if not isinstance(profile, dict):
+            continue
+        if profile.get("status") != "user_confirmed":
+            continue
+        item_id = profile.get("item_id")
+        legal_status = get_legal_item_status(item_id)
+        should_hide = side in hidden_item_sides or legal_status.get("legal") is not True
+        if not should_hide:
+            continue
+        if isinstance(item_id, str) and item_id:
+            hidden_item_ids.add(item_id)
+        item_profiles[side] = {
+            "status": "unknown",
+            "source": "advice_payload_filter",
+            "item_id": None,
+            "name_en": None,
+            "name_ko": None,
+            "effects_scope": [],
+            "damage_modifier_status": "not_applicable",
+        }
+    return hidden_item_ids
+
+
+def _hide_advice_hidden_item_effects(value: Any, hidden_item_ids: set[str]) -> None:
+    if not hidden_item_ids:
+        return
+    if isinstance(value, dict):
+        item_id = value.get("item_id")
+        if isinstance(item_id, str) and item_id in hidden_item_ids:
+            value["item_id"] = None
+            value["status"] = "advice_payload_hidden"
+            value["applied_effects"] = []
+            value["unapplied_effects"] = []
+        for child in value.values():
+            _hide_advice_hidden_item_effects(child, hidden_item_ids)
+    elif isinstance(value, list):
+        for item in value:
+            _hide_advice_hidden_item_effects(item, hidden_item_ids)
 
 
 def _log_advisor_call(

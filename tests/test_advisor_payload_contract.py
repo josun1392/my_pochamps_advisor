@@ -10,8 +10,17 @@ from core.move_repository import MoveView
 from core.move_repository import MoveRepository
 from core.pokemon_repository import PokemonView
 from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
-from llm.advisor_client import _build_ui_selected_prompt
+from llm.advisor_client import _build_ui_selected_prompt, build_ui_advice_payload
+from llm.advisor_damage_estimate import attach_selected_move_damage_estimate
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
+from tests.test_advisor_damage_estimate import (
+    _battle_input,
+    _bullet_seed,
+    _flamethrower,
+    _ice_beam,
+    _item_profiles,
+    _tackle,
+)
 from ui.main_window import MainWindow
 from ui.widgets.item_profile_dialog import item_profile_from_option, legal_item_options_from_repository
 
@@ -847,7 +856,8 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Item consumption is not tracked" in prompt
     assert "Do not say the Pokemon definitely survives" in prompt
     assert "Do not infer a resist berry if the item is unknown or unconfirmed" in prompt
-    assert "Chilan Berry and edge cases are not modeled unless explicitly supported" in prompt
+    assert "Unsupported resist berry edge cases are not modeled unless explicitly supported" in prompt
+    assert "Chilan Berry and edge cases are not modeled unless explicitly supported" not in prompt
     assert "blocked by legal item coverage" in prompt
     assert "developer/debug/contract metadata" in prompt
     assert "do not include that item effect in normal user-facing recommendation text" in prompt
@@ -922,6 +932,100 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Opponent sample role, archetype_id, and possible_items are context-only metadata" in prompt
     assert "Possible_items are possible assumptions, not confirmed held items" in prompt
     assert "Do not enumerate opponent sample metadata by default" in prompt
+
+
+def test_advice_payload_filters_unavailable_resist_berry_context_but_keeps_debug_reason() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="yache-berry")
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    assert debug_move["resist_berry_context"]["available"] is False
+    assert debug_move["resist_berry_context"]["reason"] == "move_not_super_effective"
+
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert "resist_berry_context" not in advice_move
+    assert "damage_estimate" in advice_move
+    assert "ko_context" in advice_move
+    assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
+    assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"] == debug_move["ko_context"]
+
+
+def test_advice_payload_hides_chilan_deferred_context_from_default_advice_payload() -> None:
+    payload = _battle_input(selected_move=_tackle())
+    payload["item_profiles"] = _item_profiles(opponent_item="chilan-berry")
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    assert debug_move["resist_berry_context"]["available"] is False
+    assert debug_move["resist_berry_context"]["reason"] == "chilan_berry_deferred"
+
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert "resist_berry_context" not in advice_move
+    assert advice_payload["item_profiles"]["opponent_active"]["status"] == "unknown"
+    assert advice_payload["item_profiles"]["opponent_active"]["item_id"] is None
+    assert "chilan-berry" not in _build_ui_selected_prompt(enriched)
+    assert "chilan_berry_deferred" not in _build_ui_selected_prompt(enriched)
+
+
+def test_advice_payload_hides_loaded_dice_blocked_context_and_item_profile() -> None:
+    payload = _battle_input(selected_move=_bullet_seed())
+    payload["item_profiles"] = _item_profiles(my_item="loaded-dice")
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    assert debug_move["multi_hit_context"]["available"] is False
+    assert debug_move["multi_hit_context"]["reason"] == "blocked_by_legal_item_coverage"
+    assert enriched["item_profiles"]["my_active"]["item_id"] == "loaded-dice"
+
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert "multi_hit_context" not in advice_move
+    assert advice_payload["item_profiles"]["my_active"]["status"] == "unknown"
+    assert advice_payload["item_profiles"]["my_active"]["item_id"] is None
+    prompt = _build_ui_selected_prompt(enriched)
+    assert '"loaded-dice"' not in prompt
+    assert "blocked_by_legal_item_coverage" not in prompt
+
+
+def test_advice_payload_hides_power_herb_non_legal_item_profile_without_charge_context() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(my_item="power-herb")
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    assert enriched["item_profiles"]["my_active"]["item_id"] == "power-herb"
+    assert "charge_context" not in enriched["moves"]["my_selected_move"]
+
+    advice_payload = build_ui_advice_payload(enriched)
+
+    assert advice_payload["item_profiles"]["my_active"]["status"] == "unknown"
+    assert advice_payload["item_profiles"]["my_active"]["item_id"] is None
+    assert "charge_context" not in advice_payload["moves"]["my_selected_move"]
+    assert '"power-herb"' not in _build_ui_selected_prompt(enriched)
+
+
+def test_advice_payload_preserves_available_yache_context_and_legal_contexts() -> None:
+    payload = _battle_input(selected_move=_ice_beam())
+    payload["item_profiles"] = _item_profiles(opponent_item="yache-berry")
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    assert debug_move["resist_berry_context"]["available"] is True
+
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert advice_move["resist_berry_context"] == debug_move["resist_berry_context"]
+    assert advice_payload["item_profiles"]["opponent_active"]["item_id"] == "yache-berry"
+    assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
+    assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"] == debug_move["ko_context"]
 
 
 def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
@@ -1154,7 +1258,7 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "Chilan Berry is deferred from resist_berry_context until explicitly supported."
+        "Unsupported resist berry edge cases are deferred from resist_berry_context until explicitly supported."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

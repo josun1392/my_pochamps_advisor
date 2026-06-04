@@ -7611,6 +7611,69 @@ Maintained boundaries:
 
 ---
 
+## v0.92 - Unavailable context advice payload filtering implementation
+
+Purpose:
+- Filter debug-only unavailable/deferred item context out of the Gemini default advice payload while preserving enriched/debug reason data.
+
+Implemented:
+- Added `build_ui_advice_payload()` in `llm/advisor_client.py`.
+- `_build_ui_selected_prompt()` now serializes the filtered advice payload instead of the full enriched/debug payload.
+- Removed item context fields with `available=false` from the default advice payload:
+  - `survival_context`
+  - `recovery_context`
+  - `accuracy_context`
+  - `critical_context`
+  - `flinch_context`
+  - `multi_hit_context`
+  - `resist_berry_context`
+  - future `charge_context`
+- Preserved `available=true` legal contexts.
+- Preserved raw `damage_estimate`.
+- Preserved raw `ko_context`.
+- Preserved full enriched/debug payload behavior for diagnostics and tests.
+- Hid item profiles for sides whose item context is unavailable/deferred/blocked in advice payload, unless the same side also has an available item context.
+- Hid non-legal user-confirmed item profiles, including Loaded Dice and Power Herb, from the default advice payload.
+- Scrubbed hidden item ids from `damage_estimate.item_effects` in the advice payload so blocked/future-only item names are not serialized to Gemini.
+- Generalized the prompt wording from a named Chilan Berry edge case to unsupported resist berry edge cases.
+
+Tests:
+- Added payload contract tests confirming:
+  - unavailable `resist_berry_context` is removed from advice payload
+  - `chilan_berry_deferred` remains in enriched/debug payload but is hidden from advice payload
+  - Loaded Dice blocked context and item profile are hidden from advice payload
+  - Power Herb item profile is hidden from advice payload without adding `charge_context`
+  - available Yache Berry `resist_berry_context` remains in advice payload
+  - raw damage estimate remains
+  - `ko_context` remains
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 31 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 89 passed.
+- `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: passed on 3 isolated reruns.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 880 passed, 2 deselected, 1 failed.
+  - Failure: `tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average`.
+  - The failed path is the known full-suite-sensitive damage perf benchmark.
+  - No threshold, skip, xfail, damage formula, or raw roll changes were made.
+
+Maintained boundaries:
+- No Chilan Berry full support.
+- No legal fixture mutation.
+- No fixture changes.
+- No damage formula changes.
+- No raw damage roll modification.
+- No KO context calculation changes.
+- No berry-adjusted damage implementation.
+- No berry-adjusted KO implementation.
+- No item consumption tracking.
+- No Turn Engine.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
