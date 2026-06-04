@@ -7998,6 +7998,88 @@ Maintained boundaries:
 
 ---
 
+## v0.96.1 - Focus Band local Gemini verification attempt
+
+Purpose:
+- Verify that v0.96 Focus Band `survival_context` is represented safely in actual Gemini default advice.
+- Confirm unavailable Focus Band context stays hidden from the default advice payload.
+- Confirm Focus Sash regression and raw `ko_context` separation.
+
+Gemini actual call:
+- Attempted local Gemini actual call through the normal `run_ui_selected_advice()` path.
+- The request reached the Gemini API, but no model response was returned.
+- Failure: HTTP 429 `RESOURCE_EXHAUSTED` before advice text generation.
+- No API key or secret value was printed.
+- Because the model did not return advice text, actual Gemini wording verdict is blocked by local API credit/billing state.
+
+Payload preflight checks:
+- Case A - Focus Band + lethal raw hit:
+  - enriched/debug payload had `survival_context.available=true`.
+  - `survival_effect.type="focus_band"`.
+  - default advice payload retained `survival_context`.
+  - default advice payload retained user-confirmed Focus Band item profile because the context was available.
+  - raw damage range remained `31-37`.
+  - raw rolls remained unchanged.
+  - `ko_context` remained raw damage-roll context with OHKO chance based only on rolls and exact HP.
+  - Focus Band activation probability and final survival probability were not present.
+- Case B - Focus Band + non-lethal raw hit:
+  - intended verification target remains:
+    - enriched/debug payload may keep `survival_context.available=false`.
+    - default advice payload should remove unavailable `survival_context`.
+    - Focus Band unavailable/not applicable/not reflected/not modeled wording should not reach default advice.
+  - actual Gemini response could not be checked because of HTTP 429.
+- Case C - Focus Sash regression:
+  - intended verification target remains:
+    - Focus Sash available context should use `survival_effect.type="focus_sash"`.
+    - wording should stay at "may survive at 1 HP" and must not mix with Focus Band.
+  - actual Gemini response could not be checked because of HTTP 429.
+- KO context regression:
+  - payload preflight confirmed Focus Band context is separate from raw `ko_context`.
+  - actual Gemini wording could not be checked because of HTTP 429.
+
+Failure analysis:
+- Not a `survival_context` filtering failure.
+- Not an `item_profiles` leak failure.
+- Not a `damage_estimate.item_effects` leak failure.
+- Not a prompt wording failure.
+- Root cause for missing actual advice: Gemini API returned HTTP 429 `RESOURCE_EXHAUSTED`.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 37 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 890 passed, 2 deselected.
+
+Verdict:
+- Payload preflight: PASS for the checked Focus Band lethal path.
+- Actual Gemini verification: BLOCKED by local Gemini API credit/billing state.
+- Overall v0.96.1: BLOCKED / retry required.
+
+Next candidate:
+- Retry `v0.96.1 Focus Band Local Gemini Verification` once local Gemini API access is restored.
+- If retry passes, proceed to the next legal item design/implementation candidate.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No damage formula changes.
+- No raw damage roll modification.
+- No Q12 multiplier changes.
+- No `ko_context` calculation changes.
+- No Focus Band activation probability calculation.
+- No Focus Band probability integrated into KO/OHKO/2HKO.
+- No final survival probability calculation.
+- No Turn Engine.
+- No item consumption.
+- No prompt hardening changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
