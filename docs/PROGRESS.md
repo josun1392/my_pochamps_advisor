@@ -7194,6 +7194,92 @@ Maintained boundaries:
 
 ---
 
+## v0.88.1 - Type-resist berry local Gemini verification
+
+Purpose:
+- Verify v0.88 limited `resist_berry_context` behavior with local Gemini actual calls.
+
+Execution:
+- Gemini actual call succeeded for all requested cases.
+- Cases executed:
+  - Case A: opponent Garchomp user-confirmed Yache Berry, incoming Ice Beam, super-effective matchup.
+  - Case B: opponent Garchomp user-confirmed Yache Berry, incoming Flamethrower, not a qualifying super-effective hit.
+  - Case C: opponent Garchomp user-confirmed Chilan Berry deferred case.
+  - Case D: opponent Garchomp user-confirmed Focus Sash legal item regression.
+
+Case A - Yache Berry available:
+- Payload/debug context confirmed `resist_berry_context.available=true`.
+- Payload recorded `berry_type=ice`, `incoming_move_type=ice`, and `super_effective_match=true`.
+- Gemini mentioned the opponent's user-confirmed Yache Berry.
+- Gemini stated the damage estimate does not include Yache Berry and that Yache would reduce Ice-type damage.
+- Raw damage was preserved as 168-200 HP / 91.8%-109.3%.
+- Gemini did not calculate berry-adjusted damage.
+- Gemini did not calculate berry-adjusted KO probability.
+- Gemini did not track item consumption or claim final turn outcome.
+- Gemini did not say Garchomp definitely survives or always survives.
+- Limitation wording did not explicitly say KO/OHKO/2HKO estimates do not include berry reduction.
+- Result: PARTIAL PASS.
+
+Case B - non-super-effective move:
+- Payload/debug context confirmed `resist_berry_context.available=false` with `reason=move_not_super_effective`.
+- Raw damage was preserved as 31-37 HP / 16.9%-20.2%.
+- Gemini did not say Yache Berry reduced damage or changed KO odds.
+- Gemini did not calculate berry-adjusted damage or berry-adjusted KO probability.
+- However, Gemini said the effect of Garchomp's user-confirmed Yache Berry is not applied in default advice.
+- This is safe but noisier than the desired unavailable-case quietness.
+- Result: PARTIAL PASS.
+
+Case C - Chilan Berry deferred:
+- Payload/debug context confirmed `resist_berry_context.available=false` with `reason=chilan_berry_deferred`.
+- Raw damage was preserved as 14-17 HP / 7.7%-9.3%.
+- Gemini did not mention Chilan Berry by name.
+- Gemini did not claim Chilan Berry was modeled.
+- Gemini did not change raw damage or KO context.
+- Result: PASS.
+
+Case D - Focus Sash legal regression:
+- Payload/debug context confirmed `survival_context.available=true`.
+- Raw damage was preserved as 31-37 HP / 88.6%-105.7% against the user-confirmed 35 HP profile.
+- Gemini mentioned user-confirmed Focus Sash and said it may survive at 1 HP.
+- Gemini did not say Focus Sash changed raw damage.
+- Gemini did not say guaranteed survival.
+- Result: PASS.
+
+Verification summary:
+- Raw damage unchanged: PASS.
+- `ko_context` separation: PARTIAL PASS. Safety was preserved, but Case A did not explicitly state KO/OHKO/2HKO estimates exclude berry reduction.
+- Berry-adjusted damage claim: PASS.
+- Berry-adjusted KO claim: PASS.
+- Final survival claim: PASS.
+- Chilan deferred safety: PASS.
+- Unavailable-case quietness: PARTIAL. Case B surfaced a safe but noisy "effect not applied" sentence.
+- Overall verdict: PARTIAL PASS.
+
+Next candidates:
+- `v0.89 - Resist Berry Prompt Polish`.
+- `v0.89 - Resist Berry Unavailable Silence Polish`.
+- `v0.89 - Type-resist Berry Local Verification Follow-up`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No `resist_berry_context` changes.
+- No raw damage formula changes.
+- No raw damage roll modification.
+- No KO context changes.
+- No berry-adjusted damage implementation.
+- No berry-adjusted KO implementation.
+- No item consumption tracking.
+- No Turn Engine.
+- No Chilan Berry full support.
+- No prompt changes.
+- No tests changed.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
