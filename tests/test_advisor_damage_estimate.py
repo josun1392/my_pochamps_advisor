@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from advisor.damage.items import ItemEffect
 from llm.advisor_damage_estimate import (
     attach_opponent_known_move_damage_estimates,
     attach_selected_move_damage_estimate,
@@ -12,6 +13,7 @@ from llm.advisor_flinch_context import build_flinch_context
 from llm.advisor_ko_context import build_ko_context
 from llm.advisor_multi_hit_context import build_multi_hit_context
 from llm.advisor_recovery_context import build_recovery_context
+from llm.advisor_resist_berry_context import build_resist_berry_context
 
 
 def test_selected_move_missing_returns_unavailable() -> None:
@@ -240,6 +242,7 @@ def test_attach_opponent_known_damage_skips_candidate_moves() -> None:
     assert "critical_context" not in candidate_move
     assert "flinch_context" not in candidate_move
     assert "multi_hit_context" not in candidate_move
+    assert "resist_berry_context" not in candidate_move
     assert "damage_estimate" not in payload["opponent_moves"]["known_moves"][0]
 
 
@@ -1033,6 +1036,173 @@ def test_power_herb_remains_blocked_without_charge_context() -> None:
     assert "charge_context" not in result["moves"]["my_selected_move"]
 
 
+def test_resist_berry_context_available_for_user_confirmed_yache_against_ice_super_effective_move() -> None:
+    payload = _battle_input(selected_move=_ice_beam())
+    payload["item_profiles"] = _item_profiles(opponent_item="yache-berry")
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["resist_berry_context"]
+    assert context["available"] is True
+    assert context["mode"] == "limited_resist_berry_context"
+    assert context["scope"] == "selected_move_only"
+    assert context["defender_side"] == "opponent_active"
+    assert context["item"] == {
+        "item_id": "yache-berry",
+        "status": "user_confirmed",
+        "legal_status": "legal_modeled",
+    }
+    effect = context["resist_effect"]
+    assert effect["berry_type"] == "ice"
+    assert effect["incoming_move_type"] == "ice"
+    assert effect["requires_super_effective_hit"] is True
+    assert effect["super_effective_match"] is True
+    assert effect["effect_label"] == "may_reduce_qualifying_super_effective_hit"
+    assert effect["formula_label"] == "resist_berry_limited_damage_reduction"
+    assert effect["raw_damage_rolls_changed"] is False
+    assert effect["ko_context_changed"] is False
+    assert effect["berry_adjusted_damage_integrated"] is False
+    assert effect["berry_adjusted_ko_integrated"] is False
+    assert effect["item_consumption_tracked"] is False
+    assert context["is_final_battle_truth"] is False
+
+
+def test_resist_berry_context_unavailable_without_berry() -> None:
+    payload = _battle_input(selected_move=_ice_beam())
+    payload["item_profiles"] = _item_profiles(opponent_item=None)
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["resist_berry_context"]
+    assert context["available"] is False
+    assert context["reason"] == "no_resist_berry"
+
+
+def test_resist_berry_context_requires_user_confirmed_item() -> None:
+    payload = _battle_input(selected_move=_ice_beam())
+    payload["item_profiles"] = _item_profiles(opponent_item="yache-berry")
+    payload["item_profiles"]["opponent_active"]["status"] = "unknown"
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["resist_berry_context"]
+    assert context["available"] is False
+    assert context["reason"] == "item_not_user_confirmed"
+
+
+def test_resist_berry_context_blocks_non_legal_item() -> None:
+    payload = _battle_input(selected_move=_ice_beam())
+    payload["item_profiles"] = _item_profiles(opponent_item="loaded-dice")
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["resist_berry_context"]
+    assert context["available"] is False
+    assert context["reason"] == "blocked_by_legal_item_coverage"
+
+
+def test_resist_berry_context_requires_incoming_move_type() -> None:
+    payload = _battle_input(selected_move=_ice_beam())
+    payload["item_profiles"] = _item_profiles(opponent_item="yache-berry")
+    damage_estimate = _ko_damage_estimate()
+
+    context = build_resist_berry_context(
+        payload,
+        damage_estimate,
+        {**_ice_beam(), "type": None},
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+    assert context["available"] is False
+    assert context["reason"] == "incoming_move_type_missing"
+
+
+def test_resist_berry_context_marks_missing_berry_type(monkeypatch) -> None:
+    payload = _battle_input(selected_move=_ice_beam())
+    payload["item_profiles"] = _item_profiles(opponent_item="yache-berry")
+
+    def _missing_type_item(item_id):
+        assert item_id == "yache-berry"
+        return ItemEffect(item_id="yache-berry", kind="type_resist_berry")
+
+    monkeypatch.setattr("llm.advisor_resist_berry_context.get_item", _missing_type_item)
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["resist_berry_context"]
+    assert context["available"] is False
+    assert context["reason"] == "berry_type_missing"
+
+
+def test_resist_berry_context_unavailable_when_move_not_super_effective() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="occa-berry")
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["resist_berry_context"]
+    assert context["available"] is False
+    assert context["reason"] == "move_not_super_effective"
+
+
+def test_resist_berry_context_defers_chilan_berry() -> None:
+    payload = _battle_input(selected_move=_tackle())
+    payload["item_profiles"] = _item_profiles(opponent_item="chilan-berry")
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["resist_berry_context"]
+    assert context["available"] is False
+    assert context["reason"] == "chilan_berry_deferred"
+
+
+def test_resist_berry_context_does_not_change_raw_damage_or_ko_context() -> None:
+    payload = _battle_input(selected_move=_ice_beam())
+    payload["item_profiles"] = _item_profiles(opponent_item="yache-berry")
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=70),
+    }
+    baseline = _battle_input(selected_move=_ice_beam())
+    baseline["stat_profiles"] = payload["stat_profiles"]
+
+    baseline_estimate = build_selected_move_damage_estimate(baseline)
+    baseline_ko = build_ko_context(
+        baseline,
+        baseline_estimate,
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+    result = attach_selected_move_damage_estimate(payload)
+
+    move = result["moves"]["my_selected_move"]
+    assert move["resist_berry_context"]["available"] is True
+    assert move["damage_estimate"]["damage_range"] == baseline_estimate["damage_range"]
+    assert move["damage_estimate"]["rolls"] == baseline_estimate["rolls"]
+    assert move["ko_context"]["ohko"] == baseline_ko["ohko"]
+    assert move["ko_context"]["two_hko"] == baseline_ko["two_hko"]
+
+
+def test_resist_berry_context_for_opponent_known_move_targets_my_active_and_excludes_candidates() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(my_item="charti-berry")
+    payload["opponent_moves"] = {
+        "known_moves": [{**_rock_slide(), "source": "user_confirmed"}],
+        "candidate_moves": [{**_air_slash(), "source": "champions_movepool"}],
+    }
+
+    result = attach_opponent_known_move_damage_estimates(payload)
+
+    known_move = result["opponent_moves"]["known_moves"][0]
+    candidate_move = result["opponent_moves"]["candidate_moves"][0]
+    context = known_move["resist_berry_context"]
+    assert context["available"] is True
+    assert context["scope"] == "opponent_known_move_only"
+    assert context["defender_side"] == "my_active"
+    assert context["resist_effect"]["berry_type"] == "rock"
+    assert context["resist_effect"]["incoming_move_type"] == "rock"
+    assert "resist_berry_context" not in candidate_move
+
+
 def test_focus_sash_survival_context_for_my_move_when_full_hp_and_could_be_lethal() -> None:
     payload = _battle_input(selected_move=_flamethrower())
     payload["item_profiles"] = _item_profiles(opponent_item="focus-sash")
@@ -1804,6 +1974,34 @@ def _air_slash() -> dict:
         "power": 75,
         "accuracy": 95,
         "pp": 15,
+    }
+
+
+def _ice_beam() -> dict:
+    return {
+        "slot": 1,
+        "move_id": "ice-beam",
+        "name_en": "Ice Beam",
+        "name_ko": "Ice Beam",
+        "type": "ice",
+        "category": "special",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 10,
+    }
+
+
+def _tackle() -> dict:
+    return {
+        "slot": 1,
+        "move_id": "tackle",
+        "name_en": "Tackle",
+        "name_ko": "Tackle",
+        "type": "normal",
+        "category": "physical",
+        "power": 40,
+        "accuracy": 100,
+        "pp": 35,
     }
 
 

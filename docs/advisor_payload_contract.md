@@ -753,7 +753,101 @@ If `multi_hit_context.available` is false, or no `multi_hit_context` is present 
 
 If `multi_hit_context.available` is false because the item is blocked by legal coverage, the blocked reason is developer/debug/contract metadata. The default user-facing recommendation should stay quiet about Loaded Dice and should not say "Loaded Dice," "user-confirmed Loaded Dice," "Loaded Dice is not modeled," or "Loaded Dice's effect is not included" unless the user explicitly asks about Loaded Dice.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `resist_berry_context`, or `ko_context`.
+
+## Resist Berry Context Semantics
+
+`resist_berry_context` is an additive limited context for standard type-resist berries. It is never nested inside `damage_estimate` or `ko_context`.
+
+`resist_berry_context` does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, item damage modifier math, or `ko_context`.
+
+The first supported scope is the 17 standard type-resist berries whose `items_damage.json` metadata has a `resist_type` and does not set `always_resist=true`:
+
+- `babiri-berry`
+- `charti-berry`
+- `chople-berry`
+- `coba-berry`
+- `colbur-berry`
+- `haban-berry`
+- `kasib-berry`
+- `kebia-berry`
+- `occa-berry`
+- `passho-berry`
+- `payapa-berry`
+- `rindo-berry`
+- `roseli-berry`
+- `shuca-berry`
+- `tanga-berry`
+- `wacan-berry`
+- `yache-berry`
+
+`chilan-berry` is deferred because `items_damage.json` marks it as `always_resist=true`, and that Normal-type edge case is not the same as a super-effective trigger.
+
+Available resist berry context requires:
+
+- defender item profile must be `status: user_confirmed`
+- defender item id must pass the Champions legal item gate
+- defender item id must exist in `items_damage.json` `type_resist_berries`
+- incoming move type must be known
+- incoming move type must match the berry resisted type
+- `damage_estimate.type_effectiveness` must identify the hit as super effective
+- raw damage and KO/OHKO/2HKO estimates do not include berry reduction
+- berry-adjusted damage is not calculated
+- berry-adjusted KO probability is not calculated
+- item consumption is not tracked
+- multi-hit handling, abilities, weather, Tera, and turn sequencing are not modeled
+
+Available context may include:
+
+- `mode`: `limited_resist_berry_context`
+- `available`: `true`
+- `defender_side`: `my_active` or `opponent_active`
+- `item.item_id`: the berry id
+- `item.status`: `user_confirmed`
+- `item.legal_status`: `legal_modeled`
+- `resist_effect.berry_type`: resisted type from `items_damage.json`
+- `resist_effect.incoming_move_type`: incoming move type
+- `resist_effect.requires_super_effective_hit`: `true`
+- `resist_effect.super_effective_match`: `true`
+- `resist_effect.effect_label`: `may_reduce_qualifying_super_effective_hit`
+- `resist_effect.formula_label`: `resist_berry_limited_damage_reduction`
+- `resist_effect.raw_damage_rolls_changed`: `false`
+- `resist_effect.ko_context_changed`: `false`
+- `resist_effect.berry_adjusted_damage_integrated`: `false`
+- `resist_effect.berry_adjusted_ko_integrated`: `false`
+- `resist_effect.item_consumption_tracked`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `no_resist_berry`
+- `item_not_user_confirmed`
+- `blocked_by_legal_item_coverage`
+- `incoming_move_type_missing`
+- `berry_type_missing`
+- `move_not_super_effective`
+- `type_matchup_unknown`
+- `chilan_berry_deferred`
+- `resist_berry_engine_missing`
+- `damage_estimate_missing`
+
+The LLM may say:
+
+- "Yache Berry may reduce a qualifying Ice-type super-effective hit as limited context, but the raw damage and KO estimates do not include berry reduction."
+- "This is not a final survival prediction because item consumption and turn sequencing are not modeled."
+
+The LLM must not say:
+
+- "Yache Berry makes this always survive."
+- "The KO chance already includes Yache Berry."
+- "The damage range is reduced to X-Y."
+- "The berry-adjusted KO chance is 70%."
+- "The berry has already been consumed."
+- "Chilan Berry is modeled" unless a future explicit field supports it.
+
+When `resist_berry_context.available` is true, the resist berry note should stay concise, ideally one or two sentences, and should mention that raw damage and KO/OHKO/2HKO estimates do not include berry reduction. It should also state that berry-adjusted damage, berry-adjusted KO probability, and item consumption are not calculated.
+
+If `resist_berry_context.available` is false, or no `resist_berry_context` is present for a move, the LLM should not invent resist berry effects or force a resist berry limitation sentence.
 
 ## KO Context Semantics
 

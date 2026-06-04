@@ -7139,6 +7139,61 @@ Maintained boundaries:
 
 ---
 
+## v0.88 - Type-resist berry limited context
+
+Purpose:
+- Add a legal-gated, additive `resist_berry_context` for standard type-resist berries without changing raw damage or `ko_context`.
+
+Implemented:
+- Added `llm/advisor_resist_berry_context.py`.
+- Attached `resist_berry_context` as a move-level sibling for:
+  - `my_available_moves`
+  - `my_selected_move`
+  - opponent known moves
+- Kept candidate moves excluded from `resist_berry_context`.
+- Used `data/static/items_damage.json` type-resist berry metadata through the existing item repository.
+- Applied Champions legal item gate before exposing modeled resist berry context.
+- Required defender item `status=user_confirmed`.
+- Supported the 17 standard super-effective type-resist berries.
+- Deferred `chilan-berry` as a special `always_resist=true` Normal-type case.
+
+Safety boundaries:
+- Raw damage min/max/rolls are unchanged.
+- Raw `ko_context` is unchanged.
+- OHKO chance remains based on raw damage rolls only.
+- Berry-adjusted damage is not calculated.
+- Berry-adjusted KO probability is not calculated.
+- Item consumption is not tracked.
+- Turn Engine is not implemented.
+- Ability, weather, Tera, and multi-hit/per-hit interactions are not modeled.
+- Legal fixture was not changed.
+
+Payload / LLM guardrail:
+- `resist_berry_context` is limited context only.
+- A type-resist berry may reduce a qualifying super-effective hit under limited assumptions.
+- Raw damage and KO/OHKO/2HKO estimates do not include berry reduction.
+- Do not say the Pokemon definitely survives.
+- Do not infer resist berry effects if the item is unknown or unconfirmed.
+- Chilan Berry and edge cases are not modeled unless explicitly supported.
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py tests/test_advisor_payload_contract.py -q`: 115 passed.
+- `uv run pytest -q`: 876 passed, 2 deselected.
+
+Maintained boundaries:
+- No raw damage formula modification.
+- No berry-adjusted damage rolls.
+- No berry-adjusted KO probability.
+- No item consumption tracking.
+- No Turn Engine.
+- No ability/weather/Tera interaction.
+- No legal fixture mutation.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:

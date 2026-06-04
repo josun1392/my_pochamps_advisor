@@ -830,6 +830,17 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Do not claim Loaded Dice breaks Focus Sash" in prompt
     assert "Do not infer Loaded Dice if the item is unknown or unconfirmed" in prompt
     assert "Focus Sash, King's Rock, accuracy, crit per-hit handling, and turn sequencing are not modeled" in prompt
+    assert "Type-resist berry context may appear only as limited resist_berry_context" in prompt
+    assert "resist_berry_context does not change raw damage_range or rolls" in prompt
+    assert "ko_context is unchanged by resist_berry_context" in prompt
+    assert "KO/OHKO/2HKO estimates do not include berry reduction" in prompt
+    assert "standard type-resist berry may reduce a qualifying super-effective hit" in prompt
+    assert "berry-adjusted damage is not calculated" in prompt
+    assert "Berry-adjusted KO probability is not calculated" in prompt
+    assert "Item consumption is not tracked" in prompt
+    assert "Do not say the Pokemon definitely survives" in prompt
+    assert "Do not infer a resist berry if the item is unknown or unconfirmed" in prompt
+    assert "Chilan Berry and edge cases are not modeled unless explicitly supported" in prompt
     assert "blocked by legal item coverage" in prompt
     assert "developer/debug/contract metadata" in prompt
     assert "do not include that item effect in normal user-facing recommendation text" in prompt
@@ -1109,6 +1120,35 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "Focus Sash, King's Rock, accuracy, crit per-hit handling, and turn sequencing are not modeled for multi_hit_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Type-resist berry context may appear only as limited resist_berry_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert "resist_berry_context does not change raw damage_range or rolls." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "ko_context is unchanged by resist_berry_context and KO/OHKO/2HKO estimates do not include berry reduction."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "resist_berry_context applies only when a standard type-resist berry is user-confirmed, legal coverage is confirmed, incoming move type is known, and the move is super-effective."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Chilan Berry is deferred from resist_berry_context until explicitly supported."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "A type-resist berry may reduce a qualifying super-effective hit, but berry-adjusted damage is not calculated."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Berry-adjusted KO probability is not calculated in resist_berry_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert "Item consumption is not tracked in resist_berry_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert "Do not say the Pokemon definitely survives from resist_berry_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Do not infer resist berry effects if the item is unknown or unconfirmed."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Ability, weather, Tera, multi-hit handling, item consumption, and turn sequencing are not modeled for resist_berry_context."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
