@@ -847,7 +847,18 @@ The LLM must not say:
 
 When `resist_berry_context.available` is true, the resist berry note should stay concise, ideally one or two sentences, and should mention that raw damage and KO/OHKO/2HKO estimates do not include berry reduction. It should also state that berry-adjusted damage, berry-adjusted KO probability, and item consumption are not calculated.
 
-If `resist_berry_context.available` is false, or no `resist_berry_context` is present for a move, the LLM should not invent resist berry effects or force a resist berry limitation sentence.
+When `resist_berry_context.available` is true, prefer wording such as "raw damage estimate is unchanged" and "raw ko_context is unchanged" over wording that implies the berry should have been part of the damage formula.
+
+If `resist_berry_context.available` is false, or no `resist_berry_context` is present for a move, the unavailable reason is developer/debug/contract metadata only. The LLM should not invent resist berry effects, force a resist berry limitation sentence, or mention the unavailable berry name/effect/reason in default advice.
+
+For unavailable resist berry context, the LLM must not say:
+
+- "Yache Berry effect is not applied."
+- "The berry effect is not included."
+- "The berry is not modeled."
+- "Yache Berry is unavailable because the move is not super effective."
+
+If the user explicitly asks about that berry, the response may briefly explain that the current move does not have an available limited `resist_berry_context`, without claiming berry-adjusted damage or KO probability.
 
 ## KO Context Semantics
 

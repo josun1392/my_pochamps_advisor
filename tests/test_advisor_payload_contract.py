@@ -834,6 +834,13 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "resist_berry_context does not change raw damage_range or rolls" in prompt
     assert "ko_context is unchanged by resist_berry_context" in prompt
     assert "KO/OHKO/2HKO estimates do not include berry reduction" in prompt
+    assert "the raw damage estimate is unchanged and raw ko_context is unchanged" in prompt
+    assert "resist_berry_context is unavailable" in prompt
+    assert "developer/debug/contract metadata only" in prompt
+    assert "do not mention the berry name, berry effect, or unavailable reason" in prompt
+    assert "Do not say Yache Berry effect is not applied" in prompt
+    assert "do not say the berry effect is not included" in prompt
+    assert "do not say the berry is not modeled" in prompt
     assert "standard type-resist berry may reduce a qualifying super-effective hit" in prompt
     assert "berry-adjusted damage is not calculated" in prompt
     assert "Berry-adjusted KO probability is not calculated" in prompt
@@ -1129,6 +1136,10 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
+        "When resist_berry_context is available, explicitly say the raw damage estimate is unchanged and raw ko_context is unchanged."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
         "resist_berry_context applies only when a standard type-resist berry is user-confirmed, legal coverage is confirmed, incoming move type is known, and the move is super-effective."
         in ADVISOR_KNOWN_LIMITATIONS
     )
@@ -1145,6 +1156,18 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     assert "Do not say the Pokemon definitely survives from resist_berry_context." in ADVISOR_KNOWN_LIMITATIONS
     assert (
         "Do not infer resist berry effects if the item is unknown or unconfirmed."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "If resist_berry_context is unavailable, treat the unavailable reason as developer/debug/contract metadata only."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not mention unavailable resist berry names, berry effects, or unavailable reasons in default advice."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say Yache Berry effect is not applied, the berry effect is not included, or the berry is not modeled in default advice unless the user explicitly asks about that berry."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
