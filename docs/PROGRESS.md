@@ -7915,6 +7915,89 @@ Maintained boundaries:
 
 ---
 
+## v0.96 - Focus Band limited survival context implementation
+
+Purpose:
+- Implement Champions legal Focus Band as additive limited `survival_context`.
+- Preserve existing Focus Sash behavior.
+- Keep Focus Band out of raw damage rolls, damage formula, `ko_context`, OHKO/2HKO, and final survival probability.
+
+Implemented:
+- Extended `llm/advisor_survival_context.py` so `survival_context` can represent:
+  - `survival_effect.type="focus_sash"`
+  - `survival_effect.type="focus_band"`
+- Kept the existing Focus Sash path:
+  - user-confirmed Focus Sash
+  - full HP required
+  - potentially lethal single-hit raw damage
+  - may survive at 1 HP wording only
+- Added Focus Band path:
+  - user-confirmed `focus-band`
+  - Champions legal gate required
+  - full HP not required
+  - raw incoming hit must be potentially lethal
+  - `survival_effect.effect_label="may_occasionally_survive_lethal_hit"`
+  - `survival_is_not_guaranteed=true`
+  - `activation_probability_calculated=false`
+  - `final_survival_probability_integrated=false`
+  - `raw_damage_rolls_changed=false`
+  - `ko_context_changed=false`
+- Reused v0.92/v0.93 default advice payload filtering:
+  - available Focus Band context remains in default advice payload
+  - unavailable Focus Band reason is removed from default advice payload
+  - enriched/debug payload retains unavailable reasons
+- Updated prompt/contract wording:
+  - Focus Band may occasionally survive
+  - survival is not guaranteed
+  - KO/OHKO/2HKO estimates do not include Focus Band activation
+  - activation probability and final survival probability are not calculated
+  - do not say will survive, guaranteed survive, cannot be KO'd, confirmed survival, safe to take the hit, or survives this hit
+- Updated `docs/advisor_payload_contract.md`.
+
+Tests:
+- Added Focus Band damage-estimate regressions:
+  - Focus Band + potentially lethal raw damage -> `survival_context.available=true`
+  - `survival_effect.type="focus_band"`
+  - no full HP requirement
+  - raw damage range and rolls unchanged
+  - `ko_context` OHKO/2HKO unchanged
+  - non-lethal Focus Band -> `available=false`, reason `damage_not_lethal`
+  - unconfirmed Focus Band -> `item_not_user_confirmed`
+- Added default advice payload regressions:
+  - available Focus Band context is retained
+  - unavailable Focus Band context is hidden
+  - unavailable Focus Band item profile is hidden
+  - raw `damage_estimate` remains
+  - `ko_context` remains
+  - unavailable reason text does not leak
+- Preserved Focus Sash regression coverage.
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 37 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 889 passed, 1 full-suite-sensitive perf failure, 2 deselected.
+- `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: passed on 3 isolated reruns.
+- The full-suite failure was the existing perf-sensitive item damage threshold case; no threshold, skip, xfail, damage formula, raw roll, or Q12 changes were made.
+
+Maintained boundaries:
+- No legal fixture mutation.
+- No fixture changes.
+- No damage formula changes.
+- No raw damage roll modification.
+- No Q12 multiplier changes.
+- No `ko_context` calculation changes.
+- No Focus Band activation probability calculation.
+- No KO chance integration with Focus Band.
+- No final survival probability calculation.
+- No Turn Engine.
+- No item consumption.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

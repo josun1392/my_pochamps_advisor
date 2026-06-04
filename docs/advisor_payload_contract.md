@@ -308,6 +308,7 @@ Legal item modeling examples:
 
 - Choice Scarf: selectable; its supported speed modifier may be applied in `speed_context` when user-confirmed, but speed order and Choice Scarf choice lock are not modeled.
 - Focus Sash: selectable; its limited survival context may be included only when user-confirmed and full HP. It is not damage reduction and does not change raw damage estimates.
+- Focus Band: selectable; its limited survival context may be included only when user-confirmed and the raw incoming hit is potentially lethal. Survival is not guaranteed, and activation probability is not calculated.
 - Leftovers / Sitrus Berry: selectable; limited recovery context may be included only when user-confirmed and max HP is available. Exact turn sequencing and item consumption are not modeled.
 
 ### Legal Item Gate
@@ -422,13 +423,27 @@ The LLM must not say:
 
 If `type_boost_context.available` is false in the enriched/debug payload, the default advice payload should omit `type_boost_context`. The unavailable reason is developer/debug/contract metadata only. The LLM should not mention the unavailable type-boost item name, effect, or reason in default advice unless the user explicitly asks about that item.
 
-For non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, or Focus Sash, the LLM must not say choice lock is not modeled. Choice lock is relevant only to Choice Scarf, Choice Band, and Choice Specs.
+For non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, Focus Sash, or Focus Band, the LLM must not say choice lock is not modeled. Choice lock is relevant only to Choice Scarf, Choice Band, and Choice Specs.
 
 ## Survival Context Semantics
 
 `survival_context` is an additive limited context next to a relevant `damage_estimate`. It does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, or item damage modifier math.
 
-In v0.54, the only modeled survival context is limited Focus Sash context:
+In v0.96, modeled survival contexts are limited Focus Sash and limited Focus Band context:
+
+Shared rules:
+
+- defender item profile must be `status: user_confirmed`
+- defender item must pass Champions legal item coverage
+- incoming raw damage must have `max >= current_hp` or an equivalent limited HP reference
+- `min >= current_hp` is represented separately as `guaranteed_lethal_without_item`
+- raw damage rolls are unchanged
+- `ko_context` is unchanged
+- KO/OHKO/2HKO estimates do not include survival item activation
+- final survival probability is not calculated
+- item consumption and turn sequencing are not modeled
+
+Focus Sash-specific rules:
 
 - defender item profile must be `status: user_confirmed`
 - defender item id must be `focus-sash`
@@ -451,6 +466,34 @@ Available Focus Sash context may include:
 - `survival_effect.raw_damage_rolls_changed`: `false`
 - `is_final_battle_truth`: `false`
 
+Focus Band-specific rules:
+
+- defender item id must be `focus-band`
+- defender HP does not need to be full
+- incoming raw damage must be potentially lethal without the item
+- activation probability is not calculated
+- final survival probability is not calculated
+- Focus Band is not damage reduction and does not change KO probability
+
+Available Focus Band context may include:
+
+- `mode`: `limited_item_survival_context`
+- `available`: `true`
+- `defender_side`: `my_active` or `opponent_active`
+- `item.item_id`: `focus-band`
+- `item.status`: `user_confirmed`
+- `incoming_damage.could_be_lethal_without_item`
+- `incoming_damage.guaranteed_lethal_without_item`
+- `incoming_damage.hp_reference_source`
+- `survival_effect.type`: `focus_band`
+- `survival_effect.effect_label`: `may_occasionally_survive_lethal_hit`
+- `survival_effect.survival_is_not_guaranteed`: `true`
+- `survival_effect.activation_probability_calculated`: `false`
+- `survival_effect.final_survival_probability_integrated`: `false`
+- `survival_effect.raw_damage_rolls_changed`: `false`
+- `survival_effect.ko_context_changed`: `false`
+- `is_final_battle_truth`: `false`
+
 Unavailable reason codes include:
 
 - `no_focus_sash`
@@ -469,18 +512,28 @@ The LLM may say:
 - "Without considering Focus Sash, the damage range could be lethal; with a user-confirmed Focus Sash and full HP, survival at 1 HP is possible under limited assumptions."
 - "Focus Sash survival is limited context; multi-hit moves, hazards, chip damage, and exact turn sequencing are not modeled."
 - "This Focus Sash note assumes single-hit damage from full HP; multi-hit, hazards, chip damage, and turn sequencing are not modeled."
+- "Focus Band may occasionally let the Pokemon survive an otherwise lethal hit, but survival is not guaranteed."
+- "Raw damage and KO estimates do not include Focus Band activation."
+- "Focus Band activation probability and final survival probability are not calculated."
 
-When `survival_context.available` is `true`, `survival_effect.type` is `focus_sash`, and `may_survive_at_1_hp` is true, the LLM should include one concise limitation sentence. The limitation should stay short and should not become longer than the recommendation.
+When `survival_context.available` is `true`, the LLM should include one concise limitation sentence. The limitation should stay short and should not become longer than the recommendation.
 
-If `survival_context.available` is false, or no `survival_context` is present for a move, the LLM should not invent Focus Sash survival or force the Focus Sash limitation sentence.
+If `survival_context.available` is false, or no `survival_context` is present for a move, the LLM should not invent Focus Sash or Focus Band survival, should not mention unavailable reasons, and should not force the survival limitation sentence. The default advice payload should omit unavailable `survival_context`; enriched/debug payload may retain the reason.
 
 The LLM must not say:
 
 - "Focus Sash reduces the damage."
+- "Focus Band reduces the damage."
 - "The Pokemon definitely survives."
 - "The Pokemon will survive."
 - "Focus Sash guarantees survival in this turn."
+- "Focus Band guarantees survival in this turn."
+- "Focus Band confirms survival."
+- "Focus Band means it is safe to take the hit."
+- "Focus Band activation is included in KO chance."
+- "The final survival probability is 10%."
 - "Focus Sash applies when the item is unknown or unconfirmed."
+- "Focus Band applies when the item is unknown or unconfirmed."
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
 
 Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
@@ -989,7 +1042,7 @@ If the user explicitly asks about that berry, the response may briefly explain t
 
 ## KO Context Semantics
 
-`ko_context` is an additive limited context next to a relevant `damage_estimate`. It does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, item modifiers, or Focus Sash `survival_context`.
+`ko_context` is an additive limited context next to a relevant `damage_estimate`. It does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, item modifiers, or `survival_context`.
 
 In v0.57, KO context is limited damage-roll context:
 
@@ -1033,14 +1086,14 @@ The LLM may say:
 
 - "The raw damage rolls have a 6/16 chance to KO from the current HP, but this is limited damage-roll context."
 - "This is a limited 2HKO estimate assuming the same move is used twice with no healing, switching, protection, or chip changes."
-- "Raw damage could KO, but Focus Sash survival context is separate and may allow survival at 1 HP."
+- "Raw damage could KO, but survival context is separate and may allow limited Focus Sash or Focus Band survival under its own assumptions."
 
 The LLM must not say:
 
 - "This guarantees the KO in battle."
 - "This will always 2HKO."
 - "The opponent cannot survive."
-- "Focus Sash is included in the KO probability."
+- "Focus Sash or Focus Band is included in the KO probability."
 - "Accuracy, Speed order, priority, recovery, hazards, chip damage, switching, protection, or turn sequencing are modeled."
 
 Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
@@ -1256,7 +1309,7 @@ The LLM must not:
 - describe an item-applied estimate as only default assumptions when `item_effects.attacker_item.status` is `applied`
 - print raw `type_effectiveness` labels such as `super_effective` or `not_very_effective`
 - claim choice lock, Life Orb recoil, Focus Sash survival, or Leftovers recovery is modeled
-- mention choice lock for non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, or Focus Sash
+- mention choice lock for non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, Focus Sash, or Focus Band
 - describe a move as super effective, resisted, or immune unless `damage_estimate.type_effectiveness` supports that label
 - consider Terastallization, which is banned in PoChamps
 

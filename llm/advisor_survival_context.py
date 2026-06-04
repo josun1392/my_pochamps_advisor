@@ -12,6 +12,11 @@ FOCUS_SASH_LIMITATIONS = [
     "Limited context only.",
     "Multi-hit moves, hazards, residual damage, weather/status chip, and exact turn sequencing are not modeled.",
 ]
+FOCUS_BAND_LIMITATIONS = [
+    "Limited Focus Band survival context only.",
+    "Raw damage and KO estimates do not include Focus Band activation.",
+    "Activation probability, item consumption, multi-hit handling, abilities, and turn sequencing are not modeled.",
+]
 
 
 def build_focus_sash_survival_context(
@@ -22,13 +27,7 @@ def build_focus_sash_survival_context(
     defender_key: str,
     scope: str,
 ) -> dict[str, Any]:
-    base = {
-        "mode": SURVIVAL_CONTEXT_MODE,
-        "defender_side": defender_key,
-        "is_final_battle_truth": False,
-        "raw_damage_rolls_changed": False,
-        "limitations": list(FOCUS_SASH_LIMITATIONS),
-    }
+    base = _base_context(defender_key, FOCUS_SASH_LIMITATIONS)
 
     if _is_multi_hit_move(move):
         return _unavailable(base, "multi_hit_not_supported")
@@ -42,12 +41,37 @@ def build_focus_sash_survival_context(
         return _unavailable(base, "no_focus_sash")
     if item_status != "user_confirmed":
         return _unavailable(base, "item_not_user_confirmed")
-    if item_id != "focus-sash":
-        return _unavailable(base, "no_focus_sash")
-    legal_block_reason = legal_item_context_block_reason(item_id)
-    if legal_block_reason is not None:
-        return _unavailable(base, legal_block_reason)
+    if item_id == "focus-sash":
+        legal_block_reason = legal_item_context_block_reason(item_id)
+        if legal_block_reason is not None:
+            return _unavailable(base, legal_block_reason)
+        return _build_focus_sash_context(battle_input, damage_estimate, defender_key, scope)
+    if item_id == "focus-band":
+        base = _base_context(defender_key, FOCUS_BAND_LIMITATIONS)
+        legal_block_reason = legal_item_context_block_reason(item_id)
+        if legal_block_reason is not None:
+            return _unavailable(base, legal_block_reason)
+        return _build_focus_band_context(battle_input, damage_estimate, defender_key, scope)
+    return _unavailable(base, "no_focus_sash")
 
+
+def _base_context(defender_key: str, limitations: list[str]) -> dict[str, Any]:
+    return {
+        "mode": SURVIVAL_CONTEXT_MODE,
+        "defender_side": defender_key,
+        "is_final_battle_truth": False,
+        "raw_damage_rolls_changed": False,
+        "limitations": list(limitations),
+    }
+
+
+def _build_focus_sash_context(
+    battle_input: dict[str, Any],
+    damage_estimate: dict[str, Any],
+    defender_key: str,
+    scope: str,
+) -> dict[str, Any]:
+    base = _base_context(defender_key, FOCUS_SASH_LIMITATIONS)
     hp_state = _defender_hp_state(battle_input, damage_estimate, defender_key)
     if hp_state["status"] == "unknown":
         return _unavailable(base, "hp_unknown")
@@ -89,6 +113,70 @@ def build_focus_sash_survival_context(
             "type": "focus_sash",
             "may_survive_at_1_hp": True,
             "raw_damage_rolls_changed": False,
+        },
+    }
+
+
+def _build_focus_band_context(
+    battle_input: dict[str, Any],
+    damage_estimate: dict[str, Any],
+    defender_key: str,
+    scope: str,
+) -> dict[str, Any]:
+    base = _base_context(defender_key, FOCUS_BAND_LIMITATIONS)
+    current_hp_state = _defender_current_hp_state(battle_input, damage_estimate, defender_key)
+    if current_hp_state["status"] == "unknown":
+        return _unavailable(base, "defender_hp_reference_missing")
+    current_hp = current_hp_state.get("current_hp")
+    if not isinstance(current_hp, int) or current_hp <= 0:
+        return _unavailable(base, "defender_hp_reference_missing")
+
+    damage_range = damage_estimate.get("damage_range")
+    if not isinstance(damage_range, dict):
+        return _unavailable(base, "damage_estimate_missing")
+    min_damage = damage_range.get("min")
+    max_damage = damage_range.get("max")
+    if not isinstance(min_damage, int) or not isinstance(max_damage, int):
+        return _unavailable(base, "damage_estimate_missing")
+
+    could_be_lethal = max_damage >= current_hp
+    guaranteed_lethal = min_damage >= current_hp
+    if not could_be_lethal:
+        return _unavailable(base, "damage_not_lethal")
+
+    incoming_damage = {
+        "min": min_damage,
+        "max": max_damage,
+        "could_be_lethal_without_item": could_be_lethal,
+        "guaranteed_lethal_without_item": guaranteed_lethal,
+        "hp_reference_source": current_hp_state["source"],
+    }
+    percent_range = damage_estimate.get("percent_range")
+    if isinstance(percent_range, dict):
+        percent_min = percent_range.get("min")
+        percent_max = percent_range.get("max")
+        if isinstance(percent_min, (int, float)) and isinstance(percent_max, (int, float)):
+            incoming_damage["percent_min"] = percent_min
+            incoming_damage["percent_max"] = percent_max
+
+    return {
+        **base,
+        "available": True,
+        "scope": scope,
+        "item": {
+            "item_id": "focus-band",
+            "status": "user_confirmed",
+        },
+        "incoming_damage": incoming_damage,
+        "survival_effect": {
+            "type": "focus_band",
+            "effect_label": "may_occasionally_survive_lethal_hit",
+            "formula_label": "focus_band_limited_survival_context",
+            "survival_is_not_guaranteed": True,
+            "activation_probability_calculated": False,
+            "final_survival_probability_integrated": False,
+            "raw_damage_rolls_changed": False,
+            "ko_context_changed": False,
         },
     }
 
@@ -148,6 +236,32 @@ def _defender_hp_state(
         return {"status": "full", "current_hp": hp_reference}
 
     return {"status": "unknown"}
+
+
+def _defender_current_hp_state(
+    battle_input: dict[str, Any],
+    damage_estimate: dict[str, Any],
+    defender_key: str,
+) -> dict[str, Any]:
+    defender = _pokemon_payload(battle_input, defender_key)
+    exact_current_hp = _positive_int(defender.get("current_hp"))
+    if exact_current_hp is not None:
+        return {"status": "known", "current_hp": exact_current_hp, "source": "exact_current_hp"}
+
+    hp_percent = defender.get("hp_percent")
+    if not isinstance(hp_percent, int) or hp_percent <= 0:
+        return {"status": "unknown"}
+
+    hp_reference = _defender_hp_reference(damage_estimate)
+    if hp_reference is None:
+        return {"status": "unknown"}
+
+    current_hp = max(1, (hp_reference * hp_percent + 99) // 100)
+    return {
+        "status": "known",
+        "current_hp": current_hp,
+        "source": "damage_percent_range",
+    }
 
 
 def _defender_hp_reference(damage_estimate: dict[str, Any]) -> int | None:

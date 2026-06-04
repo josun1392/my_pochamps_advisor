@@ -17,10 +17,12 @@ from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYL
 from tests.test_advisor_damage_estimate import (
     _battle_input,
     _bullet_seed,
+    _default_stat_profile,
     _flamethrower,
     _ice_beam,
     _item_profiles,
     _tackle,
+    _user_final_stats,
 )
 from ui.main_window import MainWindow
 from ui.widgets.item_profile_dialog import item_profile_from_option, legal_item_options_from_repository
@@ -784,7 +786,7 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Do not mention choice lock for non-Choice items such as Charcoal" in prompt
     assert "Life Orb recoil is not connected" in prompt
     assert "Sitrus Berry and Leftovers recovery may appear only as limited recovery_context" in prompt
-    assert "it does not change raw damage_range or rolls" in prompt
+    assert "survival_context does not change raw damage_range or rolls" in prompt
     assert "ko_context is unchanged by recovery_context" in prompt
     assert "KO/OHKO/2HKO estimates do not include recovery" in prompt
     assert "recovery_context applies only when Sitrus Berry or Leftovers is user-confirmed" in prompt
@@ -911,16 +913,26 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "not included in this estimate" in prompt
     assert "not reflected in the calculation" in prompt
     assert "Do not mention unavailable or deferred item names or effects" in prompt
-    assert "Focus Sash survival may appear only as limited survival_context" in prompt
+    assert "Focus Sash and Focus Band survival may appear only as limited survival_context" in prompt
     assert "not as damage reduction" in prompt
     assert "it does not change raw damage_range or rolls" in prompt
     assert "Focus Sash survival_context applies only when Focus Sash is user-confirmed and HP is full" in prompt
     assert "say may survive at 1 HP" in prompt
+    assert "Focus Band survival_context applies only when Focus Band is user-confirmed" in prompt
+    assert "raw incoming hit is potentially lethal" in prompt
+    assert "say may occasionally survive and survival is not guaranteed" in prompt
+    assert "Focus Band activation probability and final survival probability are not calculated" in prompt
+    assert "KO/OHKO/2HKO estimates do not include Focus Band activation" in prompt
     assert "do not say will survive" in prompt
+    assert "guaranteed survive" in prompt
+    assert "cannot be KO'd" in prompt
+    assert "confirmed survival" in prompt
+    assert "safe to take the hit" in prompt
+    assert "survives this hit" in prompt
     assert "definitely survives" in prompt
     assert "include one concise limitation sentence" in prompt
-    assert "multi-hit moves, hazards, chip damage, and exact turn sequencing are not modeled" in prompt
-    assert "Do not infer Focus Sash if the item is unknown or unconfirmed" in prompt
+    assert "activation probability, and exact turn sequencing are not modeled" in prompt
+    assert "Do not infer Focus Sash or Focus Band if the item is unknown or unconfirmed" in prompt
     assert "Choice lock for Charcoal" not in prompt
     assert "Charcoal choice lock" not in prompt
     assert "use damage_estimate.type_effectiveness" in prompt
@@ -939,7 +951,7 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "2HKO context is a limited min/max estimate" in prompt
     assert "not final turn simulation" in prompt
     assert "does not model accuracy, speed order, priority, recovery, hazards, chip damage" in prompt
-    assert "Focus Sash survival_context is separate from raw ko_context" in prompt
+    assert "survival_context is separate from raw ko_context" in prompt
     assert "not included in KO probability" in prompt
     assert "opponent_assumptions is present" in prompt
     assert "Opponent assumptions version fields are developer/contract metadata" in prompt
@@ -1069,6 +1081,67 @@ def test_advice_payload_preserves_available_yache_context_and_legal_contexts() -
     assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
     assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
     assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+
+
+def test_advice_payload_preserves_available_focus_band_survival_context() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="focus-band")
+    payload["pokemon"]["opponent_active"]["hp_percent"] = 50
+    payload["pokemon"]["opponent_active"]["current_hp"] = 18
+    payload["pokemon"]["opponent_active"]["max_hp"] = 35
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=35),
+    }
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    assert debug_move["survival_context"]["available"] is True
+    assert debug_move["survival_context"]["survival_effect"]["type"] == "focus_band"
+
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert advice_move["survival_context"]["available"] is True
+    assert advice_move["survival_context"]["item"]["item_id"] == "focus-band"
+    assert advice_move["survival_context"]["survival_effect"]["type"] == "focus_band"
+    assert advice_move["survival_context"]["survival_effect"]["survival_is_not_guaranteed"] is True
+    assert advice_move["survival_context"]["survival_effect"]["activation_probability_calculated"] is False
+    assert advice_move["survival_context"]["survival_effect"]["final_survival_probability_integrated"] is False
+    assert advice_payload["item_profiles"]["opponent_active"]["item_id"] == "focus-band"
+    assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
+    assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+
+
+def test_advice_payload_hides_unavailable_focus_band_survival_context() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="focus-band")
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=999),
+    }
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    assert debug_move["survival_context"]["available"] is False
+    assert debug_move["survival_context"]["reason"] == "damage_not_lethal"
+
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert "survival_context" not in advice_move
+    assert advice_payload["item_profiles"]["opponent_active"]["status"] == "unknown"
+    assert advice_payload["item_profiles"]["opponent_active"]["item_id"] is None
+    assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
+    assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("Focus Band", "focus-band", "damage_not_lethal"),
+    )
 
 
 def test_type_boost_context_preserves_matching_charcoal_context_in_advice_payload() -> None:
@@ -1617,10 +1690,14 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "Focus Sash survival may appear only as limited survival_context, not as damage reduction."
+        "Focus Sash and Focus Band survival may appear only as limited survival_context, not as damage reduction."
         in ADVISOR_KNOWN_LIMITATIONS
     )
-    assert "Focus Sash survival_context does not change raw damage_range or rolls." in ADVISOR_KNOWN_LIMITATIONS
+    assert "survival_context does not change raw damage_range or rolls." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "ko_context is unchanged by survival_context and KO/OHKO/2HKO estimates do not include Focus Band activation."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
     assert (
         "Focus Sash survival_context applies only when Focus Sash is user-confirmed and HP is full."
         in ADVISOR_KNOWN_LIMITATIONS
@@ -1630,14 +1707,30 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "When Focus Sash survival_context is available, include one concise limitation sentence that multi-hit moves, hazards, chip damage, and exact turn sequencing are not modeled."
+        "Focus Band survival_context applies only when Focus Band is user-confirmed, Champions legal, and raw incoming damage is potentially lethal."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "Multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, and exact turn sequencing are not modeled for Focus Sash survival_context."
+        "When Focus Band survival_context is available, say may occasionally survive and survival is not guaranteed."
         in ADVISOR_KNOWN_LIMITATIONS
     )
-    assert "Do not infer Focus Sash if the item is unknown or unconfirmed." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Do not say Focus Band will survive, guaranteed survive, cannot be KO'd, confirmed survival, safe to take the hit, or survives this hit."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Focus Band activation probability and final survival probability are not calculated."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When survival_context is available, include one concise limitation sentence that multi-hit moves, hazards, chip damage, item consumption, activation probability, and exact turn sequencing are not modeled."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, and exact turn sequencing are not modeled for survival_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Do not infer Focus Sash or Focus Band if the item is unknown or unconfirmed." in ADVISOR_KNOWN_LIMITATIONS
     assert (
         "ko_context, when present, is limited damage-roll context only and is not final battle truth."
         in ADVISOR_KNOWN_LIMITATIONS
@@ -1653,11 +1746,11 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "Focus Sash survival_context is separate from raw ko_context and is not included in KO probability."
+        "survival_context is separate from raw ko_context and is not included in KO probability."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "Do not mention choice lock for non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, or Focus Sash."
+        "Do not mention choice lock for non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, Focus Sash, or Focus Band."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

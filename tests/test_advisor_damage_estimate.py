@@ -1370,6 +1370,87 @@ def test_focus_sash_survival_context_marks_multi_hit_unsupported() -> None:
     ]
 
 
+def test_focus_band_survival_context_for_potentially_lethal_damage_without_full_hp_requirement() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="focus-band")
+    payload["pokemon"]["opponent_active"]["hp_percent"] = 50
+    payload["pokemon"]["opponent_active"]["current_hp"] = 18
+    payload["pokemon"]["opponent_active"]["max_hp"] = 35
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=35),
+    }
+    baseline = _battle_input(selected_move=_flamethrower())
+    baseline["pokemon"]["opponent_active"]["hp_percent"] = 50
+    baseline["pokemon"]["opponent_active"]["current_hp"] = 18
+    baseline["pokemon"]["opponent_active"]["max_hp"] = 35
+    baseline["stat_profiles"] = payload["stat_profiles"]
+
+    baseline_estimate = build_selected_move_damage_estimate(baseline)
+    baseline_ko = build_ko_context(
+        baseline,
+        baseline_estimate,
+        defender_key="opponent_active",
+        scope="selected_move_only",
+    )
+    result = attach_selected_move_damage_estimate(payload)
+
+    move = result["moves"]["my_selected_move"]
+    estimate = move["damage_estimate"]
+    context = move["survival_context"]
+    assert estimate["damage_range"] == baseline_estimate["damage_range"]
+    assert estimate["rolls"] == baseline_estimate["rolls"]
+    assert context["available"] is True
+    assert context["mode"] == "limited_item_survival_context"
+    assert context["defender_side"] == "opponent_active"
+    assert context["item"] == {"item_id": "focus-band", "status": "user_confirmed"}
+    assert "current_hp_is_full" not in context
+    assert context["incoming_damage"]["could_be_lethal_without_item"] is True
+    assert context["incoming_damage"]["hp_reference_source"] == "exact_current_hp"
+    assert context["survival_effect"]["type"] == "focus_band"
+    assert context["survival_effect"]["effect_label"] == "may_occasionally_survive_lethal_hit"
+    assert context["survival_effect"]["survival_is_not_guaranteed"] is True
+    assert context["survival_effect"]["activation_probability_calculated"] is False
+    assert context["survival_effect"]["final_survival_probability_integrated"] is False
+    assert context["survival_effect"]["raw_damage_rolls_changed"] is False
+    assert context["survival_effect"]["ko_context_changed"] is False
+    assert context["raw_damage_rolls_changed"] is False
+    assert context["is_final_battle_truth"] is False
+    assert move["ko_context"]["ohko"] == baseline_ko["ohko"]
+    assert move["ko_context"]["two_hko"] == baseline_ko["two_hko"]
+
+
+def test_focus_band_survival_context_unavailable_when_damage_not_lethal() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="focus-band")
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=999),
+    }
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["survival_context"]
+    assert context["available"] is False
+    assert context["reason"] == "damage_not_lethal"
+
+
+def test_focus_band_survival_context_requires_user_confirmed_item() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="focus-band")
+    payload["item_profiles"]["opponent_active"]["status"] = "unknown"
+    payload["stat_profiles"] = {
+        "my_active": _default_stat_profile(),
+        "opponent_active": _user_final_stats(hp=31),
+    }
+
+    result = attach_selected_move_damage_estimate(payload)
+
+    context = result["moves"]["my_selected_move"]["survival_context"]
+    assert context["available"] is False
+    assert context["reason"] == "item_not_user_confirmed"
+
+
 def test_available_move_estimates_include_default_assumption_profile() -> None:
     payload = _battle_input(
         selected_move=_flamethrower(),
