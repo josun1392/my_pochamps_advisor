@@ -7843,6 +7843,78 @@ Maintained boundaries:
 
 ---
 
+## v0.95 - Focus Band survival context design
+
+Purpose:
+- Design limited survival context support for Champions-legal Focus Band before implementation.
+- Compare Focus Band with the existing Focus Sash `survival_context`.
+- Keep Focus Band as probability-oriented survival context without changing raw damage or `ko_context`.
+
+Findings:
+- `data/static/champions_legal_items.json` contains `focus-band`:
+  - `legal=true`
+  - `category=hold_item`
+  - `effect_support_status=legal_but_not_modeled`
+  - `ui_status=recognized_not_modeled`
+- `data/static/items_damage.json` does not contain Focus Band damage metadata, which is expected because Focus Band is not a damage modifier.
+- Existing Focus Sash support lives in `llm/advisor_survival_context.py` as limited `survival_context`.
+
+Design:
+- Recommend extending the existing move-level `survival_context` rather than adding a separate `focus_band_context`.
+- Represent Focus Band with distinct `survival_effect.type="focus_band"`.
+- Keep explicit flags:
+  - `activation_probability_calculated=false`
+  - `final_survival_probability_integrated=false`
+  - `raw_damage_rolls_changed=false`
+  - `ko_context_changed=false`
+- Focus Band should require:
+  - defender item `focus-band`
+  - `status=user_confirmed`
+  - Champions legal gate pass
+  - incoming raw damage estimate present
+  - incoming raw damage appears potentially lethal
+- Focus Band should not require full HP.
+- Available Focus Band context may be included in default advice payload.
+- Unavailable Focus Band reasons remain debug/enriched only and are hidden from default advice payload.
+
+LLM wording policy:
+- Allowed:
+  - "may occasionally survive"
+  - "survival is not guaranteed"
+  - raw damage and KO estimates do not include Focus Band activation
+- Forbidden:
+  - "will survive"
+  - "guaranteed survive"
+  - "cannot be KO'd"
+  - "confirmed survival"
+  - KO chance includes Focus Band
+  - exact final survival probability
+
+Recommended v0.96:
+- `v0.96 - Focus Band Limited Survival Context Implementation`.
+- Extend `survival_context` with Focus Band while preserving Focus Sash behavior.
+- Add tests for available Focus Band context, unavailable reason filtering, raw damage unchanged, `ko_context` unchanged, and no guaranteed survival wording.
+- Follow with `v0.96.1 - Focus Band Local Gemini Verification`.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No damage formula changes.
+- No raw damage roll modification.
+- No `ko_context` calculation changes.
+- No KO chance integration with Focus Band.
+- No final survival probability calculation.
+- No exact Focus Band activation probability.
+- No Turn Engine.
+- No item consumption.
+- No legal fixture mutation.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
