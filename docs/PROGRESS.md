@@ -7482,6 +7482,92 @@ Maintained boundaries:
 
 ---
 
+## v0.90.1 - Local Gemini verification
+
+Purpose:
+- Verify v0.90 generic unavailable item-effect silence with local Gemini actual calls.
+
+Execution:
+- Gemini actual call succeeded for all requested cases.
+- Cases executed:
+  - Case A: opponent Garchomp user-confirmed Chilan Berry deferred case.
+  - Case B: opponent Garchomp user-confirmed Yache Berry, incoming Flamethrower, not a qualifying super-effective hit.
+  - Case C: user Charizard user-confirmed Loaded Dice blocked by legal item coverage.
+  - Case D: opponent Garchomp user-confirmed Yache Berry, incoming Ice Beam, legal available resist berry regression.
+
+Case A - Chilan Berry deferred:
+- Payload/debug context confirmed `resist_berry_context.available=false` with `reason=chilan_berry_deferred`.
+- Raw damage was preserved as 14-17 HP / 7.7%-9.3%.
+- `ko_context` remained raw damage-roll context and did not change.
+- Gemini mentioned Chilan Berry by name in default advice.
+- Gemini said the opponent's user-confirmed Chilan Berry effect is not applied.
+- This violated the v0.90 unavailable/deferred silence goal.
+- Result: FAIL.
+
+Case B - Yache Berry non-super-effective unavailable:
+- Payload/debug context confirmed `resist_berry_context.available=false` with `reason=move_not_super_effective`.
+- Raw damage was preserved as 31-37 HP / 16.9%-20.2%.
+- Gemini did not mention Yache Berry by name.
+- Gemini did not mention the unavailable reason.
+- Gemini did not use a generic item-effect limitation.
+- Gemini did not say the item was not modeled, not applied, not included, or not reflected in the calculation.
+- Result: PASS.
+
+Case C - Loaded Dice blocked:
+- Payload/debug context confirmed `multi_hit_context.available=false` with `reason=blocked_by_legal_item_coverage`.
+- Raw damage was preserved as 9-11 HP / 4.9%-6.0% for Bullet Seed.
+- Gemini did not mention Loaded Dice by name.
+- Gemini did not claim multi-hit reliability, a fixed hit count, or multi-hit-adjusted KO probability.
+- Gemini did not use a generic item-effect limitation.
+- Result: PASS.
+
+Case D - Yache Berry available legal regression:
+- Payload/debug context confirmed `resist_berry_context.available=true`.
+- Gemini mentioned the user-confirmed Yache Berry.
+- Gemini said Yache Berry may reduce the super-effective Ice-type hit.
+- Raw damage was preserved as 168-200 HP / 91.8%-109.3%.
+- Gemini kept the berry reduction separate from the raw damage estimate and KO probability.
+- Gemini did not calculate berry-adjusted damage.
+- Gemini did not calculate berry-adjusted KO probability.
+- Gemini did not claim final survival.
+- Result: PASS.
+
+Verification summary:
+- Generic item-effect wording silence: FAIL for Chilan deferred; PASS for Yache unavailable and Loaded Dice blocked.
+- Unavailable/deferred item quietness: FAIL because Chilan Berry name/effect wording surfaced in default advice.
+- Blocked item quietness: PASS.
+- Raw damage unchanged: PASS.
+- `ko_context` separation: PASS.
+- Final probability claims: PASS.
+- Overall verdict: FAIL.
+
+Next candidates:
+- `v0.91 Chilan Deferred Prompt Hardening`.
+- `v0.91 Unavailable Context Payload Filtering Design`.
+- `v0.91 Local Gemini Verification Retry`.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No fixture changes.
+- No legal fixture mutation.
+- No prompt changes.
+- No tests changed.
+- No context helper changes.
+- No legal gate changes.
+- No `resist_berry_context` changes.
+- No raw damage formula changes.
+- No raw damage roll modification.
+- No KO context changes.
+- No berry-adjusted damage implementation.
+- No berry-adjusted KO implementation.
+- No item consumption tracking.
+- No Turn Engine.
+- No Chilan Berry full support.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
