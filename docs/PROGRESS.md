@@ -7568,6 +7568,49 @@ Maintained boundaries:
 
 ---
 
+## v0.91 - Unavailable context payload filtering design
+
+Purpose:
+- Design how to keep unavailable/deferred item context reasons available for debug/contract use while preventing them from leaking into default Gemini advice.
+
+Background:
+- v0.90.1 verified that prompt-only silence still failed for Chilan Berry deferred.
+- Payload/debug context had `resist_berry_context.available=false` with `reason=chilan_berry_deferred`.
+- Raw damage and `ko_context` stayed unchanged, but Gemini mentioned Chilan Berry and said its effect was not applied.
+
+Designed:
+- Added `docs/spike_v0.91_unavailable_context_payload_filtering_design.md`.
+- Compared:
+  - prompt-only silence
+  - removing unavailable/deferred item contexts from the user-facing advice payload
+  - dual `advice_payload` / `debug_payload` structure
+  - adding `visibility` or `audience` metadata
+- Recommended filtering unavailable/deferred item context out of the default advice payload while preserving debug/diagnostic reason visibility.
+- Recommended preserving `available=true` legal item contexts.
+- Recommended preserving raw `damage_estimate` and raw `ko_context`.
+- Defined Chilan Berry policy:
+  - keep `chilan_berry_deferred` as debug/contract metadata
+  - hide deferred context from default advice
+  - do not implement Chilan full support in this step
+- Proposed v0.92 as `Unavailable Context Advice Payload Filtering Implementation`.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No payload filtering implementation.
+- No Chilan Berry full support.
+- No damage formula changes.
+- No raw damage roll modification.
+- No KO context changes.
+- No item consumption tracking.
+- No Turn Engine.
+- No legal fixture mutation.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.45 - Opponent assumptions debug export
 
 Purpose:
