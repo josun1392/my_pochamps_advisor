@@ -7757,6 +7757,92 @@ Maintained boundaries:
 
 ---
 
+## v0.94.1 - Type boost context local Gemini verification
+
+Purpose:
+- Verify that v0.94 `type_boost_context` is represented safely in actual Gemini default advice.
+- Confirm unavailable or non-legal type-boost item information does not leak through default advice payload, `item_profiles`, or `damage_estimate.item_effects`.
+
+Actual Gemini verification:
+- Gemini actual call: succeeded.
+- Case A - Charcoal + Fire move:
+  - enriched/debug payload had `type_boost_context.available=true`.
+  - default advice payload retained `type_boost_context`.
+  - actual advice mentioned Charcoal's Fire-type damage modifier.
+  - No guaranteed KO, confirmed KO, secures KO, final damage, definitely wins, or boosted-damage-proves-KO wording appeared.
+- Case B - Charcoal + Water move:
+  - enriched/debug payload had `type_boost_context.available=false`, reason `move_type_does_not_match_boosted_type`.
+  - default advice payload removed `type_boost_context`.
+  - default advice payload scrubbed the selected move `damage_estimate.item_effects.attacker_item`.
+  - isolated selected/available Water-only actual advice did not mention Charcoal, mismatch, not applicable, not reflected, not modeled, or unavailable reason wording.
+  - An earlier mixed available-move probe mentioned Charcoal because Flamethrower was also present as an available move with valid `type_boost_context.available=true`; that was fixture contamination, not a filtering failure.
+- Case C - Mystic Water + Water move:
+  - enriched/debug payload had `type_boost_context.available=true`.
+  - default advice payload retained `type_boost_context`.
+  - actual advice mentioned Mystic Water's Water-type damage boost.
+  - No final/guaranteed KO wording appeared.
+- Case D - Magnet + Electric move:
+  - enriched/debug payload had `type_boost_context.available=true`.
+  - default advice payload retained `type_boost_context`.
+  - actual advice avoided KO/final-damage overclaims.
+  - Because Garchomp is immune to Electric, advice correctly recommended against Thunderbolt and did not turn the Magnet context into damage or KO truth.
+- Case E - Fairy Feather:
+  - enriched/debug payload had `type_boost_context.available=false`, reason `type_boost_metadata_missing`.
+  - default advice payload removed `type_boost_context`.
+  - default advice payload hid the item profile and scrubbed `damage_estimate.item_effects`.
+  - actual advice did not mention Fairy Feather, unsupported/not modeled reason, or item-effect limitation wording.
+- Case F - incense items:
+  - Checked `odd-incense`, `rose-incense`, `sea-incense`, and `wave-incense`.
+  - enriched/debug payload had `type_boost_context.available=false`, reason `blocked_by_legal_item_coverage`.
+  - default advice payload removed `type_boost_context`, hid item profiles, and scrubbed `damage_estimate.item_effects`.
+  - actual advice did not mention incense item names, blocked/not modeled/not reflected wording, or unavailable reason text.
+
+Payload checks:
+- Available contexts remained in default advice payload:
+  - Charcoal + Fire
+  - Mystic Water + Water
+  - Magnet + Electric
+- Unavailable contexts were removed from default advice payload:
+  - Charcoal + Water mismatch
+  - Fairy Feather unsupported
+  - non-legal incense items
+- raw `damage_estimate` remained present.
+- raw damage rolls remained unchanged.
+- `ko_context` remained present.
+
+Failure analysis:
+- No v0.94.1 filtering failure was confirmed.
+- One initial mixed-move probe looked like a Charcoal + Water leak, but the cause was a valid Charcoal + Flamethrower available move in the same payload.
+- No code changes were needed.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 35 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 89 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: initially 1 known item perf failure, then 4 passed on rerun.
+- `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: passed on 3 isolated reruns.
+- `uv run pytest -q`: 885 passed, 2 deselected.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No new item implementation.
+- No damage formula changes.
+- No raw damage roll modification.
+- No Q12 multiplier changes.
+- No KO context calculation changes.
+- No legal fixture mutation.
+- No fixture changes.
+- No Fairy Feather support implementation.
+- No incense legal addition.
+- No type-boost-adjusted KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No item consumption tracking.
+- No prompt hardening changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
