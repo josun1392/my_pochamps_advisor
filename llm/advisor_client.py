@@ -29,6 +29,7 @@ ITEM_CONTEXT_FIELDS = frozenset(
         "critical_context",
         "flinch_context",
         "multi_hit_context",
+        "type_boost_context",
         "resist_berry_context",
         "charge_context",
     }
@@ -87,6 +88,7 @@ def build_ui_advice_payload(battle_input: dict[str, Any]) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
     available_item_sides = _collect_available_item_context_sides(payload)
+    _hide_move_local_unavailable_type_boost_item_effects(payload)
     hidden_item_sides = _remove_unavailable_item_contexts(payload)
     hidden_item_sides -= available_item_sides
     hidden_item_ids = _hide_advice_hidden_item_profiles(payload, hidden_item_sides)
@@ -165,6 +167,17 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "does not match or the item is unsupported. Legal item selection does "
         "not imply the selected item has a modeled effect. Fairy Feather is "
         "legal but not damage-modeled until a catalog-backed modifier exists. "
+        "Type-boost item context may appear only as limited type_boost_context. "
+        "type_boost_context is an advice context for user-confirmed, Champions "
+        "legal, damage-supported type-boosting items when the move type matches "
+        "the boosted type. It does not change raw damage_range or rolls beyond "
+        "the existing damage_estimate.item_effects calculation, and ko_context "
+        "is unchanged by type_boost_context. Type-boost-adjusted KO/OHKO/2HKO "
+        "context is not calculated. Do not say boosted damage guarantees KO, "
+        "secures the KO, proves the KO, or is final battle damage. If "
+        "type_boost_context is unavailable, treat the reason as developer/"
+        "debug/contract metadata only and do not mention the item name, effect, "
+        "or unavailable reason in default advice unless the user explicitly asks. "
         "Damage-supported non-legal/debug items are not normal legal selector "
         "options. If a user-confirmed item is blocked by legal item coverage "
         "or marked future-only, treat the block reason as developer/debug/"
@@ -422,15 +435,42 @@ def _hide_advice_hidden_item_effects(value: Any, hidden_item_ids: set[str]) -> N
     if isinstance(value, dict):
         item_id = value.get("item_id")
         if isinstance(item_id, str) and item_id in hidden_item_ids:
-            value["item_id"] = None
-            value["status"] = "advice_payload_hidden"
-            value["applied_effects"] = []
-            value["unapplied_effects"] = []
+            _scrub_advice_hidden_item_effect(value)
         for child in value.values():
             _hide_advice_hidden_item_effects(child, hidden_item_ids)
     elif isinstance(value, list):
         for item in value:
             _hide_advice_hidden_item_effects(item, hidden_item_ids)
+
+
+def _hide_move_local_unavailable_type_boost_item_effects(value: Any) -> None:
+    if isinstance(value, dict):
+        type_boost_context = value.get("type_boost_context")
+        if isinstance(type_boost_context, dict) and type_boost_context.get("available") is False:
+            damage_estimate = value.get("damage_estimate")
+            if isinstance(damage_estimate, dict):
+                item_effects = damage_estimate.get("item_effects")
+                attacker_item = item_effects.get("attacker_item") if isinstance(item_effects, dict) else None
+                if isinstance(attacker_item, dict):
+                    _scrub_advice_hidden_item_effect(attacker_item)
+        for child in value.values():
+            _hide_move_local_unavailable_type_boost_item_effects(child)
+    elif isinstance(value, list):
+        for item in value:
+            _hide_move_local_unavailable_type_boost_item_effects(item)
+
+
+def _scrub_advice_hidden_item_effect(value: dict[str, Any]) -> None:
+    value["item_id"] = None
+    value["name_en"] = None
+    value["name_ko"] = None
+    value["status"] = "advice_payload_hidden"
+    value["applied_effects"] = []
+    value["unapplied_effects"] = []
+    value.pop("effect_type", None)
+    value.pop("boosted_type", None)
+    value.pop("modifier", None)
+    value.pop("reason", None)
 
 
 def _remove_debug_only_limitations(value: Any) -> None:

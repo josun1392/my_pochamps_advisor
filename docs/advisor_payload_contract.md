@@ -338,6 +338,90 @@ If Life Orb is applied, the LLM should say the damage modifier is applied and Li
 
 For type boosting items, the LLM should say the damage modifier is included only when `damage_estimate.item_effects.attacker_item.status` is `applied`. It must not say the item boosted damage when the move type does not match, when the item is unsupported, or merely because the item is legal. Fairy Feather should be described as legal but not damage-modeled until a catalog-backed modifier exists.
 
+## Type Boost Context Semantics
+
+`type_boost_context` is an additive limited context for user-confirmed Champions legal type-boosting items whose catalog metadata supports a matching move type. It is never nested inside `damage_estimate` or `ko_context`.
+
+The context is explanatory: it surfaces the same supported item relationship that `damage_estimate.item_effects` already uses when applicable. It does not create a new damage formula path, does not recalculate raw damage rolls, and does not add type-boost-adjusted KO/OHKO/2HKO context.
+
+Available type boost context requires:
+
+- attacker item profile must be `status: user_confirmed`
+- item must pass Champions legal item coverage
+- item category must be `type_boosting_item`
+- item effect support status must be `legal_and_damage_supported`
+- item must exist in `items_damage.json` `type_boost_items`
+- move type must be known
+- move type must match the item boosted type
+
+The first supported scope is the legal damage-supported type-boosting item set:
+
+- `black-belt`
+- `black-glasses`
+- `charcoal`
+- `dragon-fang`
+- `hard-stone`
+- `magnet`
+- `metal-coat`
+- `miracle-seed`
+- `mystic-water`
+- `never-melt-ice`
+- `poison-barb`
+- `sharp-beak`
+- `silk-scarf`
+- `silver-powder`
+- `soft-sand`
+- `spell-tag`
+- `twisted-spoon`
+
+Excluded items:
+
+- `fairy-feather`: Champions legal, but no catalog-backed damage metadata/helper support yet.
+- `odd-incense`, `rose-incense`, `sea-incense`, `wave-incense`: present in `items_damage.json`, but not confirmed as Champions legal items in `champions_legal_items.json`.
+
+Available context may include:
+
+- `mode`: `limited_type_boost_context`
+- `available`: `true`
+- `attacker_side`: `my_active` or `opponent_active`
+- `item.item_id`: the item id
+- `item.status`: `user_confirmed`
+- `item.legal_status`: `legal_modeled`
+- `type_boost_effect.boosted_type`: boosted type from `items_damage.json`
+- `type_boost_effect.move_type`: move type
+- `type_boost_effect.effect_label`: `may_boost_matching_type_move`
+- `type_boost_effect.formula_label`: `type_boost_limited_damage_modifier_context`
+- `type_boost_effect.damage_estimate_item_effect_status`: the related `damage_estimate.item_effects.attacker_item.status`
+- `type_boost_effect.raw_damage_rolls_changed`: `false`
+- `type_boost_effect.ko_context_changed`: `false`
+- `type_boost_effect.type_boost_adjusted_ko_integrated`: `false`
+- `type_boost_effect.type_boost_adjusted_ohko_2hko_integrated`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `no_type_boost_item`
+- `item_not_user_confirmed`
+- `blocked_by_legal_item_coverage`
+- `not_type_boosting_item`
+- `type_boost_metadata_missing`
+- `boosted_type_missing`
+- `move_type_missing`
+- `move_type_does_not_match_boosted_type`
+- `damage_estimate_missing`
+
+When `type_boost_context.available` is true, the note should stay concise. The LLM may say the user-confirmed item may boost matching-type moves and that the damage estimate may already include the supported item modifier when applicable. It should not say the context is final battle truth.
+
+The LLM must not say:
+
+- "This guarantees KO."
+- "This secures the KO."
+- "Boosted damage proves the KO."
+- "This is final damage."
+- "The type-boost-adjusted KO chance is 70%."
+
+If `type_boost_context.available` is false in the enriched/debug payload, the default advice payload should omit `type_boost_context`. The unavailable reason is developer/debug/contract metadata only. The LLM should not mention the unavailable type-boost item name, effect, or reason in default advice unless the user explicitly asks about that item.
+
 For non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, or Focus Sash, the LLM must not say choice lock is not modeled. Choice lock is relevant only to Choice Scarf, Choice Band, and Choice Specs.
 
 ## Survival Context Semantics
@@ -771,6 +855,7 @@ The filtering applies to item context fields such as:
 - `critical_context`
 - `flinch_context`
 - `multi_hit_context`
+- `type_boost_context`
 - `resist_berry_context`
 - future `charge_context`
 

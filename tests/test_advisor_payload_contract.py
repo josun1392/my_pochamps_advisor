@@ -765,6 +765,17 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "when damage_estimate.item_effects.attacker_item.status is applied" in prompt
     assert "do not say a type boosting item boosted damage when the move type does not match" in prompt
     assert "Fairy Feather is legal but not damage-modeled" in prompt
+    assert "Type-boost item context may appear only as limited type_boost_context" in prompt
+    assert "type_boost_context is an advice context for user-confirmed" in prompt
+    assert "damage-supported type-boosting items when the move type matches" in prompt
+    assert "ko_context is unchanged by type_boost_context" in prompt
+    assert "Type-boost-adjusted KO/OHKO/2HKO context is not calculated" in prompt
+    assert "Do not say boosted damage guarantees KO" in prompt
+    assert "secures the KO" in prompt
+    assert "proves the KO" in prompt
+    assert "final battle damage" in prompt
+    assert "type_boost_context is unavailable" in prompt
+    assert "do not mention the item name, effect, or unavailable reason" in prompt
     assert "Damage-supported non-legal/debug items are not normal legal selector options" in prompt
     assert "If an attacker item effect is applied" in prompt
     assert "default assumptions plus the supported item modifier" in prompt
@@ -1060,6 +1071,125 @@ def test_advice_payload_preserves_available_yache_context_and_legal_contexts() -
     assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
 
 
+def test_type_boost_context_preserves_matching_charcoal_context_in_advice_payload() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = {
+        "my_active": _type_boost_profile("charcoal", "Charcoal"),
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert debug_move["type_boost_context"]["available"] is True
+    assert advice_move["type_boost_context"]["available"] is True
+    assert advice_move["type_boost_context"]["item"]["item_id"] == "charcoal"
+    assert advice_move["type_boost_context"]["type_boost_effect"]["boosted_type"] == "fire"
+    assert advice_move["type_boost_context"]["type_boost_effect"]["move_type"] == "fire"
+    assert advice_move["type_boost_context"]["type_boost_effect"]["damage_estimate_item_effect_status"] == "applied"
+    assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
+    assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+
+
+def test_type_boost_context_hides_mismatched_charcoal_context_from_advice_payload() -> None:
+    payload = _battle_input(selected_move=_water_gun())
+    payload["item_profiles"] = {
+        "my_active": _type_boost_profile("charcoal", "Charcoal"),
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert debug_move["type_boost_context"]["available"] is False
+    assert debug_move["type_boost_context"]["reason"] == "move_type_does_not_match_boosted_type"
+    assert "type_boost_context" not in advice_move
+    assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
+    assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("move_type_does_not_match_boosted_type",),
+    )
+
+
+def test_type_boost_context_preserves_mystic_water_and_magnet_matching_contexts() -> None:
+    water_payload = _battle_input(selected_move=_water_gun())
+    water_payload["item_profiles"] = {
+        "my_active": _type_boost_profile("mystic-water", "Mystic Water"),
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+    electric_payload = _battle_input(selected_move=_thunderbolt())
+    electric_payload["item_profiles"] = {
+        "my_active": _type_boost_profile("magnet", "Magnet"),
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+
+    water_context = build_ui_advice_payload(attach_selected_move_damage_estimate(water_payload))["moves"][
+        "my_selected_move"
+    ]["type_boost_context"]
+    electric_context = build_ui_advice_payload(attach_selected_move_damage_estimate(electric_payload))["moves"][
+        "my_selected_move"
+    ]["type_boost_context"]
+
+    assert water_context["available"] is True
+    assert water_context["item"]["item_id"] == "mystic-water"
+    assert water_context["type_boost_effect"]["boosted_type"] == "water"
+    assert electric_context["available"] is True
+    assert electric_context["item"]["item_id"] == "magnet"
+    assert electric_context["type_boost_effect"]["boosted_type"] == "electric"
+
+
+def test_type_boost_context_hides_fairy_feather_and_non_legal_incense_from_advice_payload() -> None:
+    fairy_payload = _battle_input(selected_move=_moonblast())
+    fairy_payload["item_profiles"] = {
+        "my_active": _type_boost_profile(
+            "fairy-feather",
+            "Fairy Feather",
+            effect_support_status="legal_but_not_modeled",
+            ui_status="recognized_not_modeled",
+        ),
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+    incense_payload = _battle_input(selected_move=_water_gun())
+    incense_payload["item_profiles"] = {
+        "my_active": _type_boost_profile(
+            "wave-incense",
+            "Wave Incense",
+            legal=False,
+            legality_status="unknown",
+        ),
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+
+    fairy_enriched = attach_selected_move_damage_estimate(fairy_payload)
+    incense_enriched = attach_selected_move_damage_estimate(incense_payload)
+    fairy_advice = build_ui_advice_payload(fairy_enriched)
+    incense_advice = build_ui_advice_payload(incense_enriched)
+
+    assert fairy_enriched["moves"]["my_selected_move"]["type_boost_context"]["available"] is False
+    assert fairy_enriched["moves"]["my_selected_move"]["type_boost_context"]["reason"] == "type_boost_metadata_missing"
+    assert incense_enriched["moves"]["my_selected_move"]["type_boost_context"]["available"] is False
+    assert incense_enriched["moves"]["my_selected_move"]["type_boost_context"]["reason"] == "blocked_by_legal_item_coverage"
+    assert "type_boost_context" not in fairy_advice["moves"]["my_selected_move"]
+    assert "type_boost_context" not in incense_advice["moves"]["my_selected_move"]
+    _assert_forbidden_terms_absent_from_advice_payload(
+        fairy_advice,
+        extra_terms=("Fairy Feather", "fairy-feather", "type_boost_metadata_missing"),
+    )
+    _assert_forbidden_terms_absent_from_advice_payload(
+        incense_advice,
+        extra_terms=("Wave Incense", "wave-incense", "blocked_by_legal_item_coverage"),
+    )
+
+
 def _assert_forbidden_terms_absent_from_advice_payload(
     advice_payload: dict,
     *,
@@ -1068,6 +1198,74 @@ def _assert_forbidden_terms_absent_from_advice_payload(
     rendered = json.dumps(advice_payload, ensure_ascii=False)
     for term in (*UNAVAILABLE_ITEM_ADVICE_PAYLOAD_FORBIDDEN_TERMS, *extra_terms):
         assert term.lower() not in rendered.lower()
+
+
+def _type_boost_profile(
+    item_id: str,
+    name_en: str,
+    *,
+    legal: bool = True,
+    legality_status: str = "legal",
+    effect_support_status: str = "legal_and_damage_supported",
+    ui_status: str = "recognized_modeled",
+) -> dict:
+    return {
+        "status": "user_confirmed",
+        "source": "user_input",
+        "item_id": item_id,
+        "name_en": name_en,
+        "name_ko": None,
+        "effects_scope": ["damage_modifier"],
+        "category": "type_boosting_item",
+        "legal": legal,
+        "legality_status": legality_status,
+        "effect_support_status": effect_support_status,
+        "damage_modifier_status": "not_applied",
+        "ui_status": ui_status,
+        "notes": [],
+    }
+
+
+def _water_gun() -> dict:
+    return {
+        "slot": 0,
+        "move_id": "water-gun",
+        "name_en": "Water Gun",
+        "name_ko": "Water Gun",
+        "type": "water",
+        "category": "special",
+        "power": 40,
+        "accuracy": 100,
+        "pp": 25,
+    }
+
+
+def _thunderbolt() -> dict:
+    return {
+        "slot": 0,
+        "move_id": "thunderbolt",
+        "name_en": "Thunderbolt",
+        "name_ko": "Thunderbolt",
+        "type": "electric",
+        "category": "special",
+        "power": 90,
+        "accuracy": 100,
+        "pp": 15,
+    }
+
+
+def _moonblast() -> dict:
+    return {
+        "slot": 0,
+        "move_id": "moonblast",
+        "name_en": "Moonblast",
+        "name_ko": "Moonblast",
+        "type": "fairy",
+        "category": "special",
+        "power": 95,
+        "accuracy": 100,
+        "pp": 15,
+    }
 
 
 def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
@@ -1086,6 +1284,25 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     assert "Legal item selection does not imply the selected item has a modeled effect." in ADVISOR_KNOWN_LIMITATIONS
     assert (
         "Fairy Feather is legal but not damage-modeled until a catalog-backed modifier exists."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Type-boost item context may appear only as limited type_boost_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "type_boost_context applies only to user-confirmed, Champions legal, damage-supported type-boosting items when move type matches boosted type."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "type_boost_context does not change raw damage_range or rolls beyond the existing damage_estimate.item_effects calculation."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "ko_context is unchanged by type_boost_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert "Type-boost-adjusted KO/OHKO/2HKO context is not calculated." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "If type_boost_context is unavailable, treat the reason as developer/debug/contract metadata only."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say boosted damage guarantees KO, secures the KO, proves the KO, or is final battle damage."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

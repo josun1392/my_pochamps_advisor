@@ -7674,6 +7674,89 @@ Maintained boundaries:
 
 ---
 
+## v0.94 - Type boost item advice context implementation
+
+Purpose:
+- Add a limited Gemini advice context for Champions legal type-boosting items already supported by `damage_estimate.item_effects`.
+- Keep this as explanatory context only, without changing damage formula, raw rolls, or `ko_context`.
+
+Implemented:
+- Added `llm/advisor_type_boost_context.py`.
+- Added move-level sibling `type_boost_context` for:
+  - my available moves
+  - my selected move
+  - opponent known moves
+- Added `type_boost_context` to default advice payload filtering:
+  - `available=true` remains in default advice payload.
+  - `available=false` is removed from default advice payload.
+  - enriched/debug payload keeps unavailable reasons.
+- Added move-local item effect scrubbing so unavailable type-boost context does not leak through `damage_estimate.item_effects`.
+- Added prompt and payload contract guardrails:
+  - context is limited advice context only
+  - raw damage rolls are not newly recalculated
+  - `ko_context` is unchanged
+  - type-boost-adjusted KO/OHKO/2HKO is not calculated
+  - no guaranteed/secured/confirmed KO wording
+
+Implemented item scope:
+- `black-belt`
+- `black-glasses`
+- `charcoal`
+- `dragon-fang`
+- `hard-stone`
+- `magnet`
+- `metal-coat`
+- `miracle-seed`
+- `mystic-water`
+- `never-melt-ice`
+- `poison-barb`
+- `sharp-beak`
+- `silk-scarf`
+- `silver-powder`
+- `soft-sand`
+- `spell-tag`
+- `twisted-spoon`
+
+Excluded:
+- `fairy-feather`: Champions legal but `items_damage.json` has no catalog-backed damage metadata/helper support.
+- `odd-incense`, `rose-incense`, `sea-incense`, `wave-incense`: present in `items_damage.json`, but not confirmed in `data/static/champions_legal_items.json`.
+
+Tests:
+- Added payload contract tests for:
+  - Charcoal + Fire move keeps `type_boost_context.available=true`
+  - Charcoal + non-matching Water move hides unavailable context and reason from default advice payload
+  - Mystic Water + Water move keeps available context
+  - Magnet + Electric move keeps available context
+  - Fairy Feather remains hidden from default advice payload
+  - non-legal incense remains hidden from default advice payload
+  - raw `damage_estimate`, raw rolls, and `ko_context` are preserved
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 35 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 89 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 885 passed, 2 deselected.
+
+Maintained boundaries:
+- No damage formula changes.
+- No raw damage roll modification.
+- No KO context calculation changes.
+- No type-boost-adjusted KO/OHKO/2HKO implementation.
+- No legal fixture mutation.
+- No fixture changes.
+- No Fairy Feather support implementation.
+- No Chilan Berry full support.
+- No Power Herb charge_context.
+- No Loaded Dice legal addition.
+- No Turn Engine.
+- No item consumption tracking.
+- No ability/weather/terrain/status interaction implementation.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
