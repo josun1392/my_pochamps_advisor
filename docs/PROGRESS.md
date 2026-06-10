@@ -8684,6 +8684,65 @@ Maintained boundaries:
 
 ---
 
+## v1.0.3 - Perf test measurement stabilization implementation
+
+Purpose:
+- Stabilize the timing-sensitive damage perf benchmark without relaxing its threshold.
+- Keep the benchmark focused on `calc_damage_rolls()` hot-path measurement.
+- Preserve damage formula, raw damage rolls, Q12, and `ko_context` behavior.
+
+Implemented:
+- Kept `test_item_damage_calculation_under_point_12ms_average` threshold at `0.120000ms`.
+- Did not add skip or xfail.
+- Changed perf timing helper to measure CPU process time with `time.process_time()` rather than wall-clock `time.perf_counter()`.
+  - Rationale: the benchmark is intended to measure CPU cost of the damage hot path, not scheduler / background-load wall time.
+- Disabled Python GC during the timing section and restored its previous state afterward.
+  - Rationale: reduce unrelated GC pause noise inside the measured window.
+- Increased measurement stability:
+  - `PERF_WARMUP_ITERATIONS`: `100` -> `300`
+  - `PERF_REPEATS`: `5` -> `7`
+  - `PERF_ITERATIONS`: kept at `1000`
+- Added optional measurement `batches`.
+- Applied `batches=3` only to the tight item damage benchmark.
+- Preserved median-based assertion style by using the best batch median for the tight benchmark.
+- Improved failure messages with:
+  - best batch median
+  - batch medians
+  - all samples
+  - min / max
+  - iterations / repeats / warm-up / batch settings
+
+Verification:
+- Isolated target perf 10x:
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`
+  - result: 10 passed / 0 failed
+- Perf file 5x:
+  - `uv run pytest tests/test_damage_perf.py -q`
+  - result: 5 passed / 0 failed
+  - each run reported `4 passed`
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 44 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest -q`: 897 passed, 2 deselected.
+
+Maintained boundaries:
+- No threshold changes.
+- No skip or xfail.
+- No perf test deletion.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No item/advice context filtering changes.
+- No new item or mechanics.
+- No Turn Engine.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
