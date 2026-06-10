@@ -9762,6 +9762,89 @@ Maintained boundaries:
 
 ---
 
+## v1.9 - Pending verification capsule finalization / next session prompt
+
+Purpose:
+- Finalize a copy-paste-ready next-session prompt for the pending actual Gemini verification queue.
+- Preserve the distinction between payload preflight PASS and actual natural-language Gemini PASS.
+- Keep the pending queue actionable without running Gemini retry in this step.
+
+Written:
+- `docs/handoff_next_session_prompt_v1.9.md`
+
+Included pending queue:
+- Focus Band within `survival_context`
+  - payload preflight: PASS
+  - actual Gemini status: BLOCKED_HTTP_429
+  - forbidden wording includes `will survive`, `guaranteed survive`, `cannot be KO'd`, `confirmed live`
+- Quick Claw `speed_order_context`
+  - payload preflight: PASS
+  - actual Gemini status: BLOCKED_BATCH
+  - forbidden wording includes `will move first`, `guaranteed outspeeds`, `confirmed first`, `always acts before`, `wins the speed interaction`
+- Light Ball `species_stat_item_context`
+  - payload preflight: PASS
+  - actual Gemini status: BLOCKED_BATCH
+  - forbidden wording includes `all Electric-type Pokemon benefit`, `Light Ball works on any holder`, `guaranteed KO`, `confirmed OHKO`, `always doubles damage`, `final stats are fully known`
+- Chilan Berry `chilan_berry_context`
+  - payload preflight: PASS
+  - actual Gemini status: BLOCKED_BATCH
+  - forbidden wording includes `Chilan Berry applies to all move types`, `guaranteed survival`, `confirmed live`, `will survive because of Chilan Berry`, `final damage is halved`, `raw damage rolls already include Chilan Berry`
+
+Next-session prompt coverage:
+- repo/branch/remote status checks
+- `logs/token_usage.jsonl` commit/reset prohibition
+- `.env`, secrets, API keys, billing details, token-log contents, and `docs/handoff_capsule_v1.1.md` commit prohibition
+- pending verification queue
+- payload preflight PASS vs actual Gemini PASS distinction
+- Gemini retry conditions
+- first-call HTTP 429 batch-stop policy
+- actual PASS conditions and BLOCKED handling
+- forbidden wording checklist
+- raw damage / raw rolls / Q12 / `ko_context` no-change boundary
+- threshold / skip / xfail prohibition
+
+v2.0 / next milestone decision points:
+- Decide whether to retry the pending Gemini queue as soon as quota/access recovers.
+- Decide whether to pause new item context expansion until actual Gemini PASS exists for Focus Band, Quick Claw, Light Ball, and Chilan Berry.
+- Decide whether additional item contexts are acceptable while these four remain actual Gemini BLOCKED.
+- Decide whether a release/milestone can be marked complete with payload preflight PASS but actual Gemini BLOCKED.
+- Refresh handoff docs after actual PASS/PARTIAL/FAIL results.
+
+Verification:
+- Gemini actual call: not run in v1.9 by design.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 timing-sensitive perf failure:
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+- isolated target perf test 3x: passed.
+- `uv run pytest tests/test_damage_perf.py -q` rerun: 4 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest -q`: 1 full-suite timing-sensitive perf failure, 901 passed, 2 deselected:
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+
+Maintained boundaries:
+- Documentation-only handoff.
+- No Gemini retry.
+- No code implementation.
+- No new item context.
+- No payload filtering changes.
+- No prompt hardening.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No final KO probability.
+- No final move order.
+- No Turn Engine.
+- No item consumption.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, or `docs/handoff_capsule_v1.1.md` commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
