@@ -8080,6 +8080,85 @@ Maintained boundaries:
 
 ---
 
+## v0.97 - Speed-order item context design
+
+Purpose:
+- Design safe Gemini advice handling for Champions legal speed-order items such as Choice Scarf and Quick Claw.
+- Keep this as design-only work.
+- Avoid final move order, speed tie, priority, Turn Engine, and outcome claims.
+
+Findings:
+- `data/static/champions_legal_items.json` confirms `choice-scarf`:
+  - `legal=true`
+  - `category=hold_item`
+  - `effect_support_status=legal_but_not_modeled`
+  - `effect_support.speed_order=not_supported`
+  - `effect_support.choice_lock=not_supported`
+  - notes include `Speed/order effects are not modeled.`
+- `data/static/champions_legal_items.json` confirms `quick-claw`:
+  - `legal=true`
+  - `category=hold_item`
+  - `effect_support_status=legal_but_not_modeled`
+  - `effect_support.speed_order=not_supported`
+  - notes include `Speed/order effects are not modeled.`
+- Existing `speed_context` already supports limited Choice Scarf effective Speed when both active Pokemon have user-confirmed final Speed and Choice Scarf is user-confirmed.
+- Existing `speed_context.is_final_turn_order` remains `false`.
+- Choice Scarf choice lock remains unmodeled.
+- Quick Claw has no current modeled advice context.
+
+Design:
+- Keep Choice Scarf in existing `speed_context`.
+- Do not duplicate Choice Scarf into a new item context.
+- Recommend a separate future `speed_order_context` for Quick Claw-like limited move-order item pressure.
+- Proposed `speed_order_context` should be additive and should not be nested inside `speed_context`, `damage_estimate`, or `ko_context`.
+- Available Quick Claw context should require:
+  - user-confirmed item
+  - Champions legal gate pass
+  - item id `quick-claw`
+  - limited "may affect move order" framing only
+- `available=false` reasons should be debug/enriched only and hidden from default advice payload.
+
+LLM wording policy:
+- Allowed:
+  - "may affect move order"
+  - "speed order is not fully modeled"
+  - "final move order is not calculated"
+- Forbidden:
+  - "will move first"
+  - "guaranteed outspeeds"
+  - "confirmed first"
+  - "always acts before"
+  - "Quick Claw guarantees priority"
+  - exact Quick Claw activation probability
+  - final speed tie resolution
+
+Recommended v0.98:
+- `v0.98 - Quick Claw Limited Speed-Order Context Implementation`.
+- Add `speed_order_context` for Quick Claw only.
+- Preserve Choice Scarf in existing `speed_context`.
+- No activation probability, final move order, speed tie resolution, priority, Trick Room, Tailwind, paralysis, boosts, abilities, weather, item consumption, or Turn Engine.
+- No damage formula, raw roll, or `ko_context` changes.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No speed calculation implementation.
+- No final move order calculation.
+- No speed tie final resolution.
+- No priority, Trick Room, Tailwind, paralysis, boosts, ability, or weather integration.
+- No choice lock implementation.
+- No Quick Claw activation probability calculation.
+- No Turn Engine.
+- No damage formula changes.
+- No raw damage roll modification.
+- No `ko_context` changes.
+- No legal fixture mutation.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
