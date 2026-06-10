@@ -5,6 +5,41 @@ from __future__ import annotations
 
 ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.18"
 
+ADVICE_ITEM_CONTEXT_KEYS = frozenset(
+    {
+        "survival_context",
+        "recovery_context",
+        "accuracy_context",
+        "critical_context",
+        "flinch_context",
+        "multi_hit_context",
+        "type_boost_context",
+        "speed_order_context",
+        "resist_berry_context",
+        "charge_context",
+    }
+)
+
+ADVICE_CONTEXT_KEYS = frozenset({*ADVICE_ITEM_CONTEXT_KEYS, "speed_context"})
+
+ADVICE_CONTEXT_SIDE_FIELDS = ("attacker_side", "defender_side")
+
+ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB = frozenset(
+    {
+        "type_boost_context",
+    }
+)
+
+DEBUG_ONLY_REASON_PHRASES = (
+    "effect is not applied",
+    "item effect is not included",
+    "not modeled",
+    "not reflected",
+    "unsupported",
+    "deferred",
+    "blocked",
+)
+
 ADVISOR_KNOWN_LIMITATIONS = [
     "Only user-selected moves and explicitly labeled opponent move data are included in the payload.",
     "Empty move slots are omitted.",

@@ -8424,6 +8424,92 @@ Maintained boundaries:
 
 ---
 
+## v1.0 - Item context registry filtering cleanup implementation
+
+Purpose:
+- Implement the v0.99 cleanup design by centralizing default advice item-context filtering policy behind registry constants.
+- Preserve existing default advice payload behavior.
+- Avoid adding any new item or battle mechanics.
+
+Implemented:
+- Added contract-owned registry constants in `llm/advisor_payload_contract.py`:
+  - `ADVICE_CONTEXT_KEYS`
+  - `ADVICE_ITEM_CONTEXT_KEYS`
+  - `ADVICE_CONTEXT_SIDE_FIELDS`
+  - `ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB`
+  - `DEBUG_ONLY_REASON_PHRASES`
+- Refactored `llm/advisor_client.py` to consume the registry constants.
+- Added `filter_context_for_default_advice(payload)` as the canonical default-advice filtering helper.
+- Kept `build_ui_advice_payload()` as a deepcopy wrapper around the filtering helper.
+- Preserved existing filtering behavior:
+  - `available=false` item contexts are removed from default advice payload
+  - available item contexts remain in default advice payload
+  - enriched/debug payload can retain unavailable reasons
+  - hidden item profiles remain scrubbed as unknown
+  - hidden item effects remain scrubbed
+  - type-boost move-local `damage_estimate.item_effects` scrub behavior remains
+  - Choice Scarf `speed_context` item-profile protection remains
+  - debug-only limitation phrase removal remains
+
+Registry coverage:
+- Current registered advice contexts:
+  - `survival_context`
+  - `recovery_context`
+  - `accuracy_context`
+  - `critical_context`
+  - `flinch_context`
+  - `multi_hit_context`
+  - `resist_berry_context`
+  - `type_boost_context`
+  - `speed_context`
+  - `speed_order_context`
+  - future `charge_context`
+- `speed_context` remains top-level Speed comparison context, not an item-context removal target.
+- Choice Scarf remains in `speed_context`.
+- `speed_order_context` remains Quick Claw-only.
+
+Tests added/updated:
+- Registry lists current context surfaces.
+- Every registered item context with `available=false` is removed from default advice payload.
+- Every registered item context with `available=true` remains in default advice payload.
+- Debug/enriched payload can still retain unavailable reasons.
+- Raw `damage_estimate.damage_range`, raw rolls, and `ko_context` remain.
+- Existing Choice Scarf `speed_context` regression remains.
+- Existing type-boost item-effect scrub regression remains.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 44 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 perf-sensitive failure; isolated rerun passed 3 times; file rerun passed 4 passed.
+- `uv run pytest -q`: 1 full-suite-sensitive perf failure, 896 passed, 2 deselected on two reruns.
+- Failing full-suite-only test: `tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average`.
+- Full-suite failure samples:
+  - rerun 1 median `0.124845ms` over threshold `0.120000ms`
+  - rerun 2 median `0.122099ms` over threshold `0.120000ms`
+- No threshold, skip, xfail, damage formula, raw roll, Q12, or `ko_context` changes were made.
+
+Maintained boundaries:
+- Behavior-preserving cleanup.
+- No new item context implementation.
+- No new mechanics.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` calculation changes.
+- No speed calculation changes.
+- No final move order calculation.
+- No Quick Claw activation probability calculation.
+- No Choice Scarf choice lock implementation.
+- No priority, Trick Room, Tailwind, paralysis, boosts, ability, weather, or Turn Engine integration.
+- No item consumption.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

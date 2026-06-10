@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from types import MethodType, SimpleNamespace
 
 from core.cache_manager import CacheManager
@@ -13,7 +14,14 @@ from core.pokemon_repository import PokemonView
 from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
 from llm.advisor_client import _build_ui_selected_prompt, build_ui_advice_payload
 from llm.advisor_damage_estimate import attach_selected_move_damage_estimate
-from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
+from llm.advisor_payload_contract import (
+    ADVICE_CONTEXT_KEYS,
+    ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB,
+    ADVICE_ITEM_CONTEXT_KEYS,
+    DEBUG_ONLY_REASON_PHRASES,
+    ADVISOR_KNOWN_LIMITATIONS,
+    ADVISOR_PAYLOAD_MODE,
+)
 from tests.test_advisor_damage_estimate import (
     _battle_input,
     _bullet_seed,
@@ -1392,6 +1400,63 @@ def test_speed_order_context_does_not_hide_available_choice_scarf_speed_context(
     assert "speed_order_context" not in advice_payload["moves"]["my_selected_move"]
 
 
+def test_advice_context_registry_lists_current_context_surfaces() -> None:
+    assert ADVICE_CONTEXT_KEYS == {
+        "survival_context",
+        "recovery_context",
+        "accuracy_context",
+        "critical_context",
+        "flinch_context",
+        "multi_hit_context",
+        "resist_berry_context",
+        "type_boost_context",
+        "speed_context",
+        "speed_order_context",
+        "charge_context",
+    }
+    assert ADVICE_ITEM_CONTEXT_KEYS == ADVICE_CONTEXT_KEYS - {"speed_context"}
+    assert ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB == {"type_boost_context"}
+    assert "blocked" in DEBUG_ONLY_REASON_PHRASES
+    assert "deferred" in DEBUG_ONLY_REASON_PHRASES
+    assert "not modeled" in DEBUG_ONLY_REASON_PHRASES
+
+
+def test_advice_context_registry_hides_all_unavailable_item_context_keys() -> None:
+    payload = _registry_payload_with_contexts(available=False)
+    enriched = deepcopy(payload)
+
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+    rendered = json.dumps(advice_payload, ensure_ascii=False)
+
+    for context_key in ADVICE_ITEM_CONTEXT_KEYS:
+        assert context_key not in advice_move
+        assert payload["moves"]["my_selected_move"][context_key]["reason"] == f"{context_key}_debug_reason"
+        assert enriched["moves"]["my_selected_move"][context_key]["reason"] == f"{context_key}_debug_reason"
+        assert f"{context_key}_debug_reason" not in rendered
+    assert advice_move["damage_estimate"]["damage_range"] == payload["moves"]["my_selected_move"]["damage_estimate"][
+        "damage_range"
+    ]
+    assert advice_move["damage_estimate"]["rolls"] == payload["moves"]["my_selected_move"]["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"] == payload["moves"]["my_selected_move"]["ko_context"]
+
+
+def test_advice_context_registry_keeps_all_available_item_context_keys() -> None:
+    payload = _registry_payload_with_contexts(available=True)
+
+    advice_payload = build_ui_advice_payload(payload)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    for context_key in ADVICE_ITEM_CONTEXT_KEYS:
+        assert advice_move[context_key]["available"] is True
+        assert advice_move[context_key]["item"]["item_id"] == "charcoal"
+    assert advice_move["damage_estimate"]["damage_range"] == payload["moves"]["my_selected_move"]["damage_estimate"][
+        "damage_range"
+    ]
+    assert advice_move["damage_estimate"]["rolls"] == payload["moves"]["my_selected_move"]["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"] == payload["moves"]["my_selected_move"]["ko_context"]
+
+
 def _assert_forbidden_terms_absent_from_advice_payload(
     advice_payload: dict,
     *,
@@ -1400,6 +1465,53 @@ def _assert_forbidden_terms_absent_from_advice_payload(
     rendered = json.dumps(advice_payload, ensure_ascii=False)
     for term in (*UNAVAILABLE_ITEM_ADVICE_PAYLOAD_FORBIDDEN_TERMS, *extra_terms):
         assert term.lower() not in rendered.lower()
+
+
+def _registry_payload_with_contexts(*, available: bool) -> dict:
+    move = {
+        "move_id": "registry-test-move",
+        "damage_estimate": {
+            "damage_range": {"min": 10, "max": 12},
+            "rolls": [10, 11, 12],
+            "item_effects": {
+                "attacker_item": {
+                    "item_id": "charcoal",
+                    "status": "not_applicable",
+                }
+            },
+        },
+        "ko_context": {
+            "mode": "limited_damage_roll_ko_context",
+            "ohko": {"chance": 0.0},
+            "two_hko": {"possible": False},
+        },
+    }
+    for context_key in ADVICE_ITEM_CONTEXT_KEYS:
+        move[context_key] = {
+            "available": available,
+            "reason": f"{context_key}_debug_reason",
+            "attacker_side": "my_active",
+            "item": {
+                "item_id": "charcoal",
+                "status": "user_confirmed",
+            },
+        }
+    return {
+        "item_profiles": {
+            "my_active": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "item_id": "charcoal",
+                "name_en": "Charcoal",
+                "name_ko": None,
+                "effects_scope": [],
+                "damage_modifier_status": "not_applicable",
+            }
+        },
+        "moves": {
+            "my_selected_move": move,
+        },
+    }
 
 
 def _type_boost_profile(

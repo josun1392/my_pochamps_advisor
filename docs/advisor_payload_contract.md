@@ -899,6 +899,15 @@ Unavailable, deferred, blocked, unconfirmed, non-triggered, or absent item conte
 
 The default Gemini advice payload is filtered from the enriched/debug payload. Item context fields with `available=false` are removed from the default advice payload before prompt serialization, while the enriched/debug payload may retain the full context and `reason` for diagnostics and tests. This keeps unavailable/deferred reasons available to developers without giving Gemini default advice a reason to explain them.
 
+In v1.0, the default-advice filtering policy is registry-backed. The contract-owned registry constants list the context keys that are allowed to participate in default advice filtering:
+
+- `ADVICE_CONTEXT_KEYS`: all known advice context surfaces, including top-level `speed_context`
+- `ADVICE_ITEM_CONTEXT_KEYS`: item context fields that are removed from default advice when `available=false`
+- `ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB`: context fields that also require local `damage_estimate.item_effects` scrubbing when unavailable
+- `DEBUG_ONLY_REASON_PHRASES`: debug-only limitation wording removed from default advice payload limitations/notes
+
+`build_ui_advice_payload()` delegates to the default-advice filtering helper so the same policy applies before prompt serialization. This is a cleanup only: it does not add item mechanics, change raw damage rolls, change `ko_context`, or change legal fixture behavior.
+
 The default advice payload also strips debug-only limitation strings that contain unavailable/deferred/blocked wording such as "not modeled", "not reflected", "unsupported", "deferred", "blocked", "effect is not applied", or "item effect is not included". This applies to nested `limitations` lists as well, including otherwise legal raw contexts such as `ko_context`, so generic limitation wording does not leak unavailable item state into ordinary advice. The enriched/debug payload may keep those limitations for diagnostics.
 
 The filtering applies to item context fields such as:
@@ -913,6 +922,8 @@ The filtering applies to item context fields such as:
 - `speed_order_context`
 - `resist_berry_context`
 - future `charge_context`
+
+Top-level `speed_context` is listed as an advice context but is not filtered as an item context. It keeps the existing Speed contract and remains raw/effective Speed comparison only. Choice Scarf effective Speed continues to live in `speed_context`, not `speed_order_context`, and Choice Scarf choice lock remains unmodeled.
 
 When a user-confirmed item is absent from Champions legal coverage, default advice payloads also hide that non-legal item profile as unknown. This prevents blocked item names such as Loaded Dice or future-only items such as Power Herb from appearing in ordinary advice JSON. The enriched/debug payload may still retain the original item profile and blocked context reason.
 

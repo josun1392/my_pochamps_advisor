@@ -12,37 +12,18 @@ from copy import deepcopy
 from typing import Any
 
 from core.champions_legal_item_repository import get_legal_item_status
+from llm.advisor_payload_contract import (
+    ADVICE_CONTEXT_SIDE_FIELDS,
+    ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB,
+    ADVICE_ITEM_CONTEXT_KEYS,
+    DEBUG_ONLY_REASON_PHRASES,
+)
 from llm.token_logger import UNKNOWN_MODEL_OR_UNKNOWN_PRICING, TokenLogger
 from scripts.spike_advisor import (
     DEFAULT_MODEL,
     build_prompt,
     call_gemini,
     collect_battle_data,
-)
-
-
-ITEM_CONTEXT_FIELDS = frozenset(
-    {
-        "survival_context",
-        "recovery_context",
-        "accuracy_context",
-        "critical_context",
-        "flinch_context",
-        "multi_hit_context",
-        "type_boost_context",
-        "speed_order_context",
-        "resist_berry_context",
-        "charge_context",
-    }
-)
-ADVICE_PAYLOAD_DEBUG_LIMITATION_PHRASES = (
-    "effect is not applied",
-    "item effect is not included",
-    "not modeled",
-    "not reflected",
-    "unsupported",
-    "deferred",
-    "blocked",
 )
 
 
@@ -88,6 +69,11 @@ def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dic
 def build_ui_advice_payload(battle_input: dict[str, Any]) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
+    return filter_context_for_default_advice(payload)
+
+
+def filter_context_for_default_advice(payload: dict[str, Any]) -> dict[str, Any]:
+    """Remove debug-only item context from the Gemini default-advice payload."""
     available_item_sides = _collect_available_item_context_sides(payload)
     _hide_move_local_unavailable_type_boost_item_effects(payload)
     hidden_item_sides = _remove_unavailable_item_contexts(payload)
@@ -392,7 +378,7 @@ def _remove_unavailable_item_contexts(value: Any) -> set[str]:
     if isinstance(value, dict):
         for key in list(value.keys()):
             child = value[key]
-            if key in ITEM_CONTEXT_FIELDS and isinstance(child, dict) and child.get("available") is False:
+            if key in ADVICE_ITEM_CONTEXT_KEYS and isinstance(child, dict) and child.get("available") is False:
                 hidden_item_sides.update(_context_item_sides(child))
                 del value[key]
                 continue
@@ -410,7 +396,7 @@ def _collect_available_item_context_sides(value: Any) -> set[str]:
         if isinstance(speed_context, dict):
             available_item_sides.update(_speed_context_item_sides(speed_context))
         for key, child in value.items():
-            if key in ITEM_CONTEXT_FIELDS and isinstance(child, dict) and child.get("available") is True:
+            if key in ADVICE_ITEM_CONTEXT_KEYS and isinstance(child, dict) and child.get("available") is True:
                 available_item_sides.update(_context_item_sides(child))
             available_item_sides.update(_collect_available_item_context_sides(child))
     elif isinstance(value, list):
@@ -445,7 +431,7 @@ def _is_applied_choice_scarf_modifier(modifier: Any) -> bool:
 
 def _context_item_sides(context: dict[str, Any]) -> set[str]:
     sides = set()
-    for key in ("attacker_side", "defender_side"):
+    for key in ADVICE_CONTEXT_SIDE_FIELDS:
         value = context.get(key)
         if isinstance(value, str) and value:
             sides.add(value)
@@ -499,14 +485,15 @@ def _hide_advice_hidden_item_effects(value: Any, hidden_item_ids: set[str]) -> N
 
 def _hide_move_local_unavailable_type_boost_item_effects(value: Any) -> None:
     if isinstance(value, dict):
-        type_boost_context = value.get("type_boost_context")
-        if isinstance(type_boost_context, dict) and type_boost_context.get("available") is False:
-            damage_estimate = value.get("damage_estimate")
-            if isinstance(damage_estimate, dict):
-                item_effects = damage_estimate.get("item_effects")
-                attacker_item = item_effects.get("attacker_item") if isinstance(item_effects, dict) else None
-                if isinstance(attacker_item, dict):
-                    _scrub_advice_hidden_item_effect(attacker_item)
+        for context_key in ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB:
+            context = value.get(context_key)
+            if isinstance(context, dict) and context.get("available") is False:
+                damage_estimate = value.get("damage_estimate")
+                if isinstance(damage_estimate, dict):
+                    item_effects = damage_estimate.get("item_effects")
+                    attacker_item = item_effects.get("attacker_item") if isinstance(item_effects, dict) else None
+                    if isinstance(attacker_item, dict):
+                        _scrub_advice_hidden_item_effect(attacker_item)
         for child in value.values():
             _hide_move_local_unavailable_type_boost_item_effects(child)
     elif isinstance(value, list):
@@ -548,7 +535,7 @@ def _contains_debug_limitation_phrase(value: Any) -> bool:
     if not isinstance(value, str):
         return False
     lowered = value.lower()
-    return any(phrase in lowered for phrase in ADVICE_PAYLOAD_DEBUG_LIMITATION_PHRASES)
+    return any(phrase in lowered for phrase in DEBUG_ONLY_REASON_PHRASES)
 
 
 def _log_advisor_call(
