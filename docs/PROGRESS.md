@@ -9648,6 +9648,120 @@ Maintained boundaries:
 
 ---
 
+## v1.8 - Pending Gemini verification handoff capsule design
+
+Purpose:
+- Create a handoff document for the pending item-context actual Gemini verification queue.
+- Preserve the distinction between payload preflight PASS and actual natural-language Gemini PASS.
+- Avoid modifying `docs/handoff_capsule_v1.1.md`.
+
+Written:
+- `docs/handoff_pending_gemini_verification_v1.8.md`
+
+Pending verification queue:
+- Focus Band within `survival_context`
+  - implementation status: implemented
+  - payload preflight: PASS
+  - actual Gemini status: BLOCKED_HTTP_429
+  - blocked reason: first v1.7 actual call returned HTTP 429 `RESOURCE_EXHAUSTED`
+- Quick Claw `speed_order_context`
+  - implementation status: implemented
+  - payload preflight: PASS
+  - actual Gemini status: BLOCKED_BATCH
+  - blocked reason: not called after Focus Band hit HTTP 429
+- Light Ball `species_stat_item_context`
+  - implementation status: implemented
+  - payload preflight: PASS
+  - actual Gemini status: BLOCKED_BATCH
+  - blocked reason: not called after Focus Band hit HTTP 429
+- Chilan Berry `chilan_berry_context`
+  - implementation status: implemented
+  - payload preflight: PASS
+  - actual Gemini status: BLOCKED_BATCH
+  - blocked reason: not called after Focus Band hit HTTP 429
+
+Retry conditions:
+- Gemini quota/access must recover.
+- First actual Gemini call must not return HTTP 429.
+- API keys, secrets, billing details, and token-log contents must not be printed or recorded.
+- If the first case returns HTTP 429 `RESOURCE_EXHAUSTED`, stop the batch and record remaining cases as `BLOCKED_BATCH`.
+
+Retry order:
+1. Focus Band within `survival_context`
+2. Quick Claw `speed_order_context`
+3. Light Ball `species_stat_item_context`
+4. Chilan Berry `chilan_berry_context`
+
+Forbidden wording summary:
+- Focus Band:
+  - `will survive`
+  - `guaranteed survive`
+  - `cannot be KO'd`
+  - `confirmed live`
+- Quick Claw:
+  - `will move first`
+  - `guaranteed outspeeds`
+  - `confirmed first`
+  - `always acts before`
+  - `wins the speed interaction`
+- Light Ball:
+  - `all Electric-type Pokemon benefit`
+  - `all Electric-type Pokémon benefit`
+  - `Light Ball works on any holder`
+  - `guaranteed KO`
+  - `confirmed OHKO`
+  - `always doubles damage`
+  - `final stats are fully known`
+- Chilan Berry:
+  - `Chilan Berry applies to all move types`
+  - `guaranteed survival`
+  - `confirmed live`
+  - `will survive because of Chilan Berry`
+  - `final damage is halved`
+  - `raw damage rolls already include Chilan Berry`
+
+Completed stabilization summary:
+- Item context registry/filtering cleanup is complete.
+- Perf test measurement stabilization is complete.
+- Item context coverage audit is complete.
+
+Recommended v1.9:
+- If Gemini quota/access is restored:
+  - `v1.9 - Item Context Gemini Verification Retry Batch 2`
+  - retry the same four cases in the documented order
+- If Gemini quota/access remains blocked:
+  - keep pending queue unchanged
+  - avoid adding a new item context
+  - prefer documentation-only handoff/coordination or pause item expansion until actual advice can be verified
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+
+Maintained boundaries:
+- Documentation-only handoff.
+- No code implementation.
+- No new item context.
+- No payload filtering changes.
+- No prompt hardening.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No final KO probability.
+- No final move order.
+- No Turn Engine.
+- No item consumption.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, or `docs/handoff_capsule_v1.1.md` commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
