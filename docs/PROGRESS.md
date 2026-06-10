@@ -9154,6 +9154,124 @@ Maintained boundaries:
 
 ---
 
+## v1.4 - Chilan Berry limited Normal-resist context design
+
+Purpose:
+- Design how to handle deferred `chilan-berry` as a limited advice context.
+- Keep Chilan separate from the 17 standard super-effective `resist_berry_context` berries.
+- Preserve raw damage, raw rolls, Q12 constants, `ko_context`, and Turn Engine boundaries.
+
+Investigated:
+- `data/static/champions_legal_items.json`
+- `data/static/items_damage.json`
+- `llm/advisor_resist_berry_context.py`
+- `llm/advisor_damage_estimate.py`
+- `llm/advisor_payload_contract.py`
+- `llm/advisor_client.py`
+- `tests/test_advisor_damage_estimate.py`
+- `tests/test_advisor_payload_contract.py`
+- `tests/test_berries.py`
+- `docs/advisor_payload_contract.md`
+- `docs/spike_v0.87_type_resist_berry_survival_context_design.md`
+- `docs/spike_v1.1_next_legal_item_context_candidate_design.md`
+
+Findings:
+- `chilan-berry` is Champions legal.
+- `champions_legal_items.json` marks it:
+  - `legal=true`
+  - `legality_status=legal`
+  - `category=berry`
+  - `effect_support_status=legal_but_not_modeled`
+- `items_damage.json` includes `type_resist_berries.chilan-berry`:
+  - `resist_type=normal`
+  - `always_resist=true`
+- Current `resist_berry_context` intentionally returns `available=false`, reason `chilan_berry_deferred` when `always_resist=true`.
+- Low-level berry modifier tests already verify Chilan's Normal-type helper behavior:
+  - `defender_berry_mod(get_item("chilan-berry"), "normal", False) == M_HALF`
+- That helper support should not be treated as permission to change raw damage or `ko_context` in this advice-context pass.
+
+Design conclusion:
+- Recommended context name: `chilan_berry_context`.
+- Keep standard `resist_berry_context` unchanged for the 17 super-effective type-resist berries.
+- Do not fold Chilan into `resist_berry_context` yet because the current shape is built around:
+  - `requires_super_effective_hit`
+  - `super_effective_match`
+  - standard berry type matching
+- Chilan should be a separate move-level limited context because Normal-type damage is a special `always_resist=true` case, not a super-effective trigger.
+
+Proposed available conditions:
+- defender item profile is `status=user_confirmed`
+- defender item id is `chilan-berry`
+- Champions legal fixture gate passes
+- `items_damage.json` metadata exists
+- metadata has `resist_type=normal`
+- metadata has `always_resist=true`
+- incoming move type is known
+- incoming move type is `normal`
+- incoming move is damaging
+- raw `damage_estimate` exists
+
+Non-Normal move policy:
+- enriched/debug payload may return `available=false`, reason `move_type_not_normal`
+- default advice payload must omit `chilan_berry_context`
+- default advice must not mention Chilan Berry, a non-Normal mismatch, unavailable reason, `not modeled`, `not reflected`, `unsupported`, or `effect is not applied`
+
+Payload policy:
+- `available=true`: keep `chilan_berry_context` in default advice payload
+- `available=false`: remove `chilan_berry_context` from default advice payload
+- debug/enriched payload may retain reason
+- no Chilan-adjusted damage or KO fields are integrated
+
+Gemini wording policy:
+- Allowed:
+  - "Chilan Berry may reduce damage from a Normal-type move."
+  - "This is limited context and not integrated into final KO odds."
+  - "Do not treat this as guaranteed survival."
+  - "Raw damage rolls and KO context remain based on the current calculator."
+- Forbidden:
+  - guaranteed survival
+  - confirmed live
+  - will survive because of Chilan Berry
+  - KO chance is reduced to X
+  - final damage is halved
+  - raw damage rolls already include Chilan Berry
+  - Chilan Berry applies to all move types
+
+Recommended v1.5:
+- `v1.5 - Chilan Berry Limited Normal-Resist Context Implementation`
+- Add `llm/advisor_chilan_berry_context.py`.
+- Add registry key `chilan_berry_context`.
+- Attach move-level context next to existing damage estimate contexts.
+- Support only `chilan-berry`.
+- Require user-confirmed legal defender item and incoming Normal damaging move.
+- Keep default advice filtering as `available=true` only.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 47 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 900 passed, 2 deselected.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No `chilan_berry_context` implementation.
+- No Chilan-adjusted damage formula.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No final survival probability.
+- No final KO probability.
+- No item consumption.
+- No Turn Engine.
+- No ability/weather/terrain interaction.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
