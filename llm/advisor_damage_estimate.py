@@ -28,6 +28,7 @@ from llm.advisor_multi_hit_context import build_multi_hit_context
 from llm.advisor_recovery_context import build_recovery_context
 from llm.advisor_resist_berry_context import build_resist_berry_context
 from llm.advisor_speed_order_context import build_speed_order_context
+from llm.advisor_species_stat_item_context import build_species_stat_item_context
 from llm.advisor_survival_context import build_focus_sash_survival_context
 from llm.advisor_type_boost_context import build_type_boost_context
 
@@ -131,6 +132,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
                     attacker_key="my_active",
                     scope="available_move_comparison",
                 )
+                move["species_stat_item_context"] = build_species_stat_item_context(
+                    result,
+                    estimate,
+                    move,
+                    attacker_key="my_active",
+                    scope="available_move_comparison",
+                )
                 move["resist_berry_context"] = build_resist_berry_context(
                     result,
                     estimate,
@@ -201,6 +209,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
             attacker_key="my_active",
             scope="selected_move_only",
         )
+        selected_move["species_stat_item_context"] = build_species_stat_item_context(
+            result,
+            estimate,
+            selected_move,
+            attacker_key="my_active",
+            scope="selected_move_only",
+        )
         selected_move["resist_berry_context"] = build_resist_berry_context(
             result,
             estimate,
@@ -265,6 +280,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
             ),
             "speed_order_context": build_speed_order_context(
                 result,
+                None,
+                attacker_key="my_active",
+                scope="selected_move_only",
+            ),
+            "species_stat_item_context": build_species_stat_item_context(
+                result,
+                estimate,
                 None,
                 attacker_key="my_active",
                 scope="selected_move_only",
@@ -349,6 +371,13 @@ def attach_opponent_known_move_damage_estimates(battle_input: dict[str, Any]) ->
             )
             move["speed_order_context"] = build_speed_order_context(
                 result,
+                move,
+                attacker_key="opponent_active",
+                scope="opponent_known_move_only",
+            )
+            move["species_stat_item_context"] = build_species_stat_item_context(
+                result,
+                estimate,
                 move,
                 attacker_key="opponent_active",
                 scope="opponent_known_move_only",

@@ -8966,6 +8966,84 @@ Maintained boundaries:
 
 ---
 
+## v1.3 - Light Ball limited species stat item context implementation
+
+Purpose:
+- Implement Light Ball as a limited `species_stat_item_context` for Gemini advice.
+- Keep `damage_estimate.item_effects` as the source of truth for whether an item modifier was applied.
+- Add explanatory move-level context only; do not create new damage, KO, stat, or Turn Engine mechanics.
+
+Implemented:
+- Added `llm/advisor_species_stat_item_context.py`.
+- Added move-level `species_stat_item_context` attachment for:
+  - `moves.my_available_moves`
+  - `moves.my_selected_move`
+  - generated selected-move fallback payloads
+  - `opponent_moves.known_moves`
+- Added `species_stat_item_context` to advice context registry/filtering.
+- Kept `available=true` Light Ball context in default advice payload only when:
+  - item profile is `status=user_confirmed`
+  - `item_id=light-ball`
+  - Champions legal item gate passes
+  - local `species_stat_items.light-ball` metadata exists
+  - holder species normalizes to `pikachu`
+  - move category is physical or special
+- Hid `available=false` species-stat context from default advice payload while preserving enriched/debug reasons.
+- Preserved default advice hiding for non-Pikachu Light Ball and unconfirmed Light Ball.
+- Updated advisor prompt and payload contract wording for:
+  - Light Ball is species-specific to Pikachu
+  - Light Ball may boost Pikachu's offensive stats in the underlying calculation
+  - `damage_estimate.item_effects` remains the source of truth
+  - no final stat truth, EV/IV/nature inference, final KO guarantee, or Light-Ball-adjusted KO/OHKO/2HKO
+- Added payload contract regression tests for:
+  - Pikachu + user-confirmed Light Ball available context
+  - non-Pikachu + user-confirmed Light Ball hidden from default advice
+  - unconfirmed Light Ball hidden from default advice
+  - advice registry includes `species_stat_item_context`
+  - local `damage_estimate.item_effects` scrub behavior includes `species_stat_item_context`
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 47 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 2 timing-sensitive perf failures.
+  - `test_item_damage_calculation_under_point_12ms_average`: best batch median `0.125000ms`, threshold `0.120000ms`.
+  - batch medians: `[0.125, 0.140625, 0.15625]`
+  - samples min/max: `0.078125ms` / `0.203125ms`
+  - `test_ability_damage_calculation_under_point_20ms_average`: best batch median `0.203125ms`, threshold `0.200000ms`.
+  - batch medians: `[0.203125]`
+  - samples min/max: `0.156250ms` / `0.296875ms`
+- Isolated rerun of both failing perf tests: passed.
+- `uv run pytest tests/test_damage_perf.py -q`: rerun 4 passed.
+- `uv run pytest -q`: 1 full-suite-sensitive perf failure, 899 passed, 2 deselected.
+  - `test_item_damage_calculation_under_point_12ms_average`: best batch median `0.125000ms`, threshold `0.120000ms`.
+  - batch medians: `[0.140625, 0.125, 0.125]`
+  - samples min/max: `0.109375ms` / `0.171875ms`
+- Isolated target rerun 3x after full-suite failure:
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`
+  - result: 3 passed / 0 failed
+- Threshold/skip/xfail/damage formula/raw rolls/Q12/`ko_context` were not changed.
+
+Maintained boundaries:
+- No new damage formula.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` calculation changes.
+- No final stat truth calculation.
+- No EV/IV/nature inference.
+- No final KO probability.
+- No Light-Ball-adjusted KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No item consumption.
+- No Mega Evolution.
+- No ability/weather/terrain interaction.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

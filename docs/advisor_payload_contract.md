@@ -8,7 +8,7 @@
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, context-only opponent sample assumptions, raw/effective Speed comparison context, limited Quick Claw speed-order item context, damage estimates for the user's confirmed moves, additive limited KO context, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. v0.98 adds move-level `speed_order_context` for user-confirmed legal Quick Claw as limited advice context only. v0.38 adds `opponent_assumptions` as context-only possible opponent sample profiles. The app does not yet send EV/IV/nature breakdowns, final battle KO truth, final turn order, candidate move damage estimates, sample-based damage or Speed calculations, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, context-only opponent sample assumptions, raw/effective Speed comparison context, limited Quick Claw speed-order item context, limited Light Ball species-stat item context, damage estimates for the user's confirmed moves, additive limited KO context, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. v0.98 adds move-level `speed_order_context` for user-confirmed legal Quick Claw as limited advice context only. v1.3 adds move-level `species_stat_item_context` for user-confirmed legal Light Ball on Pikachu as limited explanatory context only. v0.38 adds `opponent_assumptions` as context-only possible opponent sample profiles. The app does not yet send EV/IV/nature breakdowns, final battle KO truth, final turn order, candidate move damage estimates, sample-based damage or Speed calculations, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -311,6 +311,7 @@ Legal item modeling examples:
 - Focus Band: selectable; its limited survival context may be included only when user-confirmed and the raw incoming hit is potentially lethal. Survival is not guaranteed, and activation probability is not calculated.
 - Leftovers / Sitrus Berry: selectable; limited recovery context may be included only when user-confirmed and max HP is available. Exact turn sequencing and item consumption are not modeled.
 - Quick Claw: selectable; limited `speed_order_context` may be included only when user-confirmed and Champions legal. Activation probability and final move order are not calculated.
+- Light Ball: selectable; limited `species_stat_item_context` may be included only when user-confirmed, Champions legal, local species-stat metadata exists, and the holder species is Pikachu. It is explanatory and does not create a new damage formula or KO path.
 
 ### Legal Item Gate
 
@@ -424,7 +425,71 @@ The LLM must not say:
 
 If `type_boost_context.available` is false in the enriched/debug payload, the default advice payload should omit `type_boost_context`. The unavailable reason is developer/debug/contract metadata only. The LLM should not mention the unavailable type-boost item name, effect, or reason in default advice unless the user explicitly asks about that item.
 
-For non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, Focus Sash, or Focus Band, the LLM must not say choice lock is not modeled. Choice lock is relevant only to Choice Scarf, Choice Band, and Choice Specs.
+For non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Light Ball, Leftovers, Focus Sash, or Focus Band, the LLM must not say choice lock is not modeled. Choice lock is relevant only to Choice Scarf, Choice Band, and Choice Specs.
+
+## Species Stat Item Context Semantics
+
+`species_stat_item_context` is an additive limited context for species-specific stat items that already have local metadata and damage-helper support. It is never nested inside `damage_estimate` or `ko_context`.
+
+In v1.3, modeled species-stat item context is limited to Light Ball:
+
+- attacker item profile must be `status: user_confirmed`
+- attacker item id must be `light-ball`
+- attacker item must pass Champions legal item coverage
+- `items_damage.json` must provide `species_stat_items.light-ball` metadata
+- holder species must normalize to `pikachu`
+- move must be a damaging move with physical or special category metadata
+
+The context is explanatory: `damage_estimate.item_effects` remains the source of truth for whether a supported item modifier was applied to a specific estimate. `species_stat_item_context` does not create a new damage formula path, does not recalculate raw damage rolls, does not change Q12 multipliers, and does not add Light-Ball-adjusted KO/OHKO/2HKO context.
+
+Available context may include:
+
+- `mode`: `limited_species_stat_item_context`
+- `available`: `true`
+- `attacker_side`: `my_active` or `opponent_active`
+- `item.item_id`: `light-ball`
+- `item.status`: `user_confirmed`
+- `item.legal_status`: `legal_modeled`
+- `species_stat_effect.holder_species_id`: `pikachu`
+- `species_stat_effect.supported_species`: `["pikachu"]`
+- `species_stat_effect.boosted_stats`: stat ids from local metadata
+- `species_stat_effect.effect_label`: `may_boost_pikachu_offensive_stats`
+- `species_stat_effect.formula_label`: `species_stat_item_limited_modifier_context`
+- `species_stat_effect.damage_estimate_item_effect_status`: the related `damage_estimate.item_effects.attacker_item.status`
+- `species_stat_effect.raw_damage_rolls_changed`: `false`
+- `species_stat_effect.ko_context_changed`: `false`
+- `species_stat_effect.species_stat_adjusted_ko_integrated`: `false`
+- `species_stat_effect.species_stat_adjusted_ohko_2hko_integrated`: `false`
+- `species_stat_effect.final_stats_inferred`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `damage_estimate_missing`
+- `move_category_missing_or_unsupported`
+- `no_species_stat_item`
+- `item_not_user_confirmed`
+- `not_species_stat_item`
+- `blocked_by_legal_item_coverage`
+- `species_stat_metadata_missing`
+- `supported_species_missing`
+- `holder_species_missing`
+- `holder_species_not_supported`
+- `boosted_stats_missing`
+
+When `species_stat_item_context.available` is true, the LLM may say Light Ball may boost Pikachu's offensive stats in the underlying calculation and that this is species-specific to Pikachu. It should not generalize Light Ball to non-Pikachu holders, and it should not treat the context as final stat truth or a final KO guarantee.
+
+The LLM must not say:
+
+- "Light Ball guarantees KO."
+- "Light Ball always doubles damage."
+- "Confirmed OHKO because of Light Ball."
+- "All Electric-type Pokemon benefit from Light Ball."
+- "Light Ball works on any holder."
+- "Final stats are fully known."
+- "Exact EV/IV/nature-adjusted stats are known."
+
+If `species_stat_item_context.available` is false in the enriched/debug payload, the default advice payload should omit `species_stat_item_context`. The unavailable reason is developer/debug/contract metadata only. The LLM should not mention Light Ball, non-Pikachu mismatch, unsupported reason, missing metadata, or not-modeled wording in default advice unless the user explicitly asks about that item.
 
 ## Survival Context Semantics
 
@@ -537,7 +602,7 @@ The LLM must not say:
 - "Focus Band applies when the item is unknown or unconfirmed."
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `speed_order_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `type_boost_context`, `species_stat_item_context`, `speed_order_context`, `resist_berry_context`, or `ko_context`.
 
 ## Recovery Context Semantics
 
@@ -919,6 +984,7 @@ The filtering applies to item context fields such as:
 - `flinch_context`
 - `multi_hit_context`
 - `type_boost_context`
+- `species_stat_item_context`
 - `speed_order_context`
 - `resist_berry_context`
 - future `charge_context`
@@ -1368,7 +1434,7 @@ The LLM must not:
 - describe an item-applied estimate as only default assumptions when `item_effects.attacker_item.status` is `applied`
 - print raw `type_effectiveness` labels such as `super_effective` or `not_very_effective`
 - claim choice lock, Life Orb recoil, Focus Sash survival, or Leftovers recovery is modeled
-- mention choice lock for non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Leftovers, Focus Sash, or Focus Band
+- mention choice lock for non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sharp Beak, Fairy Feather, Light Ball, Leftovers, Focus Sash, or Focus Band
 - describe a move as super effective, resisted, or immune unless `damage_estimate.type_effectiveness` supports that label
 - consider Terastallization, which is banned in PoChamps
 

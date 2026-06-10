@@ -1279,6 +1279,107 @@ def test_type_boost_context_hides_fairy_feather_and_non_legal_incense_from_advic
     )
 
 
+def test_species_stat_item_context_preserves_pikachu_light_ball_context_in_advice_payload() -> None:
+    payload = _battle_input(selected_move=_thunderbolt())
+    payload["pokemon"]["my_active"] = _pikachu_payload()
+    payload["item_profiles"] = {
+        "my_active": _light_ball_profile(),
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert debug_move["species_stat_item_context"]["available"] is True
+    assert advice_move["species_stat_item_context"]["available"] is True
+    assert advice_move["species_stat_item_context"]["item"]["item_id"] == "light-ball"
+    effect = advice_move["species_stat_item_context"]["species_stat_effect"]
+    assert effect["holder_species_id"] == "pikachu"
+    assert effect["supported_species"] == ["pikachu"]
+    assert effect["boosted_stats"] == ["atk", "spa"]
+    assert effect["effect_label"] == "may_boost_pikachu_offensive_stats"
+    assert effect["raw_damage_rolls_changed"] is False
+    assert effect["ko_context_changed"] is False
+    assert effect["species_stat_adjusted_ko_integrated"] is False
+    assert effect["species_stat_adjusted_ohko_2hko_integrated"] is False
+    assert effect["damage_estimate_item_effect_status"] == debug_move["damage_estimate"]["item_effects"][
+        "attacker_item"
+    ]["status"]
+    assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
+    assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=(
+            "guaranteed KO",
+            "always doubles damage",
+            "confirmed OHKO because of Light Ball",
+            "all Electric-type Pokemon benefit",
+            "Light Ball works on any holder",
+            "final stats are fully known",
+            "exact EV/IV/nature-adjusted stats are known",
+        ),
+    )
+
+
+def test_species_stat_item_context_hides_non_pikachu_light_ball_from_advice_payload() -> None:
+    payload = _battle_input(selected_move=_thunderbolt())
+    payload["item_profiles"] = {
+        "my_active": _light_ball_profile(),
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert debug_move["species_stat_item_context"]["available"] is False
+    assert debug_move["species_stat_item_context"]["reason"] == "holder_species_not_supported"
+    assert "species_stat_item_context" not in advice_move
+    assert advice_payload["item_profiles"]["my_active"]["status"] == "unknown"
+    assert advice_payload["item_profiles"]["my_active"]["item_id"] is None
+    assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
+    assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("Light Ball", "light-ball", "holder_species_not_supported"),
+    )
+
+
+def test_species_stat_item_context_hides_unconfirmed_light_ball_from_advice_payload() -> None:
+    payload = _battle_input(selected_move=_thunderbolt())
+    payload["pokemon"]["my_active"] = _pikachu_payload()
+    payload["item_profiles"] = {
+        "my_active": {
+            **_light_ball_profile(),
+            "status": "unknown",
+            "source": "user_unconfirmed",
+        },
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert debug_move["species_stat_item_context"]["available"] is False
+    assert debug_move["species_stat_item_context"]["reason"] == "item_not_user_confirmed"
+    assert "species_stat_item_context" not in advice_move
+    assert advice_payload["item_profiles"]["my_active"]["status"] == "unknown"
+    assert advice_payload["item_profiles"]["my_active"]["item_id"] is None
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("Light Ball", "light-ball", "item_not_user_confirmed"),
+    )
+
+
 def test_speed_order_context_preserves_available_quick_claw_context_in_advice_payload() -> None:
     baseline = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
     payload = _battle_input(selected_move=_flamethrower())
@@ -1410,12 +1511,16 @@ def test_advice_context_registry_lists_current_context_surfaces() -> None:
         "multi_hit_context",
         "resist_berry_context",
         "type_boost_context",
+        "species_stat_item_context",
         "speed_context",
         "speed_order_context",
         "charge_context",
     }
     assert ADVICE_ITEM_CONTEXT_KEYS == ADVICE_CONTEXT_KEYS - {"speed_context"}
-    assert ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB == {"type_boost_context"}
+    assert ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB == {
+        "type_boost_context",
+        "species_stat_item_context",
+    }
     assert "blocked" in DEBUG_ONLY_REASON_PHRASES
     assert "deferred" in DEBUG_ONLY_REASON_PHRASES
     assert "not modeled" in DEBUG_ONLY_REASON_PHRASES
@@ -1555,6 +1660,46 @@ def _quick_claw_profile() -> dict:
         "damage_modifier_status": "not_applicable",
         "ui_status": "recognized_not_modeled",
         "notes": ["Speed/order effects are not modeled."],
+    }
+
+
+def _light_ball_profile() -> dict:
+    return {
+        "status": "user_confirmed",
+        "source": "user_input",
+        "item_id": "light-ball",
+        "name_en": "Light Ball",
+        "name_ko": None,
+        "effects_scope": ["species_stat"],
+        "category": "hold_item",
+        "legal": True,
+        "legality_status": "legal",
+        "effect_support_status": "legal_but_not_modeled",
+        "damage_modifier_status": "not_applied",
+        "ui_status": "recognized_not_modeled",
+        "notes": [],
+    }
+
+
+def _pikachu_payload() -> dict:
+    return {
+        "slot_index": 0,
+        "name_en": "pikachu",
+        "name_ko": "Pikachu",
+        "types": ["electric"],
+        "types_ko": ["Electric"],
+        "base_stats": {
+            "hp": 35,
+            "attack": 55,
+            "defense": 40,
+            "special-attack": 50,
+            "special-defense": 50,
+            "speed": 90,
+        },
+        "abilities": ["static", "lightning-rod"],
+        "abilities_ko": ["Static", "Lightning Rod"],
+        "hp_percent": 100,
+        "selected_move_index": 0,
     }
 
 

@@ -14,6 +14,7 @@ ADVICE_ITEM_CONTEXT_KEYS = frozenset(
         "flinch_context",
         "multi_hit_context",
         "type_boost_context",
+        "species_stat_item_context",
         "speed_order_context",
         "resist_berry_context",
         "charge_context",
@@ -27,6 +28,7 @@ ADVICE_CONTEXT_SIDE_FIELDS = ("attacker_side", "defender_side")
 ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB = frozenset(
     {
         "type_boost_context",
+        "species_stat_item_context",
     }
 )
 
@@ -99,6 +101,14 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "Type-boost-adjusted KO/OHKO/2HKO context is not calculated.",
     "If type_boost_context is unavailable, treat the reason as developer/debug/contract metadata only.",
     "Do not say boosted damage guarantees KO, secures the KO, proves the KO, or is final battle damage.",
+    "Light Ball species-stat item context may appear only as limited species_stat_item_context.",
+    "species_stat_item_context applies only to user-confirmed, Champions legal Light Ball on Pikachu when local species-stat metadata exists.",
+    "species_stat_item_context is explanatory and does not create a new damage formula path, raw damage roll path, or Light-Ball-adjusted KO/OHKO/2HKO context.",
+    "damage_estimate.item_effects remains the source of truth for whether a supported item modifier was applied to a specific estimate.",
+    "If species_stat_item_context is unavailable, treat the reason as developer/debug/contract metadata only.",
+    "Do not mention non-Pikachu Light Ball mismatch, unsupported reason, missing metadata, or not modeled wording in default advice.",
+    "When species_stat_item_context is available, say Light Ball may boost Pikachu's offensive stats in the underlying calculation and that this is species-specific to Pikachu.",
+    "Do not say guaranteed KO, always doubles damage, confirmed OHKO because of Light Ball, all Electric-type Pokemon benefit from Light Ball, Light Ball works on any holder, final stats are fully known, or exact EV/IV/nature-adjusted stats are known.",
     "If an item damage modifier is applied, describe the estimate as default assumptions plus the supported item modifier, not only default assumptions.",
     "If Life Orb is applied, say Life Orb recoil is not modeled.",
     "If Choice Scarf, Choice Band, or Choice Specs is applied, say choice lock is not modeled.",
