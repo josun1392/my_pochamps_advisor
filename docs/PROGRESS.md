@@ -9550,6 +9550,104 @@ Maintained boundaries:
 
 ---
 
+## v1.7 - Item context Gemini verification retry batch
+
+Purpose:
+- Retry actual Gemini default-advice verification for the v1.6 BLOCKED_HTTP_429 queue.
+- Keep this as verification only unless an actual payload leak, wording failure, or context attachment failure appears.
+
+Retry queue:
+- Focus Band within `survival_context`
+- Quick Claw `speed_order_context`
+- Light Ball `species_stat_item_context`
+- Chilan Berry `chilan_berry_context`
+
+Payload preflight:
+- Focus Band:
+  - default advice payload retained `survival_context.available=true`
+  - `survival_effect.type=focus_band`
+  - raw damage stayed `31-37`
+  - raw rolls stayed `[31, 32, 32, 33, 33, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37]`
+  - `ko_context.raw_damage_rolls_changed=false`
+  - no forbidden Focus Band overclaim wording in payload JSON
+- Quick Claw:
+  - default advice payload retained `speed_order_context.available=true`
+  - `speed_order_effect.type=quick_claw`
+  - raw damage stayed `31-37`
+  - raw rolls stayed `[31, 32, 32, 33, 33, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37]`
+  - `ko_context.raw_damage_rolls_changed=false`
+  - no forbidden Quick Claw move-order wording in payload JSON
+- Light Ball:
+  - default advice payload retained `species_stat_item_context.available=true`
+  - holder detail remained `pikachu`
+  - raw damage stayed `0-0`
+  - raw rolls stayed sixteen `0` rolls
+  - `ko_context.raw_damage_rolls_changed=false`
+  - no forbidden Light Ball generalization/KO wording in payload JSON
+- Chilan Berry:
+  - default advice payload retained `chilan_berry_context.available=true`
+  - detail remained incoming Normal-type move
+  - raw damage stayed `14-17`
+  - raw rolls stayed `[14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 17]`
+  - `ko_context.raw_damage_rolls_changed=false`
+  - no forbidden Chilan all-types/final-damage/survival wording in payload JSON
+
+Actual Gemini retry:
+- Focus Band actual call attempted first through the normal `run_ui_selected_advice()` path.
+- Result: BLOCKED_HTTP_429.
+- Blocker: HTTP 429 `RESOURCE_EXHAUSTED`.
+- Per retry policy, remaining actual calls were not attempted after the first 429:
+  - Quick Claw: BLOCKED_BATCH
+  - Light Ball: BLOCKED_BATCH
+  - Chilan Berry: BLOCKED_BATCH
+- This is not recorded as PASS.
+- No API key, secret, billing, or token-log details were printed or recorded.
+
+Failure classification:
+- Focus Band: API BLOCKED_HTTP_429.
+- Quick Claw: API BLOCKED_HTTP_429 / BLOCKED_BATCH.
+- Light Ball: API BLOCKED_HTTP_429 / BLOCKED_BATCH.
+- Chilan Berry: API BLOCKED_HTTP_429 / BLOCKED_BATCH.
+- No payload leak observed.
+- No wrong item/context attachment observed.
+- No raw damage, raw rolls, Q12, or `ko_context` change observed.
+
+Verdict:
+- Payload preflight: PASS for all four retry targets.
+- Actual Gemini natural-language verification: BLOCKED.
+- Overall v1.7: BLOCKED_BATCH with payload preflight PASS.
+- Recommendation remains: do not add another item context until Gemini quota/access is restored or T1/T2 explicitly accepts the pending verification risk.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+
+Maintained boundaries:
+- Verification/documentation-only change.
+- No new item implementation.
+- No new mechanics implementation.
+- No payload filtering behavior changes.
+- No prompt hardening.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No final survival probability.
+- No final move order.
+- No final KO probability.
+- No item consumption.
+- No Turn Engine.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

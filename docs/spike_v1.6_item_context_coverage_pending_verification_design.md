@@ -157,6 +157,19 @@ Not recommended:
 - Chilan-specific prompt hardening without a demonstrated post-filtering natural-language failure
 - threshold/skip/xfail changes for perf tests during a documentation audit
 
+## v1.7 Retry Result Note
+
+The v1.7 retry batch attempted the pending actual Gemini verification queue again.
+
+Result:
+
+- Focus Band actual Gemini call: BLOCKED_HTTP_429
+- Quick Claw actual Gemini call: BLOCKED_BATCH, not called after the first 429
+- Light Ball actual Gemini call: BLOCKED_BATCH, not called after the first 429
+- Chilan Berry actual Gemini call: BLOCKED_BATCH, not called after the first 429
+
+Payload preflight remained PASS for all four contexts, so the pending verification queue is unchanged and should be retried only after Gemini quota/access is restored.
+
 ## Out of Scope
 
 - code implementation
