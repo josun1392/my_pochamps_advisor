@@ -8743,6 +8743,112 @@ Maintained boundaries:
 
 ---
 
+## v1.1 - Next legal item context candidate design
+
+Purpose:
+- Survey Champions legal item fixture coverage for the next safe limited item/advice context candidate.
+- Exclude already modeled contexts and candidates that require Turn Engine, item consumption, final KO probability, final move order, or unsupported legal/metadata assumptions.
+- Keep this as a documentation-only spike.
+
+Investigated:
+- `data/static/champions_legal_items.json`
+- `data/static/items_damage.json`
+- existing item context helpers
+- `llm/advisor_damage_estimate.py`
+- `llm/advisor_payload_contract.py`
+- `llm/advisor_client.py`
+- `docs/advisor_payload_contract.md`
+
+Findings:
+- The Champions legal fixture contains 117 legal items:
+  - 12 hold items
+  - 28 berries
+  - 18 type-boosting items
+  - 59 Mega Stones
+- Already modeled legal non-Mega coverage includes:
+  - Bright Powder
+  - Choice Scarf
+  - Focus Band
+  - Focus Sash
+  - King's Rock
+  - Leftovers
+  - Quick Claw
+  - Scope Lens
+  - Sitrus Berry
+  - 17 metadata-supported type-boosting items
+  - 17 standard type-resist berries
+- Remaining non-Mega legal candidates are:
+  - `light-ball`
+  - `fairy-feather`
+  - `mental-herb`
+  - `shell-bell`
+  - `white-herb`
+  - status/PP/recovery utility berries: `aspear-berry`, `cheri-berry`, `chesto-berry`, `leppa-berry`, `lum-berry`, `oran-berry`, `pecha-berry`, `persim-berry`, `rawst-berry`
+  - `chilan-berry`
+- Mega Stones are legal but deferred because Mega Evolution needs form/species/state/ability mechanics.
+
+Recommendation:
+- Recommend `Light Ball` as the v1.2 candidate.
+- Proposed next context: `species_stat_item_context`.
+- Rationale:
+  - Champions legal fixture confirms `light-ball`.
+  - `items_damage.json` contains `species_stat_items.light-ball`.
+  - existing damage helper support already handles Light Ball for Pikachu.
+  - a limited advice context can expose existing legal + metadata + helper support without adding a new damage formula path.
+- v1.2 should keep scope narrow:
+  - Light Ball only
+  - user-confirmed attacker item only
+  - holder species must be Pikachu
+  - default advice payload keeps only `available=true`
+  - debug/enriched payload may retain unavailable reasons
+  - no new KO/OHKO/2HKO integration
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 44 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 timing-sensitive perf failure in `test_item_damage_calculation_under_point_12ms_average`.
+  - failure: best batch median `0.140625ms`, threshold `0.120000ms`
+  - batch medians: `[0.140625, 0.15625, 0.234375]`
+  - samples min/max: `0.125000ms` / `0.281250ms`
+- Isolated target rerun 3x:
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`
+  - result: 3 passed / 0 failed
+- `uv run pytest tests/test_damage_perf.py -q`: first rerun had the same timing-sensitive perf failure.
+  - failure: best batch median `0.125000ms`, threshold `0.120000ms`
+  - batch medians: `[0.125, 0.140625, 0.140625]`
+  - samples min/max: `0.109375ms` / `0.187500ms`
+- `uv run pytest tests/test_damage_perf.py -q`: second rerun passed, 4 passed.
+- `uv run pytest -q`: 897 passed, 2 deselected.
+- No threshold, skip, xfail, damage formula, raw roll, Q12, or `ko_context` changes were made.
+
+Deferred:
+- Fairy Feather: legal but missing local damage metadata/helper support.
+- Mental Herb / White Herb: require status/stat-stage state, trigger timing, and item consumption.
+- Shell Bell / Oran Berry: require recovery timing and item consumption; Shell Bell also needs damage-dealt recovery.
+- Status berries: require actual status/confusion/PP state and item consumption.
+- Chilan Berry: special Normal-type resist semantics; better as a focused future pass.
+- Mega Stones: require Mega Evolution mechanics.
+- Loaded Dice / Power Herb: remain blocked/future-only until Champions legal coverage is confirmed.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No new item context implementation.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No speed calculation.
+- No final move order.
+- No final KO probability.
+- No Turn Engine.
+- No item consumption.
+- No fixture or legal fixture changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
