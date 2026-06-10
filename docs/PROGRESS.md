@@ -8849,6 +8849,123 @@ Maintained boundaries:
 
 ---
 
+## v1.2 - Light Ball limited species stat item context design
+
+Purpose:
+- Design Light Ball as a limited `species_stat_item_context`.
+- Separate existing damage helper support from a future Gemini advice context.
+- Keep this as a documentation-only spike.
+
+Investigated:
+- `data/static/champions_legal_items.json`
+- `data/static/items_damage.json`
+- `advisor/damage/items.py`
+- `advisor/damage/item_modifiers.py`
+- `llm/advisor_damage_estimate.py`
+- `llm/advisor_payload_contract.py`
+- `llm/advisor_client.py`
+- `docs/advisor_payload_contract.md`
+
+Findings:
+- `light-ball` is Champions legal:
+  - `legal=true`
+  - `legality_status=legal`
+  - `category=hold_item`
+- `items_damage.json` contains `species_stat_items.light-ball`:
+  - `species=["pikachu"]`
+  - `stats=["atk", "spa"]`
+  - `multiplier_q12=8192`
+- existing damage helper support already exists:
+  - `advisor/damage/items.py` loads `species_stat_items` as `ItemEffect(kind="species_stat")`
+  - `advisor/damage/item_modifiers.py` returns `M_DOUBLE` in `attack_stat_item_mod()` when `item.item_id == "light-ball"` and holder species is `pikachu`
+- legal fixture still labels Light Ball as `legal_but_not_modeled`, so v1.3 should cross-check legal fixture, local metadata, and helper support rather than relying on any one source alone.
+
+Design recommendation:
+- Use `species_stat_item_context`.
+- Initial implementation should support Light Ball only.
+- Available only when:
+  - item profile is `status=user_confirmed`
+  - `item_id=light-ball`
+  - Champions legal fixture confirms the item
+  - `items_damage.json` metadata exists
+  - holder species normalizes to `pikachu`
+  - move is damaging with a category that can use Atk or SpA
+- Non-Pikachu holder, missing metadata, unconfirmed item, blocked/deferred, or unsupported reasons should remain debug/enriched metadata only and be hidden from the default Gemini advice payload.
+- Context is explanatory only:
+  - no new damage formula
+  - no raw damage roll changes
+  - no Q12 constant changes
+  - no `ko_context` changes
+  - no Light-Ball-adjusted KO/OHKO/2HKO context
+  - no final stat truth or EV/IV/nature inference
+
+Wording policy:
+- Allowed:
+  - Light Ball may boost Pikachu's offensive stats in the underlying calculation.
+  - This is species-specific to Pikachu.
+  - Do not generalize this item to non-Pikachu holders.
+  - Do not treat this as a final KO guarantee.
+- Forbidden:
+  - guaranteed KO
+  - always doubles damage
+  - confirmed OHKO because of Light Ball
+  - all Electric-type Pokemon benefit from Light Ball
+  - Light Ball works on any holder
+  - final stats are fully known
+  - exact EV/IV/nature-adjusted stats are known
+
+Recommended v1.3:
+- `v1.3 - Light Ball Limited Species Stat Item Context Implementation`
+- Add `llm/advisor_species_stat_item_context.py`.
+- Add registry key `species_stat_item_context`.
+- Attach move-level context next to relevant damage estimates.
+- Keep default advice payload filtering behavior: `available=true` only.
+- Add tests for Pikachu available, non-Pikachu hidden, unconfirmed hidden, debug reason retained, raw damage unchanged, raw rolls unchanged, Q12 unchanged, and `ko_context` unchanged.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 44 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 timing-sensitive perf failure in `test_item_damage_calculation_under_point_12ms_average`.
+  - failure: best batch median `0.156250ms`, threshold `0.120000ms`
+  - batch medians: `[0.15625, 0.171875, 0.15625]`
+  - samples min/max: `0.093750ms` / `0.218750ms`
+- Isolated target rerun 3x:
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`
+  - result: 3 passed / 0 failed
+- `uv run pytest tests/test_damage_perf.py -q`: first rerun had the same timing-sensitive perf failure.
+  - failure: best batch median `0.125000ms`, threshold `0.120000ms`
+  - batch medians: `[0.125, 0.140625, 0.140625]`
+  - samples min/max: `0.093750ms` / `0.156250ms`
+- `uv run pytest tests/test_damage_perf.py -q`: second rerun still had the same timing-sensitive perf failure.
+  - failure: best batch median `0.125000ms`, threshold `0.120000ms`
+  - batch medians: `[0.125, 0.125, 0.140625]`
+  - samples min/max: `0.109375ms` / `0.156250ms`
+- `uv run pytest -q`: 1 perf-sensitive failure, 896 passed, 2 deselected.
+  - failure: best batch median `0.125000ms`, threshold `0.120000ms`
+  - batch medians: `[0.140625, 0.125, 0.140625]`
+  - samples min/max: `0.093750ms` / `0.171875ms`
+- Threshold/skip/xfail/damage formula/raw rolls/Q12/`ko_context` were not changed.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No new item context implementation.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No final stat truth calculation.
+- No EV/IV/nature inference.
+- No final KO probability.
+- No Turn Engine.
+- No item consumption.
+- No Mega Evolution.
+- No ability/weather/terrain interaction.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
