@@ -8600,6 +8600,90 @@ Maintained boundaries:
 
 ---
 
+## v1.0.2 - Perf test stability design
+
+Purpose:
+- Analyze repeated instability in `tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average`.
+- Design stabilization options without changing thresholds, skipping/xfailing, or modifying damage math.
+
+Findings:
+- The unstable test measures `advisor.damage.formula.calc_damage_rolls()` directly.
+- The measured context includes:
+  - Fire-type `flamethrower`
+  - sun weather
+  - defender Light Screen
+  - grounded inputs
+  - attacker item `life-orb`
+  - defender item `occa-berry`
+- The test does not call:
+  - `llm/advisor_client.py`
+  - registry-based default advice payload filtering
+  - `llm/advisor_damage_estimate.attach_selected_move_damage_estimate()`
+  - item/advice context helpers
+  - `ko_context`
+- Recent v0.94-v1.0.1 LLM/context changes are unlikely to directly affect this perf test.
+
+Observed v1.0.2 local results:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 44 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 perf-sensitive failure.
+  - failing test: `test_item_damage_calculation_under_point_12ms_average`
+  - median `0.123070ms` over threshold `0.120000ms`
+  - samples `[0.092768, 0.081443, 0.12307, 0.14194, 0.166956]`
+- Isolated rerun of the failing test 3x: passed, passed, passed.
+- `uv run pytest tests/test_damage_perf.py -q` rerun: 4 passed.
+- `uv run pytest -q`: 1 full-suite-sensitive perf failure, 896 passed, 2 deselected.
+  - failing test: `test_item_damage_calculation_under_point_12ms_average`
+  - median `0.146497ms` over threshold `0.120000ms`
+  - samples `[0.108934, 0.100931, 0.146497, 0.147728, 0.16589]`
+
+Analysis:
+- Current evidence points to timing-sensitive/environment-sensitive perf failure, not correctness failure.
+- No damage roll mismatch or formula assertion failed.
+- Isolated reruns passing after failures suggest CPU scheduling, process state, cache/warmup, or local load sensitivity.
+- The `0.120000ms` threshold is very tight for the current environment because several failures are only a few microseconds over threshold.
+- The larger full-suite failure still matches the same timing-only failure mode.
+
+Stability options documented:
+- increase warm-up
+- increase iterations per sample
+- increase repeats while preserving median
+- add careful outlier handling
+- collect more baseline measurements before threshold discussion
+- separate perf tests from correctness CI
+- introduce environment-sensitive perf marker without skipping by default
+- investigate baseline-comparison style perf tests
+
+Recommended v1.0.3:
+- `v1.0.3 - Perf Test Measurement Stabilization`.
+- Keep threshold unchanged.
+- Do not skip or xfail.
+- Do not change damage formula, raw rolls, Q12, or `ko_context`.
+- Improve measurement stability and diagnostics only.
+- Conservative first candidate:
+  - modestly increase warm-up and/or repeats for the tight item perf test
+  - preserve median-based assertion
+  - collect isolated 10x, perf file 5x, and full-suite results
+
+Maintained boundaries:
+- Documentation-only design.
+- No threshold changes.
+- No skip or xfail.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No item context filtering changes.
+- No new item or mechanics.
+- No Turn Engine.
+- No item consumption.
+- No fixture or legal fixture changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
