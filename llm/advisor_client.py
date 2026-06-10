@@ -30,6 +30,7 @@ ITEM_CONTEXT_FIELDS = frozenset(
         "flinch_context",
         "multi_hit_context",
         "type_boost_context",
+        "speed_order_context",
         "resist_berry_context",
         "charge_context",
     }
@@ -154,6 +155,21 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "difference without saying turn order is guaranteed. Do not apply "
         "priority, Tailwind, Trick Room, paralysis, Speed stages, or ability "
         "speed effects unless explicit calculated fields say they are modeled. "
+        "Quick Claw speed-order context may appear only as limited "
+        "speed_order_context. speed_order_context applies only when Quick "
+        "Claw is user-confirmed and Champions legal. It may say Quick Claw "
+        "may affect move order or can occasionally affect move order, but "
+        "move order is not fully modeled and this is not guaranteed priority. "
+        "Final move order, activation probability, speed ties, priority, "
+        "Trick Room, Tailwind, paralysis, boosts, abilities, weather, item "
+        "consumption, and turn sequencing are not modeled. Do not say will "
+        "move first, guaranteed outspeeds, confirmed first, always acts "
+        "before, wins the speed interaction, or safe because it moves first "
+        "from speed_order_context. If speed_order_context is unavailable, "
+        "treat the reason as developer/debug/contract metadata only and do "
+        "not mention the item name, effect, or unavailable reason in default "
+        "advice unless the user explicitly asks. Choice Scarf is not modeled "
+        "through speed_order_context; keep Choice Scarf in speed_context. "
         "If item_profiles is present, "
         "distinguish unknown, none, system_default_none, and user_confirmed "
         "items. Only item effects marked as applied in "
@@ -390,6 +406,9 @@ def _remove_unavailable_item_contexts(value: Any) -> set[str]:
 def _collect_available_item_context_sides(value: Any) -> set[str]:
     available_item_sides: set[str] = set()
     if isinstance(value, dict):
+        speed_context = value.get("speed_context")
+        if isinstance(speed_context, dict):
+            available_item_sides.update(_speed_context_item_sides(speed_context))
         for key, child in value.items():
             if key in ITEM_CONTEXT_FIELDS and isinstance(child, dict) and child.get("available") is True:
                 available_item_sides.update(_context_item_sides(child))
@@ -398,6 +417,30 @@ def _collect_available_item_context_sides(value: Any) -> set[str]:
         for item in value:
             available_item_sides.update(_collect_available_item_context_sides(item))
     return available_item_sides
+
+
+def _speed_context_item_sides(speed_context: dict[str, Any]) -> set[str]:
+    if speed_context.get("available") is not True:
+        return set()
+    sides: set[str] = set()
+    for side in ("my_active", "opponent_active"):
+        side_context = speed_context.get(side)
+        if not isinstance(side_context, dict):
+            continue
+        modifiers = side_context.get("speed_modifiers")
+        if not isinstance(modifiers, list):
+            continue
+        if any(_is_applied_choice_scarf_modifier(modifier) for modifier in modifiers):
+            sides.add(side)
+    return sides
+
+
+def _is_applied_choice_scarf_modifier(modifier: Any) -> bool:
+    return (
+        isinstance(modifier, dict)
+        and modifier.get("item_id") == "choice-scarf"
+        and modifier.get("applied") is True
+    )
 
 
 def _context_item_sides(context: dict[str, Any]) -> set[str]:
@@ -418,11 +461,12 @@ def _hide_advice_hidden_item_profiles(payload: dict[str, Any], hidden_item_sides
     for side, profile in list(item_profiles.items()):
         if not isinstance(profile, dict):
             continue
-        if profile.get("status") != "user_confirmed":
-            continue
         item_id = profile.get("item_id")
         legal_status = get_legal_item_status(item_id)
-        should_hide = side in hidden_item_sides or legal_status.get("legal") is not True
+        should_hide = side in hidden_item_sides or (
+            profile.get("status") == "user_confirmed"
+            and legal_status.get("legal") is not True
+        )
         if not should_hide:
             continue
         if isinstance(item_id, str) and item_id:
@@ -485,13 +529,14 @@ def _scrub_advice_hidden_item_effect(value: dict[str, Any]) -> None:
 
 def _remove_debug_only_limitations(value: Any) -> None:
     if isinstance(value, dict):
-        limitations = value.get("limitations")
-        if isinstance(limitations, list):
-            value["limitations"] = [
-                limitation
-                for limitation in limitations
-                if not _contains_debug_limitation_phrase(limitation)
-            ]
+        for key in ("limitations", "notes"):
+            values = value.get(key)
+            if isinstance(values, list):
+                value[key] = [
+                    item
+                    for item in values
+                    if not _contains_debug_limitation_phrase(item)
+                ]
         for child in value.values():
             _remove_debug_only_limitations(child)
     elif isinstance(value, list):

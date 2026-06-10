@@ -8159,6 +8159,98 @@ Maintained boundaries:
 
 ---
 
+## v0.98 - Quick Claw limited speed-order context implementation
+
+Purpose:
+- Implement the v0.97 Quick Claw design as a Gemini advice-only limited `speed_order_context`.
+- Keep Choice Scarf in the existing top-level `speed_context`.
+- Avoid actual move order, speed tie, activation probability, priority, Turn Engine, damage, or KO changes.
+
+Implemented:
+- Added `llm/advisor_speed_order_context.py`.
+- Added move-level `speed_order_context` for:
+  - `moves.my_available_moves[*]`
+  - `moves.my_selected_move`
+  - `opponent_moves.known_moves[*]`
+- `speed_order_context.available=true` requires:
+  - attacker item profile status `user_confirmed`
+  - item id `quick-claw`
+  - Champions legal item gate pass
+  - an actual selected/available/known move payload
+- Available context includes:
+  - `mode=limited_speed_order_item_context`
+  - `speed_order_effect.type=quick_claw`
+  - `effect_label=may_affect_move_order`
+  - `activation_probability_calculated=false`
+  - `final_move_order_calculated=false`
+  - `speed_tie_resolved=false`
+  - `priority_integrated=false`
+  - `turn_engine_integrated=false`
+  - `is_final_battle_truth=false`
+- `available=false` speed-order contexts are removed from the default Gemini advice payload.
+- Enriched/debug payload can retain unavailable reasons such as:
+  - `no_speed_order_item`
+  - `item_not_user_confirmed`
+  - `unsupported_speed_order_item`
+  - `blocked_by_legal_item_coverage`
+- Default advice payload filtering now treats applied Choice Scarf `speed_context` sides as available item sides, so Quick Claw-specific unavailable filtering does not hide existing Choice Scarf effective Speed context.
+- Default advice payload note filtering now also removes debug-only item profile `notes` containing phrases such as `not modeled`, preventing legal-but-limited item metadata from leaking through profile notes.
+
+Prompt / contract:
+- Added `speed_order_context` prompt and contract guardrails.
+- Allowed wording:
+  - Quick Claw may affect move order.
+  - Quick Claw can occasionally affect move order.
+  - Move order is not fully modeled.
+- Forbidden wording:
+  - will move first
+  - guaranteed outspeeds
+  - confirmed first
+  - always acts before
+  - wins the speed interaction
+  - safe because it moves first
+- Documented that Choice Scarf remains in `speed_context`, not `speed_order_context`.
+- Documented that candidate moves do not receive `speed_order_context`.
+
+Tests:
+- Added payload contract tests for:
+  - user-confirmed legal Quick Claw preserving available `speed_order_context`
+  - unconfirmed Quick Claw hidden from default advice payload
+  - non-Quick-Claw item hidden from default advice payload
+  - unavailable reason and item name silence in default advice payload
+  - raw `damage_estimate` retained
+  - raw damage rolls retained
+  - `ko_context` retained
+  - Choice Scarf `speed_context` regression preserved
+  - prompt and contract guardrails
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 41 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had one known perf-sensitive threshold miss; immediate rerun passed, 4 passed.
+- `uv run pytest -q`: 894 passed, 2 deselected.
+
+Maintained boundaries:
+- No legal fixture changes.
+- No fixture changes.
+- No speed calculation implementation.
+- No final move order calculation.
+- No Quick Claw activation probability calculation.
+- No priority, Trick Room, Tailwind, paralysis, boosts, ability, or weather integration.
+- No Turn Engine.
+- No item consumption.
+- No Choice Scarf implementation changes beyond preserving existing `speed_context` through advice filtering.
+- No choice lock implementation.
+- No damage formula changes.
+- No raw damage roll modification.
+- No Q12 multiplier changes.
+- No `ko_context` calculation changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

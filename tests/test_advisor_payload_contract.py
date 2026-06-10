@@ -761,6 +761,14 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "for Choice Scarf, choice lock is still not modeled" in prompt
     assert "raw Speed and effective Speed disagree" in prompt
     assert "priority, Tailwind, Trick Room, paralysis, Speed stages" in prompt
+    assert "Quick Claw speed-order context may appear only as limited speed_order_context" in prompt
+    assert "speed_order_context applies only when Quick Claw is user-confirmed and Champions legal" in prompt
+    assert "may affect move order or can occasionally affect move order" in prompt
+    assert "Final move order, activation probability, speed ties, priority" in prompt
+    assert "Do not say will move first, guaranteed outspeeds, confirmed first" in prompt
+    assert "wins the speed interaction" in prompt
+    assert "safe because it moves first" in prompt
+    assert "Choice Scarf is not modeled through speed_order_context" in prompt
     assert "Legal items and modeled item effects are separate concepts" in prompt
     assert "legal_but_not_modeled selected item may be user-confirmed" in prompt
     assert "For type boosting items, say the damage modifier is included only" in prompt
@@ -1263,6 +1271,127 @@ def test_type_boost_context_hides_fairy_feather_and_non_legal_incense_from_advic
     )
 
 
+def test_speed_order_context_preserves_available_quick_claw_context_in_advice_payload() -> None:
+    baseline = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = {
+        "my_active": _quick_claw_profile(),
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert debug_move["speed_order_context"]["available"] is True
+    assert advice_move["speed_order_context"]["available"] is True
+    assert advice_move["speed_order_context"]["item"]["item_id"] == "quick-claw"
+    assert advice_move["speed_order_context"]["speed_order_effect"]["type"] == "quick_claw"
+    assert advice_move["speed_order_context"]["speed_order_effect"]["effect_label"] == "may_affect_move_order"
+    assert advice_move["speed_order_context"]["speed_order_effect"]["activation_probability_calculated"] is False
+    assert advice_move["speed_order_context"]["speed_order_effect"]["final_move_order_calculated"] is False
+    assert advice_move["speed_order_context"]["speed_order_effect"]["speed_tie_resolved"] is False
+    assert advice_move["speed_order_context"]["speed_order_effect"]["priority_integrated"] is False
+    assert advice_move["speed_order_context"]["speed_order_effect"]["turn_engine_integrated"] is False
+    assert advice_payload["item_profiles"]["my_active"]["item_id"] == "quick-claw"
+    assert advice_move["damage_estimate"]["damage_range"] == baseline["moves"]["my_selected_move"]["damage_estimate"][
+        "damage_range"
+    ]
+    assert advice_move["damage_estimate"]["rolls"] == baseline["moves"]["my_selected_move"]["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"]["ohko"] == baseline["moves"]["my_selected_move"]["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == baseline["moves"]["my_selected_move"]["ko_context"]["two_hko"]
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=(
+            "will move first",
+            "guaranteed outspeeds",
+            "confirmed first",
+            "always acts before",
+            "wins the speed interaction",
+            "safe because it moves first",
+        ),
+    )
+
+
+def test_speed_order_context_hides_unconfirmed_quick_claw_from_advice_payload() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = {
+        "my_active": {
+            **_quick_claw_profile(),
+            "status": "unknown",
+            "source": "user_unconfirmed",
+        },
+        "opponent_active": _item_profiles()["opponent_active"],
+    }
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert debug_move["speed_order_context"]["available"] is False
+    assert debug_move["speed_order_context"]["reason"] == "item_not_user_confirmed"
+    assert "speed_order_context" not in advice_move
+    assert advice_payload["item_profiles"]["my_active"]["status"] == "unknown"
+    assert advice_payload["item_profiles"]["my_active"]["item_id"] is None
+    assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
+    assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("Quick Claw", "quick-claw", "item_not_user_confirmed"),
+    )
+
+
+def test_speed_order_context_hides_non_quick_claw_item_from_advice_payload() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(my_item="power-herb")
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert debug_move["speed_order_context"]["available"] is False
+    assert debug_move["speed_order_context"]["reason"] == "unsupported_speed_order_item"
+    assert "speed_order_context" not in advice_move
+    assert advice_payload["item_profiles"]["my_active"]["status"] == "unknown"
+    assert advice_payload["item_profiles"]["my_active"]["item_id"] is None
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("Power Herb", "power-herb", "unsupported_speed_order_item"),
+    )
+
+
+def test_speed_order_context_does_not_hide_available_choice_scarf_speed_context() -> None:
+    item_options = legal_item_options_from_repository(ChampionsItemRepository())
+    my_panel = _panel(
+        "charizard",
+        selected_move_index=0,
+        selected_moves=[_move("flamethrower")],
+        final_stats=_final_stats(spe=100),
+        item_profile=item_profile_from_option("choice-scarf", item_options=item_options),
+    )
+    opponent_panel = _panel(
+        "garchomp",
+        selected_move_index=None,
+        selected_moves=[],
+        final_stats=_final_stats(spe=120),
+    )
+    payload = _window(my_panel, opponent_panel)._build_llm_battle_input()
+    enriched = attach_selected_move_damage_estimate(payload)
+    advice_payload = build_ui_advice_payload(enriched)
+
+    assert enriched["moves"]["my_selected_move"]["speed_order_context"]["available"] is False
+    assert enriched["moves"]["my_selected_move"]["speed_order_context"]["reason"] == "unsupported_speed_order_item"
+    assert advice_payload["item_profiles"]["my_active"]["item_id"] == "choice-scarf"
+    assert advice_payload["speed_context"]["my_active"]["speed_modifiers"][0]["item_id"] == "choice-scarf"
+    assert advice_payload["speed_context"]["my_active"]["effective_speed"] == 150
+    assert "speed_order_context" not in advice_payload["moves"]["my_selected_move"]
+
+
 def _assert_forbidden_terms_absent_from_advice_payload(
     advice_payload: dict,
     *,
@@ -1296,6 +1425,24 @@ def _type_boost_profile(
         "damage_modifier_status": "not_applied",
         "ui_status": ui_status,
         "notes": [],
+    }
+
+
+def _quick_claw_profile() -> dict:
+    return {
+        "status": "user_confirmed",
+        "source": "user_input",
+        "item_id": "quick-claw",
+        "name_en": "Quick Claw",
+        "name_ko": None,
+        "effects_scope": ["speed_order"],
+        "category": "hold_item",
+        "legal": True,
+        "legality_status": "legal",
+        "effect_support_status": "legal_but_not_modeled",
+        "damage_modifier_status": "not_applicable",
+        "ui_status": "recognized_not_modeled",
+        "notes": ["Speed/order effects are not modeled."],
     }
 
 
@@ -1776,6 +1923,32 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "Choice lock remains not modeled when a user-confirmed Choice item is applied."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Quick Claw speed-order context may appear only as limited speed_order_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "speed_order_context applies only when Quick Claw is user-confirmed and Champions legal."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "speed_order_context may say Quick Claw may affect move order, but final move order is not calculated."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Quick Claw activation probability is not calculated in speed_order_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "speed_order_context does not calculate speed ties, priority, Trick Room, Tailwind, paralysis, boosts, abilities, weather, item consumption, or turn sequencing."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say will move first, guaranteed outspeeds, confirmed first, always acts before, wins the speed interaction, or safe because it moves first from speed_order_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "If speed_order_context is unavailable, treat the reason as developer/debug/contract metadata only."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Choice Scarf is not modeled through speed_order_context; keep Choice Scarf in speed_context."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

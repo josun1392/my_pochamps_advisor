@@ -8,7 +8,7 @@
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, context-only opponent sample assumptions, raw/effective Speed comparison context, damage estimates for the user's confirmed moves, additive limited KO context, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. v0.38 adds `opponent_assumptions` as context-only possible opponent sample profiles. The app does not yet send EV/IV/nature breakdowns, final battle KO truth, final turn order, candidate move damage estimates, sample-based damage or Speed calculations, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, context-only opponent sample assumptions, raw/effective Speed comparison context, limited Quick Claw speed-order item context, damage estimates for the user's confirmed moves, additive limited KO context, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. v0.98 adds move-level `speed_order_context` for user-confirmed legal Quick Claw as limited advice context only. v0.38 adds `opponent_assumptions` as context-only possible opponent sample profiles. The app does not yet send EV/IV/nature breakdowns, final battle KO truth, final turn order, candidate move damage estimates, sample-based damage or Speed calculations, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -310,6 +310,7 @@ Legal item modeling examples:
 - Focus Sash: selectable; its limited survival context may be included only when user-confirmed and full HP. It is not damage reduction and does not change raw damage estimates.
 - Focus Band: selectable; its limited survival context may be included only when user-confirmed and the raw incoming hit is potentially lethal. Survival is not guaranteed, and activation probability is not calculated.
 - Leftovers / Sitrus Berry: selectable; limited recovery context may be included only when user-confirmed and max HP is available. Exact turn sequencing and item consumption are not modeled.
+- Quick Claw: selectable; limited `speed_order_context` may be included only when user-confirmed and Champions legal. Activation probability and final move order are not calculated.
 
 ### Legal Item Gate
 
@@ -536,7 +537,7 @@ The LLM must not say:
 - "Focus Band applies when the item is unknown or unconfirmed."
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `speed_order_context`, or `ko_context`.
 
 ## Recovery Context Semantics
 
@@ -611,7 +612,7 @@ The LLM must not say:
 
 When `recovery_context.available` is true, the recovery note should stay concise, ideally one or two sentences, and should mention that exact activation timing, item consumption, and turn sequencing are not modeled. It should not become longer than the recommendation.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `speed_order_context`, or `ko_context`.
 
 ## Accuracy Context Semantics
 
@@ -679,7 +680,7 @@ When `accuracy_context.available` is true, the accuracy note should stay concise
 
 If `accuracy_context.available` is false, or no `accuracy_context` is present for a move, the LLM should not invent Bright Powder accuracy effects or force an accuracy limitation sentence.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `speed_order_context`, or `ko_context`.
 
 ## Critical Context Semantics
 
@@ -744,7 +745,7 @@ When `critical_context.available` is true, the critical-hit note should stay con
 
 If `critical_context.available` is false, or no `critical_context` is present for a move, the LLM should not invent Scope Lens critical-hit effects or force a critical-hit limitation sentence.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `speed_order_context`, or `ko_context`.
 
 ## Flinch Context Semantics
 
@@ -814,7 +815,7 @@ When `flinch_context.available` is true, prefer "raw damage estimate is unchange
 
 If `flinch_context.available` is false, or no `flinch_context` is present for a move, the LLM should not invent King's Rock flinch effects or force a flinch limitation sentence.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `speed_order_context`, or `ko_context`.
 
 ## Multi-hit Context Semantics
 
@@ -890,7 +891,7 @@ If `multi_hit_context.available` is false, or no `multi_hit_context` is present 
 
 If `multi_hit_context.available` is false because the item is blocked by legal coverage, the blocked reason is developer/debug/contract metadata. The default user-facing recommendation should stay quiet about Loaded Dice and should not say "Loaded Dice," "user-confirmed Loaded Dice," "Loaded Dice is not modeled," or "Loaded Dice's effect is not included" unless the user explicitly asks about Loaded Dice.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `resist_berry_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `type_boost_context`, `speed_order_context`, `resist_berry_context`, or `ko_context`.
 
 ## Unavailable Item Context Silence
 
@@ -909,6 +910,7 @@ The filtering applies to item context fields such as:
 - `flinch_context`
 - `multi_hit_context`
 - `type_boost_context`
+- `speed_order_context`
 - `resist_berry_context`
 - future `charge_context`
 
@@ -1096,7 +1098,7 @@ The LLM must not say:
 - "Focus Sash or Focus Band is included in the KO probability."
 - "Accuracy, Speed order, priority, recovery, hazards, chip damage, switching, protection, or turn sequencing are modeled."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `speed_order_context`, or `ko_context`.
 
 ## Opponent Assumption Semantics
 
@@ -1228,6 +1230,52 @@ The LLM must not say:
 - "This guarantees turn order."
 
 If `speed_context.available` is `false`, the LLM should not compare Speed and should mention that raw Speed comparison requires user-confirmed final Speed for both active Pokemon.
+
+## Speed-Order Item Context Semantics
+
+`speed_order_context` is an additive limited context for Quick Claw move-order pressure. It is never nested inside `speed_context`, `damage_estimate`, or `ko_context`.
+
+In v0.98, modeled speed-order item context is limited to Quick Claw:
+
+- `item_profiles.<attacker>.status` must be `user_confirmed`
+- `item_profiles.<attacker>.item_id` must be `quick-claw`
+- Champions legal item coverage must pass
+- a selected/available/known move payload must exist
+
+Available context may include:
+
+- `mode`: `limited_speed_order_item_context`
+- `available`: `true`
+- `attacker_side`: `my_active` or `opponent_active`
+- `item.item_id`: `quick-claw`
+- `item.status`: `user_confirmed`
+- `item.legal_status`: `legal_modeled`
+- `speed_order_effect.type`: `quick_claw`
+- `speed_order_effect.effect_label`: `may_affect_move_order`
+- `speed_order_effect.activation_probability_calculated`: `false`
+- `speed_order_effect.final_move_order_calculated`: `false`
+- `speed_order_effect.speed_tie_resolved`: `false`
+- `speed_order_effect.priority_integrated`: `false`
+- `speed_order_effect.turn_engine_integrated`: `false`
+- `is_final_battle_truth`: `false`
+
+When `speed_order_context.available` is true, the LLM may say Quick Claw may affect move order or can occasionally affect move order. The LLM should also say move order is not fully modeled and should not treat the context as guaranteed priority.
+
+The LLM must not say:
+
+- "Quick Claw will move first."
+- "Quick Claw guarantees outspeeding."
+- "Confirmed first."
+- "Always acts before."
+- "Wins the speed interaction."
+- "Safe because it moves first."
+- "Quick Claw activation probability is X%."
+
+The context does not calculate final move order, activation probability, speed ties, priority, Trick Room, Tailwind, paralysis, boosts, abilities, weather, item consumption, or turn sequencing.
+
+If `speed_order_context.available` is false in the enriched/debug payload, the default advice payload should omit `speed_order_context`. The unavailable reason is developer/debug/contract metadata only. The LLM should not mention the unavailable Quick Claw item name, effect, or reason in default advice unless the user explicitly asks about that item.
+
+Choice Scarf is not modeled through `speed_order_context`; keep Choice Scarf handling in top-level `speed_context`.
 
 ## Type Effectiveness Semantics
 
