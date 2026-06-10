@@ -9044,6 +9044,116 @@ Maintained boundaries:
 
 ---
 
+## v1.3.1 - Light Ball context verification
+
+Purpose:
+- Verify the v1.3 Light Ball `species_stat_item_context` behavior in payload preflight and actual Gemini advice flow.
+- Keep the step verification-only unless a real leak or behavior regression is found.
+
+Payload preflight:
+- Case A: Pikachu + user-confirmed Light Ball:
+  - enriched/debug `species_stat_item_context.available=true`.
+  - default advice payload retained `species_stat_item_context.available=true`.
+  - default advice item profile retained `item_id=light-ball`.
+  - raw `damage_estimate.damage_range` and `rolls` matched enriched/debug.
+  - raw `ko_context.ohko` and `ko_context.two_hko` matched enriched/debug.
+  - no forbidden payload wording appeared:
+    - `not modeled`
+    - `not reflected`
+    - `unsupported`
+    - `blocked`
+    - `deferred`
+    - `effect is not applied`
+    - `item effect is not included`
+    - `Light Ball works on any holder`
+    - `all Electric-type Pokemon benefit`
+    - `guaranteed KO`
+    - `confirmed OHKO`
+    - `always doubles damage`
+    - `final stats are fully known`
+- Case B: non-Pikachu + user-confirmed Light Ball:
+  - enriched/debug `species_stat_item_context.available=false`.
+  - reason: `holder_species_not_supported`.
+  - default advice payload removed `species_stat_item_context`.
+  - default advice payload hid `item_profiles.my_active` as unknown.
+  - raw damage and `ko_context` matched enriched/debug.
+  - no forbidden payload wording appeared.
+- Case C: Pikachu + unconfirmed Light Ball:
+  - enriched/debug `species_stat_item_context.available=false`.
+  - reason: `item_not_user_confirmed`.
+  - default advice payload removed `species_stat_item_context`.
+  - default advice payload hid `item_profiles.my_active` as unknown.
+  - raw damage and `ko_context` matched enriched/debug.
+  - no forbidden payload wording appeared.
+
+Gemini actual call:
+- Attempted actual Gemini calls for:
+  - Pikachu + user-confirmed Light Ball
+  - non-Pikachu + user-confirmed Light Ball
+  - Pikachu + unconfirmed Light Ball
+- Result: BLOCKED, not PASS.
+- Blocker: HTTP 429 `RESOURCE_EXHAUSTED`.
+- No API key, secret, project, billing, or account details were recorded.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 47 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 1 timing-sensitive perf failure, 3 passed.
+  - `test_item_damage_calculation_under_point_12ms_average`
+  - best batch median `0.156250ms`, threshold `0.120000ms`
+  - batch medians: `[0.1875, 0.15625, 0.15625]`
+  - samples min/max: `0.109375ms` / `0.250000ms`
+- Isolated target rerun 3x:
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`
+  - result: 0 passed / 3 failed
+  - failures:
+    - best batch median `0.125000ms`, threshold `0.120000ms`
+    - best batch median `0.140625ms`, threshold `0.120000ms`
+    - best batch median `0.125000ms`, threshold `0.120000ms`
+- `uv run pytest tests/test_damage_perf.py -q`: rerun 1 timing-sensitive perf failure, 3 passed.
+  - best batch median `0.140625ms`, threshold `0.120000ms`
+  - batch medians: `[0.15625, 0.140625, 0.171875]`
+  - samples min/max: `0.125000ms` / `0.234375ms`
+- `uv run pytest -q`: 1 timing-sensitive perf failure, 899 passed, 2 deselected.
+  - `test_item_damage_calculation_under_point_12ms_average`
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+  - batch medians: `[0.140625, 0.125, 0.125]`
+  - samples min/max: `0.109375ms` / `0.140625ms`
+
+Verdict:
+- Payload preflight: PASS.
+- Pikachu Light Ball available payload behavior: PASS.
+- non-Pikachu Light Ball default advice filtering: PASS.
+- unconfirmed Light Ball default advice filtering: PASS.
+- raw damage / raw rolls / Q12 / `ko_context`: unchanged by this verification step.
+- Actual Gemini natural-language verification: BLOCKED by HTTP 429 `RESOURCE_EXHAUSTED`.
+- Perf status: timing-sensitive perf failure persists in the current environment, including isolated target reruns. No threshold, skip, xfail, damage formula, raw roll, Q12, or `ko_context` changes were made.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No new item implementation.
+- No new mechanics implementation.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No final stat truth calculation.
+- No EV/IV/nature inference.
+- No final KO probability.
+- No Light-Ball-adjusted KO/OHKO/2HKO implementation.
+- No Turn Engine.
+- No item consumption.
+- No Mega Evolution.
+- No ability/weather/terrain interaction.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
