@@ -9378,6 +9378,88 @@ Maintained boundaries:
 
 ---
 
+## v1.5.1 - Chilan Berry context verification
+
+Purpose:
+- Verify the v1.5 `chilan_berry_context` payload behavior and actual Gemini advice path.
+- Keep this as verification only unless a real leak or regression appears.
+
+Payload preflight:
+- Case A - Chilan Berry + Normal damaging move:
+  - enriched/debug payload kept `resist_berry_context.available=false`, reason `chilan_berry_deferred`
+  - enriched/debug payload had `chilan_berry_context.available=true`
+  - default advice payload kept `chilan_berry_context`
+  - default advice payload removed unavailable `resist_berry_context`
+  - default advice payload kept opponent `item_profiles` as user-confirmed `chilan-berry`
+  - default advice payload had no forbidden Chilan overclaim wording
+  - raw damage stayed `14-17`
+  - raw rolls stayed `[14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 17]`
+  - `ko_context` stayed raw damage-roll based and did not integrate Chilan reduction
+- Case B - Chilan Berry + non-Normal damaging move:
+  - enriched/debug payload had `chilan_berry_context.available=false`, reason `move_type_not_normal`
+  - default advice payload removed `chilan_berry_context`
+  - default advice payload hid the opponent item profile
+  - default advice payload JSON did not include Chilan Berry, `chilan-berry`, `move_type_not_normal`, or generic unavailable item-effect wording
+- Case C - unconfirmed Chilan Berry:
+  - enriched/debug payload had `chilan_berry_context.available=false`, reason `item_not_user_confirmed`
+  - default advice payload removed `chilan_berry_context`
+  - default advice payload hid the opponent item profile
+  - default advice payload JSON did not include Chilan Berry, `chilan-berry`, `item_not_user_confirmed`, or generic unavailable item-effect wording
+- Case D - standard resist berry regression:
+  - Yache Berry + Ice super-effective move kept `resist_berry_context.available=true`
+  - default advice payload retained available `resist_berry_context`
+  - default advice payload did not include `chilan_berry_context`
+
+Actual Gemini verification:
+- Attempted actual Gemini default-advice call for Chilan Berry + Normal damaging move.
+- Result: BLOCKED, not PASS.
+- Blocker: HTTP 429 `RESOURCE_EXHAUSTED`.
+- No API key, secret, billing, or token-log details were printed or recorded.
+- Because the first actual call was blocked, the non-Normal and unconfirmed actual Gemini cases were not called.
+
+Verdict:
+- Payload preflight: PASS.
+- Chilan + Normal move payload: PASS.
+- Chilan + non-Normal move filtering: PASS.
+- Unconfirmed Chilan filtering: PASS.
+- Standard resist berry regression: PASS.
+- Actual Gemini natural-language verification: BLOCKED by HTTP 429 `RESOURCE_EXHAUSTED`.
+- Overall v1.5.1 verdict: BLOCKED for actual Gemini advice, with payload preflight PASS.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 timing-sensitive perf failure.
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+  - batch medians `[0.125, 0.125, 0.125]`
+  - sample min `0.093750ms`, max `0.203125ms`
+- Isolated target perf rerun 5x:
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: passed x5.
+- `uv run pytest tests/test_damage_perf.py -q` rerun: 4 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+
+Maintained boundaries:
+- Verification/documentation-only change.
+- No new item implementation.
+- No new mechanics implementation.
+- No Chilan-adjusted damage formula.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No final survival probability.
+- No final KO probability.
+- No item consumption.
+- No Turn Engine.
+- No ability/weather/terrain interaction.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
