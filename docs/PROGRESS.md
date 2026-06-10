@@ -8345,6 +8345,85 @@ Next:
 
 ---
 
+## v0.99 - Item context registry / filtering cleanup design
+
+Purpose:
+- Design a cleanup path for default advice payload filtering after the addition of multiple item/advice contexts.
+- Document where filtering rules currently live and how they should be centralized before v1.0.
+
+Current context inventory:
+- `survival_context`
+- `recovery_context`
+- `accuracy_context`
+- `critical_context`
+- `flinch_context`
+- `multi_hit_context`
+- `resist_berry_context`
+- `type_boost_context`
+- `speed_context`
+- `speed_order_context`
+
+Findings:
+- Most default advice payload filtering currently lives in `llm/advisor_client.py`.
+- `build_ui_advice_payload()` is the main advice-payload boundary.
+- `ITEM_CONTEXT_FIELDS` identifies item contexts where `available=false` should be removed from the default advice payload.
+- `_remove_unavailable_item_contexts()` removes unavailable item contexts.
+- `_collect_available_item_context_sides()` protects item profiles for sides with available context.
+- `_hide_advice_hidden_item_profiles()` and `_hide_advice_hidden_item_effects()` prevent item-profile and item-effect leaks.
+- `_hide_move_local_unavailable_type_boost_item_effects()` is a type-boost-specific special case.
+- `_speed_context_item_sides()` is a Choice Scarf `speed_context` special case.
+- `_remove_debug_only_limitations()` strips debug-only limitation phrases from default advice payload.
+
+Design conclusion:
+- Add a registry or registry-like constants before v1.0.
+- Recommended shape:
+  - `ADVICE_CONTEXT_KEYS` or `ADVICE_CONTEXT_REGISTRY`
+  - `DEBUG_ONLY_REASON_PHRASES`
+  - `filter_context_for_default_advice(payload)`
+- Keep behavior unchanged in the cleanup:
+  - available legal contexts remain in default advice payload
+  - `available=false` item contexts are hidden from default advice payload
+  - debug/enriched payload keeps unavailable/deferred/blocked reasons
+  - raw `damage_estimate` remains
+  - raw `ko_context` remains
+  - `speed_context` remains governed by its own Speed contract
+- Include registry notes or hooks for:
+  - type-boost move-local `damage_estimate.item_effects` scrubbing
+  - Choice Scarf `speed_context` item-profile protection
+  - debug-only limitation phrase removal
+
+Recommended v1.0:
+- `v1.0 - Item Context Registry Filtering Cleanup Implementation`.
+- Implement registry cleanup without adding new item behavior.
+- Add table-driven tests for all registered item context keys.
+- Add tests that registry keys stay aligned with move-level context attachment.
+- Preserve candidate move exclusion.
+
+Alternative:
+- `v1.0 - Item Context Filtering Contract Test Consolidation` if T1/T2 prefer a test-only hardening step before code cleanup.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 41 passed.
+- `uv run pytest -q`: 894 passed, 2 deselected.
+
+Maintained boundaries:
+- Documentation-only design.
+- No code implementation.
+- No filtering logic changes.
+- No new item context implementation.
+- No fixture or legal fixture changes.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` calculation changes.
+- No Turn Engine.
+- No item consumption.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
