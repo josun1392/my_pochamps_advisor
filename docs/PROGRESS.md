@@ -9460,6 +9460,96 @@ Maintained boundaries:
 
 ---
 
+## v1.6 - Item context coverage / pending verification design
+
+Purpose:
+- Audit implemented item/advice context coverage before adding another item context.
+- Classify actual Gemini verification status as PASS, PARTIAL, BLOCKED_HTTP_429, or NOT_RUN.
+- Identify payload-preflight PASS items whose actual natural-language Gemini verification is still blocked by HTTP 429.
+
+Written:
+- `docs/spike_v1.6_item_context_coverage_pending_verification_design.md`
+
+Audited context keys:
+- `survival_context`
+- `recovery_context`
+- `accuracy_context`
+- `critical_context`
+- `flinch_context`
+- `multi_hit_context`
+- `resist_berry_context`
+- `type_boost_context`
+- `speed_context`
+- `speed_order_context`
+- `species_stat_item_context`
+- `chilan_berry_context`
+
+Coverage summary:
+- Actual Gemini PASS:
+  - `accuracy_context` / Bright Powder
+  - `critical_context` / Scope Lens
+  - `resist_berry_context` / Yache Berry
+  - `type_boost_context` / Charcoal, Mystic Water, Magnet
+  - `speed_context` / Choice Scarf
+  - blocked item quietness for Loaded Dice / Power Herb
+- Actual Gemini PARTIAL:
+  - `survival_context` / Focus Sash historical limitation visibility weakness
+  - `recovery_context` / Sitrus Berry historical limitation visibility weakness
+  - `flinch_context` / King's Rock historical wording/limitation weakness
+  - `multi_hit_context` / legal available context NOT_RUN, blocked quietness PASS
+- Payload preflight PASS but actual Gemini BLOCKED_HTTP_429:
+  - Focus Band within `survival_context`
+  - Quick Claw `speed_order_context`
+  - Light Ball `species_stat_item_context`
+  - Chilan Berry `chilan_berry_context`
+- NOT_RUN:
+  - legal available Loaded Dice `multi_hit_context`, because Loaded Dice remains absent from the Champions legal fixture
+  - future Power Herb `charge_context`, because it is unimplemented and remains out of scope
+
+Recommendation:
+- Do not add a new item context immediately.
+- Prefer `v1.7 - Item Context Gemini Verification Retry Batch`.
+- Retry actual Gemini calls for:
+  - Chilan Berry Normal available
+  - Light Ball Pikachu available
+  - Quick Claw available
+  - Focus Band lethal available
+- If Gemini quota/access remains blocked, use `v1.7 - Handoff / Pending Verification Capsule` instead of adding a new item.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 timing-sensitive perf failure.
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+  - batch medians `[0.140625, 0.140625, 0.125]`
+  - sample min `0.093750ms`, max `0.171875ms`
+- Isolated target perf rerun 5x:
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: passed x5.
+- `uv run pytest tests/test_damage_perf.py -q` rerun: 4 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+
+Maintained boundaries:
+- Documentation-only audit.
+- No code implementation.
+- No filtering logic changes.
+- No new item context.
+- No prompt hardening.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No final KO probability.
+- No final move order.
+- No Turn Engine.
+- No item consumption.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
