@@ -902,6 +902,24 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "Resist berry edge cases require explicit support before advice can use them" in prompt
     assert "Unsupported resist berry edge cases" not in prompt
     assert "Chilan Berry and edge cases are not modeled unless explicitly supported" not in prompt
+    assert "Chilan Berry context may appear only as limited chilan_berry_context" in prompt
+    assert "chilan_berry_context applies only when Chilan Berry is user-confirmed" in prompt
+    assert "local metadata marks always_resist true for Normal" in prompt
+    assert "incoming move type is Normal" in prompt
+    assert "It does not change raw damage_range or rolls, and ko_context is unchanged" in prompt
+    assert "KO/OHKO/2HKO estimates do not include Chilan Berry reduction" in prompt
+    assert "Chilan-adjusted damage and Chilan-adjusted KO probability are not calculated" in prompt
+    assert "When chilan_berry_context is available" in prompt
+    assert "Chilan Berry may reduce damage from a Normal-type move" in prompt
+    assert "not guaranteed survival" in prompt
+    assert "Do not say guaranteed survival" in prompt
+    assert "confirmed live" in prompt
+    assert "will survive because of Chilan Berry" in prompt
+    assert "final damage is halved" in prompt
+    assert "raw damage rolls already include Chilan Berry" in prompt
+    assert "Chilan Berry applies to all move types" in prompt
+    assert "If chilan_berry_context is unavailable" in prompt
+    assert "do not mention Chilan Berry, its effect, or unavailable reason" in prompt
     assert "blocked by legal item coverage" in prompt
     assert "developer/debug/contract metadata" in prompt
     assert "do not include that item effect in normal user-facing recommendation text" in prompt
@@ -1013,7 +1031,7 @@ def test_advice_payload_filters_unavailable_resist_berry_context_but_keeps_debug
     )
 
 
-def test_advice_payload_hides_chilan_deferred_context_from_default_advice_payload() -> None:
+def test_advice_payload_preserves_available_chilan_context_for_normal_move() -> None:
     payload = _battle_input(selected_move=_tackle())
     payload["item_profiles"] = _item_profiles(opponent_item="chilan-berry")
     enriched = attach_selected_move_damage_estimate(payload)
@@ -1021,16 +1039,89 @@ def test_advice_payload_hides_chilan_deferred_context_from_default_advice_payloa
     debug_move = enriched["moves"]["my_selected_move"]
     assert debug_move["resist_berry_context"]["available"] is False
     assert debug_move["resist_berry_context"]["reason"] == "chilan_berry_deferred"
+    assert debug_move["chilan_berry_context"]["available"] is True
+    assert debug_move["chilan_berry_context"]["normal_resist_effect"]["berry_type"] == "normal"
+    assert debug_move["chilan_berry_context"]["normal_resist_effect"]["incoming_move_type"] == "normal"
+    assert debug_move["chilan_berry_context"]["normal_resist_effect"]["requires_super_effective_hit"] is False
+    assert debug_move["chilan_berry_context"]["normal_resist_effect"]["always_resist"] is True
+    assert debug_move["chilan_berry_context"]["normal_resist_effect"]["raw_damage_rolls_changed"] is False
+    assert debug_move["chilan_berry_context"]["normal_resist_effect"]["ko_context_changed"] is False
+    assert debug_move["chilan_berry_context"]["normal_resist_effect"]["chilan_adjusted_damage_integrated"] is False
+    assert debug_move["chilan_berry_context"]["normal_resist_effect"]["chilan_adjusted_ko_integrated"] is False
+    assert debug_move["chilan_berry_context"]["normal_resist_effect"]["item_consumption_tracked"] is False
 
     advice_payload = build_ui_advice_payload(enriched)
     advice_move = advice_payload["moves"]["my_selected_move"]
 
     assert "resist_berry_context" not in advice_move
+    assert advice_move["chilan_berry_context"]["available"] is True
+    assert advice_move["chilan_berry_context"]["item"]["item_id"] == "chilan-berry"
+    assert advice_move["chilan_berry_context"]["normal_resist_effect"] == debug_move["chilan_berry_context"][
+        "normal_resist_effect"
+    ]
+    assert advice_payload["item_profiles"]["opponent_active"]["item_id"] == "chilan-berry"
+    assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
+    assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
+    assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
+    assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+    rendered = json.dumps(advice_payload, ensure_ascii=False)
+    assert "guaranteed survival" not in rendered
+    assert "confirmed live" not in rendered
+    assert "final damage is halved" not in rendered
+    assert "raw damage rolls already include Chilan Berry" not in rendered
+    assert "Chilan Berry applies to all move types" not in rendered
+    assert "chilan_berry_deferred" not in _build_ui_selected_prompt(enriched)
+
+
+def test_advice_payload_hides_unavailable_chilan_context_for_non_normal_move() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(opponent_item="chilan-berry")
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    assert debug_move["resist_berry_context"]["available"] is False
+    assert debug_move["resist_berry_context"]["reason"] == "chilan_berry_deferred"
+    assert debug_move["chilan_berry_context"]["available"] is False
+    assert debug_move["chilan_berry_context"]["reason"] == "move_type_not_normal"
+
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert "resist_berry_context" not in advice_move
+    assert "chilan_berry_context" not in advice_move
     assert advice_payload["item_profiles"]["opponent_active"]["status"] == "unknown"
     assert advice_payload["item_profiles"]["opponent_active"]["item_id"] is None
-    _assert_forbidden_terms_absent_from_advice_payload(advice_payload)
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("chilan-berry", "move_type_not_normal"),
+    )
     assert "chilan-berry" not in _build_ui_selected_prompt(enriched)
     assert "chilan_berry_deferred" not in _build_ui_selected_prompt(enriched)
+    assert "move_type_not_normal" not in _build_ui_selected_prompt(enriched)
+
+
+def test_advice_payload_hides_unconfirmed_chilan_context_from_default_advice_payload() -> None:
+    payload = _battle_input(selected_move=_tackle())
+    payload["item_profiles"] = _item_profiles(opponent_item="chilan-berry")
+    payload["item_profiles"]["opponent_active"]["status"] = "unknown"
+    enriched = attach_selected_move_damage_estimate(payload)
+
+    debug_move = enriched["moves"]["my_selected_move"]
+    assert debug_move["chilan_berry_context"]["available"] is False
+    assert debug_move["chilan_berry_context"]["reason"] == "item_not_user_confirmed"
+
+    advice_payload = build_ui_advice_payload(enriched)
+    advice_move = advice_payload["moves"]["my_selected_move"]
+
+    assert "chilan_berry_context" not in advice_move
+    assert advice_payload["item_profiles"]["opponent_active"]["status"] == "unknown"
+    assert advice_payload["item_profiles"]["opponent_active"]["item_id"] is None
+    _assert_forbidden_terms_absent_from_advice_payload(
+        advice_payload,
+        extra_terms=("chilan-berry", "item_not_user_confirmed"),
+    )
+    assert "chilan-berry" not in _build_ui_selected_prompt(enriched)
+    assert "item_not_user_confirmed" not in _build_ui_selected_prompt(enriched)
 
 
 def test_advice_payload_hides_loaded_dice_blocked_context_and_item_profile() -> None:
@@ -1510,6 +1601,7 @@ def test_advice_context_registry_lists_current_context_surfaces() -> None:
         "flinch_context",
         "multi_hit_context",
         "resist_berry_context",
+        "chilan_berry_context",
         "type_boost_context",
         "species_stat_item_context",
         "speed_context",
@@ -2022,6 +2114,33 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "Ability, weather, Tera, multi-hit handling, item consumption, and turn sequencing are not modeled for resist_berry_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Chilan Berry context may appear only as limited chilan_berry_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "chilan_berry_context applies only when Chilan Berry is user-confirmed, legal coverage is confirmed, local metadata marks always_resist true for Normal, incoming move type is Normal, and the move is damaging."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "chilan_berry_context does not change raw damage_range or rolls." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "ko_context is unchanged by chilan_berry_context and KO/OHKO/2HKO estimates do not include Chilan Berry reduction."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Chilan-adjusted damage and Chilan-adjusted KO probability are not calculated in chilan_berry_context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert "Item consumption is not tracked in chilan_berry_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "Do not say guaranteed survival, confirmed live, will survive because of Chilan Berry, KO chance is reduced to a value, final damage is halved, raw damage rolls already include Chilan Berry, or Chilan Berry applies to all move types."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "If chilan_berry_context is unavailable, treat the unavailable reason as developer/debug/contract metadata only."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not mention unavailable Chilan Berry names, effects, or unavailable reasons in default advice."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

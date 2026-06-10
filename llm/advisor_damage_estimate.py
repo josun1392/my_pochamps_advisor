@@ -21,6 +21,7 @@ from llm.advisor_payload_contract import (
     ADVISOR_USER_CONFIRMED_FINAL_STATS_PROFILE,
 )
 from llm.advisor_accuracy_context import build_accuracy_context
+from llm.advisor_chilan_berry_context import build_chilan_berry_context
 from llm.advisor_critical_context import build_critical_context
 from llm.advisor_flinch_context import build_flinch_context
 from llm.advisor_ko_context import build_ko_context
@@ -146,6 +147,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
                     defender_key="opponent_active",
                     scope="available_move_comparison",
                 )
+                move["chilan_berry_context"] = build_chilan_berry_context(
+                    result,
+                    estimate,
+                    move,
+                    defender_key="opponent_active",
+                    scope="available_move_comparison",
+                )
                 move["survival_context"] = build_focus_sash_survival_context(
                     result,
                     estimate,
@@ -223,6 +231,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
             defender_key="opponent_active",
             scope="selected_move_only",
         )
+        selected_move["chilan_berry_context"] = build_chilan_berry_context(
+            result,
+            estimate,
+            selected_move,
+            defender_key="opponent_active",
+            scope="selected_move_only",
+        )
         selected_move["survival_context"] = build_focus_sash_survival_context(
             result,
             estimate,
@@ -292,6 +307,13 @@ def attach_selected_move_damage_estimate(battle_input: dict[str, Any]) -> dict[s
                 scope="selected_move_only",
             ),
             "resist_berry_context": build_resist_berry_context(
+                result,
+                estimate,
+                None,
+                defender_key="opponent_active",
+                scope="selected_move_only",
+            ),
+            "chilan_berry_context": build_chilan_berry_context(
                 result,
                 estimate,
                 None,
@@ -383,6 +405,13 @@ def attach_opponent_known_move_damage_estimates(battle_input: dict[str, Any]) ->
                 scope="opponent_known_move_only",
             )
             move["resist_berry_context"] = build_resist_berry_context(
+                result,
+                estimate,
+                move,
+                defender_key="my_active",
+                scope="opponent_known_move_only",
+            )
+            move["chilan_berry_context"] = build_chilan_berry_context(
                 result,
                 estimate,
                 move,

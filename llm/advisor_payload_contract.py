@@ -17,6 +17,7 @@ ADVICE_ITEM_CONTEXT_KEYS = frozenset(
         "species_stat_item_context",
         "speed_order_context",
         "resist_berry_context",
+        "chilan_berry_context",
         "charge_context",
     }
 )
@@ -194,6 +195,15 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "Do not mention unavailable resist berry names, berry effects, or unavailable reasons in default advice.",
     "Do not say Yache Berry effect is not applied, the berry effect is not included, or the berry is not modeled in default advice unless the user explicitly asks about that berry.",
     "Ability, weather, Tera, multi-hit handling, item consumption, and turn sequencing are not modeled for resist_berry_context.",
+    "Chilan Berry context may appear only as limited chilan_berry_context.",
+    "chilan_berry_context applies only when Chilan Berry is user-confirmed, legal coverage is confirmed, local metadata marks always_resist true for Normal, incoming move type is Normal, and the move is damaging.",
+    "chilan_berry_context does not change raw damage_range or rolls.",
+    "ko_context is unchanged by chilan_berry_context and KO/OHKO/2HKO estimates do not include Chilan Berry reduction.",
+    "Chilan-adjusted damage and Chilan-adjusted KO probability are not calculated in chilan_berry_context.",
+    "Item consumption is not tracked in chilan_berry_context.",
+    "Do not say guaranteed survival, confirmed live, will survive because of Chilan Berry, KO chance is reduced to a value, final damage is halved, raw damage rolls already include Chilan Berry, or Chilan Berry applies to all move types.",
+    "If chilan_berry_context is unavailable, treat the unavailable reason as developer/debug/contract metadata only.",
+    "Do not mention unavailable Chilan Berry names, effects, or unavailable reasons in default advice.",
     "Focus Sash and Focus Band survival may appear only as limited survival_context, not as damage reduction.",
     "survival_context does not change raw damage_range or rolls.",
     "ko_context is unchanged by survival_context and KO/OHKO/2HKO estimates do not include Focus Band activation.",

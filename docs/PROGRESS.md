@@ -9272,6 +9272,112 @@ Maintained boundaries:
 
 ---
 
+## v1.5 - Chilan Berry limited context implementation
+
+Purpose:
+- Implement `chilan-berry` as a separate limited `chilan_berry_context` for Gemini advice.
+- Keep Chilan separate from the 17 standard super-effective `resist_berry_context` berries.
+- Preserve raw damage, raw rolls, Q12 constants, `ko_context`, and Turn Engine boundaries.
+
+Implemented:
+- Added `llm/advisor_chilan_berry_context.py`.
+- Added move-level `chilan_berry_context` attachment for:
+  - `moves.my_available_moves`
+  - `moves.my_selected_move`
+  - selected-move fallback context
+  - `opponent_moves.known_moves`
+- Kept candidate moves excluded from `chilan_berry_context`.
+- Added `chilan_berry_context` to the advice context registry/filtering surface.
+- Updated prompt/contract guardrails for Chilan-specific limited wording.
+- Updated `docs/advisor_payload_contract.md`.
+- Added regression tests in `tests/test_advisor_payload_contract.py`.
+
+Available conditions:
+- defender item profile is `status=user_confirmed`
+- defender item id is `chilan-berry`
+- Champions legal gate passes
+- `items_damage.json` metadata is present through the item repository
+- metadata is `type_resist_berry`
+- metadata has `always_resist=true`
+- metadata resisted type is `normal`
+- incoming move type is `normal`
+- incoming move is damaging
+- raw `damage_estimate` is available
+
+Payload behavior:
+- Chilan + Normal damaging move:
+  - enriched/debug payload keeps `resist_berry_context.available=false`, reason `chilan_berry_deferred`
+  - enriched/debug payload adds `chilan_berry_context.available=true`
+  - default advice payload removes unavailable `resist_berry_context`
+  - default advice payload keeps available `chilan_berry_context`
+  - defender `item_profiles` remains visible because an available legal item context exists
+- Chilan + non-Normal damaging move:
+  - enriched/debug payload keeps `chilan_berry_context.available=false`, reason `move_type_not_normal`
+  - default advice payload removes `chilan_berry_context`
+  - default advice payload hides the unavailable item profile
+  - default advice payload does not expose Chilan name/effect/unavailable reason
+- Unconfirmed Chilan:
+  - enriched/debug payload keeps `chilan_berry_context.available=false`, reason `item_not_user_confirmed`
+  - default advice payload removes `chilan_berry_context`
+  - default advice payload hides the item profile and reason
+
+Gemini wording policy:
+- Allowed:
+  - "Chilan Berry may reduce damage from a Normal-type move."
+  - "This is limited context and not integrated into final KO odds."
+  - "Do not treat this as guaranteed survival."
+  - "Raw damage rolls and KO context remain based on the current calculator."
+- Forbidden:
+  - guaranteed survival
+  - confirmed live
+  - will survive because of Chilan Berry
+  - KO chance is reduced to a value
+  - final damage is halved
+  - raw damage rolls already include Chilan Berry
+  - Chilan Berry applies to all move types
+
+Regression coverage:
+- Chilan + Normal move preserves available `chilan_berry_context` in default advice payload.
+- Chilan + non-Normal move hides unavailable `chilan_berry_context` and item profile.
+- Unconfirmed Chilan hides unavailable `chilan_berry_context` and item profile.
+- Existing Yache `resist_berry_context` behavior remains available for qualifying super-effective moves.
+- Existing `resist_berry_context` still returns `chilan_berry_deferred` for Chilan; Chilan is handled only by the separate context.
+- Default advice payload leak checks cover `not modeled`, `not reflected`, `unsupported`, `blocked`, `deferred`, `effect is not applied`, and `item effect is not included`.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 timing-sensitive perf failure.
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+  - batch medians `[0.140625, 0.125, 0.125]`
+  - sample min `0.109375ms`, max `0.203125ms`
+- Isolated target perf rerun 5x:
+  - `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: passed x5.
+- `uv run pytest tests/test_damage_perf.py -q` rerun: 4 passed.
+- `uv run pytest -q`: 1 full-suite-sensitive perf failure, 901 passed, 2 deselected.
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+  - batch medians `[0.125, 0.125, 0.125]`
+  - sample min `0.109375ms`, max `0.187500ms`
+
+Maintained boundaries:
+- No Chilan-adjusted damage formula.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No final survival probability.
+- No final KO probability.
+- No item consumption.
+- No Turn Engine.
+- No ability/weather/terrain interaction.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

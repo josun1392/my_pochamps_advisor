@@ -602,7 +602,7 @@ The LLM must not say:
 - "Focus Band applies when the item is unknown or unconfirmed."
 - "Focus Sash handles multi-hit moves, hazards, residual damage, weather/status chip, ability interactions, or exact turn sequencing."
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `type_boost_context`, `species_stat_item_context`, `speed_order_context`, `resist_berry_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `type_boost_context`, `species_stat_item_context`, `speed_order_context`, `resist_berry_context`, `chilan_berry_context`, or `ko_context`.
 
 ## Recovery Context Semantics
 
@@ -956,7 +956,7 @@ If `multi_hit_context.available` is false, or no `multi_hit_context` is present 
 
 If `multi_hit_context.available` is false because the item is blocked by legal coverage, the blocked reason is developer/debug/contract metadata. The default user-facing recommendation should stay quiet about Loaded Dice and should not say "Loaded Dice," "user-confirmed Loaded Dice," "Loaded Dice is not modeled," or "Loaded Dice's effect is not included" unless the user explicitly asks about Loaded Dice.
 
-Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `type_boost_context`, `speed_order_context`, `resist_berry_context`, or `ko_context`.
+Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `type_boost_context`, `speed_order_context`, `resist_berry_context`, `chilan_berry_context`, or `ko_context`.
 
 ## Unavailable Item Context Silence
 
@@ -987,6 +987,7 @@ The filtering applies to item context fields such as:
 - `species_stat_item_context`
 - `speed_order_context`
 - `resist_berry_context`
+- `chilan_berry_context`
 - future `charge_context`
 
 Top-level `speed_context` is listed as an advice context but is not filtered as an item context. It keeps the existing Speed contract and remains raw/effective Speed comparison only. Choice Scarf effective Speed continues to live in `speed_context`, not `speed_order_context`, and Choice Scarf choice lock remains unmodeled.
@@ -1040,7 +1041,7 @@ The first supported scope is the 17 standard type-resist berries whose `items_da
 - `wacan-berry`
 - `yache-berry`
 
-The Normal-type always-resist berry edge case is deferred because `items_damage.json` marks it as `always_resist=true`, and that edge case is not the same as a super-effective trigger.
+The Normal-type always-resist berry edge case is handled separately by `chilan_berry_context` because `items_damage.json` marks it as `always_resist=true`, and that edge case is not the same as a super-effective trigger.
 
 Available resist berry context requires:
 
@@ -1118,6 +1119,70 @@ For unavailable resist berry context, the LLM must not say:
 - "Yache Berry is unavailable because the move is not super effective."
 
 If the user explicitly asks about that berry, the response may briefly explain that the current move does not have an available limited `resist_berry_context`, without claiming berry-adjusted damage or KO probability.
+
+## Chilan Berry Context Semantics
+
+`chilan_berry_context` is an additive limited context for Chilan Berry's Normal-type special case. It is separate from `resist_berry_context` because Chilan Berry does not use the standard super-effective trigger model.
+
+`chilan_berry_context` does not alter `damage_estimate.damage_range`, `damage_estimate.rolls`, type effectiveness, item modifier math, Q12 constants, or `ko_context`.
+
+Available Chilan context requires:
+
+- defender item profile must be `status: user_confirmed`
+- defender item id must be `chilan-berry`
+- defender item id must pass the Champions legal item gate
+- `items_damage.json` metadata must identify `resist_type=normal`
+- `items_damage.json` metadata must identify `always_resist=true`
+- incoming move type must be known
+- incoming move type must be `normal`
+- incoming move must be damaging
+- raw `damage_estimate` must be available
+
+Available context may include:
+
+- `mode`: `limited_chilan_berry_context`
+- `available`: `true`
+- `defender_side`: `my_active` or `opponent_active`
+- `item.item_id`: `chilan-berry`
+- `item.status`: `user_confirmed`
+- `item.legal_status`: `legal_modeled`
+- `normal_resist_effect.berry_type`: `normal`
+- `normal_resist_effect.incoming_move_type`: `normal`
+- `normal_resist_effect.requires_super_effective_hit`: `false`
+- `normal_resist_effect.always_resist`: `true`
+- `normal_resist_effect.effect_label`: `may_reduce_normal_type_hit`
+- `normal_resist_effect.formula_label`: `chilan_berry_limited_normal_damage_reduction`
+- `normal_resist_effect.raw_damage_rolls_changed`: `false`
+- `normal_resist_effect.ko_context_changed`: `false`
+- `normal_resist_effect.chilan_adjusted_damage_integrated`: `false`
+- `normal_resist_effect.chilan_adjusted_ko_integrated`: `false`
+- `normal_resist_effect.item_consumption_tracked`: `false`
+- `is_final_battle_truth`: `false`
+
+Unavailable reason codes include:
+
+- `no_chilan_berry`
+- `item_not_user_confirmed`
+- `blocked_by_legal_item_coverage`
+- `chilan_berry_metadata_missing`
+- `incoming_move_type_missing`
+- `move_type_not_normal`
+- `move_not_damaging`
+- `damage_estimate_missing`
+
+When `chilan_berry_context.available` is true, the LLM may say Chilan Berry may reduce damage from a Normal-type move. It should also say this is limited context and not integrated into final KO odds.
+
+The LLM must not say:
+
+- "Chilan Berry guarantees survival."
+- "Confirmed live."
+- "The Pokemon will survive because of Chilan Berry."
+- "KO chance is reduced to X."
+- "Final damage is halved."
+- "Raw damage rolls already include Chilan Berry."
+- "Chilan Berry applies to all move types."
+
+If `chilan_berry_context.available` is false in the enriched/debug payload, the default advice payload should omit `chilan_berry_context`. The unavailable reason is developer/debug/contract metadata only. The LLM should not mention Chilan Berry, the Chilan effect, or the unavailable reason in default advice unless the user explicitly asks about that item.
 
 ## KO Context Semantics
 
