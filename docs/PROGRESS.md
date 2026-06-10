@@ -8510,6 +8510,96 @@ Maintained boundaries:
 
 ---
 
+## v1.0.1 - Registry cleanup verification
+
+Purpose:
+- Verify that the v1.0 registry/filtering cleanup did not change existing item/advice context behavior.
+- Record regression results without adding new item mechanics or changing filtering behavior.
+
+Verified context behavior:
+- Available context retention:
+  - `survival_context`
+  - `recovery_context`
+  - `accuracy_context`
+  - `critical_context`
+  - `flinch_context`
+  - `multi_hit_context`
+  - `resist_berry_context`
+  - `type_boost_context`
+  - `speed_context`
+  - `speed_order_context`
+- Unavailable/deferred/blocked item contexts remain hidden from default advice payload.
+- Default advice payload still strips debug-only reason wording such as:
+  - `not modeled`
+  - `not reflected`
+  - `unsupported`
+  - `blocked`
+  - `deferred`
+  - `effect is not applied`
+  - `item effect is not included`
+
+Regression checks:
+- Choice Scarf:
+  - Existing top-level `speed_context` remains protected.
+  - Choice Scarf was not moved into `speed_order_context`.
+  - Choice lock remains unimplemented.
+- Quick Claw:
+  - `speed_order_context.available=true` remains in default advice payload.
+  - Activation probability and final move order remain uncalculated.
+- Type boost:
+  - Available legal type boost context remains in default advice payload.
+  - Mismatched/non-legal type boost item exposure through `damage_estimate.item_effects` remains scrubbed.
+- Damage / KO:
+  - No damage formula changes.
+  - No raw damage roll changes.
+  - No Q12 multiplier changes.
+  - No `ko_context` calculation changes.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 44 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 perf-sensitive failure; isolated rerun passed 3 times; file rerun passed 4 passed.
+- `uv run pytest -q`: 1 full-suite-sensitive perf failure, 896 passed, 2 deselected.
+- Failing perf-sensitive test: `tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average`.
+- Failure samples:
+  - perf file first run median `0.123070ms` over threshold `0.120000ms`
+  - full suite median `0.146497ms` over threshold `0.120000ms`
+- No threshold, skip, xfail, damage formula, raw roll, Q12, or `ko_context` changes were made.
+
+Verdict:
+- Registry/filtering behavior regression: PASS.
+- Choice Scarf regression: PASS.
+- Quick Claw regression: PASS.
+- Type-boost scrub regression: PASS.
+- Damage / KO regression: PASS.
+- Perf status: known perf-sensitive test remains environment/full-suite sensitive; isolated 3x and file rerun passed.
+
+Maintained boundaries:
+- Verification record only.
+- No code changes.
+- No filtering behavior changes.
+- No prompt changes.
+- No tests changed.
+- No new item implementation.
+- No new mechanics.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` calculation changes.
+- No speed calculation changes.
+- No final move order calculation.
+- No Quick Claw activation probability calculation.
+- No Choice Scarf choice lock implementation.
+- No priority, Trick Room, Tailwind, paralysis, boosts, ability, weather, or Turn Engine integration.
+- No item consumption.
+- No legal fixture changes.
+- No fixture changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
