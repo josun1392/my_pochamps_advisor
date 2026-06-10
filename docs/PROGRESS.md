@@ -8251,6 +8251,100 @@ Maintained boundaries:
 
 ---
 
+## v0.98.1 - Quick Claw local Gemini verification attempt
+
+Purpose:
+- Verify that v0.98 Quick Claw `speed_order_context` is represented safely in actual Gemini default advice.
+- Confirm unavailable Quick Claw contexts stay hidden from default advice payload.
+- Confirm Choice Scarf remains in existing `speed_context` and is not moved into `speed_order_context`.
+- Confirm Quick Claw does not affect raw damage rolls, `damage_estimate`, or `ko_context`.
+
+Gemini actual call:
+- Attempted local Gemini actual call through the normal default-advice prompt path.
+- Case A reached the Gemini API, but no model advice text was returned.
+- Failure: HTTP 429 `RESOURCE_EXHAUSTED`.
+- Actual Gemini natural-language wording could not be judged.
+- This is not recorded as PASS; v0.98.1 actual Gemini verification is BLOCKED.
+- No API key, secret, or account details were recorded.
+
+Payload preflight:
+- Case A - Quick Claw available:
+  - Enriched/debug payload had `speed_order_context.available=true`.
+  - Default advice payload retained `speed_order_context`.
+  - `speed_order_effect.type=quick_claw`.
+  - `activation_probability_calculated=false`.
+  - `final_move_order_calculated=false`.
+  - `speed_tie_resolved=false`.
+  - `priority_integrated=false`.
+  - `turn_engine_integrated=false`.
+  - Default advice payload retained raw damage range `31-37`.
+  - Default advice payload retained raw 16-roll damage list.
+  - Default advice payload retained `ko_context.ohko.chance=0.0`.
+  - Default advice payload did not contain hard move-order claims such as `will move first`, `guaranteed outspeeds`, `confirmed first`, `always acts before`, `wins the speed interaction`, or `safe because it moves first` from the context payload.
+- Case B - Quick Claw unavailable / unconfirmed:
+  - Enriched/debug payload had `speed_order_context.available=false`.
+  - Reason was `item_not_user_confirmed`.
+  - Default advice payload removed `speed_order_context`.
+  - Default advice payload hid the Quick Claw item profile as unknown.
+  - Default advice payload retained raw damage and `ko_context`.
+  - Default advice payload did not expose Quick Claw unavailable reason, item name, or unavailable-effect wording.
+- Case C - Choice Scarf regression:
+  - Enriched/debug payload had Quick Claw-specific `speed_order_context.available=false` with `unsupported_speed_order_item`.
+  - Default advice payload removed `speed_order_context`.
+  - Existing top-level `speed_context` remained available.
+  - Choice Scarf modifier remained in `speed_context.my_active.speed_modifiers`.
+  - Effective Speed remained `150` from raw Speed `100`.
+  - `speed_context.is_final_turn_order=false` remained unchanged.
+  - Choice lock remained unsupported/unmodeled; no choice lock implementation was added.
+- Case D - damage / KO regression:
+  - Same Quick Claw available payload retained raw damage range `31-37`.
+  - Raw damage rolls were unchanged.
+  - `ko_context` remained raw damage-roll context.
+  - No Quick Claw activation probability, final move order, or KO integration appeared.
+
+Verdict:
+- Payload preflight: PASS.
+- Actual Gemini natural-language verification: BLOCKED by HTTP 429 `RESOURCE_EXHAUSTED`.
+- Overall v0.98.1: BLOCKED / retry required once local Gemini API access is restored.
+
+Tests:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 41 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 2 failed, 2 passed on first run; rerun had 1 failed, 3 passed.
+- `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: failed on three isolated reruns in the current local environment.
+- `uv run pytest -q`: 1 failed, 893 passed, 2 deselected.
+- Failing test: `tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average`.
+- No threshold, skip, xfail, damage formula, raw roll, or Q12 changes were made.
+
+Maintained boundaries:
+- Documentation-only verification record.
+- No code changes.
+- No prompt changes.
+- No tests changed.
+- No fixture or legal fixture changes.
+- No new item implementation.
+- No speed calculation implementation.
+- No final move order calculation.
+- No Quick Claw activation probability calculation.
+- No speed tie, priority, Trick Room, Tailwind, paralysis, boosts, ability, or weather integration.
+- No Turn Engine.
+- No item consumption.
+- No Choice Scarf implementation.
+- No choice lock implementation.
+- No damage formula changes.
+- No raw damage roll modification.
+- No Q12 multiplier changes.
+- No `ko_context` calculation changes.
+- No UI changes.
+- No sample additions.
+- No logs, `.env`, secrets, API keys, or handoff capsule commits.
+
+Next:
+- Retry `v0.98.1 Quick Claw Local Gemini Verification` once local Gemini API access is restored.
+- If the retry passes, continue to the next Champions legal item design.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
