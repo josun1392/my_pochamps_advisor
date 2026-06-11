@@ -10499,6 +10499,46 @@ Result:
 
 ---
 
+## v2.7 - Available item context required mention guard
+
+Purpose:
+- Address the v2.6.1 failure mode where Gemini received available item contexts but fell back to generic no-item/default-assumption wording.
+- Require visible `available=true` item contexts in the default advice payload to be mentioned at least once when directly relevant.
+- Keep unavailable/deferred/blocked context filtering unchanged.
+
+v2.6.1 problem summary:
+- Light Ball / `species_stat_item_context`: FAIL because Gemini still said the user-confirmed Light Ball effect was not included despite `species_stat_item_context.available=true`.
+- Chilan Berry / `chilan_berry_context`: PARTIAL because Gemini did not mention the Normal-type limited Chilan context and used generic no-item wording.
+- Payload preflight, attachment, filtering, raw damage rolls, Q12, and `ko_context` were not the cause.
+
+Implemented:
+- Added a registry-backed prompt guard generated from the already-filtered default advice payload.
+- The guard lists available item contexts such as:
+  - Light Ball / `species_stat_item_context` as Pikachu-specific offensive item context.
+  - Chilan Berry / `chilan_berry_context` as Normal-type limited context.
+  - other visible `available=true` item contexts through the existing item-context registry.
+- The guard tells Gemini to mention each listed available item context at least once when directly relevant.
+- The guard forbids describing visible available item effects as unavailable, unmodeled, not included, not reflected, no item is considered, assuming no item, without item effects, or default no-item assumption.
+- The guard keeps wording limited and forbids turning item context into final KO odds, guaranteed survival, guaranteed move order, exact final stats, or final battle truth.
+
+Tests:
+- Added prompt assertions for available Light Ball required mention guard.
+- Added prompt assertions for available Chilan Berry required mention guard.
+- Added regression assertions that unavailable/non-triggered Light Ball and Chilan contexts do not trigger the available-context guard.
+- Preserved raw damage range, rolls, and `ko_context` assertions for the available contexts.
+
+Boundaries:
+- Actual Gemini call in v2.7: not run.
+- Vertex AI call in v2.7: not run.
+- raw damage formula changed: no
+- raw damage rolls changed: no
+- Q12 multiplier changed: no
+- `ko_context` changed: no
+- new item implementation: no
+- payload filtering behavior changed: no
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

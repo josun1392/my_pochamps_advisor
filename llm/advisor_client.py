@@ -106,6 +106,7 @@ def run_ui_selected_advice(
 
 def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
     advice_payload = build_ui_advice_payload(battle_input)
+    available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
@@ -126,6 +127,7 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "possible threats, but label them as unconfirmed. Opponent known move "
         "damage estimates, when present, are rough default-assumption threat "
         "references against my_active. User-confirmed final stats may be used "
+        f"{available_item_context_guard}"
         "when stat_profiles provides them, but do not infer EVs, IVs, nature, "
         "items, or speed order from final stats. If speed_context is present, "
         "treat it as raw/effective Speed comparison only, not final turn order. If "
@@ -416,6 +418,65 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "opponent sample metadata by default; keep sample visibility concise.\n\n"
         f"{json.dumps(advice_payload, ensure_ascii=False, indent=2)}"
     )
+
+
+def _build_available_item_context_required_mention_guard(payload: dict[str, Any]) -> str:
+    labels = _collect_available_item_context_labels(payload)
+    if not labels:
+        return ""
+    contexts = "; ".join(labels)
+    return (
+        "Available item contexts are present in the advice payload: "
+        f"{contexts}. Mention each listed available item context at least once "
+        "when it is directly relevant to the recommendation. Do not describe "
+        "these available item effects as unavailable, unmodeled, not included, "
+        "not reflected, no item is considered, assuming no item, without item "
+        "effects, or default no-item assumption. If a damage estimate also uses "
+        "default assumptions, keep that separate from the available limited item "
+        "context: say the raw damage/ko_context limitations remain, but do not "
+        "erase the available item context. Keep the wording limited. Do not "
+        "convert the context into final KO odds, guaranteed survival, guaranteed "
+        "move order, exact final stats, or final battle truth. "
+    )
+
+
+def _collect_available_item_context_labels(value: Any) -> list[str]:
+    labels: list[str] = []
+    _collect_available_item_context_labels_into(value, labels)
+    return labels
+
+
+def _collect_available_item_context_labels_into(value: Any, labels: list[str]) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key in ADVICE_ITEM_CONTEXT_KEYS and isinstance(child, dict) and child.get("available") is True:
+                labels.append(_available_item_context_label(key, child))
+            _collect_available_item_context_labels_into(child, labels)
+    elif isinstance(value, list):
+        for item in value:
+            _collect_available_item_context_labels_into(item, labels)
+
+
+def _available_item_context_label(context_key: str, context: dict[str, Any]) -> str:
+    item = context.get("item")
+    item_name = ""
+    if isinstance(item, dict):
+        raw_item = item.get("name_en") or item.get("item_id")
+        if isinstance(raw_item, str) and raw_item:
+            item_name = raw_item
+    if context_key == "species_stat_item_context":
+        return "Light Ball / species_stat_item_context as Pikachu-specific offensive item context"
+    if context_key == "chilan_berry_context":
+        return "Chilan Berry / chilan_berry_context as Normal-type limited context"
+    if context_key == "speed_order_context":
+        return "Quick Claw / speed_order_context as limited move-order context"
+    if context_key == "survival_context":
+        return f"{item_name or 'survival item'} / survival_context as limited survival context"
+    if context_key == "resist_berry_context":
+        return f"{item_name or 'resist berry'} / resist_berry_context as limited type-resist context"
+    if item_name:
+        return f"{item_name} / {context_key}"
+    return context_key
 
 
 def _remove_unavailable_item_contexts(value: Any) -> set[str]:

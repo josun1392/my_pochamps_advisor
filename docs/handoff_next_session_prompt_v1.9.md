@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, and the v2.6.1 post-polish actual verification result.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, and the v2.7 available item context required-mention guard.
 
 Update after v2.5:
 
@@ -14,13 +14,15 @@ Update after v2.5:
 - Chilan Berry actual Gemini verification: PARTIAL.
 - v2.6 applied a narrow wording polish for Light Ball and Chilan Berry.
 - v2.6.1 ran actual Gemini rechecks for Light Ball and Chilan Berry only.
+- v2.7 added a required-mention guard for visible `available=true` item contexts.
+- v2.7 did not run actual Gemini calls.
 
-Payload preflight PASS still does not imply actual Gemini PASS. Light Ball and Chilan Berry should remain follow-up items, but do not keep repeating actual Gemini calls until T2 decides whether to adjust the prompt/payload design around generic default-assumption/no-item wording.
+Payload preflight PASS still does not imply actual Gemini PASS. Light Ball and Chilan Berry should remain follow-up items until a post-v2.7 actual Gemini recheck is approved and run.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue from v2.6.1 Light Ball / Chilan Berry Actual Verification Retry.
+T3, continue from v2.7 Available Item Context Required Mention Guard.
 
 Goal:
 - Do not add new item contexts.
@@ -34,8 +36,10 @@ Goal:
 - v2.6.1 has already run a post-polish actual Gemini recheck:
   - Light Ball: FAIL
   - Chilan Berry: PARTIAL
+- v2.7 has already added a prompt guard requiring visible available item contexts to be mentioned at least once when directly relevant.
+- v2.7 actual Gemini recheck has not been run.
 - Do not treat Light Ball or Chilan Berry as full PASS.
-- Do not repeat actual Gemini calls until T2 decides whether prompt/payload design should change.
+- If T1/T2 approve, run a post-v2.7 actual Gemini recheck for Light Ball and Chilan Berry only.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -88,6 +92,9 @@ Current actual Gemini verification status:
      - Payload preflight stayed PASS.
      - Gemini still said damage estimates do not include the effect of the user-confirmed Light Ball.
      - Classification: wording guardrail failure / Gemini over-inference from generic default-assumption limitations.
+   - v2.7 guard:
+     - Prompt now lists visible available item contexts and requires mentioning each directly relevant context at least once.
+     - Prompt forbids describing available item effects as unavailable, unmodeled, not included, not reflected, no item is considered, assuming no item, without item effects, or default no-item assumption.
    - Do not treat as full PASS.
 
 4. Chilan Berry `chilan_berry_context`
@@ -108,6 +115,9 @@ Current actual Gemini verification status:
      - Gemini did not use exact forbidden Chilan wording.
      - Gemini still omitted the positive Normal-type limited context and used generic no-item default-assumption wording.
      - Classification: wording guardrail weakness / context omission.
+   - v2.7 guard:
+     - Prompt now lists visible available item contexts and requires mentioning each directly relevant context at least once.
+     - Prompt labels Chilan Berry / chilan_berry_context as Normal-type limited context.
    - Do not treat as full PASS.
 
 Global prohibitions:
@@ -150,4 +160,5 @@ Documentation expectations:
 - Focus Band and Quick Claw reached actual Gemini PASS.
 - Light Ball is FAIL after v2.6.1 due available-context wording failure, not API availability.
 - Chilan Berry remains PARTIAL after v2.6.1 due wording quality/context omission, not API availability.
+- v2.7 added available item context required-mention guard only; no actual Gemini recheck was run.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

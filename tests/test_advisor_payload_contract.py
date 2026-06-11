@@ -1093,7 +1093,15 @@ def test_advice_payload_preserves_available_chilan_context_for_normal_move() -> 
     assert "final damage is halved" not in rendered
     assert "raw damage rolls already include Chilan Berry" not in rendered
     assert "Chilan Berry applies to all move types" not in rendered
-    assert "chilan_berry_deferred" not in _build_ui_selected_prompt(enriched)
+    prompt = _build_ui_selected_prompt(enriched)
+    assert "Available item contexts are present in the advice payload" in prompt
+    assert "Chilan Berry / chilan_berry_context as Normal-type limited context" in prompt
+    assert "Mention each listed available item context at least once" in prompt
+    assert "Do not describe these available item effects as unavailable, unmodeled, not included" in prompt
+    assert "no item is considered, assuming no item, without item effects, or default no-item assumption" in prompt
+    assert "raw damage/ko_context limitations remain, but do not erase the available item context" in prompt
+    assert "final KO odds, guaranteed survival, guaranteed move order, exact final stats" in prompt
+    assert "chilan_berry_deferred" not in prompt
 
 
 def test_advice_payload_hides_unavailable_chilan_context_for_non_normal_move() -> None:
@@ -1118,9 +1126,11 @@ def test_advice_payload_hides_unavailable_chilan_context_for_non_normal_move() -
         advice_payload,
         extra_terms=("chilan-berry", "move_type_not_normal"),
     )
-    assert "chilan-berry" not in _build_ui_selected_prompt(enriched)
-    assert "chilan_berry_deferred" not in _build_ui_selected_prompt(enriched)
-    assert "move_type_not_normal" not in _build_ui_selected_prompt(enriched)
+    prompt = _build_ui_selected_prompt(enriched)
+    assert "Available item contexts are present in the advice payload" not in prompt
+    assert "chilan-berry" not in prompt
+    assert "chilan_berry_deferred" not in prompt
+    assert "move_type_not_normal" not in prompt
 
 
 def test_advice_payload_hides_unconfirmed_chilan_context_from_default_advice_payload() -> None:
@@ -1437,6 +1447,14 @@ def test_species_stat_item_context_preserves_pikachu_light_ball_context_in_advic
         "This context is not final stat truth and not a final KO guarantee."
         in advice_move["species_stat_item_context"]["limitations"]
     )
+    prompt = _build_ui_selected_prompt(enriched)
+    assert "Available item contexts are present in the advice payload" in prompt
+    assert "Light Ball / species_stat_item_context as Pikachu-specific offensive item context" in prompt
+    assert "Mention each listed available item context at least once" in prompt
+    assert "Do not describe these available item effects as unavailable, unmodeled, not included" in prompt
+    assert "not reflected, no item is considered, assuming no item, without item effects" in prompt
+    assert "default no-item assumption" in prompt
+    assert "do not erase the available item context" in prompt
     _assert_forbidden_terms_absent_from_advice_payload(
         advice_payload,
         extra_terms=(
@@ -1476,6 +1494,7 @@ def test_species_stat_item_context_hides_non_pikachu_light_ball_from_advice_payl
         advice_payload,
         extra_terms=("Light Ball", "light-ball", "holder_species_not_supported"),
     )
+    assert "Available item contexts are present in the advice payload" not in _build_ui_selected_prompt(enriched)
 
 
 def test_species_stat_item_context_hides_unconfirmed_light_ball_from_advice_payload() -> None:
@@ -1504,6 +1523,7 @@ def test_species_stat_item_context_hides_unconfirmed_light_ball_from_advice_payl
         advice_payload,
         extra_terms=("Light Ball", "light-ball", "item_not_user_confirmed"),
     )
+    assert "Available item contexts are present in the advice payload" not in _build_ui_selected_prompt(enriched)
 
 
 def test_speed_order_context_preserves_available_quick_claw_context_in_advice_payload() -> None:
@@ -1888,6 +1908,18 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     assert "Legal item selection does not imply the selected item has a modeled effect." in ADVISOR_KNOWN_LIMITATIONS
     assert (
         "Fairy Feather is legal but not damage-modeled until a catalog-backed modifier exists."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When available=true item contexts are present in the default advice payload, the prompt must require the LLM to mention each listed available item context at least once when directly relevant."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When available=true item contexts are present, do not describe those available item effects as unavailable, unmodeled, not included, not reflected, no item is considered, assuming no item, without item effects, or default no-item assumption."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Available item context wording must remain limited and must not become final KO odds, guaranteed survival, guaranteed move order, exact final stats, or final battle truth."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert "Type-boost item context may appear only as limited type_boost_context." in ADVISOR_KNOWN_LIMITATIONS

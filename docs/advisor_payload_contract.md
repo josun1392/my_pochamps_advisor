@@ -960,6 +960,26 @@ If `multi_hit_context.available` is false because the item is blocked by legal c
 
 Candidate moves do not receive `damage_estimate`, `survival_context`, `recovery_context`, `accuracy_context`, `critical_context`, `flinch_context`, `multi_hit_context`, `type_boost_context`, `speed_order_context`, `resist_berry_context`, `chilan_berry_context`, or `ko_context`.
 
+## Available Item Context Required Mention
+
+When the default advice payload contains one or more item context fields with `available=true`, the prompt must include a required-mention guard. The guard lists the available item contexts and tells Gemini to mention each listed context at least once when it is directly relevant to the recommendation.
+
+The guard is generated from the already-filtered default advice payload, not from the enriched/debug payload. Therefore it applies only to contexts still visible to ordinary advice. It must not reintroduce unavailable, deferred, blocked, unsupported, or non-triggered item names or reasons.
+
+Available item contexts must not be described as unavailable, unmodeled, not included, not reflected, absent, or omitted. In particular, when any available item context is present, ordinary advice should avoid generic wording such as:
+
+- "item is not included"
+- "item is not modeled"
+- "item is not reflected"
+- "no item is considered"
+- "assuming no item"
+- "without item effects"
+- "default no-item assumption"
+
+This guard does not change raw calculations. Available item context wording must remain limited and must not become final KO odds, guaranteed survival, guaranteed move order, exact final stats, or final battle truth. Raw damage rolls and `ko_context` remain governed by their existing fields.
+
+For Light Ball, an available `species_stat_item_context` should be mentioned as Pikachu-specific offensive item context. For Chilan Berry, an available `chilan_berry_context` should be mentioned as Normal-type limited context for a Normal-type damaging move.
+
 ## Unavailable Item Context Silence
 
 Unavailable, deferred, blocked, unconfirmed, non-triggered, or absent item context reasons are developer/debug/contract metadata by default. They should not be surfaced in ordinary battle advice.
