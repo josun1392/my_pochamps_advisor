@@ -266,6 +266,21 @@ Local setup was checked after this spike:
 
 Before any Vertex AI smoke call, T1 needs to install Google Cloud CLI, configure the intended project, set up ADC or an external service account credential, enable `aiplatform.googleapis.com`, and provide project/location/model settings through local environment variables or command arguments.
 
+## v2.3 Local Setup Attempt Result
+
+Local setup was attempted after the readiness check:
+
+- Google Cloud CLI install: completed with `Google.CloudSDK` version `572.0.0`
+- current shell PATH: not refreshed; open a new PowerShell or use the installed `gcloud.cmd` path directly
+- `gcloud init`: needs T1 browser login/account/project selection
+- configured project: `gen-lang-client-0167075914`
+- ADC: not configured; T1 needs to run `gcloud auth application-default login`
+- `aiplatform.googleapis.com` check: blocked until an active gcloud account is selected
+- Vertex AI smoke test: `NOT_RUN_SETUP_INCOMPLETE`
+- pending item-context verification: not run
+
+Next local setup step: T1 should complete `gcloud init`, complete ADC login, confirm API enablement, and set temporary Vertex AI environment variables before any smoke call.
+
 ## Proposed Post-Readiness Path
 
 Recommended next implementation candidate:

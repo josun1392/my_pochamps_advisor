@@ -10149,6 +10149,94 @@ Maintained boundaries:
 
 ---
 
+## v2.3 - Google Cloud CLI setup attempt for Vertex AI smoke test
+
+Purpose:
+- Prepare the local environment for a future Vertex AI Gemini smoke test as far as possible.
+- Stop at any T1-owned browser login, account selection, or permission approval step.
+- Avoid pending item-context verification and avoid actual Vertex AI smoke calls until setup is complete.
+
+Repo state:
+- branch: `master`
+- remote tracking: `my_pochamps/master`
+- unpushed commits before this record: none
+- local uncommitted change observed: `logs/token_usage.jsonl` only
+
+Google Cloud CLI:
+- initial `gcloud --version`: GCLOUD_NOT_INSTALLED
+- `winget` availability: available
+- package candidate found: `Google.CloudSDK` version `572.0.0`
+- install attempt: ran `winget install --id Google.CloudSDK --exact --accept-package-agreements --accept-source-agreements`
+- install result: installed locally under the user Google Cloud SDK path
+- current PowerShell session PATH: not refreshed, so plain `gcloud` still may not resolve until a new shell is opened
+- direct installed command check: GCLOUD_AVAILABLE
+- direct installed version: Google Cloud SDK `572.0.0`
+
+gcloud init / project:
+- `gcloud init`: attempted, then stopped because it did not complete non-interactively and appears to require T1 login/account/project selection
+- classification: GCLOUD_INIT_NEEDS_T1_LOGIN
+- project before setup: unset
+- project configured non-interactively: `gen-lang-client-0167075914`
+- project classification: PROJECT_SET
+
+Authentication and API enablement:
+- ADC check via `gcloud auth application-default print-access-token`: ADC_NOT_CONFIGURED
+- ADC classification: ADC_NEEDS_T1_LOGIN
+- `aiplatform.googleapis.com` enablement check: CHECK_FAILED because no active gcloud account is selected
+- API enablement classification: CHECK_FAILED_NEEDS_T1_LOGIN
+
+Environment variables:
+- `GOOGLE_CLOUD_PROJECT`: unset
+- `GOOGLE_CLOUD_LOCATION`: unset
+- `VERTEX_AI_MODEL`: unset
+- `GOOGLE_GENAI_USE_ENTERPRISE`: unset
+- `GOOGLE_APPLICATION_CREDENTIALS`: unset
+- recommended temporary PowerShell values remain:
+  - `$env:LLM_PROVIDER="vertex_ai_gemini"`
+  - `$env:GOOGLE_CLOUD_PROJECT="gen-lang-client-0167075914"`
+  - `$env:GOOGLE_CLOUD_LOCATION="global"`
+  - `$env:VERTEX_AI_MODEL="gemini-2.5-flash"`
+  - `$env:GOOGLE_GENAI_USE_ENTERPRISE="True"`
+
+Smoke readiness:
+- Vertex AI smoke prompt was not executed.
+- result classification: NOT_RUN_SETUP_INCOMPLETE
+- actual response generated: no
+- additional Vertex AI actual calls: no
+- pending item-context verification: not executed
+
+T1 direct action required:
+- Open a new PowerShell after installation so PATH updates are available, or use the installed `gcloud.cmd` path directly.
+- Run `gcloud init` and complete Google account login/account/project selection.
+- Run `gcloud auth application-default login` and approve ADC access in the browser.
+- Confirm or enable `aiplatform.googleapis.com` for project `gen-lang-client-0167075914`.
+- Set temporary PowerShell environment variables before a future smoke test.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+
+Maintained boundaries:
+- Local setup and documentation-only repo record.
+- No Vertex AI smoke call.
+- No pending item-context verification.
+- No Gemini Developer API retry.
+- No provider code implementation.
+- No existing Developer API client deletion or replacement.
+- No payload filtering changes.
+- No prompt hardening.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No legal fixture changes.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, access tokens, service account JSON, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
