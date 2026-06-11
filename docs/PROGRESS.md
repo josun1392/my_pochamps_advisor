@@ -10305,6 +10305,103 @@ Maintained boundaries:
 
 ---
 
+## v2.5 - Gemini Developer API prepay recovery smoke and pending verification retry
+
+Purpose:
+- Recheck the existing Gemini Developer API / AI Studio API-key path after T1 completed Prepay credit recovery.
+- Use the Developer API path only, not Vertex AI.
+- Run one smoke prompt, then retry the pending item-context actual natural-language verification only if smoke is available.
+
+Repo state:
+- branch: `master`
+- remote tracking: `my_pochamps/master`
+- unpushed commits before this record: none
+- local uncommitted change observed: `logs/token_usage.jsonl` only
+
+Smoke test:
+- provider: `gemini_developer_api`
+- endpoint family: `generativelanguage.googleapis.com`
+- auth: API key from local environment / `.env`; value not printed
+- model: `gemini-2.5-flash`
+- prompt: `Reply exactly: OK`
+- execution count: 1
+- result classification: AVAILABLE
+- actual response generated: yes
+- response summary: `OK`
+- usage summary recorded only as short counts: input 5 / output 1 / cached 0
+- additional smoke retry: no
+- Vertex AI path: not used
+
+Pending item-context actual verification:
+- execution condition: smoke was AVAILABLE, so the pending queue was retried
+- item actual call count: 4
+- total actual calls including smoke: 5
+- automatic retries: no
+- repeated loops/backoff: no
+- payload preflight: PASS for all four cases
+
+Results:
+- Focus Band / `survival_context`: PASS
+  - preflight: `survival_context.available=true`, `survival_effect.type=focus_band`
+  - actual advice mentioned Focus Band and limited survival wording: "may occasionally survive"
+  - forbidden wording: none
+  - response preserved that activation probability is not calculated
+- Quick Claw / `speed_order_context`: PASS
+  - preflight: `speed_order_context.available=true`, `speed_order_effect.type=quick_claw`
+  - actual advice mentioned Quick Claw with limited move-order wording: "may affect move order"
+  - forbidden wording: none
+  - response preserved that activation/final turn order are not modeled
+- Light Ball / `species_stat_item_context`: PARTIAL
+  - preflight: `species_stat_item_context.available=true`, holder species `pikachu`
+  - actual advice mentioned Pikachu and user-confirmed Light Ball
+  - forbidden wording: none
+  - weakness: response said current damage estimates do not include the stat boost from Pikachu's Light Ball, instead of the preferred limited wording that Light Ball may boost Pikachu's offensive stats in the underlying calculation and should not be treated as final KO truth
+  - failure classification: wording guardrail weakness / Gemini over-inference
+- Chilan Berry / `chilan_berry_context`: PARTIAL
+  - preflight: `chilan_berry_context.available=true`, incoming move type `normal`
+  - actual advice mentioned Chilan Berry's potential reduction for Tackle and did not claim adjusted rolls or final survival
+  - forbidden wording: none
+  - weakness: response did not explicitly limit the effect to a Normal-type move and used weak "not included in the raw damage estimate" wording rather than the preferred limited-context phrasing
+  - failure classification: wording guardrail weakness
+
+Raw calculation impact:
+- raw damage formula changed: no
+- raw damage rolls changed: no
+- Q12 multiplier changed: no
+- `ko_context` changed: no
+- payload filtering changed: no
+- prompt hardening changed: no
+
+Verdict:
+- Developer API Prepay recovery smoke: AVAILABLE.
+- Pending item-context actual Gemini verification is no longer blocked by HTTP 429.
+- Actual Gemini PASS items: Focus Band, Quick Claw.
+- Actual Gemini PARTIAL items: Light Ball, Chilan Berry.
+- Remaining work should focus on T1/T2 deciding whether to polish wording for Light Ball and Chilan Berry, without changing damage math or item mechanics.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+
+Maintained boundaries:
+- No Vertex AI call.
+- No new item implementation.
+- No provider code implementation.
+- No existing Developer API client deletion or replacement.
+- No payload filtering changes.
+- No prompt hardening.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No legal fixture changes.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, access tokens, ADC credential contents, service account JSON, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

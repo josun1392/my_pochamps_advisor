@@ -1,23 +1,34 @@
-# Next Session Prompt v1.9 - Pending Gemini Verification
+# Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the pending actual Gemini verification queue that remains blocked by HTTP 429 `RESOURCE_EXHAUSTED`.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results.
 
-Update after v2.0: the retry batch was attempted again. The first Focus Band actual Gemini call returned HTTP 429 `RESOURCE_EXHAUSTED`, so Quick Claw, Light Ball, and Chilan Berry were not called and remain `BLOCKED_BATCH`. Payload preflight stayed PASS for all four cases.
+Update after v2.5:
 
-Update after Gemini availability smoke check: the current model is `gemini-2.5-flash`; a minimal `Reply exactly: OK` prompt also returned HTTP 429 `RESOURCE_EXHAUSTED`, so the blocker is API availability/quota/credits rather than item-context payload shape.
+- Developer API smoke recovered: `AVAILABLE`.
+- Provider used: `gemini_developer_api`.
+- Endpoint family used: `generativelanguage.googleapis.com`.
+- Vertex AI was not used.
+- Focus Band actual Gemini verification: PASS.
+- Quick Claw actual Gemini verification: PASS.
+- Light Ball actual Gemini verification: PARTIAL.
+- Chilan Berry actual Gemini verification: PARTIAL.
 
-Update after v2.1: `docs/spike_v2.1_vertex_ai_gemini_migration_design.md` documents an optional Vertex AI Gemini provider path. The current Gemini Developer API key path remains unchanged, and no Vertex AI actual call has been run.
+Payload preflight PASS still does not imply actual Gemini PASS. Light Ball and Chilan Berry should remain follow-up items until T1/T2 accept the PARTIAL wording or approve a narrow wording polish and recheck.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue from v1.9 Pending Verification Capsule Finalization.
+T3, continue from v2.5 Gemini Developer API Prepay Recovery Verification.
 
 Goal:
-- Resume only the pending actual Gemini natural-language verification queue when Gemini quota/access has recovered.
 - Do not add new item contexts.
-- Do not change payload filtering, prompt guardrails, damage formula, raw damage rolls, Q12 math, ko_context, legal fixtures, tests thresholds, skip, or xfail.
-- Do not mark payload preflight PASS as actual Gemini PASS.
+- Do not run extra Gemini calls unless T1/T2 explicitly approve them.
+- Review v2.5 actual Gemini results:
+  - Focus Band: PASS
+  - Quick Claw: PASS
+  - Light Ball: PARTIAL
+  - Chilan Berry: PARTIAL
+- Decide whether Light Ball and Chilan Berry need a narrow wording polish or whether T1/T2 accepts the PARTIAL wording.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -28,105 +39,61 @@ Repo / branch / remote checks first:
 6. Do not commit `.env`, secrets, API keys, billing information, token-log contents, or `docs/handoff_capsule_v1.1.md`.
 7. Do not print API keys, secrets, billing details, or token-log contents.
 
-Current pending verification queue:
+Current actual Gemini verification status:
+
 1. Focus Band within `survival_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status: BLOCKED_HTTP_429 in v1.7 and again in v2.0.
-   - Context fields to verify before actual call:
+   - Actual Gemini status after v2.5: PASS.
+   - Actual advice used limited wording: Focus Band may occasionally survive.
+   - Forbidden wording observed: none.
+   - Context fields:
      - `survival_context.available=true`
      - `survival_effect.type=focus_band`
-     - raw damage `31-37`
-     - raw rolls `[31, 32, 32, 33, 33, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37]`
-     - `ko_context.raw_damage_rolls_changed=false`
-   - Actual advice should say limited survival only, such as `may occasionally survive` / `survival is not guaranteed`.
-   - Forbidden wording:
-     - `will survive`
-     - `guaranteed survive`
-     - `cannot be KO'd`
-     - `confirmed live`
+     - raw damage/rolls unchanged
+     - `ko_context` unchanged
 
 2. Quick Claw `speed_order_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status: BLOCKED_BATCH in v1.7 and again in v2.0.
-   - Context fields to verify before actual call:
+   - Actual Gemini status after v2.5: PASS.
+   - Actual advice used limited wording: Quick Claw may affect move order.
+   - Forbidden wording observed: none.
+   - Context fields:
      - `speed_order_context.available=true`
      - `speed_order_effect.type=quick_claw`
-     - raw damage `31-37`
-     - raw rolls `[31, 32, 32, 33, 33, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37]`
-     - `ko_context.raw_damage_rolls_changed=false`
-   - Actual advice should say limited move-order context only, such as `may affect move order` / `not guaranteed priority`.
-   - Forbidden wording:
-     - `will move first`
-     - `guaranteed outspeeds`
-     - `confirmed first`
-     - `always acts before`
-     - `wins the speed interaction`
+     - raw damage/rolls unchanged
+     - `ko_context` unchanged
 
 3. Light Ball `species_stat_item_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status: BLOCKED_BATCH in v1.7 and again in v2.0.
-   - Context fields to verify before actual call:
-     - `species_stat_item_context.available=true`
-     - holder species detail is `pikachu`
-     - raw damage `0-0`
-     - raw rolls are sixteen `0` rolls
-     - `ko_context.raw_damage_rolls_changed=false`
-   - Actual advice should limit Light Ball to Pikachu and avoid final stat or KO certainty.
-   - Forbidden wording:
-     - `all Electric-type Pokemon benefit`
-     - `Light Ball works on any holder`
-     - `guaranteed KO`
-     - `confirmed OHKO`
-     - `always doubles damage`
-     - `final stats are fully known`
+   - Actual Gemini status after v2.5: PARTIAL.
+   - Actual advice mentioned Pikachu and user-confirmed Light Ball.
+   - Forbidden wording observed: none.
+   - Weakness:
+     - Gemini said current damage estimates do not include the stat boost from Pikachu's user-confirmed Light Ball.
+     - Preferred wording is limited explanatory context: Light Ball may boost Pikachu's offensive stats in the underlying calculation, is species-specific to Pikachu, and is not a final KO guarantee.
+   - Do not treat as full PASS until T1/T2 accepts this wording or approves a wording polish and recheck.
 
 4. Chilan Berry `chilan_berry_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status: BLOCKED_BATCH in v1.7 and again in v2.0.
-   - Context fields to verify before actual call:
-     - `chilan_berry_context.available=true`
-     - incoming move type is `normal`
-     - raw damage `14-17`
-     - raw rolls `[14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 17]`
-     - `ko_context.raw_damage_rolls_changed=false`
-   - Actual advice should limit Chilan Berry to Normal-type move damage and avoid final survival or adjusted-roll claims.
-   - Forbidden wording:
-     - `Chilan Berry applies to all move types`
-     - `guaranteed survival`
-     - `confirmed live`
-     - `will survive because of Chilan Berry`
-     - `final damage is halved`
-     - `raw damage rolls already include Chilan Berry`
-
-Payload preflight PASS is not actual Gemini PASS:
-- Payload preflight PASS means the default advice payload has the expected available context, no unavailable/debug-only item reason leak, and raw damage / raw rolls / Q12 / ko_context remain unchanged.
-- Actual Gemini PASS requires a successful Gemini natural-language response that uses limited wording and avoids every forbidden phrase for that item.
-- If the actual call is blocked by HTTP 429 `RESOURCE_EXHAUSTED`, record BLOCKED, not PASS.
-
-Gemini retry conditions:
-- Retry only when Gemini quota/access appears restored.
-- If the first actual call returns HTTP 429 `RESOURCE_EXHAUSTED`, stop the batch immediately.
-- If the first call is HTTP 429, record Focus Band as `BLOCKED_HTTP_429` and the remaining items as `BLOCKED_BATCH`.
-- If no 429 occurs, run in this order: Focus Band -> Quick Claw -> Light Ball -> Chilan Berry.
-- Classify each item as `PASS`, `PARTIAL`, `FAIL`, or `BLOCKED`.
-
-Failure classification:
-- `payload leak`
-- `wording guardrail failure`
-- `Gemini over-inference`
-- `wrong item/context attachment`
-- `API BLOCKED_HTTP_429`
+   - Actual Gemini status after v2.5: PARTIAL.
+   - Actual advice mentioned Chilan Berry's potential reduction for Tackle.
+   - Forbidden wording observed: none.
+   - Weakness:
+     - Gemini did not explicitly say Normal-type.
+     - Gemini used weak "not included in the raw damage estimate" wording rather than preferred limited-context phrasing.
+   - Preferred wording: Chilan Berry may reduce damage from a Normal-type move; this is limited context and not integrated into final KO odds.
+   - Do not treat as full PASS until T1/T2 accepts this wording or approves a wording polish and recheck.
 
 Global prohibitions:
 - No Gemini actual PASS from payload preflight alone.
 - No new item implementation.
 - No new mechanics.
-- No payload filtering behavior change.
-- No prompt hardening behavior change unless an actual failure is confirmed and T1/T2 approve it.
+- No payload filtering behavior change unless explicitly approved.
+- No prompt hardening behavior change unless explicitly approved.
 - No damage formula change.
 - No raw damage roll change.
 - No Q12 multiplier change.
@@ -142,7 +109,7 @@ Global prohibitions:
 - No skip or xfail.
 - No logs, `.env`, secrets, API keys, billing details, token-log contents, or `docs/handoff_capsule_v1.1.md` commit.
 
-Suggested tests after recording verification results:
+Suggested tests after any documentation or approved wording work:
 - `uv run pytest tests/test_advisor_payload_contract.py -q`
 - `uv run pytest tests/test_advisor_damage_estimate.py -q`
 - `uv run pytest tests/test_damage_perf.py -q`
@@ -150,20 +117,14 @@ Suggested tests after recording verification results:
 - If perf is timing-sensitive, rerun isolated/perf-file tests and report medians/thresholds. Do not change thresholds, skip, or xfail.
 
 Documentation expectations:
-- Record results in `docs/PROGRESS.md`.
-- If the queue status changes, update `docs/handoff_pending_gemini_verification_v1.8.md` or create a new handoff note as directed by T1/T2.
+- Record follow-up decisions in `docs/PROGRESS.md`.
+- If status changes, update `docs/handoff_pending_gemini_verification_v1.8.md`.
 - Keep `docs/handoff_capsule_v1.1.md` untouched.
-
-Before v2.0 / next milestone, T1/T2 should decide:
-- Whether to retry this pending Gemini queue as soon as quota recovers.
-- Whether to pause new item context expansion until actual Gemini PASS exists for Focus Band, Quick Claw, Light Ball, and Chilan Berry.
-- Whether adding more item contexts is acceptable while these four remain actual Gemini BLOCKED.
-- Whether a release/milestone can be marked complete with payload preflight PASS but actual Gemini BLOCKED.
-- Whether to refresh handoff docs after actual PASS/PARTIAL/FAIL results.
 ```
 
 ## Maintainer Notes
 
-- This prompt is intentionally conservative: payload preflight PASS does not imply actual Gemini PASS.
-- The current pending items are implemented and payload-preflighted, but actual natural-language verification remains blocked by API quota/access.
+- The old HTTP 429 blocker is no longer the current Developer API state after v2.5.
+- Focus Band and Quick Claw reached actual Gemini PASS.
+- Light Ball and Chilan Berry remain PARTIAL due wording quality, not API availability.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.
