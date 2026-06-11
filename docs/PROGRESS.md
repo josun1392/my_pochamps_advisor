@@ -10681,6 +10681,79 @@ Verification:
 
 ---
 
+## v2.8.1 - Light Ball no-item residue guard actual verification
+
+Purpose:
+- Recheck only Light Ball after the v2.8 Light Ball-specific no-item residue guard.
+- Do not recheck Chilan Berry, Focus Band, or Quick Claw because they already reached actual Gemini PASS.
+
+Execution:
+- provider: `gemini_developer_api`
+- endpoint family: `generativelanguage.googleapis.com`
+- model: `gemini-2.5-flash`
+- Developer API calls: yes, one Light Ball actual verification call only.
+- Vertex AI calls: none.
+- automatic retry loop: none.
+- Chilan Berry / Focus Band / Quick Claw calls: none.
+
+Payload preflight:
+- Light Ball / `species_stat_item_context`: PASS
+  - `species_stat_item_context.available=true`
+  - holder species `pikachu`
+  - item `light-ball`
+  - available context present in the default advice payload
+  - required mention guard present
+  - required mention guard included the Light Ball / `species_stat_item_context` label
+  - Light Ball-specific no-item residue guard present
+  - supported Light Ball modifier wording guard present
+  - raw damage rolls present and unchanged
+  - `ko_context` present and unchanged
+
+Actual Gemini result:
+- Light Ball: FAIL
+  - Gemini generated an actual response.
+  - Gemini mentioned Light Ball as a Pikachu-specific offensive item context.
+  - Gemini still described the estimate using a `no item` default assumption label.
+  - Gemini also said the Light Ball offensive stat boost is not applied to the damage estimates.
+  - This is the same core failure mode as v2.6.1/v2.7.1: available Light Ball context is present, but Gemini undercuts it with generic no-item / not-applied wording.
+  - Classification: no-item residue still present / wording guardrail failure.
+
+Forbidden wording / leaks:
+- payload leak observed: no.
+- wrong context attachment observed: no.
+- non-Pikachu generalization observed: no.
+- guaranteed KO / confirmed OHKO / always-doubles-damage wording observed: no.
+- exact final stats claim observed: no.
+- Light Ball no-item residue observed: yes.
+
+Raw calculation impact:
+- raw damage formula changed: no.
+- raw damage rolls changed: no.
+- Q12 multiplier changed: no.
+- `ko_context` changed: no.
+- new item implementation: no.
+- payload filtering behavior changed: no.
+
+Result:
+- Actual Gemini PASS items remain: Focus Band, Quick Claw, Chilan Berry.
+- Light Ball remains not PASS after v2.8.1: FAIL.
+- Recommended next step: do not add another prompt-only guard blindly. T2 should review whether the payload should avoid conflicting no-item assumption-profile wording when an applied Light Ball item effect is present, while still preserving raw damage / roll / `ko_context` boundaries.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: one timing-sensitive perf failure:
+  - failure test: `test_item_damage_calculation_under_point_12ms_average`
+  - best batch median: 0.125000ms
+  - threshold: 0.120000ms
+  - isolated target rerun 3x: passed.
+  - `uv run pytest tests/test_damage_perf.py -q` rerun: 4 passed.
+  - full suite result: 1 failed, 901 passed, 2 deselected.
+- threshold/skip/xfail changed: no.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
