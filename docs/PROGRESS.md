@@ -10813,6 +10813,81 @@ Verification:
 
 ---
 
+## v3.0 - Light Ball damage estimate integration design
+
+Purpose:
+- Design whether and how Light Ball should be integrated into advisor damage estimates after the v2.8.1/v2.9 Light Ball failure analysis.
+- This is design-only; implementation is deferred to v3.1.
+
+Background:
+- Actual Gemini PASS: Focus Band, Quick Claw, Chilan Berry.
+- Actual Gemini FAIL: Light Ball.
+- v2.9 found a payload conflict:
+  - `species_stat_item_context.available=true`
+  - but `damage_estimate.assumption_profile` still says no item
+  - `damage_estimate.assumptions.item=none`
+  - Light Ball item/profile/context status still says not applied
+
+Design conclusion:
+- T2-preferred direction is Option A:
+  - integrate user-confirmed Pikachu + Light Ball into the advisor damage estimate under narrow conditions
+  - make `damage_estimate.item_effects.attacker_item.status=applied`
+  - change assumption profile / assumptions away from no-item wording
+  - allow raw damage rolls and `ko_context` to change only for eligible Pikachu + Light Ball cases
+- `species_stat_item_context` should become a sibling explanation of the applied `damage_estimate.item_effects` modifier, not an explanatory-only context that conflicts with the raw estimate.
+
+Important implementation caveat:
+- `advisor/damage/item_modifiers.py` has Light Ball-aware `attack_stat_item_mod(...)`.
+- The current `calc_damage_rolls()` path appears to use `get_atk_item_modifier(...)` / `get_spa_item_modifier(...)` directly, so v3.1 must verify whether passing Light Ball into `DamageContext.attacker_item` is enough.
+- Preferred v3.1 path is to route formula attack-stat item modifier handling through the shared Light Ball-aware helper, preserving Choice Band / Choice Specs behavior.
+
+Proposed v3.1 scope:
+- Apply Light Ball only when:
+  - attacker item profile is `user_confirmed`
+  - item id is `light-ball`
+  - attacker species is `pikachu`
+  - Champions legal fixture passes
+  - `items_damage.json` species-stat metadata exists
+  - move is damaging and physical/special
+- Do not apply for:
+  - non-Pikachu holders
+  - unconfirmed item
+  - defender-side Light Ball for attacker estimates
+  - status or unsupported moves
+  - blocked/unavailable item coverage
+
+Testing plan:
+- Add damage estimate tests for physical and special Pikachu Light Ball roll increases.
+- Add non-Pikachu and unconfirmed negative tests.
+- Assert `assumptions.item` is not `none` and `item_effects.attacker_item.status=applied`.
+- Assert `species_stat_item_context.available=true` aligns with the applied item effect status.
+- Assert `ko_context` derives from the adjusted rolls but remains limited/not final battle truth.
+- Regress Focus Band, Quick Claw, Chilan Berry, type boost, resist berry, Choice Scarf, and existing damage item behavior.
+
+Boundaries:
+- actual Gemini call: not run in v3.0.
+- Vertex AI call: not run.
+- code changes: none.
+- raw damage formula changed: no.
+- raw damage rolls changed: no.
+- Q12 multiplier changed: no.
+- `ko_context` changed: no.
+- payload filtering changed: no.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had one timing-sensitive failure:
+  - failure test: `test_item_damage_calculation_under_point_12ms_average`
+  - best batch median: 0.140625ms
+  - threshold: 0.120000ms
+  - isolated target rerun 3x: passed.
+  - `uv run pytest tests/test_damage_perf.py -q` rerun: 4 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+- threshold/skip/xfail changed: no.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
