@@ -9939,6 +9939,67 @@ Maintained boundaries:
 
 ---
 
+## v2.0.1 - Gemini API availability and model config check
+
+Purpose:
+- Separate the HTTP 429 blocker from item-context payload correctness.
+- Check the active Gemini model/client configuration without printing secrets.
+- Run one minimal smoke prompt only, not item-context verification.
+
+Client configuration observed:
+- model id: `gemini-2.5-flash`
+- API key environment presence: present, value not printed
+- endpoint path: Gemini REST `generateContent`
+- temperature: not explicitly configured in the local client
+- max output tokens: not explicitly configured in the local client
+- thinking config: not explicitly configured in the local client
+- retry/backoff: not configured in the local client
+- timeout: 60 seconds
+
+Smoke prompt:
+- prompt: `Reply exactly: OK`
+- item context payload: not used
+- result classification: BLOCKED_HTTP_429
+- safe error summary: Gemini API returned HTTP 429 `RESOURCE_EXHAUSTED`; the response indicated depleted prepayment credits and directed project/billing management in AI Studio
+- no additional Gemini actual calls were made after the smoke 429
+
+External documentation basis:
+- Google Gemini API troubleshooting classifies HTTP 429 `RESOURCE_EXHAUSTED` as exceeding rate limits and recommends checking the model's rate limit or requesting quota increase: https://ai.google.dev/gemini-api/docs/troubleshooting
+- Google Gemini API rate limits are evaluated across dimensions such as requests per minute, tokens per minute, and requests per day, and exceeding any one can trigger a rate limit error: https://ai.google.dev/gemini-api/docs/rate-limits
+- Google Gemini thinking documentation says Gemini models can use dynamic thinking by default; Gemini 2.5 Flash/Pro thinking can increase latency/token usage depending on configuration and model behavior: https://ai.google.dev/gemini-api/docs/thinking
+- Active rate limits and quota/account status should be checked in AI Studio / Google project quota views; this repo must not print or commit API keys, billing details, or token-log contents.
+
+Verdict:
+- The blocker is not reproduced by item-context payload shape; even the smallest smoke prompt is blocked.
+- Pending item-context actual Gemini verification remains BLOCKED, not PASS.
+- Next action remains: wait for quota/access/credits recovery, then retry Focus Band first.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 timing-sensitive perf failure:
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+- isolated target perf test 3x: passed.
+- `uv run pytest tests/test_damage_perf.py -q` first rerun: 1 timing-sensitive perf failure:
+  - best batch median `0.140625ms`, threshold `0.120000ms`
+- `uv run pytest -q`: 1 full-suite timing-sensitive perf failure, 901 passed, 2 deselected:
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+- `uv run pytest tests/test_damage_perf.py -q` second rerun: 4 passed.
+
+Maintained boundaries:
+- No item-context actual PASS recorded.
+- No new item implementation.
+- No new mechanics.
+- No payload filtering changes.
+- No prompt hardening.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

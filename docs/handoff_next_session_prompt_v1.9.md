@@ -4,6 +4,8 @@ This document is a copy-paste-ready prompt for the next T3 session. It preserves
 
 Update after v2.0: the retry batch was attempted again. The first Focus Band actual Gemini call returned HTTP 429 `RESOURCE_EXHAUSTED`, so Quick Claw, Light Ball, and Chilan Berry were not called and remain `BLOCKED_BATCH`. Payload preflight stayed PASS for all four cases.
 
+Update after Gemini availability smoke check: the current model is `gemini-2.5-flash`; a minimal `Reply exactly: OK` prompt also returned HTTP 429 `RESOURCE_EXHAUSTED`, so the blocker is API availability/quota/credits rather than item-context payload shape.
+
 ## Copy-Paste Prompt
 
 ```text
