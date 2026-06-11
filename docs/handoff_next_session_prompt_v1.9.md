@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results and the v2.6 Light Ball / Chilan Berry wording polish status.
 
 Update after v2.5:
 
@@ -12,13 +12,15 @@ Update after v2.5:
 - Quick Claw actual Gemini verification: PASS.
 - Light Ball actual Gemini verification: PARTIAL.
 - Chilan Berry actual Gemini verification: PARTIAL.
+- v2.6 applied a narrow wording polish for Light Ball and Chilan Berry.
+- v2.6 did not run actual Gemini rechecks.
 
-Payload preflight PASS still does not imply actual Gemini PASS. Light Ball and Chilan Berry should remain follow-up items until T1/T2 accept the PARTIAL wording or approve a narrow wording polish and recheck.
+Payload preflight PASS still does not imply actual Gemini PASS. Light Ball and Chilan Berry should remain follow-up items until T1/T2 approve and run a post-polish actual Gemini recheck.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue from v2.5 Gemini Developer API Prepay Recovery Verification.
+T3, continue from v2.6 Light Ball / Chilan Berry Limited Wording Polish.
 
 Goal:
 - Do not add new item contexts.
@@ -28,7 +30,8 @@ Goal:
   - Quick Claw: PASS
   - Light Ball: PARTIAL
   - Chilan Berry: PARTIAL
-- Decide whether Light Ball and Chilan Berry need a narrow wording polish or whether T1/T2 accepts the PARTIAL wording.
+- v2.6 has already applied a narrow wording polish for Light Ball and Chilan Berry.
+- Do not treat Light Ball or Chilan Berry as full PASS until T1/T2 approves and runs a post-polish actual Gemini recheck.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -71,10 +74,13 @@ Current actual Gemini verification status:
    - Actual Gemini status after v2.5: PARTIAL.
    - Actual advice mentioned Pikachu and user-confirmed Light Ball.
    - Forbidden wording observed: none.
-   - Weakness:
+   - v2.5 weakness:
      - Gemini said current damage estimates do not include the stat boost from Pikachu's user-confirmed Light Ball.
      - Preferred wording is limited explanatory context: Light Ball may boost Pikachu's offensive stats in the underlying calculation, is species-specific to Pikachu, and is not a final KO guarantee.
-   - Do not treat as full PASS until T1/T2 accepts this wording or approves a wording polish and recheck.
+   - v2.6 polish:
+     - Prompt/contract now tells Gemini to describe available Light Ball as a Pikachu-specific offensive item context.
+     - Prompt/contract now says not to say Light Ball is not included or not modeled when the available context is present.
+   - Do not treat as full PASS until T1/T2 approves and runs a post-polish actual Gemini recheck.
 
 4. Chilan Berry `chilan_berry_context`
    - Implementation: complete.
@@ -82,11 +88,14 @@ Current actual Gemini verification status:
    - Actual Gemini status after v2.5: PARTIAL.
    - Actual advice mentioned Chilan Berry's potential reduction for Tackle.
    - Forbidden wording observed: none.
-   - Weakness:
+   - v2.5 weakness:
      - Gemini did not explicitly say Normal-type.
      - Gemini used weak "not included in the raw damage estimate" wording rather than preferred limited-context phrasing.
    - Preferred wording: Chilan Berry may reduce damage from a Normal-type move; this is limited context and not integrated into final KO odds.
-   - Do not treat as full PASS until T1/T2 accepts this wording or approves a wording polish and recheck.
+   - v2.6 polish:
+     - Prompt/contract now tells Gemini to describe available Chilan Berry as a Normal-type limited context.
+     - Prompt/contract now says raw damage rolls and ko_context remain based on the current calculator, and not to say Chilan Berry is not included or not modeled when the available context is present.
+   - Do not treat as full PASS until T1/T2 approves and runs a post-polish actual Gemini recheck.
 
 Global prohibitions:
 - No Gemini actual PASS from payload preflight alone.
@@ -127,4 +136,5 @@ Documentation expectations:
 - The old HTTP 429 blocker is no longer the current Developer API state after v2.5.
 - Focus Band and Quick Claw reached actual Gemini PASS.
 - Light Ball and Chilan Berry remain PARTIAL due wording quality, not API availability.
+- v2.6 applied wording polish only; no actual Gemini recheck was run.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

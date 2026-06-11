@@ -794,6 +794,12 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "final battle damage" in prompt
     assert "type_boost_context is unavailable" in prompt
     assert "do not mention the item name, effect, or unavailable reason" in prompt
+    assert "Light Ball species-stat item context may appear only as limited species_stat_item_context" in prompt
+    assert "species_stat_item_context is available, say Light Ball is a Pikachu-specific" in prompt
+    assert "may boost Pikachu's offensive stats in the underlying calculation" in prompt
+    assert "damage_estimate.item_effects marks the supported modifier as applied" in prompt
+    assert "Do not say Light Ball is not included or Light Ball is not modeled" in prompt
+    assert "not final stat truth and not a final KO guarantee" in prompt
     assert "Damage-supported non-legal/debug items are not normal legal selector options" in prompt
     assert "If an attacker item effect is applied" in prompt
     assert "default assumptions plus the supported item modifier" in prompt
@@ -910,8 +916,12 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "KO/OHKO/2HKO estimates do not include Chilan Berry reduction" in prompt
     assert "Chilan-adjusted damage and Chilan-adjusted KO probability are not calculated" in prompt
     assert "When chilan_berry_context is available" in prompt
-    assert "Chilan Berry may reduce damage from a Normal-type move" in prompt
-    assert "not guaranteed survival" in prompt
+    assert "Chilan Berry is a Normal-type limited context" in prompt
+    assert "Chilan Berry is a Normal-type limited context and may reduce damage" in prompt
+    assert "from a Normal-type damaging move" in prompt
+    assert "raw damage rolls and ko_context remain based on the current calculator" in prompt
+    assert "not integrated into final KO odds" in prompt
+    assert "Do not say Chilan Berry is not included or Chilan Berry is not modeled" in prompt
     assert "Do not say guaranteed survival" in prompt
     assert "confirmed live" in prompt
     assert "will survive because of Chilan Berry" in prompt
@@ -1059,6 +1069,19 @@ def test_advice_payload_preserves_available_chilan_context_for_normal_move() -> 
     assert advice_move["chilan_berry_context"]["normal_resist_effect"] == debug_move["chilan_berry_context"][
         "normal_resist_effect"
     ]
+    assert "Normal-type limited Chilan Berry context only." in advice_move["chilan_berry_context"]["limitations"]
+    assert (
+        "Chilan Berry may reduce damage from a Normal-type damaging move."
+        in advice_move["chilan_berry_context"]["limitations"]
+    )
+    assert (
+        "Raw damage rolls and ko_context remain based on the current calculator."
+        in advice_move["chilan_berry_context"]["limitations"]
+    )
+    assert (
+        "This context is not integrated into final KO odds and is not final survival truth."
+        in advice_move["chilan_berry_context"]["limitations"]
+    )
     assert advice_payload["item_profiles"]["opponent_active"]["item_id"] == "chilan-berry"
     assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
     assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
@@ -1402,6 +1425,18 @@ def test_species_stat_item_context_preserves_pikachu_light_ball_context_in_advic
     assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
     assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
     assert advice_move["ko_context"]["two_hko"] == debug_move["ko_context"]["two_hko"]
+    assert (
+        "Light Ball is a Pikachu-specific offensive item context."
+        in advice_move["species_stat_item_context"]["limitations"]
+    )
+    assert (
+        "Light Ball may boost Pikachu's offensive stats in the underlying calculation when damage_estimate.item_effects marks the supported modifier as applied."
+        in advice_move["species_stat_item_context"]["limitations"]
+    )
+    assert (
+        "This context is not final stat truth and not a final KO guarantee."
+        in advice_move["species_stat_item_context"]["limitations"]
+    )
     _assert_forbidden_terms_absent_from_advice_payload(
         advice_payload,
         extra_terms=(
@@ -1874,6 +1909,27 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         "Do not say boosted damage guarantees KO, secures the KO, proves the KO, or is final battle damage."
         in ADVISOR_KNOWN_LIMITATIONS
     )
+    assert "Light Ball species-stat item context may appear only as limited species_stat_item_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "species_stat_item_context applies only to user-confirmed, Champions legal Light Ball on Pikachu when local species-stat metadata exists."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "species_stat_item_context is explanatory and does not create a new damage formula path, raw damage roll path, or Light-Ball-adjusted KO/OHKO/2HKO context."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When species_stat_item_context is available, say Light Ball is a Pikachu-specific offensive item context and may boost Pikachu's offensive stats in the underlying calculation when damage_estimate.item_effects marks the supported modifier as applied."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say Light Ball is not included or Light Ball is not modeled when species_stat_item_context is available."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When species_stat_item_context is available, say the context is not final stat truth and not a final KO guarantee."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
     assert (
         "If an item damage modifier is applied, describe the estimate as default assumptions plus the supported item modifier, not only default assumptions."
         in ADVISOR_KNOWN_LIMITATIONS
@@ -2131,6 +2187,18 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert "Item consumption is not tracked in chilan_berry_context." in ADVISOR_KNOWN_LIMITATIONS
+    assert (
+        "When chilan_berry_context is available, say Chilan Berry is a Normal-type limited context and may reduce damage from a Normal-type damaging move."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When chilan_berry_context is available, say raw damage rolls and ko_context remain based on the current calculator and the context is not integrated into final KO odds."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Do not say Chilan Berry is not included or Chilan Berry is not modeled when chilan_berry_context is available."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
     assert (
         "Do not say guaranteed survival, confirmed live, will survive because of Chilan Berry, KO chance is reduced to a value, final damage is halved, raw damage rolls already include Chilan Berry, or Chilan Berry applies to all move types."
         in ADVISOR_KNOWN_LIMITATIONS

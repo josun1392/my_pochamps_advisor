@@ -11,9 +11,11 @@ from llm.advisor_item_legal_gate import legal_item_context_block_reason
 CHILAN_BERRY_CONTEXT_MODE = "limited_chilan_berry_context"
 CHILAN_BERRY_ITEM_ID = "chilan-berry"
 CHILAN_BERRY_LIMITATIONS = [
-    "Limited Chilan Berry context only.",
-    "Raw damage and KO estimates do not include Chilan Berry reduction.",
-    "Item consumption, multi-hit handling, abilities, weather, terrain, and turn sequencing are not modeled.",
+    "Normal-type limited Chilan Berry context only.",
+    "Chilan Berry may reduce damage from a Normal-type damaging move.",
+    "Raw damage rolls and ko_context remain based on the current calculator.",
+    "This context is not integrated into final KO odds and is not final survival truth.",
+    "Item consumption, multi-hit handling, abilities, weather, terrain, and turn sequencing are outside this context.",
 ]
 
 

@@ -477,10 +477,12 @@ Unavailable reason codes include:
 - `holder_species_not_supported`
 - `boosted_stats_missing`
 
-When `species_stat_item_context.available` is true, the LLM may say Light Ball may boost Pikachu's offensive stats in the underlying calculation and that this is species-specific to Pikachu. It should not generalize Light Ball to non-Pikachu holders, and it should not treat the context as final stat truth or a final KO guarantee.
+When `species_stat_item_context.available` is true, the LLM should say Light Ball is a Pikachu-specific offensive item context and may boost Pikachu's offensive stats in the underlying calculation when `damage_estimate.item_effects` marks the supported modifier as applied. It should not say Light Ball is not included or not modeled when the available context is present. It should not generalize Light Ball to non-Pikachu holders, and it should not treat the context as final stat truth or a final KO guarantee.
 
 The LLM must not say:
 
+- "Light Ball is not included."
+- "Light Ball is not modeled."
 - "Light Ball guarantees KO."
 - "Light Ball always doubles damage."
 - "Confirmed OHKO because of Light Ball."
@@ -1170,10 +1172,12 @@ Unavailable reason codes include:
 - `move_not_damaging`
 - `damage_estimate_missing`
 
-When `chilan_berry_context.available` is true, the LLM may say Chilan Berry may reduce damage from a Normal-type move. It should also say this is limited context and not integrated into final KO odds.
+When `chilan_berry_context.available` is true, the LLM should say Chilan Berry is a Normal-type limited context and may reduce damage from a Normal-type damaging move. It should also say this limited context is separate from raw damage rolls and is not integrated into final KO odds; raw damage rolls and `ko_context` remain based on the current calculator. It should not say Chilan Berry is not included or not modeled when the available context is present.
 
 The LLM must not say:
 
+- "Chilan Berry is not included."
+- "Chilan Berry is not modeled."
 - "Chilan Berry guarantees survival."
 - "Confirmed live."
 - "The Pokemon will survive because of Chilan Berry."

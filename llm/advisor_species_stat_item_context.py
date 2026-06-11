@@ -12,7 +12,9 @@ SPECIES_STAT_ITEM_CONTEXT_MODE = "limited_species_stat_item_context"
 LIGHT_BALL_ITEM_ID = "light-ball"
 LIGHT_BALL_LIMITATIONS = [
     "Limited species-stat item context only.",
-    "Light Ball context is species-specific to Pikachu.",
+    "Light Ball is a Pikachu-specific offensive item context.",
+    "Light Ball may boost Pikachu's offensive stats in the underlying calculation when damage_estimate.item_effects marks the supported modifier as applied.",
+    "This context is not final stat truth and not a final KO guarantee.",
     "This context explains supported item metadata and does not create Light-Ball-adjusted KO/OHKO/2HKO context.",
 ]
 

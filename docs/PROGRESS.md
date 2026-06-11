@@ -10402,6 +10402,44 @@ Maintained boundaries:
 
 ---
 
+## v2.6 - Light Ball / Chilan Berry limited wording polish
+
+Purpose:
+- Polish the two v2.5 PARTIAL actual-Gemini items without changing mechanics, payload filtering, damage math, or verification state.
+- Keep Focus Band and Quick Claw as actual Gemini PASS from v2.5.
+- Keep Light Ball and Chilan Berry as PARTIAL until a separate approved actual Gemini recheck runs.
+
+v2.5 PARTIAL causes:
+- Light Ball / `species_stat_item_context`:
+  - actual advice mentioned Pikachu and user-confirmed Light Ball with no forbidden wording.
+  - weakness: the response sounded like Light Ball was not included in the estimate instead of saying the available context may explain a supported Pikachu-specific offensive modifier in the underlying calculation.
+- Chilan Berry / `chilan_berry_context`:
+  - actual advice mentioned Chilan Berry's potential reduction for Tackle with no forbidden wording.
+  - weakness: the response did not explicitly call it a Normal-type limited context and used weak not-included wording instead of the preferred separate limited-context phrasing.
+
+Implemented wording polish:
+- Strengthened the advisor prompt so available Light Ball context should be described as a Pikachu-specific offensive item context and not as `not included` or `not modeled`.
+- Strengthened the advisor prompt so available Chilan Berry context should be described as Normal-type limited context, separate from raw rolls and final KO odds.
+- Updated `ADVISOR_KNOWN_LIMITATIONS` and context limitations for the same positive wording.
+- Added payload contract regression assertions for the strengthened wording.
+- Updated `docs/advisor_payload_contract.md` to forbid `Light Ball is not included/not modeled` and `Chilan Berry is not included/not modeled` when their available context is present.
+
+Verification policy:
+- Actual Gemini call in v2.6: not run.
+- Vertex AI call in v2.6: not run.
+- Light Ball status after v2.6: PARTIAL, pending a separate v2.6.1 actual Gemini recheck if T1/T2 approve.
+- Chilan Berry status after v2.6: PARTIAL, pending a separate v2.6.1 actual Gemini recheck if T1/T2 approve.
+
+Raw calculation impact:
+- raw damage formula changed: no
+- raw damage rolls changed: no
+- Q12 multiplier changed: no
+- `ko_context` changed: no
+- new item implementation: no
+- payload filtering behavior changed: no
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
