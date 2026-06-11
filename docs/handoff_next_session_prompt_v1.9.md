@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, and the v2.7 available item context required-mention guard.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, the v2.7 available item context required-mention guard, and the v2.7.1 post-guard actual verification result.
 
 Update after v2.5:
 
@@ -10,19 +10,19 @@ Update after v2.5:
 - Vertex AI was not used.
 - Focus Band actual Gemini verification: PASS.
 - Quick Claw actual Gemini verification: PASS.
-- Light Ball actual Gemini verification: FAIL after v2.6.1.
-- Chilan Berry actual Gemini verification: PARTIAL.
+- Light Ball actual Gemini verification: PARTIAL after v2.7.1.
+- Chilan Berry actual Gemini verification: PASS after v2.7.1.
 - v2.6 applied a narrow wording polish for Light Ball and Chilan Berry.
 - v2.6.1 ran actual Gemini rechecks for Light Ball and Chilan Berry only.
 - v2.7 added a required-mention guard for visible `available=true` item contexts.
-- v2.7 did not run actual Gemini calls.
+- v2.7.1 ran actual Gemini rechecks for Light Ball and Chilan Berry only.
 
-Payload preflight PASS still does not imply actual Gemini PASS. Light Ball and Chilan Berry should remain follow-up items until a post-v2.7 actual Gemini recheck is approved and run.
+Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball remains PARTIAL because Gemini mentioned Light Ball positively but still included generic no-item wording.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue from v2.7 Available Item Context Required Mention Guard.
+T3, continue from v2.7.1 Light Ball / Chilan Berry Required Mention Guard Actual Verification.
 
 Goal:
 - Do not add new item contexts.
@@ -37,9 +37,11 @@ Goal:
   - Light Ball: FAIL
   - Chilan Berry: PARTIAL
 - v2.7 has already added a prompt guard requiring visible available item contexts to be mentioned at least once when directly relevant.
-- v2.7 actual Gemini recheck has not been run.
-- Do not treat Light Ball or Chilan Berry as full PASS.
-- If T1/T2 approve, run a post-v2.7 actual Gemini recheck for Light Ball and Chilan Berry only.
+- v2.7.1 has already run post-guard actual Gemini rechecks:
+  - Light Ball: PARTIAL
+  - Chilan Berry: PASS
+- Do not treat Light Ball as full PASS.
+- Chilan Berry can be treated as full PASS unless later changes regress it.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -79,7 +81,7 @@ Current actual Gemini verification status:
 3. Light Ball `species_stat_item_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status after v2.6.1: FAIL.
+   - Actual Gemini status after v2.7.1: PARTIAL.
    - Actual advice mentioned Pikachu and user-confirmed Light Ball.
    - Forbidden wording observed: none.
    - v2.5 weakness:
@@ -95,12 +97,17 @@ Current actual Gemini verification status:
    - v2.7 guard:
      - Prompt now lists visible available item contexts and requires mentioning each directly relevant context at least once.
      - Prompt forbids describing available item effects as unavailable, unmodeled, not included, not reflected, no item is considered, assuming no item, without item effects, or default no-item assumption.
+   - v2.7.1 result:
+     - Payload preflight stayed PASS.
+     - Required mention guard was present and included the Light Ball label.
+     - Gemini mentioned Light Ball as a Pikachu-specific offensive item context.
+     - Gemini still included generic "no item effects" wording, so this remains PARTIAL.
    - Do not treat as full PASS.
 
 4. Chilan Berry `chilan_berry_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status after v2.6.1: PARTIAL.
+   - Actual Gemini status after v2.7.1: PASS.
    - Actual advice mentioned Chilan Berry's potential reduction for Tackle.
    - Forbidden wording observed: none.
    - v2.5 weakness:
@@ -118,7 +125,13 @@ Current actual Gemini verification status:
    - v2.7 guard:
      - Prompt now lists visible available item contexts and requires mentioning each directly relevant context at least once.
      - Prompt labels Chilan Berry / chilan_berry_context as Normal-type limited context.
-   - Do not treat as full PASS.
+   - v2.7.1 result:
+     - Payload preflight stayed PASS.
+     - Required mention guard was present and included the Chilan Berry label.
+     - Gemini described Chilan Berry as a Normal-type limited context.
+     - Gemini preserved that raw damage rolls and ko_context remain based on the current calculator.
+     - Forbidden wording: none.
+   - Treat as PASS unless later changes regress it.
 
 Global prohibitions:
 - No Gemini actual PASS from payload preflight alone.
@@ -158,7 +171,7 @@ Documentation expectations:
 
 - The old HTTP 429 blocker is no longer the current Developer API state after v2.5.
 - Focus Band and Quick Claw reached actual Gemini PASS.
-- Light Ball is FAIL after v2.6.1 due available-context wording failure, not API availability.
-- Chilan Berry remains PARTIAL after v2.6.1 due wording quality/context omission, not API availability.
-- v2.7 added available item context required-mention guard only; no actual Gemini recheck was run.
+- Light Ball is PARTIAL after v2.7.1 due remaining generic no-item wording, not API availability.
+- Chilan Berry reached actual Gemini PASS after v2.7.1.
+- v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

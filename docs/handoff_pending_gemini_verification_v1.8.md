@@ -4,14 +4,14 @@
 
 This handoff tracks item-context actual Gemini verification after the Gemini Developer API recovered from the previous HTTP 429 `RESOURCE_EXHAUSTED` blocker.
 
-As of v2.6.1, payload preflight remains PASS for all four contexts. Actual Gemini advice is no longer blocked by HTTP 429:
+As of v2.7.1, payload preflight remains PASS for all four contexts. Actual Gemini advice is no longer blocked by HTTP 429:
 
 - Focus Band: PASS
 - Quick Claw: PASS
-- Light Ball: FAIL
-- Chilan Berry: PARTIAL
+- Light Ball: PARTIAL
+- Chilan Berry: PASS
 
-Light Ball and Chilan Berry should not be treated as full actual Gemini PASS. v2.6.1 rechecked both after the v2.6 wording polish, but Light Ball still failed the available-context wording requirement and Chilan Berry remained partial. v2.7 adds a required-mention guard for available item contexts; actual Gemini recheck after v2.7 has not been run yet.
+Light Ball should not be treated as full actual Gemini PASS. v2.7.1 rechecked Light Ball and Chilan Berry after the required-mention guard. Chilan Berry reached PASS, while Light Ball improved from FAIL to PARTIAL but still retained generic no-item wording.
 
 ## Current Status
 
@@ -19,8 +19,8 @@ Light Ball and Chilan Berry should not be treated as full actual Gemini PASS. v2
 |---|---|---|---|---|---|---|---|
 | Focus Band / `survival_context` | implemented as limited Focus Band branch inside `survival_context` | PASS | PASS | v2.5 actual advice used limited survival wording and no forbidden wording | n/a | `will survive`, `guaranteed survive`, `cannot be KO'd`, `confirmed live` | `survival_context.available=true`, `survival_effect.type=focus_band`, `survival_effect.survival_is_not_guaranteed=true`, activation/final survival probability flags false, raw damage/rolls and `ko_context` unchanged |
 | Quick Claw / `speed_order_context` | implemented as limited Quick Claw move-order context | PASS | PASS | v2.5 actual advice used limited move-order wording and no forbidden wording | n/a | `will move first`, `guaranteed outspeeds`, `confirmed first`, `always acts before`, `wins the speed interaction` | `speed_order_context.available=true`, `speed_order_effect.type=quick_claw`, activation/final move order/speed tie/priority/Turn Engine flags false, raw damage/rolls and `ko_context` unchanged |
-| Light Ball / `species_stat_item_context` | implemented as limited Pikachu-only species-stat item context | PASS | FAIL, pending post-v2.7 recheck | v2.7 required-mention guard implemented; actual recheck not run | v2.6.1 available Light Ball context was present, but Gemini contradicted the intended positive available-context wording | `Light Ball is not included`, `Light Ball is not modeled`, `all Electric-type Pokemon benefit`, `Light Ball works on any holder`, `guaranteed KO`, `confirmed OHKO`, `always doubles damage`, `final stats are fully known`, `exact EV/IV/nature-adjusted stats are known` | `species_stat_item_context.available=true`, holder species `pikachu`, item `light-ball`, boosted stats `atk` / `spa`, no new damage formula path, raw damage/rolls and `ko_context` unchanged |
-| Chilan Berry / `chilan_berry_context` | implemented as separate limited Normal-type Chilan context | PASS | PARTIAL, pending post-v2.7 recheck | v2.7 required-mention guard implemented; actual recheck not run | v2.6.1 Gemini did not mention Chilan Berry as a Normal-type limited context and used generic no-item default-assumption wording | `Chilan Berry is not included`, `Chilan Berry is not modeled`, `Chilan Berry applies to all move types`, `guaranteed survival`, `confirmed live`, `will survive because of Chilan Berry`, `final damage is halved`, `raw damage rolls already include Chilan Berry`, `KO chance is reduced to` | `chilan_berry_context.available=true`, incoming move type `normal`, `always_resist=true`, no Chilan-adjusted damage/KO integration, raw damage/rolls and `ko_context` unchanged |
+| Light Ball / `species_stat_item_context` | implemented as limited Pikachu-only species-stat item context | PASS | PARTIAL | v2.7.1 actual recheck mentioned Light Ball as Pikachu-specific offensive item context | Gemini improved but still included generic "no item effects" wording, so this is not a clean PASS | `Light Ball is not included`, `Light Ball is not modeled`, `no item is considered`, `assuming no item`, `without item effects`, `default no-item assumption`, `Light Ball works on any holder`, `guaranteed KO`, `confirmed OHKO`, `always doubles damage`, `final stats are fully known`, `exact EV/IV/nature-adjusted stats are known` | `species_stat_item_context.available=true`, holder species `pikachu`, item `light-ball`, boosted stats `atk` / `spa`, no new damage formula path, raw damage/rolls and `ko_context` unchanged |
+| Chilan Berry / `chilan_berry_context` | implemented as separate limited Normal-type Chilan context | PASS | PASS | v2.7.1 actual recheck described Chilan Berry as Normal-type limited context and preserved raw rolls / `ko_context` limits | n/a | `Chilan Berry is not included`, `Chilan Berry is not modeled`, `no item is considered`, `assuming no item`, `without item effects`, `default no-item assumption`, `Chilan Berry applies to all move types`, `guaranteed survival`, `confirmed live`, `will survive because of Chilan Berry`, `final damage is halved`, `raw damage rolls already include Chilan Berry`, `KO chance is reduced to` | `chilan_berry_context.available=true`, incoming move type `normal`, `always_resist=true`, no Chilan-adjusted damage/KO integration, raw damage/rolls and `ko_context` unchanged |
 
 ## Payload Preflight vs Actual Gemini PASS
 
@@ -73,9 +73,9 @@ Actual call budget used in v2.5:
 
 Recommended next action:
 
-- v2.7 adds a required-mention guard for visible `available=true` item contexts.
-- If T1/T2 approve, run a post-v2.7 actual Gemini recheck for Light Ball and Chilan Berry only.
-- Do not change damage formula, raw rolls, Q12, `ko_context`, item mechanics, or payload filtering as part of that recheck.
+- v2.7.1 verified Chilan Berry as actual Gemini PASS after the required-mention guard.
+- Light Ball remains PARTIAL because generic no-item wording still appears after the positive Light Ball context mention.
+- T2 should decide whether Light Ball needs a narrower prompt/payload adjustment or whether the PARTIAL result is acceptable.
 
 ## Out of Scope
 

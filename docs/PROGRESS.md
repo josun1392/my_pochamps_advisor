@@ -10539,6 +10539,85 @@ Boundaries:
 
 ---
 
+## v2.7.1 - Light Ball / Chilan Berry required mention guard actual verification
+
+Purpose:
+- Recheck actual Gemini Developer API wording after the v2.7 available item context required-mention guard.
+- Recheck only Light Ball and Chilan Berry.
+- Do not recheck Focus Band or Quick Claw because both already reached actual Gemini PASS in v2.5.
+
+Execution:
+- provider: `gemini_developer_api`
+- endpoint family: `generativelanguage.googleapis.com`
+- model: `gemini-2.5-flash`
+- Developer API calls: yes
+- Vertex AI calls: none
+- automatic retry loop: none
+- Focus Band / Quick Claw calls: none
+
+Payload preflight:
+- Light Ball / `species_stat_item_context`: PASS
+  - `species_stat_item_context.available=true`
+  - holder species `pikachu`
+  - available context present in the default advice payload
+  - required mention guard present
+  - required mention guard included the Light Ball / `species_stat_item_context` label
+- Chilan Berry / `chilan_berry_context`: PASS
+  - `chilan_berry_context.available=true`
+  - incoming move type `normal`
+  - available context present in the default advice payload
+  - required mention guard present
+  - required mention guard included the Chilan Berry / `chilan_berry_context` label
+
+Actual Gemini results:
+- Light Ball: PARTIAL
+  - Gemini generated an actual response.
+  - Gemini mentioned Light Ball as a Pikachu-specific offensive item context that may boost Pikachu's offensive stats.
+  - No non-Pikachu generalization, guaranteed KO, confirmed OHKO, always-doubles-damage, or exact-final-stats wording appeared.
+  - Remaining weakness: Gemini still added generic default-assumption wording that the damage estimates include "no item effects."
+  - This is improved from v2.6.1 FAIL but still not a clean PASS because the available Light Ball context is partially undercut by generic no-item wording.
+  - Classification: wording guardrail weakness / generic default-assumption residue.
+- Chilan Berry: PASS
+  - Gemini generated an actual response.
+  - Gemini explicitly described Chilan Berry as a Normal-type limited context.
+  - Gemini said it may reduce damage from a Normal-type damaging move like Tackle.
+  - Gemini preserved that raw damage rolls and `ko_context` remain based on the current calculator.
+  - No forbidden Chilan wording appeared.
+
+Forbidden wording / leaks:
+- payload leak observed: no
+- wrong context attachment observed: no
+- Light Ball exact forbidden phrase observed: no
+- Light Ball semantic no-item residue observed: yes, "no item effects"
+- Chilan forbidden wording observed: no
+
+Raw calculation impact:
+- raw damage formula changed: no
+- raw damage rolls changed: no
+- Q12 multiplier changed: no
+- `ko_context` changed: no
+- new item implementation: no
+- payload filtering behavior changed: no
+
+Result:
+- Actual Gemini PASS items: Focus Band, Quick Claw, Chilan Berry.
+- Light Ball remains not full PASS after v2.7.1: PARTIAL.
+- Recommended next step: T2 should decide whether Light Ball needs a narrower available-context/no-item wording exception or whether the partial result is acceptable.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had one timing-sensitive failure:
+  - failure test: `test_item_damage_calculation_under_point_12ms_average`
+  - best batch median: 0.125000ms
+  - threshold: 0.120000ms
+  - isolated target rerun 3x: passed.
+  - `uv run pytest tests/test_damage_perf.py -q` rerun: 4 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+- threshold/skip/xfail changed: no.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
