@@ -10440,6 +10440,65 @@ Raw calculation impact:
 
 ---
 
+## v2.6.1 - Light Ball / Chilan Berry actual wording verification retry
+
+Purpose:
+- Recheck actual Gemini Developer API wording for the two v2.5/v2.6 follow-up items after the v2.6 wording polish.
+- Do not recheck Focus Band or Quick Claw because both already reached actual Gemini PASS in v2.5.
+
+Execution:
+- provider: `gemini_developer_api`
+- endpoint family: `generativelanguage.googleapis.com`
+- model: `gemini-2.5-flash`
+- Vertex AI calls: none
+- automatic retry loop: none
+- Focus Band / Quick Claw calls: none
+
+Payload preflight:
+- Light Ball / `species_stat_item_context`: PASS
+  - `species_stat_item_context.available=true`
+  - holder species `pikachu`
+  - available context present in the default advice payload
+- Chilan Berry / `chilan_berry_context`: PASS
+  - `chilan_berry_context.available=true`
+  - incoming move type `normal`
+  - available context present in the default advice payload
+
+Actual Gemini results:
+- Light Ball: FAIL
+  - A first Light Ball call used Thunderbolt into Garchomp and was not a useful final classification because the selected move was immune; Gemini did not engage the Light Ball context.
+  - A follow-up non-immune Light Ball call used a physical damaging move with `species_stat_item_context.available=true`.
+  - Gemini still said the damage estimates do not include the effect of the user-confirmed Light Ball.
+  - This violates the v2.6 intent to avoid "not included / not modeled" style wording when the available Light Ball context is present.
+  - Failure classification: wording guardrail failure / Gemini over-inference from generic damage-estimate limitations.
+- Chilan Berry: PARTIAL
+  - Gemini generated an actual response and no forbidden Chilan wording appeared.
+  - However, the response did not mention Chilan Berry as a Normal-type limited context.
+  - It used generic "no item" default-assumption wording, so it did not satisfy the positive PASS wording.
+  - Failure classification: wording guardrail weakness / context omission.
+
+Forbidden wording / leaks:
+- payload leak observed: no
+- wrong context attachment observed: no
+- Light Ball forbidden/undesired wording observed: yes, semantic "does not include the effect of the user-confirmed Light Ball"
+- Chilan forbidden wording observed: no exact forbidden Chilan phrase, but positive Normal-type limited context wording was missing
+
+Raw calculation impact:
+- raw damage formula changed: no
+- raw damage rolls changed: no
+- Q12 multiplier changed: no
+- `ko_context` changed: no
+- new item implementation: no
+- payload filtering behavior changed: no
+
+Result:
+- Actual Gemini PASS items from v2.5 remain: Focus Band, Quick Claw.
+- Light Ball remains not PASS after v2.6.1: FAIL.
+- Chilan Berry remains not PASS after v2.6.1: PARTIAL.
+- Recommended next step: T2 should decide whether to redesign the prompt/payload contract for available item-context wording, especially the conflict between generic default-assumption/no-item wording and available explanatory item contexts.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

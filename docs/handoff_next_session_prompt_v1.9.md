@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results and the v2.6 Light Ball / Chilan Berry wording polish status.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, and the v2.6.1 post-polish actual verification result.
 
 Update after v2.5:
 
@@ -10,17 +10,17 @@ Update after v2.5:
 - Vertex AI was not used.
 - Focus Band actual Gemini verification: PASS.
 - Quick Claw actual Gemini verification: PASS.
-- Light Ball actual Gemini verification: PARTIAL.
+- Light Ball actual Gemini verification: FAIL after v2.6.1.
 - Chilan Berry actual Gemini verification: PARTIAL.
 - v2.6 applied a narrow wording polish for Light Ball and Chilan Berry.
-- v2.6 did not run actual Gemini rechecks.
+- v2.6.1 ran actual Gemini rechecks for Light Ball and Chilan Berry only.
 
-Payload preflight PASS still does not imply actual Gemini PASS. Light Ball and Chilan Berry should remain follow-up items until T1/T2 approve and run a post-polish actual Gemini recheck.
+Payload preflight PASS still does not imply actual Gemini PASS. Light Ball and Chilan Berry should remain follow-up items, but do not keep repeating actual Gemini calls until T2 decides whether to adjust the prompt/payload design around generic default-assumption/no-item wording.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue from v2.6 Light Ball / Chilan Berry Limited Wording Polish.
+T3, continue from v2.6.1 Light Ball / Chilan Berry Actual Verification Retry.
 
 Goal:
 - Do not add new item contexts.
@@ -28,10 +28,14 @@ Goal:
 - Review v2.5 actual Gemini results:
   - Focus Band: PASS
   - Quick Claw: PASS
-  - Light Ball: PARTIAL
+  - Light Ball: PARTIAL before v2.6
   - Chilan Berry: PARTIAL
 - v2.6 has already applied a narrow wording polish for Light Ball and Chilan Berry.
-- Do not treat Light Ball or Chilan Berry as full PASS until T1/T2 approves and runs a post-polish actual Gemini recheck.
+- v2.6.1 has already run a post-polish actual Gemini recheck:
+  - Light Ball: FAIL
+  - Chilan Berry: PARTIAL
+- Do not treat Light Ball or Chilan Berry as full PASS.
+- Do not repeat actual Gemini calls until T2 decides whether prompt/payload design should change.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -71,7 +75,7 @@ Current actual Gemini verification status:
 3. Light Ball `species_stat_item_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status after v2.5: PARTIAL.
+   - Actual Gemini status after v2.6.1: FAIL.
    - Actual advice mentioned Pikachu and user-confirmed Light Ball.
    - Forbidden wording observed: none.
    - v2.5 weakness:
@@ -80,12 +84,16 @@ Current actual Gemini verification status:
    - v2.6 polish:
      - Prompt/contract now tells Gemini to describe available Light Ball as a Pikachu-specific offensive item context.
      - Prompt/contract now says not to say Light Ball is not included or not modeled when the available context is present.
-   - Do not treat as full PASS until T1/T2 approves and runs a post-polish actual Gemini recheck.
+   - v2.6.1 result:
+     - Payload preflight stayed PASS.
+     - Gemini still said damage estimates do not include the effect of the user-confirmed Light Ball.
+     - Classification: wording guardrail failure / Gemini over-inference from generic default-assumption limitations.
+   - Do not treat as full PASS.
 
 4. Chilan Berry `chilan_berry_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status after v2.5: PARTIAL.
+   - Actual Gemini status after v2.6.1: PARTIAL.
    - Actual advice mentioned Chilan Berry's potential reduction for Tackle.
    - Forbidden wording observed: none.
    - v2.5 weakness:
@@ -95,7 +103,12 @@ Current actual Gemini verification status:
    - v2.6 polish:
      - Prompt/contract now tells Gemini to describe available Chilan Berry as a Normal-type limited context.
      - Prompt/contract now says raw damage rolls and ko_context remain based on the current calculator, and not to say Chilan Berry is not included or not modeled when the available context is present.
-   - Do not treat as full PASS until T1/T2 approves and runs a post-polish actual Gemini recheck.
+   - v2.6.1 result:
+     - Payload preflight stayed PASS.
+     - Gemini did not use exact forbidden Chilan wording.
+     - Gemini still omitted the positive Normal-type limited context and used generic no-item default-assumption wording.
+     - Classification: wording guardrail weakness / context omission.
+   - Do not treat as full PASS.
 
 Global prohibitions:
 - No Gemini actual PASS from payload preflight alone.
@@ -135,6 +148,6 @@ Documentation expectations:
 
 - The old HTTP 429 blocker is no longer the current Developer API state after v2.5.
 - Focus Band and Quick Claw reached actual Gemini PASS.
-- Light Ball and Chilan Berry remain PARTIAL due wording quality, not API availability.
-- v2.6 applied wording polish only; no actual Gemini recheck was run.
+- Light Ball is FAIL after v2.6.1 due available-context wording failure, not API availability.
+- Chilan Berry remains PARTIAL after v2.6.1 due wording quality/context omission, not API availability.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.
