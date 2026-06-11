@@ -10000,6 +10000,94 @@ Maintained boundaries:
 
 ---
 
+## v2.1 - Vertex AI Gemini migration spike
+
+Purpose:
+- Investigate whether Google Cloud / Vertex AI Gemini can be used as an optional provider while the current Gemini Developer API / AI Studio API-key path is blocked by HTTP 429 `RESOURCE_EXHAUSTED`.
+- Keep the current Developer API client intact.
+- Document required Google Cloud setup, environment variables, endpoint/auth differences, and a safe future smoke-test procedure.
+- Avoid running pending item-context verification or any Vertex AI actual call in this spike.
+
+Written:
+- `docs/spike_v2.1_vertex_ai_gemini_migration_design.md`
+
+Current Developer API path:
+- provider: `gemini_developer_api`
+- endpoint host: `generativelanguage.googleapis.com`
+- auth: API key from `GEMINI_API_KEY` or `GOOGLE_API_KEY`
+- current observed model id: `gemini-2.5-flash`
+- status: BLOCKED_HTTP_429 because the minimal smoke prompt returned HTTP 429 `RESOURCE_EXHAUSTED` with prepayment credits / AI Studio billing guidance
+- action: keep this path; do not delete or replace it in v2.1
+
+Vertex AI Gemini candidate path:
+- provider: `vertex_ai_gemini`
+- endpoint service: `aiplatform.googleapis.com`
+- auth: Google Cloud ADC, gcloud credentials, or service account outside the repo
+- billing/quota: Google Cloud billing and Vertex/Agent Platform quota, separate from the current AI Studio API-key credit state
+- required setup: project, billing account, API enablement, IAM permission, supported region/location, selected model id
+- status: not implemented; spike candidate only
+
+Environment variable placeholders documented:
+- `LLM_PROVIDER=vertex_ai_gemini`
+- `GOOGLE_CLOUD_PROJECT=<project-id>`
+- `GOOGLE_CLOUD_LOCATION=<region-or-global>`
+- `VERTEX_AI_MODEL=<model-id>`
+- `GOOGLE_APPLICATION_CREDENTIALS=<optional-local-path-to-service-account-json>`
+
+Provider adapter recommendation:
+- Keep current Developer API path as `GeminiDeveloperApiProvider`.
+- Add optional future `VertexAiGeminiProvider`.
+- Use a common interface such as `generate_advice(prompt, model, timeout, options)`.
+- Normalize errors without exposing secrets.
+- Do not change payload filtering, prompt text, or damage/KO math as part of provider migration.
+
+Safe future smoke test design:
+- prompt: `Reply exactly: OK`
+- expected response: `OK`
+- classifications: `AVAILABLE`, `BLOCKED_QUOTA`, `AUTH_ERROR`, `PERMISSION_DENIED`, `MODEL_NOT_FOUND`, `REGION_NOT_SUPPORTED`, `OTHER_ERROR`
+- success means only provider availability; it is not pending item-context verification PASS
+- after smoke `AVAILABLE`, retry Focus Band first in a separate pending-verification step
+
+Official documentation basis:
+- Gemini API troubleshooting: https://ai.google.dev/gemini-api/docs/troubleshooting
+- Gemini API rate limits: https://ai.google.dev/gemini-api/docs/rate-limits
+- Gemini thinking: https://ai.google.dev/gemini-api/docs/thinking
+- Google Cloud Vertex AI / Agent Platform authentication: https://docs.cloud.google.com/gemini-enterprise-agent-platform/machine-learning/authentication
+- Google Cloud local environment setup: https://docs.cloud.google.com/gemini-enterprise-agent-platform/machine-learning/start/cloud-environment
+- Google Cloud Gemini generate content REST method: https://docs.cloud.google.com/gemini-enterprise-agent-platform/reference/rest/v1/projects.locations.endpoints/generateContent
+- Google Cloud deployments and endpoints: https://docs.cloud.google.com/gemini-enterprise-agent-platform/resources/locations
+- Google Cloud client libraries / ADC: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/reference/libraries
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had 1 timing-sensitive perf failure:
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+- isolated target perf test 3x: passed.
+- `uv run pytest tests/test_damage_perf.py -q` first rerun: 1 timing-sensitive perf failure:
+  - best batch median `0.125000ms`, threshold `0.120000ms`
+- `uv run pytest -q`: 902 passed, 2 deselected.
+- `uv run pytest tests/test_damage_perf.py -q` second rerun: 4 passed.
+
+Maintained boundaries:
+- Documentation-only spike.
+- No Vertex AI actual call.
+- No pending item-context verification.
+- No new item implementation.
+- No provider code implementation.
+- No existing Developer API client deletion or replacement.
+- No payload filtering changes.
+- No prompt hardening.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No legal fixture changes.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, service account JSON, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

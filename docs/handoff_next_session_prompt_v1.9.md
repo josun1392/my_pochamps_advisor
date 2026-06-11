@@ -6,6 +6,8 @@ Update after v2.0: the retry batch was attempted again. The first Focus Band act
 
 Update after Gemini availability smoke check: the current model is `gemini-2.5-flash`; a minimal `Reply exactly: OK` prompt also returned HTTP 429 `RESOURCE_EXHAUSTED`, so the blocker is API availability/quota/credits rather than item-context payload shape.
 
+Update after v2.1: `docs/spike_v2.1_vertex_ai_gemini_migration_design.md` documents an optional Vertex AI Gemini provider path. The current Gemini Developer API key path remains unchanged, and no Vertex AI actual call has been run.
+
 ## Copy-Paste Prompt
 
 ```text
