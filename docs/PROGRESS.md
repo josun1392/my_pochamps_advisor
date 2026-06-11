@@ -10237,6 +10237,74 @@ Maintained boundaries:
 
 ---
 
+## v2.4 - Vertex AI Gemini smoke test
+
+Purpose:
+- Run exactly one minimal Vertex AI Gemini smoke prompt through the `aiplatform.googleapis.com` path.
+- Confirm whether the Vertex AI provider path can generate a response independently from the Gemini Developer API key path.
+- Avoid pending item-context verification and avoid any Focus Band / Quick Claw / Light Ball / Chilan Berry PASS classification.
+
+Repo state:
+- branch: `master`
+- remote tracking: `my_pochamps/master`
+- unpushed commits before this record: none
+- local uncommitted change observed: `logs/token_usage.jsonl` only
+
+Preflight:
+- Google Cloud SDK: available through the installed direct `gcloud.cmd` path
+- project: `gen-lang-client-0167075914`
+- ADC: available; token value was not printed
+- `aiplatform.googleapis.com`: enabled
+- Codex shell environment variables were not inherited, so the smoke command used explicit local command arguments:
+  - provider: `vertex_ai_gemini`
+  - endpoint family: Vertex AI / `aiplatform.googleapis.com`
+  - project: `gen-lang-client-0167075914`
+  - location: `global`
+  - model: `gemini-2.5-flash`
+
+Smoke prompt:
+- prompt: `Reply exactly: OK`
+- execution count: 1
+- result classification: OTHER_ERROR
+- actual response generated: no
+- response summary: HTTP 417 `Expectation Failed`
+- additional Vertex AI actual calls: no
+- Gemini Developer API key path: not used
+- `generativelanguage.googleapis.com` path: not used
+- service account JSON: not used
+- pending item-context verification: not executed
+
+Verdict:
+- Vertex AI setup reached the API call stage, unlike v2.2/v2.3.
+- The smoke did not produce an `OK` response and is not `AVAILABLE`.
+- The blocker is now a Vertex AI smoke-call error, not the earlier local setup incomplete state.
+- This is not item-context verification PASS; Focus Band, Quick Claw, Light Ball, and Chilan Berry actual Gemini verification remain pending.
+- Because the smoke failed, no additional Vertex AI actual calls were made.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+
+Maintained boundaries:
+- Documentation-only repo record.
+- No pending item-context verification.
+- No new item implementation.
+- No provider code implementation.
+- No existing Developer API client deletion or replacement.
+- No payload filtering changes.
+- No prompt hardening.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No legal fixture changes.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, access tokens, ADC credential contents, service account JSON, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

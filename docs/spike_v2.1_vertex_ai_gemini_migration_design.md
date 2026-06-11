@@ -281,6 +281,27 @@ Local setup was attempted after the readiness check:
 
 Next local setup step: T1 should complete `gcloud init`, complete ADC login, confirm API enablement, and set temporary Vertex AI environment variables before any smoke call.
 
+## v2.4 Vertex AI Smoke Result
+
+After T1 completed local auth/API preparation, one Vertex AI smoke call was attempted with:
+
+- endpoint family: Vertex AI / `aiplatform.googleapis.com`
+- project: `gen-lang-client-0167075914`
+- location: `global`
+- model: `gemini-2.5-flash`
+- prompt: `Reply exactly: OK`
+
+Result:
+
+- classification: `OTHER_ERROR`
+- response summary: HTTP 417 `Expectation Failed`
+- actual response generated: no
+- additional Vertex AI calls: no
+- Developer API key path / `generativelanguage.googleapis.com`: not used
+- pending item-context verification: not run and not PASS
+
+The Vertex AI path reached the API call stage, but it is not yet `AVAILABLE`.
+
 ## Proposed Post-Readiness Path
 
 Recommended next implementation candidate:
