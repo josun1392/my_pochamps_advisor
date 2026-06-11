@@ -118,6 +118,26 @@ If Gemini quota/access is still blocked:
 - avoid adding a new item context
 - prefer documentation-only handoff/coordination or pause item expansion until actual advice can be verified
 
+## v2.0 Retry Result Note
+
+The v2.0 retry batch attempted the pending actual Gemini verification queue again.
+
+Result:
+
+- Focus Band actual Gemini call: BLOCKED_HTTP_429
+- Quick Claw actual Gemini call: BLOCKED_BATCH, not called after the first 429
+- Light Ball actual Gemini call: BLOCKED_BATCH, not called after the first 429
+- Chilan Berry actual Gemini call: BLOCKED_BATCH, not called after the first 429
+
+Payload preflight remained PASS for all four contexts:
+
+- Focus Band: `survival_context.available=true`, `survival_effect.type=focus_band`
+- Quick Claw: `speed_order_context.available=true`, `speed_order_effect.type=quick_claw`
+- Light Ball: `species_stat_item_context.available=true`, holder species `pikachu`
+- Chilan Berry: `chilan_berry_context.available=true`, incoming move type `normal`
+
+No payload leak, wrong context attachment, raw damage change, raw roll change, Q12 change, or `ko_context` change was observed. The pending verification queue is still not actual Gemini PASS and should be retried only after Gemini quota/access is restored.
+
 ## Out of Scope
 
 - code implementation

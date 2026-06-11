@@ -2,6 +2,8 @@
 
 This document is a copy-paste-ready prompt for the next T3 session. It preserves the pending actual Gemini verification queue that remains blocked by HTTP 429 `RESOURCE_EXHAUSTED`.
 
+Update after v2.0: the retry batch was attempted again. The first Focus Band actual Gemini call returned HTTP 429 `RESOURCE_EXHAUSTED`, so Quick Claw, Light Ball, and Chilan Berry were not called and remain `BLOCKED_BATCH`. Payload preflight stayed PASS for all four cases.
+
 ## Copy-Paste Prompt
 
 ```text
@@ -26,7 +28,7 @@ Current pending verification queue:
 1. Focus Band within `survival_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status: BLOCKED_HTTP_429.
+   - Actual Gemini status: BLOCKED_HTTP_429 in v1.7 and again in v2.0.
    - Context fields to verify before actual call:
      - `survival_context.available=true`
      - `survival_effect.type=focus_band`
@@ -43,7 +45,7 @@ Current pending verification queue:
 2. Quick Claw `speed_order_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status: BLOCKED_BATCH.
+   - Actual Gemini status: BLOCKED_BATCH in v1.7 and again in v2.0.
    - Context fields to verify before actual call:
      - `speed_order_context.available=true`
      - `speed_order_effect.type=quick_claw`
@@ -61,7 +63,7 @@ Current pending verification queue:
 3. Light Ball `species_stat_item_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status: BLOCKED_BATCH.
+   - Actual Gemini status: BLOCKED_BATCH in v1.7 and again in v2.0.
    - Context fields to verify before actual call:
      - `species_stat_item_context.available=true`
      - holder species detail is `pikachu`
@@ -80,7 +82,7 @@ Current pending verification queue:
 4. Chilan Berry `chilan_berry_context`
    - Implementation: complete.
    - Payload preflight: PASS.
-   - Actual Gemini status: BLOCKED_BATCH.
+   - Actual Gemini status: BLOCKED_BATCH in v1.7 and again in v2.0.
    - Context fields to verify before actual call:
      - `chilan_berry_context.available=true`
      - incoming move type is `normal`
