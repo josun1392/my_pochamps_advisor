@@ -10088,6 +10088,67 @@ Maintained boundaries:
 
 ---
 
+## v2.2 - Vertex AI local setup and smoke readiness check
+
+Purpose:
+- Check whether the local environment is ready for a future Vertex AI Gemini smoke call.
+- Keep the current Gemini Developer API key path intact.
+- Avoid pending item-context verification and avoid any Vertex AI actual call unless setup is ready.
+
+Local setup check:
+- repo branch: `master`
+- remote tracking: `my_pochamps/master`
+- local uncommitted change observed: `logs/token_usage.jsonl` only
+- `gcloud --version`: GCLOUD_NOT_INSTALLED
+- `gcloud config get-value project`: not checked because `gcloud` is not installed
+- Application Default Credentials: not checked because `gcloud` is not installed
+- `aiplatform.googleapis.com` enablement: not checked because `gcloud` is not installed
+- environment variables:
+  - `GOOGLE_CLOUD_PROJECT`: unset
+  - `GOOGLE_CLOUD_LOCATION`: unset
+  - `VERTEX_AI_MODEL`: unset
+  - `GOOGLE_GENAI_USE_ENTERPRISE`: unset
+  - `GOOGLE_APPLICATION_CREDENTIALS`: unset
+
+Smoke readiness:
+- Vertex AI smoke prompt was not executed.
+- result classification: NOT_RUN_SETUP_INCOMPLETE
+- actual response generated: no
+- additional Vertex AI actual calls: no
+- pending item-context verification: not executed
+
+Next setup actions for T1:
+- Install Google Cloud CLI if Vertex AI local smoke should be attempted.
+- Configure the intended project, for example after confirmation: `gcloud config set project gen-lang-client-0167075914`.
+- Configure ADC with `gcloud auth application-default login`, or prepare a service account JSON outside the repo.
+- Enable `aiplatform.googleapis.com` if not already enabled.
+- Set local environment variables such as `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `VERTEX_AI_MODEL`, and `GOOGLE_GENAI_USE_ENTERPRISE`.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+
+Maintained boundaries:
+- Documentation-only readiness check.
+- No Vertex AI actual call.
+- No pending item-context verification.
+- No Gemini Developer API retry.
+- No provider code implementation.
+- No existing Developer API client deletion or replacement.
+- No payload filtering changes.
+- No prompt hardening.
+- No damage formula changes.
+- No raw damage roll changes.
+- No Q12 multiplier changes.
+- No `ko_context` changes.
+- No legal fixture changes.
+- No threshold, skip, or xfail changes.
+- No logs, `.env`, secrets, API keys, access tokens, service account JSON, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

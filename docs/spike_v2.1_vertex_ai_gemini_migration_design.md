@@ -246,12 +246,32 @@ If Vertex smoke is available, the next separate step should retry:
 
 Use the same PASS / PARTIAL / FAIL / BLOCKED criteria already documented in the v1.8/v1.9 handoff docs.
 
-## Proposed v2.2 Path
+## v2.2 Local Readiness Check Result
+
+Local setup was checked after this spike:
+
+- `gcloud`: `GCLOUD_NOT_INSTALLED`
+- project config: not checked because `gcloud` is not installed
+- Application Default Credentials: not checked because `gcloud` is not installed
+- `aiplatform.googleapis.com`: not checked because `gcloud` is not installed
+- local environment variables:
+  - `GOOGLE_CLOUD_PROJECT`: unset
+  - `GOOGLE_CLOUD_LOCATION`: unset
+  - `VERTEX_AI_MODEL`: unset
+  - `GOOGLE_GENAI_USE_ENTERPRISE`: unset
+  - `GOOGLE_APPLICATION_CREDENTIALS`: unset
+- Vertex AI smoke test: `NOT_RUN_SETUP_INCOMPLETE`
+- actual Vertex AI response generated: no
+- pending item-context verification: not run
+
+Before any Vertex AI smoke call, T1 needs to install Google Cloud CLI, configure the intended project, set up ADC or an external service account credential, enable `aiplatform.googleapis.com`, and provide project/location/model settings through local environment variables or command arguments.
+
+## Proposed Post-Readiness Path
 
 Recommended next implementation candidate:
 
 ```text
-v2.2 Optional LLM Provider Adapter Design/Implementation
+v2.3 Optional LLM Provider Adapter Design/Implementation
 ```
 
 Scope:
@@ -262,7 +282,7 @@ Scope:
 - add safe smoke-test command behind explicit provider env
 - add tests with mocked providers and no network calls
 
-Out of scope for v2.2 unless separately approved:
+Out of scope for that follow-up unless separately approved:
 
 - pending item-context actual Gemini PASS
 - automatic provider fallback
