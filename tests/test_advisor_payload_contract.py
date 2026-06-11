@@ -1455,6 +1455,12 @@ def test_species_stat_item_context_preserves_pikachu_light_ball_context_in_advic
     assert "not reflected, no item is considered, assuming no item, without item effects" in prompt
     assert "default no-item assumption" in prompt
     assert "do not erase the available item context" in prompt
+    assert "For Light Ball / species_stat_item_context specifically" in prompt
+    assert "do not say or imply that no item effects are included for this move or recommendation" in prompt
+    assert "Do not use generic no-item/default-assumption wording" in prompt
+    assert "default assumptions plus the supported Light Ball modifier" in prompt
+    assert "exact final stats" in prompt
+    assert "final EV/IV/nature-adjusted stats" in prompt
     _assert_forbidden_terms_absent_from_advice_payload(
         advice_payload,
         extra_terms=(
@@ -1956,6 +1962,14 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
     )
     assert (
         "Do not say Light Ball is not included or Light Ball is not modeled when species_stat_item_context is available."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When species_stat_item_context is available, do not use generic no-item/default-assumption wording such as no item effects, without item effects, assuming no item, default no-item assumption, item not included, item not modeled, or item not reflected."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When species_stat_item_context is available and item_effects marks the supported modifier as applied, describe the damage estimate as default assumptions plus the supported Light Ball modifier."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

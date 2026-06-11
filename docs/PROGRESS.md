@@ -10618,6 +10618,69 @@ Verification:
 
 ---
 
+## v2.8 - Light Ball no-item residue guard
+
+Purpose:
+- Address the v2.7.1 Light Ball PARTIAL result.
+- v2.7.1 confirmed Chilan Berry reached actual Gemini PASS, while Light Ball improved but still retained generic "no item effects" wording after positively mentioning the available Light Ball context.
+- Implement a narrower Light Ball-specific prompt/contract guard without running actual Gemini verification in this implementation step.
+
+Root cause:
+- The v2.7 required-mention guard made Gemini mention `Light Ball / species_stat_item_context`.
+- Gemini still mixed that positive mention with a generic default/no-item estimate sentence.
+- This was not a payload leak, wrong context attachment, damage formula issue, raw roll issue, Q12 issue, or `ko_context` issue.
+
+Implemented:
+- Kept the registry-based available item context guard.
+- Added a Light Ball-specific no-item residue guard when `species_stat_item_context.available=true`.
+- The new guard says not to say or imply that no item effects are included for the move or recommendation.
+- The new guard forbids generic no-item/default-assumption wording for available Light Ball context, including:
+  - no item effects
+  - without item effects
+  - assuming no item
+  - default no-item assumption
+  - item not included
+  - item not modeled
+  - item not reflected
+- The new guard tells Gemini to mention Light Ball as a Pikachu-specific offensive item context and, when `item_effects` marks the supported modifier as applied, describe the estimate as default assumptions plus the supported Light Ball modifier.
+- Kept Light Ball limited wording:
+  - no guaranteed KO
+  - no confirmed OHKO
+  - no always-doubles-damage claim
+  - no exact final stats or exact EV/IV/nature-adjusted stats.
+
+Regression protection:
+- Chilan Berry PASS guard is preserved:
+  - Chilan Berry remains a Normal-type damaging move limited context.
+  - raw damage rolls and `ko_context` remain based on the current calculator.
+  - final survival, final damage halving, and Chilan-adjusted KO odds remain forbidden.
+- Focus Band / Quick Claw wording was not changed.
+- unavailable/deferred/blocked filtering behavior was not changed.
+
+Execution boundaries:
+- actual Gemini call: not run in v2.8.
+- Vertex AI call: not run.
+- raw damage formula changed: no.
+- raw damage rolls changed: no.
+- Q12 multiplier changed: no.
+- `ko_context` changed: no.
+- new item implementation: no.
+- payload filtering behavior changed: no.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had one timing-sensitive failure:
+  - failure test: `test_item_damage_calculation_under_point_12ms_average`
+  - best batch median: 0.140625ms
+  - threshold: 0.120000ms
+  - isolated target rerun 3x: passed.
+  - `uv run pytest tests/test_damage_perf.py -q` rerun: 4 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+- threshold/skip/xfail changed: no.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:

@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, the v2.7 available item context required-mention guard, and the v2.7.1 post-guard actual verification result.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, the v2.7 available item context required-mention guard, the v2.7.1 post-guard actual verification result, and the v2.8 Light Ball no-item residue guard implementation.
 
 Update after v2.5:
 
@@ -16,13 +16,15 @@ Update after v2.5:
 - v2.6.1 ran actual Gemini rechecks for Light Ball and Chilan Berry only.
 - v2.7 added a required-mention guard for visible `available=true` item contexts.
 - v2.7.1 ran actual Gemini rechecks for Light Ball and Chilan Berry only.
+- v2.8 added a narrower Light Ball-specific no-item residue guard.
+- v2.8 did not run actual Gemini verification.
 
-Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball remains PARTIAL because Gemini mentioned Light Ball positively but still included generic no-item wording.
+Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball remains PARTIAL because Gemini mentioned Light Ball positively but still included generic no-item wording. Light Ball needs a post-v2.8 actual Gemini recheck before it can be considered PASS.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue from v2.7.1 Light Ball / Chilan Berry Required Mention Guard Actual Verification.
+T3, continue from v2.8 Light Ball No-Item Residue Guard Implementation.
 
 Goal:
 - Do not add new item contexts.
@@ -40,6 +42,8 @@ Goal:
 - v2.7.1 has already run post-guard actual Gemini rechecks:
   - Light Ball: PARTIAL
   - Chilan Berry: PASS
+- v2.8 has already added a narrower Light Ball-specific no-item residue guard.
+- v2.8 did not run actual Gemini rechecks.
 - Do not treat Light Ball as full PASS.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 
@@ -102,6 +106,12 @@ Current actual Gemini verification status:
      - Required mention guard was present and included the Light Ball label.
      - Gemini mentioned Light Ball as a Pikachu-specific offensive item context.
      - Gemini still included generic "no item effects" wording, so this remains PARTIAL.
+   - v2.8 implementation:
+     - Added a Light Ball-specific guard for `species_stat_item_context.available=true`.
+     - The prompt now says not to say or imply that no item effects are included for this move or recommendation.
+     - The prompt now forbids generic no-item/default-assumption wording such as no item effects, without item effects, assuming no item, default no-item assumption, item not included, item not modeled, or item not reflected.
+     - The prompt now says that when `item_effects` marks the supported modifier as applied, describe the estimate as default assumptions plus the supported Light Ball modifier.
+     - Actual Gemini has not yet been rechecked after v2.8.
    - Do not treat as full PASS.
 
 4. Chilan Berry `chilan_berry_context`

@@ -477,12 +477,17 @@ Unavailable reason codes include:
 - `holder_species_not_supported`
 - `boosted_stats_missing`
 
-When `species_stat_item_context.available` is true, the LLM should say Light Ball is a Pikachu-specific offensive item context and may boost Pikachu's offensive stats in the underlying calculation when `damage_estimate.item_effects` marks the supported modifier as applied. It should not say Light Ball is not included or not modeled when the available context is present. It should not generalize Light Ball to non-Pikachu holders, and it should not treat the context as final stat truth or a final KO guarantee.
+When `species_stat_item_context.available` is true, the LLM should say Light Ball is a Pikachu-specific offensive item context and may boost Pikachu's offensive stats in the underlying calculation when `damage_estimate.item_effects` marks the supported modifier as applied. It should not say Light Ball is not included or not modeled when the available context is present. It also should not use generic no-item/default-assumption wording such as "no item effects", "without item effects", "assuming no item", "default no-item assumption", "item not included", "item not modeled", or "item not reflected". When `damage_estimate.item_effects` marks the supported Light Ball modifier as applied, describe the estimate as default assumptions plus the supported Light Ball modifier, not as a no-item estimate. It should not generalize Light Ball to non-Pikachu holders, and it should not treat the context as final stat truth or a final KO guarantee.
 
 The LLM must not say:
 
 - "Light Ball is not included."
 - "Light Ball is not modeled."
+- "No item effects are included."
+- "Without item effects."
+- "Assuming no item."
+- "Default no-item assumption."
+- "Item not reflected."
 - "Light Ball guarantees KO."
 - "Light Ball always doubles damage."
 - "Confirmed OHKO because of Light Ball."

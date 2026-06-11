@@ -425,7 +425,7 @@ def _build_available_item_context_required_mention_guard(payload: dict[str, Any]
     if not labels:
         return ""
     contexts = "; ".join(labels)
-    return (
+    guard = (
         "Available item contexts are present in the advice payload: "
         f"{contexts}. Mention each listed available item context at least once "
         "when it is directly relevant to the recommendation. Do not describe "
@@ -438,6 +438,21 @@ def _build_available_item_context_required_mention_guard(payload: dict[str, Any]
         "convert the context into final KO odds, guaranteed survival, guaranteed "
         "move order, exact final stats, or final battle truth. "
     )
+    if any(label.startswith("Light Ball / species_stat_item_context") for label in labels):
+        guard += (
+            "For Light Ball / species_stat_item_context specifically, do not say "
+            "or imply that no item effects are included for this move or "
+            "recommendation. Do not use generic no-item/default-assumption wording "
+            "such as no item effects, without item effects, assuming no item, "
+            "default no-item assumption, item not included, item not modeled, or "
+            "item not reflected. Mention Light Ball as a Pikachu-specific "
+            "offensive item context and, when item_effects marks the supported "
+            "modifier as applied, describe the damage estimate as default "
+            "assumptions plus the supported Light Ball modifier. Keep the advice "
+            "limited: do not claim guaranteed KO, confirmed OHKO, always doubles "
+            "damage, exact final stats, or final EV/IV/nature-adjusted stats. "
+        )
+    return guard
 
 
 def _collect_available_item_context_labels(value: Any) -> list[str]:

@@ -113,6 +113,8 @@ ADVISOR_KNOWN_LIMITATIONS = [
     "Do not mention non-Pikachu Light Ball mismatch, unsupported reason, missing metadata, or not modeled wording in default advice.",
     "When species_stat_item_context is available, say Light Ball is a Pikachu-specific offensive item context and may boost Pikachu's offensive stats in the underlying calculation when damage_estimate.item_effects marks the supported modifier as applied.",
     "Do not say Light Ball is not included or Light Ball is not modeled when species_stat_item_context is available.",
+    "When species_stat_item_context is available, do not use generic no-item/default-assumption wording such as no item effects, without item effects, assuming no item, default no-item assumption, item not included, item not modeled, or item not reflected.",
+    "When species_stat_item_context is available and item_effects marks the supported modifier as applied, describe the damage estimate as default assumptions plus the supported Light Ball modifier.",
     "When species_stat_item_context is available, say the context is not final stat truth and not a final KO guarantee.",
     "Do not say guaranteed KO, always doubles damage, confirmed OHKO because of Light Ball, all Electric-type Pokemon benefit from Light Ball, Light Ball works on any holder, final stats are fully known, or exact EV/IV/nature-adjusted stats are known.",
     "If an item damage modifier is applied, describe the estimate as default assumptions plus the supported item modifier, not only default assumptions.",
