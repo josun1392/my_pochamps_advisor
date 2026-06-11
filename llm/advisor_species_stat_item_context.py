@@ -13,9 +13,10 @@ LIGHT_BALL_ITEM_ID = "light-ball"
 LIGHT_BALL_LIMITATIONS = [
     "Limited species-stat item context only.",
     "Light Ball is a Pikachu-specific offensive item context.",
-    "Light Ball may boost Pikachu's offensive stats in the underlying calculation when damage_estimate.item_effects marks the supported modifier as applied.",
+    "Light Ball is applied for Pikachu in the damage estimate when damage_estimate.item_effects marks the supported modifier as applied.",
     "This context is not final stat truth and not a final KO guarantee.",
-    "This context explains supported item metadata and does not create Light-Ball-adjusted KO/OHKO/2HKO context.",
+    "Exact EV/IV/nature-adjusted final stats are still not known.",
+    "The existing ko_context uses the adjusted damage estimate rolls and remains limited damage-roll context only.",
 ]
 
 
@@ -76,6 +77,8 @@ def build_species_stat_item_context(
     damage_item_status = (
         attacker_item_effects.get("status") if isinstance(attacker_item_effects, dict) else "unknown"
     )
+    if damage_item_status != "applied":
+        return _unavailable(base, "species_stat_item_not_applied_to_damage_estimate")
 
     return {
         **base,
@@ -92,10 +95,10 @@ def build_species_stat_item_context(
             "effect_label": "may_boost_pikachu_offensive_stats",
             "formula_label": "species_stat_item_limited_modifier_context",
             "damage_estimate_item_effect_status": damage_item_status,
-            "raw_damage_rolls_changed": False,
-            "ko_context_changed": False,
-            "species_stat_adjusted_ko_integrated": False,
-            "species_stat_adjusted_ohko_2hko_integrated": False,
+            "raw_damage_rolls_changed": True,
+            "ko_context_changed": True,
+            "species_stat_adjusted_ko_integrated": True,
+            "species_stat_adjusted_ohko_2hko_integrated": True,
             "final_stats_inferred": False,
         },
         "limitations": list(LIGHT_BALL_LIMITATIONS),

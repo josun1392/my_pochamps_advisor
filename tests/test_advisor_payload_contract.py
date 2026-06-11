@@ -796,7 +796,7 @@ def test_ui_selected_prompt_preserves_opponent_move_guardrails() -> None:
     assert "do not mention the item name, effect, or unavailable reason" in prompt
     assert "Light Ball species-stat item context may appear only as limited species_stat_item_context" in prompt
     assert "species_stat_item_context is available, say Light Ball is a Pikachu-specific" in prompt
-    assert "may boost Pikachu's offensive stats in the underlying calculation" in prompt
+    assert "applied in the damage estimate" in prompt
     assert "damage_estimate.item_effects marks the supported modifier as applied" in prompt
     assert "Do not say Light Ball is not included or Light Ball is not modeled" in prompt
     assert "not final stat truth and not a final KO guarantee" in prompt
@@ -1424,13 +1424,15 @@ def test_species_stat_item_context_preserves_pikachu_light_ball_context_in_advic
     assert effect["supported_species"] == ["pikachu"]
     assert effect["boosted_stats"] == ["atk", "spa"]
     assert effect["effect_label"] == "may_boost_pikachu_offensive_stats"
-    assert effect["raw_damage_rolls_changed"] is False
-    assert effect["ko_context_changed"] is False
-    assert effect["species_stat_adjusted_ko_integrated"] is False
-    assert effect["species_stat_adjusted_ohko_2hko_integrated"] is False
-    assert effect["damage_estimate_item_effect_status"] == debug_move["damage_estimate"]["item_effects"][
-        "attacker_item"
-    ]["status"]
+    assert effect["raw_damage_rolls_changed"] is True
+    assert effect["ko_context_changed"] is True
+    assert effect["species_stat_adjusted_ko_integrated"] is True
+    assert effect["species_stat_adjusted_ohko_2hko_integrated"] is True
+    assert effect["damage_estimate_item_effect_status"] == "applied"
+    assert debug_move["damage_estimate"]["item_effects"]["attacker_item"]["status"] == "applied"
+    assert advice_move["damage_estimate"]["item_effects"]["attacker_item"]["status"] == "applied"
+    assert advice_move["damage_estimate"]["assumptions"]["item"] == "supported_attacker_damage_item_applied"
+    assert "no item" not in advice_move["damage_estimate"]["assumption_profile"]["label"].lower()
     assert advice_move["damage_estimate"]["damage_range"] == debug_move["damage_estimate"]["damage_range"]
     assert advice_move["damage_estimate"]["rolls"] == debug_move["damage_estimate"]["rolls"]
     assert advice_move["ko_context"]["ohko"] == debug_move["ko_context"]["ohko"]
@@ -1440,11 +1442,15 @@ def test_species_stat_item_context_preserves_pikachu_light_ball_context_in_advic
         in advice_move["species_stat_item_context"]["limitations"]
     )
     assert (
-        "Light Ball may boost Pikachu's offensive stats in the underlying calculation when damage_estimate.item_effects marks the supported modifier as applied."
+        "Light Ball is applied for Pikachu in the damage estimate when damage_estimate.item_effects marks the supported modifier as applied."
         in advice_move["species_stat_item_context"]["limitations"]
     )
     assert (
         "This context is not final stat truth and not a final KO guarantee."
+        in advice_move["species_stat_item_context"]["limitations"]
+    )
+    assert (
+        "The existing ko_context uses the adjusted damage estimate rolls and remains limited damage-roll context only."
         in advice_move["species_stat_item_context"]["limitations"]
     )
     prompt = _build_ui_selected_prompt(enriched)
@@ -1953,11 +1959,23 @@ def test_advisor_contract_preserves_item_modifier_response_guardrail() -> None:
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "species_stat_item_context is explanatory and does not create a new damage formula path, raw damage roll path, or Light-Ball-adjusted KO/OHKO/2HKO context."
+        "species_stat_item_context is a sibling explanation of an applied Light Ball modifier in damage_estimate.item_effects."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (
-        "When species_stat_item_context is available, say Light Ball is a Pikachu-specific offensive item context and may boost Pikachu's offensive stats in the underlying calculation when damage_estimate.item_effects marks the supported modifier as applied."
+        "Eligible Pikachu Light Ball damage estimates use default stat assumptions plus the supported Light Ball species-stat modifier."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Eligible Pikachu Light Ball raw damage rolls and ko_context are based on the adjusted damage estimate rolls."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "species_stat_item_context does not infer exact EV/IV/nature-adjusted final stats and does not create final KO truth."
+        in ADVISOR_KNOWN_LIMITATIONS
+    )
+    assert (
+        "When species_stat_item_context is available, say Light Ball is a Pikachu-specific offensive item context applied in the damage estimate when damage_estimate.item_effects marks the supported modifier as applied."
         in ADVISOR_KNOWN_LIMITATIONS
     )
     assert (

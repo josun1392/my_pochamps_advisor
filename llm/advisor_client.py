@@ -185,15 +185,18 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "Light Ball species-stat item context may appear only as limited "
         "species_stat_item_context. species_stat_item_context applies only "
         "when Light Ball is user-confirmed, Champions legal, holder species "
-        "is Pikachu, and local species-stat metadata exists. It is "
-        "explanatory only and does not create a new damage formula path, raw "
-        "damage roll path, or Light-Ball-adjusted KO/OHKO/2HKO context. "
+        "is Pikachu, and local species-stat metadata exists. It is a sibling "
+        "explanation of an applied Light Ball modifier in "
+        "damage_estimate.item_effects. Eligible Pikachu Light Ball damage "
+        "estimates use default stat assumptions plus the supported Light Ball "
+        "species-stat modifier, and raw damage rolls plus ko_context are based "
+        "on those adjusted estimate rolls. "
         "damage_estimate.item_effects remains the source of truth for whether "
         "a supported item modifier was applied to a specific estimate. When "
         "species_stat_item_context is available, say Light Ball is a "
-        "Pikachu-specific offensive item context and may boost Pikachu's "
-        "offensive stats in the underlying calculation when "
-        "damage_estimate.item_effects marks the supported modifier as applied. "
+        "Pikachu-specific offensive item context applied in the damage estimate "
+        "when damage_estimate.item_effects marks the supported modifier as "
+        "applied. "
         "Do not say Light Ball is not included or Light Ball is not modeled "
         "when species_stat_item_context is available. Say this is not final "
         "stat truth and not a final KO guarantee. Do not generalize Light "
@@ -606,9 +609,19 @@ def _hide_advice_hidden_item_effects(value: Any, hidden_item_ids: set[str]) -> N
 
 def _hide_move_local_unavailable_type_boost_item_effects(value: Any) -> None:
     if isinstance(value, dict):
+        available_item_sides = {
+            side
+            for key, child in value.items()
+            if key in ADVICE_ITEM_CONTEXT_KEYS
+            and isinstance(child, dict)
+            and child.get("available") is True
+            for side in _context_item_sides(child)
+        }
         for context_key in ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB:
             context = value.get(context_key)
             if isinstance(context, dict) and context.get("available") is False:
+                if _context_item_sides(context) & available_item_sides:
+                    continue
                 damage_estimate = value.get("damage_estimate")
                 if isinstance(damage_estimate, dict):
                     item_effects = damage_estimate.get("item_effects")

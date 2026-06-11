@@ -7,8 +7,10 @@ from typing import Any
 
 from advisor.damage.field import Field
 from advisor.damage.formula import DamageContext, calc_damage_rolls
+from advisor.damage.item_modifiers import attack_stat_item_mod
 from advisor.damage.items import ItemEffect, get_item
 from advisor.damage.modifiers.core import type_effectiveness_with_field
+from advisor.damage.q12 import Q12_ONE, apply_damage_modifier
 from advisor.damage.stats import StatBlock, StatInputs, final_stats, nature_from_name
 from advisor.damage.types import load_type_chart
 from llm.advisor_payload_contract import (
@@ -24,6 +26,7 @@ from llm.advisor_accuracy_context import build_accuracy_context
 from llm.advisor_chilan_berry_context import build_chilan_berry_context
 from llm.advisor_critical_context import build_critical_context
 from llm.advisor_flinch_context import build_flinch_context
+from llm.advisor_item_legal_gate import legal_item_context_block_reason
 from llm.advisor_ko_context import build_ko_context
 from llm.advisor_multi_hit_context import build_multi_hit_context
 from llm.advisor_recovery_context import build_recovery_context
@@ -45,7 +48,9 @@ SUPPORTED_ATTACKER_DAMAGE_ITEMS = {
     "muscle-band",
     "wise-glasses",
 }
+LIGHT_BALL_ITEM_ID = "light-ball"
 TYPE_BOOSTING_DAMAGE_MODIFIER = 1.2
+SPECIES_STAT_DAMAGE_MODIFIER = 2.0
 PHYSICAL_DAMAGE_ITEMS = {"choice-band", "muscle-band"}
 SPECIAL_DAMAGE_ITEMS = {"choice-specs", "wise-glasses"}
 ALWAYS_DAMAGE_ITEMS = {"life-orb"}
@@ -588,6 +593,13 @@ def build_move_damage_estimate(
             move_category=category,
             move_type=move_type,
         )
+        attack_stat_before_item = attack_stat
+        attack_stat = _attack_stat_with_species_stat_item(
+            attack_stat,
+            attacker_item_effect,
+            is_physical=is_physical,
+            attacker=attacker,
+        )
 
         field = Field(is_doubles=False)
         type_effectiveness = type_effectiveness_with_field(
@@ -673,6 +685,7 @@ def build_move_damage_estimate(
             "attacker": {
                 "attack_stat_used": attack_stat,
                 "attack_stat_name": attack_stat_name,
+                "attack_stat_before_item": attack_stat_before_item,
             },
             "defender": {
                 "defense_stat_used": defense_stat,
@@ -911,9 +924,28 @@ def _attacker_item_for_damage(
     type_boost_item = _catalog_type_boost_item(profile)
     if type_boost_item is not None and move_type.lower() in type_boost_item.boosted_types:
         return type_boost_item
+    species_stat_item = _catalog_species_stat_item(profile, battle_input, attacker_key, move_category)
+    if species_stat_item is not None:
+        return species_stat_item
     if not _is_supported_attacker_item_for_category(item_id, move_category):
         return None
     return get_item(item_id)
+
+
+def _attack_stat_with_species_stat_item(
+    attack_stat: int,
+    item: ItemEffect | None,
+    *,
+    is_physical: bool,
+    attacker: dict[str, Any],
+) -> int:
+    if item is None or item.kind != "species_stat":
+        return attack_stat
+    species = _pokemon_species_id(attacker) or ""
+    modifier = attack_stat_item_mod(item, is_physical, species)
+    if modifier == Q12_ONE:
+        return attack_stat
+    return max(1, apply_damage_modifier(attack_stat, modifier))
 
 
 def _is_supported_attacker_item_for_category(item_id: str, move_category: str) -> bool:
@@ -992,6 +1024,19 @@ def _item_effect_summary(
     )
     if type_boost_summary is not None:
         return type_boost_summary
+    if applied_item is not None and applied_item.kind == "species_stat":
+        return {
+            "item_id": item_id,
+            "name_en": profile.get("name_en") if isinstance(profile.get("name_en"), str) else item_id,
+            "status": "applied",
+            "effect_type": "species_stat_item_modifier",
+            "modifier": SPECIES_STAT_DAMAGE_MODIFIER,
+            "boosted_stats": list(applied_item.boosted_stats),
+            "supported_species": list(applied_item.species_lock),
+            "applied_effects": ["species_stat_modifier"],
+            "unapplied_effects": unapplied_effects,
+            "reason": "User-confirmed Light Ball is applied for Pikachu in this damage estimate.",
+        }
     if _is_legal_item_not_applied(profile):
         return {
             "item_id": item_id,
@@ -1041,6 +1086,48 @@ def _catalog_type_boost_item(profile: dict[str, Any]) -> ItemEffect | None:
     if item is None or item.kind != "type_boost":
         return None
     return item
+
+
+def _catalog_species_stat_item(
+    profile: dict[str, Any],
+    battle_input: dict[str, Any],
+    attacker_key: str,
+    move_category: str,
+) -> ItemEffect | None:
+    if profile.get("status") != "user_confirmed":
+        return None
+    item_id_value = profile.get("item_id")
+    item_id = item_id_value.lower() if isinstance(item_id_value, str) and item_id_value else ""
+    if item_id != LIGHT_BALL_ITEM_ID:
+        return None
+    if legal_item_context_block_reason(item_id) is not None:
+        return None
+    if move_category not in {"physical", "special"}:
+        return None
+    item = get_item(item_id)
+    if item is None or item.kind != "species_stat":
+        return None
+    pokemon = _pokemon_payload(battle_input, attacker_key)
+    species = _pokemon_species_id(pokemon)
+    if species not in item.species_lock:
+        return None
+    return item
+
+
+def _pokemon_payload(battle_input: dict[str, Any], role_key: str) -> dict[str, Any]:
+    pokemon = battle_input.get("pokemon")
+    if not isinstance(pokemon, dict):
+        return {}
+    payload = pokemon.get(role_key)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _pokemon_species_id(pokemon: dict[str, Any]) -> str | None:
+    for key in ("species_id", "name_en", "id"):
+        value = pokemon.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip().lower().replace("_", "-").replace(" ", "-")
+    return None
 
 
 def _is_user_confirmed_legal_type_boosting_profile(profile: dict[str, Any]) -> bool:

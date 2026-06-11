@@ -8,7 +8,7 @@
 
 The advisor payload is the boundary between deterministic UI / engine state and the Gemini natural-language recommendation layer. This contract prevents the LLM from treating incomplete UI metadata as confirmed battle math.
 
-The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, context-only opponent sample assumptions, raw/effective Speed comparison context, limited Quick Claw speed-order item context, limited Light Ball species-stat item context, damage estimates for the user's confirmed moves, additive limited KO context, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. v0.98 adds move-level `speed_order_context` for user-confirmed legal Quick Claw as limited advice context only. v1.3 adds move-level `species_stat_item_context` for user-confirmed legal Light Ball on Pikachu as limited explanatory context only. v0.38 adds `opponent_assumptions` as context-only possible opponent sample profiles. The app does not yet send EV/IV/nature breakdowns, final battle KO truth, final turn order, candidate move damage estimates, sample-based damage or Speed calculations, or Turn Engine state.
+The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, context-only opponent sample assumptions, raw/effective Speed comparison context, limited Quick Claw speed-order item context, limited Light Ball species-stat item context, damage estimates for the user's confirmed moves, additive limited KO context, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. v0.98 adds move-level `speed_order_context` for user-confirmed legal Quick Claw as limited advice context only. v3.1 makes move-level `species_stat_item_context` a sibling explanation for user-confirmed legal Light Ball on Pikachu when the supported modifier is applied in `damage_estimate.item_effects`. v0.38 adds `opponent_assumptions` as context-only possible opponent sample profiles. The app does not yet send EV/IV/nature breakdowns, final battle KO truth, final turn order, candidate move damage estimates, sample-based damage or Speed calculations, or Turn Engine state.
 
 ## Current Payload Shape
 
@@ -311,7 +311,7 @@ Legal item modeling examples:
 - Focus Band: selectable; its limited survival context may be included only when user-confirmed and the raw incoming hit is potentially lethal. Survival is not guaranteed, and activation probability is not calculated.
 - Leftovers / Sitrus Berry: selectable; limited recovery context may be included only when user-confirmed and max HP is available. Exact turn sequencing and item consumption are not modeled.
 - Quick Claw: selectable; limited `speed_order_context` may be included only when user-confirmed and Champions legal. Activation probability and final move order are not calculated.
-- Light Ball: selectable; limited `species_stat_item_context` may be included only when user-confirmed, Champions legal, local species-stat metadata exists, and the holder species is Pikachu. It is explanatory and does not create a new damage formula or KO path.
+- Light Ball: selectable; limited `species_stat_item_context` may be included only when user-confirmed, Champions legal, local species-stat metadata exists, and the holder species is Pikachu. In v3.1, eligible Pikachu + Light Ball damage estimates apply the supported species-stat modifier in `damage_estimate.item_effects`; the context explains that applied modifier.
 
 ### Legal Item Gate
 
@@ -431,7 +431,7 @@ For non-Choice items such as Charcoal, Mystic Water, Black Belt, Metal Coat, Sha
 
 `species_stat_item_context` is an additive limited context for species-specific stat items that already have local metadata and damage-helper support. It is never nested inside `damage_estimate` or `ko_context`.
 
-In v1.3, modeled species-stat item context is limited to Light Ball:
+In v3.1, modeled species-stat item context is limited to Light Ball:
 
 - attacker item profile must be `status: user_confirmed`
 - attacker item id must be `light-ball`
@@ -440,7 +440,7 @@ In v1.3, modeled species-stat item context is limited to Light Ball:
 - holder species must normalize to `pikachu`
 - move must be a damaging move with physical or special category metadata
 
-The context is explanatory: `damage_estimate.item_effects` remains the source of truth for whether a supported item modifier was applied to a specific estimate. `species_stat_item_context` does not create a new damage formula path, does not recalculate raw damage rolls, does not change Q12 multipliers, and does not add Light-Ball-adjusted KO/OHKO/2HKO context.
+The context is a sibling explanation for an applied `damage_estimate.item_effects` modifier. `damage_estimate.item_effects` remains the source of truth for whether the supported Light Ball species-stat modifier was applied to a specific estimate. v3.1 does not change the core damage formula or Q12 constants, but eligible Pikachu + Light Ball estimates intentionally use adjusted attack or special attack for the advisor estimate, so raw damage rolls and the existing `ko_context` are based on those adjusted damage estimate rolls. The context does not infer exact EV/IV/nature-adjusted final stats and does not create final KO truth.
 
 Available context may include:
 
@@ -456,10 +456,10 @@ Available context may include:
 - `species_stat_effect.effect_label`: `may_boost_pikachu_offensive_stats`
 - `species_stat_effect.formula_label`: `species_stat_item_limited_modifier_context`
 - `species_stat_effect.damage_estimate_item_effect_status`: the related `damage_estimate.item_effects.attacker_item.status`
-- `species_stat_effect.raw_damage_rolls_changed`: `false`
-- `species_stat_effect.ko_context_changed`: `false`
-- `species_stat_effect.species_stat_adjusted_ko_integrated`: `false`
-- `species_stat_effect.species_stat_adjusted_ohko_2hko_integrated`: `false`
+- `species_stat_effect.raw_damage_rolls_changed`: `true`
+- `species_stat_effect.ko_context_changed`: `true`
+- `species_stat_effect.species_stat_adjusted_ko_integrated`: `true`
+- `species_stat_effect.species_stat_adjusted_ohko_2hko_integrated`: `true`
 - `species_stat_effect.final_stats_inferred`: `false`
 - `is_final_battle_truth`: `false`
 
@@ -476,8 +476,9 @@ Unavailable reason codes include:
 - `holder_species_missing`
 - `holder_species_not_supported`
 - `boosted_stats_missing`
+- `species_stat_item_not_applied_to_damage_estimate`
 
-When `species_stat_item_context.available` is true, the LLM should say Light Ball is a Pikachu-specific offensive item context and may boost Pikachu's offensive stats in the underlying calculation when `damage_estimate.item_effects` marks the supported modifier as applied. It should not say Light Ball is not included or not modeled when the available context is present. It also should not use generic no-item/default-assumption wording such as "no item effects", "without item effects", "assuming no item", "default no-item assumption", "item not included", "item not modeled", or "item not reflected". When `damage_estimate.item_effects` marks the supported Light Ball modifier as applied, describe the estimate as default assumptions plus the supported Light Ball modifier, not as a no-item estimate. It should not generalize Light Ball to non-Pikachu holders, and it should not treat the context as final stat truth or a final KO guarantee.
+When `species_stat_item_context.available` is true, the LLM should say Light Ball is a Pikachu-specific offensive item context applied in the damage estimate when `damage_estimate.item_effects` marks the supported modifier as applied. It should not say Light Ball is not included or not modeled when the available context is present. It also should not use generic no-item/default-assumption wording such as "no item effects", "without item effects", "assuming no item", "default no-item assumption", "item not included", "item not modeled", or "item not reflected". Describe the estimate as default assumptions plus the supported Light Ball modifier, not as a no-item estimate. It should not generalize Light Ball to non-Pikachu holders, and it should not treat the context as final stat truth or a final KO guarantee.
 
 The LLM must not say:
 
@@ -981,7 +982,7 @@ Available item contexts must not be described as unavailable, unmodeled, not inc
 - "without item effects"
 - "default no-item assumption"
 
-This guard does not change raw calculations. Available item context wording must remain limited and must not become final KO odds, guaranteed survival, guaranteed move order, exact final stats, or final battle truth. Raw damage rolls and `ko_context` remain governed by their existing fields.
+This guard does not change raw calculations by itself. Available item context wording must remain limited and must not become final KO odds, guaranteed survival, guaranteed move order, exact final stats, or final battle truth. Raw damage rolls and `ko_context` remain governed by their existing fields. For v3.1 Light Ball, those existing fields are the adjusted advisor damage estimate rolls when the eligible Pikachu + Light Ball modifier is applied.
 
 For Light Ball, an available `species_stat_item_context` should be mentioned as Pikachu-specific offensive item context. For Chilan Berry, an available `chilan_berry_context` should be mentioned as Normal-type limited context for a Normal-type damaging move.
 

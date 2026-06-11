@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, the v2.7 available item context required-mention guard, the v2.7.1 post-guard actual verification result, the v2.8 Light Ball no-item residue guard implementation, and the v2.8.1 Light Ball actual verification result.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, the v2.7 available item context required-mention guard, the v2.7.1 post-guard actual verification result, the v2.8 Light Ball no-item residue guard implementation, the v2.8.1 Light Ball actual verification result, and the v3.1 Light Ball damage estimate integration.
 
 Update after v2.5:
 
@@ -18,13 +18,14 @@ Update after v2.5:
 - v2.7.1 ran actual Gemini rechecks for Light Ball and Chilan Berry only.
 - v2.8 added a narrower Light Ball-specific no-item residue guard.
 - v2.8.1 ran a Light Ball-only actual Gemini verification after that guard.
+- v3.1 integrated eligible Pikachu + Light Ball into advisor damage estimates; actual Gemini verification is still pending.
 
-Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball remains FAIL after v2.8.1 because Gemini mentioned Light Ball but still used generic `no item` / not-applied wording.
+Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball remains not PASS until a v3.1.1 actual retry confirms the response no longer uses generic `no item` / not-applied wording.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue from v2.8.1 Light Ball No-Item Residue Guard Actual Verification.
+T3, continue from v3.1 Light Ball Damage Estimate Integration.
 
 Goal:
 - Do not add new item contexts.
@@ -45,7 +46,13 @@ Goal:
 - v2.8 has already added a narrower Light Ball-specific no-item residue guard.
 - v2.8.1 has already run a Light Ball-only actual Gemini recheck:
   - Light Ball: FAIL
+- v3.1 has already integrated eligible user-confirmed Pikachu + Light Ball into advisor damage estimates:
+  - damage_estimate.item_effects.attacker_item.status becomes applied
+  - assumptions.item no longer remains none
+  - raw rolls intentionally change only for eligible Light Ball
+  - ko_context follows the adjusted damage estimate rolls
 - Do not treat Light Ball as full PASS.
+- Next actual verification target is Light Ball only.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 
 Repo / branch / remote checks first:
@@ -84,9 +91,9 @@ Current actual Gemini verification status:
      - `ko_context` unchanged
 
 3. Light Ball `species_stat_item_context`
-   - Implementation: complete.
+   - Implementation: complete after v3.1 damage estimate integration.
    - Payload preflight: PASS.
-   - Actual Gemini status after v2.7.1: PARTIAL.
+   - Actual Gemini status after v2.8.1: FAIL; v3.1.1 retry pending.
    - Actual advice mentioned Pikachu and user-confirmed Light Ball.
    - Forbidden wording observed: none.
    - v2.5 weakness:
@@ -118,6 +125,11 @@ Current actual Gemini verification status:
      - Gemini generated a response and mentioned Light Ball as a Pikachu-specific offensive item context.
      - Gemini still described the estimate with `no item` default assumptions and said the Light Ball boost was not applied.
      - Classification: FAIL / no-item residue still present.
+   - v3.1 implementation:
+     - Eligible user-confirmed Pikachu + Light Ball is applied in advisor damage estimates for damaging physical/special moves.
+     - `species_stat_item_context` is now a sibling explanation of applied `damage_estimate.item_effects`.
+     - Raw rolls and `ko_context` follow adjusted estimate rolls for eligible Light Ball only.
+     - Non-Pikachu, unconfirmed, defender-side, and status/unsupported-category Light Ball remain unapplied.
    - Do not treat as full PASS.
 
 4. Chilan Berry `chilan_berry_context`
@@ -187,7 +199,7 @@ Documentation expectations:
 
 - The old HTTP 429 blocker is no longer the current Developer API state after v2.5.
 - Focus Band and Quick Claw reached actual Gemini PASS.
-- Light Ball is PARTIAL after v2.7.1 due remaining generic no-item wording, not API availability.
+- Light Ball is implemented in the damage estimate after v3.1 but still needs v3.1.1 actual Gemini verification before PASS.
 - Chilan Berry reached actual Gemini PASS after v2.7.1.
 - v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

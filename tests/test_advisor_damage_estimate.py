@@ -1601,6 +1601,140 @@ def test_muscle_band_and_wise_glasses_apply_by_move_category() -> None:
     assert wise_estimate["item_effects"]["attacker_item"]["status"] == "applied"
 
 
+def test_light_ball_applies_to_user_confirmed_pikachu_damage_estimate() -> None:
+    default_payload = _battle_input(selected_move=_water_pulse())
+    default_payload["pokemon"]["my_active"] = _pikachu_payload()
+    light_ball_payload = _battle_input(selected_move=_water_pulse())
+    light_ball_payload["pokemon"]["my_active"] = _pikachu_payload()
+    light_ball_payload["item_profiles"] = {
+        "my_active": _light_ball_profile(),
+        "opponent_active": _item_profile(None),
+    }
+
+    default_estimate = build_selected_move_damage_estimate(default_payload)
+    light_ball_estimate = build_selected_move_damage_estimate(light_ball_payload)
+
+    assert light_ball_estimate["damage_range"]["max"] > default_estimate["damage_range"]["max"]
+    assert light_ball_estimate["rolls"] != default_estimate["rolls"]
+    assert light_ball_estimate["derived_stats"]["attacker"]["attack_stat_before_item"] < light_ball_estimate[
+        "derived_stats"
+    ]["attacker"]["attack_stat_used"]
+    assert light_ball_estimate["item_effects"]["attacker_item"] == {
+        "item_id": "light-ball",
+        "name_en": "Light Ball",
+        "status": "applied",
+        "effect_type": "species_stat_item_modifier",
+        "modifier": 2.0,
+        "boosted_stats": ["atk", "spa"],
+        "supported_species": ["pikachu"],
+        "applied_effects": ["species_stat_modifier"],
+        "unapplied_effects": [],
+        "reason": "User-confirmed Light Ball is applied for Pikachu in this damage estimate.",
+    }
+    assert light_ball_estimate["assumptions"]["item"] == "supported_attacker_damage_item_applied"
+    assert light_ball_estimate["assumption_profile"]["damage_item_applied"] is True
+    assert "no item" not in light_ball_estimate["assumption_profile"]["label"].lower()
+
+
+def test_light_ball_applies_to_pikachu_physical_and_special_moves_only_when_eligible() -> None:
+    physical_default_payload = _battle_input(selected_move=_tackle())
+    physical_default_payload["pokemon"]["my_active"] = _pikachu_payload()
+    physical_light_ball_payload = _battle_input(selected_move=_tackle())
+    physical_light_ball_payload["pokemon"]["my_active"] = _pikachu_payload()
+    physical_light_ball_payload["item_profiles"] = {
+        "my_active": _light_ball_profile(),
+        "opponent_active": _item_profile(None),
+    }
+    special_default_payload = _battle_input(selected_move=_water_pulse())
+    special_default_payload["pokemon"]["my_active"] = _pikachu_payload()
+    special_light_ball_payload = _battle_input(selected_move=_water_pulse())
+    special_light_ball_payload["pokemon"]["my_active"] = _pikachu_payload()
+    special_light_ball_payload["item_profiles"] = {
+        "my_active": _light_ball_profile(),
+        "opponent_active": _item_profile(None),
+    }
+
+    physical_default = build_selected_move_damage_estimate(physical_default_payload)
+    physical_light_ball = build_selected_move_damage_estimate(physical_light_ball_payload)
+    special_default = build_selected_move_damage_estimate(special_default_payload)
+    special_light_ball = build_selected_move_damage_estimate(special_light_ball_payload)
+
+    assert physical_light_ball["damage_range"]["max"] > physical_default["damage_range"]["max"]
+    assert special_light_ball["damage_range"]["max"] > special_default["damage_range"]["max"]
+    assert physical_light_ball["item_effects"]["attacker_item"]["status"] == "applied"
+    assert special_light_ball["item_effects"]["attacker_item"]["status"] == "applied"
+
+
+def test_light_ball_does_not_apply_to_non_pikachu_or_unconfirmed_or_defender_side() -> None:
+    default_estimate = build_selected_move_damage_estimate(_battle_input(selected_move=_water_pulse()))
+
+    non_pikachu_payload = _battle_input(selected_move=_water_pulse())
+    non_pikachu_payload["item_profiles"] = {
+        "my_active": _light_ball_profile(),
+        "opponent_active": _item_profile(None),
+    }
+    unconfirmed_payload = _battle_input(selected_move=_water_pulse())
+    unconfirmed_payload["pokemon"]["my_active"] = _pikachu_payload()
+    unconfirmed_payload["item_profiles"] = {
+        "my_active": _light_ball_profile(status="unknown"),
+        "opponent_active": _item_profile(None),
+    }
+    defender_side_payload = _battle_input(selected_move=_water_pulse())
+    defender_side_payload["pokemon"]["my_active"] = _pikachu_payload()
+    defender_side_payload["item_profiles"] = {
+        "my_active": _item_profile(None),
+        "opponent_active": _light_ball_profile(),
+    }
+
+    non_pikachu = build_selected_move_damage_estimate(non_pikachu_payload)
+    unconfirmed = build_selected_move_damage_estimate(unconfirmed_payload)
+    defender_side = build_selected_move_damage_estimate(defender_side_payload)
+
+    assert non_pikachu["damage_range"] == default_estimate["damage_range"]
+    assert non_pikachu["item_effects"]["attacker_item"]["status"] == "not_applied"
+    unconfirmed_default_payload = _battle_input(selected_move=_water_pulse())
+    unconfirmed_default_payload["pokemon"]["my_active"] = _pikachu_payload()
+    assert unconfirmed["damage_range"] == build_selected_move_damage_estimate(unconfirmed_default_payload)[
+        "damage_range"
+    ]
+    assert unconfirmed["item_effects"]["attacker_item"]["status"] == "not_applied"
+    assert defender_side["item_effects"]["attacker_item"]["status"] == "system_default_none"
+    assert defender_side["item_effects"]["defender_item"]["status"] == "not_applied"
+
+
+def test_light_ball_ko_context_uses_adjusted_damage_rolls() -> None:
+    default_payload = _battle_input(selected_move=_water_pulse())
+    default_payload["pokemon"]["my_active"] = _pikachu_payload()
+    default_payload["pokemon"]["opponent_active"]["current_hp"] = 30
+    light_ball_payload = _battle_input(selected_move=_water_pulse())
+    light_ball_payload["pokemon"]["my_active"] = _pikachu_payload()
+    light_ball_payload["pokemon"]["opponent_active"]["current_hp"] = 30
+    light_ball_payload["item_profiles"] = {
+        "my_active": _light_ball_profile(),
+        "opponent_active": _item_profile(None),
+    }
+
+    default_result = attach_selected_move_damage_estimate(default_payload)
+    light_ball_result = attach_selected_move_damage_estimate(light_ball_payload)
+    default_move = default_result["moves"]["my_selected_move"]
+    light_ball_move = light_ball_result["moves"]["my_selected_move"]
+
+    assert light_ball_move["damage_estimate"]["rolls"] != default_move["damage_estimate"]["rolls"]
+    assert light_ball_move["ko_context"]["damage"] == {
+        "min": light_ball_move["damage_estimate"]["damage_range"]["min"],
+        "max": light_ball_move["damage_estimate"]["damage_range"]["max"],
+        "roll_count": len(light_ball_move["damage_estimate"]["rolls"]),
+    }
+    assert light_ball_move["ko_context"]["ohko"] != default_move["ko_context"]["ohko"]
+    assert light_ball_move["species_stat_item_context"]["available"] is True
+    assert (
+        light_ball_move["species_stat_item_context"]["species_stat_effect"][
+            "damage_estimate_item_effect_status"
+        ]
+        == "applied"
+    )
+
+
 def test_legal_type_boosting_item_applies_when_move_type_matches() -> None:
     cases = [
         ("charcoal", "Charcoal", _flamethrower(), "fire"),
@@ -1962,6 +2096,22 @@ def _item_profile(item_id: str | None) -> dict:
     }
 
 
+def _light_ball_profile(*, status: str = "user_confirmed") -> dict:
+    return {
+        "status": status,
+        "source": "user_input" if status == "user_confirmed" else "user_unconfirmed",
+        "item_id": "light-ball",
+        "name_en": "Light Ball",
+        "name_ko": None,
+        "effects_scope": ["species_stat"],
+        "legality_status": "legal",
+        "effect_support_status": "legal_but_not_modeled",
+        "damage_modifier_status": "not_applied",
+        "ui_status": "recognized_not_modeled",
+        "notes": [],
+    }
+
+
 def _legal_but_not_modeled_item_profile(item_id: str) -> dict:
     return {
         "status": "user_confirmed",
@@ -1999,6 +2149,28 @@ def _legal_type_boosting_item_profile(
         "damage_modifier_status": "not_applied",
         "ui_status": ui_status,
         "notes": [],
+    }
+
+
+def _pikachu_payload() -> dict:
+    return {
+        "slot_index": 0,
+        "name_en": "pikachu",
+        "name_ko": "Pikachu",
+        "types": ["electric"],
+        "types_ko": ["Electric"],
+        "base_stats": {
+            "hp": 35,
+            "attack": 55,
+            "defense": 40,
+            "special-attack": 50,
+            "special-defense": 50,
+            "speed": 90,
+        },
+        "abilities": ["static", "lightning-rod"],
+        "abilities_ko": ["Static", "Lightning Rod"],
+        "hp_percent": 100,
+        "selected_move_index": 0,
     }
 
 

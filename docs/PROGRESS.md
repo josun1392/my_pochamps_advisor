@@ -1,5 +1,49 @@
 # Master Ball Advisor — Progress
 
+## v3.1 - Light Ball Damage Estimate Integration
+
+Purpose:
+- Align Light Ball `species_stat_item_context.available=true` with an applied advisor damage estimate.
+- Resolve the v2.8.1 / v2.9 payload conflict where Gemini saw both Light Ball context and no-item damage estimate assumptions.
+
+Implemented:
+- Added a narrow advisor damage estimate path for user-confirmed, Champions legal `light-ball` on attacker-side `pikachu`.
+- Applied the existing species-stat item modifier to the advisor estimate attack or special attack stat for damaging physical/special moves.
+- Marked `damage_estimate.item_effects.attacker_item.status` as `applied` with `effect_type=species_stat_item_modifier`.
+- Moved eligible Light Ball estimates away from `assumptions.item=none` and no-item assumption profile wording.
+- Reframed `species_stat_item_context` as a sibling explanation of the applied `damage_estimate.item_effects` modifier.
+- Kept non-Pikachu, unconfirmed Light Ball, defender-side Light Ball, and status/unsupported-category moves unapplied.
+- Preserved Chilan Berry, Focus Band, Quick Claw, type boost, and resist berry context boundaries.
+
+Safety:
+- No core damage formula change.
+- No Q12 constant change.
+- Raw damage rolls intentionally change only for eligible Pikachu + user-confirmed Light Ball damaging physical/special moves.
+- `ko_context` naturally follows the adjusted damage estimate rolls; no separate Light-Ball-specific KO hack was added.
+- No actual Gemini call.
+- No Vertex AI call.
+- No legal fixture change.
+- No threshold, skip, or xfail change.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 1 timing-sensitive perf failure, 905 passed, 2 deselected.
+  - failure: `test_item_damage_calculation_under_point_12ms_average`
+  - best batch median: `0.125000ms`
+  - threshold: `0.120000ms`
+  - isolated target 3x: passed
+  - perf file rerun: 4 passed
+  - threshold/skip/xfail unchanged.
+
+Next:
+- v3.1.1 actual Gemini verification for Light Ball only.
+- Do not mark Light Ball actual advice PASS until that retry succeeds.
+
+---
+
 ## Naming Convention (since 3.1 closure)
 
 ```
