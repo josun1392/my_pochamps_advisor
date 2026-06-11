@@ -10754,6 +10754,65 @@ Verification:
 
 ---
 
+## v2.9 - Light Ball payload conflict analysis
+
+Purpose:
+- Analyze the v2.8.1 Light Ball FAIL without running another Gemini call.
+- Find where `no item`, `not applied`, and default-assumption wording remain in the Light Ball available payload.
+- Decide whether the next step should be prompt hardening, payload clarification, or actual Light Ball damage-estimate integration.
+
+Findings:
+- Payload preflight remains PASS:
+  - `species_stat_item_context.available=true`
+  - holder species `pikachu`
+  - item `light-ball`
+  - required mention guard present
+  - Light Ball-specific no-item residue guard present
+- The default advice payload still contains conflicting damage-estimate signals:
+  - `damage_estimate.assumption_profile.id=default_level50_ivs31_evs0_neutral_no_item`
+  - `damage_estimate.assumption_profile.label=Default Level 50 / IV 31 / EV 0 / neutral nature / no item`
+  - `damage_estimate.assumptions.item=none`
+  - top-level Light Ball item profile has `effect_support_status=legal_but_not_modeled`
+  - top-level Light Ball item profile has `damage_modifier_status=not_applied`
+  - `species_stat_item_context.species_stat_effect.damage_estimate_item_effect_status=not_applied`
+- Core damage code has Light Ball support in species-stat item modifier logic.
+- The advisor damage estimate builder does not currently pass Light Ball as an applied attacker item:
+  - `_attacker_item_for_damage` handles catalog type-boost items and `SUPPORTED_ATTACKER_DAMAGE_ITEMS`
+  - `SUPPORTED_ATTACKER_DAMAGE_ITEMS` does not include Light Ball / species-stat items
+- Therefore, the current LLM advice payload is internally tense:
+  - Light Ball is available as explanatory context
+  - raw damage rolls are still no-item / not Light-Ball-adjusted
+
+Conclusion:
+- Another prompt-only guard is unlikely to be robust.
+- T2 should choose one of two directions:
+  - integrate Light Ball into advisor damage estimates in a separate mechanics/damage task, which would intentionally change raw rolls and needs broad tests
+  - keep Light Ball explanatory-only, but clarify the payload/contract so Gemini may say Light Ball is recognized separately and not integrated into raw rolls without generic no-item wording
+
+Boundaries:
+- actual Gemini call: not run in v2.9.
+- Vertex AI call: not run.
+- code changes: none.
+- payload filtering changes: none.
+- raw damage formula changed: no.
+- raw damage rolls changed: no.
+- Q12 multiplier changed: no.
+- `ko_context` changed: no.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 92 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run had one timing-sensitive failure:
+  - failure test: `test_item_damage_calculation_under_point_12ms_average`
+  - best batch median: 0.125000ms
+  - threshold: 0.120000ms
+  - isolated target rerun 3x: passed.
+  - `uv run pytest tests/test_damage_perf.py -q` rerun: 4 passed.
+- `uv run pytest -q`: 902 passed, 2 deselected.
+- threshold/skip/xfail changed: no.
+
+---
+
 ## v0.92.1/v0.93 - Unavailable item context verification and regression hardening
 
 Purpose:
