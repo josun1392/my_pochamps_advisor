@@ -1,5 +1,48 @@
 # Master Ball Advisor — Progress
 
+## v4.0 - Turn Engine / Battle State Design
+
+Purpose:
+- Design the minimum Turn Engine / Battle State layer needed after the v3.2 item context verification queue closure and v3.4 guard registry cleanup.
+- Explain why the next broad direction should be battle state and turn timing rather than more limited item contexts.
+
+Findings:
+- Current advisor state is selected-Pokemon, selected-move, item-profile, damage-estimate, `ko_context`, and limited item-context oriented.
+- It does not own full turn sequence, event timing, item consumption, post-damage HP updates, stat-stage timelines, volatile/status timelines, form/state changes, or final move order.
+- Remaining item candidates such as Shell Bell, healing berries, White Herb, Mental Herb, Mega Stones, Focus Band, Quick Claw, and Loaded Dice need those state/timing hooks.
+
+Design:
+- Proposed minimal `PokemonBattleSlot`, `BattleState`, `TurnInput`, and `TurnSnapshot` contracts.
+- Split Turn Engine responsibilities into pre-turn snapshot, move input, speed/order context, damage estimate, `ko_context`, item trigger evaluation, post-damage update, consumption update, and advisor payload generation.
+- Classified item triggers into pre-move, on-damage-before-KO, on-hit/on-damage-dealt, post-damage HP threshold, on-stat-drop, on-status/volatile, form/state, and multi-hit event families.
+- Kept existing damage estimate and `ko_context` as calculation primitives and limited damage-roll context.
+- Kept existing item contexts as the migration surface; future trigger results can become their source of truth gradually.
+
+Recommended next:
+- `v4.1 Turn State Snapshot Contract`.
+- Implement a BattleState / TurnSnapshot schema or dataclass layer without full turn simulation and without changing current damage estimate behavior.
+
+Safety:
+- Documentation-only design.
+- No actual Gemini call.
+- No Vertex AI call.
+- No code changes.
+- No new item implementation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 50 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 907 passed, 2 deselected.
+
+---
+
 ## v3.4 - Item Context Guard Registry Cleanup
 
 Purpose:
