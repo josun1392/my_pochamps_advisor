@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, the v2.7 available item context required-mention guard, the v2.7.1 post-guard actual verification result, the v2.8 Light Ball no-item residue guard implementation, the v2.8.1 Light Ball actual verification result, the v3.1 Light Ball damage estimate integration, the v3.1.1 Light Ball actual verification PASS, the v3.2 item-context verification closure, and the v3.4 item context guard registry cleanup.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, and the v4.1-v4.5 TurnSnapshot path.
 
 Update after v2.5:
 
@@ -22,17 +22,21 @@ Update after v2.5:
 - v3.1.1 verified Light Ball actual Gemini wording as PASS.
 - v3.2 closed the original item-context pending verification queue.
 - v3.4 centralized available item context mention labels, item-specific guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA`.
+- v4.1 added `core.turn_state` with `PokemonBattleSlot`, `BattleState`, `TurnInput`, and `TurnSnapshot`.
+- v4.3 added optional top-level `turn_snapshot` payload adapter support.
+- v4.5 added `llm.advisor_turn_snapshot` and connected UI-selected `battle_input` to optional `TurnSnapshot` payload context with fallback.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v3.4 Item Context Guard Registry Cleanup.
+T3, continue after v4.5 UI Selected State TurnSnapshot Builder.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
+- Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
 - Treat the original item-context verification queue as closed:
   - Focus Band: PASS
   - Quick Claw: PASS
@@ -74,6 +78,13 @@ Goal:
   - `advisor_client.py` still builds the prompt guard from visible `available=true` contexts.
   - payload filtering behavior is unchanged.
   - Choice Scarf remains protected in top-level `speed_context`.
+- v4.1-v4.5 TurnSnapshot status:
+  - `core/turn_state.py` defines serializable validated snapshot contracts.
+  - `build_ui_advice_payload(..., turn_snapshot=None)` preserves old payloads when absent.
+  - `llm/advisor_turn_snapshot.py` builds snapshots from UI-selected `battle_input`.
+  - `run_ui_selected_advice(...)` attempts snapshot construction and falls back to existing advice when validation fails.
+  - Snapshot mapping includes active species, slot index, HP percent, selected move, and known item profile/status only.
+  - Full Turn Engine, item trigger evaluation, item consumption, HP update, and speed/order simulation are not implemented.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.

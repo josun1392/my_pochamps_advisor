@@ -28,6 +28,8 @@ v4.1 adds a standalone `core.turn_state` contract for future Turn Engine / Battl
 
 v4.3 adds optional payload adapter support for this contract. When a caller explicitly supplies a snapshot, the default advice payload may include a top-level `turn_snapshot` section.
 
+v4.5 adds a UI-selected `battle_input` adapter in `llm.advisor_turn_snapshot`. The strict helper `build_turn_snapshot_from_battle_input(...)` converts existing UI-selected dictionaries into a `TurnSnapshot`, while `try_build_turn_snapshot_from_battle_input(...)` returns `None` on validation failure so user-facing advice can fall back to the previous payload flow. `run_ui_selected_advice(...)` now attempts this snapshot build and passes the result to the optional v4.3 payload adapter.
+
 If no snapshot is supplied, the advisor payload remains unchanged.
 
 When `turn_snapshot` is present:
@@ -49,6 +51,13 @@ The adapter remains intentionally disconnected from current calculator behavior:
 - item-context filtering is unchanged
 - item trigger evaluation, item consumption, HP updates, and speed/order simulation are not implemented
 
+The v4.5 UI mapping is intentionally minimal:
+
+- active player/opponent species id/name, slot index, HP percent, known item id/status, and selected player move can be mapped
+- stat stages, major status, volatile conditions, weather, terrain, field conditions, and turn number stay empty or `None`
+- `system_default_none` and explicit no-item profiles serialize as battle-state `absent`
+- unknown or unconfirmed item profiles serialize as `unknown`
+
 Future milestones can use the snapshot contract as the bridge between UI selected state, deterministic trigger results, and LLM payload generation.
 
 ## Current Payload Shape
@@ -56,6 +65,7 @@ Future milestones can use the snapshot contract as the bridge between UI selecte
 Top-level sections:
 
 - `scenario`
+- optional `turn_snapshot`
 - `pokemon`
 - `stat_profiles`
 - `item_profiles`

@@ -1,5 +1,53 @@
 # Master Ball Advisor — Progress
 
+## v4.5 - UI Selected State TurnSnapshot Builder
+
+Purpose:
+- Build a minimal `TurnSnapshot` from the existing UI-selected `battle_input` and pass it through the optional v4.3 payload adapter.
+- Keep this as selected/pre-turn state context only; do not implement full Turn Engine behavior.
+
+Implemented:
+- Added `llm/advisor_turn_snapshot.py`.
+- Added strict `build_turn_snapshot_from_battle_input(...)`.
+- Added user-facing fallback `try_build_turn_snapshot_from_battle_input(...)`.
+- Mapped active player/opponent species, slot index, HP percent, known item id/status, and selected player move.
+- Kept stat stages empty, major status `None`, volatile conditions empty, weather `None`, terrain `None`, field conditions empty, and turn number `None`.
+- Connected `run_ui_selected_advice(...)` to build a snapshot and pass it into `_build_ui_selected_prompt(...)` / `build_ui_advice_payload(...)`.
+- Preserved existing advice flow when snapshot construction fails.
+
+Behavior:
+- Snapshot absent behavior remains unchanged.
+- Snapshot present behavior adds top-level `turn_snapshot` and v4.3 limitations.
+- `system_default_none` and explicit no-item profiles map to battle-state `absent`; unknown/unconfirmed profiles stay `unknown`.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption.
+- No HP update logic.
+- No speed/order simulation.
+- No damage estimate, `ko_context`, item-context, or filtering behavior change.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering behavior change.
+- No new item implementation.
+- No threshold, skip, or xfail change.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 11 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 943 passed, 2 deselected.
+
+---
+
 ## v4.4 - UI Selected State to TurnSnapshot Mapping Design
 
 Purpose:

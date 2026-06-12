@@ -21,6 +21,7 @@ from llm.advisor_payload_contract import (
     DEBUG_ONLY_REASON_PHRASES,
     TURN_SNAPSHOT_KNOWN_LIMITATIONS,
 )
+from llm.advisor_turn_snapshot import try_build_turn_snapshot_from_battle_input
 from llm.token_logger import UNKNOWN_MODEL_OR_UNKNOWN_PRICING, TokenLogger
 from scripts.spike_advisor import (
     DEFAULT_MODEL,
@@ -102,7 +103,8 @@ def run_ui_selected_advice(
     owns prompt construction, Gemini invocation, and token logging.
     """
     selected_model = model or DEFAULT_MODEL
-    prompt = _build_ui_selected_prompt(battle_input)
+    turn_snapshot = try_build_turn_snapshot_from_battle_input(battle_input)
+    prompt = _build_ui_selected_prompt(battle_input, turn_snapshot=turn_snapshot)
     recommendation, usage = call_gemini(prompt, selected_model)
     summary = _log_advisor_call(
         model=selected_model,
