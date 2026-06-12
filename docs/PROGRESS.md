@@ -1,5 +1,59 @@
 # Master Ball Advisor — Progress
 
+## v4.2 - Turn Snapshot Payload Adapter Design
+
+Purpose:
+- Design how the v4.1 `TurnSnapshot` contract should attach to the LLM advice payload.
+- Keep the design additive, optional, and clearly separate from full Turn Engine output.
+
+Recommendation:
+- Use an optional top-level `turn_snapshot` payload section.
+- Do not use names such as `turn_engine_result`, `battle_simulation`, `engine_result`, or `final_turn_state`.
+- If no `TurnSnapshot` is supplied, default advice payload output should remain unchanged.
+- If a `TurnSnapshot` is supplied, normalize with `normalize_turn_snapshot(...)`, serialize with `to_dict()`, and add only the top-level snapshot plus snapshot-specific limitations.
+
+Limitations:
+- `turn_snapshot` is selected/pre-turn known state, not full turn simulation.
+- Item trigger evaluation, item consumption, post-damage HP updates, speed/order simulation, and exact status/volatile resolution are not implemented.
+- Gemini should not claim full turn simulation, exact item trigger results, consumed items, exact post-turn HP, guaranteed move order, or exact status resolution from the snapshot alone.
+
+v4.3 implementation plan:
+- Add a small payload adapter helper at the LLM payload boundary.
+- Keep absent snapshot behavior unchanged.
+- Add top-level `turn_snapshot` only when explicitly provided.
+- Add snapshot limitations only when the section is present.
+- Do not connect to damage estimate, `ko_context`, item contexts, trigger results, HP updates, item consumption, or speed simulation.
+
+Future connection:
+- Map UI selected active slot state, known item profile, HP percent, stat stages, and known conditions into `TurnSnapshot` in later milestones.
+- Add a separate item trigger result contract before modeling consumption or post-damage HP updates.
+
+Safety:
+- Documentation-only design.
+- No actual Gemini call.
+- No Vertex AI call.
+- No code changes.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption.
+- No HP update logic.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 50 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 925 passed, 2 deselected.
+
+---
+
 ## v4.1 - Turn State Snapshot Contract
 
 Purpose:
