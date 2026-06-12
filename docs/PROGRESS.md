@@ -1,5 +1,41 @@
 # Master Ball Advisor — Progress
 
+## v4.6 - TurnSnapshot Payload Smoke Verification
+
+Purpose:
+- Verify the v4.3/v4.5 TurnSnapshot payload connection without any actual Gemini call.
+- Confirm snapshot present, absent, and fallback paths remain additive and do not alter existing calculator/context behavior.
+
+Verified:
+- Valid UI-selected `battle_input` builds a `TurnSnapshot`.
+- Present snapshot path adds top-level `turn_snapshot` with player/opponent species, HP percent, selected move, and known item id/status.
+- Present snapshot path adds selected/pre-turn snapshot limitations to `scenario.known_limitations`.
+- Invalid snapshot input returns `None` through the user-facing fallback helper.
+- Absent/fallback path omits `turn_snapshot` and preserves the existing default advice payload.
+- Removing only `turn_snapshot` and snapshot limitations from the snapshot payload produces the same payload as the absent snapshot path.
+- `run_ui_selected_advice(...)` can build prompt text with snapshot context when valid and fall back without snapshot context when invalid, using mocked Gemini calls in tests only.
+
+Behavior:
+- No production code changes.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption.
+- No HP update logic.
+- No speed/order simulation.
+- No damage estimate, `ko_context`, item-context, or filtering behavior change.
+
+Verification:
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 12 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 944 passed, 2 deselected.
+
+---
+
 ## v4.5 - UI Selected State TurnSnapshot Builder
 
 Purpose:

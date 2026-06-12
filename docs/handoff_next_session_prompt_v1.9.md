@@ -25,13 +25,14 @@ Update after v2.5:
 - v4.1 added `core.turn_state` with `PokemonBattleSlot`, `BattleState`, `TurnInput`, and `TurnSnapshot`.
 - v4.3 added optional top-level `turn_snapshot` payload adapter support.
 - v4.5 added `llm.advisor_turn_snapshot` and connected UI-selected `battle_input` to optional `TurnSnapshot` payload context with fallback.
+- v4.6 verified the TurnSnapshot payload smoke path without actual Gemini calls.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v4.5 UI Selected State TurnSnapshot Builder.
+T3, continue after v4.6 TurnSnapshot Payload Smoke Verification.
 
 Goal:
 - Do not add new item contexts.
@@ -84,6 +85,7 @@ Goal:
   - `llm/advisor_turn_snapshot.py` builds snapshots from UI-selected `battle_input`.
   - `run_ui_selected_advice(...)` attempts snapshot construction and falls back to existing advice when validation fails.
   - Snapshot mapping includes active species, slot index, HP percent, selected move, and known item profile/status only.
+  - v4.6 smoke/preflight verified present snapshot, absent/fallback snapshot, prompt limitation, and unchanged damage/ko/item-context payload behavior.
   - Full Turn Engine, item trigger evaluation, item consumption, HP update, and speed/order simulation are not implemented.
 
 Repo / branch / remote checks first:

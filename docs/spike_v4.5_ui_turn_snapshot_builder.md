@@ -84,3 +84,19 @@ v4.5 does not implement:
 Actual Gemini calls were not executed.
 
 The implementation is covered by `tests/test_advisor_turn_snapshot.py` plus existing TurnSnapshot, payload contract, and damage estimate regression tests.
+
+## v4.6 Smoke Verification
+
+v4.6 adds smoke/preflight coverage without production code changes and without actual Gemini calls.
+
+The smoke path verifies:
+
+- valid UI-selected `battle_input` creates a `TurnSnapshot`
+- top-level `turn_snapshot` is present when a snapshot is supplied
+- player/opponent species, HP percent, selected move, and item id/status serialize into the snapshot
+- selected/pre-turn snapshot limitations are added only when the snapshot is present
+- invalid snapshot input returns `None` through the user-facing fallback helper
+- absent/fallback snapshot behavior preserves the existing payload
+- damage estimate, `ko_context`, item context, and filtering output remain unchanged apart from the optional snapshot section and its limitations
+
+Full Turn Engine behavior, item trigger evaluation, item consumption, HP updates, and speed/order simulation remain unimplemented.

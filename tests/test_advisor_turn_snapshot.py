@@ -7,6 +7,7 @@ import pytest
 from llm import advisor_client
 from llm.advisor_client import build_ui_advice_payload
 from llm.advisor_damage_estimate import attach_selected_move_damage_estimate
+from llm.advisor_payload_contract import TURN_SNAPSHOT_KNOWN_LIMITATIONS
 from llm.advisor_turn_snapshot import (
     build_turn_snapshot_from_battle_input,
     try_build_turn_snapshot_from_battle_input,
@@ -179,3 +180,36 @@ def test_run_ui_selected_advice_falls_back_when_snapshot_builder_fails(monkeypat
 
     assert '"turn_snapshot"' not in captured["prompt"]
     assert "selected/pre-turn known state context only" not in captured["prompt"]
+
+
+def test_turn_snapshot_payload_smoke_preflight_present_and_fallback_paths() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = _item_profiles(my_item="choice-scarf", opponent_item="focus-sash")
+    payload["pokemon"]["my_active"]["hp_percent"] = 88
+    payload["pokemon"]["opponent_active"]["hp_percent"] = 41
+    payload = attach_selected_move_damage_estimate(payload)
+    snapshot = build_turn_snapshot_from_battle_input(payload)
+
+    base_payload = build_ui_advice_payload(payload)
+    snapshot_payload = build_ui_advice_payload(payload, turn_snapshot=snapshot)
+
+    assert snapshot_payload["turn_snapshot"]["battle_state"]["active_player"]["species_id"] == "charizard"
+    assert snapshot_payload["turn_snapshot"]["battle_state"]["active_opponent"]["species_id"] == "garchomp"
+    assert snapshot_payload["turn_snapshot"]["battle_state"]["active_player"]["current_hp_percent"] == 88
+    assert snapshot_payload["turn_snapshot"]["battle_state"]["active_opponent"]["current_hp_percent"] == 41
+    assert snapshot_payload["turn_snapshot"]["battle_state"]["active_player"]["known_item_id"] == "choice-scarf"
+    assert snapshot_payload["turn_snapshot"]["battle_state"]["active_player"]["item_status"] == "user_confirmed"
+    assert snapshot_payload["turn_snapshot"]["turn_input"]["selected_move_id"] == "flamethrower"
+    for limitation in TURN_SNAPSHOT_KNOWN_LIMITATIONS:
+        assert limitation in snapshot_payload["scenario"]["known_limitations"]
+
+    snapshot_payload_without_snapshot = deepcopy(snapshot_payload)
+    snapshot_payload_without_snapshot.pop("turn_snapshot")
+    for limitation in TURN_SNAPSHOT_KNOWN_LIMITATIONS:
+        snapshot_payload_without_snapshot["scenario"]["known_limitations"].remove(limitation)
+    assert snapshot_payload_without_snapshot == base_payload
+
+    invalid_payload = deepcopy(payload)
+    invalid_payload["pokemon"]["my_active"]["hp_percent"] = 120
+    assert try_build_turn_snapshot_from_battle_input(invalid_payload) is None
+    assert build_ui_advice_payload(invalid_payload, turn_snapshot=None) == build_ui_advice_payload(invalid_payload)
