@@ -5,6 +5,12 @@ from __future__ import annotations
 
 ADVISOR_PAYLOAD_MODE = "ui-selected-pokemon-v0.18"
 
+TURN_SNAPSHOT_KNOWN_LIMITATIONS = [
+    "turn_snapshot, when present, is selected/pre-turn known state only and is not full turn simulation.",
+    "turn_snapshot does not perform item trigger evaluation, item consumption, post-damage HP updates, speed/order simulation, or exact status resolution.",
+    "Do not claim full turn simulation, exact item trigger results, consumed items, exact post-turn HP, guaranteed move order, or exact status resolution from turn_snapshot alone.",
+]
+
 ADVICE_ITEM_CONTEXT_KEYS = frozenset(
     {
         "survival_context",

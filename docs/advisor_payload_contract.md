@@ -26,7 +26,21 @@ The registry is used only for prompt guard generation and tests. It does not cha
 
 v4.1 adds a standalone `core.turn_state` contract for future Turn Engine / Battle State work. The contract defines `PokemonBattleSlot`, `BattleState`, `TurnInput`, and `TurnSnapshot` with safe dictionary serialization and minimal validation.
 
-This contract is intentionally not inserted into the advisor payload yet:
+v4.3 adds optional payload adapter support for this contract. When a caller explicitly supplies a snapshot, the default advice payload may include a top-level `turn_snapshot` section.
+
+If no snapshot is supplied, the advisor payload remains unchanged.
+
+When `turn_snapshot` is present:
+
+- it is selected/pre-turn known state only
+- it is not full turn simulation
+- it does not perform item trigger evaluation
+- it does not simulate item consumption
+- it does not update post-damage HP
+- it does not simulate guaranteed move order
+- it does not resolve exact status or volatile condition outcomes
+
+The adapter remains intentionally disconnected from current calculator behavior:
 
 - current damage estimates are unchanged
 - raw damage rolls are unchanged

@@ -4,6 +4,8 @@ import json
 from copy import deepcopy
 from types import MethodType, SimpleNamespace
 
+import pytest
+
 from core.cache_manager import CacheManager
 from core.champions_item_repository import ChampionsItemRepository
 from core.champions_move_pool import ChampionsMovePoolRepository
@@ -12,6 +14,7 @@ from core.move_repository import MoveView
 from core.move_repository import MoveRepository
 from core.pokemon_repository import PokemonView
 from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
+from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
 from llm.advisor_client import _build_ui_selected_prompt, build_ui_advice_payload
 from llm.advisor_damage_estimate import attach_selected_move_damage_estimate
 from llm.advisor_payload_contract import (
@@ -22,6 +25,7 @@ from llm.advisor_payload_contract import (
     DEBUG_ONLY_REASON_PHRASES,
     ADVISOR_KNOWN_LIMITATIONS,
     ADVISOR_PAYLOAD_MODE,
+    TURN_SNAPSHOT_KNOWN_LIMITATIONS,
 )
 from tests.test_advisor_damage_estimate import (
     _battle_input,
@@ -141,6 +145,96 @@ def test_ui_payload_uses_advisor_contract_guardrails() -> None:
     assert "Terastallization is banned in PoChamps and must not be considered." in payload["scenario"][
         "known_limitations"
     ]
+
+
+def test_turn_snapshot_absent_preserves_default_advice_payload() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    without_argument = build_ui_advice_payload(payload)
+    with_none = build_ui_advice_payload(payload, turn_snapshot=None)
+
+    assert with_none == without_argument
+    assert "turn_snapshot" not in with_none
+    for limitation in TURN_SNAPSHOT_KNOWN_LIMITATIONS:
+        assert limitation not in with_none["scenario"]["known_limitations"]
+
+
+def test_turn_snapshot_present_adds_normalized_top_level_payload() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    snapshot = _sample_turn_snapshot()
+
+    advice_payload = build_ui_advice_payload(payload, turn_snapshot=snapshot)
+
+    assert advice_payload["turn_snapshot"] == snapshot.to_dict()
+    assert advice_payload["turn_snapshot"]["battle_state"]["active_player"]["species_id"] == "pikachu"
+    assert advice_payload["turn_snapshot"]["battle_state"]["active_player"]["current_hp_percent"] == 62.5
+    assert advice_payload["turn_snapshot"]["battle_state"]["active_player"]["item_status"] == "user_confirmed"
+    assert advice_payload["turn_snapshot"]["battle_state"]["active_player"]["stat_stages"] == {"attack": 1}
+    assert advice_payload["turn_snapshot"]["battle_state"]["active_player"]["volatile_conditions"] == ["taunt"]
+    for limitation in TURN_SNAPSHOT_KNOWN_LIMITATIONS:
+        assert limitation in advice_payload["scenario"]["known_limitations"]
+
+
+def test_turn_snapshot_mapping_is_normalized_for_advice_payload() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    snapshot_mapping = _sample_turn_snapshot().to_dict()
+
+    advice_payload = build_ui_advice_payload(payload, turn_snapshot=snapshot_mapping)
+
+    assert advice_payload["turn_snapshot"] == snapshot_mapping
+
+
+def test_invalid_turn_snapshot_raises_validation_error() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    with pytest.raises(ValueError):
+        build_ui_advice_payload(
+            payload,
+            turn_snapshot={
+                "battle_state": {
+                    "active_player": {
+                        "side": "bench",
+                    }
+                }
+            },
+        )
+
+
+def test_turn_snapshot_prompt_includes_limitations_and_no_engine_guard() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    prompt = _build_ui_selected_prompt(payload, turn_snapshot=_sample_turn_snapshot())
+
+    assert '"turn_snapshot"' in prompt
+    assert "selected/pre-turn known state context only, not full turn simulation" in prompt
+    assert "Do not claim full turn simulation" in prompt
+    assert "exact item trigger result" in prompt
+    assert "item was consumed" in prompt
+    assert "exact post-turn HP" in prompt
+    assert "guaranteed move order" in prompt
+    assert "exact status resolution" in prompt
+
+
+def test_turn_snapshot_absent_prompt_does_not_add_turn_snapshot_guard() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    prompt = _build_ui_selected_prompt(payload)
+
+    assert '"turn_snapshot"' not in prompt
+    assert "selected/pre-turn known state context only, not full turn simulation" not in prompt
+
+
+def test_turn_snapshot_does_not_change_damage_ko_or_item_context_payload() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    base_payload = build_ui_advice_payload(payload)
+    snapshot_payload = build_ui_advice_payload(payload, turn_snapshot=_sample_turn_snapshot())
+    snapshot_payload_without_turn_snapshot = deepcopy(snapshot_payload)
+    snapshot_payload_without_turn_snapshot.pop("turn_snapshot")
+    for limitation in TURN_SNAPSHOT_KNOWN_LIMITATIONS:
+        snapshot_payload_without_turn_snapshot["scenario"]["known_limitations"].remove(limitation)
+
+    assert snapshot_payload_without_turn_snapshot == base_payload
 
 
 def test_manual_move_payload_includes_only_user_confirmed_moves() -> None:
@@ -2550,6 +2644,45 @@ def _panel(
         selected_moves=selected_moves + [None] * (4 - len(selected_moves)),
         final_stats=final_stats,
         item_profile=item_profile,
+    )
+
+
+def _sample_turn_snapshot() -> TurnSnapshot:
+    return TurnSnapshot(
+        battle_state=BattleState(
+            active_player=PokemonBattleSlot(
+                side="player",
+                slot_index=0,
+                species_id="pikachu",
+                species_name="Pikachu",
+                current_hp_percent=62.5,
+                known_item_id="light-ball",
+                item_status="user_confirmed",
+                stat_stages={"attack": 1},
+                major_status=None,
+                volatile_conditions=("taunt",),
+            ),
+            active_opponent=PokemonBattleSlot(
+                side="opponent",
+                slot_index=0,
+                species_id="garchomp",
+                species_name="Garchomp",
+                current_hp_percent=None,
+                known_item_id=None,
+                item_status="unknown",
+            ),
+            weather="sun",
+            terrain=None,
+            field_conditions={"stealth_rock": {"opponent": True}},
+            turn_number=4,
+        ),
+        turn_input=TurnInput(
+            selected_move_id="flamethrower",
+            acting_side="player",
+            target_side="opponent",
+        ),
+        notes=("manual selected-state snapshot",),
+        limitations=("no full turn simulation",),
     )
 
 

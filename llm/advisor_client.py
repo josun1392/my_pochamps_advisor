@@ -11,6 +11,7 @@ import json
 from copy import deepcopy
 from typing import Any
 
+from core.turn_state import TurnSnapshot, normalize_turn_snapshot
 from core.champions_legal_item_repository import get_legal_item_status
 from llm.advisor_payload_contract import (
     ADVICE_CONTEXT_SIDE_FIELDS,
@@ -18,6 +19,7 @@ from llm.advisor_payload_contract import (
     ADVICE_ITEM_CONTEXT_GUARD_METADATA,
     ADVICE_ITEM_CONTEXT_KEYS,
     DEBUG_ONLY_REASON_PHRASES,
+    TURN_SNAPSHOT_KNOWN_LIMITATIONS,
 )
 from llm.token_logger import UNKNOWN_MODEL_OR_UNKNOWN_PRICING, TokenLogger
 from scripts.spike_advisor import (
@@ -67,10 +69,15 @@ def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dic
     return recommendation, usage, summary
 
 
-def build_ui_advice_payload(battle_input: dict[str, Any]) -> dict[str, Any]:
+def build_ui_advice_payload(
+    battle_input: dict[str, Any],
+    turn_snapshot: TurnSnapshot | dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
-    return filter_context_for_default_advice(payload)
+    filtered_payload = filter_context_for_default_advice(payload)
+    _add_turn_snapshot_to_advice_payload(filtered_payload, turn_snapshot)
+    return filtered_payload
 
 
 def filter_context_for_default_advice(payload: dict[str, Any]) -> dict[str, Any]:
@@ -105,14 +112,20 @@ def run_ui_selected_advice(
     return recommendation, usage, summary
 
 
-def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
-    advice_payload = build_ui_advice_payload(battle_input)
+def _build_ui_selected_prompt(
+    battle_input: dict[str, Any],
+    turn_snapshot: TurnSnapshot | dict[str, Any] | None = None,
+) -> str:
+    advice_payload = build_ui_advice_payload(battle_input, turn_snapshot=turn_snapshot)
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
+    turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
         "name the recommended direction, and mention the main limitation in the "
-        "data. If a damage_estimate is present, use it only under its stated "
+        "data. "
+        f"{turn_snapshot_guard}"
+        "If a damage_estimate is present, use it only under its stated "
         "assumption_profile and never describe it as final battle damage. Do "
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "
         "fields are explicitly provided. If ko_context is present, treat it as "
@@ -421,6 +434,39 @@ def _build_ui_selected_prompt(battle_input: dict[str, Any]) -> str:
         "possible assumptions, not confirmed held items. Do not enumerate "
         "opponent sample metadata by default; keep sample visibility concise.\n\n"
         f"{json.dumps(advice_payload, ensure_ascii=False, indent=2)}"
+    )
+
+
+def _add_turn_snapshot_to_advice_payload(
+    payload: dict[str, Any],
+    turn_snapshot: TurnSnapshot | dict[str, Any] | None,
+) -> None:
+    if turn_snapshot is None:
+        return
+
+    normalized_snapshot = normalize_turn_snapshot(turn_snapshot)
+    payload["turn_snapshot"] = normalized_snapshot.to_dict()
+
+    scenario = payload.setdefault("scenario", {})
+    limitations = list(scenario.get("known_limitations") or ())
+    for limitation in TURN_SNAPSHOT_KNOWN_LIMITATIONS:
+        if limitation not in limitations:
+            limitations.append(limitation)
+    scenario["known_limitations"] = limitations
+
+
+def _build_turn_snapshot_prompt_guard(payload: dict[str, Any]) -> str:
+    if "turn_snapshot" not in payload:
+        return ""
+    return (
+        "If turn_snapshot is present, treat it as selected/pre-turn known state "
+        "context only, not full turn simulation. Do not claim full turn "
+        "simulation, exact item trigger result, item was consumed, exact "
+        "post-turn HP, guaranteed move order, or exact status resolution from "
+        "turn_snapshot alone. Item trigger evaluation, item consumption, "
+        "post-damage HP updates, speed/order simulation, and exact status "
+        "resolution are not implemented. Use turn_snapshot only as known state "
+        "context. "
     )
 
 

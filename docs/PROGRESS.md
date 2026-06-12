@@ -1,5 +1,50 @@
 # Master Ball Advisor — Progress
 
+## v4.3 - Turn Snapshot Payload Adapter
+
+Purpose:
+- Attach the v4.1 `TurnSnapshot` contract to the default LLM advice payload as an optional top-level `turn_snapshot`.
+- Preserve existing payload behavior when no snapshot is supplied.
+
+Implemented:
+- Added optional `turn_snapshot` arguments to `build_ui_advice_payload(...)` and `_build_ui_selected_prompt(...)`.
+- Added adapter logic that normalizes `TurnSnapshot` or mapping input with `normalize_turn_snapshot(...)` and serializes with `to_dict()`.
+- Added top-level `turn_snapshot` only when explicitly supplied.
+- Added `TURN_SNAPSHOT_KNOWN_LIMITATIONS` and snapshot-specific prompt guard wording.
+- Kept invalid snapshot handling strict: invalid values raise `ValueError` instead of being silently coerced or omitted.
+- Added tests for absent snapshot behavior, present snapshot serialization, mapping normalization, invalid snapshot validation, prompt guard wording, absent guard behavior, and unchanged damage/`ko_context`/item-context payload sections.
+- Documented the adapter in `docs/spike_v4.3_turn_snapshot_payload_adapter.md` and updated `docs/advisor_payload_contract.md`.
+
+Behavior:
+- Absent snapshot path remains unchanged.
+- Present snapshot is selected/pre-turn known state context only.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption.
+- No HP update logic.
+- No speed/order simulation.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering behavior change.
+- No new item implementation.
+- No threshold, skip, or xfail change.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 932 passed, 2 deselected.
+
+---
+
 ## v4.2 - Turn Snapshot Payload Adapter Design
 
 Purpose:
