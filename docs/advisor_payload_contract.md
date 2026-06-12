@@ -22,6 +22,21 @@ The registry is used only for prompt guard generation and tests. It does not cha
 - Light Ball no-item residue guard and Chilan Berry Normal-type limited labels are now registry-backed.
 - Choice Scarf `speed_context` protection remains separate from move-level `speed_order_context`.
 
+## Turn State Snapshot Contract
+
+v4.1 adds a standalone `core.turn_state` contract for future Turn Engine / Battle State work. The contract defines `PokemonBattleSlot`, `BattleState`, `TurnInput`, and `TurnSnapshot` with safe dictionary serialization and minimal validation.
+
+This contract is intentionally not inserted into the advisor payload yet:
+
+- current damage estimates are unchanged
+- raw damage rolls are unchanged
+- Q12 multipliers are unchanged
+- `ko_context` remains limited damage-roll context
+- item-context filtering is unchanged
+- item trigger evaluation, item consumption, HP updates, and speed/order simulation are not implemented
+
+Future milestones can use the snapshot contract as the bridge between UI selected state, deterministic trigger results, and LLM payload generation.
+
 ## Current Payload Shape
 
 Top-level sections:

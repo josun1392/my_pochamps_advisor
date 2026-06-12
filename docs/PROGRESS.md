@@ -1,5 +1,51 @@
 # Master Ball Advisor — Progress
 
+## v4.1 - Turn State Snapshot Contract
+
+Purpose:
+- Implement the first minimal contract from the v4.0 Turn Engine / Battle State design.
+- Add serializable, validated turn-state structures without connecting them to advisor payload generation, damage estimates, item contexts, or `ko_context`.
+
+Implemented:
+- Added `core/turn_state.py` as a shared domain contract module rather than an LLM-owned module.
+- Added frozen dataclasses for `PokemonBattleSlot`, `BattleState`, `TurnInput`, and `TurnSnapshot`.
+- Added `to_dict()` / `from_dict(...)` helpers plus `normalize_turn_snapshot(...)`.
+- Added minimal validation for side values, item status values, HP percent range, stat stage range, turn number, and string list fields.
+- Normalized mutable mapping/list inputs into immutable mapping/tuple fields for safer snapshot use.
+- Added `tests/test_turn_state_snapshot.py` for serialization, defaults, validation, unknown/None preservation, and immutability checks.
+- Documented the contract in `docs/spike_v4.1_turn_state_snapshot_contract.md` and updated the payload contract docs.
+
+Behavior:
+- No advisor payload insertion.
+- No damage estimate connection.
+- No `ko_context` connection.
+- No item trigger evaluation.
+- No item consumption.
+- No HP update logic.
+- No speed/order simulation.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No new item implementation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No threshold, skip, or xfail change.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 50 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 925 passed, 2 deselected.
+
+---
+
 ## v4.0 - Turn Engine / Battle State Design
 
 Purpose:
