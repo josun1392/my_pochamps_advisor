@@ -1,5 +1,82 @@
 # Master Ball Advisor — Progress
 
+## v3.2 - Item Context Verification Closure / Handoff Cleanup
+
+Purpose:
+- Close the item-context actual Gemini verification queue after v3.1.1.
+- Update handoff docs so the next T3 starts from the final PASS state rather than old BLOCKED / PARTIAL / FAIL history.
+
+Final actual Gemini status:
+
+| Item / context | Final status | Closure note |
+|---|---|---|
+| Focus Band / `survival_context` | PASS | v2.5 actual advice used limited survival wording with no forbidden wording. |
+| Quick Claw / `speed_order_context` | PASS | v2.5 actual advice used limited move-order wording with no forbidden wording. |
+| Chilan Berry / `chilan_berry_context` | PASS | v2.7.1 actual advice described Chilan Berry as Normal-type limited context and preserved raw-roll / `ko_context` limits. |
+| Light Ball / `species_stat_item_context` | PASS | v3.1.1 actual advice said Light Ball is Pikachu-specific and applied for Pikachu in the damage estimate. |
+
+Light Ball resolution path:
+- v2.5: PARTIAL.
+- v2.6.1: FAIL.
+- v2.7.1: PARTIAL.
+- v2.8.1: FAIL.
+- v2.9: payload conflict analysis.
+- v3.0: damage estimate integration design.
+- v3.1: Light Ball damage estimate integration implementation.
+- v3.1.1: actual Gemini verification PASS.
+
+Root cause:
+- `species_stat_item_context.available=true` was present while `damage_estimate` still carried no-item / not-applied assumptions.
+- Gemini correctly noticed the payload tension and described Light Ball as recognized but not applied.
+
+Final fix:
+- User-confirmed Pikachu + Light Ball is now integrated into the advisor damage estimate under narrow conditions.
+- `species_stat_item_context` is aligned as a sibling explanation of applied `damage_estimate.item_effects`.
+- Eligible Light Ball raw rolls and `ko_context` now follow the adjusted estimate; non-Light-Ball behavior is unchanged.
+
+Current item-context surface:
+
+| Context key | Implemented | Legal-gated | Default advice filtering | Actual Gemini status | Notes / limitations |
+|---|---:|---:|---|---|---|
+| `survival_context` | yes | yes | available context kept; unavailable/debug reasons hidden | PASS for Focus Band; historical PARTIAL for Focus Sash | no final survival probability or item-consumption truth |
+| `recovery_context` | yes | yes | available context kept; unavailable/debug reasons hidden | PARTIAL | recovery timing and final KO integration remain out of scope |
+| `accuracy_context` | yes | yes | available context kept; unavailable/debug reasons hidden | PASS | no final hit probability integration |
+| `critical_context` | yes | yes | available context kept; unavailable/debug reasons hidden | PASS | no final crit probability or damage integration |
+| `flinch_context` | yes | yes | available context kept; unavailable/debug reasons hidden | PARTIAL | flinch chance and turn sequencing remain limited |
+| `multi_hit_context` | yes | yes, but legal availability limits current coverage | blocked/unavailable context hidden | PASS for blocked quietness; NOT_RUN for legal available Loaded Dice | hit-count probability is not integrated |
+| `resist_berry_context` | yes | yes | available standard SE berry context kept; non-SE quietness preserved | PASS | berry-adjusted raw damage / KO not integrated |
+| `type_boost_context` | yes | yes plus damage metadata | available matching-type context kept; mismatches hidden | PASS | sibling explanation for supported damage item effects |
+| `speed_context` | yes | yes | top-level Speed context remains separate from move-level item contexts | PASS for Choice Scarf | not final turn order |
+| `speed_order_context` | yes | yes | available Quick Claw context kept; unavailable/debug reasons hidden | PASS for Quick Claw | no final move-order truth or Turn Engine |
+| `species_stat_item_context` | yes | yes plus species-stat metadata | available Pikachu + Light Ball context kept; non-Pikachu/unconfirmed hidden | PASS for Light Ball | Light Ball is applied only for eligible user-confirmed Pikachu attacker damage estimates |
+| `chilan_berry_context` | yes | yes plus Normal metadata | available Normal damaging move context kept; non-Normal/unconfirmed hidden | PASS for Chilan Berry | Chilan-adjusted raw damage / KO not integrated |
+
+Next:
+- Recommended next milestone: `v3.3 Item Context System Stabilization`.
+- Suggested follow-up focus: consolidate context registry/source-of-truth documentation, guard tests, and applied-vs-explanatory context boundaries before adding more items.
+- Larger next product direction: `v4.0 Turn Engine / Battle State Design`.
+- Rationale: many remaining item candidates need item consumption, timing, status, stat-stage, recovery timing, or turn-order modeling; adding more limited contexts first risks repeating the Light Ball payload-truth problem.
+
+Safety:
+- Documentation-only closure.
+- No actual Gemini call.
+- No Vertex AI call.
+- No code changes.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 906 passed, 2 deselected.
+
+---
+
 ## v3.1 - Light Ball Damage Estimate Integration
 
 Purpose:
@@ -39,8 +116,7 @@ Verification:
   - threshold/skip/xfail unchanged.
 
 Next:
-- v3.1.1 actual Gemini verification for Light Ball only.
-- Do not mark Light Ball actual advice PASS until that retry succeeds.
+- Completed by v3.1.1: Light Ball actual Gemini verification reached PASS.
 
 ---
 

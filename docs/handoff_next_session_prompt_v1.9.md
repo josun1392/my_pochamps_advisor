@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, the v2.7 available item context required-mention guard, the v2.7.1 post-guard actual verification result, the v2.8 Light Ball no-item residue guard implementation, the v2.8.1 Light Ball actual verification result, the v3.1 Light Ball damage estimate integration, and the v3.1.1 Light Ball actual verification PASS.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, the v2.7 available item context required-mention guard, the v2.7.1 post-guard actual verification result, the v2.8 Light Ball no-item residue guard implementation, the v2.8.1 Light Ball actual verification result, the v3.1 Light Ball damage estimate integration, the v3.1.1 Light Ball actual verification PASS, and the v3.2 item-context verification closure.
 
 Update after v2.5:
 
@@ -20,17 +20,23 @@ Update after v2.5:
 - v2.8.1 ran a Light Ball-only actual Gemini verification after that guard.
 - v3.1 integrated eligible Pikachu + Light Ball into advisor damage estimates.
 - v3.1.1 verified Light Ball actual Gemini wording as PASS.
+- v3.2 closed the original item-context pending verification queue.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v3.1.1 Light Ball Damage Estimate Integration Actual Verification.
+T3, continue after v3.2 Item Context Verification Closure / Handoff Cleanup.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
+- Treat the original item-context verification queue as closed:
+  - Focus Band: PASS
+  - Quick Claw: PASS
+  - Chilan Berry: PASS
+  - Light Ball: PASS
 - Review v2.5 actual Gemini results:
   - Focus Band: PASS
   - Quick Claw: PASS
@@ -56,6 +62,12 @@ Goal:
   - Light Ball: PASS
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
+- Recommended next milestone:
+  - v3.3 Item Context System Stabilization
+- Larger next direction:
+  - v4.0 Turn Engine / Battle State Design
+- Reason:
+  - Many remaining item candidates need item consumption, timing, status, stat-stage, recovery timing, or turn-order modeling. Stabilize context source-of-truth boundaries before adding more limited contexts.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -198,7 +210,7 @@ Suggested tests after any documentation or approved wording work:
 
 Documentation expectations:
 - Record follow-up decisions in `docs/PROGRESS.md`.
-- If status changes, update `docs/handoff_pending_gemini_verification_v1.8.md`.
+- If status changes, update `docs/handoff_pending_gemini_verification_v1.8.md`, which is now a closed queue / historical handoff document.
 - Keep `docs/handoff_capsule_v1.1.md` untouched.
 ```
 
@@ -208,5 +220,8 @@ Documentation expectations:
 - Focus Band and Quick Claw reached actual Gemini PASS.
 - Light Ball reached actual Gemini PASS after v3.1.1.
 - Chilan Berry reached actual Gemini PASS after v2.7.1.
+- The original item-context pending verification queue is closed as of v3.2.
+- Prefer v3.3 Item Context System Stabilization before new item expansion.
+- Larger next direction: v4.0 Turn Engine / Battle State Design.
 - v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

@@ -1,8 +1,8 @@
-# Pending Gemini Verification Handoff v1.8
+# Closed Gemini Verification Handoff v1.8
 
 ## Purpose
 
-This handoff tracks item-context actual Gemini verification after the Gemini Developer API recovered from the previous HTTP 429 `RESOURCE_EXHAUSTED` blocker.
+This handoff tracks the now-closed item-context actual Gemini verification queue after the Gemini Developer API recovered from the previous HTTP 429 `RESOURCE_EXHAUSTED` blocker.
 
 As of v3.1.1, payload preflight remains PASS for all four contexts. Actual Gemini advice is no longer blocked by HTTP 429, and the pending item-context actual verification queue is closed:
 
@@ -12,6 +12,34 @@ As of v3.1.1, payload preflight remains PASS for all four contexts. Actual Gemin
 - Chilan Berry: PASS
 
 v2.7.1 rechecked Light Ball and Chilan Berry after the required-mention guard. Chilan Berry reached PASS, while Light Ball improved from FAIL to PARTIAL but still retained generic no-item wording. v2.8 added a narrower Light Ball-specific no-item residue guard. v2.8.1 rechecked Light Ball only, but Gemini still used generic `no item` / not-applied wording, so Light Ball remained FAIL. v3.1 integrated eligible Pikachu + Light Ball into the advisor damage estimate, and v3.1.1 actual Gemini verification reached PASS.
+
+## Closure Summary
+
+Final status:
+
+- Focus Band / `survival_context`: PASS.
+- Quick Claw / `speed_order_context`: PASS.
+- Chilan Berry / `chilan_berry_context`: PASS.
+- Light Ball / `species_stat_item_context`: PASS.
+
+No item-context entry from the v1.8 pending queue remains BLOCKED, BLOCKED_BATCH, PARTIAL, FAIL, or pending. Historical weaker results remain below as context for why the current safeguards exist.
+
+Light Ball resolution path:
+
+- v2.5: PARTIAL.
+- v2.6.1: FAIL.
+- v2.7.1: PARTIAL.
+- v2.8.1: FAIL.
+- v2.9: identified the payload truth conflict between available Light Ball context and no-item / not-applied damage estimate signals.
+- v3.0: designed damage estimate integration.
+- v3.1: integrated eligible user-confirmed Pikachu + Light Ball into the advisor damage estimate.
+- v3.1.1: actual Gemini verification PASS.
+
+Final Light Ball rule:
+
+- `species_stat_item_context.available=true` now aligns with `damage_estimate.item_effects.attacker_item.status=applied`.
+- `species_stat_item_context` is the sibling explanation for the applied damage estimate item effect.
+- Eligible Light Ball raw rolls and `ko_context` use the adjusted estimate; non-Light-Ball behavior remains unchanged.
 
 ## Current Status
 
@@ -79,6 +107,9 @@ Recommended next action:
 - v3.1 integrated eligible Pikachu + Light Ball into the advisor damage estimate so `item_effects`, assumptions, raw rolls, and `ko_context` no longer conflict with the available context.
 - v3.1.1 verified Light Ball actual Gemini wording as PASS.
 - The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is now closed.
+- Prefer `v3.3 Item Context System Stabilization` before adding more item contexts.
+- After stabilization, the larger product direction should be `v4.0 Turn Engine / Battle State Design`.
+- Rationale: many remaining item candidates depend on item consumption, timing, status, stat-stage, recovery timing, or turn-order modeling; adding more limited contexts first may recreate payload/source-of-truth tension.
 
 ## Out of Scope
 
