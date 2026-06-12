@@ -33,6 +33,151 @@ ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB = frozenset(
     }
 )
 
+ADVICE_ITEM_CONTEXT_GUARD_METADATA = {
+    "survival_context": {
+        "mention_label": "{item_name} / survival_context as limited survival context",
+        "fallback_item_name": "survival item",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "will survive",
+            "guaranteed survival",
+            "confirmed live",
+        ),
+    },
+    "recovery_context": {
+        "mention_label": "{item_name} / recovery_context",
+        "fallback_item_name": "recovery item",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "recovery changes the damage range",
+            "KO chance includes recovery",
+        ),
+    },
+    "accuracy_context": {
+        "mention_label": "{item_name} / accuracy_context",
+        "fallback_item_name": "accuracy item",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "guaranteed miss",
+            "final hit probability",
+        ),
+    },
+    "critical_context": {
+        "mention_label": "{item_name} / critical_context",
+        "fallback_item_name": "critical item",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "guaranteed crit",
+            "crit-adjusted KO probability",
+        ),
+    },
+    "flinch_context": {
+        "mention_label": "{item_name} / flinch_context",
+        "fallback_item_name": "flinch item",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "guaranteed flinch",
+            "cannot move",
+        ),
+    },
+    "multi_hit_context": {
+        "mention_label": "{item_name} / multi_hit_context",
+        "fallback_item_name": "multi-hit item",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "guaranteed 5 hits",
+            "specific number of hits will occur",
+        ),
+    },
+    "type_boost_context": {
+        "mention_label": "{item_name} / type_boost_context",
+        "fallback_item_name": "type-boost item",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "guaranteed KO",
+            "final battle damage",
+        ),
+    },
+    "species_stat_item_context": {
+        "mention_label": "Light Ball / species_stat_item_context as Pikachu-specific offensive item context",
+        "fallback_item_name": "Light Ball",
+        "specific_guard": (
+            "For Light Ball / species_stat_item_context specifically, do not say "
+            "or imply that no item effects are included for this move or "
+            "recommendation. Do not use generic no-item/default-assumption wording "
+            "such as no item effects, without item effects, assuming no item, "
+            "default no-item assumption, item not included, item not modeled, or "
+            "item not reflected. Mention Light Ball as a Pikachu-specific "
+            "offensive item context and, when item_effects marks the supported "
+            "modifier as applied, describe the damage estimate as default "
+            "assumptions plus the supported Light Ball modifier. Keep the advice "
+            "limited: do not claim guaranteed KO, confirmed OHKO, always doubles "
+            "damage, exact final stats, or final EV/IV/nature-adjusted stats. "
+        ),
+        "forbidden_phrases": (
+            "no item effects",
+            "without item effects",
+            "assuming no item",
+            "default no-item assumption",
+            "item not included",
+            "item not modeled",
+            "item not reflected",
+            "Light Ball is not included",
+            "Light Ball is not modeled",
+            "Light Ball is not reflected",
+            "Light Ball works on any holder",
+            "guaranteed KO",
+            "confirmed OHKO",
+            "always doubles damage",
+            "exact final stats are known",
+        ),
+    },
+    "speed_order_context": {
+        "mention_label": "Quick Claw / speed_order_context as limited move-order context",
+        "fallback_item_name": "Quick Claw",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "will move first",
+            "guaranteed outspeeds",
+            "confirmed first",
+            "always acts before",
+            "wins the speed interaction",
+        ),
+    },
+    "resist_berry_context": {
+        "mention_label": "{item_name} / resist_berry_context as limited type-resist context",
+        "fallback_item_name": "resist berry",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "definitely survives",
+            "berry-adjusted KO probability",
+        ),
+    },
+    "chilan_berry_context": {
+        "mention_label": "Chilan Berry / chilan_berry_context as Normal-type limited context",
+        "fallback_item_name": "Chilan Berry",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "Chilan Berry applies to all move types",
+            "guaranteed survival",
+            "confirmed live",
+            "will survive because of Chilan Berry",
+            "final damage is halved",
+            "raw damage rolls already include Chilan Berry",
+            "KO chance is reduced to",
+        ),
+    },
+    "charge_context": {
+        "mention_label": "{item_name} / charge_context",
+        "fallback_item_name": "charge item",
+        "specific_guard": "",
+        "forbidden_phrases": (
+            "Power Herb is modeled",
+            "charge turn is skipped",
+        ),
+    },
+}
+
 DEBUG_ONLY_REASON_PHRASES = (
     "effect is not applied",
     "item effect is not included",

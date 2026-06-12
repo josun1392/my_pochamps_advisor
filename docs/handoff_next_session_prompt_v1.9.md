@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, the v2.7 available item context required-mention guard, the v2.7.1 post-guard actual verification result, the v2.8 Light Ball no-item residue guard implementation, the v2.8.1 Light Ball actual verification result, the v3.1 Light Ball damage estimate integration, the v3.1.1 Light Ball actual verification PASS, and the v3.2 item-context verification closure.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v2.6 Light Ball / Chilan Berry wording polish, the v2.6.1 post-polish actual verification result, the v2.7 available item context required-mention guard, the v2.7.1 post-guard actual verification result, the v2.8 Light Ball no-item residue guard implementation, the v2.8.1 Light Ball actual verification result, the v3.1 Light Ball damage estimate integration, the v3.1.1 Light Ball actual verification PASS, the v3.2 item-context verification closure, and the v3.4 item context guard registry cleanup.
 
 Update after v2.5:
 
@@ -21,13 +21,14 @@ Update after v2.5:
 - v3.1 integrated eligible Pikachu + Light Ball into advisor damage estimates.
 - v3.1.1 verified Light Ball actual Gemini wording as PASS.
 - v3.2 closed the original item-context pending verification queue.
+- v3.4 centralized available item context mention labels, item-specific guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA`.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v3.2 Item Context Verification Closure / Handoff Cleanup.
+T3, continue after v3.4 Item Context Guard Registry Cleanup.
 
 Goal:
 - Do not add new item contexts.
@@ -63,11 +64,16 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v3.3 Item Context System Stabilization
+  - v4.0 Turn Engine / Battle State Design, unless T1/T2 ask for a narrow v3.4 follow-up
 - Larger next direction:
   - v4.0 Turn Engine / Battle State Design
 - Reason:
   - Many remaining item candidates need item consumption, timing, status, stat-stage, recovery timing, or turn-order modeling. Stabilize context source-of-truth boundaries before adding more limited contexts.
+- v3.4 has already centralized item context guard metadata:
+  - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
+  - `advisor_client.py` still builds the prompt guard from visible `available=true` contexts.
+  - payload filtering behavior is unchanged.
+  - Choice Scarf remains protected in top-level `speed_context`.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -221,7 +227,7 @@ Documentation expectations:
 - Light Ball reached actual Gemini PASS after v3.1.1.
 - Chilan Berry reached actual Gemini PASS after v2.7.1.
 - The original item-context pending verification queue is closed as of v3.2.
-- Prefer v3.3 Item Context System Stabilization before new item expansion.
+- v3.4 centralized item context guard metadata without changing filtering behavior.
 - Larger next direction: v4.0 Turn Engine / Battle State Design.
 - v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

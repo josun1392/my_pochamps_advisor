@@ -15,6 +15,7 @@ from core.champions_legal_item_repository import get_legal_item_status
 from llm.advisor_payload_contract import (
     ADVICE_CONTEXT_SIDE_FIELDS,
     ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB,
+    ADVICE_ITEM_CONTEXT_GUARD_METADATA,
     ADVICE_ITEM_CONTEXT_KEYS,
     DEBUG_ONLY_REASON_PHRASES,
 )
@@ -427,6 +428,7 @@ def _build_available_item_context_required_mention_guard(payload: dict[str, Any]
     labels = _collect_available_item_context_labels(payload)
     if not labels:
         return ""
+    context_keys = _collect_available_item_context_keys(payload)
     contexts = "; ".join(labels)
     guard = (
         "Available item contexts are present in the advice payload: "
@@ -441,20 +443,11 @@ def _build_available_item_context_required_mention_guard(payload: dict[str, Any]
         "convert the context into final KO odds, guaranteed survival, guaranteed "
         "move order, exact final stats, or final battle truth. "
     )
-    if any(label.startswith("Light Ball / species_stat_item_context") for label in labels):
-        guard += (
-            "For Light Ball / species_stat_item_context specifically, do not say "
-            "or imply that no item effects are included for this move or "
-            "recommendation. Do not use generic no-item/default-assumption wording "
-            "such as no item effects, without item effects, assuming no item, "
-            "default no-item assumption, item not included, item not modeled, or "
-            "item not reflected. Mention Light Ball as a Pikachu-specific "
-            "offensive item context and, when item_effects marks the supported "
-            "modifier as applied, describe the damage estimate as default "
-            "assumptions plus the supported Light Ball modifier. Keep the advice "
-            "limited: do not claim guaranteed KO, confirmed OHKO, always doubles "
-            "damage, exact final stats, or final EV/IV/nature-adjusted stats. "
-        )
+    for context_key in context_keys:
+        metadata = ADVICE_ITEM_CONTEXT_GUARD_METADATA.get(context_key, {})
+        specific_guard = metadata.get("specific_guard")
+        if isinstance(specific_guard, str) and specific_guard:
+            guard += specific_guard
     return guard
 
 
@@ -462,6 +455,12 @@ def _collect_available_item_context_labels(value: Any) -> list[str]:
     labels: list[str] = []
     _collect_available_item_context_labels_into(value, labels)
     return labels
+
+
+def _collect_available_item_context_keys(value: Any) -> list[str]:
+    keys: list[str] = []
+    _collect_available_item_context_keys_into(value, keys)
+    return keys
 
 
 def _collect_available_item_context_labels_into(value: Any, labels: list[str]) -> None:
@@ -475,6 +474,22 @@ def _collect_available_item_context_labels_into(value: Any, labels: list[str]) -
             _collect_available_item_context_labels_into(item, labels)
 
 
+def _collect_available_item_context_keys_into(value: Any, keys: list[str]) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if (
+                key in ADVICE_ITEM_CONTEXT_KEYS
+                and isinstance(child, dict)
+                and child.get("available") is True
+                and key not in keys
+            ):
+                keys.append(key)
+            _collect_available_item_context_keys_into(child, keys)
+    elif isinstance(value, list):
+        for item in value:
+            _collect_available_item_context_keys_into(item, keys)
+
+
 def _available_item_context_label(context_key: str, context: dict[str, Any]) -> str:
     item = context.get("item")
     item_name = ""
@@ -482,16 +497,13 @@ def _available_item_context_label(context_key: str, context: dict[str, Any]) -> 
         raw_item = item.get("name_en") or item.get("item_id")
         if isinstance(raw_item, str) and raw_item:
             item_name = raw_item
-    if context_key == "species_stat_item_context":
-        return "Light Ball / species_stat_item_context as Pikachu-specific offensive item context"
-    if context_key == "chilan_berry_context":
-        return "Chilan Berry / chilan_berry_context as Normal-type limited context"
-    if context_key == "speed_order_context":
-        return "Quick Claw / speed_order_context as limited move-order context"
-    if context_key == "survival_context":
-        return f"{item_name or 'survival item'} / survival_context as limited survival context"
-    if context_key == "resist_berry_context":
-        return f"{item_name or 'resist berry'} / resist_berry_context as limited type-resist context"
+    metadata = ADVICE_ITEM_CONTEXT_GUARD_METADATA.get(context_key, {})
+    raw_template = metadata.get("mention_label")
+    if isinstance(raw_template, str) and raw_template:
+        fallback_item_name = metadata.get("fallback_item_name")
+        if not isinstance(fallback_item_name, str) or not fallback_item_name:
+            fallback_item_name = context_key
+        return raw_template.format(item_name=item_name or fallback_item_name)
     if item_name:
         return f"{item_name} / {context_key}"
     return context_key

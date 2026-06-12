@@ -1,5 +1,47 @@
 # Master Ball Advisor — Progress
 
+## v3.4 - Item Context Guard Registry Cleanup
+
+Purpose:
+- Centralize available item context mention labels, item-specific guard text, and forbidden wording metadata.
+- Keep behavior unchanged while reducing the chance that a future item context is added without guard metadata.
+
+Implemented:
+- Added `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside the existing context registry in `llm/advisor_payload_contract.py`.
+- Moved available item context mention labels and Light Ball-specific no-item residue guard text out of ad hoc `advisor_client.py` branching and into registry metadata.
+- Kept `advisor_client.py` responsible for traversing the filtered default advice payload and building the prompt guard from visible `available=true` contexts.
+- Preserved Light Ball guard wording, Chilan Berry Normal-type limited label, Quick Claw limited move-order label, survival/resist berry labels, and fallback item-name labels.
+- Added tests that every `ADVICE_ITEM_CONTEXT_KEYS` entry has guard metadata and that special Light Ball / Chilan Berry / Quick Claw metadata remains present.
+- Documented the guard registry in `docs/advisor_payload_contract.md`.
+
+Behavior preserved:
+- `available=true` item contexts remain the only mention-guard targets.
+- unavailable/deferred/blocked item contexts remain hidden from default advice payload.
+- debug/enriched reasons remain available for tests and diagnostics.
+- Choice Scarf stays protected in top-level `speed_context`, not move-level `speed_order_context`.
+- Light Ball no-item residue guard remains present.
+- Chilan Berry Normal-type limited guard remains present.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No new item implementation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering behavior change.
+- No threshold, skip, or xfail change.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 50 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 907 passed, 2 deselected.
+
+---
+
 ## v3.3 - Item Context System Stabilization Design
 
 Purpose:

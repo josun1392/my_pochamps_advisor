@@ -17,6 +17,7 @@ from llm.advisor_damage_estimate import attach_selected_move_damage_estimate
 from llm.advisor_payload_contract import (
     ADVICE_CONTEXT_KEYS,
     ADVICE_CONTEXTS_REQUIRING_MOVE_LOCAL_ITEM_EFFECT_SCRUB,
+    ADVICE_ITEM_CONTEXT_GUARD_METADATA,
     ADVICE_ITEM_CONTEXT_KEYS,
     DEBUG_ONLY_REASON_PHRASES,
     ADVISOR_KNOWN_LIMITATIONS,
@@ -1683,6 +1684,33 @@ def test_advice_context_registry_lists_current_context_surfaces() -> None:
     assert "blocked" in DEBUG_ONLY_REASON_PHRASES
     assert "deferred" in DEBUG_ONLY_REASON_PHRASES
     assert "not modeled" in DEBUG_ONLY_REASON_PHRASES
+    assert set(ADVICE_ITEM_CONTEXT_GUARD_METADATA) == ADVICE_ITEM_CONTEXT_KEYS
+    for context_key, metadata in ADVICE_ITEM_CONTEXT_GUARD_METADATA.items():
+        assert isinstance(metadata["mention_label"], str)
+        assert metadata["mention_label"]
+        assert isinstance(metadata["fallback_item_name"], str)
+        assert metadata["fallback_item_name"]
+        assert isinstance(metadata["specific_guard"], str)
+        assert isinstance(metadata["forbidden_phrases"], tuple)
+
+
+def test_advice_context_guard_metadata_preserves_special_context_labels_and_guards() -> None:
+    species_metadata = ADVICE_ITEM_CONTEXT_GUARD_METADATA["species_stat_item_context"]
+    assert (
+        species_metadata["mention_label"]
+        == "Light Ball / species_stat_item_context as Pikachu-specific offensive item context"
+    )
+    assert "no item effects" in species_metadata["specific_guard"]
+    assert "default no-item assumption" in species_metadata["specific_guard"]
+    assert "Light Ball works on any holder" in species_metadata["forbidden_phrases"]
+
+    chilan_metadata = ADVICE_ITEM_CONTEXT_GUARD_METADATA["chilan_berry_context"]
+    assert chilan_metadata["mention_label"] == "Chilan Berry / chilan_berry_context as Normal-type limited context"
+    assert "Chilan Berry applies to all move types" in chilan_metadata["forbidden_phrases"]
+
+    speed_order_metadata = ADVICE_ITEM_CONTEXT_GUARD_METADATA["speed_order_context"]
+    assert speed_order_metadata["mention_label"] == "Quick Claw / speed_order_context as limited move-order context"
+    assert "will move first" in speed_order_metadata["forbidden_phrases"]
 
 
 def test_advice_context_registry_hides_all_unavailable_item_context_keys() -> None:
