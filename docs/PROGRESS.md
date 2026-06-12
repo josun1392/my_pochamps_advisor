@@ -1,5 +1,54 @@
 # Master Ball Advisor — Progress
 
+## v4.4 - UI Selected State to TurnSnapshot Mapping Design
+
+Purpose:
+- Design how current UI-selected state can be converted into the v4.1 `TurnSnapshot` contract now that v4.3 can attach snapshots to the LLM payload.
+- Keep this as design-only; actual UI mapping is deferred to v4.5.
+
+Findings:
+- UI-selected state already provides active player/opponent species, slot index, HP percent, selected player move, item profiles, and item status through `_build_llm_battle_input()`.
+- Stat stages, major status, volatile conditions, weather, terrain, field conditions, and turn number are not connected yet and should remain empty or `None`.
+- `system_default_none` is a calculator assumption and should map to battle-state `unknown`, while user-confirmed `none` can map to `absent`.
+
+Recommendation:
+- Build snapshots from existing `battle_input` rather than importing UI widgets directly.
+- Add a v4.5 helper module such as `llm/advisor_turn_snapshot.py`.
+- Keep `core.turn_state` as the pure contract module.
+- Preserve current advice behavior if snapshot construction fails in user-facing flow.
+
+v4.5 MVP:
+- Implement `build_turn_snapshot_from_battle_input(battle_input)`.
+- Map player/opponent species, slot index, HP percent, item status/id, and selected player move.
+- Leave stat stages/status/weather/terrain/field conditions/turn number unconnected.
+- Do not change damage estimates, `ko_context`, item contexts, filtering, or prompt semantics beyond the already optional v4.3 snapshot adapter.
+
+Safety:
+- Documentation-only design.
+- No actual Gemini call.
+- No Vertex AI call.
+- No code changes.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption.
+- No HP update logic.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 932 passed, 2 deselected.
+
+---
+
 ## v4.3 - Turn Snapshot Payload Adapter
 
 Purpose:
