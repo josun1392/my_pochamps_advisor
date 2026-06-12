@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, and the v4.1-v4.8 TurnSnapshot path.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, and the v4.1-v4.9 TurnSnapshot phase closure.
 
 Update after v2.5:
 
@@ -28,13 +28,14 @@ Update after v2.5:
 - v4.6 verified the TurnSnapshot payload smoke path without actual Gemini calls.
 - v4.7 documented the complete TurnSnapshot UI flow and handoff boundaries.
 - v4.8 added a local TurnSnapshot dry-run/debug report script and static sample report without actual Gemini calls.
+- v4.9 closed the TurnSnapshot phase and prepared v5.0 Minimal Turn Engine MVP Design.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v4.8 TurnSnapshot UI Dry-run / Local Debug Snapshot Report.
+T3, continue after v4.9 TurnSnapshot Phase Closure / v5.0 Prep.
 
 Goal:
 - Do not add new item contexts.
@@ -71,16 +72,16 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v5.0 Minimal Turn Engine MVP Design, unless T1/T2 request one more local TurnSnapshot debug follow-up
+  - v5.0 Minimal Turn Engine MVP Design
 - Reason:
-  - The TurnSnapshot payload path is connected and now has a local dry-run report.
+  - The TurnSnapshot payload path is connected, smoke-verified, documented, and has a local dry-run report.
   - The next major gap is still turn-event semantics: trigger timing, item consumption, post-damage HP, speed/order, and status/state transitions.
 - v3.4 has already centralized item context guard metadata:
   - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
   - `advisor_client.py` still builds the prompt guard from visible `available=true` contexts.
   - payload filtering behavior is unchanged.
   - Choice Scarf remains protected in top-level `speed_context`.
-- v4.1-v4.8 TurnSnapshot status:
+- v4.1-v4.9 TurnSnapshot status:
   - `core/turn_state.py` defines serializable validated snapshot contracts.
   - `build_ui_advice_payload(..., turn_snapshot=None)` preserves old payloads when absent.
   - `llm/advisor_turn_snapshot.py` builds snapshots from UI-selected `battle_input`.
@@ -90,7 +91,14 @@ Goal:
   - v4.7 handoff doc: `docs/handoff_turn_snapshot_flow_v4.7.md`.
   - v4.8 dry-run script: `scripts/spike_turn_snapshot_debug.py`.
   - v4.8 sample report: `docs/debug_turn_snapshot_sample_v4.8.md`.
+  - v4.9 closure doc: `docs/handoff_turn_snapshot_phase_closure_v4.9.md`.
   - Full Turn Engine, item trigger evaluation, item consumption, HP update, and speed/order simulation are not implemented.
+- v5.0 should start with design, not implementation:
+  - design `TurnEvent` / `TurnPipelineResult`
+  - separate pre-damage, damage, on-damage-before-KO, post-damage, and post-turn stages
+  - keep `TurnSnapshot` as input state
+  - keep `damage_estimate` and `ko_context` as primitives
+  - do not implement full simulation, exact trigger probability, irreversible consumption, exact post-turn HP, or Showdown-equivalent behavior
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.

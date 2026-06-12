@@ -1,5 +1,66 @@
 # Master Ball Advisor — Progress
 
+## v4.9 - TurnSnapshot Phase Closure / v5.0 Prep
+
+Purpose:
+- Close the v4 TurnSnapshot phase and prepare the next design milestone.
+- Separate completed selected/pre-turn snapshot work from the future Turn Engine scope.
+
+Closed scope:
+- v4.1 `core.turn_state` contract.
+- v4.3 optional top-level `turn_snapshot` payload adapter.
+- v4.5 UI-selected `battle_input` -> `TurnSnapshot` builder.
+- v4.6 TurnSnapshot payload smoke verification.
+- v4.7 TurnSnapshot flow handoff.
+- v4.8 local dry-run/debug snapshot report.
+
+Current state:
+- TurnSnapshot is optional selected/pre-turn known-state context.
+- `run_ui_selected_advice(...)` attempts snapshot construction and falls back safely.
+- Snapshot present path adds top-level `turn_snapshot` plus limitations.
+- Snapshot absent path preserves previous payload behavior.
+- Actual Gemini calls are not required to inspect local snapshot output.
+- Damage estimates, raw rolls, Q12, `ko_context`, item contexts, and payload filtering remain unchanged.
+
+Still not implemented:
+- full Turn Engine
+- item trigger evaluation
+- item consumption
+- HP update / post-turn state
+- speed/order simulation
+- exact status/volatile resolution
+- multi-hit event engine
+
+Recommended next step:
+- v5.0 Minimal Turn Engine MVP Design.
+- Start with `TurnEvent` / `TurnPipelineResult` contracts and event-stage planning.
+- Keep `TurnSnapshot` as input state, `damage_estimate` as primitive, and `ko_context` as limited damage-roll context.
+- Do not jump directly to full simulation or irreversible item consumption.
+
+Safety:
+- Documentation-only closure.
+- No production code change.
+- No actual Gemini call.
+- No Vertex AI call.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Verification:
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- isolated rerun `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: passed 3/3.
+- `uv run pytest -q`: timing-sensitive failure in `test_item_damage_calculation_under_point_12ms_average`; best batch median `0.125000ms`, threshold `0.120000ms`; 944 passed, 2 deselected.
+- full suite rerun `uv run pytest -q`: repeated timing-sensitive failure in `test_item_damage_calculation_under_point_12ms_average`; best batch median `0.125000ms`, threshold `0.120000ms`; 944 passed, 2 deselected.
+- No threshold, skip, or xfail changes were made.
+
+---
+
 ## v4.8 - TurnSnapshot UI Dry-run / Local Debug Snapshot Report
 
 Purpose:
