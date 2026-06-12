@@ -12,6 +12,7 @@ from llm.advisor_turn_snapshot import (
     build_turn_snapshot_from_battle_input,
     try_build_turn_snapshot_from_battle_input,
 )
+from scripts.spike_turn_snapshot_debug import build_turn_snapshot_debug_report
 from tests.test_advisor_damage_estimate import _battle_input, _flamethrower, _item_profiles
 
 
@@ -213,3 +214,42 @@ def test_turn_snapshot_payload_smoke_preflight_present_and_fallback_paths() -> N
     invalid_payload["pokemon"]["my_active"]["hp_percent"] = 120
     assert try_build_turn_snapshot_from_battle_input(invalid_payload) is None
     assert build_ui_advice_payload(invalid_payload, turn_snapshot=None) == build_ui_advice_payload(invalid_payload)
+
+
+def test_turn_snapshot_debug_report_is_local_dry_run_only() -> None:
+    report = build_turn_snapshot_debug_report()
+
+    assert report["report_version"] == "v4.8"
+    assert report["actual_gemini_call_executed"] is False
+    assert report["vertex_ai_call_executed"] is False
+    assert report["is_full_turn_engine_result"] is False
+    assert report["turn_snapshot_built"] is True
+    assert report["summary"] == {
+        "player_species": "charizard",
+        "opponent_species": "garchomp",
+        "player_hp_percent": 88,
+        "opponent_hp_percent": 41,
+        "player_item": {
+            "item_id": "choice-scarf",
+            "status": "user_confirmed",
+        },
+        "opponent_item": {
+            "item_id": "focus-sash",
+            "status": "user_confirmed",
+        },
+        "selected_move_id": "flamethrower",
+    }
+    assert report["payload_checks"] == {
+        "top_level_turn_snapshot_present": True,
+        "turn_snapshot_absent_without_snapshot": True,
+        "limitations_guard_present": True,
+        "payload_matches_absent_after_removing_snapshot_fields": True,
+        "fallback_helper_returns_none_for_invalid_hp": True,
+    }
+    assert report["non_goals"] == {
+        "full_turn_engine": False,
+        "item_trigger_evaluation": False,
+        "item_consumption": False,
+        "hp_update_logic": False,
+        "speed_order_simulation": False,
+    }

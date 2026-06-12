@@ -135,13 +135,19 @@ The prompt guard explicitly tells Gemini not to infer those results from `turn_s
 
 ## Recommended Next Step
 
-Recommended next milestone:
+v4.8 follow-up:
 
 ```text
 v4.8 TurnSnapshot UI Dry-run / Local Debug Snapshot Report
 ```
 
-Rationale:
+Status:
+
+- Completed as `scripts/spike_turn_snapshot_debug.py`.
+- Static sample report: `docs/debug_turn_snapshot_sample_v4.8.md`.
+- The dry run does not call Gemini or Vertex AI.
+
+Rationale for the completed v4.8 step:
 
 - The payload connection is implemented, but there is no local debug report that lets T1/T2 inspect the exact snapshot produced by a UI-selected state without making a Gemini call.
 - A dry-run report can show `battle_input`, normalized `turn_snapshot`, and payload presence/absence safely.

@@ -1,5 +1,60 @@
 # Master Ball Advisor — Progress
 
+## v4.8 - TurnSnapshot UI Dry-run / Local Debug Snapshot Report
+
+Purpose:
+- Add a local dry-run/debug report for inspecting the TurnSnapshot payload path without any actual Gemini call.
+- Keep runtime advice behavior unchanged.
+
+Implemented:
+- Added `scripts/spike_turn_snapshot_debug.py`.
+- The script builds a deterministic fixture `battle_input`, creates a `TurnSnapshot`, attaches it through `build_ui_advice_payload(..., turn_snapshot=...)`, and prints a JSON report to stdout.
+- Added `docs/debug_turn_snapshot_sample_v4.8.md` with the sample output and safety notes.
+- Added regression coverage that imports the report builder and verifies snapshot presence, absent/fallback behavior, limitations guard, and non-goals.
+
+Dry-run sample:
+- player species: `charizard`
+- opponent species: `garchomp`
+- player HP percent: `88`
+- opponent HP percent: `41`
+- player item/status: `choice-scarf` / `user_confirmed`
+- opponent item/status: `focus-sash` / `user_confirmed`
+- selected move: `flamethrower`
+- top-level `turn_snapshot` present: true
+- absent path omits `turn_snapshot`: true
+- limitations guard present: true
+- payload matches absent path after removing snapshot fields: true
+- invalid HP fallback returns `None`: true
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No production advice behavior change.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption.
+- No HP update logic.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering behavior change.
+
+Verification:
+- `uv run python scripts/spike_turn_snapshot_debug.py`: passed; emitted local JSON report only.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: timing-sensitive failure in `test_item_damage_calculation_under_point_12ms_average`; best batch median `0.125000ms`, threshold `0.120000ms`.
+- isolated rerun `uv run pytest tests/test_damage_perf.py::test_item_damage_calculation_under_point_12ms_average -q`: passed 3/3.
+- perf file rerun `uv run pytest tests/test_damage_perf.py -q`: repeated timing-sensitive failure in `test_item_damage_calculation_under_point_12ms_average`; best batch median `0.140625ms`, threshold `0.120000ms`.
+- `uv run pytest -q`: timing-sensitive failure in `test_item_damage_calculation_under_point_12ms_average`; 944 passed, 2 deselected.
+- No threshold, skip, or xfail changes were made.
+
+---
+
 ## v4.7 - TurnSnapshot UI Flow Documentation / Handoff Cleanup
 
 Purpose:
