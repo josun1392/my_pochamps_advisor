@@ -1,5 +1,48 @@
 # Master Ball Advisor — Progress
 
+## v3.3 - Item Context System Stabilization Design
+
+Purpose:
+- Design a stabilization pass for the expanded item context system after the v3.2 verification queue closure.
+- Document registry, available guard, unavailable filtering, debug reason handling, current context status, cleanup candidates, and why Turn Engine / Battle State should come before broad item expansion.
+
+Findings:
+- `ADVICE_ITEM_CONTEXT_KEYS` / `ADVICE_CONTEXT_KEYS` cover the active item context surface, with `speed_context` intentionally kept as the top-level Choice Scarf Speed exception.
+- Default advice filtering consistently keeps `available=true` contexts and hides unavailable/deferred/blocked/debug reasons from default advice.
+- Required mention guard generation works from the filtered default payload, but its label and item-specific wording rules now live mostly in `advisor_client.py`.
+- Light Ball is the key source-of-truth lesson: actual PASS required aligning `species_stat_item_context.available=true` with applied `damage_estimate.item_effects`.
+- Many remaining item candidates require state/timing/event modeling instead of another limited context.
+
+Recommended v3.4 cleanup candidates:
+- Move item-context guard metadata / mention labels toward a contract registry helper.
+- Centralize debug-only reason and no-item residue filtering policy.
+- Reorganize `docs/advisor_payload_contract.md` around context key, trigger, default/debug behavior, raw damage effect, `ko_context` effect, actual Gemini status, and Turn Engine dependency.
+- Keep old pending handoff wording clearly archived/closed so future sessions do not rerun closed verification by accident.
+
+Next:
+- Recommended next milestone: `v3.4 Item Context Guard Registry Cleanup`.
+- Larger direction after stabilization: `v4.0 Turn Engine / Battle State Design`.
+
+Safety:
+- Documentation-only design.
+- No actual Gemini call.
+- No Vertex AI call.
+- No code changes.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 906 passed, 2 deselected.
+
+---
+
 ## v3.2 - Item Context Verification Closure / Handoff Cleanup
 
 Purpose:
