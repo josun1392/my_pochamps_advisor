@@ -4,14 +4,14 @@
 
 This handoff tracks item-context actual Gemini verification after the Gemini Developer API recovered from the previous HTTP 429 `RESOURCE_EXHAUSTED` blocker.
 
-As of v2.8.1, payload preflight remains PASS for all four contexts. Actual Gemini advice is no longer blocked by HTTP 429:
+As of v3.1.1, payload preflight remains PASS for all four contexts. Actual Gemini advice is no longer blocked by HTTP 429, and the pending item-context actual verification queue is closed:
 
 - Focus Band: PASS
 - Quick Claw: PASS
-- Light Ball: FAIL
+- Light Ball: PASS after v3.1.1
 - Chilan Berry: PASS
 
-Light Ball should not be treated as full actual Gemini PASS. v2.7.1 rechecked Light Ball and Chilan Berry after the required-mention guard. Chilan Berry reached PASS, while Light Ball improved from FAIL to PARTIAL but still retained generic no-item wording. v2.8 added a narrower Light Ball-specific no-item residue guard. v2.8.1 rechecked Light Ball only, but Gemini still used generic `no item` / not-applied wording, so Light Ball is FAIL.
+v2.7.1 rechecked Light Ball and Chilan Berry after the required-mention guard. Chilan Berry reached PASS, while Light Ball improved from FAIL to PARTIAL but still retained generic no-item wording. v2.8 added a narrower Light Ball-specific no-item residue guard. v2.8.1 rechecked Light Ball only, but Gemini still used generic `no item` / not-applied wording, so Light Ball remained FAIL. v3.1 integrated eligible Pikachu + Light Ball into the advisor damage estimate, and v3.1.1 actual Gemini verification reached PASS.
 
 ## Current Status
 
@@ -19,7 +19,7 @@ Light Ball should not be treated as full actual Gemini PASS. v2.7.1 rechecked Li
 |---|---|---|---|---|---|---|---|
 | Focus Band / `survival_context` | implemented as limited Focus Band branch inside `survival_context` | PASS | PASS | v2.5 actual advice used limited survival wording and no forbidden wording | n/a | `will survive`, `guaranteed survive`, `cannot be KO'd`, `confirmed live` | `survival_context.available=true`, `survival_effect.type=focus_band`, `survival_effect.survival_is_not_guaranteed=true`, activation/final survival probability flags false, raw damage/rolls and `ko_context` unchanged |
 | Quick Claw / `speed_order_context` | implemented as limited Quick Claw move-order context | PASS | PASS | v2.5 actual advice used limited move-order wording and no forbidden wording | n/a | `will move first`, `guaranteed outspeeds`, `confirmed first`, `always acts before`, `wins the speed interaction` | `speed_order_context.available=true`, `speed_order_effect.type=quick_claw`, activation/final move order/speed tie/priority/Turn Engine flags false, raw damage/rolls and `ko_context` unchanged |
-| Light Ball / `species_stat_item_context` | v3.1 integrates user-confirmed Pikachu + Light Ball into advisor damage estimates and keeps `species_stat_item_context` as the applied-item sibling explanation | PASS | FAIL, retry pending after v3.1 | v2.8.1 actual recheck generated a response and mentioned Light Ball, but still said the estimate used `no item` assumptions / Light Ball boost was not applied; v3.1 removes that payload conflict, but actual Gemini has not been retried | Do not mark PASS until a v3.1.1 actual retry confirms the response no longer uses no-item / not-applied wording | `Light Ball is not included`, `Light Ball is not modeled`, `Light Ball is not reflected`, `no item effects`, `no item is considered`, `assuming no item`, `without item effects`, `default no-item assumption`, `item not included`, `item not modeled`, `item not reflected`, `Light Ball works on any holder`, `guaranteed KO`, `confirmed OHKO`, `always doubles damage`, `final stats are fully known`, `exact EV/IV/nature-adjusted stats are known` | `species_stat_item_context.available=true`, holder species `pikachu`, item `light-ball`, boosted stats `atk` / `spa`, `damage_estimate.item_effects.attacker_item.status=applied`, raw damage/rolls and `ko_context` use adjusted estimate rolls |
+| Light Ball / `species_stat_item_context` | v3.1 integrates user-confirmed Pikachu + Light Ball into advisor damage estimates and keeps `species_stat_item_context` as the applied-item sibling explanation | PASS | PASS | v3.1.1 actual response described Water Pulse as default assumptions plus the supported Light Ball modifier, said Light Ball is Pikachu-specific, and said the modifier is applied for Pikachu in the damage estimate | n/a | `Light Ball is not included`, `Light Ball is not modeled`, `Light Ball is not reflected`, `no item effects`, `no item is considered`, `assuming no item`, `without item effects`, `default no-item assumption`, `item not included`, `item not modeled`, `item not reflected`, `Light Ball works on any holder`, `guaranteed KO`, `confirmed OHKO`, `always doubles damage`, `final stats are fully known`, `exact EV/IV/nature-adjusted stats are known` | `species_stat_item_context.available=true`, holder species `pikachu`, item `light-ball`, boosted stats `atk` / `spa`, `damage_estimate.item_effects.attacker_item.status=applied`, raw damage/rolls and `ko_context` use adjusted estimate rolls |
 | Chilan Berry / `chilan_berry_context` | implemented as separate limited Normal-type Chilan context | PASS | PASS | v2.7.1 actual recheck described Chilan Berry as Normal-type limited context and preserved raw rolls / `ko_context` limits | n/a | `Chilan Berry is not included`, `Chilan Berry is not modeled`, `no item is considered`, `assuming no item`, `without item effects`, `default no-item assumption`, `Chilan Berry applies to all move types`, `guaranteed survival`, `confirmed live`, `will survive because of Chilan Berry`, `final damage is halved`, `raw damage rolls already include Chilan Berry`, `KO chance is reduced to` | `chilan_berry_context.available=true`, incoming move type `normal`, `always_resist=true`, no Chilan-adjusted damage/KO integration, raw damage/rolls and `ko_context` unchanged |
 
 ## Payload Preflight vs Actual Gemini PASS
@@ -77,7 +77,8 @@ Recommended next action:
 - v2.8 implemented a narrower Light Ball-specific no-item residue guard.
 - v2.8.1 actual Gemini recheck still failed for Light Ball because generic no-item / not-applied wording remained.
 - v3.1 integrated eligible Pikachu + Light Ball into the advisor damage estimate so `item_effects`, assumptions, raw rolls, and `ko_context` no longer conflict with the available context.
-- Next action is v3.1.1 Light Ball actual Gemini verification. Do not treat Light Ball as PASS before that retry.
+- v3.1.1 verified Light Ball actual Gemini wording as PASS.
+- The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is now closed.
 
 ## Out of Scope
 

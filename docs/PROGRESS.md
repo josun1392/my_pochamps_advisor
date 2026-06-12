@@ -44,6 +44,51 @@ Next:
 
 ---
 
+## v3.1.1 - Light Ball Damage Estimate Integration Actual Verification
+
+Purpose:
+- Verify the v3.1 Light Ball damage estimate integration with one actual Gemini Developer API call.
+
+Preflight:
+- `species_stat_item_context.available=true`.
+- Holder species is `pikachu`.
+- `damage_estimate.item_effects.attacker_item.status=applied`.
+- `damage_estimate.assumptions.item` is not `none`.
+- `damage_estimate.assumption_profile.label` no longer says `no item`.
+- Required mention guard and Light Ball-specific no-item residue guard are present.
+- `ko_context.damage` matches the adjusted damage estimate range.
+
+Actual Gemini result:
+- Provider: `gemini_developer_api`.
+- Model: `gemini-2.5-flash`.
+- Vertex AI: not used.
+- Light Ball actual response: PASS.
+- Gemini described Water Pulse damage as default assumptions plus the supported Light Ball modifier.
+- Gemini explicitly said Light Ball is Pikachu-specific and applied for Pikachu in this damage estimate.
+- Forbidden wording observed: none.
+- Payload leak observed: none.
+- Gemini did not generalize Light Ball to non-Pikachu holders.
+- Gemini did not claim guaranteed KO, confirmed OHKO, always doubles damage, or exact final stats.
+
+Safety:
+- No code changes in v3.1.1.
+- No damage formula change.
+- No Q12 multiplier change.
+- No non-Light-Ball raw damage behavior change.
+- No non-Light-Ball `ko_context` behavior change.
+- No payload filtering change.
+- No new item implementation.
+- No Vertex AI call.
+- No logs, `.env`, secrets, API keys, billing details, token logs, or `docs/handoff_capsule_v1.1.md` commits.
+
+Verification:
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 49 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 906 passed, 2 deselected.
+
+---
+
 ## Naming Convention (since 3.1 closure)
 
 ```
