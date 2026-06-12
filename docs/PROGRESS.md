@@ -1,5 +1,53 @@
 # Master Ball Advisor — Progress
 
+## v4.7 - TurnSnapshot UI Flow Documentation / Handoff Cleanup
+
+Purpose:
+- Consolidate the v4.1-v4.6 TurnSnapshot flow into one handoff document.
+- Clarify what is connected today and what remains outside the current selected/pre-turn snapshot path.
+
+Documented:
+- `core/turn_state.py` owns the shared `TurnSnapshot` contract.
+- `llm/advisor_turn_snapshot.py` builds snapshots from UI-selected `battle_input`.
+- `run_ui_selected_advice(...)` passes the optional snapshot into the advice payload path.
+- top-level `turn_snapshot` is additional selected/pre-turn context only.
+- snapshot failure falls back to the previous advice flow.
+- damage estimates, raw rolls, Q12, `ko_context`, item contexts, and payload filtering remain unchanged.
+
+Not implemented:
+- full Turn Engine
+- item trigger evaluation
+- item consumption
+- HP update logic
+- post-turn state
+- speed/order simulation
+- exact item trigger/status/volatile resolution
+
+Recommended next step:
+- v4.8 TurnSnapshot UI Dry-run / Local Debug Snapshot Report.
+- Reason: inspect the exact local UI-selected snapshot without any Gemini call before v5.0 Turn Engine design.
+
+Safety:
+- Documentation-only cleanup.
+- No production code change.
+- No actual Gemini call.
+- No Vertex AI call.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Verification:
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 12 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 944 passed, 2 deselected.
+
+---
+
 ## v4.6 - TurnSnapshot Payload Smoke Verification
 
 Purpose:
