@@ -505,9 +505,15 @@ def _validate_turn_pipeline_event_wording(event: dict[str, Any]) -> None:
     rendered = " ".join(rendered_parts).lower()
     forbidden_phrases = (
         "item was consumed",
+        "item has been consumed",
+        "item consumption resolved",
         "exact trigger result",
+        "trigger result is resolved",
         "exact post-turn hp",
+        "post-turn hp is",
         "guaranteed move order",
+        "speed tie resolved",
+        "rng resolved",
         "full turn simulation completed",
     )
     for phrase in forbidden_phrases:
@@ -539,9 +545,9 @@ def _build_turn_pipeline_prompt_guard(payload: dict[str, Any]) -> str:
         "item consumption, exact post-turn HP, guaranteed move order, exact "
         "item trigger result, speed tie resolution, or exact status resolution "
         "from turn_pipeline. Use turn_pipeline events only as candidate or "
-        "known-modifier context; do not treat them as final battle truth or as "
-        "a replacement for damage_estimate, ko_context, or existing item "
-        "contexts. "
+        "known-modifier context; candidate events are not resolved outcomes. "
+        "Do not treat turn_pipeline as final battle truth or as a replacement "
+        "for damage_estimate, ko_context, or existing item contexts. "
     )
 
 

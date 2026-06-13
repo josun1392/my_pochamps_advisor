@@ -15,6 +15,8 @@ TURN_PIPELINE_KNOWN_LIMITATIONS = [
     "turn_pipeline, when present, is a limited planning/debug summary only and is not full turn simulation.",
     "turn_pipeline does not resolve RNG, item consumption, post-turn HP, speed ties, exact trigger results, or exact status resolution.",
     "Use turn_pipeline events only as candidate or known-modifier context; do not treat them as final battle truth.",
+    "turn_pipeline does not replace damage_estimate, ko_context, or existing item contexts.",
+    "Candidate turn_pipeline events are not resolved outcomes and must not be described as consumed items, final HP, guaranteed order, or confirmed triggers.",
 ]
 
 ADVICE_ITEM_CONTEXT_KEYS = frozenset(

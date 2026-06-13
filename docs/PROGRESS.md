@@ -1,5 +1,50 @@
 # Master Ball Advisor — Progress
 
+## v5.9 - TurnPipeline Payload Prompt Guard / Contract Documentation
+
+Purpose:
+- Strengthen optional `turn_pipeline` prompt and contract guardrails.
+- Keep `turn_pipeline` from being treated as full turn simulation or resolved battle outcome.
+- Preserve default-off behavior when `turn_pipeline` is absent or `None`.
+
+Implemented:
+- Added explicit contract limitations that `turn_pipeline` does not replace `damage_estimate`, `ko_context`, or existing item contexts.
+- Added explicit contract limitation that candidate pipeline events are not resolved outcomes.
+- Strengthened prompt guard to say candidate events are not resolved outcomes.
+- Expanded narrow event wording validation for resolved RNG, item consumption, post-turn HP, speed tie, and trigger resolution claims.
+- Added fixture-level tests for omitted/`None` prompt behavior, guard wording, conflict policy, and no auto-generation.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No advisor-client automatic `TurnPipelineResult` generation.
+- No UI-selected advice flow automatic pipeline connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 73 passed.
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 20 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- First `uv run pytest -q`: timing-sensitive failure in `test_item_damage_calculation_under_point_12ms_average`; best median `0.125000ms` vs threshold `0.120000ms`; `995 passed, 2 deselected`.
+- Isolated `test_item_damage_calculation_under_point_12ms_average` rerun 3x: passed 3/3.
+- Perf file rerun: 4 passed.
+- Final `uv run pytest -q`: 996 passed, 2 deselected.
+- No threshold, skip, xfail, damage formula, raw roll, Q12, `ko_context`, or payload filtering changes were made.
+
+---
+
 ## v5.8 - Optional TurnPipeline Payload Adapter
 
 Purpose:

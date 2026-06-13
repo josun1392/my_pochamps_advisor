@@ -117,6 +117,8 @@ When `turn_pipeline` is present, it remains a limited planning/debug summary:
 - it does not resolve exact status or volatile outcomes
 - it does not replace `damage_estimate`, `ko_context`, or existing item contexts
 
+v5.9 strengthens the prompt and contract guard for this field. When `turn_pipeline` is present, candidate events must remain candidate events, not resolved outcomes. The LLM must not describe pipeline events as consumed items, final HP, guaranteed order, confirmed triggers, resolved RNG, resolved speed ties, exact status resolution, or replacement evidence for `damage_estimate`, `ko_context`, or existing item contexts. When `turn_pipeline` is absent or `None`, the extra prompt guard is not added and the payload remains unchanged.
+
 ## Current Payload Shape
 
 Top-level sections:

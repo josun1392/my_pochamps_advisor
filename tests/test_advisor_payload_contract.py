@@ -253,6 +253,17 @@ def test_turn_pipeline_absent_preserves_default_advice_payload() -> None:
         assert limitation not in with_none["scenario"]["known_limitations"]
 
 
+def test_turn_pipeline_none_preserves_prompt_behavior() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    without_argument = _build_ui_selected_prompt(payload)
+    with_none = _build_ui_selected_prompt(payload, turn_pipeline=None)
+
+    assert with_none == without_argument
+    assert '"turn_pipeline"' not in with_none
+    assert "candidate events are not resolved outcomes" not in with_none
+
+
 def test_turn_pipeline_result_adds_top_level_payload() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
     pipeline = _sample_turn_pipeline()
@@ -318,6 +329,37 @@ def test_turn_pipeline_event_forbidden_resolution_wording_is_rejected() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("forbidden_summary", "match"),
+    [
+        ("RNG resolved for this item.", "rng resolved"),
+        ("The speed tie resolved in your favor.", "speed tie resolved"),
+        ("The trigger result is resolved.", "trigger result is resolved"),
+        ("The post-turn HP is 48 percent.", "post-turn hp is"),
+        ("The item consumption resolved.", "item consumption resolved"),
+    ],
+)
+def test_turn_pipeline_rejects_resolved_result_event_wording(forbidden_summary: str, match: str) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    with pytest.raises(ValueError, match=match):
+        build_ui_advice_payload(
+            payload,
+            turn_pipeline=TurnPipelineResult(
+                events=(
+                    TurnEvent(
+                        stage="post_damage",
+                        status="candidate",
+                        certainty="possible",
+                        summary=forbidden_summary,
+                    ),
+                ),
+                limitations=("limited planning only",),
+                simulated="limited",
+            ),
+        )
+
+
 def test_turn_pipeline_prompt_includes_limitations_and_no_engine_guard() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
 
@@ -330,7 +372,20 @@ def test_turn_pipeline_prompt_includes_limitations_and_no_engine_guard() -> None
     assert "exact post-turn HP" in prompt
     assert "guaranteed move order" in prompt
     assert "exact item trigger result" in prompt
+    assert "speed tie resolution" in prompt
+    assert "candidate events are not resolved outcomes" in prompt
     assert "replacement for damage_estimate, ko_context, or existing item contexts" in prompt
+
+
+def test_turn_pipeline_guard_known_limitations_include_conflict_policy() -> None:
+    assert (
+        "turn_pipeline does not replace damage_estimate, ko_context, or existing item contexts."
+        in TURN_PIPELINE_KNOWN_LIMITATIONS
+    )
+    assert (
+        "Candidate turn_pipeline events are not resolved outcomes and must not be described as consumed items, final HP, guaranteed order, or confirmed triggers."
+        in TURN_PIPELINE_KNOWN_LIMITATIONS
+    )
 
 
 def test_turn_pipeline_does_not_change_damage_ko_or_item_context_payload() -> None:
