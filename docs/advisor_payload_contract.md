@@ -119,6 +119,8 @@ When `turn_pipeline` is present, it remains a limited planning/debug summary:
 
 v5.9 strengthens the prompt and contract guard for this field. When `turn_pipeline` is present, candidate events must remain candidate events, not resolved outcomes. The LLM must not describe pipeline events as consumed items, final HP, guaranteed order, confirmed triggers, resolved RNG, resolved speed ties, exact status resolution, or replacement evidence for `damage_estimate`, `ko_context`, or existing item contexts. When `turn_pipeline` is absent or `None`, the extra prompt guard is not added and the payload remains unchanged.
 
+v6.1 adds `build_optional_turn_pipeline_for_advice_payload(...)` as an explicit/default-off generation helper. It accepts an already-built advice payload and returns `None` unless `enable_turn_pipeline=True`. When enabled, it produces a limited `TurnPipelineResult` through the existing mapper helper, does not mutate the input payload, and can be passed manually to `build_ui_advice_payload(..., turn_pipeline=...)`. It does not auto-generate inside `advisor_client.py`, does not connect to the UI-selected advice flow, and does not call Gemini or Vertex AI.
+
 ## Current Payload Shape
 
 Top-level sections:

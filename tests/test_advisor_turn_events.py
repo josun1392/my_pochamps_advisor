@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import inspect
+from copy import deepcopy
+
+import llm.advisor_client as advisor_client
+from llm.advisor_client import build_ui_advice_payload
 from llm.advisor_turn_events import (
+    build_optional_turn_pipeline_for_advice_payload,
     build_turn_events_from_advice_payload,
     build_turn_pipeline_result_from_advice_payload,
 )
@@ -493,3 +499,114 @@ def test_turn_pipeline_debug_fixture_output_shape() -> None:
     assert "not a full turn simulation" in limitations_text
     assert "Item consumption is not simulated." in result["limitations"]
     assert "HP updates and exact post-turn state are not simulated." in result["limitations"]
+
+
+def test_optional_turn_pipeline_omitted_or_disabled_returns_none() -> None:
+    payload = _turn_pipeline_fixture_payload()
+
+    assert build_optional_turn_pipeline_for_advice_payload(payload) is None
+    assert build_optional_turn_pipeline_for_advice_payload(payload, enable_turn_pipeline=False) is None
+
+
+def test_optional_turn_pipeline_enabled_builds_limited_result() -> None:
+    payload = _turn_pipeline_fixture_payload()
+
+    result = build_optional_turn_pipeline_for_advice_payload(
+        payload,
+        enable_turn_pipeline=True,
+        selected_move_id="thunderbolt",
+        input_snapshot={"turn_input": {"selected_move_id": "thunderbolt"}},
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+
+    assert result is not None
+    assert result.simulated == "limited"
+    assert [event.item_id for event in result.events] == ["light-ball", "quick-claw", "focus-sash", "chilan-berry"]
+    assert result.selected_move_id == "thunderbolt"
+    assert result.damage_estimate_ref == "moves.my_selected_move.damage_estimate"
+    assert result.ko_context_ref == "moves.my_selected_move.ko_context"
+
+
+def test_optional_turn_pipeline_enabled_does_not_mutate_payload() -> None:
+    payload = _turn_pipeline_fixture_payload()
+    before = deepcopy(payload)
+
+    result = build_optional_turn_pipeline_for_advice_payload(payload, enable_turn_pipeline=True)
+
+    assert result is not None
+    assert payload == before
+    assert "turn_pipeline" not in payload
+    assert "turn_events" not in payload
+
+
+def test_optional_turn_pipeline_limitations_remain_non_engine_claims() -> None:
+    result = build_optional_turn_pipeline_for_advice_payload(
+        _turn_pipeline_fixture_payload(),
+        enable_turn_pipeline=True,
+    )
+
+    assert result is not None
+    limitations_text = " ".join(result.limitations).lower()
+    assert "not a full turn simulation" in limitations_text
+    assert "item consumption is not simulated" in limitations_text
+    assert "hp updates and exact post-turn state are not simulated" in limitations_text
+
+
+def test_optional_turn_pipeline_empty_payload_enabled_is_safe() -> None:
+    result = build_optional_turn_pipeline_for_advice_payload({}, enable_turn_pipeline=True)
+
+    assert result is not None
+    assert result.events == ()
+    assert result.simulated == "limited"
+    assert result.to_dict()["events"] == []
+
+
+def test_optional_turn_pipeline_can_be_passed_to_payload_adapter_explicitly() -> None:
+    pipeline = build_optional_turn_pipeline_for_advice_payload(
+        _turn_pipeline_fixture_payload(),
+        enable_turn_pipeline=True,
+    )
+    payload = {"scenario": {"known_limitations": []}, "moves": {"my_selected_move": {}}}
+
+    advice_payload = build_ui_advice_payload(payload, turn_pipeline=pipeline)
+
+    assert pipeline is not None
+    assert advice_payload["turn_pipeline"] == pipeline.to_dict()
+    assert advice_payload["turn_pipeline"]["simulated"] == "limited"
+
+
+def test_optional_turn_pipeline_helper_does_not_call_advisor_client_or_gemini() -> None:
+    helper_source = inspect.getsource(build_optional_turn_pipeline_for_advice_payload)
+
+    assert "advisor_client" not in helper_source
+    assert "run_ui_selected_advice" not in helper_source
+    assert "call_gemini" not in helper_source
+    assert "build_optional_turn_pipeline_for_advice_payload" not in inspect.getsource(
+        advisor_client.run_ui_selected_advice
+    )
+
+
+def _turn_pipeline_fixture_payload() -> dict:
+    return {
+        "species_stat_item_context": {
+            "available": True,
+            "attacker_side": "my_active",
+            "item": {"item_id": "light-ball", "status": "user_confirmed"},
+        },
+        "speed_order_context": {
+            "available": True,
+            "attacker_side": "my_active",
+            "item": {"item_id": "quick-claw", "status": "user_confirmed"},
+        },
+        "survival_context": {
+            "available": True,
+            "defender_side": "opponent_active",
+            "item": {"item_id": "focus-sash", "status": "user_confirmed"},
+        },
+        "chilan_berry_context": {
+            "available": True,
+            "defender_side": "opponent_active",
+            "item": {"item_id": "chilan-berry", "status": "user_confirmed"},
+        },
+    }

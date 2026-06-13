@@ -1,5 +1,46 @@
 # Master Ball Advisor — Progress
 
+## v6.1 - Explicit TurnPipeline Generation Adapter
+
+Purpose:
+- Add an explicit/default-off helper that can build a limited `TurnPipelineResult` from an already-built advice payload.
+- Keep runtime advice behavior unchanged unless a caller manually opts in and manually passes the result to the optional payload adapter.
+
+Implemented:
+- Added `build_optional_turn_pipeline_for_advice_payload(...)` in `llm.advisor_turn_events`.
+- `enable_turn_pipeline=False` or omitted returns `None`.
+- `enable_turn_pipeline=True` builds a `TurnPipelineResult` through the existing fixture/debug helper.
+- Generated results use `simulated="limited"` only.
+- The helper does not mutate the input payload.
+- The helper can be combined manually with `build_ui_advice_payload(..., turn_pipeline=...)`.
+
+Safety:
+- No advisor-client automatic generation.
+- No UI-selected advice flow automatic connection.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Verification:
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 27 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 73 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 1003 passed, 2 deselected.
+
+---
+
 ## v6.0 - Minimal TurnPipeline Integration Design
 
 Purpose:

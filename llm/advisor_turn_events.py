@@ -66,6 +66,28 @@ def build_turn_pipeline_result_from_advice_payload(
     )
 
 
+def build_optional_turn_pipeline_for_advice_payload(
+    payload: Mapping[str, Any],
+    *,
+    enable_turn_pipeline: bool = False,
+    selected_move_id: str | None = None,
+    input_snapshot: Mapping[str, Any] | None = None,
+    damage_estimate_ref: str | None = None,
+    ko_context_ref: str | None = None,
+) -> TurnPipelineResult | None:
+    """Build a limited TurnPipelineResult only when explicitly enabled."""
+    if not enable_turn_pipeline:
+        return None
+    return build_turn_pipeline_result_from_advice_payload(
+        payload,
+        selected_move_id=selected_move_id,
+        input_snapshot=input_snapshot,
+        damage_estimate_ref=damage_estimate_ref,
+        ko_context_ref=ko_context_ref,
+        simulated="limited",
+    )
+
+
 def _events_from_move_payload(move_payload: Mapping[str, Any], *, payload_prefix: str) -> tuple[TurnEvent, ...]:
     events: list[TurnEvent] = []
     for context_key in _MOVE_CONTEXT_KEYS:
