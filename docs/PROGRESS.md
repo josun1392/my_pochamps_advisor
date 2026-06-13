@@ -1,5 +1,75 @@
 # Master Ball Advisor — Progress
 
+## v5.7 - TurnPipeline Payload Exposure Design
+
+Purpose:
+- Design whether and how `TurnPipelineResult` should be exposed to the LLM advice payload.
+- Keep v5.7 documentation-only and disconnected from `advisor_client.py`.
+- Preserve the v5.6 debug/dry-run status while preparing a safe v5.8 adapter path.
+
+Designed:
+- Compared payload location candidates:
+  - top-level `turn_pipeline`
+  - `battle_input.turn_pipeline`
+  - `debug_context.turn_pipeline`
+  - no exposure / dry-run only
+- Recommended eventual top-level `turn_pipeline`, matching the existing top-level `turn_snapshot` pattern.
+- Recommended default-off / explicit-argument exposure for v5.8.
+- Designed prompt limitations for any future payload exposure:
+  - limited planning/debug summary only
+  - not a full turn simulation
+  - no RNG resolution
+  - no item consumption
+  - no post-turn HP
+  - no guaranteed move order
+  - no exact trigger or status resolution
+
+Conflict policy:
+- `damage_estimate` remains the damage primitive.
+- `ko_context` remains the limited damage-roll primitive.
+- Existing item contexts remain the current user-facing explanation surface.
+- `turn_pipeline` is an additive planning/timing summary and does not replace existing contexts.
+- `turn_pipeline` must not override item context availability, payload filtering, or applied damage item effects.
+
+Recommended next step:
+- v5.8 Optional TurnPipeline Payload Adapter Implementation.
+- Keep it default-off and explicit-only.
+- Do not auto-generate `TurnPipelineResult` inside `run_ui_selected_advice(...)`.
+- Do not connect runtime helper generation to advice flow yet.
+
+Safety:
+- Documentation-only design.
+- No production code changes.
+- No `advisor_client.py` connection.
+- No LLM payload connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No actual Gemini call.
+- No Vertex AI call.
+
+Verification:
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 20 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run timing-sensitive failure in `test_item_damage_calculation_under_point_12ms_average` and `test_ability_damage_calculation_under_point_20ms_average`; best medians `0.156250ms` vs threshold `0.120000ms` and `0.218750ms` vs threshold `0.200000ms`.
+- Isolated `test_ability_damage_calculation_under_point_20ms_average`: passed.
+- Isolated `test_item_damage_calculation_under_point_12ms_average`: repeated timing-sensitive failures before sequential cooldown rerun.
+- Final sequential `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- Final `uv run pytest -q`: 980 passed, 2 deselected.
+- No threshold, skip, xfail, damage formula, raw roll, Q12, `ko_context`, or payload filtering changes were made.
+
+---
+
 ## v5.6 - TurnPipeline Debug Report / Dry-run
 
 Purpose:
