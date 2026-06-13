@@ -1,5 +1,47 @@
 # Master Ball Advisor — Progress
 
+## v6.2 - Explicit TurnPipeline Payload Smoke
+
+Purpose:
+- Verify the fixture-level manual path from explicit TurnPipeline generation to optional top-level payload insertion.
+- Keep `advisor_client.py` and UI-selected advice flow disconnected from automatic TurnPipeline generation.
+
+Verified:
+- `build_optional_turn_pipeline_for_advice_payload(...)` returns `None` by default.
+- `None` passed to `build_ui_advice_payload(..., turn_pipeline=None)` preserves the existing payload.
+- `enable_turn_pipeline=True` produces a limited `TurnPipelineResult`.
+- Manually passing the result to `build_ui_advice_payload(..., turn_pipeline=...)` adds top-level `turn_pipeline`.
+- Event ordering remains Light Ball, Quick Claw, Focus Sash, then Chilan Berry.
+- `damage_estimate`, `ko_context`, and existing item contexts are preserved.
+- TurnPipeline prompt guard appears only when `turn_pipeline` is explicitly present.
+
+Safety:
+- No advisor-client automatic generation.
+- No UI-selected advice flow automatic connection.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Verification:
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 27 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 74 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 1004 passed, 2 deselected.
+
+---
+
 ## v6.1 - Explicit TurnPipeline Generation Adapter
 
 Purpose:

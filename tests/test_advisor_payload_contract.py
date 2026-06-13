@@ -31,6 +31,7 @@ from llm.advisor_payload_contract import (
     TURN_PIPELINE_KNOWN_LIMITATIONS,
     TURN_SNAPSHOT_KNOWN_LIMITATIONS,
 )
+from llm.advisor_turn_events import build_optional_turn_pipeline_for_advice_payload
 from tests.test_advisor_damage_estimate import (
     _battle_input,
     _bullet_seed,
@@ -409,6 +410,83 @@ def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
     assert '"turn_pipeline"' not in prompt
     assert "limited planning/debug summary only, not full turn simulation" not in prompt
     assert "build_turn_pipeline_result_from_advice_payload" not in inspect.getsource(advisor_client.run_ui_selected_advice)
+
+
+def test_explicit_turn_pipeline_generation_smoke_preserves_existing_payload_contexts() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    selected_move = payload["moves"]["my_selected_move"]
+    selected_move["species_stat_item_context"] = {
+        "available": True,
+        "attacker_side": "my_active",
+        "item": {"item_id": "light-ball", "status": "user_confirmed"},
+    }
+    selected_move["speed_order_context"] = {
+        "available": True,
+        "attacker_side": "my_active",
+        "item": {"item_id": "quick-claw", "status": "user_confirmed"},
+    }
+    selected_move["survival_context"] = {
+        "available": True,
+        "defender_side": "opponent_active",
+        "item": {"item_id": "focus-sash", "status": "user_confirmed"},
+    }
+    selected_move["chilan_berry_context"] = {
+        "available": True,
+        "defender_side": "opponent_active",
+        "item": {"item_id": "chilan-berry", "status": "user_confirmed"},
+    }
+
+    baseline_payload = build_ui_advice_payload(payload)
+    disabled_pipeline = build_optional_turn_pipeline_for_advice_payload(payload)
+    disabled_payload = build_ui_advice_payload(payload, turn_pipeline=disabled_pipeline)
+
+    assert disabled_pipeline is None
+    assert disabled_payload == baseline_payload
+    assert "turn_pipeline" not in disabled_payload
+    assert "limited planning/debug summary only, not full turn simulation" not in _build_ui_selected_prompt(payload)
+
+    enabled_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        payload,
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    enabled_payload = build_ui_advice_payload(payload, turn_pipeline=enabled_pipeline)
+    enabled_move = enabled_payload["moves"]["my_selected_move"]
+
+    assert enabled_pipeline is not None
+    assert enabled_pipeline.simulated == "limited"
+    assert [event.item_id for event in enabled_pipeline.events] == [
+        "light-ball",
+        "quick-claw",
+        "focus-sash",
+        "chilan-berry",
+    ]
+    assert enabled_payload["turn_pipeline"] == enabled_pipeline.to_dict()
+    assert enabled_payload["turn_pipeline"]["simulated"] == "limited"
+    assert [event["item_id"] for event in enabled_payload["turn_pipeline"]["events"]] == [
+        "light-ball",
+        "quick-claw",
+        "focus-sash",
+        "chilan-berry",
+    ]
+    assert enabled_move["damage_estimate"] == baseline_payload["moves"]["my_selected_move"]["damage_estimate"]
+    assert enabled_move["ko_context"] == baseline_payload["moves"]["my_selected_move"]["ko_context"]
+    assert enabled_move["species_stat_item_context"] == baseline_payload["moves"]["my_selected_move"][
+        "species_stat_item_context"
+    ]
+    assert enabled_move["speed_order_context"] == baseline_payload["moves"]["my_selected_move"]["speed_order_context"]
+    assert enabled_move["survival_context"] == baseline_payload["moves"]["my_selected_move"]["survival_context"]
+    assert enabled_move["chilan_berry_context"] == baseline_payload["moves"]["my_selected_move"]["chilan_berry_context"]
+
+    prompt_with_pipeline = _build_ui_selected_prompt(payload, turn_pipeline=enabled_pipeline)
+    assert '"turn_pipeline"' in prompt_with_pipeline
+    assert "limited planning/debug summary only, not full turn simulation" in prompt_with_pipeline
+    assert "candidate events are not resolved outcomes" in prompt_with_pipeline
+    assert "build_optional_turn_pipeline_for_advice_payload" not in inspect.getsource(
+        advisor_client.run_ui_selected_advice
+    )
 
 
 def test_manual_move_payload_includes_only_user_confirmed_moves() -> None:

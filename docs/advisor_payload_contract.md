@@ -121,6 +121,8 @@ v5.9 strengthens the prompt and contract guard for this field. When `turn_pipeli
 
 v6.1 adds `build_optional_turn_pipeline_for_advice_payload(...)` as an explicit/default-off generation helper. It accepts an already-built advice payload and returns `None` unless `enable_turn_pipeline=True`. When enabled, it produces a limited `TurnPipelineResult` through the existing mapper helper, does not mutate the input payload, and can be passed manually to `build_ui_advice_payload(..., turn_pipeline=...)`. It does not auto-generate inside `advisor_client.py`, does not connect to the UI-selected advice flow, and does not call Gemini or Vertex AI.
 
+v6.2 verifies the manual fixture path that combines the explicit helper with the optional payload adapter. With generation disabled, the helper returns `None` and the payload remains unchanged. With generation enabled, callers may manually pass the limited result to `build_ui_advice_payload(..., turn_pipeline=...)`, which adds top-level `turn_pipeline` while preserving `damage_estimate`, `ko_context`, and existing item contexts. The prompt guard remains conditional on explicit `turn_pipeline` presence.
+
 ## Current Payload Shape
 
 Top-level sections:
