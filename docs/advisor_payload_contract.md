@@ -60,6 +60,27 @@ The v4.5 UI mapping is intentionally minimal:
 
 Future milestones can use the snapshot contract as the bridge between UI selected state, deterministic trigger results, and LLM payload generation.
 
+## Turn Event Contract
+
+v5.1 adds a standalone `core.turn_event` contract for future Minimal Turn Engine work. The contract defines `TurnEvent` and `TurnPipelineResult` with safe dictionary serialization and minimal validation.
+
+This is a contract layer only:
+
+- `TurnEvent` can represent a candidate trigger, a known modifier, a not-simulated event, a blocked event, or an unavailable event
+- `TurnPipelineResult` can group event candidates with references to existing `damage_estimate` and `ko_context` surfaces
+- default pipeline simulation status is `none`
+- `full` remains a schema-reserved value only and is not used by v5.1 behavior
+
+The v5.1 contract is intentionally disconnected from runtime advice behavior:
+
+- it is not connected to `advisor_client.py`
+- it is not inserted into the LLM payload
+- it does not evaluate item triggers
+- it does not consume items
+- it does not update HP or post-turn state
+- it does not simulate move order, speed ties, or random activation
+- it does not change damage estimates, raw rolls, Q12 multipliers, `ko_context`, item contexts, or payload filtering
+
 ## Current Payload Shape
 
 Top-level sections:

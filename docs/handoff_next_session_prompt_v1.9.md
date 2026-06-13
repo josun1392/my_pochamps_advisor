@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, and the v5.0 Minimal Turn Engine MVP design.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, and the v5.1 Turn Event contract implementation.
 
 Update after v2.5:
 
@@ -30,13 +30,14 @@ Update after v2.5:
 - v4.8 added a local TurnSnapshot dry-run/debug report script and static sample report without actual Gemini calls.
 - v4.9 closed the TurnSnapshot phase and prepared v5.0 Minimal Turn Engine MVP Design.
 - v5.0 designed a Minimal Turn Engine MVP around `TurnSnapshot` input state, `TurnEvent` candidates, and `TurnPipelineResult` planning output.
+- v5.1 added `core.turn_event` with serializable validated `TurnEvent` and `TurnPipelineResult` dataclass contracts.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v5.0 Minimal Turn Engine MVP Design.
+T3, continue after v5.1 Turn Event Contract Implementation.
 
 Goal:
 - Do not add new item contexts.
@@ -73,10 +74,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v5.1 Turn Event Contract Implementation
+  - v5.2 Turn Pipeline Planning Design
 - Reason:
-  - v5.0 already designed the minimal event-stage model and contract candidates.
-  - The next safe step is contract/dataclass implementation only, before any trigger evaluation or payload integration.
+  - v5.1 has implemented the contract/dataclass layer only.
+  - The next safe step is to design how fixture-level planning would produce `TurnEvent` lists without connecting to advisor payloads or mutating battle state.
   - The next major gap is still turn-event semantics: trigger timing, item consumption, post-damage HP, speed/order, and status/state transitions.
 - v3.4 has already centralized item context guard metadata:
   - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
@@ -103,15 +104,22 @@ Goal:
   - recommended stages are `pre_turn`, `pre_move`, `damage`, `on_damage_before_ko`, `on_hit_or_damage_dealt`, `post_damage`, and `post_turn`.
   - `TurnEvent` is a candidate/known-modifier/not-simulated event contract, not final battle truth.
   - `TurnPipelineResult` is planning output with `simulated` set to `planning_only`, `not_simulated`, or `limited`.
-- v5.1 should be contract implementation, not full engine implementation:
-  - add `core/turn_event.py` or `core/turn_pipeline.py`
-  - implement frozen serializable dataclasses for `TurnEvent` and `TurnPipelineResult`
-  - validate stage, status, certainty, and side values
-  - add fixture-level tests for serialization, defaults, invalid values, and planning-only semantics
-  - do not connect to `advisor_client.py`
-  - do not insert turn pipeline output into LLM payload
-  - do not implement item trigger evaluation
-  - do not implement item consumption, HP update, speed/order simulation, exact status/volatile resolution, or full Turn Engine behavior
+- v5.1 Turn Event Contract Implementation is complete:
+  - `core.turn_event` defines `TurnEvent` and `TurnPipelineResult`.
+  - contracts provide `to_dict()` / `from_dict(...)`.
+  - `normalize_turn_event(...)` and `normalize_turn_pipeline_result(...)` are available.
+  - stage, status, certainty, side, warnings, limitations, and events are validated/normalized.
+  - `TurnPipelineResult.simulated` defaults to `none`.
+  - v5.1 does not connect to `advisor_client.py`.
+  - v5.1 does not insert turn pipeline output into the LLM payload.
+  - v5.1 does not implement item trigger evaluation.
+  - v5.1 does not implement item consumption, HP update, speed/order simulation, exact status/volatile resolution, or full Turn Engine behavior.
+- v5.2 should start with design before implementation:
+  - define a fixture-level turn pipeline planning function shape
+  - decide whether it belongs in `core.turn_pipeline` or a separate helper
+  - map existing known surfaces such as `damage_estimate.item_effects`, `ko_context`, and available item contexts into `TurnEvent` candidates
+  - keep output disconnected from `advisor_client.py`
+  - avoid battle-state mutation, item consumption, exact HP update, exact RNG resolution, and payload integration
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -266,6 +274,6 @@ Documentation expectations:
 - Chilan Berry reached actual Gemini PASS after v2.7.1.
 - The original item-context pending verification queue is closed as of v3.2.
 - v3.4 centralized item context guard metadata without changing filtering behavior.
-- Larger next direction: v5.1 Turn Event Contract Implementation before any full Turn Engine behavior.
+- Larger next direction: v5.2 Turn Pipeline Planning Design before any payload integration or state mutation.
 - v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

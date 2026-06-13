@@ -1,5 +1,74 @@
 # Master Ball Advisor — Progress
 
+## v5.1 - Turn Event Contract Implementation
+
+Purpose:
+- Add the first Minimal Turn Engine contract layer.
+- Keep the implementation limited to dataclasses, serialization, and validation.
+- Do not connect the contract to `advisor_client.py` or the LLM payload.
+
+Implemented:
+- Added `core.turn_event`.
+- Added `TurnEvent`.
+- Added `TurnPipelineResult`.
+- Added `normalize_turn_event(...)`.
+- Added `normalize_turn_pipeline_result(...)`.
+
+Validation:
+- `TurnEvent.stage` must be one of:
+  - `pre_turn`
+  - `pre_move`
+  - `damage`
+  - `on_damage_before_ko`
+  - `on_hit_or_damage_dealt`
+  - `post_damage`
+  - `post_turn`
+- `TurnEvent.status` must be one of:
+  - `candidate`
+  - `known_modifier`
+  - `not_simulated`
+  - `blocked`
+  - `unavailable`
+- `TurnEvent.certainty` must be one of:
+  - `known`
+  - `likely`
+  - `possible`
+  - `unknown`
+  - `not_simulated`
+- sides must be `player`, `opponent`, `field`, `unknown`, or `None`.
+- warnings, limitations, and events are normalized into tuples.
+
+Behavior:
+- `TurnEvent` can express candidates, known modifiers, not-simulated hooks, blocked hooks, and unavailable hooks.
+- `TurnPipelineResult.simulated` defaults to `none`.
+- `full` is accepted as a future-compatible schema value, but v5.1 does not produce or depend on full simulation.
+- The contract does not mutate HP, consume items, evaluate triggers, or simulate turn order.
+
+Safety:
+- No `advisor_client.py` connection.
+- No LLM payload connection.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Verification:
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 960 passed, 2 deselected.
+
+---
+
 ## v5.0 - Minimal Turn Engine MVP Design
 
 Purpose:
