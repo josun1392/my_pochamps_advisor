@@ -1,5 +1,66 @@
 # Master Ball Advisor — Progress
 
+## v6.0 - Minimal TurnPipeline Integration Design
+
+Purpose:
+- Design the smallest safe integration path for `TurnPipelineResult` after v5.x foundation work.
+- Compare automatic, explicit-flag, debug-only, and fixture-only integration options.
+- Recommend a v6.1 explicit/default-off generation adapter without production runtime behavior changes.
+
+Designed:
+- Current UI-selected advice path remains:
+  - `LLMAdvicePanel.advice_requested`
+  - `MainWindow._start_llm_advice()`
+  - `_build_llm_battle_input()`
+  - `LLMAdviceWorker.run()`
+  - `run_ui_selected_advice(...)`
+  - `_build_ui_selected_prompt(...)`
+  - `build_ui_advice_payload(..., turn_pipeline=None)`
+- Recommended v6.1 MVP:
+  - `build_optional_turn_pipeline_for_advice_payload(...)`
+  - input is an already-built advice payload
+  - default `enable_turn_pipeline=False`
+  - returns `None` by default
+  - returns limited `TurnPipelineResult` only when explicitly enabled
+  - caller can pass the result to the existing optional `turn_pipeline` payload adapter
+- Rejected v6.1 automatic generation inside `run_ui_selected_advice(...)`.
+
+Existing-context policy:
+- `damage_estimate` remains the primitive calculation source.
+- `ko_context` remains the limited KO interpretation source.
+- Existing item contexts remain the current user-facing context surfaces.
+- `turn_pipeline` remains additive timing/planning/debug summary only.
+- `turn_pipeline` does not replace or override context availability, item effects, or payload filtering.
+
+Safety:
+- Documentation-only design.
+- No production code implementation.
+- No advisor-client automatic generation.
+- No UI-selected advice flow automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No actual Gemini call.
+- No Vertex AI call.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 73 passed.
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 20 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 996 passed, 2 deselected.
+
+---
+
 ## v5.9 - TurnPipeline Payload Prompt Guard / Contract Documentation
 
 Purpose:
