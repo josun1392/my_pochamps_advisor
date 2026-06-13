@@ -11,6 +11,12 @@ TURN_SNAPSHOT_KNOWN_LIMITATIONS = [
     "Do not claim full turn simulation, exact item trigger results, consumed items, exact post-turn HP, guaranteed move order, or exact status resolution from turn_snapshot alone.",
 ]
 
+TURN_PIPELINE_KNOWN_LIMITATIONS = [
+    "turn_pipeline, when present, is a limited planning/debug summary only and is not full turn simulation.",
+    "turn_pipeline does not resolve RNG, item consumption, post-turn HP, speed ties, exact trigger results, or exact status resolution.",
+    "Use turn_pipeline events only as candidate or known-modifier context; do not treat them as final battle truth.",
+]
+
 ADVICE_ITEM_CONTEXT_KEYS = frozenset(
     {
         "survival_context",

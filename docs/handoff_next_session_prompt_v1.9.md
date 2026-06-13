@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, and the v5.7 TurnPipeline payload exposure design.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, and the v5.8 optional TurnPipeline payload adapter.
 
 Update after v2.5:
 
@@ -37,13 +37,14 @@ Update after v2.5:
 - v5.5 added `llm.advisor_turn_events.build_turn_pipeline_result_from_advice_payload(...)` as a fixture/debug helper that bundles mapper events into `TurnPipelineResult` without runtime payload integration.
 - v5.6 added `scripts/spike_turn_pipeline_debug.py` and `docs/debug_turn_pipeline_sample_v5.6.md` for local TurnPipelineResult inspection without actual Gemini or Vertex AI calls.
 - v5.7 designed optional payload exposure for `TurnPipelineResult`, recommending a default-off top-level `turn_pipeline` adapter with strict limitations and no automatic advisor-client generation.
+- v5.8 added explicit-only optional top-level `turn_pipeline` payload adapter support while keeping runtime advisor flow from auto-generating `TurnPipelineResult`.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v5.7 TurnPipeline Payload Exposure Design.
+T3, continue after v5.8 Optional TurnPipeline Payload Adapter Implementation.
 
 Goal:
 - Do not add new item contexts.
@@ -80,13 +81,12 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v5.8 Optional TurnPipeline Payload Adapter Implementation
+  - v5.9 TurnPipeline Payload Adapter Smoke / No-Auto-Generation Verification
 - Reason:
-  - v5.7 has designed safe payload exposure for `TurnPipelineResult`.
-  - The recommended shape is optional top-level `turn_pipeline`, matching the existing top-level `turn_snapshot` pattern.
-  - v5.8 should keep exposure default-off and explicit-only.
-  - v5.8 should not auto-generate `TurnPipelineResult` inside `run_ui_selected_advice(...)`.
-  - v5.8 should add prompt limitations only when `turn_pipeline` is explicitly supplied.
+  - v5.8 has added the optional top-level `turn_pipeline` adapter.
+  - The adapter remains default-off and explicit-only.
+  - The next safe step is smoke/preflight verification that explicit payload insertion works and runtime UI-selected advice still does not auto-generate or auto-send `turn_pipeline`.
+  - Keep actual Gemini calls disabled unless T1/T2 explicitly approve them.
 - v3.4 has already centralized item context guard metadata:
   - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
   - `advisor_client.py` still builds the prompt guard from visible `available=true` contexts.
@@ -174,13 +174,17 @@ Goal:
   - existing item contexts remain the current user-facing explanation surface.
   - v5.7 does not connect `TurnPipelineResult` to `advisor_client.py`.
   - v5.7 does not insert `turn_pipeline` into the LLM payload.
-- v5.8 should implement only the optional adapter:
-  - add `turn_pipeline=None` support to `build_ui_advice_payload(...)` or a small helper.
-  - if absent, preserve existing payload output.
-  - if present, normalize/serialize `TurnPipelineResult` to top-level `turn_pipeline`.
-  - add prompt limitations only when present.
-  - do not auto-generate the pipeline result from runtime advice flow.
-  - do not run actual Gemini calls.
+- v5.8 Optional TurnPipeline Payload Adapter Implementation is complete:
+  - `build_ui_advice_payload(..., turn_pipeline=None)` supports explicit optional top-level `turn_pipeline`.
+  - `_build_ui_selected_prompt(..., turn_pipeline=None)` can include pipeline limitations when explicitly supplied.
+  - absent or `None` `turn_pipeline` preserves existing payload output.
+  - supplied `TurnPipelineResult` or mapping values are normalized before insertion.
+  - `simulated="full"` is rejected for advice payload exposure.
+  - pipeline limitations are required.
+  - event wording has narrow validation against resolved-result claims.
+  - `run_ui_selected_advice(...)` does not auto-generate `TurnPipelineResult`.
+  - `build_turn_pipeline_result_from_advice_payload(...)` remains disconnected from runtime advice flow.
+  - v5.8 does not run actual Gemini calls.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -335,6 +339,6 @@ Documentation expectations:
 - Chilan Berry reached actual Gemini PASS after v2.7.1.
 - The original item-context pending verification queue is closed as of v3.2.
 - v3.4 centralized item context guard metadata without changing filtering behavior.
-- Larger next direction: v5.8 optional TurnPipeline payload adapter before any automatic pipeline generation or state mutation.
+- Larger next direction: v5.9 TurnPipeline payload adapter smoke / no-auto-generation verification before any automatic pipeline generation or state mutation.
 - v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

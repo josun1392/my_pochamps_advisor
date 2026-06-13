@@ -1,5 +1,53 @@
 # Master Ball Advisor — Progress
 
+## v5.8 - Optional TurnPipeline Payload Adapter
+
+Purpose:
+- Add an explicit-only adapter for optional top-level `turn_pipeline`.
+- Preserve default advice payload behavior when `turn_pipeline` is omitted or `None`.
+- Keep runtime advisor flow from auto-generating `TurnPipelineResult`.
+
+Implemented:
+- Added `TURN_PIPELINE_KNOWN_LIMITATIONS`.
+- Added optional `turn_pipeline` support to `build_ui_advice_payload(...)`.
+- Added optional `turn_pipeline` support to `_build_ui_selected_prompt(...)`.
+- Added top-level `turn_pipeline` insertion only for explicit inputs.
+- Normalized `TurnPipelineResult` or mapping values with `normalize_turn_pipeline_result(...)`.
+- Rejected `simulated="full"` for advice payload exposure.
+- Required pipeline limitations for payload exposure.
+- Added narrow event wording validation against resolved-result claims.
+- Added prompt guard text only when `turn_pipeline` is present.
+
+Default-off policy:
+- `run_ui_selected_advice(...)` does not auto-generate `TurnPipelineResult`.
+- `build_turn_pipeline_result_from_advice_payload(...)` remains disconnected from runtime advice flow.
+- No automatic UI-selected advice pipeline insertion was added.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 66 passed.
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 20 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 989 passed, 2 deselected.
+
+---
+
 ## v5.7 - TurnPipeline Payload Exposure Design
 
 Purpose:

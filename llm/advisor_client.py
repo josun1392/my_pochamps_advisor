@@ -11,6 +11,7 @@ import json
 from copy import deepcopy
 from typing import Any
 
+from core.turn_event import TurnPipelineResult, normalize_turn_pipeline_result
 from core.turn_state import TurnSnapshot, normalize_turn_snapshot
 from core.champions_legal_item_repository import get_legal_item_status
 from llm.advisor_payload_contract import (
@@ -19,6 +20,7 @@ from llm.advisor_payload_contract import (
     ADVICE_ITEM_CONTEXT_GUARD_METADATA,
     ADVICE_ITEM_CONTEXT_KEYS,
     DEBUG_ONLY_REASON_PHRASES,
+    TURN_PIPELINE_KNOWN_LIMITATIONS,
     TURN_SNAPSHOT_KNOWN_LIMITATIONS,
 )
 from llm.advisor_turn_snapshot import try_build_turn_snapshot_from_battle_input
@@ -73,11 +75,13 @@ def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dic
 def build_ui_advice_payload(
     battle_input: dict[str, Any],
     turn_snapshot: TurnSnapshot | dict[str, Any] | None = None,
+    turn_pipeline: TurnPipelineResult | dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
     filtered_payload = filter_context_for_default_advice(payload)
     _add_turn_snapshot_to_advice_payload(filtered_payload, turn_snapshot)
+    _add_turn_pipeline_to_advice_payload(filtered_payload, turn_pipeline)
     return filtered_payload
 
 
@@ -117,16 +121,23 @@ def run_ui_selected_advice(
 def _build_ui_selected_prompt(
     battle_input: dict[str, Any],
     turn_snapshot: TurnSnapshot | dict[str, Any] | None = None,
+    turn_pipeline: TurnPipelineResult | dict[str, Any] | None = None,
 ) -> str:
-    advice_payload = build_ui_advice_payload(battle_input, turn_snapshot=turn_snapshot)
+    advice_payload = build_ui_advice_payload(
+        battle_input,
+        turn_snapshot=turn_snapshot,
+        turn_pipeline=turn_pipeline,
+    )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
+    turn_pipeline_guard = _build_turn_pipeline_prompt_guard(advice_payload)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
         "name the recommended direction, and mention the main limitation in the "
         "data. "
         f"{turn_snapshot_guard}"
+        f"{turn_pipeline_guard}"
         "If a damage_estimate is present, use it only under its stated "
         "assumption_profile and never describe it as final battle damage. Do "
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "
@@ -457,6 +468,53 @@ def _add_turn_snapshot_to_advice_payload(
     scenario["known_limitations"] = limitations
 
 
+def _add_turn_pipeline_to_advice_payload(
+    payload: dict[str, Any],
+    turn_pipeline: TurnPipelineResult | dict[str, Any] | None,
+) -> None:
+    if turn_pipeline is None:
+        return
+
+    normalized_pipeline = normalize_turn_pipeline_result(turn_pipeline)
+    if normalized_pipeline.simulated == "full":
+        raise ValueError("turn_pipeline simulated='full' is not allowed in advice payload")
+    if not normalized_pipeline.limitations:
+        raise ValueError("turn_pipeline limitations are required")
+
+    for event in normalized_pipeline.events:
+        _validate_turn_pipeline_event_wording(event.to_dict())
+
+    payload["turn_pipeline"] = normalized_pipeline.to_dict()
+
+    scenario = payload.setdefault("scenario", {})
+    limitations = list(scenario.get("known_limitations") or ())
+    for limitation in TURN_PIPELINE_KNOWN_LIMITATIONS:
+        if limitation not in limitations:
+            limitations.append(limitation)
+    scenario["known_limitations"] = limitations
+
+
+def _validate_turn_pipeline_event_wording(event: dict[str, Any]) -> None:
+    rendered_parts = []
+    for key in ("summary", "limitations"):
+        value = event.get(key)
+        if isinstance(value, str):
+            rendered_parts.append(value)
+        elif isinstance(value, list):
+            rendered_parts.extend(item for item in value if isinstance(item, str))
+    rendered = " ".join(rendered_parts).lower()
+    forbidden_phrases = (
+        "item was consumed",
+        "exact trigger result",
+        "exact post-turn hp",
+        "guaranteed move order",
+        "full turn simulation completed",
+    )
+    for phrase in forbidden_phrases:
+        if phrase in rendered:
+            raise ValueError(f"turn_pipeline event wording must not claim {phrase!r}")
+
+
 def _build_turn_snapshot_prompt_guard(payload: dict[str, Any]) -> str:
     if "turn_snapshot" not in payload:
         return ""
@@ -469,6 +527,21 @@ def _build_turn_snapshot_prompt_guard(payload: dict[str, Any]) -> str:
         "post-damage HP updates, speed/order simulation, and exact status "
         "resolution are not implemented. Use turn_snapshot only as known state "
         "context. "
+    )
+
+
+def _build_turn_pipeline_prompt_guard(payload: dict[str, Any]) -> str:
+    if "turn_pipeline" not in payload:
+        return ""
+    return (
+        "If turn_pipeline is present, treat it as a limited planning/debug "
+        "summary only, not full turn simulation. Do not claim RNG resolution, "
+        "item consumption, exact post-turn HP, guaranteed move order, exact "
+        "item trigger result, speed tie resolution, or exact status resolution "
+        "from turn_pipeline. Use turn_pipeline events only as candidate or "
+        "known-modifier context; do not treat them as final battle truth or as "
+        "a replacement for damage_estimate, ko_context, or existing item "
+        "contexts. "
     )
 
 

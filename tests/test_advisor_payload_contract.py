@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 from copy import deepcopy
 from types import MethodType, SimpleNamespace
@@ -14,7 +15,9 @@ from core.move_repository import MoveView
 from core.move_repository import MoveRepository
 from core.pokemon_repository import PokemonView
 from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
+from core.turn_event import TurnEvent, TurnPipelineResult
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
+import llm.advisor_client as advisor_client
 from llm.advisor_client import _build_ui_selected_prompt, build_ui_advice_payload
 from llm.advisor_damage_estimate import attach_selected_move_damage_estimate
 from llm.advisor_payload_contract import (
@@ -25,6 +28,7 @@ from llm.advisor_payload_contract import (
     DEBUG_ONLY_REASON_PHRASES,
     ADVISOR_KNOWN_LIMITATIONS,
     ADVISOR_PAYLOAD_MODE,
+    TURN_PIPELINE_KNOWN_LIMITATIONS,
     TURN_SNAPSHOT_KNOWN_LIMITATIONS,
 )
 from tests.test_advisor_damage_estimate import (
@@ -235,6 +239,121 @@ def test_turn_snapshot_does_not_change_damage_ko_or_item_context_payload() -> No
         snapshot_payload_without_turn_snapshot["scenario"]["known_limitations"].remove(limitation)
 
     assert snapshot_payload_without_turn_snapshot == base_payload
+
+
+def test_turn_pipeline_absent_preserves_default_advice_payload() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    without_argument = build_ui_advice_payload(payload)
+    with_none = build_ui_advice_payload(payload, turn_pipeline=None)
+
+    assert with_none == without_argument
+    assert "turn_pipeline" not in with_none
+    for limitation in TURN_PIPELINE_KNOWN_LIMITATIONS:
+        assert limitation not in with_none["scenario"]["known_limitations"]
+
+
+def test_turn_pipeline_result_adds_top_level_payload() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    pipeline = _sample_turn_pipeline()
+
+    advice_payload = build_ui_advice_payload(payload, turn_pipeline=pipeline)
+
+    assert advice_payload["turn_pipeline"] == pipeline.to_dict()
+    assert advice_payload["turn_pipeline"]["simulated"] == "limited"
+    assert advice_payload["turn_pipeline"]["events"][0]["item_id"] == "light-ball"
+    for limitation in TURN_PIPELINE_KNOWN_LIMITATIONS:
+        assert limitation in advice_payload["scenario"]["known_limitations"]
+
+
+def test_turn_pipeline_mapping_adds_top_level_payload() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    pipeline_mapping = _sample_turn_pipeline().to_dict()
+
+    advice_payload = build_ui_advice_payload(payload, turn_pipeline=pipeline_mapping)
+
+    assert advice_payload["turn_pipeline"] == pipeline_mapping
+
+
+def test_turn_pipeline_full_simulation_is_rejected() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    with pytest.raises(ValueError, match="simulated='full'"):
+        build_ui_advice_payload(payload, turn_pipeline=_sample_turn_pipeline(simulated="full"))
+
+
+def test_turn_pipeline_requires_limitations() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    with pytest.raises(ValueError, match="limitations are required"):
+        build_ui_advice_payload(
+            payload,
+            turn_pipeline={
+                "events": [],
+                "warnings": [],
+                "limitations": [],
+                "simulated": "limited",
+            },
+        )
+
+
+def test_turn_pipeline_event_forbidden_resolution_wording_is_rejected() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    with pytest.raises(ValueError, match="item was consumed"):
+        build_ui_advice_payload(
+            payload,
+            turn_pipeline=TurnPipelineResult(
+                events=(
+                    TurnEvent(
+                        stage="post_damage",
+                        status="candidate",
+                        certainty="possible",
+                        summary="The item was consumed.",
+                    ),
+                ),
+                limitations=("limited planning only",),
+                simulated="limited",
+            ),
+        )
+
+
+def test_turn_pipeline_prompt_includes_limitations_and_no_engine_guard() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    prompt = _build_ui_selected_prompt(payload, turn_pipeline=_sample_turn_pipeline())
+
+    assert '"turn_pipeline"' in prompt
+    assert "limited planning/debug summary only, not full turn simulation" in prompt
+    assert "Do not claim RNG resolution" in prompt
+    assert "item consumption" in prompt
+    assert "exact post-turn HP" in prompt
+    assert "guaranteed move order" in prompt
+    assert "exact item trigger result" in prompt
+    assert "replacement for damage_estimate, ko_context, or existing item contexts" in prompt
+
+
+def test_turn_pipeline_does_not_change_damage_ko_or_item_context_payload() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    base_payload = build_ui_advice_payload(payload)
+    pipeline_payload = build_ui_advice_payload(payload, turn_pipeline=_sample_turn_pipeline())
+    pipeline_payload_without_turn_pipeline = deepcopy(pipeline_payload)
+    pipeline_payload_without_turn_pipeline.pop("turn_pipeline")
+    for limitation in TURN_PIPELINE_KNOWN_LIMITATIONS:
+        pipeline_payload_without_turn_pipeline["scenario"]["known_limitations"].remove(limitation)
+
+    assert pipeline_payload_without_turn_pipeline == base_payload
+
+
+def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    prompt = _build_ui_selected_prompt(payload)
+
+    assert '"turn_pipeline"' not in prompt
+    assert "limited planning/debug summary only, not full turn simulation" not in prompt
+    assert "build_turn_pipeline_result_from_advice_payload" not in inspect.getsource(advisor_client.run_ui_selected_advice)
 
 
 def test_manual_move_payload_includes_only_user_confirmed_moves() -> None:
@@ -2683,6 +2802,36 @@ def _sample_turn_snapshot() -> TurnSnapshot:
         ),
         notes=("manual selected-state snapshot",),
         limitations=("no full turn simulation",),
+    )
+
+
+def _sample_turn_pipeline(*, simulated: str = "limited") -> TurnPipelineResult:
+    return TurnPipelineResult(
+        selected_move_id="flamethrower",
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+        events=(
+            TurnEvent(
+                stage="damage",
+                source="item_context",
+                subject_side="player",
+                target_side=None,
+                item_id="light-ball",
+                trigger_type="species_stat_modifier",
+                status="known_modifier",
+                certainty="known",
+                summary="Light Ball is represented as a known Pikachu damage modifier in the advisor estimate.",
+                limitations=("This event does not simulate item consumption or a full turn.",),
+                payload_key="moves.my_selected_move.species_stat_item_context",
+            ),
+        ),
+        warnings=("Unavailable contexts do not create events.",),
+        limitations=(
+            "This result is a limited planning summary, not a full turn simulation.",
+            "Item consumption is not simulated.",
+            "HP updates and exact post-turn state are not simulated.",
+        ),
+        simulated=simulated,
     )
 
 

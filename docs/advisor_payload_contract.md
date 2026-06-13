@@ -96,12 +96,34 @@ v5.5 adds `build_turn_pipeline_result_from_advice_payload(...)` as a fixture/deb
 
 v5.6 adds `scripts/spike_turn_pipeline_debug.py` and `docs/debug_turn_pipeline_sample_v5.6.md` as a local dry-run/debug report for fixture TurnPipelineResult output. The report prints JSON to stdout, records event stage/status/certainty/limitations, and does not call Gemini, Vertex AI, `advisor_client.py`, or LLM payload wiring.
 
+v5.8 adds optional payload adapter support for `TurnPipelineResult`. When a caller explicitly supplies a pipeline result, the default advice payload may include a top-level `turn_pipeline` section. The adapter is default-off and explicit-only:
+
+- absent or `None` `turn_pipeline` preserves the existing advice payload
+- supplied `TurnPipelineResult` or mapping values are normalized before insertion
+- `simulated="full"` is rejected
+- pipeline limitations are required
+- prompt limitations are added only when `turn_pipeline` is present
+- `run_ui_selected_advice(...)` does not auto-generate `TurnPipelineResult`
+- `build_turn_pipeline_result_from_advice_payload(...)` remains disconnected from runtime advice flow
+
+When `turn_pipeline` is present, it remains a limited planning/debug summary:
+
+- it is not full turn simulation
+- it does not resolve RNG
+- it does not simulate item consumption
+- it does not update post-turn HP
+- it does not guarantee move order
+- it does not provide exact item trigger results
+- it does not resolve exact status or volatile outcomes
+- it does not replace `damage_estimate`, `ko_context`, or existing item contexts
+
 ## Current Payload Shape
 
 Top-level sections:
 
 - `scenario`
 - optional `turn_snapshot`
+- optional `turn_pipeline`
 - `pokemon`
 - `stat_profiles`
 - `item_profiles`
