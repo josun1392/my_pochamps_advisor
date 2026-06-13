@@ -438,12 +438,20 @@ def test_explicit_turn_pipeline_generation_smoke_preserves_existing_payload_cont
 
     baseline_payload = build_ui_advice_payload(payload)
     disabled_pipeline = build_optional_turn_pipeline_for_advice_payload(payload)
+    explicit_disabled_pipeline = build_optional_turn_pipeline_for_advice_payload(payload, enable_turn_pipeline=False)
     disabled_payload = build_ui_advice_payload(payload, turn_pipeline=disabled_pipeline)
+    explicit_disabled_payload = build_ui_advice_payload(payload, turn_pipeline=explicit_disabled_pipeline)
+    prompt_without_pipeline = _build_ui_selected_prompt(payload, turn_pipeline=explicit_disabled_pipeline)
 
     assert disabled_pipeline is None
+    assert explicit_disabled_pipeline is None
     assert disabled_payload == baseline_payload
+    assert explicit_disabled_payload == baseline_payload
     assert "turn_pipeline" not in disabled_payload
-    assert "limited planning/debug summary only, not full turn simulation" not in _build_ui_selected_prompt(payload)
+    assert "turn_pipeline" not in explicit_disabled_payload
+    assert '"turn_pipeline"' not in prompt_without_pipeline
+    assert "limited planning/debug summary only, not full turn simulation" not in prompt_without_pipeline
+    assert "candidate events are not resolved outcomes" not in prompt_without_pipeline
 
     enabled_pipeline = build_optional_turn_pipeline_for_advice_payload(
         payload,
@@ -484,6 +492,9 @@ def test_explicit_turn_pipeline_generation_smoke_preserves_existing_payload_cont
     assert '"turn_pipeline"' in prompt_with_pipeline
     assert "limited planning/debug summary only, not full turn simulation" in prompt_with_pipeline
     assert "candidate events are not resolved outcomes" in prompt_with_pipeline
+    assert "Do not claim RNG resolution" in prompt_with_pipeline
+    assert "item consumption" in prompt_with_pipeline
+    assert "exact post-turn HP" in prompt_with_pipeline
     assert "build_optional_turn_pipeline_for_advice_payload" not in inspect.getsource(
         advisor_client.run_ui_selected_advice
     )

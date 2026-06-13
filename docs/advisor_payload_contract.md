@@ -123,6 +123,8 @@ v6.1 adds `build_optional_turn_pipeline_for_advice_payload(...)` as an explicit/
 
 v6.2 verifies the manual fixture path that combines the explicit helper with the optional payload adapter. With generation disabled, the helper returns `None` and the payload remains unchanged. With generation enabled, callers may manually pass the limited result to `build_ui_advice_payload(..., turn_pipeline=...)`, which adds top-level `turn_pipeline` while preserving `damage_estimate`, `ko_context`, and existing item contexts. The prompt guard remains conditional on explicit `turn_pipeline` presence.
 
+v6.4 strengthens the advice payload builder smoke coverage for this explicit path. Tests verify omitted/default and explicit disabled flags, manual enabled generation, top-level `turn_pipeline` insertion, prompt guard present/absent behavior, and preservation of `damage_estimate`, `ko_context`, and existing item contexts. This remains fixture/dev-only and does not auto-generate inside `run_ui_selected_advice(...)`.
+
 ## Current Payload Shape
 
 Top-level sections:

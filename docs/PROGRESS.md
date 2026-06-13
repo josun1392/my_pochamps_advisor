@@ -1,5 +1,49 @@
 # Master Ball Advisor — Progress
 
+## v6.4 - Explicit TurnPipeline Advice Payload Builder Smoke
+
+Purpose:
+- Strengthen fixture-level smoke coverage for explicit TurnPipeline generation plus advice payload builder insertion.
+- Keep advisor-client and UI-selected advice flow automatic generation disabled.
+
+Verified:
+- Omitted/default and explicit `enable_turn_pipeline=False` paths return `None`.
+- Disabled/default paths preserve payload output and do not add `turn_pipeline`.
+- `enable_turn_pipeline=True` creates `simulated="limited"` `TurnPipelineResult`.
+- Manual `build_ui_advice_payload(..., turn_pipeline=result)` insertion adds top-level `turn_pipeline`.
+- Event ordering remains stable.
+- Prompt guard is absent without `turn_pipeline` and present with explicit `turn_pipeline`.
+- Prompt guard states candidate events are not resolved outcomes and does not allow RNG/item consumption/post-turn HP resolution claims.
+- `damage_estimate`, `ko_context`, and existing item contexts remain present and unchanged.
+- `run_ui_selected_advice(...)` does not call `build_optional_turn_pipeline_for_advice_payload(...)`.
+
+Safety:
+- No advisor-client automatic generation.
+- No UI-selected advice flow automatic connection.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 74 passed.
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 27 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 1004 passed, 2 deselected.
+
+---
+
 ## v6.3 - TurnPipeline UI / Advice Flow Integration Design
 
 Purpose:
