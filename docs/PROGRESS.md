@@ -1,5 +1,82 @@
 # Master Ball Advisor — Progress
 
+## v5.2 - Item Context to TurnEvent Mapping Design
+
+Purpose:
+- Design how existing advisor item/context payload surfaces should map into `TurnEvent` candidates.
+- Keep `TurnEvent` as a debug/planning layer, not a replacement for item contexts.
+- Prepare v5.3 mapper implementation without advisor/LLM payload integration.
+
+Inventory covered:
+- `damage_estimate`
+- `ko_context`
+- `speed_context`
+- `speed_order_context`
+- `species_stat_item_context`
+- `type_boost_context`
+- `survival_context`
+- `resist_berry_context`
+- `chilan_berry_context`
+- `recovery_context`
+- `accuracy_context`
+- `critical_context`
+- `flinch_context`
+- `multi_hit_context`
+
+Stage/status/certainty mapping:
+- Light Ball / `species_stat_item_context`: `damage`, `known_modifier`, `known`.
+- type-boost items: `damage`, `known_modifier`, `known` when already applied by `damage_estimate.item_effects`.
+- Choice Scarf in `speed_context`: `pre_move`, `known_modifier`, `known` for effective Speed only, not final order.
+- Quick Claw / `speed_order_context`: `pre_move`, `candidate`, `possible`.
+- Focus Band / Focus Sash in `survival_context`: `on_damage_before_ko`, `candidate`, `possible`.
+- Chilan Berry / `chilan_berry_context`: `on_damage_before_ko`, `candidate`, `likely`.
+- standard resist berries: `on_damage_before_ko`, `candidate`, `possible`.
+- Sitrus Berry / healing berries: `post_damage`, `candidate` or `not_simulated`, `possible` or `not_simulated`.
+- Leftovers: `post_turn`, `candidate`, `possible`.
+- Shell Bell: `on_hit_or_damage_dealt`, `not_simulated`, `not_simulated`.
+- White Herb / Mental Herb / Loaded Dice: future not-simulated planning targets.
+
+Migration path:
+- v5.3 should create TurnEvent candidates from already-built context dictionaries.
+- Existing item context payloads remain unchanged.
+- `advisor_client.py` remains disconnected.
+- LLM payload remains unchanged.
+- User-facing exposure is deferred to v5.4+.
+
+Recommended next step:
+- v5.3 Item Context TurnEvent Mapper Implementation.
+- Add `llm/advisor_turn_events.py`.
+- Map available Light Ball, Quick Claw, Focus Band / Focus Sash, and Chilan Berry contexts first.
+- Add fixture-level tests only.
+- Do not implement trigger evaluation, item consumption, HP updates, speed simulation, or payload integration.
+
+Safety:
+- Documentation-only design.
+- No production code change.
+- No actual Gemini call.
+- No Vertex AI call.
+- No `advisor_client.py` connection.
+- No LLM payload connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Verification:
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 960 passed, 2 deselected.
+
+---
+
 ## v5.1 - Turn Event Contract Implementation
 
 Purpose:
