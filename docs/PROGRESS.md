@@ -1,5 +1,93 @@
 # Master Ball Advisor — Progress
 
+## v5.0 - Minimal Turn Engine MVP Design
+
+Purpose:
+- Design the first Minimal Turn Engine layer after the v4 TurnSnapshot phase.
+- Keep this as a planning/contract design, not a full battle simulation.
+- Use `TurnSnapshot` as selected/pre-turn input state.
+
+Designed:
+- Minimal Turn Engine responsibilities and non-responsibilities.
+- Stage model:
+  - `pre_turn`
+  - `pre_move`
+  - `damage`
+  - `on_damage_before_ko`
+  - `on_hit_or_damage_dealt`
+  - `post_damage`
+  - `post_turn`
+- `TurnEvent` candidate fields:
+  - `stage`
+  - `source`
+  - `subject_side`
+  - `target_side`
+  - `item_id`
+  - `trigger_type`
+  - `status`
+  - `certainty`
+  - `summary`
+  - `limitations`
+  - `payload_key`
+- `TurnPipelineResult` candidate fields:
+  - `input_snapshot`
+  - `selected_move_id`
+  - `damage_estimate_ref`
+  - `ko_context_ref`
+  - `events`
+  - `warnings`
+  - `limitations`
+  - `simulated`
+
+Existing context relationship:
+- `damage_estimate` remains the damage primitive.
+- `ko_context` remains limited damage-roll context.
+- item contexts remain additive advice surfaces.
+- `TurnEvent` should first align/explain existing surfaces rather than replace them.
+- Known applied modifiers such as eligible Light Ball can map to `damage` / `known_modifier`.
+- Focus Band, Focus Sash, resist berries, Chilan Berry, Quick Claw, Shell Bell, healing berries, White Herb, Mental Herb, Loaded Dice, and Mega Stones are classified as stage-specific planning targets.
+
+Non-goals:
+- full Showdown-equivalent simulation
+- exact RNG or speed tie resolution
+- irreversible item consumption mutation
+- exact post-turn HP
+- exact status/volatile resolution
+- complete multi-hit event engine
+- LLM payload insertion of turn pipeline results
+
+Recommended next step:
+- v5.1 Turn Event Contract Implementation.
+- Add `core/turn_event.py` or `core/turn_pipeline.py`.
+- Implement serializable/validated `TurnEvent` and `TurnPipelineResult` dataclasses.
+- Add fixture-level tests only.
+- Do not connect to `advisor_client.py`.
+- Do not implement item trigger evaluation, item consumption, HP update, speed simulation, or full Turn Engine behavior.
+
+Safety:
+- Documentation-only design.
+- No production code change.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Verification:
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 945 passed, 2 deselected.
+
+---
+
 ## v4.9 - TurnSnapshot Phase Closure / v5.0 Prep
 
 Purpose:
