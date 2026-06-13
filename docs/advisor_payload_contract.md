@@ -94,6 +94,8 @@ v5.4 expands fixture coverage for the same helper without changing payload expos
 
 v5.5 adds `build_turn_pipeline_result_from_advice_payload(...)` as a fixture/debug helper that bundles mapper events into `TurnPipelineResult`. It preserves optional `selected_move_id`, `input_snapshot`, `damage_estimate_ref`, and `ko_context_ref` as references only. The helper defaults `simulated` to `limited`, includes limitations that it is not a full turn simulation, and remains disconnected from `advisor_client.py` and the LLM payload.
 
+v5.6 adds `scripts/spike_turn_pipeline_debug.py` and `docs/debug_turn_pipeline_sample_v5.6.md` as a local dry-run/debug report for fixture TurnPipelineResult output. The report prints JSON to stdout, records event stage/status/certainty/limitations, and does not call Gemini, Vertex AI, `advisor_client.py`, or LLM payload wiring.
+
 ## Current Payload Shape
 
 Top-level sections:

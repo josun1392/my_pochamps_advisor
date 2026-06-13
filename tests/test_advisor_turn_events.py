@@ -452,3 +452,44 @@ def test_turn_pipeline_result_helper_does_not_modify_payload_or_insert_llm_field
     assert payload == before
     assert "turn_pipeline" not in payload
     assert "turn_events" not in payload
+
+
+def test_turn_pipeline_debug_fixture_output_shape() -> None:
+    from scripts.spike_turn_pipeline_debug import build_turn_pipeline_debug_report
+
+    report = build_turn_pipeline_debug_report()
+    result = report["turn_pipeline_result"]
+
+    assert report["actual_gemini_call_executed"] is False
+    assert report["vertex_ai_call_executed"] is False
+    assert report["is_full_turn_engine_result"] is False
+    assert result["simulated"] == "limited"
+    assert result["simulated"] != "full"
+    assert [event["item_id"] for event in result["events"]] == [
+        "light-ball",
+        "quick-claw",
+        "focus-sash",
+        "chilan-berry",
+    ]
+    assert [event["stage"] for event in result["events"]] == [
+        "damage",
+        "pre_move",
+        "on_damage_before_ko",
+        "on_damage_before_ko",
+    ]
+    assert [event["status"] for event in result["events"]] == [
+        "known_modifier",
+        "candidate",
+        "candidate",
+        "candidate",
+    ]
+    assert [event["certainty"] for event in result["events"]] == [
+        "known",
+        "possible",
+        "possible",
+        "possible",
+    ]
+    limitations_text = " ".join(result["limitations"])
+    assert "not a full turn simulation" in limitations_text
+    assert "Item consumption is not simulated." in result["limitations"]
+    assert "HP updates and exact post-turn state are not simulated." in result["limitations"]

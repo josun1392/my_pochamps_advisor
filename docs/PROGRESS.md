@@ -1,5 +1,74 @@
 # Master Ball Advisor — Progress
 
+## v5.6 - TurnPipeline Debug Report / Dry-run
+
+Purpose:
+- Add a local dry-run script for the TurnEvent / TurnPipelineResult fixture path.
+- Make mapper and pipeline output inspectable without any Gemini or Vertex AI call.
+- Keep the debug report disconnected from `advisor_client.py` and the LLM payload.
+
+Implemented:
+- Added `scripts/spike_turn_pipeline_debug.py`.
+- Added `docs/debug_turn_pipeline_sample_v5.6.md`.
+- Added a smoke test for the debug fixture output shape.
+
+Dry-run behavior:
+- Builds a deterministic fixture advice payload.
+- Maps available item contexts to `TurnEvent` candidates.
+- Bundles events into `TurnPipelineResult`.
+- Prints safe JSON to stdout.
+- Includes:
+  - events
+  - stage
+  - status
+  - certainty
+  - limitations
+  - simulated value
+
+Generated events:
+- Light Ball: `damage` / `known_modifier` / `known`.
+- Quick Claw: `pre_move` / `candidate` / `possible`.
+- Focus Sash: `on_damage_before_ko` / `candidate` / `possible`.
+- Chilan Berry: `on_damage_before_ko` / `candidate` / `possible`.
+
+Safety:
+- No `advisor_client.py` connection.
+- No LLM payload connection.
+- No runtime `TurnPipelineResult` payload insertion.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No actual Gemini call.
+- No Vertex AI call.
+
+Recommended next step:
+- v5.7 TurnPipeline Planning Design or v5.7 TurnPipelineResult Contract Closure.
+- Keep any next step disconnected from `advisor_client.py` unless T1/T2 explicitly approve payload exposure.
+
+Verification:
+- `uv run python scripts/spike_turn_pipeline_debug.py`: passed, emitted safe JSON report.
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 20 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: first run timing-sensitive failure in `test_item_damage_calculation_under_point_12ms_average`, best batch median `0.125000ms` vs threshold `0.120000ms`.
+- Isolated perf target rerun 3x: passed 3/3.
+- `uv run pytest tests/test_damage_perf.py -q` after isolated reruns: same timing-sensitive failure, best batch median `0.140625ms` vs threshold `0.120000ms`.
+- `uv run pytest -q`: same timing-sensitive failure, best batch median `0.125000ms` vs threshold `0.120000ms`; `979 passed, 2 deselected`.
+- Final `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- Final `uv run pytest -q`: 980 passed, 2 deselected.
+- No threshold, skip, xfail, damage formula, raw roll, Q12, `ko_context`, or payload filtering changes were made.
+
+---
+
 ## v5.5 - TurnPipelineResult Fixture Contract Smoke
 
 Purpose:
