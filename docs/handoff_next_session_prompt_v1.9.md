@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, and the v5.2 item-context-to-TurnEvent mapping design.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, and the v5.3 helper-level mapper implementation.
 
 Update after v2.5:
 
@@ -32,13 +32,14 @@ Update after v2.5:
 - v5.0 designed a Minimal Turn Engine MVP around `TurnSnapshot` input state, `TurnEvent` candidates, and `TurnPipelineResult` planning output.
 - v5.1 added `core.turn_event` with serializable validated `TurnEvent` and `TurnPipelineResult` dataclass contracts.
 - v5.2 designed mapping from existing item/context payload surfaces into `TurnEvent` stage/status/certainty candidates without runtime payload integration.
+- v5.3 added `llm.advisor_turn_events.build_turn_events_from_advice_payload(...)` for available Light Ball, Quick Claw, Focus Band / Focus Sash, and Chilan Berry context mapping without advisor or LLM payload integration.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v5.2 Item Context to TurnEvent Mapping Design.
+T3, continue after v5.3 Item Context TurnEvent Mapper Implementation.
 
 Goal:
 - Do not add new item contexts.
@@ -75,10 +76,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v5.3 Item Context TurnEvent Mapper Implementation
+  - v5.4 Item Context TurnEvent Mapper Smoke / Dry-run Report
 - Reason:
-  - v5.2 has designed the item/context inventory and stage/status/certainty mapping.
-  - The next safe step is helper/test implementation that produces `TurnEvent` candidates from already-built context dictionaries.
+  - v5.3 has added the helper and fixture tests for first-pass context-to-event mapping.
+  - The next safe step is a local dry-run/debug report that shows representative input contexts and resulting `TurnEvent` dictionaries.
   - Keep output disconnected from `advisor_client.py` and the LLM payload.
 - v3.4 has already centralized item context guard metadata:
   - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
@@ -104,7 +105,7 @@ Goal:
   - existing item contexts remain additive advice surfaces.
   - recommended stages are `pre_turn`, `pre_move`, `damage`, `on_damage_before_ko`, `on_hit_or_damage_dealt`, `post_damage`, and `post_turn`.
   - `TurnEvent` is a candidate/known-modifier/not-simulated event contract, not final battle truth.
-  - `TurnPipelineResult` is planning output with `simulated` set to `planning_only`, `not_simulated`, or `limited`.
+  - `TurnPipelineResult` is planning output with `simulated` defaulting to `none`; `limited` and future-compatible `full` are schema values, but v5.1 does not produce full simulation.
 - v5.1 Turn Event Contract Implementation is complete:
   - `core.turn_event` defines `TurnEvent` and `TurnPipelineResult`.
   - contracts provide `to_dict()` / `from_dict(...)`.
@@ -120,17 +121,25 @@ Goal:
   - Light Ball maps to `damage` / `known_modifier` / `known`.
   - Quick Claw maps to `pre_move` / `candidate` / `possible`.
   - Focus Band and Focus Sash map to `on_damage_before_ko` / `candidate` / `possible`.
-  - Chilan Berry maps to `on_damage_before_ko` / `candidate` / `likely`.
+  - Chilan Berry maps to `on_damage_before_ko` / `candidate` / `likely` in the v5.2 design, while the v5.3 first-pass helper uses conservative `possible`.
   - recovery/flinch/critical/accuracy/multi-hit contexts remain later planning targets unless specifically scoped.
-- v5.3 should be helper/test implementation only:
-  - add `llm/advisor_turn_events.py`
-  - input should be an already-built move/context dictionary or advice payload fragment
-  - output should be `tuple[TurnEvent, ...]`
-  - first mapping targets: Light Ball, Quick Claw, Focus Band / Focus Sash, Chilan Berry
-  - no `advisor_client.py` connection
-  - no LLM payload connection
-  - no full Turn Engine
-  - no trigger evaluation, item consumption, HP update, speed/order simulation, exact RNG, or payload filtering changes
+- v5.3 Item Context TurnEvent Mapper Implementation is complete:
+  - `llm.advisor_turn_events` defines `build_turn_events_from_advice_payload(...)`.
+  - input is an already-built move/context dictionary or advice payload fragment.
+  - output is `tuple[TurnEvent, ...]`.
+  - first mapping targets are Light Ball, Quick Claw, Focus Band / Focus Sash, and Chilan Berry.
+  - only `available=true` contexts create events.
+  - unavailable, blocked, or deferred contexts create no events.
+  - stable order is `species_stat_item_context`, `speed_order_context`, `survival_context`, then `chilan_berry_context`.
+  - there is no `advisor_client.py` connection.
+  - there is no LLM payload connection.
+  - there is no `TurnPipelineResult` creation or connection.
+  - there is no full Turn Engine.
+  - there is no trigger evaluation, item consumption, HP update, speed/order simulation, exact RNG, or payload filtering change.
+- v5.4 should be smoke/dry-run documentation only:
+  - add a fixture or script that prints/saves safe sample `TurnEvent` mapper output.
+  - confirm available context events and unavailable omission.
+  - do not connect events to advice payloads or prompt text.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -285,6 +294,6 @@ Documentation expectations:
 - Chilan Berry reached actual Gemini PASS after v2.7.1.
 - The original item-context pending verification queue is closed as of v3.2.
 - v3.4 centralized item context guard metadata without changing filtering behavior.
-- Larger next direction: v5.3 Item Context TurnEvent Mapper Implementation before any payload integration or state mutation.
+- Larger next direction: v5.4 Item Context TurnEvent Mapper Smoke / Dry-run Report before any payload integration or state mutation.
 - v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

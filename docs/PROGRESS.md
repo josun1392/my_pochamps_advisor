@@ -1,5 +1,84 @@
 # Master Ball Advisor — Progress
 
+## v5.3 - Item Context TurnEvent Mapper Implementation
+
+Purpose:
+- Add a helper-level mapper from existing advisor context dictionaries to `TurnEvent` candidates.
+- Keep the mapper disconnected from `advisor_client.py` and the LLM payload.
+- Keep this as a planning/debug layer, not a full Turn Engine.
+
+Implemented:
+- Added `llm.advisor_turn_events`.
+- Added `build_turn_events_from_advice_payload(...)`.
+- The helper accepts an already-built move/context dictionary or advice payload fragment.
+- The helper returns `tuple[TurnEvent, ...]`.
+- The helper does not mutate the input payload and does not insert `turn_events`.
+
+First-pass mappings:
+- Light Ball from `species_stat_item_context`:
+  - `damage`
+  - `known_modifier`
+  - `known`
+- Quick Claw from `speed_order_context`:
+  - `pre_move`
+  - `candidate`
+  - `possible`
+- Focus Band / Focus Sash from `survival_context`:
+  - `on_damage_before_ko`
+  - `candidate`
+  - `possible`
+- Chilan Berry from `chilan_berry_context`:
+  - `on_damage_before_ko`
+  - `candidate`
+  - `possible`
+
+Policy:
+- Only `available=true` contexts create events.
+- Unavailable, blocked, or deferred contexts create no event in v5.3.
+- Event output uses stable context order:
+  - `species_stat_item_context`
+  - `speed_order_context`
+  - `survival_context`
+  - `chilan_berry_context`
+- Nested move paths under `moves.my_selected_move` and `moves.my_available_moves[*]` are preserved in `payload_key`.
+
+Safety:
+- No `advisor_client.py` connection.
+- No LLM payload connection.
+- No `TurnPipelineResult` creation or connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No actual Gemini call.
+- No Vertex AI call.
+
+Recommended next step:
+- v5.4 Item Context TurnEvent Mapper Smoke / Dry-run Report.
+- Exercise representative fixture payloads through the mapper and document the resulting events without connecting them to advice payloads.
+- Keep `advisor_client.py`, LLM payload, item trigger evaluation, item consumption, HP update, and speed/order simulation out of scope.
+
+Verification:
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 11 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: timing-sensitive failure in `test_item_damage_calculation_under_point_12ms_average`; first run best batch median `0.140625ms` vs threshold `0.120000ms`.
+- Isolated perf target rerun 3x: passed 3/3.
+- `uv run pytest tests/test_damage_perf.py -q` after isolated reruns: same timing-sensitive failure, best batch median `0.156250ms` vs threshold `0.120000ms`.
+- `uv run pytest -q`: same timing-sensitive failure, best batch median `0.125000ms` vs threshold `0.120000ms`; `970 passed, 2 deselected`.
+- Second perf file rerun: same timing-sensitive failure, best batch median `0.156250ms` vs threshold `0.120000ms`.
+- Second `uv run pytest -q`: same timing-sensitive failure, best batch median `0.140625ms` vs threshold `0.120000ms`; `970 passed, 2 deselected`.
+- No threshold, skip, xfail, damage formula, raw roll, Q12, `ko_context`, or payload filtering changes were made.
+
+---
+
 ## v5.2 - Item Context to TurnEvent Mapping Design
 
 Purpose:

@@ -81,6 +81,15 @@ The v5.1 contract is intentionally disconnected from runtime advice behavior:
 - it does not simulate move order, speed ties, or random activation
 - it does not change damage estimates, raw rolls, Q12 multipliers, `ko_context`, item contexts, or payload filtering
 
+v5.3 adds `llm.advisor_turn_events` as a fixture/helper-level mapper from already-built advisor context dictionaries to `TurnEvent` candidates. It maps only `available=true` contexts for the first pass:
+
+- Light Ball `species_stat_item_context` -> `damage` / `known_modifier` / `known`
+- Quick Claw `speed_order_context` -> `pre_move` / `candidate` / `possible`
+- Focus Band or Focus Sash `survival_context` -> `on_damage_before_ko` / `candidate` / `possible`
+- Chilan Berry `chilan_berry_context` -> `on_damage_before_ko` / `candidate` / `possible`
+
+Unavailable, blocked, or deferred contexts do not create events in v5.3. The mapper does not create `TurnPipelineResult`, does not connect to `advisor_client.py`, and does not insert events into the LLM payload.
+
 ## Current Payload Shape
 
 Top-level sections:
