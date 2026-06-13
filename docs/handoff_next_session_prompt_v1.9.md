@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, and the v5.4 mapper smoke / fixture coverage expansion.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, and the v5.5 TurnPipelineResult fixture smoke.
 
 Update after v2.5:
 
@@ -34,13 +34,14 @@ Update after v2.5:
 - v5.2 designed mapping from existing item/context payload surfaces into `TurnEvent` stage/status/certainty candidates without runtime payload integration.
 - v5.3 added `llm.advisor_turn_events.build_turn_events_from_advice_payload(...)` for available Light Ball, Quick Claw, Focus Band / Focus Sash, and Chilan Berry context mapping without advisor or LLM payload integration.
 - v5.4 expanded mapper fixture coverage for unavailable/blocked/deferred/unknown/malformed contexts, stable ordering, and safe non-overstated event wording.
+- v5.5 added `llm.advisor_turn_events.build_turn_pipeline_result_from_advice_payload(...)` as a fixture/debug helper that bundles mapper events into `TurnPipelineResult` without runtime payload integration.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v5.4 TurnEvent Mapper Smoke / Fixture Coverage Expansion.
+T3, continue after v5.5 TurnPipelineResult Fixture Contract Smoke.
 
 Goal:
 - Do not add new item contexts.
@@ -77,10 +78,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v5.5 TurnEvent Mapper Dry-run Report or v5.5 TurnPipeline Planning Design
+  - v5.6 TurnPipelineResult Dry-run Report or v5.6 TurnPipeline Planning Design
 - Reason:
-  - v5.4 has expanded mapper fixture coverage without runtime payload exposure.
-  - The next safe step is either a local dry-run/debug report for representative `TurnEvent` mapper output or a design step for planning how `TurnPipelineResult` will eventually aggregate mapper events.
+  - v5.5 has fixture-level `TurnPipelineResult` bundling without runtime payload exposure.
+  - The next safe step is either a local dry-run/debug report for representative `TurnPipelineResult` output or a design step for eventual pipeline planning.
   - Keep output disconnected from `advisor_client.py` and the LLM payload unless T1/T2 explicitly approve payload exposure.
 - v3.4 has already centralized item context guard metadata:
   - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
@@ -145,9 +146,16 @@ Goal:
   - there is still no `advisor_client.py` connection.
   - there is still no LLM payload connection.
   - there is still no `TurnPipelineResult` creation or connection.
-- v5.5 should remain pre-exposure work:
-  - option A: add a local dry-run report for sample mapper output.
-  - option B: design `TurnPipelineResult` planning aggregation.
+- v5.5 TurnPipelineResult Fixture Contract Smoke is complete:
+  - `build_turn_pipeline_result_from_advice_payload(...)` bundles mapper events into `TurnPipelineResult`.
+  - default `simulated` is `limited`, not `full`.
+  - `damage_estimate_ref` and `ko_context_ref` are references only.
+  - limitations state that the result is not a full turn simulation, item consumption is not simulated, and HP updates/post-turn state are not simulated.
+  - there is still no `advisor_client.py` connection.
+  - there is still no LLM payload connection.
+- v5.6 should remain pre-exposure work:
+  - option A: add a local dry-run report for sample pipeline output.
+  - option B: design future pipeline planning aggregation.
   - do not connect events to advice payloads or prompt text without explicit approval.
 
 Repo / branch / remote checks first:
@@ -303,6 +311,6 @@ Documentation expectations:
 - Chilan Berry reached actual Gemini PASS after v2.7.1.
 - The original item-context pending verification queue is closed as of v3.2.
 - v3.4 centralized item context guard metadata without changing filtering behavior.
-- Larger next direction: v5.5 TurnEvent mapper dry-run or TurnPipeline planning before any payload integration or state mutation.
+- Larger next direction: v5.6 TurnPipelineResult dry-run or planning before any payload integration or state mutation.
 - v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

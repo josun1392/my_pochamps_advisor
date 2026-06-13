@@ -1,5 +1,72 @@
 # Master Ball Advisor — Progress
 
+## v5.5 - TurnPipelineResult Fixture Contract Smoke
+
+Purpose:
+- Bundle existing `TurnEvent` mapper candidates into a fixture/debug `TurnPipelineResult`.
+- Verify serialization, references, limitations, and safe empty-payload behavior.
+- Keep the result disconnected from `advisor_client.py` and the LLM payload.
+
+Implemented:
+- Added `build_turn_pipeline_result_from_advice_payload(...)` in `llm.advisor_turn_events`.
+- The helper uses `build_turn_events_from_advice_payload(...)` for event generation.
+- The helper accepts optional:
+  - `selected_move_id`
+  - `input_snapshot`
+  - `damage_estimate_ref`
+  - `ko_context_ref`
+  - `simulated`
+- Default `simulated` is `limited`.
+- `full` is not used by the helper.
+
+Fixture smoke coverage:
+- Multiple item context payloads produce a `TurnPipelineResult`.
+- `events` preserve stable mapper order.
+- `to_dict()` serialization preserves refs and events.
+- Empty payloads produce an empty event tuple and safe result.
+- The helper does not mutate the source payload and does not insert `turn_events` or `turn_pipeline`.
+
+Limitations:
+- Result is a limited planning summary, not a full turn simulation.
+- Item consumption is not simulated.
+- HP updates and exact post-turn state are not simulated.
+- Unavailable, blocked, deferred, unknown, or malformed contexts do not create events.
+
+Safety:
+- No `advisor_client.py` connection.
+- No LLM payload connection.
+- No runtime `TurnPipelineResult` payload insertion.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update logic.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No actual Gemini call.
+- No Vertex AI call.
+
+Recommended next step:
+- v5.6 TurnPipelineResult Dry-run Report or v5.6 TurnPipeline Planning Design.
+- Keep any next step disconnected from `advisor_client.py` unless T1/T2 explicitly approve payload exposure.
+
+Verification:
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 19 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 57 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: first run timing-sensitive failure in `test_item_damage_calculation_under_point_12ms_average`, best batch median `0.125000ms` vs threshold `0.120000ms`; `978 passed, 2 deselected`.
+- Isolated perf target rerun 3x: passed 3/3.
+- Final `uv run pytest -q`: 979 passed, 2 deselected.
+- No threshold, skip, xfail, damage formula, raw roll, Q12, `ko_context`, or payload filtering changes were made.
+
+---
+
 ## v5.4 - TurnEvent Mapper Smoke / Fixture Coverage Expansion
 
 Purpose:

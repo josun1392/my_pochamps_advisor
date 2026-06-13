@@ -3,7 +3,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from core.turn_event import TurnEvent
+from core.turn_event import TurnEvent, TurnPipelineResult
+
+
+_TURN_PIPELINE_LIMITATIONS = (
+    "This result is a limited planning summary, not a full turn simulation.",
+    "Item consumption is not simulated.",
+    "HP updates and exact post-turn state are not simulated.",
+)
 
 
 _MOVE_CONTEXT_KEYS = (
@@ -35,6 +42,28 @@ def build_turn_events_from_advice_payload(payload: Mapping[str, Any]) -> tuple[T
                     )
 
     return tuple(events)
+
+
+def build_turn_pipeline_result_from_advice_payload(
+    payload: Mapping[str, Any],
+    *,
+    selected_move_id: str | None = None,
+    input_snapshot: Mapping[str, Any] | None = None,
+    damage_estimate_ref: str | None = None,
+    ko_context_ref: str | None = None,
+    simulated: str = "limited",
+) -> TurnPipelineResult:
+    """Bundle mapper events into a fixture/debug TurnPipelineResult."""
+    return TurnPipelineResult(
+        input_snapshot=input_snapshot,
+        selected_move_id=selected_move_id,
+        damage_estimate_ref=damage_estimate_ref,
+        ko_context_ref=ko_context_ref,
+        events=build_turn_events_from_advice_payload(payload),
+        warnings=("Unavailable, blocked, deferred, unknown, or malformed contexts do not create events.",),
+        limitations=_TURN_PIPELINE_LIMITATIONS,
+        simulated=simulated,
+    )
 
 
 def _events_from_move_payload(move_payload: Mapping[str, Any], *, payload_prefix: str) -> tuple[TurnEvent, ...]:
@@ -130,7 +159,7 @@ def _chilan_berry_event(context: Mapping[str, Any], *, payload_key: str) -> Turn
         trigger_type="normal_type_damage_reduction",
         status="candidate",
         certainty="possible",
-        summary="Chilan Berry can reduce Normal-type damage, but consumption and the precise trigger outcome are not simulated separately.",
+        summary="Chilan Berry can reduce Normal-type damage, but consumption and the precise trigger outcome are not simulated.",
         limitations=("Raw damage rolls and ko_context remain separate from this planning event.",),
         payload_key=payload_key,
     )

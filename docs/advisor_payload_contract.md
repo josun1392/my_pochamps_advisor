@@ -92,6 +92,8 @@ Unavailable, blocked, or deferred contexts do not create events in v5.3. The map
 
 v5.4 expands fixture coverage for the same helper without changing payload exposure. Tests now verify unknown and malformed contexts, contradictory unavailable/blocked/deferred item statuses, stable event ordering, and non-overstated event summaries/limitations. The policy remains: only usable `available=true` contexts produce mapper events, and those events remain outside the LLM payload.
 
+v5.5 adds `build_turn_pipeline_result_from_advice_payload(...)` as a fixture/debug helper that bundles mapper events into `TurnPipelineResult`. It preserves optional `selected_move_id`, `input_snapshot`, `damage_estimate_ref`, and `ko_context_ref` as references only. The helper defaults `simulated` to `limited`, includes limitations that it is not a full turn simulation, and remains disconnected from `advisor_client.py` and the LLM payload.
+
 ## Current Payload Shape
 
 Top-level sections:

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from llm.advisor_turn_events import build_turn_events_from_advice_payload
+from llm.advisor_turn_events import (
+    build_turn_events_from_advice_payload,
+    build_turn_pipeline_result_from_advice_payload,
+)
 
 
 _FORBIDDEN_EVENT_WORDING = (
@@ -8,7 +11,6 @@ _FORBIDDEN_EVENT_WORDING = (
     "exact trigger result",
     "exact post-turn HP",
     "guaranteed move order",
-    "full turn simulation",
 )
 
 
@@ -120,7 +122,7 @@ def test_chilan_berry_context_maps_to_damage_reduction_candidate_event() -> None
     assert event.item_id == "chilan-berry"
     assert event.trigger_type == "normal_type_damage_reduction"
     assert "ko_context" in event.limitations[0]
-    assert "precise trigger outcome are not simulated separately" in event.summary
+    assert "precise trigger outcome are not simulated" in event.summary
 
 
 def test_unavailable_context_does_not_create_event() -> None:
@@ -358,4 +360,95 @@ def test_mapper_does_not_modify_input_payload() -> None:
     build_turn_events_from_advice_payload(payload)
 
     assert payload == before
+    assert "turn_events" not in payload
+
+
+def test_turn_pipeline_result_from_payload_contains_stable_events() -> None:
+    result = build_turn_pipeline_result_from_advice_payload(
+        {
+            "speed_order_context": {
+                "available": True,
+                "attacker_side": "my_active",
+                "item": {"item_id": "quick-claw"},
+            },
+            "species_stat_item_context": {
+                "available": True,
+                "attacker_side": "my_active",
+                "item": {"item_id": "light-ball"},
+            },
+            "survival_context": {
+                "available": True,
+                "defender_side": "opponent_active",
+                "item": {"item_id": "focus-sash"},
+            },
+        },
+        selected_move_id="thunderbolt",
+        input_snapshot={"turn_input": {"acting_side": "player"}},
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+
+    assert [event.item_id for event in result.events] == ["light-ball", "quick-claw", "focus-sash"]
+    assert result.selected_move_id == "thunderbolt"
+    assert result.damage_estimate_ref == "moves.my_selected_move.damage_estimate"
+    assert result.ko_context_ref == "moves.my_selected_move.ko_context"
+    assert result.simulated == "limited"
+    assert result.simulated != "full"
+
+
+def test_turn_pipeline_result_serializes_refs_and_limitations() -> None:
+    result = build_turn_pipeline_result_from_advice_payload(
+        {
+            "chilan_berry_context": {
+                "available": True,
+                "defender_side": "opponent_active",
+                "item": {"item_id": "chilan-berry"},
+            }
+        },
+        selected_move_id="body-slam",
+        damage_estimate_ref="damage_estimate",
+        ko_context_ref="ko_context",
+    )
+
+    serialized = result.to_dict()
+
+    assert serialized["selected_move_id"] == "body-slam"
+    assert serialized["damage_estimate_ref"] == "damage_estimate"
+    assert serialized["ko_context_ref"] == "ko_context"
+    assert serialized["simulated"] == "limited"
+    assert serialized["events"][0]["item_id"] == "chilan-berry"
+    assert "not a full turn simulation" in " ".join(serialized["limitations"])
+    assert "Item consumption is not simulated." in serialized["limitations"]
+    assert "HP updates and exact post-turn state are not simulated." in serialized["limitations"]
+
+
+def test_turn_pipeline_result_empty_payload_is_safe() -> None:
+    result = build_turn_pipeline_result_from_advice_payload({})
+
+    assert result.events == ()
+    assert result.simulated == "limited"
+    assert result.warnings == ("Unavailable, blocked, deferred, unknown, or malformed contexts do not create events.",)
+    assert result.to_dict()["events"] == []
+
+
+def test_turn_pipeline_result_helper_does_not_modify_payload_or_insert_llm_fields() -> None:
+    payload = {
+        "species_stat_item_context": {
+            "available": True,
+            "attacker_side": "my_active",
+            "item": {"item_id": "light-ball"},
+        }
+    }
+    before = {
+        "species_stat_item_context": {
+            "available": True,
+            "attacker_side": "my_active",
+            "item": {"item_id": "light-ball"},
+        }
+    }
+
+    build_turn_pipeline_result_from_advice_payload(payload)
+
+    assert payload == before
+    assert "turn_pipeline" not in payload
     assert "turn_events" not in payload
