@@ -1,5 +1,62 @@
 # Master Ball Advisor — Progress
 
+## v6.5 - Explicit TurnPipeline Advice Flow Integration Design
+
+Purpose:
+- Design whether and how explicit TurnPipeline generation should move closer to the real advice flow.
+- Keep any future integration default-off, no-actual-Gemini, and easy to roll back.
+
+Compared:
+- `run_ui_selected_advice(..., enable_turn_pipeline=False)` optional parameter.
+- Keeping explicit generation at payload-builder/manual caller level.
+- UI handler dev-only flag.
+- UI checkbox.
+- Always-on advisor-client generation.
+
+Recommended:
+- v6.6 should be an explicit TurnPipeline advice-flow dry-run.
+- If code is implemented, prefer an optional default-false flag with mocked/no-call tests only.
+- Keep candidate B, manual payload-builder integration, as the safest fallback.
+- Do not add a UI checkbox yet.
+- Do not auto-generate by default.
+
+Existing-context policy:
+- `damage_estimate` remains the calculation source.
+- `ko_context` remains the KO interpretation source.
+- Existing item contexts remain the explanation source.
+- `turn_pipeline` remains a limited timing/planning/debug summary.
+- `turn_pipeline` does not replace existing contexts.
+
+Safety:
+- Documentation-only design.
+- No production code implementation.
+- No advisor-client automatic generation.
+- No UI-selected advice flow automatic connection.
+- No UI checkbox implementation.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No actual Gemini call.
+- No Vertex AI call.
+
+Verification:
+- `uv run pytest tests/test_advisor_payload_contract.py -q`: 74 passed.
+- `uv run pytest tests/test_advisor_turn_events.py -q`: 27 passed.
+- `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- `uv run pytest tests/test_turn_state_snapshot.py -q`: 18 passed.
+- `uv run pytest tests/test_advisor_turn_snapshot.py -q`: 13 passed.
+- `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- `uv run pytest -q`: 1004 passed, 2 deselected.
+
+---
+
 ## v6.4 - Explicit TurnPipeline Advice Payload Builder Smoke
 
 Purpose:
