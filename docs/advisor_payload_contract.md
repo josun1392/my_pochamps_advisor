@@ -90,6 +90,8 @@ v5.3 adds `llm.advisor_turn_events` as a fixture/helper-level mapper from alread
 
 Unavailable, blocked, or deferred contexts do not create events in v5.3. The mapper does not create `TurnPipelineResult`, does not connect to `advisor_client.py`, and does not insert events into the LLM payload.
 
+v5.4 expands fixture coverage for the same helper without changing payload exposure. Tests now verify unknown and malformed contexts, contradictory unavailable/blocked/deferred item statuses, stable event ordering, and non-overstated event summaries/limitations. The policy remains: only usable `available=true` contexts produce mapper events, and those events remain outside the LLM payload.
+
 ## Current Payload Shape
 
 Top-level sections:

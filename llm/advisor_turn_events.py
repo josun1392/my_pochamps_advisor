@@ -50,6 +50,8 @@ def _events_from_move_payload(move_payload: Mapping[str, Any], *, payload_prefix
 
 
 def _event_from_context(context_key: str, context: Mapping[str, Any], *, payload_prefix: str) -> TurnEvent | None:
+    if _context_has_blocked_item_status(context):
+        return None
     if context_key == "species_stat_item_context":
         return _light_ball_event(context, payload_key=payload_prefix)
     if context_key == "speed_order_context":
@@ -128,7 +130,7 @@ def _chilan_berry_event(context: Mapping[str, Any], *, payload_key: str) -> Turn
         trigger_type="normal_type_damage_reduction",
         status="candidate",
         certainty="possible",
-        summary="Chilan Berry can reduce Normal-type damage, but consumption and exact trigger result are not simulated.",
+        summary="Chilan Berry can reduce Normal-type damage, but consumption and the precise trigger outcome are not simulated separately.",
         limitations=("Raw damage rolls and ko_context remain separate from this planning event.",),
         payload_key=payload_key,
     )
@@ -146,6 +148,14 @@ def _context_item_id(context: Mapping[str, Any]) -> str | None:
     if item_id is not None:
         return item_id
     return _normalized_item_id(context.get("item_name"))
+
+
+def _context_has_blocked_item_status(context: Mapping[str, Any]) -> bool:
+    status_values: list[Any] = [context.get("status"), context.get("item_status")]
+    item = context.get("item")
+    if isinstance(item, Mapping):
+        status_values.extend((item.get("status"), item.get("item_status")))
+    return any(_normalized_item_id(value) in {"unavailable", "blocked", "deferred"} for value in status_values)
 
 
 def _normalized_item_id(value: Any) -> str | None:
