@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, the v5.8 optional TurnPipeline payload adapter, the v5.9 TurnPipeline prompt/contract guard, the v6.0 Minimal TurnPipeline integration design, the v6.1 explicit TurnPipeline generation adapter, the v6.2 explicit TurnPipeline payload smoke, the v6.3 TurnPipeline UI/advice flow integration design, the v6.4 explicit TurnPipeline advice payload builder smoke, the v6.5 explicit TurnPipeline advice flow integration design, the v6.6 explicit TurnPipeline advice-flow dry-run, the v6.7 TurnPipeline advice-flow closure / stability report, the v6.8 Payload Snapshot Lockdown, the v6.9 Controlled Gemini Smoke Design, the v6.10 Controlled Gemini Smoke Execution, the v6.11 Controlled Gemini Smoke Closure / Next UI Exposure Design, the v6.12 Prompt / UX Copy Design, the v6.13 Prompt Copy Test Fixtures, the v6.14 UI Exposure Design, the v6.15 Offline End-to-End Advice Fixture, the v6.16 UI Exposure Test Plan, the v6.17 Controlled UI Mock Smoke, the v6.18 UI Dev Flag Implementation, the v6.19 UI Dev Flag Smoke / Manual QA, the v6.20 Controlled UI Gemini Smoke, and the v6.21 TurnPipeline UI Phase Closure.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, the v5.8 optional TurnPipeline payload adapter, the v5.9 TurnPipeline prompt/contract guard, the v6.0 Minimal TurnPipeline integration design, the v6.1 explicit TurnPipeline generation adapter, the v6.2 explicit TurnPipeline payload smoke, the v6.3 TurnPipeline UI/advice flow integration design, the v6.4 explicit TurnPipeline advice payload builder smoke, the v6.5 explicit TurnPipeline advice flow integration design, the v6.6 explicit TurnPipeline advice-flow dry-run, the v6.7 TurnPipeline advice-flow closure / stability report, the v6.8 Payload Snapshot Lockdown, the v6.9 Controlled Gemini Smoke Design, the v6.10 Controlled Gemini Smoke Execution, the v6.11 Controlled Gemini Smoke Closure / Next UI Exposure Design, the v6.12 Prompt / UX Copy Design, the v6.13 Prompt Copy Test Fixtures, the v6.14 UI Exposure Design, the v6.15 Offline End-to-End Advice Fixture, the v6.16 UI Exposure Test Plan, the v6.17 Controlled UI Mock Smoke, the v6.18 UI Dev Flag Implementation, the v6.19 UI Dev Flag Smoke / Manual QA, the v6.20 Controlled UI Gemini Smoke, the v6.21 TurnPipeline UI Phase Closure, and the v7.0 Turn Engine Roadmap / Scope Split.
 
 Update after v2.5:
 
@@ -61,13 +61,14 @@ Update after v2.5:
 - v6.19 verified the UI dev flag with offscreen PySide smoke / QA. The checkbox appears below the advice button, defaults unchecked, has the expected tooltip/status copy, toggle emits no advice request, and existing mocked tests cover off/on advice-flow behavior. No actual Gemini, Vertex AI, or provider call was made.
 - v6.20 ran one controlled actual Gemini smoke through the UI dev flag path. Result: PASS. There was exactly 1 call, no retry, no Vertex AI call, no stop condition, and Gemini kept candidate wording without full simulation, item consumption, exact post-turn HP, RNG, speed tie, or exact trigger resolution claims.
 - v6.21 closed the TurnPipeline UI phase. The current implementation is a default-off dev UI flag for limited candidate turn-event context, not a full Turn Engine. The recommended next major step is v7.0 Turn Engine Roadmap / Scope Split, with v7.0 Battle State / Opponent Move Context Expansion as the safe alternative.
+- v7.0 split the future full Turn Engine roadmap into staged scopes: deterministic turn order context, deterministic damage application preview, item trigger candidate layer, resolved turn simulation prototype, and post-turn state update. No implementation was added. Recommended next is v7.1 Deterministic Turn Order Context Design.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v6.21 TurnPipeline UI Phase Closure.
+T3, continue after v7.0 Turn Engine Roadmap / Scope Split.
 
 Goal:
 - Do not add new item contexts.
@@ -104,8 +105,8 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v7.0 Turn Engine Roadmap / Scope Split
-  - Alternative: v7.0 Battle State / Opponent Move Context Expansion
+  - v7.1 Deterministic Turn Order Context Design
+  - Alternative: v7.1 Battle State / Opponent Move Context Expansion
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.
@@ -119,13 +120,14 @@ Goal:
   - v6.19 manually QA'd the dev flag with offscreen PySide smoke. The checkbox/default/tooltip/status/toggle behavior passed, and no actual Gemini call was made.
   - v6.20 ran one controlled UI Gemini smoke after T1 approval. Result: PASS, with no retry and no Vertex AI call.
   - v6.21 closed the TurnPipeline UI phase and recorded the current feature state, safety boundary, known timing-sensitive perf issue, and next major direction options.
-  - Next should be scope/design first: either a Turn Engine Roadmap / Scope Split or Battle State / Opponent Move Context Expansion.
+  - v7.0 split future Turn Engine work into stages and recommended deterministic turn order context before any resolved simulation.
+  - Next should design deterministic priority/speed/tie candidate context only.
   - Do not run another actual Gemini call unless T1/T2 explicitly approve a new one-call smoke.
   - No Vertex AI call.
   - Keep `run_ui_selected_advice(...)` default behavior unchanged.
   - Do not make TurnPipeline always-on.
   - Do not start full Turn Engine implementation yet.
-  - Keep item consumption, HP update, RNG, speed tie, exact trigger resolution, and opponent set inference out of implementation scope until the roadmap/scope split is approved.
+  - Do not implement turn order resolver, speed tie resolver, RNG resolver, item consumption, HP update, exact trigger resolution, or opponent set inference in v7.1.
 - v3.4 has already centralized item context guard metadata:
   - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
   - `advisor_client.py` still builds the prompt guard from visible `available=true` contexts.

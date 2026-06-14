@@ -1,5 +1,52 @@
 # Master Ball Advisor — Progress
 
+## v7.0 - Turn Engine Roadmap / Scope Split
+
+Purpose:
+- Define the future full Turn Engine scope without implementing it.
+- Split full engine work into smaller stages with explicit inputs, outputs, risks, and unsupported boundaries.
+
+Roadmap:
+- Stage 1: Deterministic Turn Order Context.
+- Stage 2: Deterministic Damage Application Preview.
+- Stage 3: Item Trigger Candidate Layer.
+- Stage 4: Resolved Turn Simulation Prototype.
+- Stage 5: Post-turn State Update.
+
+Key distinction:
+- Current limited TurnPipeline provides candidate events, known modifiers, and limited planning/debug context.
+- Full Turn Engine would resolve turn order, priority/speed/speed ties, RNG triggers, item activation/consumption, damage application, HP update, fainting/survival, and post-turn state.
+
+Risk:
+- Low: deterministic context summaries, existing damage estimate reuse, candidate event lists.
+- Medium: speed relation interpretation, priority handling, new item trigger families.
+- High: RNG resolution, item consumption, post-turn HP update, opponent inference, resolved event sequences.
+
+Recommended next:
+- v7.1 Deterministic Turn Order Context Design.
+- Safe alternative: v7.1 Battle State / Opponent Move Context Expansion.
+- Resolved Turn Simulation Prototype is not recommended as the first v7 step.
+
+Safety:
+- No production code implementation.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No resolved turn simulation.
+- No turn order resolver.
+- No speed tie resolver.
+- No RNG resolver.
+- No item consumption or HP update.
+- No opponent set inference.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.21 - TurnPipeline UI Phase Closure
 
 Purpose:
