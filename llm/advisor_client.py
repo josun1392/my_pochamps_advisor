@@ -24,6 +24,7 @@ from llm.advisor_payload_contract import (
     TURN_SNAPSHOT_KNOWN_LIMITATIONS,
 )
 from llm.advisor_turn_snapshot import try_build_turn_snapshot_from_battle_input
+from llm.advisor_turn_events import build_optional_turn_pipeline_for_advice_payload
 from llm.token_logger import UNKNOWN_MODEL_OR_UNKNOWN_PRICING, TokenLogger
 from scripts.spike_advisor import (
     DEFAULT_MODEL,
@@ -100,6 +101,8 @@ def filter_context_for_default_advice(payload: dict[str, Any]) -> dict[str, Any]
 def run_ui_selected_advice(
     battle_input: dict[str, Any],
     model: str | None = None,
+    *,
+    enable_turn_pipeline: bool = False,
 ) -> tuple[str, dict[str, int], dict[str, Any]]:
     """Run the v0.6 UI-selected Pokemon advisor flow.
 
@@ -108,7 +111,11 @@ def run_ui_selected_advice(
     """
     selected_model = model or DEFAULT_MODEL
     turn_snapshot = try_build_turn_snapshot_from_battle_input(battle_input)
-    prompt = _build_ui_selected_prompt(battle_input, turn_snapshot=turn_snapshot)
+    prompt = _build_ui_selected_prompt(
+        battle_input,
+        turn_snapshot=turn_snapshot,
+        enable_turn_pipeline=enable_turn_pipeline,
+    )
     recommendation, usage = call_gemini(prompt, selected_model)
     summary = _log_advisor_call(
         model=selected_model,
@@ -122,7 +129,23 @@ def _build_ui_selected_prompt(
     battle_input: dict[str, Any],
     turn_snapshot: TurnSnapshot | dict[str, Any] | None = None,
     turn_pipeline: TurnPipelineResult | dict[str, Any] | None = None,
+    *,
+    enable_turn_pipeline: bool = False,
 ) -> str:
+    if turn_pipeline is None and enable_turn_pipeline:
+        base_payload = build_ui_advice_payload(
+            battle_input,
+            turn_snapshot=turn_snapshot,
+        )
+        selected_move = _selected_move_payload_from_advice_payload(base_payload)
+        turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+            base_payload,
+            enable_turn_pipeline=True,
+            selected_move_id=_string_field(selected_move, "move_id"),
+            damage_estimate_ref=_move_payload_ref(selected_move, "damage_estimate"),
+            ko_context_ref=_move_payload_ref(selected_move, "ko_context"),
+        )
+
     advice_payload = build_ui_advice_payload(
         battle_input,
         turn_snapshot=turn_snapshot,
@@ -448,6 +471,31 @@ def _build_ui_selected_prompt(
         "opponent sample metadata by default; keep sample visibility concise.\n\n"
         f"{json.dumps(advice_payload, ensure_ascii=False, indent=2)}"
     )
+
+
+def _selected_move_payload_from_advice_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    moves = payload.get("moves")
+    if not isinstance(moves, dict):
+        return None
+    selected_move = moves.get("my_selected_move")
+    if not isinstance(selected_move, dict):
+        return None
+    return selected_move
+
+
+def _string_field(payload: dict[str, Any] | None, key: str) -> str | None:
+    if payload is None:
+        return None
+    value = payload.get(key)
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
+def _move_payload_ref(payload: dict[str, Any] | None, key: str) -> str | None:
+    if payload is None or key not in payload:
+        return None
+    return f"moves.my_selected_move.{key}"
 
 
 def _add_turn_snapshot_to_advice_payload(

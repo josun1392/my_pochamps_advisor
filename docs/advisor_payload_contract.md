@@ -125,6 +125,8 @@ v6.2 verifies the manual fixture path that combines the explicit helper with the
 
 v6.4 strengthens the advice payload builder smoke coverage for this explicit path. Tests verify omitted/default and explicit disabled flags, manual enabled generation, top-level `turn_pipeline` insertion, prompt guard present/absent behavior, and preservation of `damage_estimate`, `ko_context`, and existing item contexts. This remains fixture/dev-only and does not auto-generate inside `run_ui_selected_advice(...)`.
 
+v6.6 adds a no-actual-Gemini dry-run flag near the UI-selected advice flow. `run_ui_selected_advice(..., enable_turn_pipeline=False)` remains default-off, and the UI worker still calls it without enabling TurnPipeline. When tests explicitly pass `enable_turn_pipeline=True`, `_build_ui_selected_prompt(...)` builds a limited TurnPipeline from the already-built advice payload and inserts it through the existing optional adapter. The prompt guard appears only in the explicit path. Tests mock `call_gemini`; no real Gemini or Vertex AI call is made. This does not add a UI checkbox, does not make TurnPipeline user-facing by default, and does not implement full simulation, item consumption, HP updates, RNG, speed ties, or exact trigger resolution.
+
 ## Current Payload Shape
 
 Top-level sections:

@@ -44,6 +44,7 @@ from tests.test_advisor_damage_estimate import (
 )
 from ui.main_window import MainWindow
 from ui.widgets.item_profile_dialog import item_profile_from_option, legal_item_options_from_repository
+from ui.widgets.llm_advice_panel import LLMAdvicePanel
 
 
 UNAVAILABLE_ITEM_ADVICE_PAYLOAD_FORBIDDEN_TERMS = (
@@ -409,7 +410,8 @@ def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
 
     assert '"turn_pipeline"' not in prompt
     assert "limited planning/debug summary only, not full turn simulation" not in prompt
-    assert "build_turn_pipeline_result_from_advice_payload" not in inspect.getsource(advisor_client.run_ui_selected_advice)
+    run_source = inspect.getsource(advisor_client.run_ui_selected_advice)
+    assert "enable_turn_pipeline: bool = False" in run_source
 
 
 def test_explicit_turn_pipeline_generation_smoke_preserves_existing_payload_contexts() -> None:
@@ -495,9 +497,90 @@ def test_explicit_turn_pipeline_generation_smoke_preserves_existing_payload_cont
     assert "Do not claim RNG resolution" in prompt_with_pipeline
     assert "item consumption" in prompt_with_pipeline
     assert "exact post-turn HP" in prompt_with_pipeline
-    assert "build_optional_turn_pipeline_for_advice_payload" not in inspect.getsource(
-        advisor_client.run_ui_selected_advice
+    run_source = inspect.getsource(advisor_client.run_ui_selected_advice)
+    assert "enable_turn_pipeline: bool = False" in run_source
+
+
+def test_run_ui_selected_advice_default_dry_run_omits_turn_pipeline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    captured: dict[str, str] = {}
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        captured["prompt"] = prompt
+        captured["model"] = model
+        return "ok", {"input_tokens": 1, "output_tokens": 1, "cached_tokens": 0}
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", lambda **kwargs: {"patched": True})
+
+    recommendation, usage, summary = advisor_client.run_ui_selected_advice(payload)
+
+    assert recommendation == "ok"
+    assert usage == {"input_tokens": 1, "output_tokens": 1, "cached_tokens": 0}
+    assert summary == {"patched": True}
+    assert captured["model"]
+    assert '"turn_pipeline"' not in captured["prompt"]
+    assert "limited planning/debug summary only, not full turn simulation" not in captured["prompt"]
+    assert "candidate events are not resolved outcomes" not in captured["prompt"]
+    assert '"damage_estimate"' in captured["prompt"]
+    assert '"ko_context"' in captured["prompt"]
+    assert '"species_stat_item_context"' in captured["prompt"]
+
+
+def test_run_ui_selected_advice_explicit_turn_pipeline_dry_run_includes_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    captured: dict[str, str] = {}
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        captured["prompt"] = prompt
+        captured["model"] = model
+        return "ok", {"input_tokens": 1, "output_tokens": 1, "cached_tokens": 0}
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", lambda **kwargs: {"patched": True})
+
+    recommendation, usage, summary = advisor_client.run_ui_selected_advice(
+        payload,
+        enable_turn_pipeline=True,
     )
+
+    assert recommendation == "ok"
+    assert usage == {"input_tokens": 1, "output_tokens": 1, "cached_tokens": 0}
+    assert summary == {"patched": True}
+    assert captured["model"]
+    assert '"turn_pipeline"' in captured["prompt"]
+    assert '"simulated": "limited"' in captured["prompt"]
+    assert "limited planning/debug summary only, not full turn simulation" in captured["prompt"]
+    assert "candidate events are not resolved outcomes" in captured["prompt"]
+    assert "Do not claim RNG resolution" in captured["prompt"]
+    assert "item consumption" in captured["prompt"]
+    assert "exact post-turn HP" in captured["prompt"]
+    assert '"damage_estimate"' in captured["prompt"]
+    assert '"ko_context"' in captured["prompt"]
+    assert '"species_stat_item_context"' in captured["prompt"]
+    assert '"speed_order_context"' in captured["prompt"]
+    assert '"survival_context"' in captured["prompt"]
+    assert '"chilan_berry_context"' in captured["prompt"]
+    prompt_payload = json.loads(captured["prompt"].rsplit("\n\n", 1)[1])
+    assert [event["item_id"] for event in prompt_payload["turn_pipeline"]["events"]] == [
+        "light-ball",
+        "quick-claw",
+        "focus-sash",
+        "chilan-berry",
+    ]
+
+
+def test_turn_pipeline_dry_run_does_not_add_ui_checkbox_or_worker_flag() -> None:
+    panel_source = inspect.getsource(LLMAdvicePanel)
+    worker_source = inspect.getsource(MainWindow._start_llm_advice)
+
+    assert "QCheckBox" not in panel_source
+    assert "enable_turn_pipeline" not in panel_source
+    assert "enable_turn_pipeline" not in worker_source
 
 
 def test_manual_move_payload_includes_only_user_confirmed_moves() -> None:
@@ -2977,6 +3060,32 @@ def _sample_turn_pipeline(*, simulated: str = "limited") -> TurnPipelineResult:
         ),
         simulated=simulated,
     )
+
+
+def _turn_pipeline_advice_flow_payload() -> dict:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    selected_move = payload["moves"]["my_selected_move"]
+    selected_move["species_stat_item_context"] = {
+        "available": True,
+        "attacker_side": "my_active",
+        "item": {"item_id": "light-ball", "status": "user_confirmed"},
+    }
+    selected_move["speed_order_context"] = {
+        "available": True,
+        "attacker_side": "my_active",
+        "item": {"item_id": "quick-claw", "status": "user_confirmed"},
+    }
+    selected_move["survival_context"] = {
+        "available": True,
+        "defender_side": "opponent_active",
+        "item": {"item_id": "focus-sash", "status": "user_confirmed"},
+    }
+    selected_move["chilan_berry_context"] = {
+        "available": True,
+        "defender_side": "opponent_active",
+        "item": {"item_id": "chilan-berry", "status": "user_confirmed"},
+    }
+    return payload
 
 
 def _assert_default_assumption_profile(estimate: dict) -> None:

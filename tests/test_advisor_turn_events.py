@@ -578,13 +578,12 @@ def test_optional_turn_pipeline_can_be_passed_to_payload_adapter_explicitly() ->
 
 def test_optional_turn_pipeline_helper_does_not_call_advisor_client_or_gemini() -> None:
     helper_source = inspect.getsource(build_optional_turn_pipeline_for_advice_payload)
+    run_source = inspect.getsource(advisor_client.run_ui_selected_advice)
 
     assert "advisor_client" not in helper_source
     assert "run_ui_selected_advice" not in helper_source
     assert "call_gemini" not in helper_source
-    assert "build_optional_turn_pipeline_for_advice_payload" not in inspect.getsource(
-        advisor_client.run_ui_selected_advice
-    )
+    assert "enable_turn_pipeline: bool = False" in run_source
 
 
 def _turn_pipeline_fixture_payload() -> dict:

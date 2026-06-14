@@ -1,5 +1,47 @@
 # Master Ball Advisor — Progress
 
+## v6.6 - Explicit TurnPipeline Advice Flow Dry-run
+
+Purpose:
+- Verify explicit TurnPipeline generation near the UI-selected advice flow without actual Gemini calls.
+- Keep normal UI advice behavior default-off and unchanged.
+
+Implemented:
+- `run_ui_selected_advice(..., enable_turn_pipeline=False)` accepts a default-off dry-run flag.
+- `_build_ui_selected_prompt(..., enable_turn_pipeline=False)` can explicitly build a limited TurnPipeline only when enabled.
+- The explicit path uses `build_optional_turn_pipeline_for_advice_payload(...)` and the existing optional top-level payload adapter.
+- Tests mock `call_gemini` and capture prompt text.
+
+Verified:
+- Default advice-flow dry-run omits `turn_pipeline`.
+- Default advice-flow dry-run omits the TurnPipeline prompt guard.
+- Explicit `enable_turn_pipeline=True` dry-run includes top-level `turn_pipeline`.
+- Explicit dry-run keeps `simulated="limited"`.
+- Prompt guard says candidate events are not resolved outcomes.
+- Existing `damage_estimate`, `ko_context`, and item contexts remain present.
+- UI panel and worker path do not expose a checkbox or enable the flag.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No UI checkbox implementation.
+- No user-facing advice button automatic TurnPipeline enablement.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+Next:
+- v6.7 should decide whether to close the TurnPipeline dry-run phase or design a runtime/UI exposure surface.
+- Keep any runtime exposure default-off and no-actual-Gemini in tests.
+
+---
+
 ## v6.5 - Explicit TurnPipeline Advice Flow Integration Design
 
 Purpose:
