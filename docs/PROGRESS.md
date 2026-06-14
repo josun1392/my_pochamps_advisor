@@ -1,5 +1,60 @@
 # Master Ball Advisor — Progress
 
+## v6.16 - UI Exposure Test Plan
+
+Purpose:
+- Document the tests required before exposing TurnPipeline in the UI.
+- Keep the step design/test-plan only, with no production code implementation.
+
+UI exposure candidate:
+- Preferred candidate under test is a dev-only flag or developer option.
+- The feature remains default-off.
+- No persisted setting should silently auto-enable it.
+- Candidate label: `턴 이벤트 후보 포함`.
+- Candidate enabled status: `턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님`.
+
+Test plan:
+- Default-off regression: existing advice button behavior unchanged, no top-level `turn_pipeline`, no prompt guard, no default warning copy.
+- UI flag off smoke: unchecked flag calls `run_ui_selected_advice(...)` with `enable_turn_pipeline=False` or omitted.
+- UI flag on smoke: checked flag calls `run_ui_selected_advice(..., enable_turn_pipeline=True)`, includes limited `turn_pipeline`, prompt guard, and enabled status copy.
+- No-call guarantee: mock `call_gemini`, avoid provider/network calls, avoid Vertex AI, and do not commit token logs.
+- Copy visibility: label/help/warning matches v6.12 and never implies a full simulation.
+- Rollback: one flag/control can disable or remove the feature without changing the existing advice path.
+
+Implementation entry criteria:
+- v6.15 offline E2E fixture green.
+- v6.13 prompt copy fixtures green.
+- v6.8 payload snapshot tests green.
+- T1 explicitly approves UI implementation.
+- No unresolved provider issue blocks the planned workflow.
+- Do not assume a credit blocker before Gemini reports 429 / billing / prepay / auth / routing errors, but keep automatic retries and unnecessary repeated calls disabled.
+
+Recommended next:
+- v6.17 Controlled UI Mock Smoke.
+- Alternative: v6.17 UI Dev Flag Implementation with explicit T1 approval.
+- UI Copy Snapshot Tests can be folded into either path if UI code is needed.
+
+Safety:
+- Documentation/test-plan only.
+- No actual Gemini call.
+- No Vertex AI call.
+- No external network/provider call.
+- No production code implementation.
+- No UI checkbox implementation.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.15 - Offline End-to-End Advice Fixture
 
 Purpose:
