@@ -1,5 +1,58 @@
 # Master Ball Advisor — Progress
 
+## v6.20 - Controlled UI Gemini Smoke
+
+Purpose:
+- Run one controlled actual Gemini smoke through the UI dev flag path.
+- Verify Gemini does not treat `turn_pipeline` as full simulation.
+
+Smoke:
+- UI checkbox state: on.
+- Actual Gemini call count: 1.
+- Retry: none.
+- Stop condition: none.
+- Vertex AI call: none.
+- Result classification: PASS.
+
+Response safety:
+- Quick Claw used possibility wording and did not guarantee activation.
+- Final move order was not modeled.
+- Focus Sash was possible survival context, not guaranteed item consumption.
+- No full turn simulation claim.
+- No exact post-turn HP claim.
+- No RNG / speed tie / exact trigger resolution claim.
+- Damage / KO wording stayed tied to existing damage estimate context.
+
+Testing:
+- Pre-call required tests passed.
+- Known timing-sensitive perf failure appeared around `test_item_damage_calculation_under_point_12ms_average`.
+- Isolated perf target passed 3/3 after the failure.
+- Final full pytest passed.
+- Threshold / skip / xfail were not changed.
+
+Recommended next:
+- v6.21 TurnPipeline UI Phase Closure.
+- If needed, UI Copy Polish can happen separately without another Gemini call.
+
+Safety:
+- Exactly one actual Gemini call.
+- No retry.
+- No Vertex AI call.
+- No checkbox-toggle Gemini call.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.19 - UI Dev Flag Smoke / Manual QA
 
 Purpose:
