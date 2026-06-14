@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, the v5.8 optional TurnPipeline payload adapter, the v5.9 TurnPipeline prompt/contract guard, the v6.0 Minimal TurnPipeline integration design, the v6.1 explicit TurnPipeline generation adapter, the v6.2 explicit TurnPipeline payload smoke, the v6.3 TurnPipeline UI/advice flow integration design, the v6.4 explicit TurnPipeline advice payload builder smoke, the v6.5 explicit TurnPipeline advice flow integration design, the v6.6 explicit TurnPipeline advice-flow dry-run, and the v6.7 TurnPipeline advice-flow closure / stability report.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, the v5.8 optional TurnPipeline payload adapter, the v5.9 TurnPipeline prompt/contract guard, the v6.0 Minimal TurnPipeline integration design, the v6.1 explicit TurnPipeline generation adapter, the v6.2 explicit TurnPipeline payload smoke, the v6.3 TurnPipeline UI/advice flow integration design, the v6.4 explicit TurnPipeline advice payload builder smoke, the v6.5 explicit TurnPipeline advice flow integration design, the v6.6 explicit TurnPipeline advice-flow dry-run, the v6.7 TurnPipeline advice-flow closure / stability report, and the v6.8 Payload Snapshot Lockdown.
 
 Update after v2.5:
 
@@ -47,13 +47,14 @@ Update after v2.5:
 - v6.5 designed explicit advice-flow integration options and recommended v6.6 as a default-off no-actual-Gemini dry-run before any UI checkbox or automatic generation.
 - v6.6 added a default-off `enable_turn_pipeline` dry-run flag near `run_ui_selected_advice(...)`, verified default and explicit paths with mocked `call_gemini`, and still did not add UI checkbox or user-facing automatic TurnPipeline enablement.
 - v6.7 closed the TurnPipeline advice-flow dry-run phase, documented the current safety boundary, recorded timing-sensitive perf instability as a known issue, and recommended v6.8 Payload Snapshot Lockdown before any controlled Gemini smoke or UI checkbox.
+- v6.8 locked default/off/on TurnPipeline payload and prompt shapes with plain pytest dictionary assertions, without external snapshot dependencies or actual Gemini calls.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v6.7 TurnPipeline Advice Flow Closure / Stability Report.
+T3, continue after v6.8 Payload Snapshot Lockdown.
 
 Goal:
 - Do not add new item contexts.
@@ -90,10 +91,11 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v6.8 Payload Snapshot Lockdown
+  - v6.9 Controlled Gemini Smoke Design
 - Reason:
-  - v6.7 recommends locking default/off/on payload and prompt shapes before any runtime/UI exposure.
-  - Payload Snapshot Lockdown has no actual Gemini call and no cost/quota risk.
+  - v6.8 locked default/off/on payload and prompt shapes without actual Gemini calls.
+  - The next step should be design-first before any actual Gemini smoke.
+  - Controlled Gemini Smoke requires explicit T1/T2 approval, a pre-approved fixture, cost/quota expectations, and clear stop conditions.
   - Keep `run_ui_selected_advice(...)` default behavior unchanged.
   - Do not add UI checkbox or always-on generation.
   - Keep any next step default-off, no actual Gemini call, and no full Turn Engine.
@@ -281,6 +283,14 @@ Goal:
   - documents that actual Gemini call, UI checkbox, user-facing advice button automatic enablement, full Turn Engine, item consumption, HP update, RNG/speed tie/exact trigger resolution are still not done.
   - records timing-sensitive perf instability around `test_item_damage_calculation_under_point_12ms_average` as a known issue.
   - recommends v6.8 Payload Snapshot Lockdown before Controlled Gemini Smoke.
+- v6.8 Payload Snapshot Lockdown is complete:
+  - uses plain pytest dictionary assertions, not an external snapshot plugin.
+  - locks default, explicit-off, `turn_pipeline=None`, explicit dataclass, and explicit mapping payload shapes.
+  - verifies prompt guard absence/presence with stable substring assertions.
+  - verifies `simulated="limited"` and keeps `simulated="full"` rejected.
+  - verifies `damage_estimate`, `ko_context`, and item contexts remain present.
+  - still does not run actual Gemini or Vertex AI calls.
+  - still does not add UI checkbox, user-facing advice button automatic enablement, full Turn Engine, item trigger evaluation, item consumption, HP update, speed/order simulation, or payload filtering changes.
 
 Repo / branch / remote checks first:
 1. Run `git status --short --branch`.
@@ -435,6 +445,6 @@ Documentation expectations:
 - Chilan Berry reached actual Gemini PASS after v2.7.1.
 - The original item-context pending verification queue is closed as of v3.2.
 - v3.4 centralized item context guard metadata without changing filtering behavior.
-- Larger next direction: v6.8 Payload Snapshot Lockdown before any controlled Gemini smoke, UI checkbox, automatic generation, or state mutation.
+- Larger next direction: v6.9 Controlled Gemini Smoke Design before any actual Gemini smoke, UI checkbox, automatic generation, or state mutation.
 - v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

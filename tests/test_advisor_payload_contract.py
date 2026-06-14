@@ -583,6 +583,75 @@ def test_turn_pipeline_dry_run_does_not_add_ui_checkbox_or_worker_flag() -> None
     assert "enable_turn_pipeline" not in worker_source
 
 
+def test_turn_pipeline_payload_snapshot_lockdown_default_off_and_explicit_on() -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+
+    default_payload = build_ui_advice_payload(payload)
+    omitted_prompt = _build_ui_selected_prompt(payload)
+    disabled_pipeline = build_optional_turn_pipeline_for_advice_payload(payload, enable_turn_pipeline=False)
+    disabled_payload = build_ui_advice_payload(payload, turn_pipeline=disabled_pipeline)
+    none_payload = build_ui_advice_payload(payload, turn_pipeline=None)
+    disabled_prompt = _build_ui_selected_prompt(payload, enable_turn_pipeline=False)
+
+    assert disabled_pipeline is None
+    assert disabled_payload == default_payload
+    assert none_payload == default_payload
+    assert disabled_prompt == omitted_prompt
+    assert "turn_pipeline" not in default_payload
+    assert "turn_pipeline" not in disabled_payload
+    assert "turn_pipeline" not in none_payload
+    assert '"turn_pipeline"' not in omitted_prompt
+    assert "candidate events are not resolved outcomes" not in omitted_prompt
+    assert "limited planning/debug summary only, not full turn simulation" not in omitted_prompt
+
+    selected_move = default_payload["moves"]["my_selected_move"]
+    enabled_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        default_payload,
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    assert enabled_pipeline is not None
+
+    enabled_payload = build_ui_advice_payload(payload, turn_pipeline=enabled_pipeline)
+    mapping_payload = build_ui_advice_payload(payload, turn_pipeline=enabled_pipeline.to_dict())
+    enabled_prompt = _build_ui_selected_prompt(payload, enable_turn_pipeline=True)
+    enabled_prompt_payload = json.loads(enabled_prompt.rsplit("\n\n", 1)[1])
+
+    assert set(enabled_payload) == set(default_payload) | {"turn_pipeline"}
+    assert set(mapping_payload) == set(default_payload) | {"turn_pipeline"}
+    assert enabled_payload["turn_pipeline"] == enabled_pipeline.to_dict()
+    assert mapping_payload["turn_pipeline"] == enabled_pipeline.to_dict()
+    assert enabled_payload["turn_pipeline"]["simulated"] == "limited"
+    assert mapping_payload["turn_pipeline"]["simulated"] == "limited"
+    assert enabled_prompt_payload["turn_pipeline"]["simulated"] == "limited"
+    assert [event["item_id"] for event in enabled_payload["turn_pipeline"]["events"]] == [
+        "light-ball",
+        "quick-claw",
+        "focus-sash",
+        "chilan-berry",
+    ]
+    assert enabled_payload["moves"]["my_selected_move"]["damage_estimate"] == selected_move["damage_estimate"]
+    assert enabled_payload["moves"]["my_selected_move"]["ko_context"] == selected_move["ko_context"]
+    for context_key in (
+        "species_stat_item_context",
+        "speed_order_context",
+        "survival_context",
+        "chilan_berry_context",
+    ):
+        assert enabled_payload["moves"]["my_selected_move"][context_key] == selected_move[context_key]
+        assert mapping_payload["moves"]["my_selected_move"][context_key] == selected_move[context_key]
+
+    assert '"turn_pipeline"' in enabled_prompt
+    assert "candidate events are not resolved outcomes" in enabled_prompt
+    assert "limited planning/debug summary only, not full turn simulation" in enabled_prompt
+    assert "Do not claim RNG resolution" in enabled_prompt
+
+    with pytest.raises(ValueError, match="simulated='full'"):
+        build_ui_advice_payload(payload, turn_pipeline=_sample_turn_pipeline(simulated="full"))
+
+
 def test_manual_move_payload_includes_only_user_confirmed_moves() -> None:
     panel = _panel(
         "charizard",

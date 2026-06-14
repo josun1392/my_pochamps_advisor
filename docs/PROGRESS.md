@@ -1,5 +1,54 @@
 # Master Ball Advisor — Progress
 
+## v6.8 - Payload Snapshot Lockdown
+
+Purpose:
+- Lock default/off/on TurnPipeline payload and prompt shapes before any runtime/UI exposure.
+- Use plain pytest dictionary assertions instead of external snapshot tooling or large golden JSON files.
+
+Locked:
+- Default payload and prompt omit `turn_pipeline`.
+- Explicit `enable_turn_pipeline=False` returns `None` and preserves the default payload/prompt shape.
+- `turn_pipeline=None` preserves the default payload shape.
+- Explicit limited `TurnPipelineResult` adds top-level `turn_pipeline`.
+- Mapping input via `TurnPipelineResult.to_dict()` produces the same top-level shape.
+- `turn_pipeline.simulated == "limited"` for explicit-on fixture paths.
+- `simulated="full"` remains rejected.
+- Prompt guard is absent without `turn_pipeline` and present with explicit `turn_pipeline`.
+- Prompt guard keeps candidate events as non-resolved outcomes.
+
+Existing-context preservation:
+- `damage_estimate` remains present.
+- `ko_context` remains present.
+- `species_stat_item_context`, `speed_order_context`, `survival_context`, and `chilan_berry_context` remain present.
+- `turn_pipeline` stays additive and does not replace existing contexts.
+
+Known perf instability:
+- `test_item_damage_calculation_under_point_12ms_average` remains timing-sensitive in full-suite/order-dependent runs.
+- No threshold, skip, xfail, formula, raw roll, Q12, or `ko_context` change was made.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No UI checkbox implementation.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No external snapshot dependency.
+
+Next:
+- v6.9 Controlled Gemini Smoke Design, or a similarly explicit approval gate before any actual Gemini smoke.
+- Keep actual Gemini calls disabled unless T1/T2 explicitly approve a pre-approved fixture and stop conditions.
+
+---
+
 ## v6.7 - TurnPipeline Advice Flow Closure / Stability Report
 
 Purpose:
