@@ -1,5 +1,53 @@
 # Master Ball Advisor — Progress
 
+## v6.14 - TurnPipeline UI Exposure Design
+
+Purpose:
+- Design future TurnPipeline UI exposure without implementing UI.
+- Keep existing advice button behavior default-off and unchanged.
+
+Design:
+- Option A, visible checkbox in `LLMAdvicePanel`, is discoverable but too user-facing for the first implementation step.
+- Option B, settings/developer option dev flag, is the preferred future UI path if implementation is approved.
+- Option C, config/internal flag only, remains the safest path if another offline fixture is preferred first.
+
+Default-off policy:
+- Existing advice button behavior remains unchanged.
+- `enable_turn_pipeline=True` requires explicit opt-in.
+- No saved setting should silently auto-enable the feature yet.
+- Disabled state must preserve the current payload/prompt shape.
+
+UI copy:
+- Label: `턴 이벤트 후보 포함`.
+- Help: `확정 턴 시뮬레이션이 아니라, 아이템/속도/생존 가능성 같은 제한적 후보 정보를 조언에 추가합니다.`
+- Warning: `RNG, 아이템 소모, 턴 종료 후 HP, 스피드 타이, 정확한 발동 결과는 확정하지 않습니다.`
+- Status: `턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님`.
+
+Recommended next:
+- v6.15 Offline End-to-End Advice Fixture.
+- Alternative: v6.15 UI Exposure Test Plan.
+- UI Dev Flag Implementation requires explicit T1 approval.
+
+Safety:
+- Documentation-only UI exposure design.
+- No actual Gemini call.
+- No Vertex AI call.
+- No production code implementation.
+- No UI checkbox implementation.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.13 - Prompt Copy Test Fixtures
 
 Purpose:
