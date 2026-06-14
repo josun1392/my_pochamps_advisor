@@ -1,5 +1,52 @@
 # Master Ball Advisor — Progress
 
+## v6.9 - TurnPipeline Controlled Gemini Smoke Design
+
+Purpose:
+- Design a controlled actual-Gemini smoke strategy for the explicit TurnPipeline payload path.
+- Define the approval, call limit, stop conditions, and PASS/FAIL criteria before any real call.
+
+Design:
+- Future controlled smoke should use one explicit-on `turn_pipeline` fixture.
+- Default-off payload is already covered by v6.8 snapshot lockdown.
+- Actual Gemini call limit is maximum 1.
+- No automatic retry.
+- Stop immediately on 429, `RESOURCE_EXHAUSTED`, API key, auth, billing/prepay, or provider routing errors.
+- Vertex AI remains prohibited.
+
+PASS criteria:
+- Gemini treats `turn_pipeline` as limited planning/debug context.
+- Candidate events are not described as resolved outcomes.
+- No item consumption, post-turn HP, speed tie, RNG, exact trigger, status, or volatile resolution claims.
+- `damage_estimate` and `ko_context` remain the relevant primitive contexts.
+
+FAIL criteria:
+- Claims such as Quick Claw will activate, Focus Sash will be consumed, exact HP after the turn, full turn simulation proves the result, or `turn_pipeline` overrides `damage_estimate` / `ko_context`.
+
+Recommended next:
+- v6.10 Controlled Gemini Smoke Execution only with explicit T1 approval.
+- Alternative: v6.10 Payload / Prompt Offline Eval if cost/quota/variability risk remains too high.
+
+Safety:
+- Documentation-only design.
+- No actual Gemini call.
+- No Vertex AI call.
+- No production code implementation.
+- No UI checkbox implementation.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.8 - Payload Snapshot Lockdown
 
 Purpose:
