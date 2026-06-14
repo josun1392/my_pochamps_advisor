@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, the v5.8 optional TurnPipeline payload adapter, the v5.9 TurnPipeline prompt/contract guard, the v6.0 Minimal TurnPipeline integration design, the v6.1 explicit TurnPipeline generation adapter, the v6.2 explicit TurnPipeline payload smoke, the v6.3 TurnPipeline UI/advice flow integration design, the v6.4 explicit TurnPipeline advice payload builder smoke, the v6.5 explicit TurnPipeline advice flow integration design, the v6.6 explicit TurnPipeline advice-flow dry-run, the v6.7 TurnPipeline advice-flow closure / stability report, the v6.8 Payload Snapshot Lockdown, the v6.9 Controlled Gemini Smoke Design, the v6.10 Controlled Gemini Smoke Execution, the v6.11 Controlled Gemini Smoke Closure / Next UI Exposure Design, the v6.12 Prompt / UX Copy Design, the v6.13 Prompt Copy Test Fixtures, the v6.14 UI Exposure Design, the v6.15 Offline End-to-End Advice Fixture, and the v6.16 UI Exposure Test Plan.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, the v5.8 optional TurnPipeline payload adapter, the v5.9 TurnPipeline prompt/contract guard, the v6.0 Minimal TurnPipeline integration design, the v6.1 explicit TurnPipeline generation adapter, the v6.2 explicit TurnPipeline payload smoke, the v6.3 TurnPipeline UI/advice flow integration design, the v6.4 explicit TurnPipeline advice payload builder smoke, the v6.5 explicit TurnPipeline advice flow integration design, the v6.6 explicit TurnPipeline advice-flow dry-run, the v6.7 TurnPipeline advice-flow closure / stability report, the v6.8 Payload Snapshot Lockdown, the v6.9 Controlled Gemini Smoke Design, the v6.10 Controlled Gemini Smoke Execution, the v6.11 Controlled Gemini Smoke Closure / Next UI Exposure Design, the v6.12 Prompt / UX Copy Design, the v6.13 Prompt Copy Test Fixtures, the v6.14 UI Exposure Design, the v6.15 Offline End-to-End Advice Fixture, the v6.16 UI Exposure Test Plan, and the v6.17 Controlled UI Mock Smoke.
 
 Update after v2.5:
 
@@ -56,13 +56,14 @@ Update after v2.5:
 - v6.14 designed future UI exposure. A visible `LLMAdvicePanel` checkbox is not recommended as the first step; a settings/developer dev flag or continued internal flag is safer. Default remains off, existing advice button behavior remains unchanged, and UI Dev Flag Implementation requires explicit T1 approval.
 - v6.15 added an offline end-to-end advice fixture. `run_ui_selected_advice(...)` is tested with mocked Gemini and in-memory token logging for both default-off and explicit-on paths; explicit-on includes limited `turn_pipeline` and guard wording while preserving existing contexts.
 - v6.16 documented the UI exposure test plan before any UI implementation. It defines default-off regression, UI flag off/on smoke, no-call guarantee, copy visibility, rollback/safety switch, and implementation entry criteria. Recommended next is v6.17 Controlled UI Mock Smoke; UI Dev Flag Implementation requires explicit T1 approval.
+- v6.17 added a controlled UI mock smoke without implementing UI. A fake UI state verifies omitted/default, flag-off, and flag-on advice paths with mocked Gemini and in-memory logging; flag-on includes limited `turn_pipeline` and enabled status copy while `LLMAdvicePanel` remains unchanged.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v6.16 UI Exposure Test Plan.
+T3, continue after v6.17 Controlled UI Mock Smoke.
 
 Goal:
 - Do not add new item contexts.
@@ -99,8 +100,8 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v6.17 Controlled UI Mock Smoke
-  - Alternative: v6.17 UI Dev Flag Implementation, only with explicit T1 approval
+  - v6.18 UI Dev Flag Implementation, only with explicit T1 approval
+  - Alternative: v6.18 Final Pre-UI Integration Review
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.
@@ -109,7 +110,8 @@ Goal:
   - v6.14 designed UI exposure and recommended not implementing a visible general-user checkbox yet.
   - v6.15 verified an offline end-to-end payload -> prompt -> mocked advice fixture.
   - v6.16 documented the UI exposure test plan, including default-off regression, flag on/off smoke, no-call guarantee, copy visibility, and rollback criteria.
-  - Next should run a controlled UI-level mock smoke before implementation, or implement a dev-only flag only if T1 explicitly approves.
+  - v6.17 ran a controlled UI-level mock smoke without implementing UI, using fake UI state for omitted/default, flag-off, and flag-on paths.
+  - Next can implement a dev-only flag only if T1 explicitly approves, or run a final pre-UI integration review if approval is not yet granted.
   - Do not run another actual Gemini call unless T1/T2 explicitly approve a new one-call smoke.
   - No Vertex AI call.
   - Keep `run_ui_selected_advice(...)` default behavior unchanged.
@@ -479,6 +481,6 @@ Documentation expectations:
 - Chilan Berry reached actual Gemini PASS after v2.7.1.
 - The original item-context pending verification queue is closed as of v3.2.
 - v3.4 centralized item context guard metadata without changing filtering behavior.
-- Larger next direction: v6.17 Controlled UI Mock Smoke, with v6.17 UI Dev Flag Implementation only after explicit T1 approval. UI Copy Snapshot Tests can be folded into either path if UI code becomes necessary. Keep additional actual Gemini calls disabled unless T1/T2 explicitly approve a separate one-call smoke.
+- Larger next direction: v6.18 UI Dev Flag Implementation only after explicit T1 approval, with v6.18 Final Pre-UI Integration Review as the safe no-code alternative. UI Copy Snapshot Tests can be folded into either path if UI code becomes necessary. Keep additional actual Gemini calls disabled unless T1/T2 explicitly approve a separate one-call smoke.
 - v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.

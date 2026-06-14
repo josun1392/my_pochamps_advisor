@@ -729,6 +729,120 @@ def test_turn_pipeline_offline_end_to_end_advice_fixture_compares_default_and_ex
         assert phrase not in rendered_explicit_prompt
 
 
+def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    captured_prompts: list[str] = []
+    captured_flags: list[bool | None] = []
+    status_texts: list[str] = []
+    call_count = 0
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        nonlocal call_count
+        call_count += 1
+        assert prompt
+        assert model
+        captured_prompts.append(prompt)
+        return f"ui mock recommendation {call_count}", {
+            "input_tokens": 20 + call_count,
+            "output_tokens": 3,
+            "cached_tokens": 0,
+        }
+
+    logged_usages: list[dict[str, int]] = []
+
+    def fake_log_advisor_call(*, model: str, usage: dict[str, int], game_id: str) -> dict[str, object]:
+        assert model
+        assert game_id == "ui_selected_pokemon_v0_6"
+        logged_usages.append(usage)
+        return {"mocked": True, "call_index": len(logged_usages)}
+
+    def run_fake_ui_advice(turn_pipeline_enabled: bool | None) -> tuple[str, dict[str, int], dict[str, object]]:
+        fake_ui_state = SimpleNamespace(turn_pipeline_enabled=turn_pipeline_enabled)
+        if fake_ui_state.turn_pipeline_enabled is None:
+            captured_flags.append(None)
+            status_texts.append("")
+            return advisor_client.run_ui_selected_advice(payload)
+
+        captured_flags.append(fake_ui_state.turn_pipeline_enabled)
+        if fake_ui_state.turn_pipeline_enabled:
+            status_texts.append("턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님")
+        else:
+            status_texts.append("")
+        return advisor_client.run_ui_selected_advice(
+            payload,
+            enable_turn_pipeline=fake_ui_state.turn_pipeline_enabled,
+        )
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", fake_log_advisor_call)
+
+    default_result = run_fake_ui_advice(None)
+    flag_off_result = run_fake_ui_advice(False)
+    flag_on_result = run_fake_ui_advice(True)
+
+    assert call_count == 3
+    assert len(captured_prompts) == 3
+    assert len(logged_usages) == 3
+    assert captured_flags == [None, False, True]
+    assert default_result[0] == "ui mock recommendation 1"
+    assert flag_off_result[0] == "ui mock recommendation 2"
+    assert flag_on_result[0] == "ui mock recommendation 3"
+
+    default_prompt, flag_off_prompt, flag_on_prompt = captured_prompts
+    default_payload = json.loads(default_prompt.rsplit("\n\n", 1)[1])
+    flag_off_payload = json.loads(flag_off_prompt.rsplit("\n\n", 1)[1])
+    flag_on_payload = json.loads(flag_on_prompt.rsplit("\n\n", 1)[1])
+
+    for prompt, prompt_payload, status_text in (
+        (default_prompt, default_payload, status_texts[0]),
+        (flag_off_prompt, flag_off_payload, status_texts[1]),
+    ):
+        assert "turn_pipeline" not in prompt_payload
+        assert '"turn_pipeline"' not in prompt
+        assert "candidate events are not resolved outcomes" not in prompt
+        assert "limited planning/debug summary only, not full turn simulation" not in prompt
+        assert "턴 이벤트 후보 포함됨" not in status_text
+
+    assert flag_off_payload == default_payload
+    assert flag_off_prompt == default_prompt
+
+    assert flag_on_payload["turn_pipeline"]["simulated"] == "limited"
+    assert "candidate events are not resolved outcomes" in flag_on_prompt
+    assert "limited planning/debug summary only, not full turn simulation" in flag_on_prompt
+    assert "item consumption" in flag_on_prompt
+    assert "exact post-turn HP" in flag_on_prompt
+    assert "턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님" in status_texts[2]
+    assert [event["item_id"] for event in flag_on_payload["turn_pipeline"]["events"]] == [
+        "light-ball",
+        "quick-claw",
+        "focus-sash",
+        "chilan-berry",
+    ]
+
+    for context_key in (
+        "damage_estimate",
+        "ko_context",
+        "species_stat_item_context",
+        "speed_order_context",
+        "survival_context",
+        "chilan_berry_context",
+    ):
+        assert context_key in default_payload["moves"]["my_selected_move"]
+        assert context_key in flag_on_payload["moves"]["my_selected_move"]
+        assert (
+            flag_on_payload["moves"]["my_selected_move"][context_key]
+            == default_payload["moves"]["my_selected_move"][context_key]
+        )
+
+    panel_source = inspect.getsource(LLMAdvicePanel)
+    worker_source = inspect.getsource(MainWindow._start_llm_advice)
+    assert "QCheckBox" not in panel_source
+    assert "enable_turn_pipeline" not in panel_source
+    assert "enable_turn_pipeline" not in worker_source
+
+
 def test_turn_pipeline_dry_run_does_not_add_ui_checkbox_or_worker_flag() -> None:
     panel_source = inspect.getsource(LLMAdvicePanel)
     worker_source = inspect.getsource(MainWindow._start_llm_advice)

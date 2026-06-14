@@ -1,5 +1,50 @@
 # Master Ball Advisor — Progress
 
+## v6.17 - Controlled UI Mock Smoke
+
+Purpose:
+- Verify future UI flag on/off behavior at mock level without implementing UI.
+- Keep actual Gemini, provider/network, and Vertex AI calls disabled.
+
+Mock strategy:
+- Uses a fake UI state object instead of real widgets.
+- `turn_pipeline_enabled=None` represents current default behavior.
+- `turn_pipeline_enabled=False` represents an unchecked future flag.
+- `turn_pipeline_enabled=True` represents a checked future flag.
+- Monkeypatches `advisor_client.call_gemini` and `_log_advisor_call`.
+
+Verified:
+- Default omitted-flag path has no top-level `turn_pipeline` and no prompt guard.
+- Flag-off path passes `enable_turn_pipeline=False` and matches the default prompt/payload.
+- Flag-on path passes `enable_turn_pipeline=True`, includes limited `turn_pipeline`, and includes candidate / not-resolved / not-full-simulation guard text.
+- Fake enabled status can show `턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님`.
+- Existing `damage_estimate`, `ko_context`, and item contexts remain present.
+- `LLMAdvicePanel` still has no `QCheckBox`, no layout change, and no `enable_turn_pipeline` wiring.
+
+Recommended next:
+- v6.18 UI Dev Flag Implementation if T1 explicitly approves UI implementation.
+- Safe alternative: v6.18 Final Pre-UI Integration Review.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No external network/provider call.
+- No UI checkbox implementation.
+- No `LLMAdvicePanel` layout modification.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.16 - UI Exposure Test Plan
 
 Purpose:
