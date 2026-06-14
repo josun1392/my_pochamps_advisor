@@ -1,5 +1,54 @@
 # Master Ball Advisor — Progress
 
+## v6.21 - TurnPipeline UI Phase Closure
+
+Purpose:
+- Close the TurnPipeline UI phase after the v6.20 controlled UI Gemini smoke PASS.
+- Document the current feature state, safety boundary, known limitations, and next major direction.
+
+Current feature state:
+- The UI dev flag label is `턴 이벤트 후보 포함`.
+- The checkbox defaults unchecked and has no persisted auto-enable.
+- Off path preserves existing advice behavior.
+- On path passes `enable_turn_pipeline=True`.
+- Top-level `turn_pipeline` remains limited-only.
+- Prompt guard states that candidate events are not resolved outcomes and not full turn simulation.
+- The UI-enabled Gemini smoke passed once with exactly one call, no retry, no Vertex AI, and no stop condition.
+
+Safety boundary:
+- Current behavior adds limited turn event candidates, known modifiers, and limited planning/debug context to LLM advice.
+- Existing `damage_estimate`, `ko_context`, and item contexts remain the core advice primitives.
+- Full Turn Engine, exact turn order, speed tie/RNG resolution, item consumption, post-turn HP update, exact trigger resolution, and opponent set inference are not implemented.
+
+Known issue:
+- `test_item_damage_calculation_under_point_12ms_average` remains timing-sensitive in some full-suite/order-dependent runs.
+- Threshold / skip / xfail were not changed.
+- Final green reruns remain the push-readiness signal while instability is recorded.
+
+Recommended next:
+- v7.0 Turn Engine Roadmap / Scope Split.
+- Safe alternative: v7.0 Battle State / Opponent Move Context Expansion.
+- Do scope/design first; do not start full Turn Engine implementation directly.
+
+Safety:
+- No production code implementation.
+- No actual Gemini call.
+- No Vertex AI call.
+- No UI checkbox behavior change.
+- No user-facing advice button behavior change.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.20 - Controlled UI Gemini Smoke
 
 Purpose:
