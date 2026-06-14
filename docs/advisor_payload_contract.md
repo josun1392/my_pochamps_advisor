@@ -129,6 +129,8 @@ v6.6 adds a no-actual-Gemini dry-run flag near the UI-selected advice flow. `run
 
 v6.8 locks the TurnPipeline payload shape with plain pytest dictionary assertions. Default, explicit-off, and `turn_pipeline=None` paths must omit top-level `turn_pipeline` and preserve the same payload shape. Explicit limited `TurnPipelineResult` or equivalent mapping input may add top-level `turn_pipeline`, with `simulated="limited"`, stable event ordering, required limitations, and conditional prompt guard wording. `damage_estimate`, `ko_context`, and existing item contexts remain present and unchanged. No external snapshot dependency or large golden JSON file is required.
 
+v6.13 locks TurnPipeline prompt copy with plain pytest assertions. When `turn_pipeline` is absent, the TurnPipeline guard and UI copy labels remain absent. When `turn_pipeline` is present, prompt anchors must preserve limited planning/debug summary wording, candidate / not-resolved event wording, no full turn simulation wording, and conflict policy with `damage_estimate`, `ko_context`, and existing item contexts. Tests also protect against resolved-outcome wording such as guaranteed activation, consumed items, final HP, full turn simulation result, or resolved speed ties. The v6.12 UI copy labels remain design-only and are not wired into the UI.
+
 ## Current Payload Shape
 
 Top-level sections:

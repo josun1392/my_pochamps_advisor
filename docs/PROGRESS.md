@@ -1,5 +1,42 @@
 # Master Ball Advisor — Progress
 
+## v6.13 - Prompt Copy Test Fixtures
+
+Purpose:
+- Lock v6.12 TurnPipeline prompt / UX copy rules with fixture-level tests.
+- Avoid brittle full-prompt snapshots and external snapshot dependencies.
+
+Tests:
+- No-`turn_pipeline` prompts omit TurnPipeline guard anchors and design-only UI copy.
+- Explicit `turn_pipeline` prompts include limited planning/debug summary wording.
+- Explicit `turn_pipeline` prompts keep candidate events as not-resolved outcomes.
+- Prompt anchors forbid resolved-outcome meanings such as guaranteed activation, consumed items, final HP, full turn simulation result, or resolved speed tie.
+- UI copy labels remain design-only and are not wired into `LLMAdvicePanel`.
+
+Recommended next:
+- v6.14 UI Exposure Design.
+- Alternative: v6.14 Offline End-to-End Advice Fixture.
+- UI Dev Flag Implementation requires explicit T1 approval.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No UI checkbox implementation.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No external snapshot dependency.
+- No token-log commit/reset.
+
+---
+
 ## v6.12 - TurnPipeline Prompt / UX Copy Design
 
 Purpose:

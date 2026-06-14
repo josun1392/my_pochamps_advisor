@@ -379,6 +379,62 @@ def test_turn_pipeline_prompt_includes_limitations_and_no_engine_guard() -> None
     assert "replacement for damage_estimate, ko_context, or existing item contexts" in prompt
 
 
+def test_turn_pipeline_absent_prompt_omits_prompt_copy_guard_anchors() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    prompt = _build_ui_selected_prompt(payload)
+
+    assert '"turn_pipeline"' not in prompt
+    assert "limited planning/debug summary only, not full turn simulation" not in prompt
+    assert "candidate events are not resolved outcomes" not in prompt
+    assert "Do not claim RNG resolution" not in prompt
+    assert "exact post-turn HP" not in prompt
+    assert "exact item trigger result" not in prompt
+    assert "replacement for damage_estimate, ko_context, or existing item contexts" not in prompt
+    assert "Candidate Turn Events" not in prompt
+    assert "Limited Turn Context" not in prompt
+    assert "턴 이벤트 후보" not in prompt
+    assert "제한적 턴 판단 보조" not in prompt
+
+
+def test_turn_pipeline_prompt_copy_guard_locks_allowed_and_forbidden_meanings() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    prompt = _build_ui_selected_prompt(payload, turn_pipeline=_sample_turn_pipeline())
+
+    allowed_meaning_anchors = (
+        "limited planning/debug summary",
+        "candidate or known-modifier context",
+        "candidate events are not resolved outcomes",
+        "not full turn simulation",
+    )
+    for anchor in allowed_meaning_anchors:
+        assert anchor in prompt
+
+    required_do_not_claim_anchors = (
+        "Do not claim RNG resolution",
+        "item consumption",
+        "exact post-turn HP",
+        "guaranteed move order",
+        "exact item trigger result",
+        "speed tie resolution",
+    )
+    for anchor in required_do_not_claim_anchors:
+        assert anchor in prompt
+
+    forbidden_resolved_outcome_phrases = (
+        "will activate",
+        "will be consumed",
+        "post-turn HP will be",
+        "full turn simulation shows",
+        "speed tie is resolved",
+        "guaranteed activation",
+    )
+    rendered = prompt.lower()
+    for phrase in forbidden_resolved_outcome_phrases:
+        assert phrase not in rendered
+
+
 def test_turn_pipeline_guard_known_limitations_include_conflict_policy() -> None:
     assert (
         "turn_pipeline does not replace damage_estimate, ko_context, or existing item contexts."
@@ -581,6 +637,8 @@ def test_turn_pipeline_dry_run_does_not_add_ui_checkbox_or_worker_flag() -> None
     assert "QCheckBox" not in panel_source
     assert "enable_turn_pipeline" not in panel_source
     assert "enable_turn_pipeline" not in worker_source
+    assert "턴 이벤트 후보 포함" not in panel_source
+    assert "Candidate Turn Events" not in panel_source
 
 
 def test_turn_pipeline_payload_snapshot_lockdown_default_off_and_explicit_on() -> None:
