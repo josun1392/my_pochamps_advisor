@@ -1,5 +1,54 @@
 # Master Ball Advisor — Progress
 
+## v6.18 - UI Dev Flag Implementation
+
+Purpose:
+- Add a default-off developer UI flag for including limited TurnPipeline candidate events in advice.
+- Keep the existing advice button behavior unchanged when the flag is off.
+
+UI:
+- Adds `턴 이벤트 후보 포함` checkbox to `LLMAdvicePanel`.
+- Checkbox defaults unchecked.
+- Tooltip states this is not full turn simulation and does not resolve RNG, item consumption, post-turn HP, speed ties, or exact triggers.
+- Enabled status copy: `턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님`.
+
+Flow:
+- Off path passes `enable_turn_pipeline=False`.
+- On path passes `enable_turn_pipeline=True`.
+- `LLMAdviceWorker` still defaults to `enable_turn_pipeline=False`.
+- Checkbox toggle alone does not emit advice requests or call Gemini.
+- No persisted auto-enable or saved setting was added.
+
+Verified:
+- Default unchecked widget state.
+- Tooltip/status copy.
+- Toggle no-call behavior.
+- Worker/main-window flag wiring.
+- Mocked default/off/on advice paths remain no-provider-call tests.
+
+Recommended next:
+- v6.19 UI Dev Flag Smoke / Manual QA.
+- Actual Gemini call remains disabled unless T1 approves a controlled one-call smoke.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No external network/provider call.
+- No saved setting auto-enable.
+- No checkbox-toggle Gemini call.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.17 - Controlled UI Mock Smoke
 
 Purpose:

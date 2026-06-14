@@ -74,14 +74,18 @@ class LLMAdviceWorker(QObject):
     finished = Signal(str, dict)
     failed = Signal(str)
 
-    def __init__(self, battle_input: dict) -> None:
+    def __init__(self, battle_input: dict, *, enable_turn_pipeline: bool = False) -> None:
         super().__init__()
         self._battle_input = battle_input
+        self._enable_turn_pipeline = enable_turn_pipeline
 
     @Slot()
     def run(self) -> None:
         try:
-            recommendation, usage, summary = run_ui_selected_advice(self._battle_input)
+            recommendation, usage, summary = run_ui_selected_advice(
+                self._battle_input,
+                enable_turn_pipeline=self._enable_turn_pipeline,
+            )
         except requests.Timeout:
             self.failed.emit("\uC694\uCCAD \uC2DC\uAC04\uC774 \uCD08\uACFC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.")
             return
@@ -312,10 +316,15 @@ class MainWindow(QMainWindow):
             return
 
         panel.set_running(True)
+        enable_turn_pipeline = panel.turn_pipeline_enabled()
+        panel.set_turn_pipeline_status_enabled(enable_turn_pipeline)
         self.statusBar().showMessage("Analyzing...")
 
         self._llm_thread = QThread(self)
-        self._llm_worker = LLMAdviceWorker(battle_input)
+        self._llm_worker = LLMAdviceWorker(
+            battle_input,
+            enable_turn_pipeline=enable_turn_pipeline,
+        )
         self._llm_worker.moveToThread(self._llm_thread)
 
         self._llm_thread.started.connect(self._llm_worker.run)

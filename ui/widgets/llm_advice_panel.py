@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QFrame, QLabel, QPushButton, QTextEdit, QVBoxLayout
+from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QPushButton, QTextEdit, QVBoxLayout
+
+
+TURN_PIPELINE_HELP_TEXT = (
+    "확정 턴 시뮬레이션이 아니라, 아이템/속도/생존 가능성 같은 제한적 후보 정보를 조언에 추가합니다.\n"
+    "RNG, 아이템 소모, 턴 종료 후 HP, 스피드 타이, 정확한 발동 결과는 확정하지 않습니다."
+)
+TURN_PIPELINE_STATUS_TEXT = "턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님"
 
 
 class LLMAdvicePanel(QFrame):
@@ -19,6 +26,11 @@ class LLMAdvicePanel(QFrame):
         self.request_button = QPushButton("이번 턴 추천 받기")
         self.request_button.clicked.connect(self.advice_requested.emit)
 
+        self.turn_pipeline_checkbox = QCheckBox("턴 이벤트 후보 포함")
+        self.turn_pipeline_checkbox.setObjectName("turnPipelineDevFlag")
+        self.turn_pipeline_checkbox.setToolTip(TURN_PIPELINE_HELP_TEXT)
+        self.turn_pipeline_checkbox.toggled.connect(self.set_turn_pipeline_status_enabled)
+
         self.output_edit = QTextEdit()
         self.output_edit.setReadOnly(True)
         font = QFont("Consolas", 10)
@@ -29,13 +41,26 @@ class LLMAdvicePanel(QFrame):
         self.cost_label = QLabel("비용: 아직 호출 없음")
         self.cost_label.setObjectName("llmCostLabel")
 
+        self.turn_pipeline_status_label = QLabel(TURN_PIPELINE_STATUS_TEXT)
+        self.turn_pipeline_status_label.setObjectName("turnPipelineStatusLabel")
+        self.turn_pipeline_status_label.setVisible(False)
+
         layout.addWidget(self.request_button)
+        layout.addWidget(self.turn_pipeline_checkbox)
+        layout.addWidget(self.turn_pipeline_status_label)
         layout.addWidget(self.output_edit, 1)
         layout.addWidget(self.cost_label)
         self.setStyleSheet(self._build_stylesheet())
 
+    def turn_pipeline_enabled(self) -> bool:
+        return self.turn_pipeline_checkbox.isChecked()
+
+    def set_turn_pipeline_status_enabled(self, enabled: bool) -> None:
+        self.turn_pipeline_status_label.setVisible(enabled)
+
     def set_running(self, is_running: bool) -> None:
         self.request_button.setDisabled(is_running)
+        self.turn_pipeline_checkbox.setDisabled(is_running)
         if is_running:
             self.output_edit.setPlainText("분석 중...")
             self.cost_label.setText("비용: 분석 중...")
@@ -82,5 +107,15 @@ class LLMAdvicePanel(QFrame):
             QLabel#llmCostLabel {
                 color: #45566B;
                 font-size: 11px;
+            }
+            QCheckBox#turnPipelineDevFlag {
+                color: #334155;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            QLabel#turnPipelineStatusLabel {
+                color: #7A4E00;
+                font-size: 11px;
+                font-weight: 600;
             }
         """

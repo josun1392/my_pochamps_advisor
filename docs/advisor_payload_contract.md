@@ -133,6 +133,8 @@ v6.13 locks TurnPipeline prompt copy with plain pytest assertions. When `turn_pi
 
 v6.15 adds an offline end-to-end advice fixture for the TurnPipeline path. The fixture uses `run_ui_selected_advice(...)` with `call_gemini` and token logging patched in memory, then compares default-off and explicit-on prompts. Default-off prompts omit top-level `turn_pipeline` and omit the TurnPipeline guard. Explicit-on prompts include `turn_pipeline.simulated == "limited"`, candidate / not-resolved guard wording, and unchanged `damage_estimate`, `ko_context`, and item contexts. No actual Gemini, Vertex AI, or external provider call is made.
 
+v6.18 adds a default-off developer UI flag in `LLMAdvicePanel` for this explicit path. The checkbox label is `턴 이벤트 후보 포함`, starts unchecked, has no persisted auto-enable setting, and only passes `enable_turn_pipeline=True` when the user checks it before pressing the existing advice button. Toggling the checkbox alone does not call Gemini, does not call Vertex AI, and does not generate a payload. When unchecked, `run_ui_selected_advice(...)` receives `enable_turn_pipeline=False` and the payload/prompt remains the default-off shape without top-level `turn_pipeline` or the TurnPipeline prompt guard.
+
 ## Current Payload Shape
 
 Top-level sections:

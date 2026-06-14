@@ -42,9 +42,10 @@ from tests.test_advisor_damage_estimate import (
     _tackle,
     _user_final_stats,
 )
-from ui.main_window import MainWindow
+from ui.main_window import LLMAdviceWorker, MainWindow
 from ui.widgets.item_profile_dialog import item_profile_from_option, legal_item_options_from_repository
-from ui.widgets.llm_advice_panel import LLMAdvicePanel
+from ui.widgets.llm_advice_panel import LLMAdvicePanel, TURN_PIPELINE_HELP_TEXT, TURN_PIPELINE_STATUS_TEXT
+from PySide6.QtWidgets import QApplication
 
 
 UNAVAILABLE_ITEM_ADVICE_PAYLOAD_FORBIDDEN_TERMS = (
@@ -838,19 +839,84 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
 
     panel_source = inspect.getsource(LLMAdvicePanel)
     worker_source = inspect.getsource(MainWindow._start_llm_advice)
-    assert "QCheckBox" not in panel_source
-    assert "enable_turn_pipeline" not in panel_source
-    assert "enable_turn_pipeline" not in worker_source
+    assert "QCheckBox" in panel_source
+    assert "turn_pipeline_checkbox" in panel_source
+    assert "enable_turn_pipeline" in worker_source
 
 
-def test_turn_pipeline_dry_run_does_not_add_ui_checkbox_or_worker_flag() -> None:
+def test_turn_pipeline_dev_flag_widget_defaults_off_and_does_not_auto_call() -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    panel = LLMAdvicePanel()
+    emitted = 0
+
+    def record_advice_request() -> None:
+        nonlocal emitted
+        emitted += 1
+
+    panel.advice_requested.connect(record_advice_request)
+
+    assert panel.turn_pipeline_enabled() is False
+    assert panel.turn_pipeline_checkbox.isChecked() is False
+    assert panel.turn_pipeline_checkbox.text() == "턴 이벤트 후보 포함"
+    assert panel.turn_pipeline_checkbox.toolTip() == TURN_PIPELINE_HELP_TEXT
+    assert "확정 턴 시뮬레이션이 아니라" in panel.turn_pipeline_checkbox.toolTip()
+    assert "RNG" in panel.turn_pipeline_checkbox.toolTip()
+    assert "아이템 소모" in panel.turn_pipeline_checkbox.toolTip()
+    assert "턴 종료 후 HP" in panel.turn_pipeline_checkbox.toolTip()
+    assert "스피드 타이" in panel.turn_pipeline_checkbox.toolTip()
+    assert "정확한 발동 결과" in panel.turn_pipeline_checkbox.toolTip()
+    assert panel.turn_pipeline_status_label.text() == TURN_PIPELINE_STATUS_TEXT
+    assert panel.turn_pipeline_status_label.isHidden() is True
+
+    panel.turn_pipeline_checkbox.setChecked(True)
+
+    assert panel.turn_pipeline_enabled() is True
+    assert panel.turn_pipeline_status_label.isHidden() is False
+    assert emitted == 0
+
+    panel.turn_pipeline_checkbox.setChecked(False)
+
+    assert panel.turn_pipeline_enabled() is False
+    assert panel.turn_pipeline_status_label.isHidden() is True
+    assert emitted == 0
+
+
+def test_turn_pipeline_dev_flag_is_default_off_and_wired_only_through_advice_request() -> None:
+    panel_source = inspect.getsource(LLMAdvicePanel)
+    worker_init_source = inspect.getsource(MainWindow.__dict__["_start_llm_advice"])
+    worker_source = inspect.getsource(MainWindow.__dict__["_start_llm_advice"])
+    llm_worker_source = inspect.getsource(LLMAdviceWorker)
+
+    assert "QCheckBox" in panel_source
+    assert "턴 이벤트 후보 포함" in panel_source
+    assert "setToolTip(TURN_PIPELINE_HELP_TEXT)" in panel_source
+    assert "setChecked(True)" not in panel_source
+    assert "turn_pipeline_checkbox.toggled.connect(self.set_turn_pipeline_status_enabled)" in panel_source
+    assert "advice_requested.emit" in panel_source
+    assert "call_gemini" not in panel_source
+
+    assert "enable_turn_pipeline = panel.turn_pipeline_enabled()" in worker_init_source
+    assert "enable_turn_pipeline=enable_turn_pipeline" in worker_source
+    assert "enable_turn_pipeline: bool = False" in llm_worker_source
+    assert "run_ui_selected_advice(" in llm_worker_source
+    assert "call_gemini" not in worker_source
+
+
+def test_turn_pipeline_dev_flag_does_not_persist_auto_enable() -> None:
     panel_source = inspect.getsource(LLMAdvicePanel)
     worker_source = inspect.getsource(MainWindow._start_llm_advice)
 
-    assert "QCheckBox" not in panel_source
-    assert "enable_turn_pipeline" not in panel_source
-    assert "enable_turn_pipeline" not in worker_source
-    assert "턴 이벤트 후보 포함" not in panel_source
+    persisted_auto_enable_terms = (
+        "QSettings",
+        "settings.setValue",
+        "settings.value",
+        "setChecked(True)",
+        "turn_pipeline_enabled=True",
+    )
+    for term in persisted_auto_enable_terms:
+        assert term not in panel_source
+        assert term not in worker_source
     assert "Candidate Turn Events" not in panel_source
 
 
