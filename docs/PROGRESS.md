@@ -1,5 +1,65 @@
 # Master Ball Advisor — Progress
 
+## v6.7 - TurnPipeline Advice Flow Closure / Stability Report
+
+Purpose:
+- Close the current TurnPipeline advice-flow dry-run phase.
+- Record what is connected, what remains default-off, and what still must not be treated as full simulation.
+- Document the repeated timing-sensitive perf instability separately from TurnPipeline behavior.
+
+Closed phase:
+- v5.3 Item Context -> TurnEvent mapper.
+- v5.4 mapper fixture coverage.
+- v5.5 TurnPipelineResult fixture helper.
+- v5.6 TurnPipeline debug report / dry-run.
+- v5.7 payload exposure design.
+- v5.8 optional top-level `turn_pipeline` payload adapter.
+- v5.9 prompt/contract guard.
+- v6.0 minimal integration design.
+- v6.1 explicit generation adapter.
+- v6.2 explicit payload smoke.
+- v6.3 UI/advice integration design.
+- v6.4 explicit advice payload builder smoke.
+- v6.5 explicit advice flow integration design.
+- v6.6 advice-flow dry-run with mocked `call_gemini`.
+
+Current safety boundary:
+- Explicit `enable_turn_pipeline=True` plus mocked/dry-run path can generate limited `turn_pipeline`.
+- Optional top-level payload insertion is available.
+- Prompt guard present/absent behavior is covered.
+- Default UI advice behavior remains off.
+- No UI checkbox and no user-facing advice button automatic enablement.
+
+Known perf instability:
+- `test_item_damage_calculation_under_point_12ms_average` can intermittently exceed the `0.120000ms` threshold in full-suite or ordering-sensitive runs.
+- Isolated target and `tests/test_damage_perf.py -q` generally pass.
+- No threshold, skip, xfail, formula, raw roll, Q12, or `ko_context` change was made.
+
+Recommended next:
+- v6.8 Payload Snapshot Lockdown.
+- Lock default/off/on payload and prompt shapes without actual Gemini calls.
+- Defer Controlled Gemini Smoke until after snapshot lockdown.
+- Do not add UI checkbox yet.
+
+Safety:
+- Documentation-only closure report.
+- No production code implementation.
+- No actual Gemini call.
+- No Vertex AI call.
+- No UI checkbox implementation.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+
+---
+
 ## v6.6 - Explicit TurnPipeline Advice Flow Dry-run
 
 Purpose:
