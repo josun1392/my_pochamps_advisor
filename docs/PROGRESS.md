@@ -1,5 +1,66 @@
 # Master Ball Advisor — Progress
 
+## v6.10 - Controlled Gemini Smoke Execution
+
+Purpose:
+- Execute one controlled actual Gemini smoke for the explicit-on TurnPipeline payload path.
+- Verify Gemini does not treat `turn_pipeline` as full simulation or resolved battle truth.
+
+Smoke:
+- Fixture: explicit-on `turn_pipeline` payload fixture.
+- Actual Gemini calls: 1.
+- Automatic retries: none.
+- Vertex AI calls: none.
+- Stop condition: none.
+
+Result:
+- Classification: PASS.
+- Response treated the damage estimate as default-assumption and not final battle damage.
+- Quick Claw was phrased as possible move-order influence, not guaranteed activation.
+- Focus Sash was phrased as possible survival, not guaranteed consumption or resolved survival.
+- Chilan Berry was conditional and not relevant to Flamethrower.
+- No full turn simulation claim.
+- No item consumption claim.
+- No exact post-turn HP claim.
+- No RNG, speed tie, or exact trigger resolution claim.
+- No conflict with `damage_estimate` or `ko_context`.
+
+Note:
+- The synthetic fixture allowed an awkward Light Ball-on-Charizard mention; Gemini said the effect was not applied in the Charizard damage estimate.
+- This was not a TurnPipeline safety failure, but a future fixture can avoid that synthetic-context mismatch.
+
+Verification:
+- Pre-call `uv run pytest tests/test_advisor_payload_contract.py -q`: 78 passed.
+- Pre-call `uv run pytest tests/test_advisor_turn_events.py -q`: 27 passed.
+- Pre-call `uv run pytest tests/test_turn_event.py -q`: 15 passed.
+- Pre-call `uv run pytest tests/test_advisor_damage_estimate.py -q`: 96 passed.
+- Pre-call `uv run pytest tests/test_damage_perf.py -q`: 4 passed.
+- Post-call `uv run pytest tests/test_advisor_payload_contract.py -q`: 78 passed.
+- Post-call `uv run pytest tests/test_advisor_turn_events.py -q`: 27 passed.
+- Post-call `uv run pytest -q`: 1008 passed, 2 deselected.
+
+Safety:
+- No retry.
+- No Vertex AI call.
+- No UI checkbox implementation.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+Next:
+- v6.11 Controlled Gemini Smoke Closure / Next UI Exposure Design.
+- Decide whether to remain dev-only, design UI exposure, or improve the fixture offline before any UI checkbox.
+
+---
+
 ## v6.9 - TurnPipeline Controlled Gemini Smoke Design
 
 Purpose:
