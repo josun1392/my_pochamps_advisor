@@ -135,6 +135,30 @@ v6.15 adds an offline end-to-end advice fixture for the TurnPipeline path. The f
 
 v6.18 adds a default-off developer UI flag in `LLMAdvicePanel` for this explicit path. The checkbox label is `턴 이벤트 후보 포함`, starts unchecked, has no persisted auto-enable setting, and only passes `enable_turn_pipeline=True` when the user checks it before pressing the existing advice button. Toggling the checkbox alone does not call Gemini, does not call Vertex AI, and does not generate a payload. When unchecked, `run_ui_selected_advice(...)` receives `enable_turn_pipeline=False` and the payload/prompt remains the default-off shape without top-level `turn_pipeline` or the TurnPipeline prompt guard.
 
+## Turn Order Context Contract Draft
+
+v7.2 defines a fixture-level payload contract for a future optional `turn_order_context` section. No runtime payload adapter is added in v7.2.
+
+The draft context is deterministic and limited:
+
+- `kind` must be `deterministic_turn_order_context`
+- `confidence` may be `limited` or `unknown`
+- `priority.priority_relation` may be `own_higher_priority`, `opponent_higher_priority`, `same_priority`, or `unknown`
+- `speed.speed_relation` may be `own_faster_by_base_speed`, `opponent_faster_by_base_speed`, `equal_base_speed_tie_candidate`, `own_faster_by_confirmed_final_speed`, `opponent_faster_by_confirmed_final_speed`, `equal_confirmed_final_speed_tie_candidate`, `unknown_due_to_missing_speed_data`, or `unknown_due_to_missing_priority_or_move`
+- `order_hint` may be `own_likely_before_opponent_if_same_priority`, `opponent_likely_before_own_if_same_priority`, `priority_overrides_speed`, `tie_or_unknown`, or `unknown`
+- `candidate_modifiers[*].resolved` must be `false`
+- `unsupported` must include unresolved boundaries such as speed tie resolution, RNG item activation, exact final order, item consumption, and post-turn HP update when applicable
+
+The context must not include fields that imply resolved outcomes, including `final_order_resolved`, `item_consumed`, `post_turn_hp`, `speed_tie_resolved`, or `rng_item_activated`.
+
+Prompt safety wording for future integration:
+
+- This turn order context is limited planning context, not a resolved move order.
+- Do not claim speed ties are resolved.
+- Do not claim RNG items activate.
+- Do not claim exact final order unless explicitly provided.
+- Do not infer item consumption or post-turn HP from this context.
+
 ## Current Payload Shape
 
 Top-level sections:

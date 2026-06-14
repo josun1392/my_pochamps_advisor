@@ -1,5 +1,48 @@
 # Master Ball Advisor — Progress
 
+## v7.2 - Turn Order Context Payload Contract
+
+Purpose:
+- Lock the deterministic turn order context payload contract before helper implementation.
+- Keep the contract fixture-level only; no runtime top-level payload adapter is added yet.
+
+Contract:
+- Future optional key: `turn_order_context`.
+- `kind`: `deterministic_turn_order_context`.
+- `confidence`: `limited` or `unknown`.
+- Allowed `priority_relation`, `speed_relation`, and `order_hint` values avoid final-order wording.
+- Candidate modifiers must use `resolved=False`.
+- Unsupported boundaries include speed tie resolution, RNG item activation, exact final order, item consumption, and post-turn HP update.
+
+Tests:
+- Added plain pytest fixture assertions in `tests/test_advisor_payload_contract.py`.
+- Tests reject non-allowed classification values.
+- Tests reject resolved-outcome fields such as `final_order_resolved`, `item_consumed`, and `post_turn_hp`.
+- Tests lock prompt safety copy anchors.
+
+Recommended next:
+- v7.3 Deterministic Turn Order Context Helper.
+- Keep helper scope to base Speed / confirmed final Speed / priority / unknown relation handling.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No resolved turn order.
+- No speed tie resolver.
+- No RNG resolver.
+- No item consumption.
+- No post-turn HP update.
+- No opponent set inference.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v7.1 - Deterministic Turn Order Context Design
 
 Purpose:

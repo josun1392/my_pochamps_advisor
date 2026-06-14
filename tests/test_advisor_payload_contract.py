@@ -460,6 +460,90 @@ def test_turn_pipeline_does_not_change_damage_ko_or_item_context_payload() -> No
     assert pipeline_payload_without_turn_pipeline == base_payload
 
 
+def test_turn_order_context_contract_fixture_locks_allowed_values_and_boundaries() -> None:
+    context = _sample_turn_order_context()
+
+    _assert_turn_order_context_contract(context)
+
+    assert context["kind"] == "deterministic_turn_order_context"
+    assert context["confidence"] == "limited"
+    assert context["priority"]["priority_relation"] == "unknown"
+    assert context["speed"]["speed_relation"] == "own_faster_by_base_speed"
+    assert context["order_hint"] == "own_likely_before_opponent_if_same_priority"
+    assert context["candidate_modifiers"] == [
+        {
+            "source": "Quick Claw",
+            "effect": "may alter move order",
+            "resolved": False,
+        }
+    ]
+    assert "speed tie resolution" in context["unsupported"]
+    assert "RNG item activation" in context["unsupported"]
+    assert "exact final order" in context["unsupported"]
+    assert "item consumption" in context["unsupported"]
+    assert "post-turn HP update" in context["unsupported"]
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("confidence",), "resolved"),
+        (("priority", "priority_relation"), "will_move_first"),
+        (("speed", "speed_relation"), "speed_tie_resolved"),
+        (("order_hint",), "own_will_move_first"),
+    ],
+)
+def test_turn_order_context_contract_rejects_non_allowed_classification_values(
+    path: tuple[str, ...],
+    value: str,
+) -> None:
+    context = _sample_turn_order_context()
+    target = context
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+
+    with pytest.raises(AssertionError):
+        _assert_turn_order_context_contract(context)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [
+        ("final_order_resolved", True),
+        ("item_consumed", True),
+        ("post_turn_hp", 51),
+        ("speed_tie_resolved", True),
+        ("rng_item_activated", True),
+    ],
+)
+def test_turn_order_context_contract_forbids_resolved_outcome_fields(field_name: str, field_value: object) -> None:
+    context = _sample_turn_order_context()
+    context[field_name] = field_value
+
+    with pytest.raises(AssertionError):
+        _assert_turn_order_context_contract(context)
+
+
+def test_turn_order_context_contract_forbids_resolved_candidate_modifiers() -> None:
+    context = _sample_turn_order_context()
+    context["candidate_modifiers"][0]["resolved"] = True
+
+    with pytest.raises(AssertionError):
+        _assert_turn_order_context_contract(context)
+
+
+def test_turn_order_context_contract_prompt_safety_copy_anchors() -> None:
+    safety_copy = _turn_order_context_prompt_safety_copy()
+
+    assert "limited planning context" in safety_copy
+    assert "not a resolved move order" in safety_copy
+    assert "Do not claim speed ties are resolved" in safety_copy
+    assert "Do not claim RNG items activate" in safety_copy
+    assert "Do not claim exact final order" in safety_copy
+    assert "Do not infer item consumption or post-turn HP" in safety_copy
+
+
 def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
 
@@ -3465,6 +3549,126 @@ def _sample_turn_pipeline(*, simulated: str = "limited") -> TurnPipelineResult:
             "HP updates and exact post-turn state are not simulated.",
         ),
         simulated=simulated,
+    )
+
+
+TURN_ORDER_CONTEXT_CONFIDENCE_VALUES = frozenset({"limited", "unknown"})
+TURN_ORDER_CONTEXT_PRIORITY_RELATION_VALUES = frozenset(
+    {
+        "own_higher_priority",
+        "opponent_higher_priority",
+        "same_priority",
+        "unknown",
+    }
+)
+TURN_ORDER_CONTEXT_SPEED_RELATION_VALUES = frozenset(
+    {
+        "own_faster_by_base_speed",
+        "opponent_faster_by_base_speed",
+        "equal_base_speed_tie_candidate",
+        "own_faster_by_confirmed_final_speed",
+        "opponent_faster_by_confirmed_final_speed",
+        "equal_confirmed_final_speed_tie_candidate",
+        "unknown_due_to_missing_speed_data",
+        "unknown_due_to_missing_priority_or_move",
+    }
+)
+TURN_ORDER_CONTEXT_ORDER_HINT_VALUES = frozenset(
+    {
+        "own_likely_before_opponent_if_same_priority",
+        "opponent_likely_before_own_if_same_priority",
+        "priority_overrides_speed",
+        "tie_or_unknown",
+        "unknown",
+    }
+)
+TURN_ORDER_CONTEXT_FORBIDDEN_FIELDS = frozenset(
+    {
+        "final_order_resolved",
+        "item_consumed",
+        "post_turn_hp",
+        "speed_tie_resolved",
+        "rng_item_activated",
+    }
+)
+TURN_ORDER_CONTEXT_REQUIRED_UNSUPPORTED = frozenset(
+    {
+        "speed tie resolution",
+        "RNG item activation",
+        "exact final order",
+        "item consumption",
+        "post-turn HP update",
+    }
+)
+
+
+def _sample_turn_order_context() -> dict:
+    return {
+        "kind": "deterministic_turn_order_context",
+        "confidence": "limited",
+        "priority": {
+            "own_move_priority": 0,
+            "opponent_move_priority": "unknown",
+            "priority_relation": "unknown",
+        },
+        "speed": {
+            "basis": "base_species_stats_only",
+            "own_base_speed": 100,
+            "opponent_base_speed": 80,
+            "speed_relation": "own_faster_by_base_speed",
+            "final_speed_known": False,
+        },
+        "order_hint": "own_likely_before_opponent_if_same_priority",
+        "tie_or_unknown": False,
+        "candidate_modifiers": [
+            {
+                "source": "Quick Claw",
+                "effect": "may alter move order",
+                "resolved": False,
+            }
+        ],
+        "unsupported": [
+            "final EV/IV/nature speed",
+            "speed tie resolution",
+            "RNG item activation",
+            "exact final order",
+            "item consumption",
+            "post-turn HP update",
+        ],
+    }
+
+
+def _assert_turn_order_context_contract(context: dict) -> None:
+    assert context["kind"] == "deterministic_turn_order_context"
+    assert context["confidence"] in TURN_ORDER_CONTEXT_CONFIDENCE_VALUES
+    assert context["priority"]["priority_relation"] in TURN_ORDER_CONTEXT_PRIORITY_RELATION_VALUES
+    assert context["speed"]["speed_relation"] in TURN_ORDER_CONTEXT_SPEED_RELATION_VALUES
+    assert context["order_hint"] in TURN_ORDER_CONTEXT_ORDER_HINT_VALUES
+    assert TURN_ORDER_CONTEXT_REQUIRED_UNSUPPORTED.issubset(set(context["unsupported"]))
+
+    for modifier in context["candidate_modifiers"]:
+        assert modifier["resolved"] is False
+
+    _assert_turn_order_context_has_no_resolved_outcome_fields(context)
+
+
+def _assert_turn_order_context_has_no_resolved_outcome_fields(value: object) -> None:
+    if isinstance(value, dict):
+        for key, child_value in value.items():
+            assert key not in TURN_ORDER_CONTEXT_FORBIDDEN_FIELDS
+            _assert_turn_order_context_has_no_resolved_outcome_fields(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _assert_turn_order_context_has_no_resolved_outcome_fields(child_value)
+
+
+def _turn_order_context_prompt_safety_copy() -> str:
+    return (
+        "This turn order context is limited planning context, not a resolved move order. "
+        "Do not claim speed ties are resolved. "
+        "Do not claim RNG items activate. "
+        "Do not claim exact final order unless explicitly provided. "
+        "Do not infer item consumption or post-turn HP from this context."
     )
 
 
