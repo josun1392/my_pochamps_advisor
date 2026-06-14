@@ -1,5 +1,65 @@
 # Master Ball Advisor — Progress
 
+## v6.11 - Controlled Gemini Smoke Closure / Next UI Exposure Design
+
+Purpose:
+- Close the v6.10 controlled Gemini smoke PASS result.
+- Record the current TurnPipeline safety boundary before any UI exposure.
+- Recommend the next safe design step.
+
+Closure:
+- v6.10 used one explicit-on `turn_pipeline` payload fixture.
+- Actual Gemini call count was 1.
+- Retry: none.
+- Stop condition: none.
+- Classification: PASS.
+- No Vertex AI call.
+- No UI checkbox.
+- No user-facing advice button automatic connection.
+
+Response safety findings:
+- Candidate wording was maintained.
+- Quick Claw remained possible / "may", not guaranteed activation.
+- Focus Sash remained possible survival, not guaranteed consumption or resolved survival.
+- No full turn simulation claim.
+- No item consumption claim.
+- No exact post-turn HP claim.
+- No RNG, speed tie, or exact trigger resolution claim.
+- Damage estimate was treated as a default-assumption estimate, not final battle damage.
+
+Current safety boundary:
+- Explicit flag paths can generate a limited `turn_pipeline`.
+- Optional top-level payload insertion is available.
+- Prompt guard present / absent behavior is covered.
+- Controlled Gemini smoke has one PASS result.
+- Default UI advice behavior remains off.
+- UI checkbox and user-facing automatic TurnPipeline enablement remain unimplemented.
+
+Recommended next:
+- v6.12 Prompt / UX Copy Design.
+- Alternative: v6.12 UI Exposure Design.
+- Do not implement a UI checkbox yet.
+
+Safety:
+- Documentation-only closure / design.
+- No actual Gemini call.
+- No Vertex AI call.
+- No production code implementation.
+- No UI checkbox implementation.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.10 - Controlled Gemini Smoke Execution
 
 Purpose:
