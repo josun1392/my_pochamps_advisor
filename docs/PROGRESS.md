@@ -1,5 +1,53 @@
 # Master Ball Advisor — Progress
 
+## v6.19 - UI Dev Flag Smoke / Manual QA
+
+Purpose:
+- Verify the v6.18 TurnPipeline dev-only UI flag with smoke / QA checks.
+- Avoid actual Gemini, Vertex AI, and external provider/network calls.
+
+QA method:
+- Instantiated `LLMAdvicePanel` directly with PySide offscreen.
+- Instantiated `MainWindow` offscreen without entering the interactive event loop.
+- Inspected checkbox state, tooltip text, status text, and toggle behavior.
+- Reused mocked pytest fixtures for default/off/on advice-flow behavior.
+
+Verified:
+- `턴 이벤트 후보 포함` checkbox appears below the advice button.
+- Checkbox defaults unchecked.
+- Tooltip/help matches v6.18 wording and says this is not full turn simulation.
+- Tooltip mentions RNG, item consumption, post-turn HP, speed ties, and exact triggers are not resolved.
+- Checkbox toggle alone does not emit `advice_requested`.
+- Off state preserves default no-`turn_pipeline` behavior.
+- On state can pass `enable_turn_pipeline=True` through existing mocked tests.
+- Enabled status copy is `턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님`.
+- No layout/copy blocking issue was observed in offscreen smoke.
+
+Recommended next:
+- v6.20 Controlled UI Gemini Smoke, only with explicit T1 approval for one actual UI Gemini call.
+- Safe no-call alternative: v6.20 TurnPipeline UI Phase Closure.
+- If interactive QA finds wording awkward, use v6.20 UI Copy Polish first.
+
+Safety:
+- No production UI logic change.
+- No actual Gemini call.
+- No Vertex AI call.
+- No external network/provider call.
+- No saved setting auto-enable.
+- No checkbox-toggle Gemini call.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.18 - UI Dev Flag Implementation
 
 Purpose:
