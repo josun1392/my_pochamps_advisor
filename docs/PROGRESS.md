@@ -1,5 +1,52 @@
 # Master Ball Advisor — Progress
 
+## v6.12 - TurnPipeline Prompt / UX Copy Design
+
+Purpose:
+- Design prompt-facing and user-facing copy for future TurnPipeline exposure.
+- Keep the UI checkbox and user-facing automatic advice connection out of scope.
+
+Design:
+- Developer / schema name remains `TurnPipeline`.
+- Recommended Korean user-facing label: `턴 이벤트 후보`.
+- Recommended Korean explanatory phrase: `제한적 턴 판단 보조`.
+- Recommended English user-facing label: `Candidate Turn Events`.
+- Recommended English explanatory phrase: `Limited Turn Context`.
+
+Recommended UI copy:
+- Label: `턴 이벤트 후보 포함`.
+- Tooltip: `확정 턴 시뮬레이션이 아니라, 아이템/속도/생존 가능성 같은 제한적 후보 정보를 조언에 추가합니다.`
+- Warning: `이 정보는 확정 턴 시뮬레이션이 아니라 제한적 판단 보조입니다. RNG, 아이템 소모, 턴 종료 후 HP, 스피드 타이, 정확한 발동 결과는 확정하지 않으며 후보 정보로만 참고하세요.`
+
+Advice copy rules:
+- Allowed: `발동할 수 있음`, `후보로 고려`, `확정은 아님`, `현재 정보 기준`, `제한적 계산 기준`, `may affect`, `candidate context`.
+- Forbidden: `반드시 발동`, `소모됨`, `턴 종료 후 HP는 X`, `완전한 턴 시뮬레이션 결과`, `스피드 타이 결과 확정`, `will activate`, `will be consumed`.
+
+Recommended next:
+- v6.13 Prompt Copy Test Fixtures.
+- Alternative: v6.13 UI Exposure Design.
+- Do not implement a UI dev flag / checkbox without explicit approval.
+
+Safety:
+- Documentation-only prompt / UX copy design.
+- No actual Gemini call.
+- No Vertex AI call.
+- No production code implementation.
+- No UI checkbox implementation.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.11 - Controlled Gemini Smoke Closure / Next UI Exposure Design
 
 Purpose:
