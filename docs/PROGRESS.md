@@ -1,5 +1,48 @@
 # Master Ball Advisor — Progress
 
+## v7.1 - Deterministic Turn Order Context Design
+
+Purpose:
+- Design a limited deterministic turn order context before any full Turn Engine work.
+- Define priority, Speed relation, unknown, and tie-candidate semantics without resolving final order.
+
+Design:
+- Inputs may include selected Pokemon, selected own move, explicitly known opponent move, trusted move priority metadata, base Speed, user-confirmed final Speed, existing `speed_context`, and Quick Claw `speed_order_context`.
+- Unknown or unconfirmed priority/Speed stays explicit as `unknown`.
+- Quick Claw and other RNG items remain unresolved candidate modifiers.
+- Output draft includes `priority`, `speed`, `order_hint`, `tie_or_unknown`, `candidate_modifiers`, and `unsupported`.
+
+Safety wording:
+- This is not resolved final move order.
+- Do not claim speed ties are resolved.
+- Do not claim RNG items activate.
+- Do not claim exact final order unless an explicit resolved engine result is provided.
+- Treat the section as limited planning context.
+
+Recommended next:
+- v7.2 Turn Order Context Payload Contract.
+- Faster alternative: v7.2 Deterministic Turn Order Context Helper.
+- No resolved-order helper should be implemented yet.
+
+Safety:
+- No production code implementation.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No resolved turn order.
+- No speed tie resolver.
+- No RNG resolver.
+- No item consumption or HP update.
+- No opponent set inference.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v7.0 - Turn Engine Roadmap / Scope Split
 
 Purpose:
