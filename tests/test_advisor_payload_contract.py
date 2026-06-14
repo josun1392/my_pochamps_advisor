@@ -630,6 +630,105 @@ def test_run_ui_selected_advice_explicit_turn_pipeline_dry_run_includes_guard(
     ]
 
 
+def test_turn_pipeline_offline_end_to_end_advice_fixture_compares_default_and_explicit_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    captured_prompts: list[str] = []
+    call_count = 0
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        nonlocal call_count
+        call_count += 1
+        assert prompt
+        assert model
+        captured_prompts.append(prompt)
+        return f"mocked recommendation {call_count}", {
+            "input_tokens": 10 + call_count,
+            "output_tokens": 2,
+            "cached_tokens": 0,
+        }
+
+    logged_usages: list[dict[str, int]] = []
+
+    def fake_log_advisor_call(*, model: str, usage: dict[str, int], game_id: str) -> dict[str, object]:
+        assert model
+        assert game_id == "ui_selected_pokemon_v0_6"
+        logged_usages.append(usage)
+        return {"patched": True, "call_index": len(logged_usages)}
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", fake_log_advisor_call)
+
+    default_recommendation, default_usage, default_summary = advisor_client.run_ui_selected_advice(payload)
+    explicit_recommendation, explicit_usage, explicit_summary = advisor_client.run_ui_selected_advice(
+        payload,
+        enable_turn_pipeline=True,
+    )
+
+    assert call_count == 2
+    assert len(captured_prompts) == 2
+    assert len(logged_usages) == 2
+    assert default_recommendation == "mocked recommendation 1"
+    assert explicit_recommendation == "mocked recommendation 2"
+    assert default_usage == {"input_tokens": 11, "output_tokens": 2, "cached_tokens": 0}
+    assert explicit_usage == {"input_tokens": 12, "output_tokens": 2, "cached_tokens": 0}
+    assert default_summary == {"patched": True, "call_index": 1}
+    assert explicit_summary == {"patched": True, "call_index": 2}
+
+    default_prompt, explicit_prompt = captured_prompts
+    default_prompt_payload = json.loads(default_prompt.rsplit("\n\n", 1)[1])
+    explicit_prompt_payload = json.loads(explicit_prompt.rsplit("\n\n", 1)[1])
+
+    assert "turn_pipeline" not in default_prompt_payload
+    assert '"turn_pipeline"' not in default_prompt
+    assert "candidate events are not resolved outcomes" not in default_prompt
+    assert "limited planning/debug summary only, not full turn simulation" not in default_prompt
+
+    assert explicit_prompt_payload["turn_pipeline"]["simulated"] == "limited"
+    assert "candidate events are not resolved outcomes" in explicit_prompt
+    assert "limited planning/debug summary only, not full turn simulation" in explicit_prompt
+    assert "Do not claim RNG resolution" in explicit_prompt
+    assert "item consumption" in explicit_prompt
+    assert "exact post-turn HP" in explicit_prompt
+    assert "exact item trigger result" in explicit_prompt
+    assert [event["item_id"] for event in explicit_prompt_payload["turn_pipeline"]["events"]] == [
+        "light-ball",
+        "quick-claw",
+        "focus-sash",
+        "chilan-berry",
+    ]
+    assert all(
+        event["status"] in {"known_modifier", "candidate"}
+        for event in explicit_prompt_payload["turn_pipeline"]["events"]
+    )
+
+    default_move = default_prompt_payload["moves"]["my_selected_move"]
+    explicit_move = explicit_prompt_payload["moves"]["my_selected_move"]
+    for context_key in (
+        "damage_estimate",
+        "ko_context",
+        "species_stat_item_context",
+        "speed_order_context",
+        "survival_context",
+        "chilan_berry_context",
+    ):
+        assert context_key in default_move
+        assert context_key in explicit_move
+        assert explicit_move[context_key] == default_move[context_key]
+
+    forbidden_resolved_claims = (
+        "will activate",
+        "will be consumed",
+        "post-turn HP will be",
+        "full turn simulation shows",
+        "speed tie is resolved",
+    )
+    rendered_explicit_prompt = explicit_prompt.lower()
+    for phrase in forbidden_resolved_claims:
+        assert phrase not in rendered_explicit_prompt
+
+
 def test_turn_pipeline_dry_run_does_not_add_ui_checkbox_or_worker_flag() -> None:
     panel_source = inspect.getsource(LLMAdvicePanel)
     worker_source = inspect.getsource(MainWindow._start_llm_advice)

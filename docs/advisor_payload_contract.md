@@ -131,6 +131,8 @@ v6.8 locks the TurnPipeline payload shape with plain pytest dictionary assertion
 
 v6.13 locks TurnPipeline prompt copy with plain pytest assertions. When `turn_pipeline` is absent, the TurnPipeline guard and UI copy labels remain absent. When `turn_pipeline` is present, prompt anchors must preserve limited planning/debug summary wording, candidate / not-resolved event wording, no full turn simulation wording, and conflict policy with `damage_estimate`, `ko_context`, and existing item contexts. Tests also protect against resolved-outcome wording such as guaranteed activation, consumed items, final HP, full turn simulation result, or resolved speed ties. The v6.12 UI copy labels remain design-only and are not wired into the UI.
 
+v6.15 adds an offline end-to-end advice fixture for the TurnPipeline path. The fixture uses `run_ui_selected_advice(...)` with `call_gemini` and token logging patched in memory, then compares default-off and explicit-on prompts. Default-off prompts omit top-level `turn_pipeline` and omit the TurnPipeline guard. Explicit-on prompts include `turn_pipeline.simulated == "limited"`, candidate / not-resolved guard wording, and unchanged `damage_estimate`, `ko_context`, and item contexts. No actual Gemini, Vertex AI, or external provider call is made.
+
 ## Current Payload Shape
 
 Top-level sections:

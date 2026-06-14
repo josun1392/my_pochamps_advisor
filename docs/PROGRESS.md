@@ -1,5 +1,49 @@
 # Master Ball Advisor — Progress
 
+## v6.15 - Offline End-to-End Advice Fixture
+
+Purpose:
+- Verify payload -> prompt -> mocked advice behavior without actual Gemini calls.
+- Compare default-off and explicit-on TurnPipeline advice paths with the same fixture.
+
+Fixture:
+- Uses `run_ui_selected_advice(...)`.
+- Monkeypatches `advisor_client.call_gemini`.
+- Monkeypatches `_log_advisor_call`.
+- Captures and parses both prompts.
+- Makes no external network/provider call.
+
+Verified:
+- Default path omits top-level `turn_pipeline` and TurnPipeline guard copy.
+- Explicit path includes top-level `turn_pipeline` with `simulated="limited"`.
+- Explicit path includes candidate / not-resolved / not-full-simulation guard wording.
+- Explicit path preserves `damage_estimate`, `ko_context`, and item contexts.
+- Resolved-outcome phrases remain absent.
+
+Recommended next:
+- v6.16 UI Exposure Test Plan.
+- Alternative: v6.16 Controlled UI Mock Smoke.
+- UI Dev Flag Implementation requires explicit T1 approval.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No external network/provider call.
+- No UI checkbox implementation.
+- No user-facing advice button automatic connection.
+- No full Turn Engine implementation.
+- No item trigger evaluation.
+- No item consumption or HP update.
+- No speed/order simulation.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v6.14 - TurnPipeline UI Exposure Design
 
 Purpose:
