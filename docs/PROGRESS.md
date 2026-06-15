@@ -1,5 +1,39 @@
 # Master Ball Advisor — Progress
 
+## v7.5 - Turn Order Context Prompt Integration Design
+
+Purpose:
+- Design how optional `turn_order_context` should be represented in the LLM prompt.
+- Keep v7.5 documentation-only, with no prompt implementation or Gemini call.
+
+Design:
+- Recommended placement is the same optional-context guard area as `turn_pipeline`.
+- The future guard should appear immediately after the `turn_pipeline` guard when both contexts are present.
+- Safety wording should state that `turn_order_context` is limited planning context, not a resolved move order.
+- The prompt should forbid exact final move order, speed tie resolution, RNG item activation, item consumption, and post-turn HP inference.
+
+Coexistence:
+- `turn_order_context` provides cautious priority / Speed order hints only.
+- `turn_pipeline` provides candidate events and limited debug summary only.
+- If both are present and incomplete or apparently conflicting, the model should state uncertainty rather than resolving final order or event outcomes.
+
+Recommended next:
+- v7.6 Turn Order Context Prompt Contract Tests.
+- Faster alternative: v7.6 Turn Order Context Prompt Integration with focused tests.
+- Do not go directly to Gemini smoke.
+
+Safety:
+- No production code implementation.
+- No actual Gemini call.
+- No Vertex AI call.
+- No prompt integration.
+- No UI checkbox auto-connection.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, or opponent set inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.4 - Turn Order Context Payload Adapter
 
 Purpose:
