@@ -1,5 +1,46 @@
 # Master Ball Advisor — Progress
 
+## v7.9 - UI / Flag Integration Design
+
+Purpose:
+- Design how the existing default-off UI developer flag should expose `turn_order_context`.
+- Keep v7.9 documentation-only, with no UI behavior change and no Gemini call.
+
+Options compared:
+- Option A: one checkbox enables both `turn_pipeline` and `turn_order_context`.
+- Option B: keep `turn_pipeline` on the current checkbox and add a separate turn-order checkbox.
+- Option C: keep one checkbox and clarify that it enables limited turn event candidates plus turn-order planning context.
+
+Selected recommendation:
+- Use Option C.
+- Keep one developer checkbox for the limited turn-planning feature.
+- Preserve default unchecked and no persisted auto-enable.
+- When off, pass both `enable_turn_pipeline=False` and `enable_turn_order_context=False`.
+- When on, pass both `enable_turn_pipeline=True` and `enable_turn_order_context=True`, while omitting any optional context whose source data is unavailable.
+
+Copy:
+- Keep the current label `턴 이벤트 후보 포함` for the first implementation to avoid unnecessary UI churn.
+- Update tooltip/status copy to mention both turn event candidates and turn-order planning hints.
+- Candidate tooltip: `확정 턴 시뮬레이션이 아니라, 턴 이벤트 후보와 선후공 판단 보조 정보를 조언에 추가합니다.`
+- Candidate status: `턴 판단 후보 포함됨 | 확정 시뮬레이션 아님`.
+
+Recommended next:
+- v7.10 UI Flag Enables Turn Order Context.
+- Do not run actual Gemini in v7.10.
+
+Safety:
+- No production code implementation.
+- No UI checkbox behavior change.
+- No UI checkbox auto-connection.
+- No actual Gemini call.
+- No Vertex AI call.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, or opponent set inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.8 - Turn Order Context Offline Advice Fixture
 
 Purpose:
