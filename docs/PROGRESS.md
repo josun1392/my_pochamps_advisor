@@ -1,5 +1,39 @@
 # Master Ball Advisor — Progress
 
+## v7.8 - Turn Order Context Offline Advice Fixture
+
+Purpose:
+- Verify the `turn_order_context` path offline from payload to prompt to mocked LLM response.
+- Keep v7.8 provider-free and disconnected from UI flags.
+
+Fixture:
+- Uses `_build_ui_selected_prompt(...)` with explicit `turn_order_context` inputs.
+- Monkeypatches `advisor_client.call_gemini`.
+- Monkeypatches `advisor_client._log_advisor_call`.
+- Captures prompts and mocked responses in memory only.
+
+Coverage:
+- Default-off path has no `turn_order_context` payload section or guard.
+- Explicit-on path has top-level `turn_order_context`, safety guard, `order_hint`, unresolved candidate modifiers, and unsupported boundaries.
+- `turn_pipeline` coexistence path has both optional sections and both guards.
+- Mocked responses avoid resolved wording such as `will move first`, `Quick Claw will activate`, `item will be consumed`, `post-turn HP will be`, and `full turn simulation shows`.
+
+Recommended next:
+- v7.9 UI / Flag Integration Design.
+- Safe alternative: v7.9 Controlled Turn Order Gemini Smoke Design.
+- Do not run actual Gemini smoke yet.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No UI checkbox auto-connection.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, or opponent set inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.7 - Turn Order Context Prompt Integration
 
 Purpose:

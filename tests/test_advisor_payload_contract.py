@@ -929,6 +929,134 @@ def test_turn_order_context_prompt_integration_avoids_positive_resolved_order_wo
         assert phrase not in prompt
 
 
+def test_turn_order_context_offline_advice_fixture_covers_default_explicit_and_pipeline_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    selected_move = payload["moves"]["my_selected_move"]
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+        candidate_modifiers=[
+            {
+                "source": "Quick Claw",
+                "effect": "may alter move order",
+                "resolved": False,
+            }
+        ],
+    )
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        build_ui_advice_payload(payload),
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    captured_prompts: list[str] = []
+    mocked_responses: list[str] = []
+    logged_usages: list[dict[str, int]] = []
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert prompt
+        assert model == "offline-v7-8"
+        captured_prompts.append(prompt)
+        response = (
+            "Turn order context is a limited hint only. Exact final order remains uncertain. "
+            "Quick Claw may alter move order, but activation is not resolved. "
+            "No item consumption or post-turn HP is inferred."
+        )
+        mocked_responses.append(response)
+        return response, {"input_tokens": 7 + len(captured_prompts), "output_tokens": 3, "cached_tokens": 0}
+
+    def fake_log_advisor_call(*, model: str, usage: dict[str, int], game_id: str) -> dict[str, object]:
+        assert model == "offline-v7-8"
+        assert game_id == "turn_order_context_offline_fixture_v7_8"
+        logged_usages.append(usage)
+        return {"mocked": True, "call_index": len(logged_usages)}
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", fake_log_advisor_call)
+
+    def run_offline_fixture(**prompt_kwargs: object) -> tuple[str, dict[str, int], dict[str, object]]:
+        prompt = _build_ui_selected_prompt(payload, **prompt_kwargs)
+        response, usage = advisor_client.call_gemini(prompt, "offline-v7-8")
+        summary = advisor_client._log_advisor_call(
+            model="offline-v7-8",
+            usage=usage,
+            game_id="turn_order_context_offline_fixture_v7_8",
+        )
+        return response, usage, summary
+
+    default_response, default_usage, default_summary = run_offline_fixture()
+    explicit_response, explicit_usage, explicit_summary = run_offline_fixture(
+        turn_order_context=turn_order_context,
+        enable_turn_order_context=True,
+    )
+    coexist_response, coexist_usage, coexist_summary = run_offline_fixture(
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        enable_turn_order_context=True,
+    )
+
+    assert len(captured_prompts) == 3
+    assert len(logged_usages) == 3
+    assert default_response == mocked_responses[0]
+    assert explicit_response == mocked_responses[1]
+    assert coexist_response == mocked_responses[2]
+    assert default_usage == {"input_tokens": 8, "output_tokens": 3, "cached_tokens": 0}
+    assert explicit_usage == {"input_tokens": 9, "output_tokens": 3, "cached_tokens": 0}
+    assert coexist_usage == {"input_tokens": 10, "output_tokens": 3, "cached_tokens": 0}
+    assert default_summary == {"mocked": True, "call_index": 1}
+    assert explicit_summary == {"mocked": True, "call_index": 2}
+    assert coexist_summary == {"mocked": True, "call_index": 3}
+
+    default_prompt, explicit_prompt, coexist_prompt = captured_prompts
+    default_prompt_payload = json.loads(default_prompt.rsplit("\n\n", 1)[1])
+    explicit_prompt_payload = json.loads(explicit_prompt.rsplit("\n\n", 1)[1])
+    coexist_prompt_payload = json.loads(coexist_prompt.rsplit("\n\n", 1)[1])
+
+    assert "turn_order_context" not in default_prompt_payload
+    assert '"turn_order_context"' not in default_prompt
+    assert "not a resolved move order" not in default_prompt
+
+    assert explicit_prompt_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert explicit_prompt_payload["turn_order_context"]["order_hint"] == "own_likely_before_opponent_if_same_priority"
+    assert explicit_prompt_payload["turn_order_context"]["candidate_modifiers"][0]["resolved"] is False
+    assert "speed tie resolution" in explicit_prompt_payload["turn_order_context"]["unsupported"]
+    assert "RNG item activation" in explicit_prompt_payload["turn_order_context"]["unsupported"]
+    assert "exact final order" in explicit_prompt_payload["turn_order_context"]["unsupported"]
+    assert "item consumption" in explicit_prompt_payload["turn_order_context"]["unsupported"]
+    assert "post-turn HP update" in explicit_prompt_payload["turn_order_context"]["unsupported"]
+    assert "limited planning context" in explicit_prompt
+    assert "not a resolved move order" in explicit_prompt
+    assert "Do not claim exact final move order" in explicit_prompt
+    assert "Do not claim speed ties are resolved" in explicit_prompt
+    assert "Do not claim RNG items activate" in explicit_prompt
+    assert "Do not infer item consumption" in explicit_prompt
+    assert "Do not infer post-turn HP" in explicit_prompt
+
+    assert coexist_prompt_payload["turn_pipeline"]["simulated"] == "limited"
+    assert coexist_prompt_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert "limited planning/debug summary only, not full turn simulation" in coexist_prompt
+    assert "candidate events are not resolved outcomes" in coexist_prompt
+    assert "limited planning context" in coexist_prompt
+    assert "not a resolved move order" in coexist_prompt
+
+    forbidden_response_phrases = (
+        "will move first",
+        "speed tie is resolved",
+        "Quick Claw will activate",
+        "item will be consumed",
+        "post-turn HP will be",
+        "full turn simulation shows",
+    )
+    for response in mocked_responses:
+        for phrase in forbidden_response_phrases:
+            assert phrase not in response
+
+
 def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
 

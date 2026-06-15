@@ -167,6 +167,8 @@ v7.6 locks the future prompt guard contract with focused tests. `_build_turn_ord
 
 v7.7 wires the `turn_order_context` guard into `_build_ui_selected_prompt(...)` behind explicit keyword-only inputs. Default/off prompts remain unchanged. When a caller supplies `turn_order_context` and sets `enable_turn_order_context=True`, the prompt includes the guard immediately after the TurnPipeline guard area and includes top-level `turn_order_context` through the existing serialized advice payload JSON. No compact summary is added. v7.7 does not connect UI flags, call Gemini, or implement resolved turn order.
 
+v7.8 adds an offline advice fixture for the explicit turn-order context path. The fixture builds prompts with `_build_ui_selected_prompt(...)`, replaces `call_gemini` and `_log_advisor_call` with in-memory fakes, and verifies default-off, explicit-on, and `turn_pipeline` coexistence paths without provider calls. The mocked response keeps exact final order uncertain, treats Quick Claw activation as unresolved, and does not claim item consumption, post-turn HP, full simulation, or resolved speed ties.
+
 ## Current Payload Shape
 
 Top-level sections:
