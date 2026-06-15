@@ -159,6 +159,8 @@ Prompt safety wording for future integration:
 - Do not claim exact final order unless explicitly provided.
 - Do not infer item consumption or post-turn HP from this context.
 
+v7.3 adds `llm.advisor_turn_order_context.build_deterministic_turn_order_context(...)` as a standalone helper for this contract. It accepts known priority, base Speed, optional confirmed final Speed, and candidate modifiers. Confirmed final Speed takes precedence over base Speed when both sides are known. Candidate modifiers are normalized with `resolved=false`, and resolved fields such as `activated`, `final_order_resolved`, `item_consumed`, and `post_turn_hp` are not emitted. The helper is not connected to the runtime advice payload, prompt, UI, Gemini call path, or full Turn Engine.
+
 ## Current Payload Shape
 
 Top-level sections:

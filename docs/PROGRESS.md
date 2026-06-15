@@ -1,5 +1,50 @@
 # Master Ball Advisor — Progress
 
+## v7.3 - Deterministic Turn Order Context Helper
+
+Purpose:
+- Implement the minimal helper for the v7.2 `turn_order_context` contract.
+- Keep the helper standalone and disconnected from runtime payload/prompt/UI paths.
+
+Helper:
+- Added `llm.advisor_turn_order_context.build_deterministic_turn_order_context(...)`.
+- Inputs cover own/opponent move priority, own/opponent base Speed, optional confirmed final Speed, and candidate modifiers.
+- Confirmed final Speed takes precedence over base Speed when both sides are known.
+- Unknown priority or Speed remains explicit as `unknown`.
+
+Behavior:
+- Priority relation covers own higher, opponent higher, same priority, and unknown.
+- Speed relation covers base Speed, confirmed final Speed, tie candidates, and missing Speed.
+- Order hint remains non-final: likely-if-same-priority, priority-overrides-speed, tie_or_unknown, or unknown.
+- Candidate modifiers are normalized to `resolved=False`.
+
+Tests:
+- Added `tests/test_advisor_turn_order_context.py`.
+- Covered base Speed, confirmed final Speed, priority, unknowns, Quick Claw candidate modifiers, forbidden fields, and unsupported boundaries.
+
+Recommended next:
+- v7.4 Turn Order Context Payload Adapter.
+- Safe alternative: v7.4 Prompt Integration Design.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine implementation.
+- No resolved turn order.
+- No speed tie resolver.
+- No RNG resolver.
+- No item consumption.
+- No post-turn HP update.
+- No opponent set inference.
+- No damage formula change.
+- No raw damage roll change.
+- No Q12 multiplier change.
+- No `ko_context` calculation change.
+- No payload filtering change.
+- No token-log commit/reset.
+
+---
+
 ## v7.2 - Turn Order Context Payload Contract
 
 Purpose:
