@@ -18,7 +18,12 @@ from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
 from core.turn_event import TurnEvent, TurnPipelineResult
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
 import llm.advisor_client as advisor_client
-from llm.advisor_client import _build_ui_selected_prompt, build_ui_advice_payload
+from llm.advisor_client import (
+    _build_turn_order_context_prompt_guard,
+    _build_turn_pipeline_prompt_guard,
+    _build_ui_selected_prompt,
+    build_ui_advice_payload,
+)
 from llm.advisor_damage_estimate import attach_selected_move_damage_estimate
 from llm.advisor_payload_contract import (
     ADVICE_CONTEXT_KEYS,
@@ -695,6 +700,108 @@ def test_turn_order_context_payload_adapter_coexists_with_turn_pipeline() -> Non
     assert "turn_order_context" in order_only
     assert both_enabled["turn_pipeline"] == pipeline_only["turn_pipeline"]
     assert both_enabled["turn_order_context"] == order_only["turn_order_context"]
+
+
+def test_turn_order_context_prompt_guard_is_default_off() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    default_payload = build_ui_advice_payload(payload)
+
+    guard = _build_turn_order_context_prompt_guard(default_payload)
+
+    assert guard == ""
+    assert "turn_order_context" not in default_payload
+    assert "not a resolved move order" not in guard
+    prompt = _build_ui_selected_prompt(payload)
+    assert '"turn_order_context"' not in prompt
+    assert "not a resolved move order" not in prompt
+
+
+def test_turn_order_context_prompt_guard_locks_safety_wording() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    advice_payload = build_ui_advice_payload(
+        payload,
+        turn_order_context=_sample_turn_order_context(),
+        enable_turn_order_context=True,
+    )
+
+    guard = _build_turn_order_context_prompt_guard(advice_payload)
+
+    assert "turn_order_context" in advice_payload
+    assert "limited planning context" in guard
+    assert "not a resolved move order" in guard
+    assert "Use it only as a cautious hint when priority and Speed data are available" in guard
+    assert "Do not claim exact final move order" in guard
+    assert "Do not claim speed ties are resolved" in guard
+    assert "Do not claim RNG items activate" in guard
+    assert "Do not infer item consumption" in guard
+    assert "Do not infer post-turn HP" in guard
+
+
+def test_turn_order_context_prompt_guard_avoids_positive_forbidden_phrases() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    advice_payload = build_ui_advice_payload(
+        payload,
+        turn_order_context=_sample_turn_order_context(),
+        enable_turn_order_context=True,
+    )
+
+    guard = _build_turn_order_context_prompt_guard(advice_payload)
+
+    forbidden_positive_phrases = (
+        "will move first",
+        "speed tie is resolved",
+        "Quick Claw will activate",
+        "item will be consumed",
+        "post-turn HP will be",
+        "full turn simulation shows",
+    )
+    for phrase in forbidden_positive_phrases:
+        assert phrase not in guard
+
+
+def test_turn_order_context_prompt_guard_coexists_with_turn_pipeline_guard() -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    selected_move = payload["moves"]["my_selected_move"]
+    base_payload = build_ui_advice_payload(payload)
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        base_payload,
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+    )
+
+    pipeline_only = build_ui_advice_payload(payload, turn_pipeline=turn_pipeline)
+    order_only = build_ui_advice_payload(
+        payload,
+        turn_order_context=turn_order_context,
+        enable_turn_order_context=True,
+    )
+    both_enabled = build_ui_advice_payload(
+        payload,
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        enable_turn_order_context=True,
+    )
+
+    assert _build_turn_pipeline_prompt_guard(pipeline_only)
+    assert _build_turn_order_context_prompt_guard(pipeline_only) == ""
+    assert _build_turn_pipeline_prompt_guard(order_only) == ""
+    assert _build_turn_order_context_prompt_guard(order_only)
+
+    combined_pipeline_guard = _build_turn_pipeline_prompt_guard(both_enabled)
+    combined_order_guard = _build_turn_order_context_prompt_guard(both_enabled)
+    assert "limited planning/debug summary only, not full turn simulation" in combined_pipeline_guard
+    assert "candidate events are not resolved outcomes" in combined_pipeline_guard
+    assert "limited planning context" in combined_order_guard
+    assert "not a resolved move order" in combined_order_guard
+    assert "full turn simulation shows" not in combined_pipeline_guard + combined_order_guard
 
 
 def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:

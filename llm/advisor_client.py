@@ -677,6 +677,19 @@ def _build_turn_pipeline_prompt_guard(payload: dict[str, Any]) -> str:
     )
 
 
+def _build_turn_order_context_prompt_guard(payload: dict[str, Any]) -> str:
+    if "turn_order_context" not in payload:
+        return ""
+    return (
+        "If turn_order_context is present, treat it as limited planning context, "
+        "not a resolved move order. Use it only as a cautious hint when priority "
+        "and Speed data are available. Do not claim exact final move order. Do "
+        "not claim speed ties are resolved. Do not claim RNG items activate. Do "
+        "not infer item consumption. Do not infer post-turn HP from "
+        "turn_order_context. "
+    )
+
+
 def _build_available_item_context_required_mention_guard(payload: dict[str, Any]) -> str:
     labels = _collect_available_item_context_labels(payload)
     if not labels:

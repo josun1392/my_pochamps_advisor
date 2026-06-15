@@ -1,5 +1,40 @@
 # Master Ball Advisor — Progress
 
+## v7.6 - Turn Order Context Prompt Contract Tests
+
+Purpose:
+- Lock the `turn_order_context` prompt guard/copy contract before runtime prompt integration.
+- Keep v7.6 test-focused and offline, with no Gemini call.
+
+Implementation:
+- Added `_build_turn_order_context_prompt_guard(payload)` as a minimal conditional guard helper.
+- The helper returns empty text when `turn_order_context` is absent.
+- The helper returns safety wording when `turn_order_context` is present.
+- The helper is not yet wired into `_build_ui_selected_prompt(...)`; runtime prompt integration remains a v7.7 candidate.
+
+Tests:
+- Default-off payload has no `turn_order_context` guard.
+- Explicit-on payload has guard wording for limited planning context and not-resolved order.
+- Guard forbids exact final move order, speed tie resolution, RNG item activation, item consumption, and post-turn HP inference.
+- `turn_pipeline` and `turn_order_context` guards can coexist independently.
+- Forbidden positive phrase anchors such as `will move first`, `Quick Claw will activate`, and `full turn simulation shows` are not present in the turn-order guard.
+
+Recommended next:
+- v7.7 Turn Order Context Prompt Integration.
+- Alternative: v7.7 Turn Order Context Offline Advice Fixture.
+- Do not run actual Gemini smoke yet.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No UI checkbox auto-connection.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, or opponent set inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.5 - Turn Order Context Prompt Integration Design
 
 Purpose:

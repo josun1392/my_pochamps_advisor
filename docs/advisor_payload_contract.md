@@ -163,6 +163,8 @@ v7.3 adds `llm.advisor_turn_order_context.build_deterministic_turn_order_context
 
 v7.4 adds an optional explicit-only payload adapter for this contract. `build_ui_advice_payload(..., turn_order_context=..., enable_turn_order_context=True)` may insert top-level `turn_order_context` after validating the v7.2 contract. Omitted or disabled `enable_turn_order_context` preserves the previous payload shape, and `enable_turn_order_context=True` with no supplied context also preserves the previous shape. The adapter rejects forbidden resolved-outcome fields recursively, requires unresolved candidate modifiers, and requires unsupported boundaries for speed tie resolution, RNG item activation, exact final order, item consumption, and post-turn HP update. `turn_order_context` coexists with optional `turn_pipeline`; neither optional field overwrites the other. v7.4 does not add prompt integration, UI auto-connection, saved setting auto-enable, Gemini calls, resolved turn order, item consumption, post-turn HP update, or full Turn Engine behavior.
 
+v7.6 locks the future prompt guard contract with focused tests. `_build_turn_order_context_prompt_guard(payload)` returns an empty string when top-level `turn_order_context` is absent and returns safety wording when it is present. The guard says `turn_order_context` is limited planning context, not a resolved move order, and forbids exact final move order, speed tie resolution, RNG item activation, item consumption, and post-turn HP inference. Tests also verify coexistence with the existing `turn_pipeline` guard. v7.6 does not insert this guard into `_build_ui_selected_prompt(...)`; runtime prompt integration remains a later step.
+
 ## Current Payload Shape
 
 Top-level sections:
