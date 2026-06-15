@@ -1,5 +1,39 @@
 # Master Ball Advisor — Progress
 
+## v7.4 - Turn Order Context Payload Adapter
+
+Purpose:
+- Connect the v7.3 deterministic turn order context helper output to the advisor payload as an optional, explicit-only field.
+- Keep the adapter default-off and disconnected from prompt, UI, Gemini, and full Turn Engine behavior.
+
+Adapter:
+- Added `enable_turn_order_context: bool = False` to `build_ui_advice_payload(...)`.
+- Added optional top-level `turn_order_context` insertion when the caller explicitly supplies a context and enables the flag.
+- Omitted/disabled paths preserve the previous payload shape.
+- `enable_turn_order_context=True` with no supplied context also preserves the previous payload shape.
+- Adapter validation enforces v7.2 allowed values, unresolved `candidate_modifiers[*].resolved=false`, required unsupported boundaries, and recursive rejection of resolved-outcome fields.
+
+Coexistence:
+- `turn_pipeline` and `turn_order_context` are independent optional top-level sections.
+- Tests cover both disabled, pipeline-only, order-context-only, and both-enabled payload shapes.
+
+Recommended next:
+- v7.5 Turn Order Context Prompt Integration Design.
+- Safer test-first alternative: v7.5 Turn Order Context Prompt Contract Tests.
+- Do not go directly to Gemini smoke before prompt safety wording is designed or locked.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No prompt integration.
+- No UI checkbox auto-connection.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, or opponent set inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.3 - Deterministic Turn Order Context Helper
 
 Purpose:

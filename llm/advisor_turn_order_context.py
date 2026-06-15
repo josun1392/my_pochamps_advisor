@@ -44,6 +44,24 @@ TURN_ORDER_CONTEXT_UNSUPPORTED_BOUNDARIES = (
     "item consumption",
     "post-turn HP update",
 )
+TURN_ORDER_CONTEXT_REQUIRED_UNSUPPORTED = frozenset(
+    {
+        "speed tie resolution",
+        "RNG item activation",
+        "exact final order",
+        "item consumption",
+        "post-turn HP update",
+    }
+)
+TURN_ORDER_CONTEXT_FORBIDDEN_FIELDS = frozenset(
+    {
+        "final_order_resolved",
+        "item_consumed",
+        "post_turn_hp",
+        "speed_tie_resolved",
+        "rng_item_activated",
+    }
+)
 
 
 def build_deterministic_turn_order_context(

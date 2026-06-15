@@ -32,6 +32,7 @@ from llm.advisor_payload_contract import (
     TURN_SNAPSHOT_KNOWN_LIMITATIONS,
 )
 from llm.advisor_turn_events import build_optional_turn_pipeline_for_advice_payload
+from llm.advisor_turn_order_context import build_deterministic_turn_order_context
 from tests.test_advisor_damage_estimate import (
     _battle_input,
     _bullet_seed,
@@ -542,6 +543,158 @@ def test_turn_order_context_contract_prompt_safety_copy_anchors() -> None:
     assert "Do not claim RNG items activate" in safety_copy
     assert "Do not claim exact final order" in safety_copy
     assert "Do not infer item consumption or post-turn HP" in safety_copy
+
+
+def test_turn_order_context_payload_adapter_is_default_off() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_turn_order_context()
+
+    baseline_payload = build_ui_advice_payload(payload)
+    omitted_payload = build_ui_advice_payload(payload, turn_order_context=context)
+    disabled_payload = build_ui_advice_payload(
+        payload,
+        turn_order_context=context,
+        enable_turn_order_context=False,
+    )
+    enabled_without_context_payload = build_ui_advice_payload(payload, enable_turn_order_context=True)
+
+    assert omitted_payload == baseline_payload
+    assert disabled_payload == baseline_payload
+    assert enabled_without_context_payload == baseline_payload
+    assert "turn_order_context" not in baseline_payload
+    assert "turn_order_context" not in omitted_payload
+    assert "turn_order_context" not in disabled_payload
+    assert "turn_order_context" not in enabled_without_context_payload
+
+
+def test_turn_order_context_payload_adapter_adds_explicit_top_level_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+        candidate_modifiers=[
+            {
+                "source": "Quick Claw",
+                "effect": "may alter move order",
+                "resolved": True,
+                "activated": True,
+            }
+        ],
+    )
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        turn_order_context=context,
+        enable_turn_order_context=True,
+    )
+
+    assert advice_payload["turn_order_context"] == context
+    assert advice_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert advice_payload["turn_order_context"]["confidence"] == "limited"
+    assert advice_payload["turn_order_context"]["candidate_modifiers"][0]["resolved"] is False
+    assert "activated" not in advice_payload["turn_order_context"]["candidate_modifiers"][0]
+    assert "speed tie resolution" in advice_payload["turn_order_context"]["unsupported"]
+    assert "RNG item activation" in advice_payload["turn_order_context"]["unsupported"]
+    assert "exact final order" in advice_payload["turn_order_context"]["unsupported"]
+    assert "item consumption" in advice_payload["turn_order_context"]["unsupported"]
+    assert "post-turn HP update" in advice_payload["turn_order_context"]["unsupported"]
+    _assert_turn_order_context_has_no_resolved_outcome_fields(advice_payload["turn_order_context"])
+
+
+@pytest.mark.parametrize(
+    ("path", "value", "match"),
+    [
+        (("confidence",), "resolved", "confidence"),
+        (("priority", "priority_relation"), "will_move_first", "priority_relation"),
+        (("speed", "speed_relation"), "speed_tie_resolved", "speed_relation"),
+        (("order_hint",), "own_will_move_first", "order_hint"),
+    ],
+)
+def test_turn_order_context_payload_adapter_rejects_invalid_allowed_values(
+    path: tuple[str, ...],
+    value: str,
+    match: str,
+) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_turn_order_context()
+    target = context
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+
+    with pytest.raises(ValueError, match=match):
+        build_ui_advice_payload(payload, turn_order_context=context, enable_turn_order_context=True)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "final_order_resolved",
+        "item_consumed",
+        "post_turn_hp",
+        "rng_item_activated",
+        "speed_tie_resolved",
+    ],
+)
+def test_turn_order_context_payload_adapter_rejects_forbidden_resolved_fields(field_name: str) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_turn_order_context()
+    context[field_name] = True
+
+    with pytest.raises(ValueError, match=field_name):
+        build_ui_advice_payload(payload, turn_order_context=context, enable_turn_order_context=True)
+
+
+def test_turn_order_context_payload_adapter_rejects_resolved_candidate_modifier() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_turn_order_context()
+    context["candidate_modifiers"][0]["resolved"] = True
+
+    with pytest.raises(ValueError, match="candidate modifiers"):
+        build_ui_advice_payload(payload, turn_order_context=context, enable_turn_order_context=True)
+
+
+def test_turn_order_context_payload_adapter_coexists_with_turn_pipeline() -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+    )
+    selected_move = payload["moves"]["my_selected_move"]
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        build_ui_advice_payload(payload),
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+
+    both_disabled = build_ui_advice_payload(payload)
+    pipeline_only = build_ui_advice_payload(payload, turn_pipeline=turn_pipeline)
+    order_only = build_ui_advice_payload(
+        payload,
+        turn_order_context=turn_order_context,
+        enable_turn_order_context=True,
+    )
+    both_enabled = build_ui_advice_payload(
+        payload,
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        enable_turn_order_context=True,
+    )
+
+    assert "turn_pipeline" not in both_disabled
+    assert "turn_order_context" not in both_disabled
+    assert "turn_pipeline" in pipeline_only
+    assert "turn_order_context" not in pipeline_only
+    assert "turn_pipeline" not in order_only
+    assert "turn_order_context" in order_only
+    assert both_enabled["turn_pipeline"] == pipeline_only["turn_pipeline"]
+    assert both_enabled["turn_order_context"] == order_only["turn_order_context"]
 
 
 def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:

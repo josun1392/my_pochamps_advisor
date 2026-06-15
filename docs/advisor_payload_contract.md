@@ -161,6 +161,8 @@ Prompt safety wording for future integration:
 
 v7.3 adds `llm.advisor_turn_order_context.build_deterministic_turn_order_context(...)` as a standalone helper for this contract. It accepts known priority, base Speed, optional confirmed final Speed, and candidate modifiers. Confirmed final Speed takes precedence over base Speed when both sides are known. Candidate modifiers are normalized with `resolved=false`, and resolved fields such as `activated`, `final_order_resolved`, `item_consumed`, and `post_turn_hp` are not emitted. The helper is not connected to the runtime advice payload, prompt, UI, Gemini call path, or full Turn Engine.
 
+v7.4 adds an optional explicit-only payload adapter for this contract. `build_ui_advice_payload(..., turn_order_context=..., enable_turn_order_context=True)` may insert top-level `turn_order_context` after validating the v7.2 contract. Omitted or disabled `enable_turn_order_context` preserves the previous payload shape, and `enable_turn_order_context=True` with no supplied context also preserves the previous shape. The adapter rejects forbidden resolved-outcome fields recursively, requires unresolved candidate modifiers, and requires unsupported boundaries for speed tie resolution, RNG item activation, exact final order, item consumption, and post-turn HP update. `turn_order_context` coexists with optional `turn_pipeline`; neither optional field overwrites the other. v7.4 does not add prompt integration, UI auto-connection, saved setting auto-enable, Gemini calls, resolved turn order, item consumption, post-turn HP update, or full Turn Engine behavior.
+
 ## Current Payload Shape
 
 Top-level sections:
@@ -168,6 +170,7 @@ Top-level sections:
 - `scenario`
 - optional `turn_snapshot`
 - optional `turn_pipeline`
+- optional `turn_order_context`
 - `pokemon`
 - `stat_profiles`
 - `item_profiles`
