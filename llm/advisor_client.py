@@ -145,8 +145,10 @@ def _build_ui_selected_prompt(
     battle_input: dict[str, Any],
     turn_snapshot: TurnSnapshot | dict[str, Any] | None = None,
     turn_pipeline: TurnPipelineResult | dict[str, Any] | None = None,
+    turn_order_context: dict[str, Any] | None = None,
     *,
     enable_turn_pipeline: bool = False,
+    enable_turn_order_context: bool = False,
 ) -> str:
     if turn_pipeline is None and enable_turn_pipeline:
         base_payload = build_ui_advice_payload(
@@ -166,10 +168,13 @@ def _build_ui_selected_prompt(
         battle_input,
         turn_snapshot=turn_snapshot,
         turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        enable_turn_order_context=enable_turn_order_context,
     )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
     turn_pipeline_guard = _build_turn_pipeline_prompt_guard(advice_payload)
+    turn_order_context_guard = _build_turn_order_context_prompt_guard(advice_payload)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
@@ -177,6 +182,7 @@ def _build_ui_selected_prompt(
         "data. "
         f"{turn_snapshot_guard}"
         f"{turn_pipeline_guard}"
+        f"{turn_order_context_guard}"
         "If a damage_estimate is present, use it only under its stated "
         "assumption_profile and never describe it as final battle damage. Do "
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "

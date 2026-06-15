@@ -1,5 +1,40 @@
 # Master Ball Advisor — Progress
 
+## v7.7 - Turn Order Context Prompt Integration
+
+Purpose:
+- Wire the `turn_order_context` prompt guard into `_build_ui_selected_prompt(...)`.
+- Verify default-off, explicit-on, and `turn_pipeline` coexistence prompt shapes offline.
+
+Implementation:
+- Added keyword-only `turn_order_context` and `enable_turn_order_context` inputs to `_build_ui_selected_prompt(...)`.
+- Built the advice payload with the optional explicit turn-order context.
+- Inserted `_build_turn_order_context_prompt_guard(...)` immediately after the TurnPipeline guard area.
+- Used the existing serialized advice payload JSON as the context inclusion style; no separate compact summary was added.
+
+Tests:
+- Default/off prompt behavior remains unchanged.
+- Explicit-on prompt includes the turn-order guard and top-level `turn_order_context`.
+- Prompt payload includes `order_hint`, unresolved `candidate_modifiers[*].resolved=false`, and unsupported boundaries.
+- `turn_pipeline` and `turn_order_context` guards coexist when both contexts are present.
+- Positive resolved wording such as `Quick Claw will activate` and `full turn simulation shows` stays absent.
+
+Recommended next:
+- v7.8 Turn Order Context Offline Advice Fixture.
+- Alternative: v7.8 UI / Flag Integration Design.
+- Do not run actual Gemini smoke yet.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No UI checkbox auto-connection.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, or opponent set inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.6 - Turn Order Context Prompt Contract Tests
 
 Purpose:

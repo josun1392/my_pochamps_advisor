@@ -165,6 +165,8 @@ v7.4 adds an optional explicit-only payload adapter for this contract. `build_ui
 
 v7.6 locks the future prompt guard contract with focused tests. `_build_turn_order_context_prompt_guard(payload)` returns an empty string when top-level `turn_order_context` is absent and returns safety wording when it is present. The guard says `turn_order_context` is limited planning context, not a resolved move order, and forbids exact final move order, speed tie resolution, RNG item activation, item consumption, and post-turn HP inference. Tests also verify coexistence with the existing `turn_pipeline` guard. v7.6 does not insert this guard into `_build_ui_selected_prompt(...)`; runtime prompt integration remains a later step.
 
+v7.7 wires the `turn_order_context` guard into `_build_ui_selected_prompt(...)` behind explicit keyword-only inputs. Default/off prompts remain unchanged. When a caller supplies `turn_order_context` and sets `enable_turn_order_context=True`, the prompt includes the guard immediately after the TurnPipeline guard area and includes top-level `turn_order_context` through the existing serialized advice payload JSON. No compact summary is added. v7.7 does not connect UI flags, call Gemini, or implement resolved turn order.
+
 ## Current Payload Shape
 
 Top-level sections:

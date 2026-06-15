@@ -804,6 +804,131 @@ def test_turn_order_context_prompt_guard_coexists_with_turn_pipeline_guard() -> 
     assert "full turn simulation shows" not in combined_pipeline_guard + combined_order_guard
 
 
+def test_turn_order_context_prompt_integration_is_default_off_and_unchanged() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_turn_order_context()
+
+    baseline_prompt = _build_ui_selected_prompt(payload)
+    omitted_prompt = _build_ui_selected_prompt(payload, turn_order_context=context)
+    disabled_prompt = _build_ui_selected_prompt(
+        payload,
+        turn_order_context=context,
+        enable_turn_order_context=False,
+    )
+    enabled_without_context_prompt = _build_ui_selected_prompt(payload, enable_turn_order_context=True)
+
+    assert omitted_prompt == baseline_prompt
+    assert disabled_prompt == baseline_prompt
+    assert enabled_without_context_prompt == baseline_prompt
+    assert '"turn_order_context"' not in baseline_prompt
+    assert "not a resolved move order" not in baseline_prompt
+    assert "Do not claim exact final move order" not in baseline_prompt
+    assert "Do not claim speed ties are resolved" not in baseline_prompt
+    assert "Do not claim RNG items activate" not in baseline_prompt
+    assert "Do not infer item consumption" not in baseline_prompt
+    assert "Do not infer post-turn HP" not in baseline_prompt
+
+
+def test_turn_order_context_prompt_integration_includes_guard_and_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_turn_order_context()
+
+    prompt = _build_ui_selected_prompt(
+        payload,
+        turn_order_context=context,
+        enable_turn_order_context=True,
+    )
+
+    assert '"turn_order_context"' in prompt
+    assert '"kind": "deterministic_turn_order_context"' in prompt
+    assert '"order_hint": "own_likely_before_opponent_if_same_priority"' in prompt
+    assert '"resolved": false' in prompt
+    assert "speed tie resolution" in prompt
+    assert "RNG item activation" in prompt
+    assert "exact final order" in prompt
+    assert "item consumption" in prompt
+    assert "post-turn HP update" in prompt
+
+    assert "limited planning context" in prompt
+    assert "not a resolved move order" in prompt
+    assert "Use it only as a cautious hint when priority and Speed data are available" in prompt
+    assert "Do not claim exact final move order" in prompt
+    assert "Do not claim speed ties are resolved" in prompt
+    assert "Do not claim RNG items activate" in prompt
+    assert "Do not infer item consumption" in prompt
+    assert "Do not infer post-turn HP" in prompt
+
+
+def test_turn_order_context_prompt_integration_coexists_with_turn_pipeline() -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    selected_move = payload["moves"]["my_selected_move"]
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        build_ui_advice_payload(payload),
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+    )
+
+    pipeline_prompt = _build_ui_selected_prompt(payload, turn_pipeline=turn_pipeline)
+    order_prompt = _build_ui_selected_prompt(
+        payload,
+        turn_order_context=turn_order_context,
+        enable_turn_order_context=True,
+    )
+    both_prompt = _build_ui_selected_prompt(
+        payload,
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        enable_turn_order_context=True,
+    )
+
+    assert '"turn_pipeline"' in pipeline_prompt
+    assert "limited planning/debug summary only, not full turn simulation" in pipeline_prompt
+    assert '"turn_order_context"' not in pipeline_prompt
+    assert "not a resolved move order" not in pipeline_prompt
+
+    assert '"turn_pipeline"' not in order_prompt
+    assert '"turn_order_context"' in order_prompt
+    assert "limited planning context" in order_prompt
+    assert "not a resolved move order" in order_prompt
+
+    assert '"turn_pipeline"' in both_prompt
+    assert '"turn_order_context"' in both_prompt
+    assert "limited planning/debug summary only, not full turn simulation" in both_prompt
+    assert "candidate events are not resolved outcomes" in both_prompt
+    assert "limited planning context" in both_prompt
+    assert "not a resolved move order" in both_prompt
+    assert "full turn simulation shows" not in both_prompt
+
+
+def test_turn_order_context_prompt_integration_avoids_positive_resolved_order_wording() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    prompt = _build_ui_selected_prompt(
+        payload,
+        turn_order_context=_sample_turn_order_context(),
+        enable_turn_order_context=True,
+    )
+
+    forbidden_positive_phrases = (
+        "You will move first",
+        "will move first because",
+        "speed tie is resolved",
+        "Quick Claw will activate",
+        "item will be consumed",
+        "post-turn HP will be",
+        "full turn simulation shows",
+    )
+    for phrase in forbidden_positive_phrases:
+        assert phrase not in prompt
+
+
 def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
 
