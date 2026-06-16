@@ -1,5 +1,45 @@
 # Master Ball Advisor — Progress
 
+## v7.12 - Controlled UI Gemini Smoke Design
+
+Purpose:
+- Design a future one-call Gemini smoke for the actual UI checkbox-on path.
+- Keep v7.12 documentation-only with no actual provider call.
+
+Scope:
+- The future smoke starts from the existing `LLMAdvicePanel` checkbox state.
+- Checked state must map to both `enable_turn_pipeline=True` and `enable_turn_order_context=True`.
+- Prompt pre-check must confirm both optional guards before any provider call.
+- The smoke is meant to verify Gemini treats `turn_pipeline` and `turn_order_context` as limited context, not full simulation or resolved order.
+
+Call policy:
+- Actual Gemini call count in the future smoke: maximum 1.
+- Automatic retry: forbidden.
+- Repeated fixture calls: forbidden.
+- Stop and record `BLOCKED` or `FAIL` on 429, `RESOURCE_EXHAUSTED`, API key/auth/credential, billing/prepay/credit, routing, timeout, or unexpected exception.
+
+Result criteria:
+- PASS requires no exact final move order, no speed tie resolution, no Quick Claw activation certainty, no item consumption, no post-turn HP claim, no full turn simulation claim, and no conflict with `damage_estimate` / `ko_context`.
+- PARTIAL means generally safe wording that still needs polish.
+- FAIL means resolved/full-simulation claims.
+- BLOCKED means no usable provider result due to availability, auth, billing, quota, routing, timeout, or failed pre-check.
+
+Recommended next:
+- v7.13 Controlled UI Gemini Smoke, only after explicit T1 approval.
+- Safe alternative: v7.13 Turn Order UI Integration Closure.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No production code implementation.
+- No UI checkbox behavior change.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, opponent set inference, or EV/IV/nature inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.11 - UI Flag Offline E2E Fixture
 
 Purpose:
