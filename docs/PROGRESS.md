@@ -1,5 +1,42 @@
 # Master Ball Advisor — Progress
 
+## v7.13 - Controlled UI Gemini Smoke
+
+Purpose:
+- Attempt the controlled UI Gemini smoke for the checkbox-on `turn_pipeline` + `turn_order_context` path.
+- Enforce the v7.12 maximum-one-call / no-retry policy.
+
+Pre-check:
+- Checkbox default unchecked: passed.
+- Checkbox toggle no-auto-call: passed.
+- Checked state mapped to `enable_turn_pipeline=True` and `enable_turn_order_context=True`: passed.
+- Prompt/payload included both `turn_pipeline` and `turn_order_context`: passed.
+- Prompt included both optional context guards: passed.
+- Unsupported implementation checks passed: no full Turn Engine, resolved order, item consumption, or post-turn HP update.
+
+Result:
+- Classification: `BLOCKED`.
+- Actual Gemini call count: 0.
+- Retry count: 0.
+- Stop condition: unexpected exception before call.
+- The local smoke harness required exact prompt equality between the prechecked prompt and the provider wrapper prompt. That guard raised before the provider call, so no Gemini request was sent.
+
+Recommended next:
+- v7.14 Controlled UI Gemini Smoke Harness Alignment.
+- After the harness is fixed, another one-call smoke requires explicit T1 approval.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No retry.
+- No production UI behavior change.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, opponent set inference, or EV/IV/nature inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.12 - Controlled UI Gemini Smoke Design
 
 Purpose:
