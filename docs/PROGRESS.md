@@ -1,5 +1,53 @@
 # Master Ball Advisor — Progress
 
+## v7.15 - Controlled UI Gemini Smoke Harness Alignment
+
+Purpose:
+- Align the v7.13/v7.14 smoke harness guard before any provider retry.
+- Keep v7.15 provider-free and retry-free.
+
+Implementation:
+- Added test-only provider-path prompt capture using monkeypatched `call_gemini`.
+- Added a focused smoke guard for the actual `run_ui_selected_advice(...)` prompt path.
+- Kept offline exact / regression prompt checks intact.
+- Allowed harmless auto-built `turn_snapshot` presence in the provider-path structural summary.
+
+Focused smoke guard:
+- Requires top-level `turn_pipeline`.
+- Requires top-level `turn_order_context`.
+- Requires TurnPipeline and turn-order context guards.
+- Requires exact-order, speed-tie, RNG activation, item-consumption, and post-turn HP prohibition anchors.
+- Accepts `turn_snapshot` as optional context in the provider path.
+- Does not misclassify negative Quick Claw safety wording as a positive resolved claim.
+
+Tests:
+- Provider-path prompt with auto-built `turn_snapshot` is accepted.
+- Missing TurnPipeline guard is rejected.
+- Missing turn-order context guard is rejected.
+- Missing exact final order prohibition is rejected.
+- Missing RNG / Quick Claw activation prohibition is rejected.
+- Harmless `turn_snapshot` presence is accepted.
+- Negative Quick Claw guard text is not treated as positive activation wording.
+
+Recommended next:
+- v7.16 Controlled UI Gemini Smoke Retry, only after explicit T1 approval.
+- Safe alternatives: v7.16 Smoke Harness Closure or v7.16 Turn Order UI Integration Closure.
+
+Safety:
+- No actual Gemini call.
+- No retry.
+- No Vertex AI call.
+- No production behavior change.
+- No UI checkbox behavior change.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, opponent set inference, or EV/IV/nature inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+- No raw full prompt recorded.
+- Quick Claw activation certainty remains forbidden.
+
+---
+
 ## v7.14 - Smoke Harness Prompt Guard Triage
 
 Purpose:

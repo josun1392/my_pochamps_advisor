@@ -1628,6 +1628,109 @@ def test_ui_flag_offline_e2e_fixture_covers_checkbox_off_and_on(
             assert phrase not in response
 
 
+def test_controlled_ui_smoke_guard_accepts_provider_path_prompt_with_turn_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+
+    prompt, prompt_payload = _capture_ui_smoke_provider_path_prompt_without_call(monkeypatch, payload)
+    summary = _assert_controlled_ui_smoke_prompt_guard(prompt)
+
+    assert summary["payload_has_turn_snapshot"] is True
+    assert summary["payload_has_turn_pipeline"] is True
+    assert summary["payload_has_turn_order_context"] is True
+    assert prompt_payload["turn_snapshot"]["battle_state"]["active_player"]["species_id"]
+    assert prompt_payload["turn_pipeline"]["simulated"] == "limited"
+    assert prompt_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+
+
+def test_controlled_ui_smoke_guard_rejects_missing_turn_pipeline_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    prompt, _prompt_payload = _capture_ui_smoke_provider_path_prompt_without_call(monkeypatch, payload)
+
+    broken_prompt = prompt.replace("candidate events are not resolved outcomes", "candidate events are available")
+
+    with pytest.raises(AssertionError, match="turn_pipeline guard"):
+        _assert_controlled_ui_smoke_prompt_guard(broken_prompt)
+
+
+def test_controlled_ui_smoke_guard_rejects_missing_turn_order_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    prompt, _prompt_payload = _capture_ui_smoke_provider_path_prompt_without_call(monkeypatch, payload)
+
+    broken_prompt = prompt.replace(
+        "limited planning context, not a resolved move order",
+        "turn order context is present",
+    )
+
+    with pytest.raises(AssertionError, match="turn_order_context guard"):
+        _assert_controlled_ui_smoke_prompt_guard(broken_prompt)
+
+
+def test_controlled_ui_smoke_guard_rejects_missing_exact_order_anchor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    prompt, _prompt_payload = _capture_ui_smoke_provider_path_prompt_without_call(monkeypatch, payload)
+
+    broken_prompt = prompt.replace("Do not claim exact final move order", "Discuss move order carefully")
+
+    with pytest.raises(AssertionError, match="exact final move order"):
+        _assert_controlled_ui_smoke_prompt_guard(broken_prompt)
+
+
+def test_controlled_ui_smoke_guard_rejects_missing_quick_claw_activation_anchor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    prompt, _prompt_payload = _capture_ui_smoke_provider_path_prompt_without_call(monkeypatch, payload)
+
+    broken_prompt = prompt.replace("Do not claim RNG items activate", "Mention possible RNG items")
+
+    with pytest.raises(AssertionError, match="RNG items activate"):
+        _assert_controlled_ui_smoke_prompt_guard(broken_prompt)
+
+
+def test_controlled_ui_smoke_guard_allows_harmless_turn_snapshot_presence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    provider_prompt, provider_payload = _capture_ui_smoke_provider_path_prompt_without_call(monkeypatch, payload)
+    direct_prompt = _build_ui_selected_prompt(
+        payload,
+        enable_turn_pipeline=True,
+        enable_turn_order_context=True,
+    )
+    direct_payload = json.loads(direct_prompt.rsplit("\n\n", 1)[1])
+
+    assert provider_prompt != direct_prompt
+    assert "turn_snapshot" in provider_payload
+    assert "turn_snapshot" not in direct_payload
+    assert _assert_controlled_ui_smoke_prompt_guard(provider_prompt)["payload_has_turn_snapshot"] is True
+    assert _assert_controlled_ui_smoke_prompt_guard(direct_prompt)["payload_has_turn_snapshot"] is False
+
+
+def test_controlled_ui_smoke_guard_does_not_flag_negative_quick_claw_instruction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    prompt, _prompt_payload = _capture_ui_smoke_provider_path_prompt_without_call(monkeypatch, payload)
+
+    prompt_with_negative_instruction = prompt.replace(
+        "Do not claim RNG items activate.",
+        "Do not claim RNG items activate. Do not claim Quick Claw will activate.",
+    )
+
+    summary = _assert_controlled_ui_smoke_prompt_guard(prompt_with_negative_instruction)
+
+    assert summary["payload_has_turn_pipeline"] is True
+    assert summary["payload_has_turn_order_context"] is True
+
+
 def test_turn_pipeline_dev_flag_is_default_off_and_wired_only_through_advice_request() -> None:
     panel_source = inspect.getsource(LLMAdvicePanel)
     worker_init_source = inspect.getsource(MainWindow.__dict__["_start_llm_advice"])
@@ -4335,6 +4438,81 @@ def _turn_order_context_prompt_safety_copy() -> str:
         "Do not claim exact final order unless explicitly provided. "
         "Do not infer item consumption or post-turn HP from this context."
     )
+
+
+def _capture_ui_smoke_provider_path_prompt_without_call(
+    monkeypatch: pytest.MonkeyPatch,
+    payload: dict,
+) -> tuple[str, dict]:
+    captured_prompts: list[str] = []
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert model == "ui-smoke-guard-v7-15"
+        captured_prompts.append(prompt)
+        return "mocked", {"input_tokens": 1, "output_tokens": 1, "cached_tokens": 0}
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", lambda **kwargs: {"mocked": True})
+
+    advisor_client.run_ui_selected_advice(
+        payload,
+        model="ui-smoke-guard-v7-15",
+        enable_turn_pipeline=True,
+        enable_turn_order_context=True,
+    )
+
+    assert len(captured_prompts) == 1
+    prompt = captured_prompts[0]
+    return prompt, json.loads(prompt.rsplit("\n\n", 1)[1])
+
+
+def _assert_controlled_ui_smoke_prompt_guard(prompt: str) -> dict[str, bool]:
+    payload = json.loads(prompt.rsplit("\n\n", 1)[1])
+
+    required_anchors = {
+        "turn_pipeline guard": "candidate events are not resolved outcomes",
+        "limited candidate/debug context": "limited planning/debug summary only, not full turn simulation",
+        "turn_order_context guard": "limited planning context, not a resolved move order",
+        "limited planning context": "Use it only as a cautious hint when priority and Speed data are available",
+        "exact final move order": "Do not claim exact final move order",
+        "speed ties are resolved": "Do not claim speed ties are resolved",
+        "RNG items activate": "Do not claim RNG items activate",
+        "item consumption": "Do not infer item consumption",
+        "post-turn HP": "Do not infer post-turn HP",
+    }
+    for label, anchor in required_anchors.items():
+        assert anchor in prompt, label
+
+    assert "turn_pipeline" in payload
+    assert "turn_order_context" in payload
+    assert payload["turn_pipeline"]["simulated"] == "limited"
+    assert payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert payload["turn_order_context"]["candidate_modifiers"][0]["resolved"] is False
+
+    if "Quick Claw" in prompt:
+        assert (
+            "may alter move order" in prompt
+            or "unresolved" in prompt
+            or "possible" in prompt
+            or "candidate" in prompt
+        )
+
+    forbidden_positive_quick_claw_phrases = (
+        "Quick Claw activates",
+        "Quick Claw makes it move first",
+        "Quick Claw lets it move first",
+        "Quick Claw activation is confirmed",
+    )
+    for phrase in forbidden_positive_quick_claw_phrases:
+        assert phrase not in prompt
+
+    return {
+        "payload_has_turn_snapshot": "turn_snapshot" in payload,
+        "payload_has_turn_pipeline": "turn_pipeline" in payload,
+        "payload_has_turn_order_context": "turn_order_context" in payload,
+        "prompt_has_turn_pipeline_guard": "candidate events are not resolved outcomes" in prompt,
+        "prompt_has_turn_order_context_guard": "not a resolved move order" in prompt,
+    }
 
 
 def _turn_pipeline_advice_flow_payload() -> dict:
