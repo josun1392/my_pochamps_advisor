@@ -1,5 +1,47 @@
 # Master Ball Advisor — Progress
 
+## v7.14 - Smoke Harness Prompt Guard Triage
+
+Purpose:
+- Triage why v7.13 stopped before provider call.
+- Keep v7.14 provider-free and retry-free.
+
+Findings:
+- v7.13 strict prompt equality guard failed because the direct pre-check prompt did not include the `turn_snapshot` that `run_ui_selected_advice(...)` builds automatically.
+- Cause classification: dynamic field difference.
+- The provider-path prompt included top-level `turn_snapshot`; the direct pre-check prompt did not.
+- Both prompts still included `turn_pipeline` and `turn_order_context`.
+- Both prompts still included the TurnPipeline and turn-order context guards.
+
+Safety anchor status:
+- TurnPipeline limited/debug guard: present.
+- turn-order limited planning / not resolved move order guard: present.
+- Exact final move order prohibition: present.
+- Speed tie resolution prohibition: present.
+- RNG item activation prohibition: present.
+- Item consumption prohibition: present.
+- Post-turn HP prohibition: present.
+- Full simulation prohibition remains covered through optional context guards.
+
+Recommendation:
+- Prefer Option C: keep exact prompt-shape checks in offline fixtures, but use focused safety anchors and structural summaries in the provider smoke harness.
+- Next: v7.15 Controlled UI Gemini Smoke Harness Alignment.
+- Do not run another actual Gemini call until the harness is aligned and T1 explicitly approves a new one-call smoke.
+
+Safety:
+- No actual Gemini call.
+- No retry.
+- No Vertex AI call.
+- No production behavior change.
+- No UI checkbox behavior change.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, opponent set inference, or EV/IV/nature inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+- No raw full prompt recorded.
+
+---
+
 ## v7.13 - Controlled UI Gemini Smoke
 
 Purpose:

@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, the v5.8 optional TurnPipeline payload adapter, the v5.9 TurnPipeline prompt/contract guard, the v6.0 Minimal TurnPipeline integration design, the v6.1 explicit TurnPipeline generation adapter, the v6.2 explicit TurnPipeline payload smoke, the v6.3 TurnPipeline UI/advice flow integration design, the v6.4 explicit TurnPipeline advice payload builder smoke, the v6.5 explicit TurnPipeline advice flow integration design, the v6.6 explicit TurnPipeline advice-flow dry-run, the v6.7 TurnPipeline advice-flow closure / stability report, the v6.8 Payload Snapshot Lockdown, the v6.9 Controlled Gemini Smoke Design, the v6.10 Controlled Gemini Smoke Execution, the v6.11 Controlled Gemini Smoke Closure / Next UI Exposure Design, the v6.12 Prompt / UX Copy Design, the v6.13 Prompt Copy Test Fixtures, the v6.14 UI Exposure Design, the v6.15 Offline End-to-End Advice Fixture, the v6.16 UI Exposure Test Plan, the v6.17 Controlled UI Mock Smoke, the v6.18 UI Dev Flag Implementation, the v6.19 UI Dev Flag Smoke / Manual QA, the v6.20 Controlled UI Gemini Smoke, the v6.21 TurnPipeline UI Phase Closure, the v7.0 Turn Engine Roadmap / Scope Split, the v7.1 Deterministic Turn Order Context Design, the v7.2 Turn Order Context Payload Contract, the v7.3 Deterministic Turn Order Context Helper, the v7.4 Turn Order Context Payload Adapter, the v7.5 Turn Order Context Prompt Integration Design, the v7.6 Turn Order Context Prompt Contract Tests, the v7.7 Turn Order Context Prompt Integration, the v7.8 Turn Order Context Offline Advice Fixture, the v7.9 UI / Flag Integration Design, the v7.10 UI Flag Enables Turn Order Context, the v7.11 UI Flag Offline E2E Fixture, the v7.12 Controlled UI Gemini Smoke Design, and the v7.13 Controlled UI Gemini Smoke.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, the v5.8 optional TurnPipeline payload adapter, the v5.9 TurnPipeline prompt/contract guard, the v6.0 Minimal TurnPipeline integration design, the v6.1 explicit TurnPipeline generation adapter, the v6.2 explicit TurnPipeline payload smoke, the v6.3 TurnPipeline UI/advice flow integration design, the v6.4 explicit TurnPipeline advice payload builder smoke, the v6.5 explicit TurnPipeline advice flow integration design, the v6.6 explicit TurnPipeline advice-flow dry-run, the v6.7 TurnPipeline advice-flow closure / stability report, the v6.8 Payload Snapshot Lockdown, the v6.9 Controlled Gemini Smoke Design, the v6.10 Controlled Gemini Smoke Execution, the v6.11 Controlled Gemini Smoke Closure / Next UI Exposure Design, the v6.12 Prompt / UX Copy Design, the v6.13 Prompt Copy Test Fixtures, the v6.14 UI Exposure Design, the v6.15 Offline End-to-End Advice Fixture, the v6.16 UI Exposure Test Plan, the v6.17 Controlled UI Mock Smoke, the v6.18 UI Dev Flag Implementation, the v6.19 UI Dev Flag Smoke / Manual QA, the v6.20 Controlled UI Gemini Smoke, the v6.21 TurnPipeline UI Phase Closure, the v7.0 Turn Engine Roadmap / Scope Split, the v7.1 Deterministic Turn Order Context Design, the v7.2 Turn Order Context Payload Contract, the v7.3 Deterministic Turn Order Context Helper, the v7.4 Turn Order Context Payload Adapter, the v7.5 Turn Order Context Prompt Integration Design, the v7.6 Turn Order Context Prompt Contract Tests, the v7.7 Turn Order Context Prompt Integration, the v7.8 Turn Order Context Offline Advice Fixture, the v7.9 UI / Flag Integration Design, the v7.10 UI Flag Enables Turn Order Context, the v7.11 UI Flag Offline E2E Fixture, the v7.12 Controlled UI Gemini Smoke Design, the v7.13 Controlled UI Gemini Smoke, and the v7.14 Smoke Harness Prompt Guard Triage.
 
 Update after v2.5:
 
@@ -75,13 +75,14 @@ Update after v2.5:
 - v7.11 verified the UI flag path offline from `LLMAdvicePanel` checkbox state through mocked advice. Unchecked prompts omit both optional contexts and guards; checked prompts include both optional contexts and guards when source context exists. Checkbox toggle emits no advice request and makes no provider call. Mocked responses avoid resolved-order wording.
 - v7.12 designed the controlled UI Gemini smoke for the combined `turn_pipeline` + `turn_order_context` checkbox-on path. The design requires pre-call guard checks, maximum 1 actual Gemini call, no retry, stop on provider/auth/billing/quota/routing/timeout errors, PASS/PARTIAL/FAIL/BLOCKED classification, and safe recording without token log or secret contents.
 - v7.13 attempted the controlled UI Gemini smoke but classified it as `BLOCKED` before any provider call. Pre-check passed, but the local smoke harness raised on strict prompt equality between the prechecked prompt and provider wrapper prompt. Actual Gemini call count was 0, retry count was 0, and no Vertex AI call was made.
+- v7.14 triaged the v7.13 prompt equality guard. Cause: dynamic field difference. The direct pre-check prompt omitted `turn_snapshot`, while `run_ui_selected_advice(...)` automatically built and included it. Safety anchors for `turn_pipeline`, `turn_order_context`, exact order, speed tie, RNG, item consumption, post-turn HP, and full simulation remained present. Recommended next is harness alignment with focused safety anchors before any provider retry.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v7.13 Controlled UI Gemini Smoke.
+T3, continue after v7.14 Smoke Harness Prompt Guard Triage.
 
 Goal:
 - Do not add new item contexts.
@@ -118,8 +119,8 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v7.14 Controlled UI Gemini Smoke Harness Alignment
-  - Alternative: v7.14 Turn Order UI Integration Closure
+  - v7.15 Controlled UI Gemini Smoke Harness Alignment
+  - Alternative: v7.15 Turn Order UI Integration Closure
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.
@@ -147,6 +148,7 @@ Goal:
   - v7.11 verified the actual UI checkbox path through a mocked offline advice fixture.
   - v7.12 designed the controlled UI Gemini smoke and locked the pre-check, maximum-one-call, no-retry, stop-condition, classification, and recording policies.
   - v7.13 attempted the smoke but stopped before provider call because the local prompt-alignment harness guard raised. Result: BLOCKED. Actual Gemini call count: 0. Retry count: 0.
+  - v7.14 triaged the prompt-alignment issue: direct pre-check prompt omitted the auto-built `turn_snapshot`; the provider path included it. Safety anchors still held.
   - Next should align the smoke harness prompt path before any provider call.
   - Do not run another actual Gemini call unless T1 explicitly approves a new one-call smoke after the harness alignment.
   - No Vertex AI call.
