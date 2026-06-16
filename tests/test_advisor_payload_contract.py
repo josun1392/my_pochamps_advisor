@@ -1521,6 +1521,113 @@ def test_turn_pipeline_dev_flag_widget_defaults_off_and_does_not_auto_call() -> 
     assert emitted == 0
 
 
+def test_ui_flag_offline_e2e_fixture_covers_checkbox_off_and_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    panel = LLMAdvicePanel()
+    payload = _turn_pipeline_advice_flow_payload()
+    captured_prompts: list[str] = []
+    mocked_responses: list[str] = []
+    logged_usages: list[dict[str, int]] = []
+    emitted = 0
+
+    def record_advice_request() -> None:
+        nonlocal emitted
+        emitted += 1
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert prompt
+        assert model == "ui-flag-offline-v7-11"
+        captured_prompts.append(prompt)
+        response = (
+            "Turn event and turn order contexts are limited planning hints only. "
+            "Exact final order remains uncertain. Quick Claw may alter move order, "
+            "but activation is not resolved. No item consumption or post-turn HP is inferred."
+        )
+        mocked_responses.append(response)
+        return response, {"input_tokens": 30 + len(captured_prompts), "output_tokens": 5, "cached_tokens": 0}
+
+    def fake_log_advisor_call(*, model: str, usage: dict[str, int], game_id: str) -> dict[str, object]:
+        assert model == "ui-flag-offline-v7-11"
+        assert game_id == "ui_selected_pokemon_v0_6"
+        logged_usages.append(usage)
+        return {"mocked": True, "call_index": len(logged_usages)}
+
+    def run_from_panel_state() -> tuple[str, dict[str, int], dict[str, object]]:
+        enable_turn_pipeline = panel.turn_pipeline_enabled()
+        enable_turn_order_context = enable_turn_pipeline
+        return advisor_client.run_ui_selected_advice(
+            payload,
+            model="ui-flag-offline-v7-11",
+            enable_turn_pipeline=enable_turn_pipeline,
+            enable_turn_order_context=enable_turn_order_context,
+        )
+
+    panel.advice_requested.connect(record_advice_request)
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", fake_log_advisor_call)
+
+    assert panel.turn_pipeline_enabled() is False
+    assert panel.turn_pipeline_checkbox.isChecked() is False
+
+    off_response, off_usage, off_summary = run_from_panel_state()
+
+    panel.turn_pipeline_checkbox.setChecked(True)
+
+    assert panel.turn_pipeline_enabled() is True
+    assert emitted == 0
+    assert len(captured_prompts) == 1
+
+    on_response, on_usage, on_summary = run_from_panel_state()
+
+    assert len(captured_prompts) == 2
+    assert len(logged_usages) == 2
+    assert off_response == mocked_responses[0]
+    assert on_response == mocked_responses[1]
+    assert off_usage == {"input_tokens": 31, "output_tokens": 5, "cached_tokens": 0}
+    assert on_usage == {"input_tokens": 32, "output_tokens": 5, "cached_tokens": 0}
+    assert off_summary == {"mocked": True, "call_index": 1}
+    assert on_summary == {"mocked": True, "call_index": 2}
+
+    off_prompt, on_prompt = captured_prompts
+    off_payload = json.loads(off_prompt.rsplit("\n\n", 1)[1])
+    on_payload = json.loads(on_prompt.rsplit("\n\n", 1)[1])
+
+    assert "turn_pipeline" not in off_payload
+    assert "turn_order_context" not in off_payload
+    assert '"turn_pipeline"' not in off_prompt
+    assert '"turn_order_context"' not in off_prompt
+    assert "candidate events are not resolved outcomes" not in off_prompt
+    assert "not a resolved move order" not in off_prompt
+
+    assert on_payload["turn_pipeline"]["simulated"] == "limited"
+    assert on_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert on_payload["turn_order_context"]["priority"]["priority_relation"] == "unknown"
+    assert on_payload["turn_order_context"]["candidate_modifiers"][0]["resolved"] is False
+    assert '"turn_pipeline"' in on_prompt
+    assert '"turn_order_context"' in on_prompt
+    assert "candidate events are not resolved outcomes" in on_prompt
+    assert "limited planning/debug summary only, not full turn simulation" in on_prompt
+    assert "limited planning context, not a resolved move order" in on_prompt
+    assert "Do not claim exact final move order" in on_prompt
+    assert "Do not infer item consumption" in on_prompt
+    assert "Do not infer post-turn HP" in on_prompt
+
+    forbidden_response_phrases = (
+        "will move first",
+        "speed tie is resolved",
+        "Quick Claw will activate",
+        "item will be consumed",
+        "post-turn HP will be",
+        "full turn simulation shows",
+    )
+    for response in mocked_responses:
+        for phrase in forbidden_response_phrases:
+            assert phrase not in response
+
+
 def test_turn_pipeline_dev_flag_is_default_off_and_wired_only_through_advice_request() -> None:
     panel_source = inspect.getsource(LLMAdvicePanel)
     worker_init_source = inspect.getsource(MainWindow.__dict__["_start_llm_advice"])

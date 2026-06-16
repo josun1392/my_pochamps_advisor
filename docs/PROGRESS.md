@@ -1,5 +1,39 @@
 # Master Ball Advisor — Progress
 
+## v7.11 - UI Flag Offline E2E Fixture
+
+Purpose:
+- Verify the actual `LLMAdvicePanel` checkbox state through the offline mocked advice path.
+- Keep v7.11 provider-free and avoid any new UI controls.
+
+Fixture:
+- Uses `LLMAdvicePanel` directly.
+- Reads checkbox state to derive `enable_turn_pipeline` and `enable_turn_order_context`.
+- Calls `run_ui_selected_advice(...)` with monkeypatched `call_gemini` and `_log_advisor_call`.
+- Captures prompts and mocked responses in memory.
+
+Coverage:
+- Default unchecked path has no `turn_pipeline` or `turn_order_context` payload sections.
+- Checked path includes both optional contexts when source context exists.
+- Prompt contains both guards only in the checked path.
+- Checkbox toggle emits no `advice_requested` signal and does not call Gemini.
+- Mocked responses avoid resolved wording such as `will move first`, `Quick Claw will activate`, `item will be consumed`, `post-turn HP will be`, and `full turn simulation shows`.
+
+Recommended next:
+- v7.12 Controlled UI Gemini Smoke Design.
+- Do not run actual Gemini until T1 approves a one-call controlled smoke.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No new checkbox.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, opponent set inference, or EV/IV/nature inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.10 - UI Flag Enables Turn Order Context
 
 Purpose:

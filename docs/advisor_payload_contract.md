@@ -171,6 +171,8 @@ v7.8 adds an offline advice fixture for the explicit turn-order context path. Th
 
 v7.10 connects the existing default-off developer checkbox to the turn-order context path. The same checkbox now maps to both `enable_turn_pipeline=True` and `enable_turn_order_context=True` when checked, and both flags remain false when unchecked. The runtime source extraction for `turn_order_context` is intentionally narrow: selected active base Speed, user-confirmed final Speed when available for both sides, and unresolved Quick Claw candidate modifier context. Move priority remains unknown because current move metadata does not expose priority. If no valid source exists, `turn_order_context` is omitted rather than emitted as an empty context. This remains default-off, has no saved auto-enable behavior, does not add a second checkbox, and does not implement resolved order, speed tie resolution, RNG resolution, item consumption, post-turn HP update, opponent set inference, or EV/IV/nature inference.
 
+v7.11 verifies the UI checkbox path offline. The fixture instantiates `LLMAdvicePanel`, reads the checkbox state, maps it to `enable_turn_pipeline` and `enable_turn_order_context`, and runs `run_ui_selected_advice(...)` with `call_gemini` and `_log_advisor_call` monkeypatched. The unchecked path omits both optional contexts and both guards. The checked path includes both contexts and both guards when source context exists. Checkbox toggling alone emits no advice request and makes no provider call.
+
 ## Current Payload Shape
 
 Top-level sections:
