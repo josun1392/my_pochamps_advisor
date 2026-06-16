@@ -1,5 +1,55 @@
 # Master Ball Advisor — Progress
 
+## v7.16 - Controlled UI Gemini Smoke Retry
+
+Purpose:
+- Retry the controlled UI Gemini smoke after v7.15 harness alignment.
+- Use the actual UI checkbox-on path with both `turn_pipeline` and `turn_order_context`.
+
+Pre-check:
+- Checkbox default unchecked: passed.
+- Checkbox toggle no-auto-call: passed.
+- Checked state mapped to `enable_turn_pipeline=True` and `enable_turn_order_context=True`: passed.
+- Prompt/payload included both `turn_pipeline` and `turn_order_context`: passed.
+- Prompt included both optional context guards: passed.
+- Focused smoke guard passed.
+- Structural summary passed, including expected auto-built `turn_snapshot`.
+
+Result:
+- Classification: `PASS`.
+- Actual Gemini call count: 1.
+- Retry count: 0.
+- Stop condition: none.
+- Vertex AI call count: 0.
+
+Response safety:
+- Gemini treated both optional contexts as limited planning information.
+- No exact final move order claim.
+- No speed tie resolution claim.
+- No Quick Claw activation certainty claim.
+- No item consumption claim.
+- No post-turn HP claim.
+- No full turn simulation claim.
+- No `damage_estimate` / `ko_context` conflict found.
+
+Recommended next:
+- v7.17 Turn Order UI Integration Closure.
+- Optional alternative: v7.17 Prompt Wording Polish if the raw-Speed wording should become more cautious.
+
+Safety:
+- Exactly one actual Gemini call.
+- No retry.
+- No repeated provider call.
+- No Vertex AI call.
+- No UI checkbox behavior change.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, opponent set inference, or EV/IV/nature inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+- Quick Claw activation certainty remains forbidden.
+
+---
+
 ## v7.15 - Controlled UI Gemini Smoke Harness Alignment
 
 Purpose:
