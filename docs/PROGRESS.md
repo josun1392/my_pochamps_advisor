@@ -1,5 +1,51 @@
 # Master Ball Advisor — Progress
 
+## v7.17 - Turn Order UI Integration Closure
+
+Purpose:
+- Close the Turn Order UI Integration phase after v7.16 controlled UI Gemini smoke PASS.
+- Summarize supported behavior, unsupported boundaries, Quick Claw wording boundary, smoke result, known limitations, and next major phase recommendation.
+
+Phase summary:
+- `turn_order_context` moved from design through helper, payload adapter, prompt guard, UI flag connection, offline E2E, smoke harness alignment, and controlled UI Gemini smoke PASS.
+- The existing UI checkbox `턴 이벤트 후보 포함` remains the single default-off flag for limited turn context.
+- Checked state enables both `turn_pipeline` and `turn_order_context` when valid source contexts exist.
+- Unchecked state omits both optional contexts and guards.
+
+Current boundary:
+- This is still not a full Turn Engine.
+- No resolved final move order, speed tie resolution, RNG resolution, Quick Claw activation resolution, item consumption, post-turn HP update, opponent set inference, or EV/IV/nature inference is supported.
+- Quick Claw remains an unresolved candidate modifier. `may/could/possible/unresolved` wording is allowed; activation certainty remains forbidden.
+
+Smoke result:
+- v7.16 controlled UI Gemini smoke result: PASS.
+- Actual Gemini call count: 1.
+- Retry count: 0.
+- No Vertex AI call.
+- No exact final order, speed tie resolution, Quick Claw activation certainty, item consumption, post-turn HP, or full simulation claim.
+
+Known limitations:
+- Move priority and opponent move source extraction remain limited.
+- Turn-order context is mostly base/raw Speed hinting unless confirmed final Speed is available.
+- RNG modifiers remain unresolved candidates.
+- No full battle resolution exists yet.
+
+Recommended next:
+- v8.0 Battle State / Opponent Move Context Expansion Design.
+- Rationale: opponent move/state/priority/source context is now the largest advice-quality limiter and is safer to expand before any full Turn Engine work.
+
+Safety:
+- No actual Gemini call in v7.17.
+- No retry.
+- No Vertex AI call.
+- No production code change.
+- No UI checkbox behavior change.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.16 - Controlled UI Gemini Smoke Retry
 
 Purpose:
