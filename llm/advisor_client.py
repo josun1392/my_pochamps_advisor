@@ -21,6 +21,7 @@ from llm.advisor_turn_order_context import (
     TURN_ORDER_CONTEXT_PRIORITY_RELATION_VALUES,
     TURN_ORDER_CONTEXT_REQUIRED_UNSUPPORTED,
     TURN_ORDER_CONTEXT_SPEED_RELATION_VALUES,
+    build_deterministic_turn_order_context,
 )
 from llm.advisor_payload_contract import (
     ADVICE_CONTEXT_SIDE_FIELDS,
@@ -119,6 +120,7 @@ def run_ui_selected_advice(
     model: str | None = None,
     *,
     enable_turn_pipeline: bool = False,
+    enable_turn_order_context: bool = False,
 ) -> tuple[str, dict[str, int], dict[str, Any]]:
     """Run the v0.6 UI-selected Pokemon advisor flow.
 
@@ -131,6 +133,7 @@ def run_ui_selected_advice(
         battle_input,
         turn_snapshot=turn_snapshot,
         enable_turn_pipeline=enable_turn_pipeline,
+        enable_turn_order_context=enable_turn_order_context,
     )
     recommendation, usage = call_gemini(prompt, selected_model)
     summary = _log_advisor_call(
@@ -163,6 +166,13 @@ def _build_ui_selected_prompt(
             damage_estimate_ref=_move_payload_ref(selected_move, "damage_estimate"),
             ko_context_ref=_move_payload_ref(selected_move, "ko_context"),
         )
+
+    if turn_order_context is None and enable_turn_order_context:
+        base_payload = build_ui_advice_payload(
+            battle_input,
+            turn_snapshot=turn_snapshot,
+        )
+        turn_order_context = _build_optional_turn_order_context_for_advice_payload(base_payload)
 
     advice_payload = build_ui_advice_payload(
         battle_input,
@@ -503,6 +513,77 @@ def _selected_move_payload_from_advice_payload(payload: dict[str, Any]) -> dict[
     if not isinstance(selected_move, dict):
         return None
     return selected_move
+
+
+def _build_optional_turn_order_context_for_advice_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    own_base_speed = _active_base_speed(payload, "my_active")
+    opponent_base_speed = _active_base_speed(payload, "opponent_active")
+    own_final_speed = _confirmed_final_speed(payload, "my_active")
+    opponent_final_speed = _confirmed_final_speed(payload, "opponent_active")
+    candidate_modifiers = _turn_order_candidate_modifiers(payload)
+
+    has_speed_source = (own_base_speed is not None and opponent_base_speed is not None) or (
+        own_final_speed is not None and opponent_final_speed is not None
+    )
+    if not has_speed_source and not candidate_modifiers:
+        return None
+
+    return build_deterministic_turn_order_context(
+        own_move_priority=None,
+        opponent_move_priority=None,
+        own_base_speed=own_base_speed,
+        opponent_base_speed=opponent_base_speed,
+        own_confirmed_final_speed=own_final_speed,
+        opponent_confirmed_final_speed=opponent_final_speed,
+        candidate_modifiers=candidate_modifiers,
+    )
+
+
+def _active_base_speed(payload: dict[str, Any], side: str) -> int | None:
+    pokemon = payload.get("pokemon")
+    if not isinstance(pokemon, dict):
+        return None
+    active = pokemon.get(side)
+    if not isinstance(active, dict):
+        return None
+    base_stats = active.get("base_stats")
+    if not isinstance(base_stats, dict):
+        return None
+    speed = base_stats.get("speed")
+    return speed if isinstance(speed, int) else None
+
+
+def _confirmed_final_speed(payload: dict[str, Any], side: str) -> int | None:
+    stat_profiles = payload.get("stat_profiles")
+    if not isinstance(stat_profiles, dict):
+        return None
+    profile = stat_profiles.get(side)
+    if not isinstance(profile, dict) or profile.get("status") != "user_confirmed_final_stats":
+        return None
+    final_stats = profile.get("final_stats")
+    if not isinstance(final_stats, dict):
+        return None
+    speed = final_stats.get("spe")
+    return speed if isinstance(speed, int) else None
+
+
+def _turn_order_candidate_modifiers(payload: dict[str, Any]) -> list[dict[str, str]]:
+    selected_move = _selected_move_payload_from_advice_payload(payload)
+    if selected_move is None:
+        return []
+    speed_order_context = selected_move.get("speed_order_context")
+    if not isinstance(speed_order_context, dict) or speed_order_context.get("available") is not True:
+        return []
+    item = speed_order_context.get("item")
+    item_id = item.get("item_id") if isinstance(item, dict) else None
+    if item_id != "quick-claw":
+        return []
+    return [
+        {
+            "source": "Quick Claw",
+            "effect": "may alter move order",
+        }
+    ]
 
 
 def _string_field(payload: dict[str, Any] | None, key: str) -> str | None:

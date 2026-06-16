@@ -815,12 +815,16 @@ def test_turn_order_context_prompt_integration_is_default_off_and_unchanged() ->
         turn_order_context=context,
         enable_turn_order_context=False,
     )
-    enabled_without_context_prompt = _build_ui_selected_prompt(payload, enable_turn_order_context=True)
+    runtime_source_prompt = _build_ui_selected_prompt(payload, enable_turn_order_context=True)
+    runtime_source_payload = json.loads(runtime_source_prompt.rsplit("\n\n", 1)[1])
 
     assert omitted_prompt == baseline_prompt
     assert disabled_prompt == baseline_prompt
-    assert enabled_without_context_prompt == baseline_prompt
     assert '"turn_order_context"' not in baseline_prompt
+    assert '"turn_order_context"' not in omitted_prompt
+    assert '"turn_order_context"' not in disabled_prompt
+    assert runtime_source_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert "limited planning context, not a resolved move order" in runtime_source_prompt
     assert "not a resolved move order" not in baseline_prompt
     assert "Do not claim exact final move order" not in baseline_prompt
     assert "Do not claim speed ties are resolved" not in baseline_prompt
@@ -857,6 +861,20 @@ def test_turn_order_context_prompt_integration_includes_guard_and_context() -> N
     assert "Do not claim RNG items activate" in prompt
     assert "Do not infer item consumption" in prompt
     assert "Do not infer post-turn HP" in prompt
+
+
+def test_turn_order_context_prompt_integration_omits_empty_runtime_context_without_sources() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    payload["pokemon"]["my_active"]["base_stats"].pop("speed")
+    payload["pokemon"]["opponent_active"]["base_stats"].pop("speed")
+    payload["moves"]["my_selected_move"].pop("speed_order_context", None)
+
+    prompt = _build_ui_selected_prompt(payload, enable_turn_order_context=True)
+    prompt_payload = json.loads(prompt.rsplit("\n\n", 1)[1])
+
+    assert "turn_order_context" not in prompt_payload
+    assert '"turn_order_context"' not in prompt
+    assert "limited planning context, not a resolved move order" not in prompt
 
 
 def test_turn_order_context_prompt_integration_coexists_with_turn_pipeline() -> None:
@@ -1066,6 +1084,7 @@ def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
     assert "limited planning/debug summary only, not full turn simulation" not in prompt
     run_source = inspect.getsource(advisor_client.run_ui_selected_advice)
     assert "enable_turn_pipeline: bool = False" in run_source
+    assert "enable_turn_order_context: bool = False" in run_source
 
 
 def test_explicit_turn_pipeline_generation_smoke_preserves_existing_payload_contexts() -> None:
@@ -1332,7 +1351,7 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
 ) -> None:
     payload = _turn_pipeline_advice_flow_payload()
     captured_prompts: list[str] = []
-    captured_flags: list[bool | None] = []
+    captured_flags: list[tuple[bool | None, bool | None]] = []
     status_texts: list[str] = []
     call_count = 0
 
@@ -1359,18 +1378,20 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     def run_fake_ui_advice(turn_pipeline_enabled: bool | None) -> tuple[str, dict[str, int], dict[str, object]]:
         fake_ui_state = SimpleNamespace(turn_pipeline_enabled=turn_pipeline_enabled)
         if fake_ui_state.turn_pipeline_enabled is None:
-            captured_flags.append(None)
+            captured_flags.append((None, None))
             status_texts.append("")
             return advisor_client.run_ui_selected_advice(payload)
 
-        captured_flags.append(fake_ui_state.turn_pipeline_enabled)
+        enable_turn_order_context = fake_ui_state.turn_pipeline_enabled
+        captured_flags.append((fake_ui_state.turn_pipeline_enabled, enable_turn_order_context))
         if fake_ui_state.turn_pipeline_enabled:
-            status_texts.append("턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님")
+            status_texts.append(TURN_PIPELINE_STATUS_TEXT)
         else:
             status_texts.append("")
         return advisor_client.run_ui_selected_advice(
             payload,
             enable_turn_pipeline=fake_ui_state.turn_pipeline_enabled,
+            enable_turn_order_context=enable_turn_order_context,
         )
 
     monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
@@ -1383,7 +1404,7 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     assert call_count == 3
     assert len(captured_prompts) == 3
     assert len(logged_usages) == 3
-    assert captured_flags == [None, False, True]
+    assert captured_flags == [(None, None), (False, False), (True, True)]
     assert default_result[0] == "ui mock recommendation 1"
     assert flag_off_result[0] == "ui mock recommendation 2"
     assert flag_on_result[0] == "ui mock recommendation 3"
@@ -1398,20 +1419,38 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
         (flag_off_prompt, flag_off_payload, status_texts[1]),
     ):
         assert "turn_pipeline" not in prompt_payload
+        assert "turn_order_context" not in prompt_payload
         assert '"turn_pipeline"' not in prompt
+        assert '"turn_order_context"' not in prompt
         assert "candidate events are not resolved outcomes" not in prompt
         assert "limited planning/debug summary only, not full turn simulation" not in prompt
-        assert "턴 이벤트 후보 포함됨" not in status_text
+        assert "not a resolved move order" not in prompt
+        assert TURN_PIPELINE_STATUS_TEXT not in status_text
 
     assert flag_off_payload == default_payload
     assert flag_off_prompt == default_prompt
 
     assert flag_on_payload["turn_pipeline"]["simulated"] == "limited"
+    assert flag_on_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert flag_on_payload["turn_order_context"]["confidence"] == "limited"
+    assert flag_on_payload["turn_order_context"]["priority"]["priority_relation"] == "unknown"
+    assert flag_on_payload["turn_order_context"]["speed"]["speed_relation"] == "opponent_faster_by_base_speed"
+    assert flag_on_payload["turn_order_context"]["candidate_modifiers"][0]["source"] == "Quick Claw"
+    assert flag_on_payload["turn_order_context"]["candidate_modifiers"][0]["resolved"] is False
+    assert "speed tie resolution" in flag_on_payload["turn_order_context"]["unsupported"]
+    assert "RNG item activation" in flag_on_payload["turn_order_context"]["unsupported"]
+    assert "exact final order" in flag_on_payload["turn_order_context"]["unsupported"]
+    assert "item consumption" in flag_on_payload["turn_order_context"]["unsupported"]
+    assert "post-turn HP update" in flag_on_payload["turn_order_context"]["unsupported"]
     assert "candidate events are not resolved outcomes" in flag_on_prompt
     assert "limited planning/debug summary only, not full turn simulation" in flag_on_prompt
+    assert "limited planning context, not a resolved move order" in flag_on_prompt
+    assert "Do not claim exact final move order" in flag_on_prompt
+    assert "Do not infer item consumption" in flag_on_prompt
+    assert "Do not infer post-turn HP" in flag_on_prompt
     assert "item consumption" in flag_on_prompt
     assert "exact post-turn HP" in flag_on_prompt
-    assert "턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님" in status_texts[2]
+    assert TURN_PIPELINE_STATUS_TEXT in status_texts[2]
     assert [event["item_id"] for event in flag_on_payload["turn_pipeline"]["events"]] == [
         "light-ball",
         "quick-claw",
@@ -1439,6 +1478,7 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     assert "QCheckBox" in panel_source
     assert "turn_pipeline_checkbox" in panel_source
     assert "enable_turn_pipeline" in worker_source
+    assert "enable_turn_order_context" in worker_source
 
 
 def test_turn_pipeline_dev_flag_widget_defaults_off_and_does_not_auto_call() -> None:
@@ -1458,11 +1498,13 @@ def test_turn_pipeline_dev_flag_widget_defaults_off_and_does_not_auto_call() -> 
     assert panel.turn_pipeline_checkbox.text() == "턴 이벤트 후보 포함"
     assert panel.turn_pipeline_checkbox.toolTip() == TURN_PIPELINE_HELP_TEXT
     assert "확정 턴 시뮬레이션이 아니라" in panel.turn_pipeline_checkbox.toolTip()
+    assert "턴 이벤트 후보와 선후공 판단 보조 정보" in panel.turn_pipeline_checkbox.toolTip()
     assert "RNG" in panel.turn_pipeline_checkbox.toolTip()
     assert "아이템 소모" in panel.turn_pipeline_checkbox.toolTip()
     assert "턴 종료 후 HP" in panel.turn_pipeline_checkbox.toolTip()
     assert "스피드 타이" in panel.turn_pipeline_checkbox.toolTip()
     assert "정확한 발동 결과" in panel.turn_pipeline_checkbox.toolTip()
+    assert "최종 행동 순서" in panel.turn_pipeline_checkbox.toolTip()
     assert panel.turn_pipeline_status_label.text() == TURN_PIPELINE_STATUS_TEXT
     assert panel.turn_pipeline_status_label.isHidden() is True
 
@@ -1494,8 +1536,11 @@ def test_turn_pipeline_dev_flag_is_default_off_and_wired_only_through_advice_req
     assert "call_gemini" not in panel_source
 
     assert "enable_turn_pipeline = panel.turn_pipeline_enabled()" in worker_init_source
+    assert "enable_turn_order_context = enable_turn_pipeline" in worker_init_source
     assert "enable_turn_pipeline=enable_turn_pipeline" in worker_source
+    assert "enable_turn_order_context=enable_turn_order_context" in worker_source
     assert "enable_turn_pipeline: bool = False" in llm_worker_source
+    assert "enable_turn_order_context: bool = False" in llm_worker_source
     assert "run_ui_selected_advice(" in llm_worker_source
     assert "call_gemini" not in worker_source
 

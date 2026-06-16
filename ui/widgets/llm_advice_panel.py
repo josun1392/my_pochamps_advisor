@@ -6,10 +6,10 @@ from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QPushButton, QTextEdit,
 
 
 TURN_PIPELINE_HELP_TEXT = (
-    "확정 턴 시뮬레이션이 아니라, 아이템/속도/생존 가능성 같은 제한적 후보 정보를 조언에 추가합니다.\n"
-    "RNG, 아이템 소모, 턴 종료 후 HP, 스피드 타이, 정확한 발동 결과는 확정하지 않습니다."
+    "확정 턴 시뮬레이션이 아니라, 턴 이벤트 후보와 선후공 판단 보조 정보를 조언에 추가합니다.\n"
+    "RNG, 아이템 소모, 턴 종료 후 HP, 스피드 타이, 정확한 발동 결과나 최종 행동 순서는 확정하지 않습니다."
 )
-TURN_PIPELINE_STATUS_TEXT = "턴 이벤트 후보 포함됨 | 확정 시뮬레이션 아님"
+TURN_PIPELINE_STATUS_TEXT = "턴 판단 후보 포함됨 | 확정 시뮬레이션 아님"
 
 
 class LLMAdvicePanel(QFrame):

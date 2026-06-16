@@ -1,5 +1,43 @@
 # Master Ball Advisor — Progress
 
+## v7.10 - UI Flag Enables Turn Order Context
+
+Purpose:
+- Connect the existing default-off `턴 이벤트 후보 포함` developer checkbox to both `turn_pipeline` and `turn_order_context`.
+- Keep the UI to one checkbox and avoid any actual Gemini call.
+
+Implementation:
+- Added `enable_turn_order_context: bool = False` to `run_ui_selected_advice(...)`.
+- Added `enable_turn_order_context` forwarding through `LLMAdviceWorker`.
+- Mapped the existing checkbox checked state to both optional flags in `MainWindow._start_llm_advice(...)`.
+- Added narrow runtime source extraction for `turn_order_context`: base Speed, user-confirmed final Speed, and unresolved Quick Claw candidate modifier only.
+- Kept priority unknown because current move metadata does not provide priority.
+
+Copy:
+- Kept the checkbox label `턴 이벤트 후보 포함`.
+- Updated tooltip/status copy to mention turn event candidates plus turn-order planning hints.
+
+Tests:
+- Covered off/on UI flag mapping.
+- Verified checkbox toggle still does not auto-call advice.
+- Verified source-less enabled path omits invalid empty `turn_order_context`.
+- Verified enabled mocked advice path can include both optional contexts and both prompt guards.
+
+Recommended next:
+- v7.11 UI Flag Offline E2E Fixture.
+- Do not run actual Gemini yet.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No new checkbox.
+- No saved setting auto-enable.
+- No full Turn Engine implementation.
+- No resolved turn order, speed tie resolver, RNG resolver, item consumption, post-turn HP update, opponent set inference, or EV/IV/nature inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+---
+
 ## v7.9 - UI / Flag Integration Design
 
 Purpose:

@@ -169,6 +169,8 @@ v7.7 wires the `turn_order_context` guard into `_build_ui_selected_prompt(...)` 
 
 v7.8 adds an offline advice fixture for the explicit turn-order context path. The fixture builds prompts with `_build_ui_selected_prompt(...)`, replaces `call_gemini` and `_log_advisor_call` with in-memory fakes, and verifies default-off, explicit-on, and `turn_pipeline` coexistence paths without provider calls. The mocked response keeps exact final order uncertain, treats Quick Claw activation as unresolved, and does not claim item consumption, post-turn HP, full simulation, or resolved speed ties.
 
+v7.10 connects the existing default-off developer checkbox to the turn-order context path. The same checkbox now maps to both `enable_turn_pipeline=True` and `enable_turn_order_context=True` when checked, and both flags remain false when unchecked. The runtime source extraction for `turn_order_context` is intentionally narrow: selected active base Speed, user-confirmed final Speed when available for both sides, and unresolved Quick Claw candidate modifier context. Move priority remains unknown because current move metadata does not expose priority. If no valid source exists, `turn_order_context` is omitted rather than emitted as an empty context. This remains default-off, has no saved auto-enable behavior, does not add a second checkbox, and does not implement resolved order, speed tie resolution, RNG resolution, item consumption, post-turn HP update, opponent set inference, or EV/IV/nature inference.
+
 ## Current Payload Shape
 
 Top-level sections:
