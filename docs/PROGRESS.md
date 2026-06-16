@@ -1,5 +1,34 @@
 # Master Ball Advisor — Progress
 
+## v8.0 - Battle State / Opponent Move Context Expansion Design
+
+Purpose:
+- Design the next phase after v7 Turn Order UI Integration Closure.
+- Improve advice quality by expanding explicitly known battle-state and opponent-move context before any full Turn Engine work.
+
+Design summary:
+- Current UI-selected path knows selected Pokemon, own selected move, user-confirmed move slots, base stats, visible HP percent, user-confirmed final stats/items when provided, existing item contexts, `turn_pipeline`, and `turn_order_context`.
+- Current UI-selected path does not know hidden opponent movesets, opponent selected move unless user-confirmed, hidden item, EV/IV/nature, unprovided boosts, weather/terrain/screens, exact HP, RNG result, or post-turn state.
+- Proposed future `opponent_move_context` as an optional top-level limited context that separates known user-confirmed moves from possible/unconfirmed candidate moves.
+- Proposed future `battle_state_context` as an optional visible-state summary, not a battle-state manager.
+- Move metadata candidates include move id/name/type/category/power/accuracy and later priority/target/effect flags only when trusted metadata exposes them.
+
+Safety:
+- Design only.
+- No production implementation.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine.
+- No resolved turn order.
+- No opponent set inference, hidden moveset inference, EV/IV/nature inference, hidden item inference, or weather/terrain/boost inference.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+Recommended next:
+- v8.1 Opponent Move Context Payload Contract.
+- Alternative: v8.1 Battle State Context Payload Contract.
+
+---
+
 ## v7.17 - Turn Order UI Integration Closure
 
 Purpose:
