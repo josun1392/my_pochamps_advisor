@@ -550,6 +550,189 @@ def test_turn_order_context_contract_prompt_safety_copy_anchors() -> None:
     assert "Do not infer item consumption or post-turn HP" in safety_copy
 
 
+def test_opponent_move_context_contract_fixture_locks_shape_and_boundaries() -> None:
+    context = _sample_opponent_move_context()
+
+    _assert_opponent_move_context_contract(context)
+
+    assert context["kind"] == "opponent_move_context"
+    assert context["confidence"] == "limited"
+    assert context["selected_opponent_move"] == {"status": "unknown"}
+    assert context["known_opponent_moves"][0]["source"] == "user_confirmed"
+    assert context["known_opponent_moves"][0]["confirmed"] is True
+    assert context["candidate_moves"][0]["confirmed"] is False
+    assert context["candidate_moves"][0]["selected"] is False
+    assert context["priority_move_candidates"][0]["confirmed"] is False
+    assert "hidden moveset inference" in context["unsupported"]
+    assert "opponent set inference" in context["unsupported"]
+    assert "selected opponent move inference" in context["unsupported"]
+    assert "EV/IV/nature inference" in context["unsupported"]
+    assert "hidden item inference" in context["unsupported"]
+    assert "RNG resolution" in context["unsupported"]
+    assert "full turn resolution" in context["unsupported"]
+    assert "Candidate moves are not confirmed selected moves." in context["safety_notes"]
+
+
+@pytest.mark.parametrize("confidence", ["limited", "unknown"])
+def test_opponent_move_context_contract_allows_limited_or_unknown_confidence(confidence: str) -> None:
+    context = _sample_opponent_move_context()
+    context["confidence"] = confidence
+
+    _assert_opponent_move_context_contract(context)
+
+
+@pytest.mark.parametrize("confidence", ["resolved", "certain", "confirmed_full_set"])
+def test_opponent_move_context_contract_rejects_resolved_confidence(confidence: str) -> None:
+    context = _sample_opponent_move_context()
+    context["confidence"] = confidence
+
+    with pytest.raises(AssertionError):
+        _assert_opponent_move_context_contract(context)
+
+
+def test_opponent_move_context_contract_allows_explicit_selected_opponent_move() -> None:
+    context = _sample_opponent_move_context()
+    context["selected_opponent_move"] = {
+        "status": "explicit",
+        "move_id": "thunderbolt",
+        "name": "Thunderbolt",
+        "source": "explicit_input",
+    }
+
+    _assert_opponent_move_context_contract(context)
+
+
+@pytest.mark.parametrize("status", ["inferred", "predicted", "likely"])
+def test_opponent_move_context_contract_rejects_inferred_selected_opponent_move(status: str) -> None:
+    context = _sample_opponent_move_context()
+    context["selected_opponent_move"] = {
+        "status": status,
+        "move_id": "thunderbolt",
+        "name": "Thunderbolt",
+    }
+
+    with pytest.raises(AssertionError):
+        _assert_opponent_move_context_contract(context)
+
+
+@pytest.mark.parametrize("source", ["meta_inferred", "species_common_set", "usage_based_guess"])
+def test_opponent_move_context_contract_rejects_untrusted_known_move_sources(source: str) -> None:
+    context = _sample_opponent_move_context()
+    context["known_opponent_moves"][0]["source"] = source
+
+    with pytest.raises(AssertionError):
+        _assert_opponent_move_context_contract(context)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [
+        ("confirmed", True),
+        ("selected", True),
+        ("will_use", True),
+        ("likely_selected", True),
+    ],
+)
+def test_opponent_move_context_contract_rejects_candidate_moves_as_confirmed_or_selected(
+    field_name: str,
+    field_value: object,
+) -> None:
+    context = _sample_opponent_move_context()
+    context["candidate_moves"][0][field_name] = field_value
+
+    with pytest.raises(AssertionError):
+        _assert_opponent_move_context_contract(context)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [
+        ("confirmed", True),
+        ("selected", True),
+        ("will_use", True),
+        ("likely_selected", True),
+    ],
+)
+def test_opponent_move_context_contract_rejects_priority_candidates_as_confirmed_selected_moves(
+    field_name: str,
+    field_value: object,
+) -> None:
+    context = _sample_opponent_move_context()
+    context["priority_move_candidates"][0][field_name] = field_value
+
+    with pytest.raises(AssertionError):
+        _assert_opponent_move_context_contract(context)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "inferred_moveset",
+        "predicted_move",
+        "likely_move",
+        "will_use",
+        "usage_rate_guess",
+        "meta_set",
+        "EVs",
+        "IVs",
+        "nature",
+        "hidden_item",
+        "post_turn_hp",
+        "item_consumed",
+        "rng_resolved",
+        "speed_tie_resolved",
+    ],
+)
+def test_opponent_move_context_contract_rejects_forbidden_fields(field_name: str) -> None:
+    context = _sample_opponent_move_context()
+    context[field_name] = True
+
+    with pytest.raises(AssertionError):
+        _assert_opponent_move_context_contract(context)
+
+
+def test_opponent_move_context_contract_rejects_forbidden_nested_fields() -> None:
+    context = _sample_opponent_move_context()
+    context["candidate_moves"][0]["hidden_item"] = "choice-scarf"
+
+    with pytest.raises(AssertionError):
+        _assert_opponent_move_context_contract(context)
+
+
+def test_opponent_move_context_contract_requires_unsupported_boundaries() -> None:
+    context = _sample_opponent_move_context()
+    context["unsupported"].remove("selected opponent move inference")
+
+    with pytest.raises(AssertionError):
+        _assert_opponent_move_context_contract(context)
+
+
+def test_opponent_move_context_contract_rejects_unapproved_move_metadata_fields() -> None:
+    context = _sample_opponent_move_context()
+    context["candidate_moves"][0]["usage_rate"] = 0.42
+
+    with pytest.raises(AssertionError):
+        _assert_opponent_move_context_contract(context)
+
+
+def test_opponent_move_context_contract_requires_candidate_not_confirmed_safety_note() -> None:
+    context = _sample_opponent_move_context()
+    context["safety_notes"] = ["Only explicitly known or visible move data should be treated as known."]
+
+    with pytest.raises(AssertionError):
+        _assert_opponent_move_context_contract(context)
+
+
+def test_opponent_move_context_prompt_safety_copy_anchors() -> None:
+    safety_copy = _opponent_move_context_prompt_safety_copy()
+
+    assert "explicitly known or visible data" in safety_copy
+    assert "Do not infer hidden movesets" in safety_copy
+    assert "Do not treat candidate moves as confirmed selected moves" in safety_copy
+    assert "Do not infer the opponent's selected move unless explicitly provided" in safety_copy
+    assert "Do not infer EVs, IVs, nature, hidden item, weather, terrain, or boosts" in safety_copy
+
+
 def test_turn_order_context_payload_adapter_is_default_off() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
     context = _sample_turn_order_context()
@@ -4437,6 +4620,187 @@ def _turn_order_context_prompt_safety_copy() -> str:
         "Do not claim RNG items activate. "
         "Do not claim exact final order unless explicitly provided. "
         "Do not infer item consumption or post-turn HP from this context."
+    )
+
+
+OPPONENT_MOVE_CONTEXT_CONFIDENCE_VALUES = frozenset({"limited", "unknown"})
+OPPONENT_MOVE_CONTEXT_SELECTED_MOVE_STATUS_VALUES = frozenset({"unknown", "explicit"})
+OPPONENT_MOVE_CONTEXT_TRUSTED_KNOWN_SOURCES = frozenset({"user_confirmed", "visible_ui", "explicit_input"})
+OPPONENT_MOVE_CONTEXT_CANDIDATE_SOURCES = frozenset(
+    {
+        "visible_or_cache_candidate",
+        "champions_movepool",
+        "visible_ui",
+    }
+)
+OPPONENT_MOVE_CONTEXT_ALLOWED_MOVE_FIELDS = frozenset(
+    {
+        "move_id",
+        "name",
+        "type",
+        "category",
+        "power",
+        "accuracy",
+        "priority",
+        "target",
+        "effect_flags",
+        "source",
+        "confirmed",
+        "selected",
+    }
+)
+OPPONENT_MOVE_CONTEXT_FORBIDDEN_FIELDS = frozenset(
+    {
+        "inferred_moveset",
+        "predicted_move",
+        "likely_move",
+        "will_use",
+        "usage_rate_guess",
+        "meta_set",
+        "EVs",
+        "IVs",
+        "nature",
+        "hidden_item",
+        "post_turn_hp",
+        "item_consumed",
+        "rng_resolved",
+        "speed_tie_resolved",
+    }
+)
+OPPONENT_MOVE_CONTEXT_REQUIRED_UNSUPPORTED = frozenset(
+    {
+        "hidden moveset inference",
+        "opponent set inference",
+        "selected opponent move inference",
+        "EV/IV/nature inference",
+        "hidden item inference",
+        "weather/terrain/boost inference",
+        "RNG resolution",
+        "full turn resolution",
+    }
+)
+
+
+def _sample_opponent_move_context() -> dict:
+    return {
+        "kind": "opponent_move_context",
+        "confidence": "limited",
+        "selected_opponent_move": {
+            "status": "unknown",
+        },
+        "known_opponent_moves": [
+            {
+                "source": "user_confirmed",
+                "move_id": "thunderbolt",
+                "name": "Thunderbolt",
+                "type": "electric",
+                "category": "special",
+                "power": 90,
+                "accuracy": 100,
+                "priority": 0,
+                "confirmed": True,
+            }
+        ],
+        "candidate_moves": [
+            {
+                "source": "visible_or_cache_candidate",
+                "move_id": "quick-attack",
+                "name": "Quick Attack",
+                "type": "normal",
+                "category": "physical",
+                "power": 40,
+                "accuracy": 100,
+                "priority": 1,
+                "confirmed": False,
+                "selected": False,
+            }
+        ],
+        "priority_move_candidates": [
+            {
+                "source": "visible_or_cache_candidate",
+                "move_id": "quick-attack",
+                "name": "Quick Attack",
+                "priority": 1,
+                "confirmed": False,
+                "selected": False,
+            }
+        ],
+        "unsupported": [
+            "hidden moveset inference",
+            "opponent set inference",
+            "selected opponent move inference",
+            "EV/IV/nature inference",
+            "hidden item inference",
+            "weather/terrain/boost inference",
+            "RNG resolution",
+            "full turn resolution",
+        ],
+        "safety_notes": [
+            "Candidate moves are not confirmed selected moves.",
+            "Only explicitly known or visible move data should be treated as known.",
+        ],
+    }
+
+
+def _assert_opponent_move_context_contract(context: dict) -> None:
+    assert context["kind"] == "opponent_move_context"
+    assert context["confidence"] in OPPONENT_MOVE_CONTEXT_CONFIDENCE_VALUES
+    assert OPPONENT_MOVE_CONTEXT_REQUIRED_UNSUPPORTED.issubset(set(context["unsupported"]))
+    assert "Candidate moves are not confirmed selected moves." in context["safety_notes"]
+    assert "Only explicitly known or visible move data should be treated as known." in context["safety_notes"]
+
+    selected = context["selected_opponent_move"]
+    assert selected["status"] in OPPONENT_MOVE_CONTEXT_SELECTED_MOVE_STATUS_VALUES
+    if selected["status"] == "explicit":
+        assert selected.get("move_id")
+        assert selected.get("name")
+        assert selected.get("source") in OPPONENT_MOVE_CONTEXT_TRUSTED_KNOWN_SOURCES
+
+    for move in context["known_opponent_moves"]:
+        _assert_opponent_move_metadata_fields(move)
+        assert move["source"] in OPPONENT_MOVE_CONTEXT_TRUSTED_KNOWN_SOURCES
+        assert move["confirmed"] is True
+
+    for move in context["candidate_moves"]:
+        _assert_opponent_move_metadata_fields(move)
+        assert move["source"] in OPPONENT_MOVE_CONTEXT_CANDIDATE_SOURCES
+        assert move["confirmed"] is False
+        assert move["selected"] is False
+        assert "will_use" not in move
+        assert "likely_selected" not in move
+
+    for move in context["priority_move_candidates"]:
+        _assert_opponent_move_metadata_fields(move)
+        assert move["source"] in OPPONENT_MOVE_CONTEXT_CANDIDATE_SOURCES
+        assert move["confirmed"] is False
+        assert move["selected"] is False
+        assert "will_use" not in move
+        assert "likely_selected" not in move
+
+    _assert_opponent_move_context_has_no_forbidden_fields(context)
+
+
+def _assert_opponent_move_metadata_fields(move: dict) -> None:
+    assert set(move).issubset(OPPONENT_MOVE_CONTEXT_ALLOWED_MOVE_FIELDS)
+
+
+def _assert_opponent_move_context_has_no_forbidden_fields(value: object) -> None:
+    if isinstance(value, dict):
+        for key, child_value in value.items():
+            assert key not in OPPONENT_MOVE_CONTEXT_FORBIDDEN_FIELDS
+            _assert_opponent_move_context_has_no_forbidden_fields(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _assert_opponent_move_context_has_no_forbidden_fields(child_value)
+
+
+def _opponent_move_context_prompt_safety_copy() -> str:
+    return (
+        "Opponent move context is based only on explicitly known or visible data. "
+        "Do not infer hidden movesets. "
+        "Do not treat candidate moves as confirmed selected moves. "
+        "Do not infer the opponent's selected move unless explicitly provided. "
+        "Do not infer EVs, IVs, nature, hidden item, weather, terrain, or boosts unless explicitly provided."
     )
 
 

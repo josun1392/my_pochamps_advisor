@@ -173,6 +173,46 @@ v7.10 connects the existing default-off developer checkbox to the turn-order con
 
 v7.11 verifies the UI checkbox path offline. The fixture instantiates `LLMAdvicePanel`, reads the checkbox state, maps it to `enable_turn_pipeline` and `enable_turn_order_context`, and runs `run_ui_selected_advice(...)` with `call_gemini` and `_log_advisor_call` monkeypatched. The unchecked path omits both optional contexts and both guards. The checked path includes both contexts and both guards when source context exists. Checkbox toggling alone emits no advice request and makes no provider call.
 
+## Opponent Move Context Contract Draft
+
+v8.1 defines a fixture-level payload contract for a future optional top-level `opponent_move_context` section. No runtime helper, payload adapter, prompt integration, or UI behavior change is added in v8.1.
+
+The draft context is limited and source-bound:
+
+- `kind` must be `opponent_move_context`
+- `confidence` may be `limited` or `unknown`
+- `selected_opponent_move.status` may be `unknown` or `explicit`
+- `known_opponent_moves[*].source` must be trusted, such as `user_confirmed`, `visible_ui`, or `explicit_input`
+- `candidate_moves[*]` must remain unconfirmed and unselected
+- `priority_move_candidates[*]` must remain unconfirmed and unselected
+- `unsupported` must include hidden moveset inference, opponent set inference, selected opponent move inference, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, RNG resolution, and full turn resolution
+- `safety_notes` must state that candidate moves are not confirmed selected moves
+
+The context must not include fields that imply hidden inference or resolved outcomes, including `inferred_moveset`, `predicted_move`, `likely_move`, `will_use`, `usage_rate_guess`, `meta_set`, `EVs`, `IVs`, `nature`, `hidden_item`, `post_turn_hp`, `item_consumed`, `rng_resolved`, or `speed_tie_resolved`.
+
+Allowed move metadata fields are:
+
+- `move_id`
+- `name`
+- `type`
+- `category`
+- `power`
+- `accuracy`
+- `priority`
+- `target`
+- `effect_flags`
+- `source`
+- `confirmed`
+- `selected`
+
+Prompt safety wording for future integration:
+
+- Opponent move context is based only on explicitly known or visible data.
+- Do not infer hidden movesets.
+- Do not treat candidate moves as confirmed selected moves.
+- Do not infer the opponent's selected move unless explicitly provided.
+- Do not infer EVs, IVs, nature, hidden item, weather, terrain, or boosts unless explicitly provided.
+
 ## Current Payload Shape
 
 Top-level sections:

@@ -1,5 +1,40 @@
 # Master Ball Advisor — Progress
 
+## v8.1 - Opponent Move Context Payload Contract
+
+Purpose:
+- Lock the fixture-level contract for a future optional top-level `opponent_move_context`.
+- Separate explicitly known opponent moves from possible/unconfirmed candidate moves before any helper, adapter, prompt, UI, or Gemini work.
+
+Contract summary:
+- `kind` is `opponent_move_context`.
+- `confidence` is limited to `limited` or `unknown`.
+- `selected_opponent_move.status` is limited to `unknown` or explicit user/visible input.
+- `known_opponent_moves` require trusted source such as `user_confirmed`, `visible_ui`, or `explicit_input`.
+- `candidate_moves` and `priority_move_candidates` must remain `confirmed=False` and `selected=False`.
+- Forbidden fields include hidden inference and resolved-outcome markers such as `inferred_moveset`, `predicted_move`, `likely_move`, `will_use`, `meta_set`, `EVs`, `IVs`, `nature`, `hidden_item`, `post_turn_hp`, `item_consumed`, `rng_resolved`, and `speed_tie_resolved`.
+- Required unsupported boundaries include hidden moveset inference, opponent set inference, selected move inference, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, RNG resolution, and full turn resolution.
+
+Tests:
+- Added fixture-level contract tests in `tests/test_advisor_payload_contract.py`.
+- Tests cover allowed values, selected move status, trusted known sources, candidate/priority candidate non-confirmed semantics, forbidden fields, unsupported boundaries, and prompt safety wording anchors.
+
+Safety:
+- No runtime helper.
+- No payload adapter.
+- No prompt integration.
+- No UI checkbox behavior change.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine, resolved turn order, opponent set inference, hidden moveset inference, selected opponent move inference, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+Recommended next:
+- v8.2 Opponent Move Context Helper.
+- Alternative: v8.2 Opponent Move Source Extraction Design.
+
+---
+
 ## v8.0 - Battle State / Opponent Move Context Expansion Design
 
 Purpose:
