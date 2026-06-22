@@ -1,5 +1,45 @@
 # Master Ball Advisor — Progress
 
+## v8.6 - Controlled Gemini Smoke Design
+
+Purpose:
+- Define the controlled Gemini smoke plan for `opponent_move_context` before any provider call.
+- Lock call conditions, stop conditions, PASS/PARTIAL/FAIL/BLOCKED criteria, wording policy, and safe recording rules.
+
+Design summary:
+- Future smoke must include top-level `opponent_move_context` and the opponent move prompt guard.
+- Pre-check must confirm known move data is not selected move data.
+- Pre-check must confirm candidate moves remain `confirmed=False` and `selected=False`.
+- Pre-check must confirm `selected_opponent_move` is unknown for the fixture.
+- Pre-check must confirm prompt guard anchors for candidate-not-confirmed, candidate-not-selected, known-not-selected, hidden moveset, opponent set, selected move, EV/IV/nature, hidden item, weather/terrain/boost, RNG, item consumption, and post-turn HP inference.
+
+Call policy:
+- Actual Gemini call maximum for the future smoke: 1.
+- Retry count: 0.
+- No repeated fixture call.
+- No additional call after failure, block, timeout, or exception.
+- Stop on 429, `RESOURCE_EXHAUSTED`, API key/auth/credential errors, billing/prepay/credit errors, routing errors, timeout, or unexpected exceptions.
+
+Result criteria:
+- PASS: Gemini treats context as explicitly known/visible data, keeps known moves non-selected unless explicit, keeps candidates unconfirmed/unselected, and avoids hidden inference or resolved outcome claims.
+- PARTIAL: mostly safe but ambiguous wording or prompt-polish need.
+- FAIL: selected/confirmed candidate claim, hidden moveset/opponent set/selected move inference, EV/IV/nature/hidden item/weather/terrain/boost inference, RNG/item consumption/post-turn HP/full turn resolution claim.
+- BLOCKED: pre-check/provider/auth/billing/quota/routing/timeout/exception prevents evaluation.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No network/provider call.
+- No UI/source extraction.
+- No UI checkbox behavior change.
+- No full Turn Engine, resolved turn order, opponent set inference, hidden moveset inference, selected opponent move inference, species/common set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+
+Recommended next:
+- v8.7 Controlled Gemini Smoke, after T1 approval, with at most one actual Gemini call and no retry.
+- Alternatives: v8.7 Prompt Wording Polish or v8.7 Opponent Move UI/Source Integration Design.
+
+---
+
 ## v8.5 - Opponent Move Offline Advice Fixture
 
 Purpose:
