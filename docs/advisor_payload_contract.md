@@ -219,6 +219,8 @@ v8.3 adds an explicit/default-off payload adapter for this contract. `build_ui_a
 
 v8.4 adds `_build_opponent_move_context_prompt_guard(payload)` and wires it into `_build_ui_selected_prompt(...)` after the `turn_order_context` guard. The guard is emitted only when top-level `opponent_move_context` is present. It says the context is based only on explicitly known or visible opponent move data, known moves are not necessarily the selected move unless `selected_opponent_move` is explicit, candidate moves are not confirmed moves or confirmed selected moves, hidden movesets / opponent sets / selected move must not be inferred, and EV/IV/nature, hidden item, weather, terrain, boosts, RNG results, item consumption, and post-turn HP must not be inferred unless explicitly provided. v8.4 does not add UI/source extraction or Gemini calls.
 
+v8.5 adds an offline mocked advice fixture for the explicit `opponent_move_context` path. The fixture monkeypatches `call_gemini` and `_log_advisor_call`, verifies default-off omission, explicit prompt guard and serialized payload context, and coexistence with `turn_pipeline` plus `turn_order_context`. The mocked response says the known Thunderbolt is user-confirmed known move data, selected move is unknown, and Quick Attack is only a candidate that must not be treated as confirmed or selected. The response avoids selected-move, hidden moveset, hidden item, EV/IV/nature, RNG, item consumption, and post-turn HP inference. No actual Gemini call or UI/source extraction is added.
+
 ## Current Payload Shape
 
 Top-level sections:

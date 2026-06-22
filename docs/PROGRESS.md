@@ -1,5 +1,40 @@
 # Master Ball Advisor — Progress
 
+## v8.5 - Opponent Move Offline Advice Fixture
+
+Purpose:
+- Verify `opponent_move_context` payload and prompt guard through mocked offline advice.
+- Confirm candidate/known/selected move wording stays non-inferential before any provider smoke or UI/source extraction.
+
+Fixture summary:
+- Added `test_opponent_move_context_offline_advice_fixture_covers_prompt_and_mocked_response`.
+- Monkeypatches `advisor_client.call_gemini` and `_log_advisor_call`.
+- Runs default, explicit `opponent_move_context`, and coexistence paths.
+- Coexistence path includes `turn_pipeline`, `turn_order_context`, and `opponent_move_context`.
+
+Coverage:
+- Default path omits `opponent_move_context` and guard.
+- Explicit path includes top-level `opponent_move_context`, serialized prompt JSON context, and opponent move prompt guard.
+- Known Thunderbolt remains known move data, not selected move.
+- Candidate Quick Attack remains `confirmed=False` and `selected=False`.
+- `selected_opponent_move` remains unknown.
+- Mocked response avoids `opponent will use`, `likely uses`, confirmed/selected candidate wording, hidden moveset assertions, hidden item assertions, EV/IV/nature assertions, RNG resolution, item consumption, and post-turn HP assertions.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No network call.
+- No UI/source extraction.
+- No UI checkbox behavior change.
+- No full Turn Engine, resolved turn order, opponent set inference, hidden moveset inference, selected opponent move inference, species/common set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+Recommended next:
+- v8.6 Controlled Gemini Smoke Design.
+- Alternative: v8.6 Opponent Move UI/Source Integration Design.
+
+---
+
 ## v8.4 - Opponent Move Prompt Guard
 
 Purpose:

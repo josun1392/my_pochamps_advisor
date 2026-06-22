@@ -1638,6 +1638,170 @@ def test_turn_order_context_offline_advice_fixture_covers_default_explicit_and_p
             assert phrase not in response
 
 
+def test_opponent_move_context_offline_advice_fixture_covers_prompt_and_mocked_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    selected_move = payload["moves"]["my_selected_move"]
+    opponent_move_context = build_opponent_move_context(
+        known_moves=[
+            {
+                "source": "user_confirmed",
+                "move_id": "thunderbolt",
+                "name": "Thunderbolt",
+                "type": "electric",
+                "category": "special",
+                "power": 90,
+                "accuracy": 100,
+                "priority": 0,
+            }
+        ],
+        candidate_moves=[
+            {
+                "source": "visible_ui",
+                "move_id": "quick-attack",
+                "name": "Quick Attack",
+                "type": "normal",
+                "category": "physical",
+                "power": 40,
+                "accuracy": 100,
+                "priority": 1,
+            }
+        ],
+    )
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+    )
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        build_ui_advice_payload(payload),
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    captured_prompts: list[str] = []
+    mocked_responses: list[str] = []
+    logged_usages: list[dict[str, int]] = []
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert prompt
+        assert model == "offline-v8-5"
+        captured_prompts.append(prompt)
+        response = (
+            "The opponent has user-confirmed Thunderbolt in known move data, "
+            "but the selected move is unknown. Quick Attack is only a candidate "
+            "move and should not be treated as confirmed or selected. No hidden "
+            "set, item, EV, IV, nature, RNG, item consumption, or post-turn HP "
+            "is inferred."
+        )
+        mocked_responses.append(response)
+        return response, {"input_tokens": 17 + len(captured_prompts), "output_tokens": 5, "cached_tokens": 0}
+
+    def fake_log_advisor_call(*, model: str, usage: dict[str, int], game_id: str) -> dict[str, object]:
+        assert model == "offline-v8-5"
+        assert game_id == "opponent_move_context_offline_fixture_v8_5"
+        logged_usages.append(usage)
+        return {"mocked": True, "call_index": len(logged_usages)}
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", fake_log_advisor_call)
+
+    def run_offline_fixture(**prompt_kwargs: object) -> tuple[str, dict[str, int], dict[str, object]]:
+        prompt = _build_ui_selected_prompt(payload, **prompt_kwargs)
+        response, usage = advisor_client.call_gemini(prompt, "offline-v8-5")
+        summary = advisor_client._log_advisor_call(
+            model="offline-v8-5",
+            usage=usage,
+            game_id="opponent_move_context_offline_fixture_v8_5",
+        )
+        return response, usage, summary
+
+    default_response, default_usage, default_summary = run_offline_fixture()
+    explicit_response, explicit_usage, explicit_summary = run_offline_fixture(
+        opponent_move_context=opponent_move_context,
+        enable_opponent_move_context=True,
+    )
+    coexist_response, coexist_usage, coexist_summary = run_offline_fixture(
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        opponent_move_context=opponent_move_context,
+        enable_turn_order_context=True,
+        enable_opponent_move_context=True,
+    )
+
+    assert len(captured_prompts) == 3
+    assert len(logged_usages) == 3
+    assert default_response == mocked_responses[0]
+    assert explicit_response == mocked_responses[1]
+    assert coexist_response == mocked_responses[2]
+    assert default_usage == {"input_tokens": 18, "output_tokens": 5, "cached_tokens": 0}
+    assert explicit_usage == {"input_tokens": 19, "output_tokens": 5, "cached_tokens": 0}
+    assert coexist_usage == {"input_tokens": 20, "output_tokens": 5, "cached_tokens": 0}
+    assert default_summary == {"mocked": True, "call_index": 1}
+    assert explicit_summary == {"mocked": True, "call_index": 2}
+    assert coexist_summary == {"mocked": True, "call_index": 3}
+
+    default_prompt, explicit_prompt, coexist_prompt = captured_prompts
+    default_prompt_payload = json.loads(default_prompt.rsplit("\n\n", 1)[1])
+    explicit_prompt_payload = json.loads(explicit_prompt.rsplit("\n\n", 1)[1])
+    coexist_prompt_payload = json.loads(coexist_prompt.rsplit("\n\n", 1)[1])
+
+    assert "opponent_move_context" not in default_prompt_payload
+    assert '"opponent_move_context"' not in default_prompt
+    assert "explicitly known or visible opponent move data" not in default_prompt
+
+    context_payload = explicit_prompt_payload["opponent_move_context"]
+    assert context_payload["kind"] == "opponent_move_context"
+    assert context_payload["selected_opponent_move"] == {"status": "unknown"}
+    assert context_payload["known_opponent_moves"][0]["name"] == "Thunderbolt"
+    assert context_payload["known_opponent_moves"][0]["confirmed"] is True
+    assert context_payload["candidate_moves"][0]["name"] == "Quick Attack"
+    assert context_payload["candidate_moves"][0]["confirmed"] is False
+    assert context_payload["candidate_moves"][0]["selected"] is False
+    assert context_payload["priority_move_candidates"][0]["confirmed"] is False
+    assert "hidden moveset inference" in context_payload["unsupported"]
+    assert "opponent set inference" in context_payload["unsupported"]
+    assert "selected opponent move inference" in context_payload["unsupported"]
+    assert "Candidate moves are not confirmed selected moves." in context_payload["safety_notes"]
+
+    assert "explicitly known or visible opponent move data" in explicit_prompt
+    assert "Known opponent moves are not necessarily the opponent's selected move this turn" in explicit_prompt
+    assert "Candidate moves are not confirmed moves" in explicit_prompt
+    assert "Candidate moves are not confirmed selected moves" in explicit_prompt
+    assert "Do not infer hidden movesets" in explicit_prompt
+    assert "Do not infer opponent sets" in explicit_prompt
+    assert "Do not infer the opponent's selected move unless explicitly provided" in explicit_prompt
+    assert "Do not infer EVs, IVs, nature, hidden item, weather, terrain, boosts" in explicit_prompt
+    assert "RNG results, item consumption, or post-turn HP" in explicit_prompt
+
+    assert coexist_prompt_payload["turn_pipeline"]["simulated"] == "limited"
+    assert coexist_prompt_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert coexist_prompt_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+    assert "limited planning/debug summary only, not full turn simulation" in coexist_prompt
+    assert "limited planning context" in coexist_prompt
+    assert "explicitly known or visible opponent move data" in coexist_prompt
+
+    forbidden_response_phrases = (
+        "opponent will use",
+        "likely uses",
+        "Quick Attack is selected",
+        "Quick Attack is confirmed",
+        "opponent has this hidden moveset",
+        "opponent item is",
+        "EVs are",
+        "IVs are",
+        "nature is",
+        "post-turn HP will be",
+        "RNG is resolved",
+    )
+    for response in mocked_responses:
+        for phrase in forbidden_response_phrases:
+            assert phrase not in response
+
+
 def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
 
