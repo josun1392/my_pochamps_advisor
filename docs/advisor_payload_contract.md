@@ -213,6 +213,8 @@ Prompt safety wording for future integration:
 - Do not infer the opponent's selected move unless explicitly provided.
 - Do not infer EVs, IVs, nature, hidden item, weather, terrain, or boosts unless explicitly provided.
 
+v8.2 adds `llm.advisor_opponent_move_context.build_opponent_move_context(...)` as a standalone helper for this contract. It accepts caller-provided `known_moves`, `candidate_moves`, and optional `selected_opponent_move`. Trusted known moves are normalized with `confirmed=True`; unconfirmed candidates are normalized with `confirmed=False` and `selected=False`; positive-priority candidates are copied into `priority_move_candidates` without becoming selected moves. Unsafe candidate semantics such as `confirmed=True`, `selected=True`, `will_use=True`, or `likely_selected=True` are omitted from helper output. Explicit selected moves require trusted source, `move_id`, and `name`; inferred, predicted, or likely selected moves are rejected. The helper does not generate moves from species/common sets/meta data and is not connected to the payload adapter, prompt, UI, Gemini, or full Turn Engine path.
+
 ## Current Payload Shape
 
 Top-level sections:

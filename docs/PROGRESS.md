@@ -1,5 +1,42 @@
 # Master Ball Advisor — Progress
 
+## v8.2 - Opponent Move Context Helper
+
+Purpose:
+- Add a minimal helper that builds a v8.1-compatible `opponent_move_context` from caller-provided move data.
+- Keep the helper source-bound and avoid hidden moveset, selected move, species/common-set, or meta inference.
+
+Implementation summary:
+- Added `llm.advisor_opponent_move_context.build_opponent_move_context(...)`.
+- Inputs: `known_moves`, `candidate_moves`, and optional `selected_opponent_move`.
+- Empty input emits `confidence=unknown`, selected opponent move `{"status": "unknown"}`, and no move lists.
+- Trusted known moves from `user_confirmed`, `visible_ui`, or `explicit_input` become `confirmed=True`.
+- Untrusted known sources such as `meta_inferred`, `species_common_set`, and `usage_based_guess` are omitted.
+- Candidate moves from safe candidate sources remain `confirmed=False` and `selected=False`.
+- Candidate inputs with `confirmed=True`, `selected=True`, `will_use=True`, or `likely_selected=True` are omitted.
+- Explicit selected moves require trusted source, `move_id`, and `name`; inferred, predicted, or likely statuses are rejected.
+- Positive-priority candidate moves produce `priority_move_candidates` that remain unconfirmed and unselected.
+
+Tests:
+- Added `tests/test_advisor_opponent_move_context.py`.
+- Tests cover empty input, trusted known moves, untrusted source omission, candidate normalization, unsafe candidate omission, selected move handling, priority candidates, no species-only inference, forbidden fields, unsupported boundaries, and safety notes.
+- Existing v8.1 payload contract tests remain green.
+
+Safety:
+- No payload adapter.
+- No prompt integration.
+- No UI checkbox behavior change.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine, resolved turn order, opponent set inference, hidden moveset inference, selected opponent move inference, species/common set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+Recommended next:
+- v8.3 Opponent Move Context Payload Adapter.
+- Alternative: v8.3 Opponent Move Source Extraction Design if source extraction needs design before adapter work.
+
+---
+
 ## v8.1 - Opponent Move Context Payload Contract
 
 Purpose:
