@@ -36,6 +36,10 @@ from llm.advisor_payload_contract import (
     TURN_PIPELINE_KNOWN_LIMITATIONS,
     TURN_SNAPSHOT_KNOWN_LIMITATIONS,
 )
+from llm.advisor_opponent_move_context import (
+    OPPONENT_MOVE_CONTEXT_FORBIDDEN_FIELDS,
+    build_opponent_move_context,
+)
 from llm.advisor_turn_events import build_optional_turn_pipeline_for_advice_payload
 from llm.advisor_turn_order_context import build_deterministic_turn_order_context
 from tests.test_advisor_damage_estimate import (
@@ -731,6 +735,222 @@ def test_opponent_move_context_prompt_safety_copy_anchors() -> None:
     assert "Do not treat candidate moves as confirmed selected moves" in safety_copy
     assert "Do not infer the opponent's selected move unless explicitly provided" in safety_copy
     assert "Do not infer EVs, IVs, nature, hidden item, weather, terrain, or boosts" in safety_copy
+
+
+def test_opponent_move_context_payload_adapter_is_default_off() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_opponent_move_context()
+
+    baseline_payload = build_ui_advice_payload(payload)
+    omitted_payload = build_ui_advice_payload(payload, opponent_move_context=context)
+    disabled_payload = build_ui_advice_payload(
+        payload,
+        opponent_move_context=context,
+        enable_opponent_move_context=False,
+    )
+    enabled_without_context_payload = build_ui_advice_payload(payload, enable_opponent_move_context=True)
+
+    assert omitted_payload == baseline_payload
+    assert disabled_payload == baseline_payload
+    assert enabled_without_context_payload == baseline_payload
+    assert "opponent_move_context" not in baseline_payload
+    assert "opponent_move_context" not in omitted_payload
+    assert "opponent_move_context" not in disabled_payload
+    assert "opponent_move_context" not in enabled_without_context_payload
+
+
+def test_opponent_move_context_payload_adapter_adds_explicit_top_level_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = build_opponent_move_context(
+        known_moves=[
+            {
+                "source": "user_confirmed",
+                "move_id": "thunderbolt",
+                "name": "Thunderbolt",
+                "type": "electric",
+                "category": "special",
+                "power": 90,
+                "accuracy": 100,
+                "priority": 0,
+            }
+        ],
+        candidate_moves=[
+            {
+                "source": "visible_or_cache_candidate",
+                "move_id": "quick-attack",
+                "name": "Quick Attack",
+                "type": "normal",
+                "category": "physical",
+                "power": 40,
+                "accuracy": 100,
+                "priority": 1,
+            }
+        ],
+    )
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        opponent_move_context=context,
+        enable_opponent_move_context=True,
+    )
+
+    assert advice_payload["opponent_move_context"] == context
+    assert advice_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+    assert advice_payload["opponent_move_context"]["confidence"] == "limited"
+    assert advice_payload["opponent_move_context"]["candidate_moves"][0]["confirmed"] is False
+    assert advice_payload["opponent_move_context"]["candidate_moves"][0]["selected"] is False
+    assert advice_payload["opponent_move_context"]["selected_opponent_move"] == {"status": "unknown"}
+    assert advice_payload["opponent_move_context"]["priority_move_candidates"][0]["confirmed"] is False
+    assert advice_payload["opponent_move_context"]["priority_move_candidates"][0]["selected"] is False
+    assert "hidden moveset inference" in advice_payload["opponent_move_context"]["unsupported"]
+    assert "opponent set inference" in advice_payload["opponent_move_context"]["unsupported"]
+    assert "selected opponent move inference" in advice_payload["opponent_move_context"]["unsupported"]
+    _assert_opponent_move_context_has_no_forbidden_fields(advice_payload["opponent_move_context"])
+
+
+def test_opponent_move_context_payload_adapter_omits_empty_helper_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = build_opponent_move_context()
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        opponent_move_context=context,
+        enable_opponent_move_context=True,
+    )
+
+    assert context["selected_opponent_move"] == {"status": "unknown"}
+    assert context["known_opponent_moves"] == []
+    assert context["candidate_moves"] == []
+    assert "opponent_move_context" not in advice_payload
+
+
+@pytest.mark.parametrize(
+    ("path", "value", "match"),
+    [
+        (("confidence",), "resolved", "confidence"),
+        (("selected_opponent_move", "status"), "likely", "status"),
+        (("known_opponent_moves", 0, "source"), "species_common_set", "source"),
+        (("candidate_moves", 0, "confirmed"), True, "unconfirmed"),
+        (("candidate_moves", 0, "selected"), True, "unselected"),
+        (("priority_move_candidates", 0, "selected"), True, "unselected"),
+    ],
+)
+def test_opponent_move_context_payload_adapter_rejects_invalid_context_values(
+    path: tuple[str | int, ...],
+    value: object,
+    match: str,
+) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_opponent_move_context()
+    target = context
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+
+    with pytest.raises(ValueError, match=match):
+        build_ui_advice_payload(payload, opponent_move_context=context, enable_opponent_move_context=True)
+
+
+@pytest.mark.parametrize("field_name", sorted(OPPONENT_MOVE_CONTEXT_FORBIDDEN_FIELDS))
+def test_opponent_move_context_payload_adapter_rejects_forbidden_fields(field_name: str) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_opponent_move_context()
+    context[field_name] = True
+
+    with pytest.raises(ValueError, match=field_name):
+        build_ui_advice_payload(payload, opponent_move_context=context, enable_opponent_move_context=True)
+
+
+def test_opponent_move_context_payload_adapter_preserves_explicit_selected_move() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = build_opponent_move_context(
+        selected_opponent_move={
+            "status": "explicit",
+            "source": "explicit_input",
+            "move_id": "protect",
+            "name": "Protect",
+        }
+    )
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        opponent_move_context=context,
+        enable_opponent_move_context=True,
+    )
+
+    assert advice_payload["opponent_move_context"]["selected_opponent_move"] == {
+        "status": "explicit",
+        "source": "explicit_input",
+        "move_id": "protect",
+        "name": "Protect",
+    }
+    assert advice_payload["opponent_move_context"]["known_opponent_moves"] == []
+    assert advice_payload["opponent_move_context"]["candidate_moves"] == []
+
+
+def test_opponent_move_context_payload_adapter_coexists_with_turn_pipeline_and_turn_order_context() -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    selected_move = payload["moves"]["my_selected_move"]
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        build_ui_advice_payload(payload),
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+    )
+    opponent_move_context = build_opponent_move_context(
+        candidate_moves=[
+            {
+                "source": "visible_or_cache_candidate",
+                "move_id": "quick-attack",
+                "name": "Quick Attack",
+                "priority": 1,
+            }
+        ]
+    )
+
+    both_disabled = build_ui_advice_payload(payload)
+    pipeline_only = build_ui_advice_payload(payload, turn_pipeline=turn_pipeline)
+    order_only = build_ui_advice_payload(
+        payload,
+        turn_order_context=turn_order_context,
+        enable_turn_order_context=True,
+    )
+    opponent_only = build_ui_advice_payload(
+        payload,
+        opponent_move_context=opponent_move_context,
+        enable_opponent_move_context=True,
+    )
+    all_enabled = build_ui_advice_payload(
+        payload,
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        opponent_move_context=opponent_move_context,
+        enable_turn_order_context=True,
+        enable_opponent_move_context=True,
+    )
+
+    assert "turn_pipeline" not in both_disabled
+    assert "turn_order_context" not in both_disabled
+    assert "opponent_move_context" not in both_disabled
+    assert "turn_pipeline" in pipeline_only
+    assert "turn_order_context" not in pipeline_only
+    assert "opponent_move_context" not in pipeline_only
+    assert "turn_pipeline" not in order_only
+    assert "turn_order_context" in order_only
+    assert "opponent_move_context" not in order_only
+    assert "turn_pipeline" not in opponent_only
+    assert "turn_order_context" not in opponent_only
+    assert "opponent_move_context" in opponent_only
+    assert all_enabled["turn_pipeline"] == pipeline_only["turn_pipeline"]
+    assert all_enabled["turn_order_context"] == order_only["turn_order_context"]
+    assert all_enabled["opponent_move_context"] == opponent_only["opponent_move_context"]
 
 
 def test_turn_order_context_payload_adapter_is_default_off() -> None:

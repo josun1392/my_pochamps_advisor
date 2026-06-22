@@ -1,5 +1,42 @@
 # Master Ball Advisor — Progress
 
+## v8.3 - Opponent Move Context Payload Adapter
+
+Purpose:
+- Add an explicit/default-off adapter that can insert a validated top-level `opponent_move_context` into the advice payload.
+- Keep prompt guard, prompt integration, UI/source extraction, and Gemini calls out of scope.
+
+Implementation summary:
+- `build_ui_advice_payload(...)` now accepts `opponent_move_context` and `enable_opponent_move_context`.
+- Default-off and disabled paths preserve the previous payload shape.
+- `enable_opponent_move_context=True` with no context preserves the previous payload shape.
+- A valid empty helper context is omitted instead of emitted as an empty top-level context.
+- Valid non-empty context is deep-copied and inserted as top-level `opponent_move_context`.
+- Invalid contexts raise `ValueError`.
+- Adapter validation enforces trusted known sources, explicit-only selected move, unconfirmed/unselected candidates, unsupported boundaries, safety notes, and recursive forbidden-field rejection.
+- `opponent_move_context` coexists with `turn_pipeline` and `turn_order_context`.
+
+Tests:
+- Expanded `tests/test_advisor_payload_contract.py`.
+- Tests cover default-off omission, explicit-on insertion, no-context omission, invalid value rejection, forbidden field rejection, selected move preservation, candidate non-confirmed preservation, and coexistence with `turn_pipeline` / `turn_order_context`.
+- Existing helper tests remain green.
+
+Safety:
+- No prompt guard.
+- No prompt integration.
+- No UI checkbox behavior change.
+- No UI/source extraction.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine, resolved turn order, opponent set inference, hidden moveset inference, selected opponent move inference, species/common set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+Recommended next:
+- v8.4 Opponent Move Prompt Guard.
+- Alternative: v8.4 Opponent Move UI/Source Integration Design.
+
+---
+
 ## v8.2 - Opponent Move Context Helper
 
 Purpose:

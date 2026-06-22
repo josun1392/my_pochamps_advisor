@@ -215,6 +215,8 @@ Prompt safety wording for future integration:
 
 v8.2 adds `llm.advisor_opponent_move_context.build_opponent_move_context(...)` as a standalone helper for this contract. It accepts caller-provided `known_moves`, `candidate_moves`, and optional `selected_opponent_move`. Trusted known moves are normalized with `confirmed=True`; unconfirmed candidates are normalized with `confirmed=False` and `selected=False`; positive-priority candidates are copied into `priority_move_candidates` without becoming selected moves. Unsafe candidate semantics such as `confirmed=True`, `selected=True`, `will_use=True`, or `likely_selected=True` are omitted from helper output. Explicit selected moves require trusted source, `move_id`, and `name`; inferred, predicted, or likely selected moves are rejected. The helper does not generate moves from species/common sets/meta data and is not connected to the payload adapter, prompt, UI, Gemini, or full Turn Engine path.
 
+v8.3 adds an explicit/default-off payload adapter for this contract. `build_ui_advice_payload(..., opponent_move_context=..., enable_opponent_move_context=True)` may insert top-level `opponent_move_context` after validating the v8.1 contract. Omitted or disabled `enable_opponent_move_context` preserves the previous payload shape, and `enable_opponent_move_context=True` with no supplied context also preserves the previous shape. A valid but empty helper context is omitted. Invalid contexts raise `ValueError`. The adapter rejects forbidden hidden-inference/resolved-outcome fields recursively and keeps candidate moves / priority candidates unconfirmed and unselected. `opponent_move_context` coexists with optional `turn_pipeline` and `turn_order_context`; no optional field overwrites the other. v8.3 does not add prompt guard, prompt integration, UI/source extraction, Gemini calls, selected move inference, hidden moveset inference, or full Turn Engine behavior.
+
 ## Current Payload Shape
 
 Top-level sections:
@@ -223,6 +225,7 @@ Top-level sections:
 - optional `turn_snapshot`
 - optional `turn_pipeline`
 - optional `turn_order_context`
+- optional `opponent_move_context`
 - `pokemon`
 - `stat_profiles`
 - `item_profiles`

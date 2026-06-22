@@ -14,6 +14,13 @@ from typing import Any
 from core.turn_event import TurnPipelineResult, normalize_turn_pipeline_result
 from core.turn_state import TurnSnapshot, normalize_turn_snapshot
 from core.champions_legal_item_repository import get_legal_item_status
+from llm.advisor_opponent_move_context import (
+    OPPONENT_MOVE_CONTEXT_ALLOWED_MOVE_FIELDS,
+    OPPONENT_MOVE_CONTEXT_CANDIDATE_SOURCES,
+    OPPONENT_MOVE_CONTEXT_FORBIDDEN_FIELDS,
+    OPPONENT_MOVE_CONTEXT_TRUSTED_KNOWN_SOURCES,
+    OPPONENT_MOVE_CONTEXT_UNSUPPORTED_BOUNDARIES,
+)
 from llm.advisor_turn_order_context import (
     TURN_ORDER_CONTEXT_CONFIDENCE_VALUES,
     TURN_ORDER_CONTEXT_FORBIDDEN_FIELDS,
@@ -87,8 +94,10 @@ def build_ui_advice_payload(
     turn_snapshot: TurnSnapshot | dict[str, Any] | None = None,
     turn_pipeline: TurnPipelineResult | dict[str, Any] | None = None,
     turn_order_context: dict[str, Any] | None = None,
+    opponent_move_context: dict[str, Any] | None = None,
     *,
     enable_turn_order_context: bool = False,
+    enable_opponent_move_context: bool = False,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
@@ -99,6 +108,11 @@ def build_ui_advice_payload(
         filtered_payload,
         turn_order_context,
         enable_turn_order_context=enable_turn_order_context,
+    )
+    _add_opponent_move_context_to_advice_payload(
+        filtered_payload,
+        opponent_move_context,
+        enable_opponent_move_context=enable_opponent_move_context,
     )
     return filtered_payload
 
@@ -659,6 +673,114 @@ def _add_turn_order_context_to_advice_payload(
     context = deepcopy(turn_order_context)
     _validate_turn_order_context_payload(context)
     payload["turn_order_context"] = context
+
+
+def _add_opponent_move_context_to_advice_payload(
+    payload: dict[str, Any],
+    opponent_move_context: dict[str, Any] | None,
+    *,
+    enable_opponent_move_context: bool,
+) -> None:
+    if not enable_opponent_move_context:
+        return
+    if opponent_move_context is None:
+        return
+
+    context = deepcopy(opponent_move_context)
+    _validate_opponent_move_context_payload(context)
+    if _is_empty_opponent_move_context(context):
+        return
+    payload["opponent_move_context"] = context
+
+
+def _validate_opponent_move_context_payload(context: dict[str, Any]) -> None:
+    if context.get("kind") != "opponent_move_context":
+        raise ValueError("opponent_move_context kind must be opponent_move_context")
+    if context.get("confidence") not in {"limited", "unknown"}:
+        raise ValueError("opponent_move_context confidence is not allowed")
+
+    selected = context.get("selected_opponent_move")
+    if not isinstance(selected, dict):
+        raise ValueError("opponent_move_context selected_opponent_move must be a mapping")
+    if selected.get("status") not in {"unknown", "explicit"}:
+        raise ValueError("opponent_move_context selected_opponent_move status is not allowed")
+    if selected.get("status") == "explicit":
+        if selected.get("source") not in OPPONENT_MOVE_CONTEXT_TRUSTED_KNOWN_SOURCES:
+            raise ValueError("opponent_move_context explicit selected move requires trusted source")
+        if not selected.get("move_id") or not selected.get("name"):
+            raise ValueError("opponent_move_context explicit selected move requires move_id and name")
+
+    known_moves = context.get("known_opponent_moves")
+    if not isinstance(known_moves, list):
+        raise ValueError("opponent_move_context known_opponent_moves must be a list")
+    for move in known_moves:
+        if not isinstance(move, dict):
+            raise ValueError("opponent_move_context known moves must be mappings")
+        _validate_opponent_move_metadata_fields(move)
+        if move.get("source") not in OPPONENT_MOVE_CONTEXT_TRUSTED_KNOWN_SOURCES:
+            raise ValueError("opponent_move_context known move source is not trusted")
+        if move.get("confirmed") is not True:
+            raise ValueError("opponent_move_context known moves must be confirmed")
+
+    candidate_moves = context.get("candidate_moves")
+    if not isinstance(candidate_moves, list):
+        raise ValueError("opponent_move_context candidate_moves must be a list")
+    for move in candidate_moves:
+        _validate_opponent_move_candidate(move)
+
+    priority_candidates = context.get("priority_move_candidates")
+    if not isinstance(priority_candidates, list):
+        raise ValueError("opponent_move_context priority_move_candidates must be a list")
+    for move in priority_candidates:
+        _validate_opponent_move_candidate(move)
+
+    unsupported = context.get("unsupported")
+    required_unsupported = set(OPPONENT_MOVE_CONTEXT_UNSUPPORTED_BOUNDARIES)
+    if not isinstance(unsupported, list) or not required_unsupported.issubset(set(unsupported)):
+        raise ValueError("opponent_move_context unsupported boundaries are required")
+
+    safety_notes = context.get("safety_notes")
+    if not isinstance(safety_notes, list) or "Candidate moves are not confirmed selected moves." not in safety_notes:
+        raise ValueError("opponent_move_context candidate safety note is required")
+
+    _validate_no_opponent_move_context_forbidden_fields(context)
+
+
+def _validate_opponent_move_candidate(move: Any) -> None:
+    if not isinstance(move, dict):
+        raise ValueError("opponent_move_context candidate moves must be mappings")
+    _validate_opponent_move_metadata_fields(move)
+    if move.get("source") not in OPPONENT_MOVE_CONTEXT_CANDIDATE_SOURCES:
+        raise ValueError("opponent_move_context candidate source is not allowed")
+    if move.get("confirmed") is not False:
+        raise ValueError("opponent_move_context candidate moves must be unconfirmed")
+    if move.get("selected") is not False:
+        raise ValueError("opponent_move_context candidate moves must be unselected")
+
+
+def _validate_opponent_move_metadata_fields(move: dict[str, Any]) -> None:
+    if not set(move).issubset(OPPONENT_MOVE_CONTEXT_ALLOWED_MOVE_FIELDS):
+        raise ValueError("opponent_move_context move metadata field is not allowed")
+
+
+def _validate_no_opponent_move_context_forbidden_fields(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child_value in value.items():
+            if key in OPPONENT_MOVE_CONTEXT_FORBIDDEN_FIELDS:
+                raise ValueError(f"opponent_move_context must not include {key!r}")
+            _validate_no_opponent_move_context_forbidden_fields(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _validate_no_opponent_move_context_forbidden_fields(child_value)
+
+
+def _is_empty_opponent_move_context(context: dict[str, Any]) -> bool:
+    return (
+        context.get("selected_opponent_move") == {"status": "unknown"}
+        and not context.get("known_opponent_moves")
+        and not context.get("candidate_moves")
+        and not context.get("priority_move_candidates")
+    )
 
 
 def _validate_turn_order_context_payload(context: dict[str, Any]) -> None:
