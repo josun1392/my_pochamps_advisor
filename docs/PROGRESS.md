@@ -1,5 +1,50 @@
 # Master Ball Advisor — Progress
 
+## v8.7 - Controlled Gemini Smoke
+
+Purpose:
+- Execute the v8.6 controlled one-call Gemini smoke for `opponent_move_context`.
+- Verify Gemini keeps known/candidate/selected opponent move boundaries without hidden inference.
+
+Pre-check:
+- `opponent_move_context` payload present.
+- Opponent move prompt guard present.
+- Known move represented as known data, not selected move.
+- Candidate move remained `confirmed=False` and `selected=False`.
+- `selected_opponent_move` remained unknown.
+- Prompt anchors for candidate-not-confirmed, candidate-not-selected, known-not-selected, hidden moveset, opponent set, selected move, EV/IV/nature, hidden item, weather/terrain/boost, RNG, item consumption, and post-turn HP all passed.
+- Provider call count before smoke was `0`.
+
+Smoke result:
+- Actual Gemini call count: 1.
+- Retry count: 0.
+- Stop condition: none.
+- Result classification: PASS.
+- Model: `gemini-2.5-flash`.
+- Safe usage summary: input tokens `7931`, output tokens `73`, cached tokens `0`.
+
+Response safety:
+- Gemini treated `opponent_move_context` as explicitly known / visible context.
+- Known Thunderbolt was not treated as selected move.
+- Candidate Quick Attack was not treated as confirmed move.
+- Candidate Quick Attack was not treated as selected move.
+- No selected opponent move inference while `selected_opponent_move` was unknown.
+- No hidden moveset, opponent set, EV/IV/nature, hidden item, weather/terrain/boost, RNG, item consumption, post-turn HP, or full turn resolution claim.
+
+Safety:
+- No retry.
+- No Vertex AI call.
+- No UI/source extraction.
+- No UI checkbox behavior change.
+- No full Turn Engine, resolved turn order, opponent set inference, hidden moveset inference, selected opponent move inference, species/common set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+Recommended next:
+- v8.8 Opponent Move Context Closure.
+- Alternative: v8.8 Opponent Move UI/Source Integration Design.
+
+---
+
 ## v8.6 - Controlled Gemini Smoke Design
 
 Purpose:
