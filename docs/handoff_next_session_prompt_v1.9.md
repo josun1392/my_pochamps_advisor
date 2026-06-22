@@ -1,6 +1,6 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, the v5.8 optional TurnPipeline payload adapter, the v5.9 TurnPipeline prompt/contract guard, the v6.0 Minimal TurnPipeline integration design, the v6.1 explicit TurnPipeline generation adapter, the v6.2 explicit TurnPipeline payload smoke, the v6.3 TurnPipeline UI/advice flow integration design, the v6.4 explicit TurnPipeline advice payload builder smoke, the v6.5 explicit TurnPipeline advice flow integration design, the v6.6 explicit TurnPipeline advice-flow dry-run, the v6.7 TurnPipeline advice-flow closure / stability report, the v6.8 Payload Snapshot Lockdown, the v6.9 Controlled Gemini Smoke Design, the v6.10 Controlled Gemini Smoke Execution, the v6.11 Controlled Gemini Smoke Closure / Next UI Exposure Design, the v6.12 Prompt / UX Copy Design, the v6.13 Prompt Copy Test Fixtures, the v6.14 UI Exposure Design, the v6.15 Offline End-to-End Advice Fixture, the v6.16 UI Exposure Test Plan, the v6.17 Controlled UI Mock Smoke, the v6.18 UI Dev Flag Implementation, the v6.19 UI Dev Flag Smoke / Manual QA, the v6.20 Controlled UI Gemini Smoke, the v6.21 TurnPipeline UI Phase Closure, the v7.0 Turn Engine Roadmap / Scope Split, the v7.1 Deterministic Turn Order Context Design, the v7.2 Turn Order Context Payload Contract, the v7.3 Deterministic Turn Order Context Helper, the v7.4 Turn Order Context Payload Adapter, the v7.5 Turn Order Context Prompt Integration Design, the v7.6 Turn Order Context Prompt Contract Tests, the v7.7 Turn Order Context Prompt Integration, the v7.8 Turn Order Context Offline Advice Fixture, the v7.9 UI / Flag Integration Design, the v7.10 UI Flag Enables Turn Order Context, the v7.11 UI Flag Offline E2E Fixture, the v7.12 Controlled UI Gemini Smoke Design, the v7.13 Controlled UI Gemini Smoke, the v7.14 Smoke Harness Prompt Guard Triage, the v7.15 Controlled UI Gemini Smoke Harness Alignment, the v7.16 Controlled UI Gemini Smoke Retry, the v7.17 Turn Order UI Integration Closure, the v8.0 Battle State / Opponent Move Context Expansion Design, the v8.1 Opponent Move Context Payload Contract, the v8.2 Opponent Move Context Helper, and the v8.3 Opponent Move Context Payload Adapter.
+This document is a copy-paste-ready prompt for the next T3 session. It preserves the v2.5 Developer API Prepay recovery verification results, the v3.2 item-context verification closure, the v3.4 item context guard registry cleanup, the v4.1-v4.9 TurnSnapshot phase closure, the v5.0 Minimal Turn Engine MVP design, the v5.1 Turn Event contract implementation, the v5.2 item-context-to-TurnEvent mapping design, the v5.3 helper-level mapper implementation, the v5.4 mapper smoke / fixture coverage expansion, the v5.5 TurnPipelineResult fixture smoke, the v5.6 TurnPipeline debug dry-run, the v5.7 TurnPipeline payload exposure design, the v5.8 optional TurnPipeline payload adapter, the v5.9 TurnPipeline prompt/contract guard, the v6.0 Minimal TurnPipeline integration design, the v6.1 explicit TurnPipeline generation adapter, the v6.2 explicit TurnPipeline payload smoke, the v6.3 TurnPipeline UI/advice flow integration design, the v6.4 explicit TurnPipeline advice payload builder smoke, the v6.5 explicit TurnPipeline advice flow integration design, the v6.6 explicit TurnPipeline advice-flow dry-run, the v6.7 TurnPipeline advice-flow closure / stability report, the v6.8 Payload Snapshot Lockdown, the v6.9 Controlled Gemini Smoke Design, the v6.10 Controlled Gemini Smoke Execution, the v6.11 Controlled Gemini Smoke Closure / Next UI Exposure Design, the v6.12 Prompt / UX Copy Design, the v6.13 Prompt Copy Test Fixtures, the v6.14 UI Exposure Design, the v6.15 Offline End-to-End Advice Fixture, the v6.16 UI Exposure Test Plan, the v6.17 Controlled UI Mock Smoke, the v6.18 UI Dev Flag Implementation, the v6.19 UI Dev Flag Smoke / Manual QA, the v6.20 Controlled UI Gemini Smoke, the v6.21 TurnPipeline UI Phase Closure, the v7.0 Turn Engine Roadmap / Scope Split, the v7.1 Deterministic Turn Order Context Design, the v7.2 Turn Order Context Payload Contract, the v7.3 Deterministic Turn Order Context Helper, the v7.4 Turn Order Context Payload Adapter, the v7.5 Turn Order Context Prompt Integration Design, the v7.6 Turn Order Context Prompt Contract Tests, the v7.7 Turn Order Context Prompt Integration, the v7.8 Turn Order Context Offline Advice Fixture, the v7.9 UI / Flag Integration Design, the v7.10 UI Flag Enables Turn Order Context, the v7.11 UI Flag Offline E2E Fixture, the v7.12 Controlled UI Gemini Smoke Design, the v7.13 Controlled UI Gemini Smoke, the v7.14 Smoke Harness Prompt Guard Triage, the v7.15 Controlled UI Gemini Smoke Harness Alignment, the v7.16 Controlled UI Gemini Smoke Retry, the v7.17 Turn Order UI Integration Closure, the v8.0 Battle State / Opponent Move Context Expansion Design, the v8.1 Opponent Move Context Payload Contract, the v8.2 Opponent Move Context Helper, the v8.3 Opponent Move Context Payload Adapter, and the v8.4 Opponent Move Prompt Guard.
 
 Update after v2.5:
 
@@ -83,13 +83,14 @@ Update after v2.5:
 - v8.1 locked the fixture-level `opponent_move_context` payload contract. It separates known user-confirmed moves from possible/unconfirmed candidate moves, restricts selected opponent move status to unknown or explicit, rejects hidden inference/resolved fields, and records future prompt safety wording. No runtime helper, adapter, prompt integration, UI change, or Gemini call was added.
 - v8.2 added `llm.advisor_opponent_move_context.build_opponent_move_context(...)`, a source-bound helper that normalizes trusted known moves, unconfirmed candidate moves, explicit selected moves, and positive-priority candidates without hidden moveset, selected move, species/common-set, or meta inference. No payload adapter, prompt integration, UI change, or Gemini call was added.
 - v8.3 added an explicit/default-off `opponent_move_context` payload adapter. `build_ui_advice_payload(..., opponent_move_context=..., enable_opponent_move_context=True)` inserts valid non-empty context, omits disabled/none/empty contexts, rejects invalid or forbidden fields, and coexists with `turn_pipeline` and `turn_order_context`. No prompt guard, prompt integration, UI/source extraction, or Gemini call was added.
+- v8.4 added `_build_opponent_move_context_prompt_guard(payload)` and wired it into `_build_ui_selected_prompt(...)` after the turn-order guard. The guard appears only when top-level `opponent_move_context` is present and tells the LLM not to treat known moves as selected moves unless explicit, not to treat candidate moves as confirmed or selected, and not to infer hidden movesets, opponent sets, selected moves, EV/IV/nature, hidden item, weather, terrain, boosts, RNG, item consumption, or post-turn HP. No UI/source extraction or Gemini call was added.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v8.3 Opponent Move Context Payload Adapter.
+T3, continue after v8.4 Opponent Move Prompt Guard.
 
 Goal:
 - Do not add new item contexts.
@@ -126,8 +127,8 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v8.4 Opponent Move Prompt Guard
-  - Alternative: v8.4 Opponent Move UI/Source Integration Design
+  - v8.5 Opponent Move Offline Advice Fixture
+  - Alternative: v8.5 Opponent Move UI/Source Integration Design
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.
@@ -163,7 +164,8 @@ Goal:
   - v8.1 locked the fixture-level `opponent_move_context` contract and rejected hidden inference / selected move inference / resolved outcome fields.
   - v8.2 added a minimal helper that produces the v8.1 shape from explicit known/candidate move data only.
   - v8.3 connected valid helper output to the top-level advice payload through an explicit/default-off adapter.
-  - Next should lock prompt guard wording before UI/source extraction so candidate moves are not treated as confirmed selected moves.
+  - v8.4 locked prompt guard wording before UI/source extraction so candidate moves are not treated as confirmed selected moves.
+  - Next should verify payload -> prompt -> mocked advice behavior offline before any actual Gemini call or UI/source integration.
   - Do not run another actual Gemini call unless T1 explicitly approves a new one-call smoke.
   - No Vertex AI call.
   - Keep `run_ui_selected_advice(...)` default behavior unchanged.
@@ -171,7 +173,7 @@ Goal:
   - Do not make `turn_order_context` always-on.
   - Checkbox toggle must not call Gemini; only the existing advice button may start advice generation.
   - Do not start full Turn Engine implementation yet.
-  - Do not implement resolved turn order, speed tie resolver, RNG resolver, item consumption, HP update, exact trigger resolution, opponent set inference, hidden moveset inference, selected opponent move inference, species/common set/meta-based move generation, EV/IV/nature inference, hidden item inference, or weather/terrain/boost inference in v8.4.
+  - Do not implement resolved turn order, speed tie resolver, RNG resolver, item consumption, HP update, exact trigger resolution, opponent set inference, hidden moveset inference, selected opponent move inference, species/common set/meta-based move generation, EV/IV/nature inference, hidden item inference, or weather/terrain/boost inference in v8.5.
 - v3.4 has already centralized item context guard metadata:
   - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
   - `advisor_client.py` still builds the prompt guard from visible `available=true` contexts.

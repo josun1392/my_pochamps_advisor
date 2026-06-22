@@ -163,9 +163,11 @@ def _build_ui_selected_prompt(
     turn_snapshot: TurnSnapshot | dict[str, Any] | None = None,
     turn_pipeline: TurnPipelineResult | dict[str, Any] | None = None,
     turn_order_context: dict[str, Any] | None = None,
+    opponent_move_context: dict[str, Any] | None = None,
     *,
     enable_turn_pipeline: bool = False,
     enable_turn_order_context: bool = False,
+    enable_opponent_move_context: bool = False,
 ) -> str:
     if turn_pipeline is None and enable_turn_pipeline:
         base_payload = build_ui_advice_payload(
@@ -193,12 +195,15 @@ def _build_ui_selected_prompt(
         turn_snapshot=turn_snapshot,
         turn_pipeline=turn_pipeline,
         turn_order_context=turn_order_context,
+        opponent_move_context=opponent_move_context,
         enable_turn_order_context=enable_turn_order_context,
+        enable_opponent_move_context=enable_opponent_move_context,
     )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
     turn_pipeline_guard = _build_turn_pipeline_prompt_guard(advice_payload)
     turn_order_context_guard = _build_turn_order_context_prompt_guard(advice_payload)
+    opponent_move_context_guard = _build_opponent_move_context_prompt_guard(advice_payload)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
@@ -207,6 +212,7 @@ def _build_ui_selected_prompt(
         f"{turn_snapshot_guard}"
         f"{turn_pipeline_guard}"
         f"{turn_order_context_guard}"
+        f"{opponent_move_context_guard}"
         "If a damage_estimate is present, use it only under its stated "
         "assumption_profile and never describe it as final battle damage. Do "
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "
@@ -896,6 +902,23 @@ def _build_turn_order_context_prompt_guard(payload: dict[str, Any]) -> str:
         "not claim speed ties are resolved. Do not claim RNG items activate. Do "
         "not infer item consumption. Do not infer post-turn HP from "
         "turn_order_context. "
+    )
+
+
+def _build_opponent_move_context_prompt_guard(payload: dict[str, Any]) -> str:
+    if "opponent_move_context" not in payload:
+        return ""
+    return (
+        "If opponent_move_context is present, treat it as based only on "
+        "explicitly known or visible opponent move data. Known opponent moves "
+        "are not necessarily the opponent's selected move this turn unless "
+        "selected_opponent_move is explicit. Candidate moves are not confirmed "
+        "moves. Candidate moves are not confirmed selected moves. Do not infer "
+        "hidden movesets. Do not infer opponent sets. Do not infer the "
+        "opponent's selected move unless explicitly provided. Do not infer "
+        "EVs, IVs, nature, hidden item, weather, terrain, boosts, RNG results, "
+        "item consumption, or post-turn HP unless explicitly provided. Treat "
+        "unsupported entries as boundaries, not facts to fill in. "
     )
 
 

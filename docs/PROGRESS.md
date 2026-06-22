@@ -1,5 +1,45 @@
 # Master Ball Advisor — Progress
 
+## v8.4 - Opponent Move Prompt Guard
+
+Purpose:
+- Add prompt guard wording for top-level `opponent_move_context`.
+- Prevent candidate moves from being treated as confirmed moves or selected opponent moves.
+
+Implementation summary:
+- Added `_build_opponent_move_context_prompt_guard(payload)` in `llm/advisor_client.py`.
+- Wired the guard into `_build_ui_selected_prompt(...)` after the `turn_order_context` guard.
+- Guard is emitted only when top-level `opponent_move_context` is present.
+- Default-off prompts remain unchanged when `opponent_move_context` is absent.
+- Explicit prompt path can include both guard and serialized `opponent_move_context`.
+- Guard coexists with `turn_pipeline` and `turn_order_context` guards.
+
+Safety wording:
+- Opponent move context is based only on explicitly known or visible opponent move data.
+- Known moves are not necessarily selected this turn unless `selected_opponent_move` is explicit.
+- Candidate moves are not confirmed moves or confirmed selected moves.
+- Hidden movesets, opponent sets, and selected opponent moves must not be inferred.
+- EV/IV/nature, hidden item, weather, terrain, boosts, RNG results, item consumption, and post-turn HP must not be inferred unless explicitly provided.
+- Unsupported entries are boundaries, not facts to fill in.
+
+Tests:
+- Expanded `tests/test_advisor_payload_contract.py`.
+- Tests cover guard absence, guard presence, safety wording anchors, forbidden positive wording, coexistence with optional turn guards, default-off prompt stability, and explicit prompt inclusion.
+
+Safety:
+- No UI/source extraction.
+- No UI checkbox behavior change.
+- No actual Gemini call.
+- No Vertex AI call.
+- No full Turn Engine, resolved turn order, opponent set inference, hidden moveset inference, selected opponent move inference, species/common set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+
+Recommended next:
+- v8.5 Opponent Move Offline Advice Fixture.
+- Alternative: v8.5 Opponent Move UI/Source Integration Design.
+
+---
+
 ## v8.3 - Opponent Move Context Payload Adapter
 
 Purpose:

@@ -19,6 +19,7 @@ from core.turn_event import TurnEvent, TurnPipelineResult
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
 import llm.advisor_client as advisor_client
 from llm.advisor_client import (
+    _build_opponent_move_context_prompt_guard,
     _build_turn_order_context_prompt_guard,
     _build_turn_pipeline_prompt_guard,
     _build_ui_selected_prompt,
@@ -951,6 +952,165 @@ def test_opponent_move_context_payload_adapter_coexists_with_turn_pipeline_and_t
     assert all_enabled["turn_pipeline"] == pipeline_only["turn_pipeline"]
     assert all_enabled["turn_order_context"] == order_only["turn_order_context"]
     assert all_enabled["opponent_move_context"] == opponent_only["opponent_move_context"]
+
+
+def test_opponent_move_context_prompt_guard_is_default_off() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    default_payload = build_ui_advice_payload(payload)
+
+    guard = _build_opponent_move_context_prompt_guard(default_payload)
+
+    assert guard == ""
+    assert "opponent_move_context" not in default_payload
+    assert "explicitly known or visible opponent move data" not in guard
+    prompt = _build_ui_selected_prompt(payload)
+    assert '"opponent_move_context"' not in prompt
+    assert "explicitly known or visible opponent move data" not in prompt
+
+
+def test_opponent_move_context_prompt_guard_locks_safety_wording() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    advice_payload = build_ui_advice_payload(
+        payload,
+        opponent_move_context=_sample_opponent_move_context(),
+        enable_opponent_move_context=True,
+    )
+
+    guard = _build_opponent_move_context_prompt_guard(advice_payload)
+
+    assert "opponent_move_context" in advice_payload
+    assert "explicitly known or visible opponent move data" in guard
+    assert "Known opponent moves are not necessarily the opponent's selected move this turn" in guard
+    assert "Candidate moves are not confirmed moves" in guard
+    assert "Candidate moves are not confirmed selected moves" in guard
+    assert "Do not infer hidden movesets" in guard
+    assert "Do not infer opponent sets" in guard
+    assert "Do not infer the opponent's selected move unless explicitly provided" in guard
+    assert "Do not infer EVs, IVs, nature, hidden item, weather, terrain, boosts" in guard
+    assert "RNG results, item consumption, or post-turn HP" in guard
+    assert "unsupported entries as boundaries, not facts to fill in" in guard
+
+
+def test_opponent_move_context_prompt_guard_avoids_positive_forbidden_phrases() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    advice_payload = build_ui_advice_payload(
+        payload,
+        opponent_move_context=_sample_opponent_move_context(),
+        enable_opponent_move_context=True,
+    )
+
+    guard = _build_opponent_move_context_prompt_guard(advice_payload)
+    positive_forbidden_phrases = (
+        "opponent will use",
+        "opponent likely uses",
+        "candidate move is confirmed",
+        "candidate move is selected",
+        "opponent has this hidden moveset",
+        "opponent item is",
+        "post-turn HP will be",
+        "RNG is resolved",
+    )
+
+    for phrase in positive_forbidden_phrases:
+        assert phrase not in guard
+
+
+def test_opponent_move_context_prompt_guard_coexists_with_turn_pipeline_and_turn_order_context() -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    selected_move = payload["moves"]["my_selected_move"]
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        build_ui_advice_payload(payload),
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+    )
+    opponent_move_context = build_opponent_move_context(
+        candidate_moves=[
+            {
+                "source": "visible_or_cache_candidate",
+                "move_id": "quick-attack",
+                "name": "Quick Attack",
+                "priority": 1,
+            }
+        ]
+    )
+
+    base_payload = build_ui_advice_payload(payload)
+    pipeline_and_opponent = build_ui_advice_payload(
+        payload,
+        turn_pipeline=turn_pipeline,
+        opponent_move_context=opponent_move_context,
+        enable_opponent_move_context=True,
+    )
+    order_and_opponent = build_ui_advice_payload(
+        payload,
+        turn_order_context=turn_order_context,
+        opponent_move_context=opponent_move_context,
+        enable_turn_order_context=True,
+        enable_opponent_move_context=True,
+    )
+    all_enabled = build_ui_advice_payload(
+        payload,
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        opponent_move_context=opponent_move_context,
+        enable_turn_order_context=True,
+        enable_opponent_move_context=True,
+    )
+
+    assert _build_opponent_move_context_prompt_guard(base_payload) == ""
+    assert _build_turn_pipeline_prompt_guard(pipeline_and_opponent)
+    assert _build_turn_order_context_prompt_guard(pipeline_and_opponent) == ""
+    assert _build_opponent_move_context_prompt_guard(pipeline_and_opponent)
+    assert _build_turn_pipeline_prompt_guard(order_and_opponent) == ""
+    assert _build_turn_order_context_prompt_guard(order_and_opponent)
+    assert _build_opponent_move_context_prompt_guard(order_and_opponent)
+    assert _build_turn_pipeline_prompt_guard(all_enabled)
+    assert _build_turn_order_context_prompt_guard(all_enabled)
+    assert _build_opponent_move_context_prompt_guard(all_enabled)
+
+
+def test_opponent_move_context_prompt_integration_is_default_off_and_unchanged() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_opponent_move_context()
+
+    baseline_prompt = _build_ui_selected_prompt(payload)
+    omitted_prompt = _build_ui_selected_prompt(payload, opponent_move_context=context)
+    disabled_prompt = _build_ui_selected_prompt(
+        payload,
+        opponent_move_context=context,
+        enable_opponent_move_context=False,
+    )
+
+    assert omitted_prompt == baseline_prompt
+    assert disabled_prompt == baseline_prompt
+    assert '"opponent_move_context"' not in baseline_prompt
+    assert "explicitly known or visible opponent move data" not in baseline_prompt
+
+
+def test_opponent_move_context_prompt_integration_includes_guard_and_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_opponent_move_context()
+
+    prompt = _build_ui_selected_prompt(
+        payload,
+        opponent_move_context=context,
+        enable_opponent_move_context=True,
+    )
+
+    assert '"opponent_move_context"' in prompt
+    assert '"kind": "opponent_move_context"' in prompt
+    assert "explicitly known or visible opponent move data" in prompt
+    assert "Candidate moves are not confirmed moves" in prompt
+    assert "Candidate moves are not confirmed selected moves" in prompt
+    assert "Do not infer hidden movesets" in prompt
 
 
 def test_turn_order_context_payload_adapter_is_default_off() -> None:
