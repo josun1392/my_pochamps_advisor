@@ -13,3 +13,40 @@ Behavior:
 8. Do not commit `docs/handoff_capsule_v1.1.md`, `logs/`, secrets, API keys, or temporary files.
 9. Do not modify `advisor/damage/` or `advisor/probability/` unless the goal explicitly authorizes it and tests are added.
 10. If blocked, report the blocker, what was verified, and the safest next action.
+
+## Project Setup
+
+This is a Python 3.11+ project managed with `uv`.
+
+Use these commands for a fresh environment:
+
+```powershell
+uv sync --dev
+cd tools/smogon_bridge
+npm install
+cd ../..
+```
+
+`config/.env` is a local-only secret file and is intentionally not tracked.
+Ask the user for the required Gemini or Vertex AI environment variables instead
+of creating placeholder secrets in git.
+
+## Verification
+
+Default test command:
+
+```powershell
+uv run pytest
+```
+
+Useful targeted checks:
+
+```powershell
+uv run python scripts/verify_champions_roster.py
+uv run python scripts/verify_damage_engine.py
+uv run python scripts/verify_field_engine.py
+uv run python scripts/verify_parity_bridge.py
+```
+
+Run parity bridge checks only after installing `tools/smogon_bridge` Node
+dependencies.
