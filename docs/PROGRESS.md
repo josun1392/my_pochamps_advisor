@@ -1,5 +1,52 @@
 # Master Ball Advisor — Progress
 
+## v9.2 - Opponent Move UI Integration Offline E2E
+
+Purpose:
+- Verify the existing limited-context UI checkbox path end-to-end with mocked provider calls only.
+- Lock checkbox off/on behavior after `opponent_move_context` joined `turn_pipeline` and `turn_order_context` under the same default-off checkbox.
+
+Implementation:
+- Added `tests/test_ui_turn_pipeline_flag_flow.py` as a focused UI/offline E2E flag-flow test file.
+- Reused the existing `LLMAdvicePanel` checkbox and `run_ui_selected_advice(...)` path.
+- Mocked `advisor_client.call_gemini` and `_log_advisor_call` in memory for advice-flow checks.
+- Added an empty-opponent-source path to confirm that `opponent_move_context` is omitted rather than forced.
+
+Behavior:
+- Checkbox defaults unchecked.
+- Checkbox toggle alone emits no advice request and makes no provider call.
+- Checkbox off omits `turn_pipeline`, `turn_order_context`, `opponent_move_context`, and their prompt guards.
+- Checkbox on maps the same state to `enable_turn_pipeline=True`, `enable_turn_order_context=True`, and `enable_opponent_move_context=True`.
+- Checkbox on with visible opponent moves includes all three optional contexts in one prompt/payload.
+- UI-visible opponent moves become `visible_ui` candidates, not known opponent moves.
+- Candidate moves remain `confirmed=False` and `selected=False`.
+- `selected_opponent_move` remains `{"status": "unknown"}`.
+- Empty opponent move source still allows `turn_pipeline` and `turn_order_context` while omitting `opponent_move_context` and its guard.
+
+Tests:
+- `tests/test_ui_turn_pipeline_flag_flow.py`
+- `tests/test_advisor_opponent_move_context.py`
+- `tests/test_advisor_payload_contract.py`
+
+Recommended next:
+- v9.3 Opponent Move UI Copy / Tooltip Polish.
+- Alternative: v9.3 Controlled UI Gemini Smoke Design.
+- Alternative: v9.3 Opponent Move UI Integration Closure.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No network/provider call.
+- No new checkbox.
+- No checkbox default change.
+- No saved setting auto-enable.
+- No checkbox-toggle provider call.
+- No full Turn Engine, resolved turn order, hidden moveset inference, opponent set inference, selected opponent move inference, species/common-set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+- No logs, `.env`, secrets, API keys, token-log contents, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v9.1 - Opponent Move UI Source Integration
 
 Purpose:
