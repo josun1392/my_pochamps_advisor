@@ -1,5 +1,85 @@
 # Master Ball Advisor — Progress
 
+## v9.0 - Opponent Move UI / Source Integration Design
+
+Purpose:
+- Design how the existing UI-selected advice path should source and expose `opponent_move_context`.
+- Keep the work documentation-only before any UI/source implementation.
+
+Current state:
+- `opponent_move_context` is ready below the UI layer after v8.8.
+- `run_ui_selected_advice(...)` already accepts explicit `opponent_move_context` and `enable_opponent_move_context` inputs.
+- `ui/main_window.py` already builds `opponent_moves` from user-filled opponent move slots and Champions movepool candidates.
+- The UI does not yet convert or pass that source into `opponent_move_context`.
+
+Selected recommendation:
+- Reuse the existing default-off limited-context developer checkbox for the first implementation.
+- When unchecked, keep `enable_opponent_move_context=False`.
+- When checked, pass `enable_opponent_move_context=True` only when the existing advice button is pressed.
+- Derive `opponent_move_context` only from existing explicit/visible `opponent_moves` data.
+- Omit empty or invalid context instead of emitting an empty top-level field.
+
+Recommended next:
+- v9.1 Opponent Move UI Source Helper / Flag Integration.
+- Alternative: v9.1 Opponent Move UI Mock Fixture.
+- Alternative: v9.1 Battle State Context Payload Contract.
+
+Safety:
+- Documentation-only design.
+- No production code change.
+- No UI checkbox behavior change.
+- No actual Gemini call.
+- No Vertex AI call.
+- No new checkbox.
+- No full Turn Engine, hidden moveset inference, opponent set inference, selected opponent move inference, species/common-set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+- No logs, `.env`, secrets, API keys, token-log contents, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
+## v8.8 - Opponent Move Context Closure
+
+Purpose:
+- Close the Opponent Move Context phase after the v8.7 controlled one-call Gemini smoke PASS.
+- Record supported behavior, unsupported boundaries, known limitations, and the next recommended phase.
+
+Phase summary:
+- v8.1 locked the fixture-level `opponent_move_context` payload contract.
+- v8.2 added the source-bound helper.
+- v8.3 added the optional/default-off payload adapter.
+- v8.4 added the prompt guard.
+- v8.5 verified mocked offline advice behavior.
+- v8.6 designed a controlled one-call Gemini smoke.
+- v8.7 executed that smoke and classified it PASS.
+
+Current supported behavior:
+- `opponent_move_context` is optional and default-off.
+- It appears only when a valid non-empty context is supplied with `enable_opponent_move_context=True`.
+- Trusted known moves remain known move data, not selected move data.
+- Candidate moves remain `confirmed=False` and `selected=False`.
+- `selected_opponent_move` remains unknown unless explicitly supplied from a trusted source.
+- Prompt guard wording is emitted only when top-level `opponent_move_context` is present.
+
+Closure result:
+- No further wording polish is required from the v8.7 smoke result.
+- The phase is ready for a source/UI integration design step.
+
+Recommended next:
+- v9.0 Opponent Move UI/Source Integration Design.
+- Alternative: v9.0 Battle State Context Payload Contract.
+
+Safety:
+- Documentation-only closure.
+- No actual Gemini call.
+- No Vertex AI call.
+- No UI/source extraction.
+- No UI checkbox behavior change.
+- No full Turn Engine, hidden moveset inference, opponent set inference, selected opponent move inference, species/common-set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+- No logs, `.env`, secrets, API keys, token-log contents, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v8.7 - Controlled Gemini Smoke
 
 Purpose:
