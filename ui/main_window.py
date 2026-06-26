@@ -80,11 +80,13 @@ class LLMAdviceWorker(QObject):
         *,
         enable_turn_pipeline: bool = False,
         enable_turn_order_context: bool = False,
+        enable_opponent_move_context: bool = False,
     ) -> None:
         super().__init__()
         self._battle_input = battle_input
         self._enable_turn_pipeline = enable_turn_pipeline
         self._enable_turn_order_context = enable_turn_order_context
+        self._enable_opponent_move_context = enable_opponent_move_context
 
     @Slot()
     def run(self) -> None:
@@ -93,6 +95,7 @@ class LLMAdviceWorker(QObject):
                 self._battle_input,
                 enable_turn_pipeline=self._enable_turn_pipeline,
                 enable_turn_order_context=self._enable_turn_order_context,
+                enable_opponent_move_context=self._enable_opponent_move_context,
             )
         except requests.Timeout:
             self.failed.emit("\uC694\uCCAD \uC2DC\uAC04\uC774 \uCD08\uACFC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.")
@@ -326,6 +329,7 @@ class MainWindow(QMainWindow):
         panel.set_running(True)
         enable_turn_pipeline = panel.turn_pipeline_enabled()
         enable_turn_order_context = enable_turn_pipeline
+        enable_opponent_move_context = enable_turn_pipeline
         panel.set_turn_pipeline_status_enabled(enable_turn_pipeline)
         self.statusBar().showMessage("Analyzing...")
 
@@ -334,6 +338,7 @@ class MainWindow(QMainWindow):
             battle_input,
             enable_turn_pipeline=enable_turn_pipeline,
             enable_turn_order_context=enable_turn_order_context,
+            enable_opponent_move_context=enable_opponent_move_context,
         )
         self._llm_worker.moveToThread(self._llm_thread)
 

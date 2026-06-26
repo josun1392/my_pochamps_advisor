@@ -1,5 +1,49 @@
 # Master Ball Advisor — Progress
 
+## v9.1 - Opponent Move UI Source Integration
+
+Purpose:
+- Connect the existing default-off limited-context UI developer checkbox to `opponent_move_context` generation.
+- Keep the implementation offline/test-only, with no actual Gemini or Vertex AI call.
+
+Implementation:
+- `run_ui_selected_advice(...)` now accepts `enable_opponent_move_context: bool = False`.
+- `_build_ui_selected_prompt(...)` builds optional `opponent_move_context` only when explicitly enabled.
+- `LLMAdviceWorker` stores and forwards `enable_opponent_move_context`.
+- `MainWindow._start_llm_advice()` maps the existing checkbox to `enable_turn_pipeline`, `enable_turn_order_context`, and `enable_opponent_move_context`.
+- Existing UI-visible opponent move slots become `visible_ui` candidate moves in `opponent_move_context`.
+- Champions movepool entries remain unconfirmed `champions_movepool` candidates.
+
+Behavior:
+- Checkbox off preserves default payload/prompt behavior with no `opponent_move_context`.
+- Checkbox on includes `opponent_move_context` only when existing `opponent_moves` source data can produce a non-empty valid context.
+- Runtime UI source integration keeps `known_opponent_moves` empty for visible UI slots.
+- Candidate moves remain `confirmed=False` and `selected=False`.
+- `selected_opponent_move` remains `{"status": "unknown"}`.
+- The v8.4 opponent move prompt guard appears only when top-level `opponent_move_context` is present.
+
+Tests:
+- `tests/test_advisor_payload_contract.py`
+- `tests/test_advisor_opponent_move_context.py`
+
+Recommended next:
+- v9.2 Opponent Move UI Integration Offline E2E.
+- Alternative: v9.2 Controlled UI Gemini Smoke Design.
+- Alternative: v9.2 Opponent Move UI Copy / Tooltip Polish.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No new checkbox.
+- No checkbox default change.
+- No saved setting auto-enable.
+- No checkbox-toggle provider call.
+- No full Turn Engine, resolved turn order, hidden moveset inference, opponent set inference, selected opponent move inference, species/common-set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+- No logs, `.env`, secrets, API keys, token-log contents, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v9.0 - Opponent Move UI / Source Integration Design
 
 Purpose:

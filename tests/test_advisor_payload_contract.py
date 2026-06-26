@@ -1812,6 +1812,7 @@ def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
     run_source = inspect.getsource(advisor_client.run_ui_selected_advice)
     assert "enable_turn_pipeline: bool = False" in run_source
     assert "enable_turn_order_context: bool = False" in run_source
+    assert "enable_opponent_move_context: bool = False" in run_source
 
 
 def test_explicit_turn_pipeline_generation_smoke_preserves_existing_payload_contexts() -> None:
@@ -1899,6 +1900,7 @@ def test_explicit_turn_pipeline_generation_smoke_preserves_existing_payload_cont
     assert "exact post-turn HP" in prompt_with_pipeline
     run_source = inspect.getsource(advisor_client.run_ui_selected_advice)
     assert "enable_turn_pipeline: bool = False" in run_source
+    assert "enable_opponent_move_context: bool = False" in run_source
 
 
 def test_run_ui_selected_advice_default_dry_run_omits_turn_pipeline(
@@ -1922,8 +1924,10 @@ def test_run_ui_selected_advice_default_dry_run_omits_turn_pipeline(
     assert summary == {"patched": True}
     assert captured["model"]
     assert '"turn_pipeline"' not in captured["prompt"]
+    assert '"opponent_move_context"' not in captured["prompt"]
     assert "limited planning/debug summary only, not full turn simulation" not in captured["prompt"]
     assert "candidate events are not resolved outcomes" not in captured["prompt"]
+    assert "Candidate moves are not confirmed selected moves" not in captured["prompt"]
     assert '"damage_estimate"' in captured["prompt"]
     assert '"ko_context"' in captured["prompt"]
     assert '"species_stat_item_context"' in captured["prompt"]
@@ -2076,9 +2080,9 @@ def test_turn_pipeline_offline_end_to_end_advice_fixture_compares_default_and_ex
 def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    payload = _turn_pipeline_advice_flow_payload()
+    payload = _opponent_move_ui_advice_flow_payload()
     captured_prompts: list[str] = []
-    captured_flags: list[tuple[bool | None, bool | None]] = []
+    captured_flags: list[tuple[bool | None, bool | None, bool | None]] = []
     status_texts: list[str] = []
     call_count = 0
 
@@ -2105,12 +2109,19 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     def run_fake_ui_advice(turn_pipeline_enabled: bool | None) -> tuple[str, dict[str, int], dict[str, object]]:
         fake_ui_state = SimpleNamespace(turn_pipeline_enabled=turn_pipeline_enabled)
         if fake_ui_state.turn_pipeline_enabled is None:
-            captured_flags.append((None, None))
+            captured_flags.append((None, None, None))
             status_texts.append("")
             return advisor_client.run_ui_selected_advice(payload)
 
         enable_turn_order_context = fake_ui_state.turn_pipeline_enabled
-        captured_flags.append((fake_ui_state.turn_pipeline_enabled, enable_turn_order_context))
+        enable_opponent_move_context = fake_ui_state.turn_pipeline_enabled
+        captured_flags.append(
+            (
+                fake_ui_state.turn_pipeline_enabled,
+                enable_turn_order_context,
+                enable_opponent_move_context,
+            )
+        )
         if fake_ui_state.turn_pipeline_enabled:
             status_texts.append(TURN_PIPELINE_STATUS_TEXT)
         else:
@@ -2119,6 +2130,7 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
             payload,
             enable_turn_pipeline=fake_ui_state.turn_pipeline_enabled,
             enable_turn_order_context=enable_turn_order_context,
+            enable_opponent_move_context=enable_opponent_move_context,
         )
 
     monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
@@ -2131,7 +2143,7 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     assert call_count == 3
     assert len(captured_prompts) == 3
     assert len(logged_usages) == 3
-    assert captured_flags == [(None, None), (False, False), (True, True)]
+    assert captured_flags == [(None, None, None), (False, False, False), (True, True, True)]
     assert default_result[0] == "ui mock recommendation 1"
     assert flag_off_result[0] == "ui mock recommendation 2"
     assert flag_on_result[0] == "ui mock recommendation 3"
@@ -2147,11 +2159,14 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     ):
         assert "turn_pipeline" not in prompt_payload
         assert "turn_order_context" not in prompt_payload
+        assert "opponent_move_context" not in prompt_payload
         assert '"turn_pipeline"' not in prompt
         assert '"turn_order_context"' not in prompt
+        assert '"opponent_move_context"' not in prompt
         assert "candidate events are not resolved outcomes" not in prompt
         assert "limited planning/debug summary only, not full turn simulation" not in prompt
         assert "not a resolved move order" not in prompt
+        assert "Candidate moves are not confirmed selected moves" not in prompt
         assert TURN_PIPELINE_STATUS_TEXT not in status_text
 
     assert flag_off_payload == default_payload
@@ -2164,6 +2179,15 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     assert flag_on_payload["turn_order_context"]["speed"]["speed_relation"] == "opponent_faster_by_base_speed"
     assert flag_on_payload["turn_order_context"]["candidate_modifiers"][0]["source"] == "Quick Claw"
     assert flag_on_payload["turn_order_context"]["candidate_modifiers"][0]["resolved"] is False
+    assert flag_on_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+    assert flag_on_payload["opponent_move_context"]["known_opponent_moves"] == []
+    assert flag_on_payload["opponent_move_context"]["selected_opponent_move"] == {"status": "unknown"}
+    assert flag_on_payload["opponent_move_context"]["candidate_moves"][0]["source"] == "visible_ui"
+    assert flag_on_payload["opponent_move_context"]["candidate_moves"][0]["move_id"] == "thunderbolt"
+    assert all(
+        candidate["confirmed"] is False and candidate["selected"] is False
+        for candidate in flag_on_payload["opponent_move_context"]["candidate_moves"]
+    )
     assert "speed tie resolution" in flag_on_payload["turn_order_context"]["unsupported"]
     assert "RNG item activation" in flag_on_payload["turn_order_context"]["unsupported"]
     assert "exact final order" in flag_on_payload["turn_order_context"]["unsupported"]
@@ -2175,6 +2199,10 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     assert "Do not claim exact final move order" in flag_on_prompt
     assert "Do not infer item consumption" in flag_on_prompt
     assert "Do not infer post-turn HP" in flag_on_prompt
+    assert "If opponent_move_context is present" in flag_on_prompt
+    assert "Known opponent moves are not necessarily the opponent's selected move" in flag_on_prompt
+    assert "Candidate moves are not confirmed selected moves" in flag_on_prompt
+    assert "Do not infer hidden movesets" in flag_on_prompt
     assert "item consumption" in flag_on_prompt
     assert "exact post-turn HP" in flag_on_prompt
     assert TURN_PIPELINE_STATUS_TEXT in status_texts[2]
@@ -2254,7 +2282,7 @@ def test_ui_flag_offline_e2e_fixture_covers_checkbox_off_and_on(
     app = QApplication.instance() or QApplication([])
     assert app is not None
     panel = LLMAdvicePanel()
-    payload = _turn_pipeline_advice_flow_payload()
+    payload = _opponent_move_ui_advice_flow_payload()
     captured_prompts: list[str] = []
     mocked_responses: list[str] = []
     logged_usages: list[dict[str, int]] = []
@@ -2285,11 +2313,13 @@ def test_ui_flag_offline_e2e_fixture_covers_checkbox_off_and_on(
     def run_from_panel_state() -> tuple[str, dict[str, int], dict[str, object]]:
         enable_turn_pipeline = panel.turn_pipeline_enabled()
         enable_turn_order_context = enable_turn_pipeline
+        enable_opponent_move_context = enable_turn_pipeline
         return advisor_client.run_ui_selected_advice(
             payload,
             model="ui-flag-offline-v7-11",
             enable_turn_pipeline=enable_turn_pipeline,
             enable_turn_order_context=enable_turn_order_context,
+            enable_opponent_move_context=enable_opponent_move_context,
         )
 
     panel.advice_requested.connect(record_advice_request)
@@ -2324,23 +2354,39 @@ def test_ui_flag_offline_e2e_fixture_covers_checkbox_off_and_on(
 
     assert "turn_pipeline" not in off_payload
     assert "turn_order_context" not in off_payload
+    assert "opponent_move_context" not in off_payload
     assert '"turn_pipeline"' not in off_prompt
     assert '"turn_order_context"' not in off_prompt
+    assert '"opponent_move_context"' not in off_prompt
     assert "candidate events are not resolved outcomes" not in off_prompt
     assert "not a resolved move order" not in off_prompt
+    assert "Candidate moves are not confirmed selected moves" not in off_prompt
 
     assert on_payload["turn_pipeline"]["simulated"] == "limited"
     assert on_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
     assert on_payload["turn_order_context"]["priority"]["priority_relation"] == "unknown"
     assert on_payload["turn_order_context"]["candidate_modifiers"][0]["resolved"] is False
+    assert on_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+    assert on_payload["opponent_move_context"]["known_opponent_moves"] == []
+    assert on_payload["opponent_move_context"]["selected_opponent_move"] == {"status": "unknown"}
+    assert on_payload["opponent_move_context"]["candidate_moves"][0]["source"] == "visible_ui"
+    assert on_payload["opponent_move_context"]["candidate_moves"][0]["move_id"] == "thunderbolt"
+    assert all(
+        candidate["confirmed"] is False and candidate["selected"] is False
+        for candidate in on_payload["opponent_move_context"]["candidate_moves"]
+    )
     assert '"turn_pipeline"' in on_prompt
     assert '"turn_order_context"' in on_prompt
+    assert '"opponent_move_context"' in on_prompt
     assert "candidate events are not resolved outcomes" in on_prompt
     assert "limited planning/debug summary only, not full turn simulation" in on_prompt
     assert "limited planning context, not a resolved move order" in on_prompt
     assert "Do not claim exact final move order" in on_prompt
     assert "Do not infer item consumption" in on_prompt
     assert "Do not infer post-turn HP" in on_prompt
+    assert "If opponent_move_context is present" in on_prompt
+    assert "Candidate moves are not confirmed selected moves" in on_prompt
+    assert "Do not infer hidden movesets" in on_prompt
 
     forbidden_response_phrases = (
         "will move first",
@@ -2474,10 +2520,13 @@ def test_turn_pipeline_dev_flag_is_default_off_and_wired_only_through_advice_req
 
     assert "enable_turn_pipeline = panel.turn_pipeline_enabled()" in worker_init_source
     assert "enable_turn_order_context = enable_turn_pipeline" in worker_init_source
+    assert "enable_opponent_move_context = enable_turn_pipeline" in worker_init_source
     assert "enable_turn_pipeline=enable_turn_pipeline" in worker_source
     assert "enable_turn_order_context=enable_turn_order_context" in worker_source
+    assert "enable_opponent_move_context=enable_opponent_move_context" in worker_source
     assert "enable_turn_pipeline: bool = False" in llm_worker_source
     assert "enable_turn_order_context: bool = False" in llm_worker_source
+    assert "enable_opponent_move_context: bool = False" in llm_worker_source
     assert "run_ui_selected_advice(" in llm_worker_source
     assert "call_gemini" not in worker_source
 
@@ -3086,6 +3135,37 @@ def test_opponent_selected_moves_become_known_moves() -> None:
     assert "earthquake" not in {candidate["move_id"] for candidate in opponent_moves["candidate_moves"]}
     assert all("damage_estimate" not in candidate for candidate in opponent_moves["candidate_moves"])
     assert all("ko_context" not in candidate for candidate in opponent_moves["candidate_moves"])
+
+
+def test_opponent_move_context_runtime_source_treats_ui_moves_as_candidates() -> None:
+    my_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
+    opponent_panel = _panel("garchomp", selected_move_index=0, selected_moves=[_move("earthquake")])
+    window = _window(my_panel, opponent_panel)
+
+    payload = window._build_llm_battle_input()
+    default_prompt = _build_ui_selected_prompt(payload)
+    enabled_prompt = _build_ui_selected_prompt(payload, enable_opponent_move_context=True)
+    enabled_payload = json.loads(enabled_prompt.rsplit("\n\n", 1)[1])
+
+    assert '"opponent_move_context"' not in default_prompt
+    assert "opponent_move_context" in enabled_payload
+    context = enabled_payload["opponent_move_context"]
+
+    assert context["kind"] == "opponent_move_context"
+    assert context["known_opponent_moves"] == []
+    assert context["selected_opponent_move"] == {"status": "unknown"}
+    assert context["candidate_moves"][0]["move_id"] == "earthquake"
+    assert context["candidate_moves"][0]["source"] == "visible_ui"
+    assert context["candidate_moves"][0]["confirmed"] is False
+    assert context["candidate_moves"][0]["selected"] is False
+    assert all(candidate["confirmed"] is False for candidate in context["candidate_moves"])
+    assert all(candidate["selected"] is False for candidate in context["candidate_moves"])
+    assert all("damage_estimate" not in candidate for candidate in context["candidate_moves"])
+    assert all("ko_context" not in candidate for candidate in context["candidate_moves"])
+    assert any(candidate["source"] == "champions_movepool" for candidate in context["candidate_moves"])
+    assert "If opponent_move_context is present" in enabled_prompt
+    assert "Candidate moves are not confirmed selected moves" in enabled_prompt
+    assert "Do not infer hidden movesets" in enabled_prompt
 
 
 def test_missing_opponent_fixture_does_not_fallback_to_pokeapi_learnset() -> None:
@@ -5445,6 +5525,47 @@ def _turn_pipeline_advice_flow_payload() -> dict:
         "available": True,
         "defender_side": "opponent_active",
         "item": {"item_id": "chilan-berry", "status": "user_confirmed"},
+    }
+    return payload
+
+
+def _opponent_move_ui_advice_flow_payload() -> dict:
+    payload = _turn_pipeline_advice_flow_payload()
+    payload["opponent_moves"] = {
+        "status": "known_and_candidates",
+        "known_moves": [
+            {
+                "slot": 0,
+                "move_id": "thunderbolt",
+                "name_en": "Thunderbolt",
+                "type": "electric",
+                "category": "special",
+                "power": 90,
+                "accuracy": 100,
+                "source": "user_confirmed",
+                "damage_estimate": {"status": "available_with_default_assumptions"},
+                "ko_context": {"mode": "limited_damage_roll_ko_context"},
+            }
+        ],
+        "candidate_moves": [
+            {
+                "move_id": "quick-attack",
+                "name_en": "Quick Attack",
+                "type": "normal",
+                "category": "physical",
+                "power": 40,
+                "accuracy": 100,
+                "priority": 1,
+                "source": "champions_movepool",
+                "confidence": "possible_not_confirmed",
+            }
+        ],
+        "candidate_moves_limit": 24,
+        "candidate_source_status": {"status": "available"},
+        "limitations": [
+            "Known opponent moves are user-confirmed only.",
+            "Candidate moves are possible moves, not confirmed opponent moves.",
+        ],
     }
     return payload
 

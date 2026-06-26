@@ -20,6 +20,7 @@ from llm.advisor_opponent_move_context import (
     OPPONENT_MOVE_CONTEXT_FORBIDDEN_FIELDS,
     OPPONENT_MOVE_CONTEXT_TRUSTED_KNOWN_SOURCES,
     OPPONENT_MOVE_CONTEXT_UNSUPPORTED_BOUNDARIES,
+    build_opponent_move_context,
 )
 from llm.advisor_turn_order_context import (
     TURN_ORDER_CONTEXT_CONFIDENCE_VALUES,
@@ -135,6 +136,7 @@ def run_ui_selected_advice(
     *,
     enable_turn_pipeline: bool = False,
     enable_turn_order_context: bool = False,
+    enable_opponent_move_context: bool = False,
 ) -> tuple[str, dict[str, int], dict[str, Any]]:
     """Run the v0.6 UI-selected Pokemon advisor flow.
 
@@ -148,6 +150,7 @@ def run_ui_selected_advice(
         turn_snapshot=turn_snapshot,
         enable_turn_pipeline=enable_turn_pipeline,
         enable_turn_order_context=enable_turn_order_context,
+        enable_opponent_move_context=enable_opponent_move_context,
     )
     recommendation, usage = call_gemini(prompt, selected_model)
     summary = _log_advisor_call(
@@ -189,6 +192,13 @@ def _build_ui_selected_prompt(
             turn_snapshot=turn_snapshot,
         )
         turn_order_context = _build_optional_turn_order_context_for_advice_payload(base_payload)
+
+    if opponent_move_context is None and enable_opponent_move_context:
+        base_payload = build_ui_advice_payload(
+            battle_input,
+            turn_snapshot=turn_snapshot,
+        )
+        opponent_move_context = _build_optional_opponent_move_context_for_advice_payload(base_payload)
 
     advice_payload = build_ui_advice_payload(
         battle_input,
@@ -557,6 +567,57 @@ def _build_optional_turn_order_context_for_advice_payload(payload: dict[str, Any
         opponent_confirmed_final_speed=opponent_final_speed,
         candidate_modifiers=candidate_modifiers,
     )
+
+
+def _build_optional_opponent_move_context_for_advice_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    opponent_moves = payload.get("opponent_moves")
+    if not isinstance(opponent_moves, dict):
+        return None
+
+    candidate_moves: list[dict[str, Any]] = []
+    for move in _mapping_list(opponent_moves.get("known_moves")):
+        visible_move = _opponent_context_move_from_payload(move, source="visible_ui")
+        if visible_move is not None:
+            candidate_moves.append(visible_move)
+    for move in _mapping_list(opponent_moves.get("candidate_moves")):
+        source = move.get("source")
+        candidate_source = source if source in OPPONENT_MOVE_CONTEXT_CANDIDATE_SOURCES else "visible_or_cache_candidate"
+        candidate_move = _opponent_context_move_from_payload(move, source=str(candidate_source))
+        if candidate_move is not None:
+            candidate_moves.append(candidate_move)
+
+    if not candidate_moves:
+        return None
+
+    return build_opponent_move_context(
+        candidate_moves=candidate_moves,
+        selected_opponent_move={"status": "unknown"},
+    )
+
+
+def _mapping_list(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _opponent_context_move_from_payload(move: dict[str, Any], *, source: str) -> dict[str, Any] | None:
+    move_id = move.get("move_id")
+    if not isinstance(move_id, str) or not move_id:
+        return None
+
+    normalized: dict[str, Any] = {
+        "move_id": move_id,
+        "source": source,
+    }
+    name = move.get("name") or move.get("name_en") or move.get("name_ko")
+    if isinstance(name, str) and name:
+        normalized["name"] = name
+    for key in ("type", "category", "power", "accuracy", "priority", "target", "effect_flags"):
+        value = move.get(key)
+        if value is not None:
+            normalized[key] = value
+    return normalized
 
 
 def _active_base_speed(payload: dict[str, Any], side: str) -> int | None:
