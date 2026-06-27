@@ -6,10 +6,11 @@ from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QPushButton, QTextEdit,
 
 
 TURN_PIPELINE_HELP_TEXT = (
-    "확정 턴 시뮬레이션이 아니라, 턴 이벤트 후보와 선후공 판단 보조 정보를 조언에 추가합니다.\n"
-    "RNG, 아이템 소모, 턴 종료 후 HP, 스피드 타이, 정확한 발동 결과나 최종 행동 순서는 확정하지 않습니다."
+    "턴 이벤트 후보, 선후공 판단 보조, UI에 보이는 상대 기술 후보를 LLM 입력에 포함합니다.\n"
+    "이 정보는 확정 턴 결과가 아니며, 상대 기술 후보는 확정된 기술이 아닙니다. "
+    "숨겨진 기술배치, RNG 결과, 아이템 소모, 턴 후 HP를 추론하지 않습니다."
 )
-TURN_PIPELINE_STATUS_TEXT = "턴 판단 후보 포함됨 | 확정 시뮬레이션 아님"
+TURN_PIPELINE_STATUS_TEXT = "제한 컨텍스트 켜짐: 후보 이벤트, 선후공 보조 정보, 상대 기술 후보 전달 | 확정 결과 아님"
 
 
 class LLMAdvicePanel(QFrame):
@@ -26,7 +27,7 @@ class LLMAdvicePanel(QFrame):
         self.request_button = QPushButton("이번 턴 추천 받기")
         self.request_button.clicked.connect(self.advice_requested.emit)
 
-        self.turn_pipeline_checkbox = QCheckBox("턴 이벤트 후보 포함")
+        self.turn_pipeline_checkbox = QCheckBox("제한 컨텍스트 포함")
         self.turn_pipeline_checkbox.setObjectName("turnPipelineDevFlag")
         self.turn_pipeline_checkbox.setToolTip(TURN_PIPELINE_HELP_TEXT)
         self.turn_pipeline_checkbox.toggled.connect(self.set_turn_pipeline_status_enabled)

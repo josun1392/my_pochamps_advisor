@@ -2250,17 +2250,21 @@ def test_turn_pipeline_dev_flag_widget_defaults_off_and_does_not_auto_call() -> 
 
     assert panel.turn_pipeline_enabled() is False
     assert panel.turn_pipeline_checkbox.isChecked() is False
-    assert panel.turn_pipeline_checkbox.text() == "턴 이벤트 후보 포함"
+    assert panel.turn_pipeline_checkbox.text() == "제한 컨텍스트 포함"
     assert panel.turn_pipeline_checkbox.toolTip() == TURN_PIPELINE_HELP_TEXT
-    assert "확정 턴 시뮬레이션이 아니라" in panel.turn_pipeline_checkbox.toolTip()
-    assert "턴 이벤트 후보와 선후공 판단 보조 정보" in panel.turn_pipeline_checkbox.toolTip()
+    assert "턴 이벤트 후보" in panel.turn_pipeline_checkbox.toolTip()
+    assert "선후공 판단 보조" in panel.turn_pipeline_checkbox.toolTip()
+    assert "UI에 보이는 상대 기술 후보" in panel.turn_pipeline_checkbox.toolTip()
+    assert "확정 턴 결과가 아니" in panel.turn_pipeline_checkbox.toolTip()
+    assert "상대 기술 후보는 확정된 기술이 아닙니다" in panel.turn_pipeline_checkbox.toolTip()
+    assert "숨겨진 기술배치" in panel.turn_pipeline_checkbox.toolTip()
     assert "RNG" in panel.turn_pipeline_checkbox.toolTip()
     assert "아이템 소모" in panel.turn_pipeline_checkbox.toolTip()
-    assert "턴 종료 후 HP" in panel.turn_pipeline_checkbox.toolTip()
-    assert "스피드 타이" in panel.turn_pipeline_checkbox.toolTip()
-    assert "정확한 발동 결과" in panel.turn_pipeline_checkbox.toolTip()
-    assert "최종 행동 순서" in panel.turn_pipeline_checkbox.toolTip()
+    assert "턴 후 HP" in panel.turn_pipeline_checkbox.toolTip()
     assert panel.turn_pipeline_status_label.text() == TURN_PIPELINE_STATUS_TEXT
+    assert "제한 컨텍스트 켜짐" in panel.turn_pipeline_status_label.text()
+    assert "상대 기술 후보" in panel.turn_pipeline_status_label.text()
+    assert "확정 결과 아님" in panel.turn_pipeline_status_label.text()
     assert panel.turn_pipeline_status_label.isHidden() is True
 
     panel.turn_pipeline_checkbox.setChecked(True)
@@ -2511,7 +2515,7 @@ def test_turn_pipeline_dev_flag_is_default_off_and_wired_only_through_advice_req
     llm_worker_source = inspect.getsource(LLMAdviceWorker)
 
     assert "QCheckBox" in panel_source
-    assert "턴 이벤트 후보 포함" in panel_source
+    assert "제한 컨텍스트 포함" in panel_source
     assert "setToolTip(TURN_PIPELINE_HELP_TEXT)" in panel_source
     assert "setChecked(True)" not in panel_source
     assert "turn_pipeline_checkbox.toggled.connect(self.set_turn_pipeline_status_enabled)" in panel_source

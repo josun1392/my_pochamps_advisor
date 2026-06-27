@@ -10,11 +10,54 @@ from tests.test_advisor_payload_contract import (
     _opponent_move_ui_advice_flow_payload,
     _turn_pipeline_advice_flow_payload,
 )
-from ui.widgets.llm_advice_panel import LLMAdvicePanel
+from ui.widgets.llm_advice_panel import LLMAdvicePanel, TURN_PIPELINE_HELP_TEXT, TURN_PIPELINE_STATUS_TEXT
 
 
 def _prompt_payload(prompt: str) -> dict:
     return json.loads(prompt.rsplit("\n\n", 1)[1])
+
+
+def test_limited_context_checkbox_copy_describes_combined_candidate_context() -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    panel = LLMAdvicePanel()
+
+    assert panel.turn_pipeline_checkbox.text() == "제한 컨텍스트 포함"
+    assert panel.turn_pipeline_checkbox.toolTip() == TURN_PIPELINE_HELP_TEXT
+    assert panel.turn_pipeline_status_label.text() == TURN_PIPELINE_STATUS_TEXT
+
+    combined_copy = " ".join(
+        (
+            panel.turn_pipeline_checkbox.text(),
+            panel.turn_pipeline_checkbox.toolTip(),
+            panel.turn_pipeline_status_label.text(),
+        )
+    )
+    for required_phrase in (
+        "턴 이벤트 후보",
+        "선후공 판단 보조",
+        "UI에 보이는 상대 기술 후보",
+        "확정 턴 결과가 아니",
+        "상대 기술 후보는 확정된 기술이 아닙니다",
+        "숨겨진 기술배치",
+        "RNG 결과",
+        "아이템 소모",
+        "턴 후 HP",
+    ):
+        assert required_phrase in combined_copy
+
+    forbidden_phrases = (
+        "상대가 사용할 기술",
+        "상대 선택 기술",
+        "확정 선후공",
+        "확정 턴 결과입니다",
+        "Quick Claw 발동",
+        "아이템 소모 확정",
+        "턴 후 HP 확정",
+        "숨겨진 기술배치 추론",
+    )
+    for phrase in forbidden_phrases:
+        assert phrase not in combined_copy
 
 
 def test_limited_context_checkbox_defaults_off_and_toggle_does_not_call_provider(
