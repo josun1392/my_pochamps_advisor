@@ -1,5 +1,55 @@
 # Master Ball Advisor — Progress
 
+## v10.0 - Battle State Context Design
+
+Purpose:
+- Design a future `battle_state_context` before implementation.
+- Define safe visible/explicit battle-state boundaries without hidden-state inference or full turn simulation.
+
+Design summary:
+- Proposed a future optional top-level `battle_state_context` with `kind`, `confidence`, `self_active`, `opponent_active`, `field`, `known_conditions`, `unsupported`, and `safety_notes`.
+- Recommended source-tagged state envelopes such as `{"known": true, "value": ..., "source": "visible_ui"}` and explicit unknown envelopes such as `{"known": false, "value": "unknown"}`.
+- Recommended initial confidence values `unknown` and `limited`; deferred `partial` and `explicit` until trusted source paths exist.
+- Allowed sources: `visible_ui`, `explicit_input`, `user_confirmed`, `calculated_from_visible`.
+- Forbidden sources: `species_common_set`, `usage_based_guess`, `meta_inferred`, `hidden_state_guess`, `damage_reverse_inference`.
+
+Included field categories:
+- `self_active`
+- `opponent_active`
+- `field`
+- `known_conditions`
+- `unsupported`
+- `safety_notes`
+
+Excluded behavior:
+- no hidden item, EV/IV/nature, unobserved boost, unobserved status, weather/terrain, hazards/screens, room, RNG, item consumption, post-turn HP, selected opponent move, opponent set, hidden moveset, or full turn inference.
+- no reverse inference from `damage_estimate` or `ko_context`.
+
+Existing context relationship:
+- `damage_estimate` remains damage context, not hidden-state source.
+- `ko_context` remains limited KO context, not final battle truth.
+- `turn_pipeline` remains candidate event context, not resolved event output.
+- `turn_order_context` remains helper context, not speed tie/RNG/final order resolution.
+- `opponent_move_context` remains move fact/candidate context, not selected move or hidden moveset inference.
+- `battle_state_context` should be visible/explicit battle-state snapshot context only.
+
+Recommended next:
+- v10.1 Battle State Context Payload Contract.
+- Fallback: v10.1 Battle State Context Source Inventory if source availability is too unclear.
+- Alternative: v10.1 Battle State Prompt Guard Design.
+
+Safety:
+- Documentation-only design.
+- No production code change.
+- No `battle_state_context` implementation.
+- No payload adapter or prompt guard implementation.
+- No UI checkbox behavior change.
+- No actual Gemini call, retry, Vertex AI call, or provider/network call.
+- No full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden state inference, damage reverse inference, damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+- No logs, `.env`, secrets, API keys, token-log contents, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v9.4 - Opponent Move UI Integration Closure
 
 Purpose:
