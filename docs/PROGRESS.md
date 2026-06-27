@@ -1,5 +1,67 @@
 # Master Ball Advisor — Progress
 
+## v9.4 - Opponent Move UI Integration Closure
+
+Purpose:
+- Close the v9.0-v9.3 Opponent Move UI Integration phase.
+- Record the current supported behavior, safety boundary, test coverage, known limitations, and next recommended phase.
+
+Phase summary:
+- v9.0 designed the UI/source integration around existing explicit/visible `opponent_moves` data and the existing default-off limited-context checkbox.
+- v9.1 implemented runtime source integration behind the checkbox, mapping checked state to `turn_pipeline`, `turn_order_context`, and `opponent_move_context`.
+- v9.2 verified the UI/offline E2E checkbox path with mocked provider calls only.
+- v9.3 polished checkbox label, tooltip, and status copy to describe the combined limited context accurately.
+
+Current behavior:
+- The existing limited-context checkbox defaults unchecked.
+- Checkbox off omits `turn_pipeline`, `turn_order_context`, `opponent_move_context`, and related prompt guards.
+- Checkbox on enables all three limited context flags; each context is still emitted only when valid source data exists.
+- UI-visible opponent moves become `visible_ui` candidate moves.
+- Candidate moves remain `confirmed=False` and `selected=False`.
+- Runtime UI-visible moves do not become `known_opponent_moves`.
+- `selected_opponent_move` remains `{"status": "unknown"}` unless a future explicit trusted source is designed.
+- The v8.4 opponent move prompt guard appears only when top-level `opponent_move_context` exists.
+
+UI copy:
+- Label: `제한 컨텍스트 포함`
+- Tooltip/status describe candidate turn events, turn-order helper context, and UI-visible opponent move candidates.
+- Copy states this is not a final turn result, not the opponent's actual selected move, and not hidden moveset / RNG / item consumption / post-turn HP inference.
+
+Tests:
+- `tests/test_ui_turn_pipeline_flag_flow.py`
+- `tests/test_advisor_payload_contract.py`
+- `tests/test_advisor_opponent_move_context.py`
+- `tests/test_advisor_turn_order_context.py`
+- `tests/test_advisor_turn_events.py`
+- `tests/test_turn_event.py`
+- `tests/test_advisor_damage_estimate.py`
+- `tests/test_damage_perf.py`
+
+Known limitations:
+- UI-visible moves are candidate context only.
+- There is no explicit selected opponent move UI source yet.
+- No opponent hidden moveset inference, opponent set inference, or meta/common-set expansion exists.
+- No actual UI-path Gemini smoke for this combined path has been run.
+- No `battle_state_context` exists yet.
+- No full turn simulation exists.
+
+Recommended next:
+- v10.0 Battle State Context Design.
+- Alternative: v9.5 Controlled UI Gemini Smoke Design.
+- Alternative: v9.5 Opponent Move UI Path Controlled Gemini Smoke.
+
+Safety:
+- No actual Gemini call.
+- No Vertex AI call.
+- No provider/network call.
+- No production code change.
+- No new checkbox, default change, behavior change, saved auto-enable, or checkbox-toggle provider call.
+- No full Turn Engine, `battle_state_context`, resolved turn order, hidden moveset inference, opponent set inference, selected opponent move inference, species/common-set/meta-based move generation, EV/IV/nature inference, hidden item inference, weather/terrain/boost inference, speed tie resolver, RNG resolver, Quick Claw activation resolution, item consumption, or post-turn HP update.
+- No damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering changes.
+- No logs, `.env`, secrets, API keys, token-log contents, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v9.3 - Opponent Move UI Copy / Tooltip Polish
 
 Purpose:
