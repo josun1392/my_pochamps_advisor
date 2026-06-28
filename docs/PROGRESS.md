@@ -1,5 +1,38 @@
 # Master Ball Advisor — Progress
 
+## v10.6 - Battle State UI Source Inventory
+
+Purpose:
+- Inventory which current UI/repo sources can safely feed future `battle_state_context` UI integration.
+
+Files inspected:
+- `ui/main_window.py`
+- `ui/widgets/pokemon_panel.py`
+- `ui/widgets/llm_advice_panel.py`
+- `ui/widgets/item_profile_dialog.py`
+- `llm/advisor_client.py`
+- `llm/advisor_battle_state_context.py`
+- `tests/test_ui_turn_pipeline_flag_flow.py`
+- `tests/test_advisor_payload_contract.py`
+- `tests/test_advisor_battle_state_context.py`
+- v10.2-v10.5 battle-state docs and payload contract docs
+
+Inventory:
+- Self and opponent active species are already visible in UI-selected payloads and can be normalized as `visible_ui`.
+- Self and opponent active HP percent are already visible in `PokemonPanel.current_hp_percent` / `pokemon.*.hp_percent` and can be normalized as `visible_ui`.
+- User-confirmed item profiles can be considered for `user_confirmed` item values after a v10.7 design decision; unknown/default item profiles must not be promoted to hidden battle truth.
+- Status, boosts, weather, terrain, screens, hazards, room effects, and general `known_conditions` are not currently available from explicit UI source and should remain unknown.
+
+Recommended next:
+- v10.7 Battle State UI Integration Design.
+- Alternative: v10.7 Battle State UI Source Adapter if T1/T2 explicitly approve implementation after design review.
+- Alternative: v10.7 Battle State Context Closure.
+
+Safety statement:
+- No production code, UI/source integration, payload adapter, prompt guard, UI checkbox behavior, actual Gemini call, retry, Vertex AI call, network call, hidden-state inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, logs, `.env`, secrets, API keys, token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.5 - Battle State Context Offline Advice Fixture
 
 Purpose:
