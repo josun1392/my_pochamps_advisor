@@ -14,6 +14,16 @@ from typing import Any
 from core.turn_event import TurnPipelineResult, normalize_turn_pipeline_result
 from core.turn_state import TurnSnapshot, normalize_turn_snapshot
 from core.champions_legal_item_repository import get_legal_item_status
+from llm.advisor_battle_state_context import (
+    BATTLE_STATE_CONTEXT_ACTIVE_FIELDS,
+    BATTLE_STATE_CONTEXT_ALLOWED_SOURCES,
+    BATTLE_STATE_CONTEXT_FIELD_FIELDS,
+    BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS,
+    BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES,
+    BATTLE_STATE_CONTEXT_SAFETY_NOTES,
+    BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
+    BATTLE_STATE_CONTEXT_UNSUPPORTED_BOUNDARIES,
+)
 from llm.advisor_opponent_move_context import (
     OPPONENT_MOVE_CONTEXT_ALLOWED_MOVE_FIELDS,
     OPPONENT_MOVE_CONTEXT_CANDIDATE_SOURCES,
@@ -96,9 +106,11 @@ def build_ui_advice_payload(
     turn_pipeline: TurnPipelineResult | dict[str, Any] | None = None,
     turn_order_context: dict[str, Any] | None = None,
     opponent_move_context: dict[str, Any] | None = None,
+    battle_state_context: dict[str, Any] | None = None,
     *,
     enable_turn_order_context: bool = False,
     enable_opponent_move_context: bool = False,
+    enable_battle_state_context: bool = False,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
@@ -114,6 +126,11 @@ def build_ui_advice_payload(
         filtered_payload,
         opponent_move_context,
         enable_opponent_move_context=enable_opponent_move_context,
+    )
+    _add_battle_state_context_to_advice_payload(
+        filtered_payload,
+        battle_state_context,
+        enable_battle_state_context=enable_battle_state_context,
     )
     return filtered_payload
 
@@ -758,6 +775,169 @@ def _add_opponent_move_context_to_advice_payload(
     if _is_empty_opponent_move_context(context):
         return
     payload["opponent_move_context"] = context
+
+
+def _add_battle_state_context_to_advice_payload(
+    payload: dict[str, Any],
+    battle_state_context: dict[str, Any] | None,
+    *,
+    enable_battle_state_context: bool,
+) -> None:
+    if not enable_battle_state_context:
+        return
+    if battle_state_context is None:
+        return
+    if not battle_state_context:
+        return
+
+    context = deepcopy(battle_state_context)
+    _validate_battle_state_context_payload(context)
+    if _is_empty_battle_state_context(context):
+        return
+    payload["battle_state_context"] = context
+
+
+def _validate_battle_state_context_payload(context: dict[str, Any]) -> None:
+    if not isinstance(context, dict):
+        raise ValueError("battle_state_context must be a mapping")
+    if context.get("kind") != "battle_state_context":
+        raise ValueError("battle_state_context kind must be battle_state_context")
+    if context.get("confidence") not in {"limited", "unknown"}:
+        raise ValueError("battle_state_context confidence is not allowed")
+    if set(context) != {
+        "kind",
+        "confidence",
+        "self_active",
+        "opponent_active",
+        "field",
+        "known_conditions",
+        "unsupported",
+        "safety_notes",
+    }:
+        raise ValueError("battle_state_context top-level shape is not allowed")
+
+    _validate_battle_state_active_side(context.get("self_active"), "self_active")
+    _validate_battle_state_active_side(context.get("opponent_active"), "opponent_active")
+    _validate_battle_state_field(context.get("field"))
+
+    known_conditions = context.get("known_conditions")
+    if not isinstance(known_conditions, list):
+        raise ValueError("battle_state_context known_conditions must be a list")
+    for condition in known_conditions:
+        if not isinstance(condition, dict):
+            raise ValueError("battle_state_context known_conditions must contain mappings")
+
+    unsupported = context.get("unsupported")
+    required_unsupported = set(BATTLE_STATE_CONTEXT_UNSUPPORTED_BOUNDARIES)
+    if not isinstance(unsupported, list) or not required_unsupported.issubset(set(unsupported)):
+        raise ValueError("battle_state_context unsupported boundaries are required")
+
+    safety_notes = context.get("safety_notes")
+    required_safety_notes = set(BATTLE_STATE_CONTEXT_SAFETY_NOTES)
+    if not isinstance(safety_notes, list) or not required_safety_notes.issubset(set(safety_notes)):
+        raise ValueError("battle_state_context safety notes are required")
+
+    _validate_battle_state_context_sources(context)
+    _validate_no_battle_state_context_forbidden_fields(context)
+
+
+def _validate_battle_state_active_side(active_side: Any, side_name: str) -> None:
+    if not isinstance(active_side, dict):
+        raise ValueError(f"battle_state_context {side_name} must be a mapping")
+    if set(active_side) != set(BATTLE_STATE_CONTEXT_ACTIVE_FIELDS):
+        raise ValueError(f"battle_state_context {side_name} shape is not allowed")
+
+    _validate_battle_state_name_or_unknown(active_side["species"], f"{side_name}.species")
+    _validate_battle_state_value_or_unknown(active_side["current_hp_percent"], f"{side_name}.current_hp_percent")
+    for field_name in ("status", "boosts", "item"):
+        _validate_battle_state_known_value_or_unknown(active_side[field_name], f"{side_name}.{field_name}")
+
+
+def _validate_battle_state_field(field: Any) -> None:
+    if not isinstance(field, dict):
+        raise ValueError("battle_state_context field must be a mapping")
+    if set(field) != set(BATTLE_STATE_CONTEXT_FIELD_FIELDS):
+        raise ValueError("battle_state_context field shape is not allowed")
+    for field_name in BATTLE_STATE_CONTEXT_FIELD_FIELDS:
+        _validate_battle_state_known_value_or_unknown(field[field_name], f"field.{field_name}")
+
+
+def _validate_battle_state_name_or_unknown(value: Any, field_name: str) -> None:
+    if value == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD:
+        return
+    if not isinstance(value, dict):
+        raise ValueError(f"battle_state_context {field_name} must be a mapping")
+    if value.get("source") not in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES:
+        raise ValueError(f"battle_state_context {field_name} source is not allowed")
+    if not value.get("name"):
+        raise ValueError(f"battle_state_context {field_name} requires name")
+
+
+def _validate_battle_state_value_or_unknown(value: Any, field_name: str) -> None:
+    if value == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD:
+        return
+    if not isinstance(value, dict):
+        raise ValueError(f"battle_state_context {field_name} must be a mapping")
+    if value.get("source") not in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES:
+        raise ValueError(f"battle_state_context {field_name} source is not allowed")
+    known_value = value.get("value")
+    if known_value is None or known_value == "unknown":
+        raise ValueError(f"battle_state_context {field_name} requires known value")
+
+
+def _validate_battle_state_known_value_or_unknown(value: Any, field_name: str) -> None:
+    if value == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD:
+        return
+    if not isinstance(value, dict):
+        raise ValueError(f"battle_state_context {field_name} must be a mapping")
+    if value.get("known") is not True:
+        raise ValueError(f"battle_state_context {field_name} known value is not allowed")
+    if value.get("source") not in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES:
+        raise ValueError(f"battle_state_context {field_name} source is not allowed")
+    known_value = value.get("value")
+    if known_value is None or known_value == "unknown":
+        raise ValueError(f"battle_state_context {field_name} requires known value")
+
+
+def _validate_battle_state_context_sources(value: Any) -> None:
+    if isinstance(value, dict):
+        source = value.get("source")
+        if source is not None:
+            if source in BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES:
+                raise ValueError("battle_state_context source is forbidden")
+            if source not in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES:
+                raise ValueError("battle_state_context source is not allowed")
+        for child_value in value.values():
+            _validate_battle_state_context_sources(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _validate_battle_state_context_sources(child_value)
+
+
+def _validate_no_battle_state_context_forbidden_fields(value: Any) -> None:
+    if isinstance(value, dict):
+        for key, child_value in value.items():
+            if key in BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS:
+                raise ValueError(f"battle_state_context must not include {key!r}")
+            _validate_no_battle_state_context_forbidden_fields(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _validate_no_battle_state_context_forbidden_fields(child_value)
+
+
+def _is_empty_battle_state_context(context: dict[str, Any]) -> bool:
+    return not _battle_state_context_has_known_source(context)
+
+
+def _battle_state_context_has_known_source(value: Any) -> bool:
+    if isinstance(value, dict):
+        source = value.get("source")
+        if source in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES:
+            return True
+        return any(_battle_state_context_has_known_source(child_value) for child_value in value.values())
+    if isinstance(value, list):
+        return any(_battle_state_context_has_known_source(child_value) for child_value in value)
+    return False
 
 
 def _validate_opponent_move_context_payload(context: dict[str, Any]) -> None:

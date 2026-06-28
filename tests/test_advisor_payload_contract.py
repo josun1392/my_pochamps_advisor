@@ -18,6 +18,10 @@ from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
 from core.turn_event import TurnEvent, TurnPipelineResult
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
 import llm.advisor_client as advisor_client
+from llm.advisor_battle_state_context import (
+    BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS as HELPER_BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS,
+    build_battle_state_context,
+)
 from llm.advisor_client import (
     _build_opponent_move_context_prompt_guard,
     _build_turn_order_context_prompt_guard,
@@ -724,6 +728,250 @@ def test_battle_state_context_contract_requires_relationship_boundaries() -> Non
     assert "turn_order_context is not a speed tie/RNG/final order source" in boundaries
     assert "opponent_move_context is not a selected move/hidden moveset source" in boundaries
     assert "battle_state_context is not a resolved turn simulation" in boundaries
+
+
+def test_battle_state_context_payload_adapter_is_default_off() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+
+    baseline_payload = build_ui_advice_payload(payload)
+    omitted_payload = build_ui_advice_payload(payload, battle_state_context=context)
+    disabled_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=False,
+    )
+    enabled_without_context_payload = build_ui_advice_payload(payload, enable_battle_state_context=True)
+
+    assert omitted_payload == baseline_payload
+    assert disabled_payload == baseline_payload
+    assert enabled_without_context_payload == baseline_payload
+    assert "battle_state_context" not in baseline_payload
+    assert "battle_state_context" not in omitted_payload
+    assert "battle_state_context" not in disabled_payload
+    assert "battle_state_context" not in enabled_without_context_payload
+
+
+def test_battle_state_context_payload_adapter_adds_explicit_top_level_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = build_battle_state_context(
+        self_active={
+            "species": {"source": "visible_ui", "name": "Garchomp"},
+            "current_hp_percent": {"source": "visible_ui", "value": 100},
+            "status": {"source": "explicit_input", "value": "burn"},
+            "boosts": {"source": "explicit_input", "value": {"atk": 1}},
+            "item": {"source": "user_confirmed", "value": "loaded-dice"},
+        },
+        opponent_active={
+            "species": {"source": "visible_ui", "name": "Charizard"},
+            "current_hp_percent": {"source": "visible_ui", "value": 87},
+        },
+        field={
+            "weather": {"source": "explicit_input", "value": "rain"},
+            "terrain": {"source": "explicit_input", "value": "electric"},
+            "screens": {"source": "explicit_input", "value": {"reflect": True}},
+            "hazards": {"source": "explicit_input", "value": {"stealth_rock": True}},
+            "room": {"source": "explicit_input", "value": {"trick_room": False}},
+        },
+    )
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    assert advice_payload["battle_state_context"] == context
+    assert advice_payload["battle_state_context"]["kind"] == "battle_state_context"
+    assert advice_payload["battle_state_context"]["confidence"] == "limited"
+    assert advice_payload["battle_state_context"]["self_active"]["status"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": "burn",
+    }
+    assert advice_payload["battle_state_context"]["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert advice_payload["battle_state_context"]["field"]["weather"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": "rain",
+    }
+    _assert_battle_state_context_contract(advice_payload["battle_state_context"])
+
+
+def test_battle_state_context_payload_adapter_omits_empty_helper_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = build_battle_state_context()
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    assert context["confidence"] == "unknown"
+    assert "battle_state_context" not in advice_payload
+
+
+def test_battle_state_context_payload_adapter_omits_none_and_empty_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    none_context_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=None,
+        enable_battle_state_context=True,
+    )
+    empty_context_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context={},
+        enable_battle_state_context=True,
+    )
+
+    assert "battle_state_context" not in none_context_payload
+    assert "battle_state_context" not in empty_context_payload
+
+
+@pytest.mark.parametrize(
+    ("context", "match"),
+    [
+        ({"kind": "wrong"}, "kind"),
+    ],
+)
+def test_battle_state_context_payload_adapter_rejects_invalid_or_unsupported_contexts(
+    context: dict,
+    match: str,
+) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+
+    with pytest.raises(ValueError, match=match):
+        build_ui_advice_payload(payload, battle_state_context=context, enable_battle_state_context=True)
+
+
+@pytest.mark.parametrize("confidence", ["partial", "explicit"])
+def test_battle_state_context_payload_adapter_rejects_unsupported_confidence(confidence: str) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+    context["confidence"] = confidence
+
+    with pytest.raises(ValueError, match="confidence"):
+        build_ui_advice_payload(payload, battle_state_context=context, enable_battle_state_context=True)
+
+
+def test_battle_state_context_payload_adapter_rejects_forbidden_source_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+    context["self_active"]["species"]["source"] = "species_common_set"
+
+    with pytest.raises(ValueError, match="source"):
+        build_ui_advice_payload(payload, battle_state_context=context, enable_battle_state_context=True)
+
+
+@pytest.mark.parametrize("field_name", sorted(HELPER_BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS))
+def test_battle_state_context_payload_adapter_rejects_forbidden_fields(field_name: str) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+    context["self_active"]["status"] = {
+        "known": True,
+        "source": "explicit_input",
+        "value": {field_name: True},
+    }
+
+    with pytest.raises(ValueError, match=field_name):
+        build_ui_advice_payload(payload, battle_state_context=context, enable_battle_state_context=True)
+
+
+def test_battle_state_context_payload_adapter_coexists_with_existing_contexts() -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    selected_move = payload["moves"]["my_selected_move"]
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        build_ui_advice_payload(payload),
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+    )
+    opponent_move_context = build_opponent_move_context(
+        candidate_moves=[
+            {
+                "source": "visible_or_cache_candidate",
+                "move_id": "quick-attack",
+                "name": "Quick Attack",
+                "priority": 1,
+            }
+        ]
+    )
+    battle_state_context = build_battle_state_context(
+        self_active={"species": {"source": "visible_ui", "name": "Garchomp"}},
+        opponent_active={"species": {"source": "visible_ui", "name": "Charizard"}},
+    )
+
+    battle_state_only = build_ui_advice_payload(
+        payload,
+        battle_state_context=battle_state_context,
+        enable_battle_state_context=True,
+    )
+    all_enabled = build_ui_advice_payload(
+        payload,
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        opponent_move_context=opponent_move_context,
+        battle_state_context=battle_state_context,
+        enable_turn_order_context=True,
+        enable_opponent_move_context=True,
+        enable_battle_state_context=True,
+    )
+
+    assert "turn_pipeline" in all_enabled
+    assert "turn_order_context" in all_enabled
+    assert "opponent_move_context" in all_enabled
+    assert "battle_state_context" in all_enabled
+    assert all_enabled["battle_state_context"] == battle_state_only["battle_state_context"]
+    assert all_enabled["turn_order_context"] == turn_order_context
+    assert all_enabled["opponent_move_context"] == build_ui_advice_payload(
+        payload,
+        opponent_move_context=opponent_move_context,
+        enable_opponent_move_context=True,
+    )["opponent_move_context"]
+    _assert_battle_state_context_has_no_forbidden_fields(all_enabled["battle_state_context"])
+
+
+def test_battle_state_context_payload_adapter_does_not_call_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = build_battle_state_context(self_active={"species": {"source": "visible_ui", "name": "Garchomp"}})
+
+    def fail_provider_call(*args: object, **kwargs: object) -> None:
+        raise AssertionError("provider should not be called by payload adapter")
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fail_provider_call)
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    assert advice_payload["battle_state_context"] == context
+
+
+def test_battle_state_context_payload_adapter_does_not_infer_from_damage_or_ko_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    payload["moves"]["my_selected_move"]["damage_estimate"]["hidden_item"] = "choice-band"
+    payload["moves"]["my_selected_move"]["ko_context"]["EVs"] = {"hp": 252}
+    context = build_battle_state_context()
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    assert "battle_state_context" not in advice_payload
+    assert "EVs" in payload["moves"]["my_selected_move"]["ko_context"]
 
 
 def test_opponent_move_context_contract_fixture_locks_shape_and_boundaries() -> None:
@@ -5593,7 +5841,9 @@ def _assert_battle_state_unknown_or_known_source_field(field: dict) -> None:
     if field["known"] is False:
         assert field == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
         return
-    assert field.get("value") not in {None, "unknown"}
+    known_value = field.get("value")
+    assert known_value is not None
+    assert known_value != "unknown"
     assert field.get("source") in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES
 
 

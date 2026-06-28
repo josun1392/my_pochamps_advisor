@@ -1,5 +1,49 @@
 # Master Ball Advisor — Progress
 
+## v10.3 - Battle State Context Payload Adapter
+
+Purpose:
+- Connect caller-provided, already-normalized `battle_state_context` helper output to the UI advice payload as an optional top-level context.
+
+Implementation:
+- Added explicit/default-off adapter support in `llm/advisor_client.py`.
+- `build_ui_advice_payload(...)` accepts `battle_state_context` and `enable_battle_state_context=False`.
+- The adapter does not call `build_battle_state_context(...)` automatically.
+- `None`, `{}`, and unknown-only helper contexts are omitted.
+- Valid non-empty contexts are deep-copied into top-level `battle_state_context` when explicitly enabled.
+
+Validation:
+- Requires `kind == "battle_state_context"`.
+- Allows only `confidence` values `unknown` and `limited`.
+- Requires `self_active`, `opponent_active`, `field`, `known_conditions`, `unsupported`, and `safety_notes`.
+- Rejects forbidden sources and forbidden hidden/resolved fields recursively.
+- Preserves helper output shape when inserted.
+
+Coexistence:
+- Coexists with `turn_pipeline`, `turn_order_context`, and `opponent_move_context`.
+- Does not overwrite existing optional contexts.
+
+Safety:
+- No automatic battle-state generation.
+- No prompt guard, UI/source integration, UI checkbox behavior change, actual Gemini call, retry, Vertex AI call, hidden-state inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering change.
+- The adapter does not infer hidden state from `damage_estimate`, `ko_context`, `turn_pipeline`, `turn_order_context`, or `opponent_move_context`.
+
+Tests:
+- `tests/test_advisor_payload_contract.py`
+- `tests/test_advisor_battle_state_context.py`
+- `tests/test_advisor_opponent_move_context.py`
+- `tests/test_advisor_turn_order_context.py`
+
+Recommended next:
+- v10.4 Battle State Context Prompt Guard.
+- Alternative: v10.4 Battle State Context Payload Adapter Offline Fixture.
+- Fallback: v10.4 Battle State Source Inventory.
+
+Safety statement:
+- No logs, `.env`, secrets, API keys, token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.2 - Battle State Context Helper
 
 Purpose:
