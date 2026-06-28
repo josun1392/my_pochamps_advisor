@@ -2397,6 +2397,187 @@ def test_opponent_move_context_offline_advice_fixture_covers_prompt_and_mocked_r
             assert phrase not in response
 
 
+def test_battle_state_context_offline_advice_fixture_covers_prompt_and_mocked_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    selected_move = payload["moves"]["my_selected_move"]
+    battle_state_context = build_battle_state_context(
+        self_active={
+            "species": {"source": "visible_ui", "name": "Garchomp"},
+            "current_hp_percent": {"source": "visible_ui", "value": 100},
+            "status": {"source": "explicit_input", "value": "burn"},
+            "boosts": {"source": "explicit_input", "value": {"atk": 1}},
+            "item": {"source": "user_confirmed", "value": "loaded-dice"},
+        },
+        opponent_active={
+            "species": {"source": "visible_ui", "name": "Charizard"},
+            "current_hp_percent": {"source": "visible_ui", "value": 87},
+        },
+        field={
+            "weather": {"source": "explicit_input", "value": "rain"},
+            "terrain": {"source": "explicit_input", "value": "electric"},
+            "screens": {"source": "explicit_input", "value": {"reflect": True}},
+            "hazards": {"source": "explicit_input", "value": {"stealth_rock": True}},
+            "room": {"source": "explicit_input", "value": {"trick_room": False}},
+        },
+        known_conditions=[
+            {"source": "calculated_from_visible", "kind": "hp_band", "value": "opponent above half"}
+        ],
+    )
+    opponent_move_context = build_opponent_move_context(
+        candidate_moves=[
+            {
+                "source": "visible_or_cache_candidate",
+                "move_id": "quick-attack",
+                "name": "Quick Attack",
+                "priority": 1,
+            }
+        ]
+    )
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+    )
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        build_ui_advice_payload(payload),
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    captured_prompts: list[str] = []
+    mocked_responses: list[str] = []
+    logged_usages: list[dict[str, int]] = []
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert prompt
+        assert model == "offline-v10-5"
+        captured_prompts.append(prompt)
+        response = (
+            "Battle state context is a visible or explicit snapshot only. "
+            "Unknown fields stay unknown, and no hidden state or resolved turn "
+            "outcome is inferred."
+        )
+        mocked_responses.append(response)
+        return response, {"input_tokens": 21 + len(captured_prompts), "output_tokens": 6, "cached_tokens": 0}
+
+    def fake_log_advisor_call(*, model: str, usage: dict[str, int], game_id: str) -> dict[str, object]:
+        assert model == "offline-v10-5"
+        assert game_id == "battle_state_context_offline_fixture_v10_5"
+        logged_usages.append(usage)
+        return {"mocked": True, "call_index": len(logged_usages)}
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", fake_log_advisor_call)
+
+    def run_offline_fixture(**prompt_kwargs: object) -> tuple[str, dict[str, int], dict[str, object]]:
+        prompt = _build_ui_selected_prompt(payload, **prompt_kwargs)
+        response, usage = advisor_client.call_gemini(prompt, "offline-v10-5")
+        summary = advisor_client._log_advisor_call(
+            model="offline-v10-5",
+            usage=usage,
+            game_id="battle_state_context_offline_fixture_v10_5",
+        )
+        return response, usage, summary
+
+    default_response, default_usage, default_summary = run_offline_fixture()
+    explicit_response, explicit_usage, explicit_summary = run_offline_fixture(
+        battle_state_context=battle_state_context,
+        enable_battle_state_context=True,
+    )
+    coexist_response, coexist_usage, coexist_summary = run_offline_fixture(
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        opponent_move_context=opponent_move_context,
+        battle_state_context=battle_state_context,
+        enable_turn_order_context=True,
+        enable_opponent_move_context=True,
+        enable_battle_state_context=True,
+    )
+
+    assert len(captured_prompts) == 3
+    assert len(logged_usages) == 3
+    assert default_response == mocked_responses[0]
+    assert explicit_response == mocked_responses[1]
+    assert coexist_response == mocked_responses[2]
+    assert default_usage == {"input_tokens": 22, "output_tokens": 6, "cached_tokens": 0}
+    assert explicit_usage == {"input_tokens": 23, "output_tokens": 6, "cached_tokens": 0}
+    assert coexist_usage == {"input_tokens": 24, "output_tokens": 6, "cached_tokens": 0}
+    assert default_summary == {"mocked": True, "call_index": 1}
+    assert explicit_summary == {"mocked": True, "call_index": 2}
+    assert coexist_summary == {"mocked": True, "call_index": 3}
+
+    default_prompt, explicit_prompt, coexist_prompt = captured_prompts
+    default_prompt_payload = json.loads(default_prompt.rsplit("\n\n", 1)[1])
+    explicit_prompt_payload = json.loads(explicit_prompt.rsplit("\n\n", 1)[1])
+    coexist_prompt_payload = json.loads(coexist_prompt.rsplit("\n\n", 1)[1])
+
+    assert "battle_state_context" not in default_prompt_payload
+    assert '"battle_state_context"' not in default_prompt
+    assert "If battle_state_context is present" not in default_prompt
+
+    context_payload = explicit_prompt_payload["battle_state_context"]
+    assert context_payload == battle_state_context
+    assert context_payload["kind"] == "battle_state_context"
+    assert context_payload["confidence"] == "limited"
+    assert context_payload["self_active"]["status"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": "burn",
+    }
+    assert context_payload["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context_payload["field"]["weather"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": "rain",
+    }
+    assert context_payload["known_conditions"] == [
+        {"source": "calculated_from_visible", "kind": "hp_band", "value": "opponent above half"}
+    ]
+    _assert_battle_state_context_contract(context_payload)
+    _assert_battle_state_context_sources(context_payload)
+    _assert_battle_state_context_has_no_forbidden_fields(context_payload)
+
+    assert '"battle_state_context"' in explicit_prompt
+    assert '"kind": "battle_state_context"' in explicit_prompt
+    assert "If battle_state_context is present" in explicit_prompt
+    assert "Unknown battle state fields must remain unknown." in explicit_prompt
+    assert "Do not infer hidden items." in explicit_prompt
+    assert "Do not infer EVs, IVs, or nature." in explicit_prompt
+    assert "Do not infer boosts, status, weather, terrain, hazards, screens, or room unless explicitly provided." in explicit_prompt
+    assert "Do not reverse-engineer hidden state from damage estimates or KO context." in explicit_prompt
+    assert "not a resolved turn simulation" in explicit_prompt
+    assert "Do not claim post-turn HP, item consumption, RNG result, speed tie result, Quick Claw activation, or full turn outcome" in explicit_prompt
+
+    assert coexist_prompt_payload["turn_pipeline"]["simulated"] == "limited"
+    assert coexist_prompt_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert coexist_prompt_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+    assert coexist_prompt_payload["battle_state_context"] == battle_state_context
+    assert "limited planning/debug summary only, not full turn simulation" in coexist_prompt
+    assert "limited planning context" in coexist_prompt
+    assert "explicitly known or visible opponent move data" in coexist_prompt
+    assert "If battle_state_context is present" in coexist_prompt
+
+    forbidden_response_phrases = (
+        "hidden item is",
+        "EVs are",
+        "IVs are",
+        "nature is",
+        "post-turn HP will be",
+        "item will be consumed",
+        "RNG resolved",
+        "speed tie resolved",
+        "Quick Claw activates",
+        "full turn outcome is",
+    )
+    for response in mocked_responses:
+        for phrase in forbidden_response_phrases:
+            assert phrase not in response
+
+
 def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
 

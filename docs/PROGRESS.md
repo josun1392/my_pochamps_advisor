@@ -1,5 +1,49 @@
 # Master Ball Advisor — Progress
 
+## v10.5 - Battle State Context Offline Advice Fixture
+
+Purpose:
+- Verify that `battle_state_context` payload and prompt guard survive an offline mocked advice flow without actual provider, Vertex AI, or network calls.
+
+Implementation:
+- Added mocked offline advice fixture coverage in `tests/test_advisor_payload_contract.py`.
+- Monkeypatched `advisor_client.call_gemini` and `advisor_client._log_advisor_call`.
+- Captured default, explicit battle-state, and coexistence prompts in memory.
+
+Payload preservation:
+- Explicit-on fixture includes top-level `battle_state_context`.
+- Captured prompt payload preserves helper output shape.
+- `confidence == "limited"` is preserved.
+- Unknown fields remain explicit unknowns.
+- Forbidden sources and forbidden hidden/resolved fields remain absent recursively.
+
+Prompt preservation:
+- Serialized `battle_state_context` appears in prompt when enabled.
+- v10.4 prompt guard appears in prompt when enabled.
+- Guard anchors cover unknown fields, hidden item inference, EV/IV/nature inference, boosts/status/weather/terrain/hazards/screens/room inference, damage/KO reverse inference, resolved simulation, post-turn HP, item consumption, RNG result, speed tie result, Quick Claw activation, and full turn outcome boundaries.
+
+Coexistence:
+- Offline fixture verifies coexistence with `turn_pipeline`, `turn_order_context`, and `opponent_move_context`.
+
+Mocked response safety:
+- Mocked responses avoid hidden item certainty, EV/IV/nature certainty, post-turn HP certainty, item consumption, RNG resolution, speed tie resolution, Quick Claw activation, and full turn outcome claims.
+
+Tests:
+- `tests/test_advisor_payload_contract.py`
+- `tests/test_advisor_battle_state_context.py`
+- `tests/test_advisor_opponent_move_context.py`
+- `tests/test_advisor_turn_order_context.py`
+
+Recommended next:
+- v10.6 Battle State UI Source Inventory.
+- Alternative: v10.6 Battle State UI Integration Design.
+- Alternative: v10.6 Battle State Context Closure.
+
+Safety statement:
+- No UI/source integration, UI checkbox behavior change, actual Gemini call, retry, Vertex AI call, network call, hidden-state inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, logs, `.env`, secrets, API keys, token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.4 - Battle State Context Prompt Guard
 
 Purpose:
