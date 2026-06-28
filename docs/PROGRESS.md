@@ -1,5 +1,50 @@
 # Master Ball Advisor — Progress
 
+## v10.2 - Battle State Context Helper
+
+Purpose:
+- Add a standalone helper that normalizes visible or explicit battle-state facts into the v10.1 `battle_state_context` contract shape.
+
+Implementation:
+- Added `llm/advisor_battle_state_context.py`.
+- Added `build_battle_state_context(...)` with optional `self_active`, `opponent_active`, `field`, and `known_conditions` inputs.
+- Empty or fully rejected input returns `confidence == "unknown"`.
+- Any accepted visible or explicit source returns `confidence == "limited"`.
+- The helper never emits `partial` or `explicit` confidence.
+
+Source policy:
+- Allowed sources: `visible_ui`, `explicit_input`, `user_confirmed`, `calculated_from_visible`.
+- Forbidden sources: `species_common_set`, `usage_based_guess`, `meta_inferred`, `hidden_state_guess`, `damage_reverse_inference`.
+- Forbidden sources become explicit unknown values or are omitted from list-style conditions.
+
+Shape:
+- `self_active` and `opponent_active` always include `species`, `current_hp_percent`, `status`, `boosts`, and `item`.
+- `field` always includes `weather`, `terrain`, `screens`, `hazards`, and `room`.
+- Missing or rejected values use `{"known": False, "value": "unknown"}`.
+- Known status, boosts, item, and field values use `{"known": True, "source": ..., "value": ...}`.
+- Visible species and HP percent keep source-tagged `name` / `value` envelopes.
+
+Safety:
+- The helper does not infer hidden item, EV/IV/nature, hidden status, hidden boosts, weather, terrain, hazards, screens, room, RNG, item consumption, post-turn HP, or resolved turn outcomes.
+- `damage_estimate`, `ko_context`, `turn_pipeline`, `turn_order_context`, and `opponent_move_context` are not used as hidden-state or resolved-outcome sources.
+- No payload adapter, prompt guard, UI/source integration, UI checkbox behavior change, actual Gemini call, retry, Vertex AI call, full Turn Engine, damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering change.
+
+Tests:
+- `tests/test_advisor_battle_state_context.py`
+- `tests/test_advisor_payload_contract.py`
+- `tests/test_advisor_opponent_move_context.py`
+- `tests/test_advisor_turn_order_context.py`
+
+Recommended next:
+- v10.3 Battle State Context Payload Adapter.
+- Alternative: v10.3 Battle State Prompt Guard.
+- Fallback: v10.3 Battle State Source Inventory if helper input source availability needs tighter alignment before adapter work.
+
+Safety statement:
+- No logs, `.env`, secrets, API keys, token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.1 - Battle State Context Payload Contract
 
 Purpose:
