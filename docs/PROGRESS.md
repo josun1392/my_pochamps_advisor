@@ -1,5 +1,32 @@
 # Master Ball Advisor — Progress
 
+## v10.7 - Battle State UI Integration Design
+
+Purpose:
+- Design how the existing limited-context checkbox should enable future `battle_state_context` UI integration.
+
+Design:
+- Keep the existing checkbox default unchecked.
+- Checkbox off should keep `enable_turn_pipeline`, `enable_turn_order_context`, `enable_opponent_move_context`, and `enable_battle_state_context` false and omit `battle_state_context`.
+- Checkbox on should enable all four limited context flags.
+- First battle-state UI integration should extract only visible self/opponent species and HP percent.
+- Status, boosts, item, field state, and `known_conditions` should remain unknown in the first integration.
+- Item profile mapping is deferred to a separate item-boundary design because it overlaps with existing `item_profiles` and hidden/confirmed item semantics.
+
+Flow:
+- UI selected state -> safe species/HP extraction -> `build_battle_state_context(...)` -> explicit/default-off payload adapter -> existing v10.4 prompt guard.
+- `battle_state_context` should coexist with `turn_pipeline`, `turn_order_context`, and `opponent_move_context`.
+
+Recommended next:
+- v10.8 Battle State UI Source Adapter.
+- Alternative: v10.8 Battle State UI Integration Offline E2E.
+- Alternative: v10.8 Battle State UI Copy Update.
+
+Safety statement:
+- No production code, UI/source integration, UI source adapter, payload adapter, prompt guard, UI checkbox behavior, actual Gemini call, retry, Vertex AI call, network call, hidden-state inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, logs, `.env`, secrets, API keys, token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.6 - Battle State UI Source Inventory
 
 Purpose:
