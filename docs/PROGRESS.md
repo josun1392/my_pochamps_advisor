@@ -1,5 +1,46 @@
 # Master Ball Advisor — Progress
 
+## v10.4 - Battle State Context Prompt Guard
+
+Purpose:
+- Add prompt guard wording when top-level `battle_state_context` is present in the advice payload.
+
+Implementation:
+- Added `_build_battle_state_context_prompt_guard(...)` in `llm/advisor_client.py`.
+- Wired the guard into `_build_ui_selected_prompt(...)` after `opponent_move_context` guard.
+- `_build_ui_selected_prompt(...)` accepts explicit/default-off `battle_state_context` and `enable_battle_state_context=False` arguments.
+
+Behavior:
+- If `battle_state_context` is absent, no serialized `battle_state_context` block or prompt guard appears.
+- If `battle_state_context` is present, the serialized context and guard wording appear in the prompt.
+- Existing prompt behavior remains unchanged for default/off paths.
+
+Guard boundary:
+- Unknown battle state fields must remain unknown.
+- Hidden item, EV, IV, nature, boosts, status, weather, terrain, hazards, screens, and room inference is forbidden unless explicitly provided.
+- `damage_estimate` and `ko_context` must not be used for hidden-state reverse inference.
+- `battle_state_context` must not be treated as a resolved turn simulation.
+- The prompt must not claim post-turn HP, item consumption, RNG result, speed tie result, Quick Claw activation, or full turn outcome.
+
+Coexistence:
+- The guard coexists with `turn_pipeline`, `turn_order_context`, and `opponent_move_context` guards.
+
+Tests:
+- `tests/test_advisor_payload_contract.py`
+- `tests/test_advisor_battle_state_context.py`
+- `tests/test_advisor_opponent_move_context.py`
+- `tests/test_advisor_turn_order_context.py`
+
+Recommended next:
+- v10.5 Battle State Context Offline Advice Fixture.
+- Alternative: v10.5 Battle State UI Source Inventory.
+- Alternative: v10.5 Battle State UI Integration Design.
+
+Safety statement:
+- No UI/source integration, UI checkbox behavior change, actual Gemini call, retry, Vertex AI call, hidden-state inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, logs, `.env`, secrets, API keys, token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.3 - Battle State Context Payload Adapter
 
 Purpose:

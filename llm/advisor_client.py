@@ -184,10 +184,12 @@ def _build_ui_selected_prompt(
     turn_pipeline: TurnPipelineResult | dict[str, Any] | None = None,
     turn_order_context: dict[str, Any] | None = None,
     opponent_move_context: dict[str, Any] | None = None,
+    battle_state_context: dict[str, Any] | None = None,
     *,
     enable_turn_pipeline: bool = False,
     enable_turn_order_context: bool = False,
     enable_opponent_move_context: bool = False,
+    enable_battle_state_context: bool = False,
 ) -> str:
     if turn_pipeline is None and enable_turn_pipeline:
         base_payload = build_ui_advice_payload(
@@ -223,14 +225,17 @@ def _build_ui_selected_prompt(
         turn_pipeline=turn_pipeline,
         turn_order_context=turn_order_context,
         opponent_move_context=opponent_move_context,
+        battle_state_context=battle_state_context,
         enable_turn_order_context=enable_turn_order_context,
         enable_opponent_move_context=enable_opponent_move_context,
+        enable_battle_state_context=enable_battle_state_context,
     )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
     turn_pipeline_guard = _build_turn_pipeline_prompt_guard(advice_payload)
     turn_order_context_guard = _build_turn_order_context_prompt_guard(advice_payload)
     opponent_move_context_guard = _build_opponent_move_context_prompt_guard(advice_payload)
+    battle_state_context_guard = _build_battle_state_context_prompt_guard(advice_payload)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
@@ -240,6 +245,7 @@ def _build_ui_selected_prompt(
         f"{turn_pipeline_guard}"
         f"{turn_order_context_guard}"
         f"{opponent_move_context_guard}"
+        f"{battle_state_context_guard}"
         "If a damage_estimate is present, use it only under its stated "
         "assumption_profile and never describe it as final battle damage. Do "
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "
@@ -1160,6 +1166,23 @@ def _build_opponent_move_context_prompt_guard(payload: dict[str, Any]) -> str:
         "EVs, IVs, nature, hidden item, weather, terrain, boosts, RNG results, "
         "item consumption, or post-turn HP unless explicitly provided. Treat "
         "unsupported entries as boundaries, not facts to fill in. "
+    )
+
+
+def _build_battle_state_context_prompt_guard(payload: dict[str, Any]) -> str:
+    if "battle_state_context" not in payload:
+        return ""
+    return (
+        "If battle_state_context is present, treat it only as a visible or "
+        "explicit battle-state snapshot, not a resolved turn simulation. "
+        "Unknown battle state fields must remain unknown. Do not infer hidden "
+        "items. Do not infer EVs, IVs, or nature. Do not infer boosts, status, "
+        "weather, terrain, hazards, screens, or room unless explicitly "
+        "provided. Do not reverse-engineer hidden state from damage estimates "
+        "or KO context. Do not claim post-turn HP, item consumption, RNG "
+        "result, speed tie result, Quick Claw activation, or full turn outcome "
+        "from battle_state_context. Treat unsupported entries as boundaries, "
+        "not facts to fill in. "
     )
 
 

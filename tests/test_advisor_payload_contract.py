@@ -23,6 +23,7 @@ from llm.advisor_battle_state_context import (
     build_battle_state_context,
 )
 from llm.advisor_client import (
+    _build_battle_state_context_prompt_guard,
     _build_opponent_move_context_prompt_guard,
     _build_turn_order_context_prompt_guard,
     _build_turn_pipeline_prompt_guard,
@@ -972,6 +973,181 @@ def test_battle_state_context_payload_adapter_does_not_infer_from_damage_or_ko_c
 
     assert "battle_state_context" not in advice_payload
     assert "EVs" in payload["moves"]["my_selected_move"]["ko_context"]
+
+
+def test_battle_state_context_prompt_guard_is_default_off() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    default_payload = build_ui_advice_payload(payload)
+    context = _sample_battle_state_context()
+
+    guard = _build_battle_state_context_prompt_guard(default_payload)
+    baseline_prompt = _build_ui_selected_prompt(payload)
+    omitted_prompt = _build_ui_selected_prompt(payload, battle_state_context=context)
+    disabled_prompt = _build_ui_selected_prompt(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=False,
+    )
+
+    assert guard == ""
+    assert "battle_state_context" not in default_payload
+    assert '"battle_state_context"' not in baseline_prompt
+    assert "If battle_state_context is present" not in baseline_prompt
+    assert omitted_prompt == baseline_prompt
+    assert disabled_prompt == baseline_prompt
+
+
+def test_battle_state_context_prompt_guard_locks_safety_wording() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    guard = _build_battle_state_context_prompt_guard(advice_payload)
+    prompt = _build_ui_selected_prompt(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    assert "battle_state_context" in advice_payload
+    assert '"battle_state_context"' in prompt
+    assert '"kind": "battle_state_context"' in prompt
+    assert "If battle_state_context is present" in guard
+    assert "Unknown battle state fields must remain unknown." in guard
+    assert "Do not infer hidden items." in guard
+    assert "Do not infer EVs, IVs, or nature." in guard
+    assert "Do not infer boosts, status, weather, terrain, hazards, screens, or room unless explicitly provided." in guard
+    assert "Do not reverse-engineer hidden state from damage estimates or KO context." in guard
+    assert "not a resolved turn simulation" in guard
+    assert "Do not claim post-turn HP, item consumption, RNG result, speed tie result, Quick Claw activation, or full turn outcome" in guard
+    assert guard in prompt
+
+
+def test_battle_state_context_prompt_guard_avoids_positive_forbidden_phrases() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    guard = _build_battle_state_context_prompt_guard(advice_payload)
+    forbidden_phrases = [
+        "hidden item is likely",
+        "EVs are likely",
+        "nature is likely",
+        "weather is probably",
+        "terrain is probably",
+        "boosts are probably",
+        "status is probably",
+        "post-turn HP will be",
+        "item will be consumed",
+        "RNG resolved",
+        "speed tie resolved",
+        "Quick Claw activates",
+        "full turn result",
+        "resolved outcome",
+    ]
+
+    for phrase in forbidden_phrases:
+        assert phrase not in guard
+
+
+def test_battle_state_context_prompt_guard_coexists_with_existing_optional_guards() -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    selected_move = payload["moves"]["my_selected_move"]
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        build_ui_advice_payload(payload),
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=100,
+        opponent_base_speed=80,
+    )
+    opponent_move_context = build_opponent_move_context(
+        candidate_moves=[
+            {
+                "source": "visible_or_cache_candidate",
+                "move_id": "quick-attack",
+                "name": "Quick Attack",
+                "priority": 1,
+            }
+        ]
+    )
+    battle_state_context = build_battle_state_context(
+        self_active={"species": {"source": "visible_ui", "name": "Garchomp"}},
+        opponent_active={"species": {"source": "visible_ui", "name": "Charizard"}},
+    )
+
+    base_payload = build_ui_advice_payload(payload)
+    battle_only = build_ui_advice_payload(
+        payload,
+        battle_state_context=battle_state_context,
+        enable_battle_state_context=True,
+    )
+    all_enabled = build_ui_advice_payload(
+        payload,
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        opponent_move_context=opponent_move_context,
+        battle_state_context=battle_state_context,
+        enable_turn_order_context=True,
+        enable_opponent_move_context=True,
+        enable_battle_state_context=True,
+    )
+    prompt = _build_ui_selected_prompt(
+        payload,
+        turn_pipeline=turn_pipeline,
+        turn_order_context=turn_order_context,
+        opponent_move_context=opponent_move_context,
+        battle_state_context=battle_state_context,
+        enable_turn_order_context=True,
+        enable_opponent_move_context=True,
+        enable_battle_state_context=True,
+    )
+
+    assert _build_battle_state_context_prompt_guard(base_payload) == ""
+    assert _build_turn_pipeline_prompt_guard(battle_only) == ""
+    assert _build_turn_order_context_prompt_guard(battle_only) == ""
+    assert _build_opponent_move_context_prompt_guard(battle_only) == ""
+    assert _build_battle_state_context_prompt_guard(battle_only)
+    assert _build_turn_pipeline_prompt_guard(all_enabled)
+    assert _build_turn_order_context_prompt_guard(all_enabled)
+    assert _build_opponent_move_context_prompt_guard(all_enabled)
+    assert _build_battle_state_context_prompt_guard(all_enabled)
+    assert '"turn_pipeline"' in prompt
+    assert '"turn_order_context"' in prompt
+    assert '"opponent_move_context"' in prompt
+    assert '"battle_state_context"' in prompt
+
+
+def test_battle_state_context_prompt_guard_does_not_call_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = build_battle_state_context(self_active={"species": {"source": "visible_ui", "name": "Garchomp"}})
+
+    def fail_provider_call(*args: object, **kwargs: object) -> None:
+        raise AssertionError("provider should not be called by prompt guard")
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fail_provider_call)
+
+    prompt = _build_ui_selected_prompt(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    assert '"battle_state_context"' in prompt
+    assert "If battle_state_context is present" in prompt
 
 
 def test_opponent_move_context_contract_fixture_locks_shape_and_boundaries() -> None:
