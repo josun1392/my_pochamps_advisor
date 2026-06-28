@@ -555,6 +555,177 @@ def test_turn_order_context_contract_prompt_safety_copy_anchors() -> None:
     assert "Do not infer item consumption or post-turn HP" in safety_copy
 
 
+def test_battle_state_context_contract_fixture_locks_shape_and_boundaries() -> None:
+    context = _sample_battle_state_context()
+
+    _assert_battle_state_context_contract(context)
+
+    assert context["kind"] == "battle_state_context"
+    assert context["confidence"] == "limited"
+    assert set(context["self_active"]) == {"species", "current_hp_percent", "status", "boosts", "item"}
+    assert set(context["opponent_active"]) == {"species", "current_hp_percent", "status", "boosts", "item"}
+    assert set(context["field"]) == {"weather", "terrain", "screens", "hazards", "room"}
+    assert context["self_active"]["species"] == {"source": "visible_ui", "name": "Garchomp"}
+    assert context["opponent_active"]["species"] == {"source": "visible_ui", "name": "Charizard"}
+    assert context["self_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 100}
+    assert context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 100}
+    assert context["known_conditions"] == []
+    assert "hidden item inference" in context["unsupported"]
+    assert "EV/IV/nature inference" in context["unsupported"]
+    assert "damage reverse inference" in context["unsupported"]
+    assert "RNG resolution" in context["unsupported"]
+    assert "item consumption" in context["unsupported"]
+    assert "post-turn HP resolution" in context["unsupported"]
+    assert "full turn resolution" in context["unsupported"]
+    assert "Unknown battle state fields must remain unknown." in context["safety_notes"]
+    assert (
+        "Do not infer hidden state from species, common sets, damage estimates, or KO context."
+        in context["safety_notes"]
+    )
+    assert "Battle state context is not a resolved turn simulation." in context["safety_notes"]
+
+
+@pytest.mark.parametrize("confidence", ["unknown", "limited"])
+def test_battle_state_context_contract_allows_initial_confidence_values(confidence: str) -> None:
+    context = _sample_battle_state_context()
+    context["confidence"] = confidence
+
+    _assert_battle_state_context_contract(context)
+
+
+@pytest.mark.parametrize("confidence", ["partial", "explicit", "resolved"])
+def test_battle_state_context_contract_rejects_future_or_resolved_confidence_values(confidence: str) -> None:
+    context = _sample_battle_state_context()
+    context["confidence"] = confidence
+
+    with pytest.raises(AssertionError):
+        _assert_battle_state_context_contract(context)
+
+
+@pytest.mark.parametrize("side_key", ["self_active", "opponent_active"])
+@pytest.mark.parametrize("field_key", ["status", "boosts", "item"])
+def test_battle_state_context_contract_requires_explicit_unknown_active_fields(
+    side_key: str,
+    field_key: str,
+) -> None:
+    context = _sample_battle_state_context()
+    assert context[side_key][field_key] == {"known": False, "value": "unknown"}
+    context[side_key].pop(field_key)
+
+    with pytest.raises(AssertionError):
+        _assert_battle_state_context_contract(context)
+
+
+@pytest.mark.parametrize("field_key", ["weather", "terrain", "screens", "hazards", "room"])
+def test_battle_state_context_contract_requires_explicit_unknown_field_state(field_key: str) -> None:
+    context = _sample_battle_state_context()
+    assert context["field"][field_key] == {"known": False, "value": "unknown"}
+    context["field"].pop(field_key)
+
+    with pytest.raises(AssertionError):
+        _assert_battle_state_context_contract(context)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "calculated_from_visible",
+        "explicit_input",
+        "user_confirmed",
+        "visible_ui",
+    ],
+)
+def test_battle_state_context_contract_allows_explicit_visible_sources(source: str) -> None:
+    context = _sample_battle_state_context()
+    context["self_active"]["status"] = {
+        "known": True,
+        "value": "burn",
+        "source": source,
+    }
+    context["known_conditions"] = [
+        {
+            "kind": "side_condition",
+            "source": source,
+            "value": "reflect",
+        }
+    ]
+
+    _assert_battle_state_context_contract(context)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "damage_reverse_inference",
+        "hidden_state_guess",
+        "meta_inferred",
+        "species_common_set",
+        "usage_based_guess",
+    ],
+)
+def test_battle_state_context_contract_rejects_forbidden_sources(source: str) -> None:
+    context = _sample_battle_state_context()
+    context["opponent_active"]["item"] = {
+        "known": True,
+        "value": "choice-scarf",
+        "source": source,
+    }
+
+    with pytest.raises(AssertionError):
+        _assert_battle_state_context_contract(context)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "EVs",
+        "IVs",
+        "damage_reverse_inferred",
+        "full_turn_result",
+        "hidden_item",
+        "inferred_boosts",
+        "inferred_item",
+        "inferred_status",
+        "inferred_terrain",
+        "inferred_weather",
+        "item_consumed",
+        "likely_boosts",
+        "likely_item",
+        "likely_status",
+        "likely_terrain",
+        "likely_weather",
+        "nature",
+        "post_turn_hp",
+        "predicted_boosts",
+        "predicted_item",
+        "predicted_status",
+        "predicted_terrain",
+        "predicted_weather",
+        "quick_claw_activated",
+        "resolved_outcome",
+        "rng_resolved",
+        "speed_tie_resolved",
+    ],
+)
+def test_battle_state_context_contract_rejects_forbidden_fields_recursively(field_name: str) -> None:
+    context = _sample_battle_state_context()
+    context["field"]["weather"][field_name] = True
+
+    with pytest.raises(AssertionError):
+        _assert_battle_state_context_contract(context)
+
+
+def test_battle_state_context_contract_requires_relationship_boundaries() -> None:
+    boundaries = _battle_state_context_relationship_boundaries()
+
+    assert "damage_estimate is not a hidden state inference source" in boundaries
+    assert "ko_context is not a final truth source" in boundaries
+    assert "turn_pipeline is not a resolved result source" in boundaries
+    assert "turn_order_context is not a speed tie/RNG/final order source" in boundaries
+    assert "opponent_move_context is not a selected move/hidden moveset source" in boundaries
+    assert "battle_state_context is not a resolved turn simulation" in boundaries
+
+
 def test_opponent_move_context_contract_fixture_locks_shape_and_boundaries() -> None:
     context = _sample_opponent_move_context()
 
@@ -5248,6 +5419,215 @@ def _turn_order_context_prompt_safety_copy() -> str:
         "Do not claim RNG items activate. "
         "Do not claim exact final order unless explicitly provided. "
         "Do not infer item consumption or post-turn HP from this context."
+    )
+
+
+BATTLE_STATE_CONTEXT_CONFIDENCE_VALUES = frozenset({"unknown", "limited"})
+BATTLE_STATE_CONTEXT_ALLOWED_SOURCES = frozenset(
+    {
+        "visible_ui",
+        "explicit_input",
+        "user_confirmed",
+        "calculated_from_visible",
+    }
+)
+BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES = frozenset(
+    {
+        "species_common_set",
+        "usage_based_guess",
+        "meta_inferred",
+        "hidden_state_guess",
+        "damage_reverse_inference",
+    }
+)
+BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS = frozenset(
+    {
+        "EVs",
+        "IVs",
+        "nature",
+        "hidden_item",
+        "inferred_item",
+        "predicted_item",
+        "likely_item",
+        "inferred_boosts",
+        "predicted_boosts",
+        "likely_boosts",
+        "inferred_status",
+        "predicted_status",
+        "likely_status",
+        "inferred_weather",
+        "predicted_weather",
+        "likely_weather",
+        "inferred_terrain",
+        "predicted_terrain",
+        "likely_terrain",
+        "damage_reverse_inferred",
+        "post_turn_hp",
+        "item_consumed",
+        "rng_resolved",
+        "speed_tie_resolved",
+        "quick_claw_activated",
+        "full_turn_result",
+        "resolved_outcome",
+    }
+)
+BATTLE_STATE_CONTEXT_REQUIRED_UNSUPPORTED = frozenset(
+    {
+        "hidden item inference",
+        "EV/IV/nature inference",
+        "unobserved boosts inference",
+        "unobserved status inference",
+        "weather/terrain inference without explicit source",
+        "hazards/screens inference without explicit source",
+        "damage reverse inference",
+        "RNG resolution",
+        "item consumption",
+        "post-turn HP resolution",
+        "full turn resolution",
+    }
+)
+BATTLE_STATE_CONTEXT_UNKNOWN_FIELD = {"known": False, "value": "unknown"}
+
+
+def _sample_battle_state_context() -> dict:
+    return {
+        "kind": "battle_state_context",
+        "confidence": "limited",
+        "self_active": {
+            "species": {
+                "source": "visible_ui",
+                "name": "Garchomp",
+            },
+            "current_hp_percent": {
+                "source": "visible_ui",
+                "value": 100,
+            },
+            "status": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+            "boosts": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+            "item": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+        },
+        "opponent_active": {
+            "species": {
+                "source": "visible_ui",
+                "name": "Charizard",
+            },
+            "current_hp_percent": {
+                "source": "visible_ui",
+                "value": 100,
+            },
+            "status": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+            "boosts": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+            "item": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+        },
+        "field": {
+            "weather": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+            "terrain": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+            "screens": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+            "hazards": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+            "room": dict(BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+        },
+        "known_conditions": [],
+        "unsupported": [
+            "hidden item inference",
+            "EV/IV/nature inference",
+            "unobserved boosts inference",
+            "unobserved status inference",
+            "weather/terrain inference without explicit source",
+            "hazards/screens inference without explicit source",
+            "damage reverse inference",
+            "RNG resolution",
+            "item consumption",
+            "post-turn HP resolution",
+            "full turn resolution",
+        ],
+        "safety_notes": [
+            "Unknown battle state fields must remain unknown.",
+            "Do not infer hidden state from species, common sets, damage estimates, or KO context.",
+            "Battle state context is not a resolved turn simulation.",
+        ],
+    }
+
+
+def _assert_battle_state_context_contract(context: dict) -> None:
+    assert context["kind"] == "battle_state_context"
+    assert context["confidence"] in BATTLE_STATE_CONTEXT_CONFIDENCE_VALUES
+    assert set(context) == {
+        "kind",
+        "confidence",
+        "self_active",
+        "opponent_active",
+        "field",
+        "known_conditions",
+        "unsupported",
+        "safety_notes",
+    }
+    for side_key in ("self_active", "opponent_active"):
+        _assert_battle_state_active_side_contract(context[side_key])
+    assert set(context["field"]) == {"weather", "terrain", "screens", "hazards", "room"}
+    for field_value in context["field"].values():
+        _assert_battle_state_unknown_or_known_source_field(field_value)
+    assert isinstance(context["known_conditions"], list)
+    assert BATTLE_STATE_CONTEXT_REQUIRED_UNSUPPORTED.issubset(set(context["unsupported"]))
+    assert "Unknown battle state fields must remain unknown." in context["safety_notes"]
+    assert (
+        "Do not infer hidden state from species, common sets, damage estimates, or KO context."
+        in context["safety_notes"]
+    )
+    assert "Battle state context is not a resolved turn simulation." in context["safety_notes"]
+    _assert_battle_state_context_sources(context)
+    _assert_battle_state_context_has_no_forbidden_fields(context)
+
+
+def _assert_battle_state_active_side_contract(active_side: dict) -> None:
+    assert set(active_side) == {"species", "current_hp_percent", "status", "boosts", "item"}
+    assert active_side["species"]["source"] in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES
+    assert active_side["species"].get("name")
+    assert active_side["current_hp_percent"]["source"] in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES
+    assert isinstance(active_side["current_hp_percent"].get("value"), int | float)
+    for field_key in ("status", "boosts", "item"):
+        _assert_battle_state_unknown_or_known_source_field(active_side[field_key])
+
+
+def _assert_battle_state_unknown_or_known_source_field(field: dict) -> None:
+    assert field.get("known") in {True, False}
+    if field["known"] is False:
+        assert field == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+        return
+    assert field.get("value") not in {None, "unknown"}
+    assert field.get("source") in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES
+
+
+def _assert_battle_state_context_sources(value: object) -> None:
+    if isinstance(value, dict):
+        source = value.get("source")
+        if source is not None:
+            assert source in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES
+            assert source not in BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES
+        for child_value in value.values():
+            _assert_battle_state_context_sources(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _assert_battle_state_context_sources(child_value)
+
+
+def _assert_battle_state_context_has_no_forbidden_fields(value: object) -> None:
+    if isinstance(value, dict):
+        for key, child_value in value.items():
+            assert key not in BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS
+            _assert_battle_state_context_has_no_forbidden_fields(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _assert_battle_state_context_has_no_forbidden_fields(child_value)
+
+
+def _battle_state_context_relationship_boundaries() -> str:
+    return (
+        "damage_estimate is not a hidden state inference source. "
+        "ko_context is not a final truth source. "
+        "turn_pipeline is not a resolved result source. "
+        "turn_order_context is not a speed tie/RNG/final order source. "
+        "opponent_move_context is not a selected move/hidden moveset source. "
+        "battle_state_context is not a resolved turn simulation."
     )
 
 

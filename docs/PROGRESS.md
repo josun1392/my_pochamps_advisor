@@ -1,5 +1,43 @@
 # Master Ball Advisor — Progress
 
+## v10.1 - Battle State Context Payload Contract
+
+Purpose:
+- Lock the future optional top-level `battle_state_context` shape at fixture/test level before helper, adapter, prompt guard, or UI/source integration.
+
+Contract:
+- `kind == "battle_state_context"`.
+- Initial `confidence` allows only `unknown` and `limited`.
+- `self_active` and `opponent_active` include `species`, `current_hp_percent`, `status`, `boosts`, and `item`.
+- `field` includes `weather`, `terrain`, `screens`, `hazards`, and `room`.
+- `known_conditions` is present as a list.
+- `unsupported` and `safety_notes` are required.
+- Unknown fields use `{"known": False, "value": "unknown"}`.
+
+Source policy:
+- Allowed sources: `visible_ui`, `explicit_input`, `user_confirmed`, `calculated_from_visible`.
+- Forbidden sources: `species_common_set`, `usage_based_guess`, `meta_inferred`, `hidden_state_guess`, `damage_reverse_inference`.
+
+Safety:
+- Recursive forbidden fields are rejected in fixture tests, including hidden item, EV/IV/nature, inferred item/boost/status/weather/terrain, damage reverse inference, post-turn HP, item consumption, RNG resolution, speed tie resolution, Quick Claw activation resolution, full turn result, and resolved outcome fields.
+- Relationship boundaries are locked: existing contexts do not create hidden state, final truth, resolved events, speed tie/RNG/final-order resolution, selected opponent move, hidden moveset, or resolved turn simulation.
+
+Tests:
+- `tests/test_advisor_payload_contract.py`
+- `tests/test_advisor_opponent_move_context.py`
+- `tests/test_advisor_turn_order_context.py`
+
+Recommended next:
+- v10.2 Battle State Context Helper.
+- Fallback: v10.2 Battle State Context Source Inventory if source availability is unclear.
+- Alternative: v10.2 Battle State Prompt Guard Design.
+
+Safety statement:
+- No production helper, payload adapter, prompt guard, UI/source integration, UI checkbox behavior change, actual Gemini call, retry, Vertex AI call, hidden-state inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, or payload filtering change.
+- No logs, `.env`, secrets, API keys, token-log contents, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.0 - Battle State Context Design
 
 Purpose:
