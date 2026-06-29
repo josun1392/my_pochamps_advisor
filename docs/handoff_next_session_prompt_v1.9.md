@@ -101,13 +101,14 @@ Update after v2.5:
 - v10.5 added an offline mocked advice fixture for explicit `battle_state_context`. It verifies payload preservation, prompt guard preservation, forbidden source/field absence, coexistence with `turn_pipeline`, `turn_order_context`, and `opponent_move_context`, and mocked response safety without actual provider, Vertex AI, or network calls.
 - v10.6 inventoried current UI sources for future `battle_state_context` UI integration. Self/opponent species and HP percent are visible UI facts that can be normalized later; user-confirmed item profiles require a v10.7 design decision; status, boosts, weather, terrain, screens, hazards, room, and known conditions have no current explicit UI source and must remain unknown.
 - v10.7 designed future `battle_state_context` UI integration. The existing limited-context checkbox should remain default-off, unchecked should omit battle state, checked should enable `enable_battle_state_context=True` with the other limited context flags, and the first source adapter should extract only visible self/opponent species and HP percent. Item mapping is deferred; status, boosts, field state, and known conditions remain unknown.
+- v10.8 added `build_battle_state_context_from_ui_selected_state(...)` as a narrow adapter from UI-selected `battle_input` to `battle_state_context`. It extracts only self/opponent species and HP percent as `visible_ui`, leaves status/boosts/item/field/known conditions unknown, and does not connect the checkbox or payload call flow.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v10.7 Battle State UI Integration Design.
+T3, continue after v10.8 Battle State UI Source Adapter.
 
 Goal:
 - Do not add new item contexts.
@@ -144,9 +145,9 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v10.8 Battle State UI Source Adapter
-  - Alternative: v10.8 Battle State UI Integration Offline E2E
-  - Alternative: v10.8 Battle State UI Copy Update
+  - v10.9 Battle State UI Checkbox Mapping
+  - Alternative: v10.9 Battle State UI Integration Offline E2E
+  - Alternative: v10.9 Battle State UI Copy Update
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.
@@ -200,6 +201,7 @@ Goal:
   - v10.5 verified the offline mocked advice flow for explicit `battle_state_context`, including payload preservation, prompt guard preservation, coexistence with existing optional contexts, and mocked response safety.
   - v10.6 inventoried current UI sources: self/opponent species and HP percent are safe visible UI facts after normalization, user-confirmed item profiles need design before connection, and status/boosts/field/known-condition fields must remain unknown until explicit UI sources exist.
   - v10.7 designed checkbox-based battle-state UI integration: checked should enable battle state with existing limited contexts, but the first implementation should extract only visible species/HP and leave item/status/boosts/field/known conditions unknown.
+  - v10.8 implemented the species/HP-only source adapter without checkbox connection, payload-flow change, prompt guard change, provider call, or hidden-state inference.
   - No further actual Gemini call is needed for closure unless T1 explicitly approves a new one-call smoke.
   - No Vertex AI call.
   - Keep `run_ui_selected_advice(...)` default behavior unchanged.
@@ -207,7 +209,7 @@ Goal:
   - Do not make `turn_order_context` always-on.
   - Checkbox toggle must not call Gemini; only the existing advice button may start advice generation.
   - Do not start full Turn Engine implementation yet.
-  - v10.8 should implement a narrow battle-state UI source adapter for species/HP only, then verify with mocked/offline tests before any actual provider call.
+  - v10.9 should connect the existing limited-context checkbox to `enable_battle_state_context` and the v10.8 species/HP adapter, then verify with mocked/offline tests before any actual provider call.
 - v3.4 has already centralized item context guard metadata:
   - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
   - `advisor_client.py` still builds the prompt guard from visible `available=true` contexts.

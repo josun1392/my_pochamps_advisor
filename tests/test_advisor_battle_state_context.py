@@ -5,6 +5,7 @@ from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_UNSUPPORTED_BOUNDARIES,
     BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
     build_battle_state_context,
+    build_battle_state_context_from_ui_selected_state,
 )
 
 
@@ -247,6 +248,94 @@ def test_species_common_set_or_meta_sources_do_not_generate_hidden_state() -> No
     assert context["opponent_active"]["boosts"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
     assert context["field"]["weather"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
     assert context["field"]["terrain"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+
+
+def test_ui_selected_state_adapter_extracts_visible_species_and_hp_only() -> None:
+    context = build_battle_state_context_from_ui_selected_state(
+        {
+            "pokemon": {
+                "my_active": {
+                    "name_en": "Garchomp",
+                    "hp_percent": 76,
+                    "item": {"source": "user_confirmed", "value": "loaded-dice"},
+                },
+                "opponent_active": {
+                    "name_en": "Charizard",
+                    "hp_percent": 42.5,
+                    "status": {"source": "explicit_input", "value": "burn"},
+                },
+            },
+            "item_profiles": {
+                "my_active": {"status": "user_confirmed", "item_id": "loaded-dice"},
+                "opponent_active": {"status": "user_confirmed", "item_id": "focus-sash"},
+            },
+            "damage_estimate": {"hidden_item": "choice-band"},
+            "ko_context": {"EVs": {"hp": 252}},
+        }
+    )
+
+    assert context["kind"] == "battle_state_context"
+    assert context["confidence"] == "limited"
+    assert context["self_active"]["species"] == {"source": "visible_ui", "name": "Garchomp"}
+    assert context["self_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 76}
+    assert context["opponent_active"]["species"] == {"source": "visible_ui", "name": "Charizard"}
+    assert context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 42.5}
+    assert context["self_active"]["status"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["self_active"]["boosts"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["self_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["opponent_active"]["status"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["opponent_active"]["boosts"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["field"] == _unknown_field_state()
+    assert context["known_conditions"] == []
+    _assert_no_forbidden_fields(context)
+    _assert_no_forbidden_sources(context)
+
+
+def test_ui_selected_state_adapter_keeps_missing_sources_unknown() -> None:
+    context = build_battle_state_context_from_ui_selected_state(
+        {
+            "pokemon": {
+                "my_active": {"name_en": "", "hp_percent": None},
+                "opponent_active": {"name_ko": "리자몽"},
+            }
+        }
+    )
+
+    assert context["confidence"] == "unknown"
+    assert context["self_active"] == _unknown_active_side()
+    assert context["opponent_active"] == _unknown_active_side()
+    assert context["field"] == _unknown_field_state()
+    assert context["known_conditions"] == []
+
+
+def test_ui_selected_state_adapter_ignores_damage_and_ko_context_as_sources() -> None:
+    context = build_battle_state_context_from_ui_selected_state(
+        {
+            "pokemon": {},
+            "moves": {
+                "my_selected_move": {
+                    "damage_estimate": {
+                        "status": "available_with_default_assumptions",
+                        "damage_reverse_inferred": True,
+                        "hidden_item": "choice-band",
+                    },
+                    "ko_context": {
+                        "resolved_outcome": "ko",
+                        "post_turn_hp": 0,
+                    },
+                }
+            },
+            "turn_pipeline": {"full_turn_result": "resolved"},
+            "opponent_move_context": {"selected_opponent_move": {"status": "explicit", "move_id": "surf"}},
+        }
+    )
+
+    assert context["confidence"] == "unknown"
+    assert context["self_active"] == _unknown_active_side()
+    assert context["opponent_active"] == _unknown_active_side()
+    assert context["field"] == _unknown_field_state()
+    _assert_no_forbidden_fields(context)
 
 
 def test_unsupported_boundaries_and_safety_notes_are_included() -> None:

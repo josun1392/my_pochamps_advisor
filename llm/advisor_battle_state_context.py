@@ -112,6 +112,23 @@ def build_battle_state_context(
     }
 
 
+def build_battle_state_context_from_ui_selected_state(
+    battle_input: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Build battle-state context from the current UI-selected payload shape.
+
+    This adapter intentionally extracts only visible species and HP percent.
+    It does not read item profiles, damage estimates, KO context, field state,
+    move context, or other optional contexts.
+    """
+    pokemon = battle_input.get("pokemon") if isinstance(battle_input, Mapping) else None
+    pokemon = pokemon if isinstance(pokemon, Mapping) else {}
+    return build_battle_state_context(
+        self_active=_active_side_from_ui_pokemon(pokemon.get("my_active")),
+        opponent_active=_active_side_from_ui_pokemon(pokemon.get("opponent_active")),
+    )
+
+
 def _confidence(
     *,
     self_active: Mapping[str, Any],
@@ -122,6 +139,22 @@ def _confidence(
     if _has_known_source(self_active) or _has_known_source(opponent_active) or _has_known_source(field) or known_conditions:
         return "limited"
     return "unknown"
+
+
+def _active_side_from_ui_pokemon(pokemon: object) -> dict[str, Any]:
+    if not isinstance(pokemon, Mapping):
+        return {}
+
+    active: dict[str, Any] = {}
+    name = pokemon.get("name_en")
+    if isinstance(name, str) and name.strip():
+        active["species"] = {"source": "visible_ui", "name": name.strip()}
+
+    hp_percent = pokemon.get("hp_percent")
+    if isinstance(hp_percent, int | float) and not isinstance(hp_percent, bool):
+        active["current_hp_percent"] = {"source": "visible_ui", "value": hp_percent}
+
+    return active
 
 
 def _active_side(active: Mapping[str, Any] | None) -> dict[str, Any]:
