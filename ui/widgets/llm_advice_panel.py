@@ -6,11 +6,13 @@ from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QPushButton, QTextEdit,
 
 
 TURN_PIPELINE_HELP_TEXT = (
-    "턴 이벤트 후보, 선후공 판단 보조, UI에 보이는 상대 기술 후보를 LLM 입력에 포함합니다.\n"
-    "이 정보는 확정 턴 결과가 아니며, 상대 기술 후보는 확정된 기술이 아닙니다. "
-    "숨겨진 기술배치, RNG 결과, 아이템 소모, 턴 후 HP를 추론하지 않습니다."
+    "후보 이벤트, 선후공 보조 정보, UI에 보이는 상대 기술 후보, 현재 포켓몬/HP 스냅샷을 LLM 입력에 포함합니다.\n"
+    "이 정보는 확정 결과가 아니며, 상대의 실제 선택 기술이나 숨겨진 아이템/상태/랭크/필드를 추론하지 않습니다. "
+    "턴 후 HP, 아이템 소모, RNG, 스피드 타이, Quick Claw 발동, 전체 턴 결과를 확정하지 않습니다."
 )
-TURN_PIPELINE_STATUS_TEXT = "제한 컨텍스트 켜짐: 후보 이벤트, 선후공 보조 정보, 상대 기술 후보 전달 | 확정 결과 아님"
+TURN_PIPELINE_STATUS_TEXT = (
+    "제한 컨텍스트 켜짐: 후보 이벤트, 선후공 보조 정보, 상대 기술 후보, 현재 포켓몬/HP 스냅샷 전달 | 확정 결과 아님"
+)
 
 
 class LLMAdvicePanel(QFrame):

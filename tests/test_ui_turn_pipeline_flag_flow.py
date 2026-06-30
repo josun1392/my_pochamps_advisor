@@ -27,6 +27,9 @@ def test_limited_context_checkbox_copy_describes_combined_candidate_context() ->
     assert panel.turn_pipeline_checkbox.toolTip() == TURN_PIPELINE_HELP_TEXT
     assert panel.turn_pipeline_status_label.text() == TURN_PIPELINE_STATUS_TEXT
 
+    assert panel.turn_pipeline_checkbox.text() == "제한 컨텍스트 포함"
+    assert panel.turn_pipeline_checkbox.isChecked() is False
+
     combined_copy = " ".join(
         (
             panel.turn_pipeline_checkbox.text(),
@@ -35,15 +38,19 @@ def test_limited_context_checkbox_copy_describes_combined_candidate_context() ->
         )
     )
     for required_phrase in (
-        "턴 이벤트 후보",
-        "선후공 판단 보조",
+        "후보 이벤트",
+        "선후공 보조 정보",
         "UI에 보이는 상대 기술 후보",
-        "확정 턴 결과가 아니",
-        "상대 기술 후보는 확정된 기술이 아닙니다",
-        "숨겨진 기술배치",
-        "RNG 결과",
-        "아이템 소모",
+        "현재 포켓몬/HP 스냅샷",
+        "확정 결과가 아니",
+        "실제 선택 기술",
+        "숨겨진 아이템/상태/랭크/필드",
         "턴 후 HP",
+        "아이템 소모",
+        "RNG",
+        "스피드 타이",
+        "Quick Claw 발동",
+        "전체 턴 결과",
     ):
         assert required_phrase in combined_copy
 
@@ -51,10 +58,18 @@ def test_limited_context_checkbox_copy_describes_combined_candidate_context() ->
         "상대가 사용할 기술",
         "상대 선택 기술",
         "확정 선후공",
+        "확정 전투 결과",
         "확정 턴 결과입니다",
-        "Quick Claw 발동",
-        "아이템 소모 확정",
+        "숨겨진 아이템일 가능성",
+        "상태이상을 추론",
+        "랭크 변화를 추론",
+        "필드 상태를 추론",
         "턴 후 HP 확정",
+        "아이템 소모 확정",
+        "RNG 결과 확정",
+        "스피드 타이 결과 확정",
+        "Quick Claw 발동 확정",
+        "전체 턴 결과 확정",
         "숨겨진 기술배치 추론",
     )
     for phrase in forbidden_phrases:

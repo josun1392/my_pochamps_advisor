@@ -1,5 +1,35 @@
 # Master Ball Advisor — Progress
 
+## v10.10 - Battle State UI Copy Update
+
+Purpose:
+- Update the existing limited-context checkbox copy so it describes all contexts currently enabled by the checkbox, including the v10.9 battle-state species/HP snapshot path.
+
+Copy:
+- Label remains `제한 컨텍스트 포함`.
+- Tooltip now mentions candidate events, turn-order helper information, UI-visible opponent move candidates, and the current Pokemon/HP snapshot.
+- Enabled status now says the limited context includes candidate events, turn-order helper information, opponent move candidates, and the current Pokemon/HP snapshot while remaining non-final.
+
+Safety wording:
+- The copy states the context is not a confirmed result.
+- It says not to infer the opponent's actual selected move or hidden item/status/boost/field state.
+- It says not to claim post-turn HP, item consumption, RNG, speed tie, Quick Claw activation, or full turn outcome.
+
+Tests:
+- `tests/test_ui_turn_pipeline_flag_flow.py`
+- `tests/test_advisor_battle_state_context.py`
+- `tests/test_advisor_payload_contract.py`
+
+Recommended next:
+- v10.11 Battle State UI Integration Offline Smoke.
+- Alternative: v10.11 Battle State Context UI Phase Closure.
+- Alternative: v10.11 User-confirmed Item Boundary Design.
+
+Safety statement:
+- No new checkbox, checkbox default change, UI behavior change, payload flow change, prompt guard wording change, payload adapter contract change, battle-state source adapter change, actual Gemini call, retry, Vertex AI call, network call, hidden-state inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, logs, `.env`, secrets, API keys, token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.9 - Battle State UI Checkbox Mapping
 
 Purpose:

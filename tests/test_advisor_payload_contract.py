@@ -3031,18 +3031,23 @@ def test_turn_pipeline_dev_flag_widget_defaults_off_and_does_not_auto_call() -> 
     assert panel.turn_pipeline_checkbox.isChecked() is False
     assert panel.turn_pipeline_checkbox.text() == "제한 컨텍스트 포함"
     assert panel.turn_pipeline_checkbox.toolTip() == TURN_PIPELINE_HELP_TEXT
-    assert "턴 이벤트 후보" in panel.turn_pipeline_checkbox.toolTip()
-    assert "선후공 판단 보조" in panel.turn_pipeline_checkbox.toolTip()
+    assert "후보 이벤트" in panel.turn_pipeline_checkbox.toolTip()
+    assert "선후공 보조 정보" in panel.turn_pipeline_checkbox.toolTip()
     assert "UI에 보이는 상대 기술 후보" in panel.turn_pipeline_checkbox.toolTip()
-    assert "확정 턴 결과가 아니" in panel.turn_pipeline_checkbox.toolTip()
-    assert "상대 기술 후보는 확정된 기술이 아닙니다" in panel.turn_pipeline_checkbox.toolTip()
-    assert "숨겨진 기술배치" in panel.turn_pipeline_checkbox.toolTip()
-    assert "RNG" in panel.turn_pipeline_checkbox.toolTip()
-    assert "아이템 소모" in panel.turn_pipeline_checkbox.toolTip()
+    assert "현재 포켓몬/HP 스냅샷" in panel.turn_pipeline_checkbox.toolTip()
+    assert "확정 결과가 아니" in panel.turn_pipeline_checkbox.toolTip()
+    assert "상대의 실제 선택 기술" in panel.turn_pipeline_checkbox.toolTip()
+    assert "숨겨진 아이템/상태/랭크/필드" in panel.turn_pipeline_checkbox.toolTip()
     assert "턴 후 HP" in panel.turn_pipeline_checkbox.toolTip()
+    assert "아이템 소모" in panel.turn_pipeline_checkbox.toolTip()
+    assert "RNG" in panel.turn_pipeline_checkbox.toolTip()
+    assert "스피드 타이" in panel.turn_pipeline_checkbox.toolTip()
+    assert "Quick Claw 발동" in panel.turn_pipeline_checkbox.toolTip()
+    assert "전체 턴 결과" in panel.turn_pipeline_checkbox.toolTip()
     assert panel.turn_pipeline_status_label.text() == TURN_PIPELINE_STATUS_TEXT
     assert "제한 컨텍스트 켜짐" in panel.turn_pipeline_status_label.text()
     assert "상대 기술 후보" in panel.turn_pipeline_status_label.text()
+    assert "현재 포켓몬/HP 스냅샷" in panel.turn_pipeline_status_label.text()
     assert "확정 결과 아님" in panel.turn_pipeline_status_label.text()
     assert panel.turn_pipeline_status_label.isHidden() is True
 
