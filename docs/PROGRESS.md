@@ -1,5 +1,37 @@
 # Master Ball Advisor — Progress
 
+## v10.11 - Battle State UI Integration Offline Smoke
+
+Purpose:
+- Verify the UI-selected limited-context checkbox off/on path with mocked provider calls after battle-state checkbox mapping and copy updates.
+
+Smoke coverage:
+- Checkbox off omits `turn_pipeline`, `turn_order_context`, `opponent_move_context`, `battle_state_context`, and the battle-state prompt guard.
+- Checkbox on includes `turn_pipeline`, `turn_order_context`, `opponent_move_context`, and `battle_state_context`.
+- The prompt includes serialized `battle_state_context` and the existing v10.4 battle-state guard when checked.
+- Self/opponent species and HP percent are captured as `visible_ui`.
+- Status, boosts, item, field state, and `known_conditions` remain unknown or `[]`.
+- Mocked response avoids hidden-state certainty and resolved-outcome claims.
+
+Provider boundary:
+- `call_gemini` and `_log_advisor_call` are monkeypatched.
+- No actual Gemini call, retry, Vertex AI call, provider call, or network call is performed.
+
+Tests:
+- `tests/test_ui_turn_pipeline_flag_flow.py`
+- `tests/test_advisor_battle_state_context.py`
+- `tests/test_advisor_payload_contract.py`
+
+Recommended next:
+- v10.12 Battle State Context UI Phase Closure.
+- Alternative: v10.12 Controlled Battle State UI Gemini Smoke Design.
+- Alternative: v10.12 User-confirmed Item Boundary Design.
+
+Safety statement:
+- No new checkbox, checkbox default change, UI behavior change, UI copy change, payload flow behavior change, prompt guard wording change, payload adapter contract change, battle-state source adapter change, actual Gemini call, retry, Vertex AI call, network call, hidden-state inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, logs, `.env`, secrets, API keys, token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.10 - Battle State UI Copy Update
 
 Purpose:

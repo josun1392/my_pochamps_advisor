@@ -104,13 +104,14 @@ Update after v2.5:
 - v10.8 added `build_battle_state_context_from_ui_selected_state(...)` as a narrow adapter from UI-selected `battle_input` to `battle_state_context`. It extracts only self/opponent species and HP percent as `visible_ui`, leaves status/boosts/item/field/known conditions unknown, and does not connect the checkbox or payload call flow.
 - v10.9 connected the existing limited-context checkbox path to `battle_state_context`. Checked now enables `enable_battle_state_context=True` with the other limited contexts and uses the v10.8 adapter; unchecked omits battle state and its guard. No new checkbox, UI copy change, prompt guard wording change, provider call, hidden inference, or full Turn Engine behavior was added.
 - v10.10 updated the existing limited-context checkbox copy to mention the current Pokemon/HP snapshot alongside candidate events, turn-order helper information, and opponent move candidates. The label remains `제한 컨텍스트 포함`; behavior, default state, payload flow, source adapter, and prompt guard wording are unchanged.
+- v10.11 added an offline UI-selected smoke for the limited-context checkbox path. It verifies off omits `battle_state_context` and guard, on includes `battle_state_context` with visible self/opponent species and HP plus the existing guard, and all provider interaction is monkeypatched.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v10.10 Battle State UI Copy Update.
+T3, continue after v10.11 Battle State UI Integration Offline Smoke.
 
 Goal:
 - Do not add new item contexts.
@@ -147,9 +148,9 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v10.11 Battle State UI Integration Offline Smoke
-  - Alternative: v10.11 Battle State Context UI Phase Closure
-  - Alternative: v10.11 User-confirmed Item Boundary Design
+  - v10.12 Battle State Context UI Phase Closure
+  - Alternative: v10.12 Controlled Battle State UI Gemini Smoke Design
+  - Alternative: v10.12 User-confirmed Item Boundary Design
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.
@@ -206,6 +207,7 @@ Goal:
   - v10.8 implemented the species/HP-only source adapter without checkbox connection, payload-flow change, prompt guard change, provider call, or hidden-state inference.
   - v10.9 connected the existing limited-context checkbox to battle state using the species/HP-only adapter. Checked can now include all four limited contexts; unchecked omits battle state and guard.
   - v10.10 aligned checkbox tooltip/status copy with that behavior, including current Pokemon/HP snapshot wording and forbidden hidden-state/resolved-outcome certainty wording.
+  - v10.11 verified the UI-selected checkbox off/on path with mocked provider only. Off omits battle state and guard; on includes all four limited contexts, visible species/HP battle state, unknown non-source fields, and the existing guard.
   - No further actual Gemini call is needed for closure unless T1 explicitly approves a new one-call smoke.
   - No Vertex AI call.
   - Keep `run_ui_selected_advice(...)` default behavior unchanged.
@@ -213,7 +215,7 @@ Goal:
   - Do not make `turn_order_context` always-on.
   - Checkbox toggle must not call Gemini; only the existing advice button may start advice generation.
   - Do not start full Turn Engine implementation yet.
-  - v10.11 should run a mocked/offline UI-selected integration smoke for limited-context checkbox off/on and battle-state prompt preservation before any actual provider call.
+  - v10.12 should close the battle-state UI phase before any actual provider call, unless T1/T2 explicitly choose a controlled smoke design first.
 - v3.4 has already centralized item context guard metadata:
   - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
   - `advisor_client.py` still builds the prompt guard from visible `available=true` contexts.

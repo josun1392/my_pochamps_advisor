@@ -123,13 +123,17 @@ def test_limited_context_checkbox_off_and_on_offline_advice_flow(
     payload = _opponent_move_ui_advice_flow_payload()
     captured_prompts: list[str] = []
     logged_usages: list[dict[str, int]] = []
+    provider_calls = 0
 
     def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        nonlocal provider_calls
         assert model == "offline-v9-2"
+        provider_calls += 1
         captured_prompts.append(prompt)
         response = (
             "Mocked offline advice. Candidate turn events, turn order, and "
-            "opponent moves are limited context only; selected opponent move remains unknown."
+            "opponent moves are limited context only. Battle state is visible species and HP context only; "
+            "selected opponent move and hidden battle state remain unknown."
         )
         return response, {"input_tokens": 40 + len(captured_prompts), "output_tokens": 7, "cached_tokens": 0}
 
@@ -160,8 +164,24 @@ def test_limited_context_checkbox_off_and_on_offline_advice_flow(
 
     assert len(captured_prompts) == 2
     assert len(logged_usages) == 2
+    assert provider_calls == 2
     assert "Mocked offline advice" in off_response
     assert "Mocked offline advice" in on_response
+    for response in (off_response, on_response):
+        response_lower = response.lower()
+        for forbidden_response_phrase in (
+            "hidden item is confirmed",
+            "evs are likely",
+            "ivs are likely",
+            "nature is likely",
+            "post-turn hp will be",
+            "item will be consumed",
+            "rng resolved",
+            "speed tie resolved",
+            "quick claw activates",
+            "full turn outcome",
+        ):
+            assert forbidden_response_phrase not in response_lower
     assert off_usage == {"input_tokens": 41, "output_tokens": 7, "cached_tokens": 0}
     assert on_usage == {"input_tokens": 42, "output_tokens": 7, "cached_tokens": 0}
     assert off_summary == {"mocked": True, "logged": 1}
@@ -179,6 +199,7 @@ def test_limited_context_checkbox_off_and_on_offline_advice_flow(
     assert "limited planning context, not a resolved move order" not in off_prompt
     assert "If opponent_move_context is present" not in off_prompt
     assert "If battle_state_context is present" not in off_prompt
+    assert "Unknown battle state fields must remain unknown" not in off_prompt
 
     assert on_payload["turn_pipeline"]["simulated"] == "limited"
     assert on_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
@@ -237,6 +258,15 @@ def test_limited_context_checkbox_off_and_on_offline_advice_flow(
     assert "Do not infer hidden movesets" in on_prompt
     assert "If battle_state_context is present" in on_prompt
     assert "Unknown battle state fields must remain unknown" in on_prompt
+    assert "Do not infer hidden items." in on_prompt
+    assert "Do not infer EVs, IVs, or nature." in on_prompt
+    assert "Do not infer boosts, status, weather, terrain, hazards, screens, or room unless explicitly provided." in on_prompt
+    assert "Do not reverse-engineer hidden state from damage estimates or KO context." in on_prompt
+    assert "not a resolved turn simulation" in on_prompt
+    assert (
+        "Do not claim post-turn HP, item consumption, RNG result, speed tie result, Quick Claw activation, "
+        "or full turn outcome"
+    ) in on_prompt
 
 
 def test_limited_context_checkbox_on_omits_empty_opponent_move_context(
