@@ -6,6 +6,7 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 import llm.advisor_client as advisor_client
+from llm.advisor_battle_state_context import BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
 from tests.test_advisor_payload_contract import (
     _opponent_move_ui_advice_flow_payload,
     _turn_pipeline_advice_flow_payload,
@@ -131,6 +132,7 @@ def test_limited_context_checkbox_off_and_on_offline_advice_flow(
             enable_turn_pipeline=enabled,
             enable_turn_order_context=enabled,
             enable_opponent_move_context=enabled,
+            enable_battle_state_context=enabled,
         )
 
     monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
@@ -157,13 +159,17 @@ def test_limited_context_checkbox_off_and_on_offline_advice_flow(
     assert "turn_pipeline" not in off_payload
     assert "turn_order_context" not in off_payload
     assert "opponent_move_context" not in off_payload
+    assert "battle_state_context" not in off_payload
     assert "candidate events are not resolved outcomes" not in off_prompt
     assert "limited planning context, not a resolved move order" not in off_prompt
     assert "If opponent_move_context is present" not in off_prompt
+    assert "If battle_state_context is present" not in off_prompt
 
     assert on_payload["turn_pipeline"]["simulated"] == "limited"
     assert on_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
     assert on_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+    assert on_payload["battle_state_context"]["kind"] == "battle_state_context"
+    assert on_payload["battle_state_context"]["confidence"] == "limited"
 
     context = on_payload["opponent_move_context"]
     assert context["known_opponent_moves"] == []
@@ -177,15 +183,45 @@ def test_limited_context_checkbox_off_and_on_offline_advice_flow(
     ] == "champions_movepool"
     assert all(candidate["confirmed"] is False and candidate["selected"] is False for candidate in candidates)
 
+    battle_state_context = on_payload["battle_state_context"]
+    assert battle_state_context["self_active"]["species"] == {
+        "source": "visible_ui",
+        "name": on_payload["pokemon"]["my_active"]["name_en"],
+    }
+    assert battle_state_context["self_active"]["current_hp_percent"] == {
+        "source": "visible_ui",
+        "value": on_payload["pokemon"]["my_active"]["hp_percent"],
+    }
+    assert battle_state_context["opponent_active"]["species"] == {
+        "source": "visible_ui",
+        "name": on_payload["pokemon"]["opponent_active"]["name_en"],
+    }
+    assert battle_state_context["opponent_active"]["current_hp_percent"] == {
+        "source": "visible_ui",
+        "value": on_payload["pokemon"]["opponent_active"]["hp_percent"],
+    }
+    assert battle_state_context["self_active"]["status"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert battle_state_context["self_active"]["boosts"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert battle_state_context["self_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert battle_state_context["opponent_active"]["status"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert battle_state_context["opponent_active"]["boosts"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert battle_state_context["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert set(battle_state_context["field"]) == {"weather", "terrain", "screens", "hazards", "room"}
+    assert all(value == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD for value in battle_state_context["field"].values())
+    assert battle_state_context["known_conditions"] == []
+
     assert '"turn_pipeline"' in on_prompt
     assert '"turn_order_context"' in on_prompt
     assert '"opponent_move_context"' in on_prompt
+    assert '"battle_state_context"' in on_prompt
     assert "candidate events are not resolved outcomes" in on_prompt
     assert "limited planning/debug summary only, not full turn simulation" in on_prompt
     assert "limited planning context, not a resolved move order" in on_prompt
     assert "If opponent_move_context is present" in on_prompt
     assert "Candidate moves are not confirmed selected moves" in on_prompt
     assert "Do not infer hidden movesets" in on_prompt
+    assert "If battle_state_context is present" in on_prompt
+    assert "Unknown battle state fields must remain unknown" in on_prompt
 
 
 def test_limited_context_checkbox_on_omits_empty_opponent_move_context(
@@ -213,6 +249,7 @@ def test_limited_context_checkbox_on_omits_empty_opponent_move_context(
         enable_turn_pipeline=enabled,
         enable_turn_order_context=enabled,
         enable_opponent_move_context=enabled,
+        enable_battle_state_context=enabled,
     )
 
     assert len(captured_prompts) == 1
@@ -221,4 +258,6 @@ def test_limited_context_checkbox_on_omits_empty_opponent_move_context(
     assert "turn_pipeline" in prompt_payload
     assert "turn_order_context" in prompt_payload
     assert "opponent_move_context" not in prompt_payload
+    assert "battle_state_context" in prompt_payload
     assert "If opponent_move_context is present" not in prompt
+    assert "If battle_state_context is present" in prompt

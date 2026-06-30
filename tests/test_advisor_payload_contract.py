@@ -2885,17 +2885,19 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     def run_fake_ui_advice(turn_pipeline_enabled: bool | None) -> tuple[str, dict[str, int], dict[str, object]]:
         fake_ui_state = SimpleNamespace(turn_pipeline_enabled=turn_pipeline_enabled)
         if fake_ui_state.turn_pipeline_enabled is None:
-            captured_flags.append((None, None, None))
+            captured_flags.append((None, None, None, None))
             status_texts.append("")
             return advisor_client.run_ui_selected_advice(payload)
 
         enable_turn_order_context = fake_ui_state.turn_pipeline_enabled
         enable_opponent_move_context = fake_ui_state.turn_pipeline_enabled
+        enable_battle_state_context = fake_ui_state.turn_pipeline_enabled
         captured_flags.append(
             (
                 fake_ui_state.turn_pipeline_enabled,
                 enable_turn_order_context,
                 enable_opponent_move_context,
+                enable_battle_state_context,
             )
         )
         if fake_ui_state.turn_pipeline_enabled:
@@ -2907,6 +2909,7 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
             enable_turn_pipeline=fake_ui_state.turn_pipeline_enabled,
             enable_turn_order_context=enable_turn_order_context,
             enable_opponent_move_context=enable_opponent_move_context,
+            enable_battle_state_context=enable_battle_state_context,
         )
 
     monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
@@ -2919,7 +2922,7 @@ def test_turn_pipeline_controlled_ui_mock_smoke_flag_off_and_on(
     assert call_count == 3
     assert len(captured_prompts) == 3
     assert len(logged_usages) == 3
-    assert captured_flags == [(None, None, None), (False, False, False), (True, True, True)]
+    assert captured_flags == [(None, None, None, None), (False, False, False, False), (True, True, True, True)]
     assert default_result[0] == "ui mock recommendation 1"
     assert flag_off_result[0] == "ui mock recommendation 2"
     assert flag_on_result[0] == "ui mock recommendation 3"
@@ -3094,12 +3097,14 @@ def test_ui_flag_offline_e2e_fixture_covers_checkbox_off_and_on(
         enable_turn_pipeline = panel.turn_pipeline_enabled()
         enable_turn_order_context = enable_turn_pipeline
         enable_opponent_move_context = enable_turn_pipeline
+        enable_battle_state_context = enable_turn_pipeline
         return advisor_client.run_ui_selected_advice(
             payload,
             model="ui-flag-offline-v7-11",
             enable_turn_pipeline=enable_turn_pipeline,
             enable_turn_order_context=enable_turn_order_context,
             enable_opponent_move_context=enable_opponent_move_context,
+            enable_battle_state_context=enable_battle_state_context,
         )
 
     panel.advice_requested.connect(record_advice_request)
@@ -3135,9 +3140,11 @@ def test_ui_flag_offline_e2e_fixture_covers_checkbox_off_and_on(
     assert "turn_pipeline" not in off_payload
     assert "turn_order_context" not in off_payload
     assert "opponent_move_context" not in off_payload
+    assert "battle_state_context" not in off_payload
     assert '"turn_pipeline"' not in off_prompt
     assert '"turn_order_context"' not in off_prompt
     assert '"opponent_move_context"' not in off_prompt
+    assert '"battle_state_context"' not in off_prompt
     assert "candidate events are not resolved outcomes" not in off_prompt
     assert "not a resolved move order" not in off_prompt
     assert "Candidate moves are not confirmed selected moves" not in off_prompt
@@ -3147,6 +3154,7 @@ def test_ui_flag_offline_e2e_fixture_covers_checkbox_off_and_on(
     assert on_payload["turn_order_context"]["priority"]["priority_relation"] == "unknown"
     assert on_payload["turn_order_context"]["candidate_modifiers"][0]["resolved"] is False
     assert on_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+    assert on_payload["battle_state_context"]["kind"] == "battle_state_context"
     assert on_payload["opponent_move_context"]["known_opponent_moves"] == []
     assert on_payload["opponent_move_context"]["selected_opponent_move"] == {"status": "unknown"}
     assert on_payload["opponent_move_context"]["candidate_moves"][0]["source"] == "visible_ui"
@@ -3158,6 +3166,7 @@ def test_ui_flag_offline_e2e_fixture_covers_checkbox_off_and_on(
     assert '"turn_pipeline"' in on_prompt
     assert '"turn_order_context"' in on_prompt
     assert '"opponent_move_context"' in on_prompt
+    assert '"battle_state_context"' in on_prompt
     assert "candidate events are not resolved outcomes" in on_prompt
     assert "limited planning/debug summary only, not full turn simulation" in on_prompt
     assert "limited planning context, not a resolved move order" in on_prompt
@@ -3167,6 +3176,7 @@ def test_ui_flag_offline_e2e_fixture_covers_checkbox_off_and_on(
     assert "If opponent_move_context is present" in on_prompt
     assert "Candidate moves are not confirmed selected moves" in on_prompt
     assert "Do not infer hidden movesets" in on_prompt
+    assert "If battle_state_context is present" in on_prompt
 
     forbidden_response_phrases = (
         "will move first",
@@ -3301,12 +3311,15 @@ def test_turn_pipeline_dev_flag_is_default_off_and_wired_only_through_advice_req
     assert "enable_turn_pipeline = panel.turn_pipeline_enabled()" in worker_init_source
     assert "enable_turn_order_context = enable_turn_pipeline" in worker_init_source
     assert "enable_opponent_move_context = enable_turn_pipeline" in worker_init_source
+    assert "enable_battle_state_context = enable_turn_pipeline" in worker_init_source
     assert "enable_turn_pipeline=enable_turn_pipeline" in worker_source
     assert "enable_turn_order_context=enable_turn_order_context" in worker_source
     assert "enable_opponent_move_context=enable_opponent_move_context" in worker_source
+    assert "enable_battle_state_context=enable_battle_state_context" in worker_source
     assert "enable_turn_pipeline: bool = False" in llm_worker_source
     assert "enable_turn_order_context: bool = False" in llm_worker_source
     assert "enable_opponent_move_context: bool = False" in llm_worker_source
+    assert "enable_battle_state_context: bool = False" in llm_worker_source
     assert "run_ui_selected_advice(" in llm_worker_source
     assert "call_gemini" not in worker_source
 

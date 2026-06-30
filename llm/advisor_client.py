@@ -23,6 +23,7 @@ from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_SAFETY_NOTES,
     BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
     BATTLE_STATE_CONTEXT_UNSUPPORTED_BOUNDARIES,
+    build_battle_state_context_from_ui_selected_state,
 )
 from llm.advisor_opponent_move_context import (
     OPPONENT_MOVE_CONTEXT_ALLOWED_MOVE_FIELDS,
@@ -154,6 +155,7 @@ def run_ui_selected_advice(
     enable_turn_pipeline: bool = False,
     enable_turn_order_context: bool = False,
     enable_opponent_move_context: bool = False,
+    enable_battle_state_context: bool = False,
 ) -> tuple[str, dict[str, int], dict[str, Any]]:
     """Run the v0.6 UI-selected Pokemon advisor flow.
 
@@ -168,6 +170,7 @@ def run_ui_selected_advice(
         enable_turn_pipeline=enable_turn_pipeline,
         enable_turn_order_context=enable_turn_order_context,
         enable_opponent_move_context=enable_opponent_move_context,
+        enable_battle_state_context=enable_battle_state_context,
     )
     recommendation, usage = call_gemini(prompt, selected_model)
     summary = _log_advisor_call(
@@ -218,6 +221,9 @@ def _build_ui_selected_prompt(
             turn_snapshot=turn_snapshot,
         )
         opponent_move_context = _build_optional_opponent_move_context_for_advice_payload(base_payload)
+
+    if battle_state_context is None and enable_battle_state_context:
+        battle_state_context = build_battle_state_context_from_ui_selected_state(battle_input)
 
     advice_payload = build_ui_advice_payload(
         battle_input,
