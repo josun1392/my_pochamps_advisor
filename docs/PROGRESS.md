@@ -1,5 +1,37 @@
 # Master Ball Advisor — Progress
 
+## v11.0 - Controlled Battle State UI Gemini Smoke Design
+
+Purpose:
+- Design a future controlled Gemini smoke for the UI-selected `battle_state_context` path without executing an actual call.
+
+Design summary:
+- Smoke checks that checkbox-on UI-selected prompts include `battle_state_context`.
+- Fixture is limited to visible/current self/opponent species and HP percent.
+- status, boosts, item, field state, and `known_conditions` must remain unknown or `[]`.
+- Expected prompt includes serialized `battle_state_context` and the existing battle-state guard.
+- Expected response must avoid hidden-state inference, reverse inference, and resolved simulation claims.
+
+Call policy:
+- v11.0 executes no actual Gemini call.
+- Future v11.1 call requires explicit T1 approval.
+- Future call limit is exactly one Gemini call.
+- Retry count is zero.
+- No second call is allowed for failure, clarification, or better answer.
+
+Abort criteria:
+- Abort before a future call on unexpected repo state, failing tests, missing API key/model, missing payload/guard boundaries, forbidden hidden fields, wrong provider route, or missing T1 approval.
+
+Recommended next:
+- v11.1 Controlled Battle State UI Gemini Smoke, only with explicit T1 approval for one actual call.
+- Alternative: v11.1 User-confirmed Item Boundary Design.
+- Alternative: v11.1 Field State Source Design.
+
+Safety statement:
+- No production code change, new checkbox, checkbox default change, UI behavior change, UI copy change, payload flow behavior change, prompt guard wording change, payload adapter contract change, battle-state source adapter change, actual Gemini call, retry, Vertex AI call, network call, hidden-state inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, logs, `.env`, secrets, API keys, token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.12 - Battle State Context UI Phase Closure
 
 Purpose:

@@ -106,13 +106,14 @@ Update after v2.5:
 - v10.10 updated the existing limited-context checkbox copy to mention the current Pokemon/HP snapshot alongside candidate events, turn-order helper information, and opponent move candidates. The label remains `제한 컨텍스트 포함`; behavior, default state, payload flow, source adapter, and prompt guard wording are unchanged.
 - v10.11 added an offline UI-selected smoke for the limited-context checkbox path. It verifies off omits `battle_state_context` and guard, on includes `battle_state_context` with visible self/opponent species and HP plus the existing guard, and all provider interaction is monkeypatched.
 - v10.12 closed the battle-state context UI phase. The current supported UI path is limited to visible self/opponent species and HP percent through the existing limited-context checkbox; status, boosts, item, field, and known conditions remain unknown or `[]`. Actual Gemini smoke for this UI path has not been run.
+- v11.0 designed the controlled Battle State UI Gemini smoke. It is design-only: no actual call, retry, Vertex AI call, or network call. Future v11.1 execution requires explicit T1 approval, exactly one Gemini call, zero retries, pre-call payload/guard checks, and sanitized token/cost reporting only.
 
 Payload preflight PASS still does not imply actual Gemini PASS. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v10.12 Battle State Context UI Phase Closure.
+T3, continue after v11.0 Controlled Battle State UI Gemini Smoke Design.
 
 Goal:
 - Do not add new item contexts.
@@ -149,9 +150,9 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v11.0 Controlled Battle State UI Gemini Smoke Design
-  - Alternative: v11.0 User-confirmed Item Boundary Design
-  - Alternative: v11.0 Field State Source Design
+  - v11.1 Controlled Battle State UI Gemini Smoke, only if T1 explicitly approves one actual Gemini call
+  - Alternative: v11.1 User-confirmed Item Boundary Design
+  - Alternative: v11.1 Field State Source Design
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.
@@ -210,14 +211,15 @@ Goal:
   - v10.10 aligned checkbox tooltip/status copy with that behavior, including current Pokemon/HP snapshot wording and forbidden hidden-state/resolved-outcome certainty wording.
   - v10.11 verified the UI-selected checkbox off/on path with mocked provider only. Off omits battle state and guard; on includes all four limited contexts, visible species/HP battle state, unknown non-source fields, and the existing guard.
   - v10.12 closed the battle-state context UI phase for offline/mocked coverage. Current runtime support is species/HP snapshot only; actual Gemini smoke is still pending design and approval.
-  - No further actual Gemini call is needed for closure unless T1 explicitly approves a new one-call smoke.
+  - v11.0 designed the one-call controlled Gemini smoke and did not execute it.
+  - No actual Gemini call is allowed unless T1 explicitly approves v11.1 one-call execution.
   - No Vertex AI call.
   - Keep `run_ui_selected_advice(...)` default behavior unchanged.
   - Do not make TurnPipeline always-on.
   - Do not make `turn_order_context` always-on.
   - Checkbox toggle must not call Gemini; only the existing advice button may start advice generation.
   - Do not start full Turn Engine implementation yet.
-  - v11.0 should design a controlled Battle State UI Gemini smoke before any actual provider call, including T1 approval conditions, one-call limit, abort criteria, and expected output boundaries.
+  - v11.1 may execute the controlled Battle State UI Gemini smoke only after explicit T1 approval for one actual call. If approval is absent, choose User-confirmed Item Boundary Design or Field State Source Design instead.
 - v3.4 has already centralized item context guard metadata:
   - `ADVICE_ITEM_CONTEXT_GUARD_METADATA` contains mention labels, item-specific guard text, and forbidden wording metadata.
   - `advisor_client.py` still builds the prompt guard from visible `available=true` contexts.
