@@ -1,5 +1,37 @@
 # Master Ball Advisor — Progress
 
+## v10.12 - Battle State Context UI Phase Closure
+
+Purpose:
+- Close the battle-state context UI phase after design, contract, helper, payload adapter, prompt guard, offline fixture, UI source inventory, checkbox mapping, copy update, and offline UI-selected smoke.
+
+Closure summary:
+- The existing limited-context checkbox remains default off.
+- Checkbox off omits `battle_state_context`.
+- Checkbox on enables `battle_state_context` with `turn_pipeline`, `turn_order_context`, and `opponent_move_context`.
+- `enable_battle_state_context = enable_turn_pipeline`.
+- The UI source adapter extracts only self/opponent species and HP percent as `visible_ui`.
+- status, boosts, item, field state, and `known_conditions` remain unknown or `[]`.
+- The existing v10.4 prompt guard is reused when `battle_state_context` appears.
+- Offline mocked tests cover payload, prompt, guard, and no-provider behavior.
+- No actual Gemini smoke has been run for this UI path.
+
+Known limitations:
+- No user-confirmed item boundary design yet.
+- No field state UI source yet.
+- No known-conditions source yet.
+- No resolved simulation or full Turn Engine.
+
+Recommended next:
+- v11.0 Controlled Battle State UI Gemini Smoke Design.
+- Alternative: v11.0 User-confirmed Item Boundary Design.
+- Alternative: v11.0 Field State Source Design.
+
+Safety statement:
+- No production code change, new checkbox, checkbox default change, UI behavior change, UI copy change, payload flow behavior change, prompt guard wording change, payload adapter contract change, battle-state source adapter change, actual Gemini call, retry, Vertex AI call, network call, hidden-state inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, logs, `.env`, secrets, API keys, token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v10.11 - Battle State UI Integration Offline Smoke
 
 Purpose:
