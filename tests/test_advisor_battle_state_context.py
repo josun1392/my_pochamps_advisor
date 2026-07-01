@@ -250,6 +250,132 @@ def test_species_common_set_or_meta_sources_do_not_generate_hidden_state() -> No
     assert context["field"]["terrain"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
 
 
+def test_user_confirmed_items_are_known_for_self_and_opponent() -> None:
+    context = build_battle_state_context(
+        self_active={
+            "species": {"source": "visible_ui", "name": "Garchomp"},
+            "current_hp_percent": {"source": "visible_ui", "value": 100},
+            "item": {"source": "user_confirmed", "value": "loaded-dice"},
+        },
+        opponent_active={
+            "species": {"source": "visible_ui", "name": "Charizard"},
+            "current_hp_percent": {"source": "visible_ui", "value": 87},
+            "item": {"source": "user_confirmed", "value": "focus-sash"},
+        },
+    )
+
+    assert context["confidence"] == "limited"
+    assert context["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "loaded-dice",
+    }
+    assert context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "focus-sash",
+    }
+    assert context["self_active"]["species"] == {"source": "visible_ui", "name": "Garchomp"}
+    assert context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 87}
+    _assert_no_forbidden_fields(context)
+    _assert_no_item_resolution_fields(context)
+
+
+def test_explicit_input_items_are_known_for_self_and_opponent() -> None:
+    context = build_battle_state_context(
+        self_active={"item": {"source": "explicit_input", "value": "leftovers"}},
+        opponent_active={"item": {"source": "explicit_input", "value": "focus-band"}},
+    )
+
+    assert context["confidence"] == "limited"
+    assert context["self_active"]["item"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": "leftovers",
+    }
+    assert context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": "focus-band",
+    }
+    _assert_no_item_resolution_fields(context)
+
+
+def test_item_sources_without_user_confirmation_remain_unknown() -> None:
+    disallowed_sources = [
+        "visible_ui",
+        "calculated_from_visible",
+        "species_common_set",
+        "usage_based_guess",
+        "meta_inferred",
+        "hidden_state_guess",
+        "damage_reverse_inference",
+        "legality_gate_guess",
+        "resist_berry_inferred",
+        "context_derived",
+    ]
+
+    for source in disallowed_sources:
+        context = build_battle_state_context(
+            self_active={"item": {"source": source, "value": "choice-scarf"}},
+            opponent_active={"item": {"source": source, "value": "focus-sash"}},
+        )
+
+        assert context["confidence"] == "unknown", source
+        assert context["self_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, source
+        assert context["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, source
+        _assert_no_forbidden_sources(context)
+        _assert_no_forbidden_fields(context)
+
+
+def test_malformed_or_missing_item_values_remain_unknown() -> None:
+    context = build_battle_state_context(
+        self_active={
+            "item": {"source": "user_confirmed"},
+        },
+        opponent_active={
+            "item": {"source": "explicit_input", "value": None},
+        },
+    )
+
+    assert context["confidence"] == "unknown"
+    assert context["self_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+
+
+def test_legality_gate_or_resist_berry_context_alone_does_not_create_known_item() -> None:
+    context = build_battle_state_context(
+        self_active={
+            "item": {
+                "source": "legality_gate_guess",
+                "value": "yache-berry",
+                "legal_status": "legal_modeled",
+            }
+        },
+        opponent_active={
+            "item": {
+                "source": "resist_berry_inferred",
+                "value": "yache-berry",
+                "resist_effect": {"berry_type": "ice"},
+            }
+        },
+        known_conditions=[
+            {
+                "source": "damage_reverse_inference",
+                "kind": "resist_berry_context",
+                "value": {"item": "yache-berry"},
+            }
+        ],
+    )
+
+    assert context["confidence"] == "unknown"
+    assert context["self_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["known_conditions"] == []
+    _assert_no_forbidden_sources(context)
+    _assert_no_forbidden_fields(context)
+
+
 def test_ui_selected_state_adapter_extracts_visible_species_and_hp_only() -> None:
     context = build_battle_state_context_from_ui_selected_state(
         {
@@ -397,6 +523,9 @@ def _assert_no_forbidden_fields(value: object) -> None:
 
 def _assert_no_forbidden_sources(value: object) -> None:
     forbidden_sources = {
+        "context_derived",
+        "legality_gate_guess",
+        "resist_berry_inferred",
         "species_common_set",
         "usage_based_guess",
         "meta_inferred",
@@ -411,3 +540,23 @@ def _assert_no_forbidden_sources(value: object) -> None:
     elif isinstance(value, list):
         for child_value in value:
             _assert_no_forbidden_sources(child_value)
+
+
+def _assert_no_item_resolution_fields(value: object) -> None:
+    forbidden_resolution_fields = {
+        "item_consumed",
+        "item_consumption",
+        "post_turn_hp",
+        "rng_resolved",
+        "speed_tie_resolved",
+        "quick_claw_activated",
+        "full_turn_result",
+        "resolved_outcome",
+    }
+    if isinstance(value, dict):
+        for key, child_value in value.items():
+            assert key not in forbidden_resolution_fields
+            _assert_no_item_resolution_fields(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _assert_no_item_resolution_fields(child_value)

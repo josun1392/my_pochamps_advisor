@@ -20,6 +20,7 @@ from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_FIELD_FIELDS,
     BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS,
     BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES,
+    BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES,
     BATTLE_STATE_CONTEXT_SAFETY_NOTES,
     BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
     BATTLE_STATE_CONTEXT_UNSUPPORTED_BOUNDARIES,
@@ -861,8 +862,9 @@ def _validate_battle_state_active_side(active_side: Any, side_name: str) -> None
 
     _validate_battle_state_name_or_unknown(active_side["species"], f"{side_name}.species")
     _validate_battle_state_value_or_unknown(active_side["current_hp_percent"], f"{side_name}.current_hp_percent")
-    for field_name in ("status", "boosts", "item"):
+    for field_name in ("status", "boosts"):
         _validate_battle_state_known_value_or_unknown(active_side[field_name], f"{side_name}.{field_name}")
+    _validate_battle_state_item_or_unknown(active_side["item"], f"{side_name}.item")
 
 
 def _validate_battle_state_field(field: Any) -> None:
@@ -905,6 +907,20 @@ def _validate_battle_state_known_value_or_unknown(value: Any, field_name: str) -
     if value.get("known") is not True:
         raise ValueError(f"battle_state_context {field_name} known value is not allowed")
     if value.get("source") not in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES:
+        raise ValueError(f"battle_state_context {field_name} source is not allowed")
+    known_value = value.get("value")
+    if known_value is None or known_value == "unknown":
+        raise ValueError(f"battle_state_context {field_name} requires known value")
+
+
+def _validate_battle_state_item_or_unknown(value: Any, field_name: str) -> None:
+    if value == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD:
+        return
+    if not isinstance(value, dict):
+        raise ValueError(f"battle_state_context {field_name} must be a mapping")
+    if value.get("known") is not True:
+        raise ValueError(f"battle_state_context {field_name} known value is not allowed")
+    if value.get("source") not in BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES:
         raise ValueError(f"battle_state_context {field_name} source is not allowed")
     known_value = value.get("value")
     if known_value is None or known_value == "unknown":

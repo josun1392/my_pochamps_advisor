@@ -27,6 +27,13 @@ only for direct `user_confirmed` or explicitly allowed `explicit_input` item
 sources; hidden, inferred, legality-derived, damage-derived, and context-derived
 items remain unknown.
 
+v11.4 status note: `battle_state_context.item` source policy is now locked by
+contract/helper tests. Known item values may use only `user_confirmed` or
+`explicit_input`. `visible_ui`, `calculated_from_visible`, legality-gate,
+resist-berry, context-derived, hidden, usage/meta/common-set, and damage-reverse
+item sources must not become known items. UI item integration is still not
+connected.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

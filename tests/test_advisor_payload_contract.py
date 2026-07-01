@@ -658,12 +658,55 @@ def test_battle_state_context_contract_allows_explicit_visible_sources(source: s
     _assert_battle_state_context_contract(context)
 
 
+@pytest.mark.parametrize("source", ["explicit_input", "user_confirmed"])
+def test_battle_state_context_contract_allows_known_item_sources(source: str) -> None:
+    context = _sample_battle_state_context()
+    context["self_active"]["item"] = {
+        "known": True,
+        "value": "leftovers",
+        "source": source,
+    }
+    context["opponent_active"]["item"] = {
+        "known": True,
+        "value": "focus-sash",
+        "source": source,
+    }
+
+    _assert_battle_state_context_contract(context)
+    _assert_battle_state_context_has_no_forbidden_fields(context)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "calculated_from_visible",
+        "context_derived",
+        "legality_gate_guess",
+        "resist_berry_inferred",
+        "visible_ui",
+    ],
+)
+def test_battle_state_context_contract_rejects_item_sources_without_user_confirmation(source: str) -> None:
+    context = _sample_battle_state_context()
+    context["opponent_active"]["item"] = {
+        "known": True,
+        "value": "choice-scarf",
+        "source": source,
+    }
+
+    with pytest.raises(AssertionError):
+        _assert_battle_state_context_contract(context)
+
+
 @pytest.mark.parametrize(
     "source",
     [
         "damage_reverse_inference",
+        "context_derived",
         "hidden_state_guess",
+        "legality_gate_guess",
         "meta_inferred",
+        "resist_berry_inferred",
         "species_common_set",
         "usage_based_guess",
     ],
@@ -797,6 +840,56 @@ def test_battle_state_context_payload_adapter_adds_explicit_top_level_context() 
         "value": "rain",
     }
     _assert_battle_state_context_contract(advice_payload["battle_state_context"])
+
+
+def test_battle_state_context_payload_adapter_preserves_allowed_known_items() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = build_battle_state_context(
+        self_active={
+            "species": {"source": "visible_ui", "name": "Garchomp"},
+            "current_hp_percent": {"source": "visible_ui", "value": 100},
+            "item": {"source": "user_confirmed", "value": "loaded-dice"},
+        },
+        opponent_active={
+            "species": {"source": "visible_ui", "name": "Charizard"},
+            "current_hp_percent": {"source": "visible_ui", "value": 100},
+            "item": {"source": "explicit_input", "value": "focus-sash"},
+        },
+    )
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    battle_state_context = advice_payload["battle_state_context"]
+    assert battle_state_context["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "loaded-dice",
+    }
+    assert battle_state_context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": "focus-sash",
+    }
+    _assert_battle_state_context_contract(battle_state_context)
+    _assert_battle_state_context_has_no_forbidden_fields(battle_state_context)
+
+
+@pytest.mark.parametrize("source", ["visible_ui", "calculated_from_visible", "context_derived"])
+def test_battle_state_context_payload_adapter_rejects_item_sources_without_user_confirmation(source: str) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+    context["self_active"]["item"] = {
+        "known": True,
+        "source": source,
+        "value": "choice-scarf",
+    }
+
+    with pytest.raises(ValueError, match="self_active.item source"):
+        build_ui_advice_payload(payload, battle_state_context=context, enable_battle_state_context=True)
 
 
 def test_battle_state_context_payload_adapter_omits_empty_helper_context() -> None:
@@ -6054,6 +6147,7 @@ BATTLE_STATE_CONTEXT_ALLOWED_SOURCES = frozenset(
         "calculated_from_visible",
     }
 )
+BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES = frozenset({"explicit_input", "user_confirmed"})
 BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES = frozenset(
     {
         "species_common_set",
@@ -6061,6 +6155,9 @@ BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES = frozenset(
         "meta_inferred",
         "hidden_state_guess",
         "damage_reverse_inference",
+        "legality_gate_guess",
+        "context_derived",
+        "resist_berry_inferred",
     }
 )
 BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS = frozenset(
@@ -6207,8 +6304,9 @@ def _assert_battle_state_active_side_contract(active_side: dict) -> None:
     assert active_side["species"].get("name")
     assert active_side["current_hp_percent"]["source"] in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES
     assert isinstance(active_side["current_hp_percent"].get("value"), int | float)
-    for field_key in ("status", "boosts", "item"):
+    for field_key in ("status", "boosts"):
         _assert_battle_state_unknown_or_known_source_field(active_side[field_key])
+    _assert_battle_state_item_unknown_or_known_source_field(active_side["item"])
 
 
 def _assert_battle_state_unknown_or_known_source_field(field: dict) -> None:
@@ -6220,6 +6318,17 @@ def _assert_battle_state_unknown_or_known_source_field(field: dict) -> None:
     assert known_value is not None
     assert known_value != "unknown"
     assert field.get("source") in BATTLE_STATE_CONTEXT_ALLOWED_SOURCES
+
+
+def _assert_battle_state_item_unknown_or_known_source_field(field: dict) -> None:
+    assert field.get("known") in {True, False}
+    if field["known"] is False:
+        assert field == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+        return
+    known_value = field.get("value")
+    assert known_value is not None
+    assert known_value != "unknown"
+    assert field.get("source") in BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES
 
 
 def _assert_battle_state_context_sources(value: object) -> None:

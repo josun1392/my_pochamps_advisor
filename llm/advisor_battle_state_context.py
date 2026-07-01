@@ -19,6 +19,7 @@ BATTLE_STATE_CONTEXT_ALLOWED_SOURCES = frozenset(
         "calculated_from_visible",
     }
 )
+BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES = frozenset({"explicit_input", "user_confirmed"})
 BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES = frozenset(
     {
         "species_common_set",
@@ -26,6 +27,9 @@ BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES = frozenset(
         "meta_inferred",
         "hidden_state_guess",
         "damage_reverse_inference",
+        "legality_gate_guess",
+        "context_derived",
+        "resist_berry_inferred",
     }
 )
 BATTLE_STATE_CONTEXT_ACTIVE_FIELDS = ("species", "current_hp_percent", "status", "boosts", "item")
@@ -164,7 +168,7 @@ def _active_side(active: Mapping[str, Any] | None) -> dict[str, Any]:
         "current_hp_percent": _source_value_or_unknown(active.get("current_hp_percent")),
         "status": _known_value_or_unknown(active.get("status")),
         "boosts": _known_value_or_unknown(active.get("boosts")),
-        "item": _known_value_or_unknown(active.get("item")),
+        "item": _known_item_or_unknown(active.get("item")),
     }
 
 
@@ -217,6 +221,16 @@ def _known_value_or_unknown(entry: object) -> dict[str, Any]:
     if not _source_is_allowed(source) or value is None:
         return _unknown_field()
     return {"known": True, "source": str(source), "value": _sanitize_value(value)}
+
+
+def _known_item_or_unknown(entry: object) -> dict[str, Any]:
+    if not isinstance(entry, Mapping):
+        return _unknown_field()
+    source = entry.get("source")
+    value = entry.get("value")
+    if not isinstance(source, str) or source not in BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES or value is None:
+        return _unknown_field()
+    return {"known": True, "source": source, "value": _sanitize_value(value)}
 
 
 def _source_is_allowed(source: object) -> bool:

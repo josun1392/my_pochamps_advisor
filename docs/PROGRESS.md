@@ -1,5 +1,34 @@
 # Master Ball Advisor — Progress
 
+## v11.4 - User-confirmed Item Contract Tests
+
+Purpose:
+- Lock `battle_state_context.item` known-source behavior before UI item integration.
+
+Implementation summary:
+- Added item-specific source validation in `llm/advisor_battle_state_context.py`.
+- Added payload adapter validation for active-side item fields in `llm/advisor_client.py`.
+- Known item sources are limited to `user_confirmed` and `explicit_input`.
+- `visible_ui` and `calculated_from_visible` remain valid for species/HP, but not for item.
+- Additional forbidden item sources include `legality_gate_guess`, `resist_berry_inferred`, and `context_derived`.
+- Current UI-selected adapter still ignores `item_profiles` and extracts only species/HP.
+
+Test summary:
+- Helper tests cover self/opponent `user_confirmed` and `explicit_input` items.
+- Helper tests keep omitted, malformed, forbidden-source, legality-gate-only, and resist-berry-context-only items unknown.
+- Payload contract tests preserve allowed known items and reject item sources without user confirmation.
+- Known item tests assert no item consumption, post-turn HP, RNG, speed tie, Quick Claw activation, or full outcome fields are added.
+
+Recommended next:
+- v11.5 User-confirmed Item Source Adapter Design.
+- Alternative: v11.5 User-confirmed Item Prompt/Offline Fixture.
+- Alternative: v11.5 Field State Source Design.
+
+Safety statement:
+- No UI item integration, UI source adapter connection, limited-context checkbox flow change, UI behavior/default/copy change, prompt guard wording change, actual Gemini call, retry, second provider call, Vertex AI call, network call, hidden item inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.3 - User-confirmed Item Boundary Design
 
 Purpose:
