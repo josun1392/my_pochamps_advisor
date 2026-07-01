@@ -21,6 +21,12 @@ records the v11.1 one-call/no-retry result, payload/prompt/response boundary
 PASS, and sanitized token/cost summary. It does not change the payload contract
 or add new battle-state sources.
 
+v11.3 status note: user-confirmed item boundary is design-only. No contract
+change is made. Future item support should use the existing known-value envelope
+only for direct `user_confirmed` or explicitly allowed `explicit_input` item
+sources; hidden, inferred, legality-derived, damage-derived, and context-derived
+items remain unknown.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

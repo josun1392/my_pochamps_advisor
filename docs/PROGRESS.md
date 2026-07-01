@@ -1,5 +1,31 @@
 # Master Ball Advisor — Progress
 
+## v11.3 - User-confirmed Item Boundary Design
+
+Purpose:
+- Design the boundary for future self/opponent item inclusion in `battle_state_context`.
+
+Design summary:
+- Current `battle_state_context.item` remains unknown in the UI-selected path.
+- The current UI adapter intentionally extracts only species/HP and ignores `item_profiles`.
+- Future known item values should use the existing helper envelope: `{"known": True, "source": "user_confirmed", "value": "<item-id>"}` or explicitly allowed `explicit_input`.
+- Self item can be known only when directly user-confirmed or explicitly input.
+- Opponent item is hidden by default and can be known only when directly user-confirmed or explicitly input.
+- Legality gate is validation/filtering, not a source of truth.
+- Resist berry and other item contexts may reference user-confirmed items, but must not be promoted into battle-state item sources.
+- Unknown item continues to forbid hidden item inference in the prompt guard.
+- Known item must not imply item consumption, activation, final item state, or turn outcome.
+
+Recommended next:
+- v11.4 User-confirmed Item Contract Tests.
+- Alternative: v11.4 User-confirmed Item Source Adapter Design.
+- Alternative: v11.4 Field State Source Design.
+
+Safety statement:
+- No production code change, item integration, source adapter change, payload adapter contract change, prompt guard wording change, UI behavior/copy/default change, actual Gemini call, retry, second provider call, Vertex AI call, network call, hidden item inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.2 - Battle State Context Actual Smoke Closure
 
 Purpose:
