@@ -10,6 +10,12 @@ The advisor payload is the boundary between deterministic UI / engine state and 
 
 The current app can send selected Pokemon identity, HP percent, user-confirmed move metadata, optional user-confirmed final stats for the active Pokemon, top-level item profiles, context-only opponent sample assumptions, raw/effective Speed comparison context, limited Quick Claw speed-order item context, limited Light Ball species-stat item context, damage estimates for the user's confirmed moves, additive limited KO context, explicitly labeled opponent move information, and damage estimates for user-confirmed opponent known moves. Every damage estimate includes an `assumption_profile` describing the stat/item model used. Supported attacker-side damage items may be applied only when `damage_estimate.item_effects` marks them as applied. v0.23 connects the normal item selector to the Champions legal item repository: normal UI options include Unknown, No item, and legal fixture items. Damage-supported but non-legal/debug items such as Choice Band, Choice Specs, and Life Orb are not normal selector options. v0.28 adds `speed_context` for raw Speed comparison only when both active Pokemon have user-confirmed final Speed. v0.30 extends `speed_context` with Choice Scarf effective Speed when Choice Scarf is user-confirmed. v0.98 adds move-level `speed_order_context` for user-confirmed legal Quick Claw as limited advice context only. v3.1 makes move-level `species_stat_item_context` a sibling explanation for user-confirmed legal Light Ball on Pikachu when the supported modifier is applied in `damage_estimate.item_effects`. v0.38 adds `opponent_assumptions` as context-only possible opponent sample profiles. The app does not yet send EV/IV/nature breakdowns, final battle KO truth, final turn order, candidate move damage estimates, sample-based damage or Speed calculations, or Turn Engine state.
 
+v11.1 status note: the controlled UI-selected `battle_state_context` Gemini smoke
+passed with exactly one actual Gemini call and zero retries. This does not
+change the payload contract. The supported UI battle-state source remains
+self/opponent species and HP percent only, sourced as `visible_ui`; status,
+boosts, item, field state, and `known_conditions` remain unknown or `[]`.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

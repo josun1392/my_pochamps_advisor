@@ -1,5 +1,40 @@
 # Master Ball Advisor — Progress
 
+## v11.1 - Controlled Battle State UI Gemini Smoke
+
+Purpose:
+- Execute the v11.0 controlled smoke after T1 approved exactly one actual Gemini call.
+
+Smoke result:
+- Result: PASS.
+- Model: `gemini-2.5-flash`.
+- Actual Gemini calls: 1.
+- Retry count: 0.
+- Vertex AI calls: 0.
+- Fixture used the existing repo UI-selected style: self `charizard` at 100 HP and opponent `garchomp` at 100 HP, with the limited-context checkbox on.
+- Payload included `turn_pipeline`, `turn_order_context`, `opponent_move_context`, and `battle_state_context`.
+- `battle_state_context` carried only self/opponent species and HP percent as `visible_ui`.
+- status, boosts, item, field state, and `known_conditions` remained unknown or `[]`.
+- Prompt included serialized `battle_state_context` and the existing battle-state guard.
+- Response boundary scanner found no hidden-state certainty or resolved-outcome claim.
+
+Token/cost summary:
+- Sanitized token summary: input `11054`, output `171`, cached `0`.
+- Pricing status: `free_tier_zero_cost`.
+- Estimated cost USD: `0.0`.
+- Raw token log lines were not pasted.
+- `logs/token_usage.jsonl` was not committed or reset.
+
+Recommended next:
+- v11.2 Battle State Context Actual Smoke Closure.
+- Alternative: v11.2 User-confirmed Item Boundary Design.
+- Alternative: v11.2 Field State Source Design.
+
+Safety statement:
+- No production code change, new checkbox, checkbox default change, UI behavior change, UI copy change, payload flow behavior change, prompt guard wording change, payload adapter contract change, battle-state source adapter change, retry, second Gemini call, Vertex AI call, hidden-state inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.0 - Controlled Battle State UI Gemini Smoke Design
 
 Purpose:
