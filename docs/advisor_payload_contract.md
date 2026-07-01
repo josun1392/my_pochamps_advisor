@@ -16,6 +16,11 @@ change the payload contract. The supported UI battle-state source remains
 self/opponent species and HP percent only, sourced as `visible_ui`; status,
 boosts, item, field state, and `known_conditions` remain unknown or `[]`.
 
+v11.2 status note: the actual smoke phase is closed as PASS. This closure
+records the v11.1 one-call/no-retry result, payload/prompt/response boundary
+PASS, and sanitized token/cost summary. It does not change the payload contract
+or add new battle-state sources.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

@@ -108,13 +108,14 @@ Update after v2.5:
 - v10.12 closed the battle-state context UI phase. The current supported UI path is limited to visible self/opponent species and HP percent through the existing limited-context checkbox; status, boosts, item, field, and known conditions remain unknown or `[]`. Actual Gemini smoke for this UI path has not been run.
 - v11.0 designed the controlled Battle State UI Gemini smoke. It was design-only: no actual call, retry, Vertex AI call, or network call. Future execution required explicit T1 approval, exactly one Gemini call, zero retries, pre-call payload/guard checks, and sanitized token/cost reporting only.
 - v11.1 executed the controlled Battle State UI Gemini smoke after T1 approval. Exactly one Gemini call was made with `gemini-2.5-flash`, retry count was zero, Vertex AI was not used, payload/prompt boundaries passed, the response scanner found no hidden-state certainty or resolved-outcome claim, and sanitized token/cost summary was recorded without raw token-log output.
+- v11.2 closed the Battle State Context actual smoke phase as PASS. It records the v11.1 one-call/no-retry audit, payload/prompt/response boundary PASS, sanitized token/cost summary, local post-call reporting script issue, and the requirement that `logs/token_usage.jsonl` and `config/env.example` remain uncommitted and unreset.
 
-Battle State UI Gemini smoke reached actual Gemini PASS in v11.1. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
+Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v11.1 Controlled Battle State UI Gemini Smoke.
+T3, continue after v11.2 Battle State Context Actual Smoke Closure.
 
 Goal:
 - Do not add new item contexts.
@@ -151,9 +152,9 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v11.2 Battle State Context Actual Smoke Closure
-  - Alternative: v11.2 User-confirmed Item Boundary Design
-  - Alternative: v11.2 Field State Source Design
+  - v11.3 User-confirmed Item Boundary Design
+  - Alternative: v11.3 Field State Source Design
+  - Alternative: v11.3 Battle State Context Hardening Backlog
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.

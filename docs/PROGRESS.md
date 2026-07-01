@@ -1,5 +1,38 @@
 # Master Ball Advisor — Progress
 
+## v11.2 - Battle State Context Actual Smoke Closure
+
+Purpose:
+- Close the Battle State Context actual smoke phase after the v11.1 controlled Gemini smoke PASS.
+
+Closure summary:
+- v11.1 executed exactly one actual Gemini call with `gemini-2.5-flash`.
+- Retry count was 0.
+- No second provider call, clarification call, better-answer call, automatic rerun, or Vertex AI call occurred.
+- Payload boundary PASS: `battle_state_context`, `turn_pipeline`, `turn_order_context`, and `opponent_move_context` were present.
+- Prompt boundary PASS: serialized `battle_state_context` and the existing v10.4 battle-state guard were present.
+- Response boundary PASS: forbidden hidden/resolved phrase scan matched `none`.
+- Sanitized token/cost summary: input `11054`, output `171`, cached `0`, pricing `free_tier_zero_cost`, estimated cost USD `0.0`.
+- The post-call local reporting script hit a dict/object access issue after the successful provider call; no retry or second provider call was executed.
+- `logs/token_usage.jsonl` remains modified from actual call logging and was not committed or reset.
+
+Known limitations:
+- One controlled fixture only.
+- Does not prove broad advice quality or every Pokemon/move matchup.
+- Does not add item, field, status, or boost sources.
+- Does not implement full Turn Engine behavior.
+- Does not prove future model responses will always obey the guard.
+
+Recommended next:
+- v11.3 User-confirmed Item Boundary Design.
+- Alternative: v11.3 Field State Source Design.
+- Alternative: v11.3 Battle State Context Hardening Backlog.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network call, production code change, new checkbox, checkbox default change, UI behavior change, UI copy change, payload flow behavior change, prompt guard wording change, payload adapter contract change, battle-state source adapter change, hidden-state inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.1 - Controlled Battle State UI Gemini Smoke
 
 Purpose:
