@@ -57,6 +57,15 @@ existing battle-state guard remains present, field state and `known_conditions`
 stay unknown/empty, and no item consumption, post-turn HP, RNG, speed tie, Quick
 Claw, or full outcome fields are created. UI runtime mapping remains unchanged.
 
+v11.8 status note: user-confirmed item UI mapping is design-only. The
+recommended future mapping is to call
+`build_battle_state_context_from_ui_selected_state(battle_input,
+include_user_confirmed_items=enable_battle_state_context)` at the existing
+battle-state generation point. Checkbox off remains the hard gate and must omit
+`battle_state_context` entirely, even if top-level `item_profiles` contain
+user-confirmed items. No payload contract or runtime behavior changes are made
+in v11.8.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

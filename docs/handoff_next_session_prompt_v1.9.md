@@ -114,13 +114,14 @@ Update after v2.5:
 - v11.5 designed the future user-confirmed item source adapter. Existing UI-selected battle-state extraction remains species/HP-only; future item inclusion should require explicit opt-in, read only trusted `item_profiles` metadata, map direct `status=user_confirmed` user input to `user_confirmed`, reserve `explicit_input` for direct explicit input, and keep missing, ambiguous, legality-derived, resist-berry-derived, damage-derived, or inferred items unknown.
 - v11.6 added the explicit opt-in user-confirmed item source adapter. Default adapter calls remain species/HP-only; `include_user_confirmed_items=True` reads only `item_profiles` entries with `status=user_confirmed`, `source=user_input`, and non-empty `item_id`, preserving them as `source=user_confirmed` known items. UI checkbox mapping and payload builder runtime calls remain unchanged.
 - v11.7 added a mocked offline prompt fixture for user-confirmed items in `battle_state_context`. It verifies known self/opponent items survive payload and prompt serialization with the existing guard, while field state and `known_conditions` stay unknown/empty and no item consumption, post-turn HP, RNG, speed tie, Quick Claw, selected opponent move, hidden item, or full outcome certainty is introduced.
+- v11.8 designed the future UI mapping for user-confirmed items. The recommended implementation is to call `build_battle_state_context_from_ui_selected_state(battle_input, include_user_confirmed_items=enable_battle_state_context)` at the existing `_build_ui_selected_prompt(...)` generation point so checkbox off omits battle state and item payload entirely, while checkbox on can include only valid user-confirmed item metadata.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v11.7 User-confirmed Item Prompt/Offline Fixture.
+T3, continue after v11.8 User-confirmed Item UI Mapping Design.
 
 Goal:
 - Do not add new item contexts.
@@ -157,9 +158,9 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v11.8 User-confirmed Item UI Mapping Design
-  - Alternative: v11.8 User-confirmed Item UI Integration
-  - Alternative: v11.8 Field State Source Design
+  - v11.9 User-confirmed Item UI Mapping Implementation
+  - Alternative: v11.9 User-confirmed Item UI Copy Design
+  - Alternative: v11.9 Field State Source Design
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.

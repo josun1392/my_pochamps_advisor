@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v11.8 - User-confirmed Item UI Mapping Design
+
+Purpose:
+- Design when the existing limited-context checkbox should enable user-confirmed item inclusion in `battle_state_context`.
+
+Design summary:
+- Current checkbox state is read in `MainWindow._start_llm_advice` and copied to `enable_turn_pipeline`, `enable_turn_order_context`, `enable_opponent_move_context`, and `enable_battle_state_context`.
+- Current `battle_state_context` is generated in `_build_ui_selected_prompt(...)` when `enable_battle_state_context=True`.
+- Recommended future mapping is `build_battle_state_context_from_ui_selected_state(battle_input, include_user_confirmed_items=enable_battle_state_context)`.
+- Checkbox off remains the hard gate: no `battle_state_context`, no serialized guard block, and no item payload.
+- Checkbox on with no/malformed/forbidden item metadata keeps item unknown.
+- Checkbox on with valid `status=user_confirmed`, `source=user_input`, non-empty `item_id` can include known `user_confirmed` item.
+- Future UI copy should mention user-confirmed item snapshot semantics.
+- Future guard tests may clarify that known item does not imply activation, consumption, post-turn HP, RNG, speed tie, Quick Claw activation, or full outcome.
+
+Recommended next:
+- v11.9 User-confirmed Item UI Mapping Implementation.
+- Alternative: v11.9 User-confirmed Item UI Copy Design.
+- Alternative: v11.9 Field State Source Design.
+
+Safety statement:
+- No production code change, UI item integration, UI source adapter connection, limited-context checkbox flow change, UI behavior/default/copy change, payload builder call-flow change, prompt guard wording change, actual Gemini call, retry, second provider call, Vertex AI call, network call, hidden item inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.7 - User-confirmed Item Prompt/Offline Fixture
 
 Purpose:
