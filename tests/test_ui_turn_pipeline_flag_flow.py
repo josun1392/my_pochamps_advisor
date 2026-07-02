@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -16,6 +17,19 @@ from ui.widgets.llm_advice_panel import LLMAdvicePanel, TURN_PIPELINE_HELP_TEXT,
 
 def _prompt_payload(prompt: str) -> dict:
     return json.loads(prompt.rsplit("\n\n", 1)[1])
+
+
+def _user_confirmed_item_profile(item_id: str) -> dict:
+    return {"status": "user_confirmed", "source": "user_input", "item_id": item_id}
+
+
+def _with_item_profiles(payload: dict, *, my_active: dict | None, opponent_active: dict | None) -> dict:
+    payload = deepcopy(payload)
+    payload["item_profiles"] = {
+        "my_active": my_active,
+        "opponent_active": opponent_active,
+    }
+    return payload
 
 
 def test_limited_context_checkbox_copy_describes_combined_candidate_context() -> None:
@@ -305,4 +319,177 @@ def test_limited_context_checkbox_on_omits_empty_opponent_move_context(
     assert "opponent_move_context" not in prompt_payload
     assert "battle_state_context" in prompt_payload
     assert "If opponent_move_context is present" not in prompt
+    assert "If battle_state_context is present" in prompt
+
+
+def test_limited_context_checkbox_item_profiles_are_mapped_only_when_checked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    panel = LLMAdvicePanel()
+    payload = _with_item_profiles(
+        _opponent_move_ui_advice_flow_payload(),
+        my_active=_user_confirmed_item_profile("leftovers"),
+        opponent_active=_user_confirmed_item_profile("choice-scarf"),
+    )
+    captured_prompts: list[str] = []
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert model == "offline-v11-9-items"
+        captured_prompts.append(prompt)
+        return (
+            "Known user-confirmed items are limited context only; no item consumption or resolved outcome is inferred.",
+            {"input_tokens": 1, "output_tokens": 1, "cached_tokens": 0},
+        )
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", lambda **kwargs: {"mocked": True})
+
+    def run_from_panel() -> None:
+        enabled = panel.turn_pipeline_enabled()
+        advisor_client.run_ui_selected_advice(
+            payload,
+            model="offline-v11-9-items",
+            enable_turn_pipeline=enabled,
+            enable_turn_order_context=enabled,
+            enable_opponent_move_context=enabled,
+            enable_battle_state_context=enabled,
+        )
+
+    run_from_panel()
+    panel.turn_pipeline_checkbox.setChecked(True)
+    run_from_panel()
+
+    assert len(captured_prompts) == 2
+    off_prompt, on_prompt = captured_prompts
+    off_payload = _prompt_payload(off_prompt)
+    on_payload = _prompt_payload(on_prompt)
+
+    assert "battle_state_context" not in off_payload
+    assert '"battle_state_context"' not in off_prompt
+    assert "If battle_state_context is present" not in off_prompt
+
+    battle_state_context = on_payload["battle_state_context"]
+    assert battle_state_context["self_active"]["species"] == {
+        "source": "visible_ui",
+        "name": on_payload["pokemon"]["my_active"]["name_en"],
+    }
+    assert battle_state_context["self_active"]["current_hp_percent"] == {
+        "source": "visible_ui",
+        "value": on_payload["pokemon"]["my_active"]["hp_percent"],
+    }
+    assert battle_state_context["opponent_active"]["species"] == {
+        "source": "visible_ui",
+        "name": on_payload["pokemon"]["opponent_active"]["name_en"],
+    }
+    assert battle_state_context["opponent_active"]["current_hp_percent"] == {
+        "source": "visible_ui",
+        "value": on_payload["pokemon"]["opponent_active"]["hp_percent"],
+    }
+    assert battle_state_context["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "leftovers",
+    }
+    assert battle_state_context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "choice-scarf",
+    }
+    assert '"value": "leftovers"' in on_prompt
+    assert '"value": "choice-scarf"' in on_prompt
+    assert "If battle_state_context is present" in on_prompt
+    assert "Do not claim post-turn HP, item consumption, RNG result, speed tie result, Quick Claw activation" in on_prompt
+
+    for forbidden_field in (
+        "item_consumed",
+        "item_consumption",
+        "post_turn_hp",
+        "rng_resolved",
+        "speed_tie_resolved",
+        "quick_claw_activated",
+        "full_turn_result",
+        "resolved_outcome",
+    ):
+        assert forbidden_field not in battle_state_context
+        assert forbidden_field not in battle_state_context["self_active"]
+        assert forbidden_field not in battle_state_context["opponent_active"]
+
+
+@pytest.mark.parametrize(
+    ("item_profiles", "expected_self_item", "expected_opponent_item"),
+    [
+        (None, BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+        (
+            {
+                "my_active": {"status": "user_confirmed", "source": "user_input"},
+                "opponent_active": {"status": "user_confirmed", "source": "user_input"},
+            },
+            BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
+            BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
+        ),
+        (
+            {
+                "my_active": {"status": "unknown", "source": "user_input", "item_id": "leftovers"},
+                "opponent_active": {"status": "none", "source": "user_input", "item_id": "choice-scarf"},
+            },
+            BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
+            BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
+        ),
+        (
+            {
+                "my_active": {"status": "user_confirmed", "source": "visible_ui", "item_id": "leftovers"},
+                "opponent_active": {
+                    "status": "user_confirmed",
+                    "source": "context_derived",
+                    "item_id": "choice-scarf",
+                },
+            },
+            BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
+            BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
+        ),
+        (
+            {
+                "my_active": _user_confirmed_item_profile("leftovers"),
+                "opponent_active": _user_confirmed_item_profile("choice-scarf"),
+            },
+            {"known": True, "source": "user_confirmed", "value": "leftovers"},
+            {"known": True, "source": "user_confirmed", "value": "choice-scarf"},
+        ),
+    ],
+)
+def test_limited_context_checkbox_on_item_profile_metadata_matrix(
+    item_profiles: dict | None,
+    expected_self_item: dict,
+    expected_opponent_item: dict,
+) -> None:
+    payload = deepcopy(_turn_pipeline_advice_flow_payload())
+    if item_profiles is None:
+        payload.pop("item_profiles", None)
+    else:
+        payload["item_profiles"] = item_profiles
+
+    prompt = advisor_client._build_ui_selected_prompt(
+        payload,
+        enable_turn_pipeline=True,
+        enable_turn_order_context=True,
+        enable_opponent_move_context=True,
+        enable_battle_state_context=True,
+    )
+    prompt_payload = _prompt_payload(prompt)
+    battle_state_context = prompt_payload["battle_state_context"]
+
+    assert battle_state_context["self_active"]["species"] == {
+        "source": "visible_ui",
+        "name": prompt_payload["pokemon"]["my_active"]["name_en"],
+    }
+    assert battle_state_context["opponent_active"]["current_hp_percent"] == {
+        "source": "visible_ui",
+        "value": prompt_payload["pokemon"]["opponent_active"]["hp_percent"],
+    }
+    assert battle_state_context["self_active"]["item"] == expected_self_item
+    assert battle_state_context["opponent_active"]["item"] == expected_opponent_item
+    assert all(value == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD for value in battle_state_context["field"].values())
+    assert battle_state_context["known_conditions"] == []
     assert "If battle_state_context is present" in prompt

@@ -1,5 +1,35 @@
 # Master Ball Advisor — Progress
 
+## v11.9 - User-confirmed Item UI Mapping
+
+Purpose:
+- Connect user-confirmed item inclusion to the existing limited-context checkbox battle-state path.
+
+Implementation summary:
+- Updated `_build_ui_selected_prompt(...)` to call `build_battle_state_context_from_ui_selected_state(battle_input, include_user_confirmed_items=enable_battle_state_context)`.
+- Checkbox off still omits `battle_state_context`, its prompt block, its guard, and known battle-state item values.
+- Checkbox on still includes species/HP as `visible_ui`.
+- Checkbox on + no/malformed/forbidden item metadata keeps item unknown.
+- Checkbox on + valid `status=user_confirmed`, `source=user_input`, non-empty `item_id` includes known `user_confirmed` self/opponent item.
+- Existing `turn_pipeline`, `turn_order_context`, and `opponent_move_context` coexistence remains covered.
+- UI copy, checkbox default, prompt guard wording, and payload builder call flow are unchanged.
+
+Test summary:
+- UI flag tests cover off-path omission with user-confirmed item profiles.
+- UI flag tests cover on-path known item serialization for valid metadata.
+- UI flag tests cover no item profiles, malformed metadata, wrong status, and forbidden sources.
+- Tests assert known item does not create item consumption, post-turn HP, RNG, speed tie, Quick Claw, or full outcome fields.
+
+Recommended next:
+- v11.10 User-confirmed Item UI Copy Update.
+- Alternative: v11.10 User-confirmed Item UI Offline Smoke.
+- Alternative: v11.10 Field State Source Design.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network call, new checkbox, UI checkbox default change, UI behavior/copy change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.8 - User-confirmed Item UI Mapping Design
 
 Purpose:

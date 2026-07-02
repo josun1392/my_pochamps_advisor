@@ -224,7 +224,10 @@ def _build_ui_selected_prompt(
         opponent_move_context = _build_optional_opponent_move_context_for_advice_payload(base_payload)
 
     if battle_state_context is None and enable_battle_state_context:
-        battle_state_context = build_battle_state_context_from_ui_selected_state(battle_input)
+        battle_state_context = build_battle_state_context_from_ui_selected_state(
+            battle_input,
+            include_user_confirmed_items=enable_battle_state_context,
+        )
 
     advice_payload = build_ui_advice_payload(
         battle_input,

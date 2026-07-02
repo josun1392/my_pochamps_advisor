@@ -66,6 +66,14 @@ battle-state generation point. Checkbox off remains the hard gate and must omit
 user-confirmed items. No payload contract or runtime behavior changes are made
 in v11.8.
 
+v11.9 status note: the existing limited-context checkbox battle-state path now
+passes `include_user_confirmed_items=enable_battle_state_context` when it
+auto-generates `battle_state_context`. Checkbox off still omits
+`battle_state_context` entirely. Checkbox on can include known
+`user_confirmed` item values only from valid `item_profiles` metadata; malformed
+or forbidden metadata remains unknown. UI copy and prompt guard wording are
+unchanged.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
