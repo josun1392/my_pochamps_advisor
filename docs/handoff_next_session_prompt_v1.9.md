@@ -124,19 +124,20 @@ Update after v2.5:
 - v12.2 closed the user-confirmed item actual smoke as PASS. The closure records T1 approval, one-call/no-retry execution, payload boundary PASS, prompt boundary PASS, response safety scan PASS, sanitized token/cost summary only, unstaged `logs/token_usage.jsonl`, and no raw token-log or secret output.
 - v12.3 designed field state sources for `battle_state_context.field`. Current UI path still has no safe weather/terrain/screens/hazards/room source, so field remains unknown. Future field support should start with contract tests and allow only explicit/user-confirmed sources first; visible UI, battle-log observed, and parser-observed sources require later source-specific designs.
 - v12.4 locked field state source contract tests. Helper behavior now preserves only `explicit_input`/`user_confirmed` known field sources and normalizes forbidden field sources to unknown; payload validation rejects forbidden field sources. Known field values do not create duration, expiration, post-turn, `damage_estimate`, or `ko_context` changes.
+- v12.5 aligned field helper normalization with the field source contract. Helper behavior validates field values by key, preserves only valid `explicit_input`/`user_confirmed` known field values, keeps side-specific screens/hazards inside the existing known envelope, normalizes malformed helper input to unknown, and rejects malformed direct payload known field envelopes. No UI integration, prompt guard wording change, payload builder call-flow change, `damage_estimate`, or `ko_context` behavior change was made.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.4 Field State Contract Tests.
+T3, continue after v12.5 Field State Helper.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.5 Field State Helper.
+- Current recommended next milestone is v12.6 Field State Prompt/Offline Fixture.
 - Treat the original item-context verification queue as closed:
   - Focus Band: PASS
   - Quick Claw: PASS
@@ -168,9 +169,9 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.5 Field State Helper
-  - Alternative: v12.5 Field State Prompt/Offline Fixture
-  - Alternative: v12.5 Item Activation/Consumption Boundary Design
+  - v12.6 Field State Prompt/Offline Fixture
+  - Alternative: v12.6 Field State UI Source Inventory
+  - Alternative: v12.6 Item Activation/Consumption Boundary Design
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.

@@ -214,7 +214,10 @@ def _active_side(active: Mapping[str, Any] | None) -> dict[str, Any]:
 
 def _field_state(field: Mapping[str, Any] | None) -> dict[str, Any]:
     field = field or {}
-    return {key: _known_field_value_or_unknown(field.get(key)) for key in BATTLE_STATE_CONTEXT_FIELD_FIELDS}
+    return {
+        key: _known_field_value_or_unknown(key, field.get(key))
+        for key in BATTLE_STATE_CONTEXT_FIELD_FIELDS
+    }
 
 
 def _known_conditions(conditions: Sequence[Mapping[str, Any]] | None) -> list[dict[str, Any]]:
@@ -273,14 +276,58 @@ def _known_item_or_unknown(entry: object) -> dict[str, Any]:
     return {"known": True, "source": source, "value": _sanitize_value(value)}
 
 
-def _known_field_value_or_unknown(entry: object) -> dict[str, Any]:
+def _known_field_value_or_unknown(field_name: str, entry: object) -> dict[str, Any]:
     if not isinstance(entry, Mapping):
+        return _unknown_field()
+    if entry.get("known") is False:
         return _unknown_field()
     source = entry.get("source")
     value = entry.get("value")
     if not isinstance(source, str) or source not in BATTLE_STATE_CONTEXT_FIELD_ALLOWED_SOURCES or value is None:
         return _unknown_field()
+    if not _field_value_is_allowed(field_name, value):
+        return _unknown_field()
     return {"known": True, "source": source, "value": _sanitize_value(value)}
+
+
+def _field_value_is_allowed(field_name: str, value: object) -> bool:
+    if field_name in {"screens", "hazards"}:
+        return _side_specific_field_value_is_allowed(value)
+    if field_name in {"weather", "terrain"}:
+        return isinstance(value, str) and bool(value.strip())
+    if field_name == "room":
+        return _simple_field_value_is_allowed(value)
+    return False
+
+
+def _simple_field_value_is_allowed(value: object) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, Mapping):
+        return bool(value) and all(isinstance(key, str) and key.strip() for key in value)
+    return False
+
+
+def _side_specific_field_value_is_allowed(value: object) -> bool:
+    if not isinstance(value, Mapping) or not value:
+        return False
+    if not set(value).issubset({"self", "opponent"}):
+        return False
+    return all(_side_specific_condition_list_is_allowed(side_value) for side_value in value.values()) and any(
+        _side_specific_condition_list_has_known_value(side_value) for side_value in value.values()
+    )
+
+
+def _side_specific_condition_list_is_allowed(value: object) -> bool:
+    if value == "unknown":
+        return True
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return all(isinstance(entry, str) and bool(entry.strip()) for entry in value)
+    return False
+
+
+def _side_specific_condition_list_has_known_value(value: object) -> bool:
+    return isinstance(value, Sequence) and not isinstance(value, (str, bytes)) and any(value)
 
 
 def _source_is_allowed(source: object) -> bool:

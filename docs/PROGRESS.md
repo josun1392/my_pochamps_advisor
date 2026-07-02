@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v12.5 - Field State Helper
+
+Purpose:
+- Align `battle_state_context.field` helper normalization with the v12.4 field source contract.
+
+Implementation summary:
+- Updated field helper normalization to validate entries by field key.
+- Preserved known `weather`, `terrain`, and `room` only from `explicit_input` or `user_confirmed`.
+- Preserved side-specific `screens` and `hazards` values inside the existing known-value envelope.
+- Allowed side-specific screens/hazards values to use `self` and `opponent` with condition-string lists or `"unknown"` markers.
+- Required at least one known side-specific condition for screens/hazards to remain known.
+- Normalized malformed field entries to unknown at the helper layer.
+- Rejected malformed direct known field envelopes at the payload adapter validation layer.
+- Kept duration, expiration, post-turn, `damage_estimate`, and `ko_context` behavior unchanged.
+
+Recommended next:
+- v12.6 Field State Prompt/Offline Fixture.
+- Alternative: v12.6 Field State UI Source Inventory.
+- Alternative: v12.6 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network call, UI integration, battle log/parser implementation, new checkbox, UI checkbox default change, UI behavior/copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, `damage_estimate`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.4 - Field State Contract Tests
 
 Purpose:

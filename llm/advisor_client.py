@@ -943,6 +943,49 @@ def _validate_battle_state_known_field_value_or_unknown(value: Any, field_name: 
     known_value = value.get("value")
     if known_value is None or known_value == "unknown":
         raise ValueError(f"battle_state_context {field_name} requires known value")
+    field_key = field_name.rsplit(".", maxsplit=1)[-1]
+    if not _battle_state_field_value_is_allowed(field_key, known_value):
+        raise ValueError(f"battle_state_context {field_name} known value is not allowed")
+
+
+def _battle_state_field_value_is_allowed(field_name: str, value: Any) -> bool:
+    if field_name in {"screens", "hazards"}:
+        return _battle_state_side_specific_field_value_is_allowed(value)
+    if field_name in {"weather", "terrain"}:
+        return isinstance(value, str) and bool(value.strip())
+    if field_name == "room":
+        return _battle_state_simple_field_value_is_allowed(value)
+    return False
+
+
+def _battle_state_simple_field_value_is_allowed(value: Any) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, dict):
+        return bool(value) and all(isinstance(key, str) and key.strip() for key in value)
+    return False
+
+
+def _battle_state_side_specific_field_value_is_allowed(value: Any) -> bool:
+    if not isinstance(value, dict) or not value:
+        return False
+    if not set(value).issubset({"self", "opponent"}):
+        return False
+    return all(_battle_state_side_condition_list_is_allowed(side_value) for side_value in value.values()) and any(
+        _battle_state_side_condition_list_has_known_value(side_value) for side_value in value.values()
+    )
+
+
+def _battle_state_side_condition_list_is_allowed(value: Any) -> bool:
+    if value == "unknown":
+        return True
+    if isinstance(value, list):
+        return all(isinstance(entry, str) and bool(entry.strip()) for entry in value)
+    return False
+
+
+def _battle_state_side_condition_list_has_known_value(value: Any) -> bool:
+    return isinstance(value, list) and bool(value)
 
 
 def _validate_battle_state_context_sources(value: Any) -> None:

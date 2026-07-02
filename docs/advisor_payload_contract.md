@@ -134,6 +134,16 @@ item-effect, legality-gate, resist-berry, hidden, and model guesses as field
 sources. Known field values do not create duration, expiration, post-turn,
 `damage_estimate`, or `ko_context` changes.
 
+v12.5 status note: field helper normalization now validates field values by
+field key while preserving the v12.4 contract shape. `weather`, `terrain`, and
+`room` known values remain limited to `explicit_input` or `user_confirmed`.
+`screens` and `hazards` keep side-specific values inside the existing known
+envelope. Malformed helper inputs normalize to unknown, and malformed direct
+known field envelopes are rejected by payload validation. No UI integration,
+prompt guard wording change, payload builder call-flow change, duration,
+expiration, post-turn, `damage_estimate`, or `ko_context` behavior change is
+made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

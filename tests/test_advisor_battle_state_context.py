@@ -74,8 +74,8 @@ def test_explicit_and_user_confirmed_values_are_known_values() -> None:
         field={
             "weather": {"source": "explicit_input", "value": "rain"},
             "terrain": {"source": "explicit_input", "value": "electric"},
-            "screens": {"source": "explicit_input", "value": {"reflect": True}},
-            "hazards": {"source": "explicit_input", "value": {"stealth_rock": True}},
+            "screens": {"source": "explicit_input", "value": {"self": ["reflect"], "opponent": []}},
+            "hazards": {"source": "explicit_input", "value": {"self": [], "opponent": ["stealth_rock"]}},
             "room": {"source": "explicit_input", "value": {"trick_room": False}},
         },
         known_conditions=[
@@ -112,12 +112,12 @@ def test_explicit_and_user_confirmed_values_are_known_values() -> None:
     assert context["field"]["screens"] == {
         "known": True,
         "source": "explicit_input",
-        "value": {"reflect": True},
+        "value": {"self": ["reflect"], "opponent": []},
     }
     assert context["field"]["hazards"] == {
         "known": True,
         "source": "explicit_input",
-        "value": {"stealth_rock": True},
+        "value": {"self": [], "opponent": ["stealth_rock"]},
     }
     assert context["field"]["room"] == {
         "known": True,
@@ -257,6 +257,71 @@ def test_field_sources_without_explicit_or_user_confirmation_remain_unknown() ->
         assert context["confidence"] == "unknown", source
         assert context["field"] == _unknown_field_state(), source
         _assert_no_forbidden_fields(context)
+
+
+def test_malformed_field_values_normalize_to_unknown() -> None:
+    context = build_battle_state_context(
+        field={
+            "weather": "rain",
+            "terrain": {"known": True, "value": "electric"},
+            "screens": {"source": "user_confirmed", "value": ["reflect"]},
+            "hazards": {"source": "explicit_input", "value": {"opponent": [""]}},
+            "room": {"known": False, "source": "user_confirmed", "value": "trick_room"},
+        }
+    )
+
+    assert context["confidence"] == "unknown"
+    assert context["field"] == _unknown_field_state()
+    _assert_no_field_resolution_fields(context)
+
+
+def test_helper_preserves_side_specific_field_unknown_markers() -> None:
+    context = build_battle_state_context(
+        field={
+            "screens": {
+                "source": "user_confirmed",
+                "value": {"self": ["reflect"], "opponent": "unknown"},
+            },
+            "hazards": {
+                "source": "explicit_input",
+                "value": {"self": "unknown", "opponent": ["stealth_rock"]},
+            },
+        }
+    )
+
+    assert context["field"]["screens"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": ["reflect"], "opponent": "unknown"},
+    }
+    assert context["field"]["hazards"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": {"self": "unknown", "opponent": ["stealth_rock"]},
+    }
+    _assert_no_field_resolution_fields(context)
+
+
+def test_malformed_side_specific_field_values_normalize_to_unknown() -> None:
+    malformed_values = [
+        {"reflect": True},
+        {"self": "reflect"},
+        {"opponent": [None]},
+        {"self": []},
+        {},
+    ]
+
+    for value in malformed_values:
+        context = build_battle_state_context(
+            field={
+                "screens": {"source": "user_confirmed", "value": value},
+                "hazards": {"source": "explicit_input", "value": value},
+            }
+        )
+
+        assert context["field"]["screens"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, value
+        assert context["field"]["hazards"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, value
+        _assert_no_field_resolution_fields(context)
 
 
 def test_known_field_values_do_not_create_duration_expiration_or_post_turn_fields() -> None:

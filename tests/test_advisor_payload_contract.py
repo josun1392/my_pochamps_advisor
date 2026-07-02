@@ -814,8 +814,8 @@ def test_battle_state_context_payload_adapter_adds_explicit_top_level_context() 
         field={
             "weather": {"source": "explicit_input", "value": "rain"},
             "terrain": {"source": "explicit_input", "value": "electric"},
-            "screens": {"source": "explicit_input", "value": {"reflect": True}},
-            "hazards": {"source": "explicit_input", "value": {"stealth_rock": True}},
+            "screens": {"source": "explicit_input", "value": {"self": ["reflect"], "opponent": []}},
+            "hazards": {"source": "explicit_input", "value": {"self": [], "opponent": ["stealth_rock"]}},
             "room": {"source": "explicit_input", "value": {"trick_room": False}},
         },
     )
@@ -1060,6 +1060,35 @@ def test_battle_state_context_payload_adapter_rejects_forbidden_field_sources(so
     }
 
     with pytest.raises(ValueError, match="field.weather source"):
+        build_ui_advice_payload(payload, battle_state_context=context, enable_battle_state_context=True)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [
+        ("weather", ""),
+        ("terrain", {"name": "electric"}),
+        ("screens", {"reflect": True}),
+        ("screens", {"self": "reflect"}),
+        ("screens", {"self": []}),
+        ("hazards", {"opponent": [None]}),
+        ("hazards", {"self": "unknown", "opponent": "unknown"}),
+        ("room", {}),
+    ],
+)
+def test_battle_state_context_payload_adapter_rejects_malformed_known_field_values(
+    field_name: str,
+    field_value: object,
+) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+    context["field"][field_name] = {
+        "known": True,
+        "source": "user_confirmed",
+        "value": field_value,
+    }
+
+    with pytest.raises(ValueError, match=f"field.{field_name}"):
         build_ui_advice_payload(payload, battle_state_context=context, enable_battle_state_context=True)
 
 
@@ -2714,8 +2743,8 @@ def test_battle_state_context_offline_advice_fixture_covers_prompt_and_mocked_re
         field={
             "weather": {"source": "explicit_input", "value": "rain"},
             "terrain": {"source": "explicit_input", "value": "electric"},
-            "screens": {"source": "explicit_input", "value": {"reflect": True}},
-            "hazards": {"source": "explicit_input", "value": {"stealth_rock": True}},
+            "screens": {"source": "explicit_input", "value": {"self": ["reflect"], "opponent": []}},
+            "hazards": {"source": "explicit_input", "value": {"self": [], "opponent": ["stealth_rock"]}},
             "room": {"source": "explicit_input", "value": {"trick_room": False}},
         },
         known_conditions=[
