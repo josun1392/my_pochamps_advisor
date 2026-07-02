@@ -938,6 +938,164 @@ def test_battle_state_context_payload_adapter_rejects_item_sources_without_user_
         build_ui_advice_payload(payload, battle_state_context=context, enable_battle_state_context=True)
 
 
+@pytest.mark.parametrize("source", ["explicit_input", "user_confirmed"])
+def test_battle_state_context_contract_allows_known_field_sources(source: str) -> None:
+    context = _sample_battle_state_context()
+    context["field"] = {
+        "weather": {"known": True, "source": source, "value": "rain"},
+        "terrain": {"known": True, "source": source, "value": "electric"},
+        "screens": {
+            "known": True,
+            "source": source,
+            "value": {"self": ["reflect"], "opponent": ["light_screen"]},
+        },
+        "hazards": {
+            "known": True,
+            "source": source,
+            "value": {"self": [], "opponent": ["stealth_rock"]},
+        },
+        "room": {"known": True, "source": source, "value": "trick_room"},
+    }
+
+    _assert_battle_state_context_contract(context)
+    _assert_battle_state_context_has_no_forbidden_fields(context)
+    _assert_no_field_resolution_fields(context)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "visible_ui",
+        "calculated_from_visible",
+        "context_derived",
+        "damage_reverse",
+        "damage_reverse_inference",
+        "ko_context",
+        "turn_order_context",
+        "opponent_move_context",
+        "species_common_meta",
+        "species_common_set",
+        "item_inferred_effect",
+        "legality_gate",
+        "legality_gate_guess",
+        "resist_berry_context",
+        "resist_berry_inferred",
+        "hidden_guess",
+        "hidden_state_guess",
+        "model_guess",
+    ],
+)
+def test_battle_state_context_contract_rejects_field_sources_without_explicit_confirmation(source: str) -> None:
+    context = _sample_battle_state_context()
+    context["field"]["weather"] = {
+        "known": True,
+        "source": source,
+        "value": "rain",
+    }
+
+    with pytest.raises(AssertionError):
+        _assert_battle_state_context_contract(context)
+
+
+@pytest.mark.parametrize("source", ["explicit_input", "user_confirmed"])
+def test_battle_state_context_payload_adapter_accepts_known_field_sources(source: str) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+    context["field"] = {
+        "weather": {"known": True, "source": source, "value": "rain"},
+        "terrain": {"known": True, "source": source, "value": "electric"},
+        "screens": {
+            "known": True,
+            "source": source,
+            "value": {"self": ["reflect"], "opponent": []},
+        },
+        "hazards": {
+            "known": True,
+            "source": source,
+            "value": {"self": [], "opponent": ["stealth_rock"]},
+        },
+        "room": {"known": True, "source": source, "value": "trick_room"},
+    }
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    assert advice_payload["battle_state_context"]["field"] == context["field"]
+    _assert_no_field_resolution_fields(advice_payload["battle_state_context"])
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "visible_ui",
+        "calculated_from_visible",
+        "context_derived",
+        "damage_reverse",
+        "damage_reverse_inference",
+        "ko_context",
+        "turn_order_context",
+        "opponent_move_context",
+        "species_common_meta",
+        "species_common_set",
+        "item_inferred_effect",
+        "legality_gate",
+        "legality_gate_guess",
+        "resist_berry_context",
+        "resist_berry_inferred",
+        "hidden_guess",
+        "hidden_state_guess",
+        "model_guess",
+    ],
+)
+def test_battle_state_context_payload_adapter_rejects_forbidden_field_sources(source: str) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+    context["field"]["weather"] = {
+        "known": True,
+        "source": source,
+        "value": "rain",
+    }
+
+    with pytest.raises(ValueError, match="field.weather source"):
+        build_ui_advice_payload(payload, battle_state_context=context, enable_battle_state_context=True)
+
+
+def test_battle_state_context_known_field_does_not_change_damage_estimate_or_ko_context() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    baseline_context = _sample_battle_state_context()
+    context = _sample_battle_state_context()
+    context["field"]["weather"] = {"known": True, "source": "user_confirmed", "value": "rain"}
+    context["field"]["screens"] = {
+        "known": True,
+        "source": "explicit_input",
+        "value": {"self": ["reflect"], "opponent": []},
+    }
+
+    baseline_payload = build_ui_advice_payload(
+        deepcopy(payload),
+        battle_state_context=baseline_context,
+        enable_battle_state_context=True,
+    )
+    advice_payload = build_ui_advice_payload(
+        deepcopy(payload),
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    assert (
+        advice_payload["moves"]["my_selected_move"]["damage_estimate"]
+        == baseline_payload["moves"]["my_selected_move"]["damage_estimate"]
+    )
+    assert (
+        advice_payload["moves"]["my_selected_move"]["ko_context"]
+        == baseline_payload["moves"]["my_selected_move"]["ko_context"]
+    )
+    _assert_no_field_resolution_fields(advice_payload["battle_state_context"])
+
+
 def test_battle_state_context_payload_adapter_omits_empty_helper_context() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
     context = build_battle_state_context()
@@ -6328,6 +6486,7 @@ BATTLE_STATE_CONTEXT_ALLOWED_SOURCES = frozenset(
     }
 )
 BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES = frozenset({"explicit_input", "user_confirmed"})
+BATTLE_STATE_CONTEXT_FIELD_ALLOWED_SOURCES = frozenset({"explicit_input", "user_confirmed"})
 BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES = frozenset(
     {
         "species_common_set",
@@ -6465,7 +6624,7 @@ def _assert_battle_state_context_contract(context: dict) -> None:
         _assert_battle_state_active_side_contract(context[side_key])
     assert set(context["field"]) == {"weather", "terrain", "screens", "hazards", "room"}
     for field_value in context["field"].values():
-        _assert_battle_state_unknown_or_known_source_field(field_value)
+        _assert_battle_state_unknown_or_known_field_source_field(field_value)
     assert isinstance(context["known_conditions"], list)
     assert BATTLE_STATE_CONTEXT_REQUIRED_UNSUPPORTED.issubset(set(context["unsupported"]))
     assert "Unknown battle state fields must remain unknown." in context["safety_notes"]
@@ -6511,6 +6670,17 @@ def _assert_battle_state_item_unknown_or_known_source_field(field: dict) -> None
     assert field.get("source") in BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES
 
 
+def _assert_battle_state_unknown_or_known_field_source_field(field: dict) -> None:
+    assert field.get("known") in {True, False}
+    if field["known"] is False:
+        assert field == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+        return
+    known_value = field.get("value")
+    assert known_value is not None
+    assert known_value != "unknown"
+    assert field.get("source") in BATTLE_STATE_CONTEXT_FIELD_ALLOWED_SOURCES
+
+
 def _assert_battle_state_context_sources(value: object) -> None:
     if isinstance(value, dict):
         source = value.get("source")
@@ -6532,6 +6702,26 @@ def _assert_battle_state_context_has_no_forbidden_fields(value: object) -> None:
     elif isinstance(value, list):
         for child_value in value:
             _assert_battle_state_context_has_no_forbidden_fields(child_value)
+
+
+def _assert_no_field_resolution_fields(value: object) -> None:
+    forbidden_field_resolution_fields = {
+        "duration",
+        "duration_turns",
+        "expires_after_turn",
+        "expiration",
+        "post_turn_expiration",
+        "post_turn_hp",
+        "resolved_outcome",
+        "full_turn_result",
+    }
+    if isinstance(value, dict):
+        for key, child_value in value.items():
+            assert key not in forbidden_field_resolution_fields
+            _assert_no_field_resolution_fields(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _assert_no_field_resolution_fields(child_value)
 
 
 def _battle_state_context_relationship_boundaries() -> str:

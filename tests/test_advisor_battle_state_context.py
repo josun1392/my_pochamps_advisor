@@ -129,6 +129,150 @@ def test_explicit_and_user_confirmed_values_are_known_values() -> None:
     ]
 
 
+def test_user_confirmed_field_values_are_preserved_as_current_context() -> None:
+    context = build_battle_state_context(
+        field={
+            "weather": {"source": "user_confirmed", "value": "rain"},
+            "terrain": {"source": "user_confirmed", "value": "electric"},
+            "screens": {
+                "source": "user_confirmed",
+                "value": {"self": ["reflect"], "opponent": []},
+            },
+            "hazards": {
+                "source": "user_confirmed",
+                "value": {"self": [], "opponent": ["stealth_rock"]},
+            },
+            "room": {"source": "user_confirmed", "value": "trick_room"},
+        }
+    )
+
+    assert context["confidence"] == "limited"
+    assert context["field"]["weather"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "rain",
+    }
+    assert context["field"]["terrain"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "electric",
+    }
+    assert context["field"]["screens"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": ["reflect"], "opponent": []},
+    }
+    assert context["field"]["hazards"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": [], "opponent": ["stealth_rock"]},
+    }
+    assert context["field"]["room"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "trick_room",
+    }
+    _assert_no_field_resolution_fields(context)
+
+
+def test_explicit_input_field_values_are_preserved_as_current_context() -> None:
+    context = build_battle_state_context(
+        field={
+            "weather": {"source": "explicit_input", "value": "sun"},
+            "terrain": {"source": "explicit_input", "value": "grassy"},
+            "screens": {
+                "source": "explicit_input",
+                "value": {"self": [], "opponent": ["light_screen"]},
+            },
+            "hazards": {
+                "source": "explicit_input",
+                "value": {"self": ["spikes"], "opponent": []},
+            },
+            "room": {"source": "explicit_input", "value": {"trick_room": False}},
+        }
+    )
+
+    assert context["confidence"] == "limited"
+    assert context["field"]["weather"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": "sun",
+    }
+    assert context["field"]["terrain"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": "grassy",
+    }
+    assert context["field"]["screens"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": {"self": [], "opponent": ["light_screen"]},
+    }
+    assert context["field"]["hazards"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": {"self": ["spikes"], "opponent": []},
+    }
+    assert context["field"]["room"] == {
+        "known": True,
+        "source": "explicit_input",
+        "value": {"trick_room": False},
+    }
+    _assert_no_field_resolution_fields(context)
+
+
+def test_field_sources_without_explicit_or_user_confirmation_remain_unknown() -> None:
+    disallowed_sources = [
+        "visible_ui",
+        "calculated_from_visible",
+        "damage_reverse",
+        "damage_reverse_inference",
+        "ko_context",
+        "turn_order_context",
+        "opponent_move_context",
+        "species_common_meta",
+        "species_common_set",
+        "item_inferred_effect",
+        "legality_gate",
+        "legality_gate_guess",
+        "resist_berry_context",
+        "resist_berry_inferred",
+        "hidden_guess",
+        "hidden_state_guess",
+        "model_guess",
+        "context_derived",
+    ]
+
+    for source in disallowed_sources:
+        context = build_battle_state_context(
+            field={
+                "weather": {"source": source, "value": "rain"},
+                "terrain": {"source": source, "value": "electric"},
+                "screens": {"source": source, "value": {"self": ["reflect"]}},
+                "hazards": {"source": source, "value": {"opponent": ["stealth_rock"]}},
+                "room": {"source": source, "value": "trick_room"},
+            }
+        )
+
+        assert context["confidence"] == "unknown", source
+        assert context["field"] == _unknown_field_state(), source
+        _assert_no_forbidden_fields(context)
+
+
+def test_known_field_values_do_not_create_duration_expiration_or_post_turn_fields() -> None:
+    context = build_battle_state_context(
+        field={
+            "weather": {"source": "user_confirmed", "value": "rain"},
+            "terrain": {"source": "explicit_input", "value": "electric"},
+            "screens": {"source": "user_confirmed", "value": {"self": ["reflect"]}},
+            "hazards": {"source": "explicit_input", "value": {"opponent": ["spikes"]}},
+            "room": {"source": "user_confirmed", "value": "trick_room"},
+        }
+    )
+
+    _assert_no_field_resolution_fields(context)
+
+
 def test_forbidden_sources_become_unknown_or_are_omitted() -> None:
     context = build_battle_state_context(
         self_active={
@@ -654,3 +798,23 @@ def _assert_no_item_resolution_fields(value: object) -> None:
     elif isinstance(value, list):
         for child_value in value:
             _assert_no_item_resolution_fields(child_value)
+
+
+def _assert_no_field_resolution_fields(value: object) -> None:
+    forbidden_field_resolution_fields = {
+        "duration",
+        "duration_turns",
+        "expires_after_turn",
+        "expiration",
+        "post_turn_expiration",
+        "post_turn_hp",
+        "resolved_outcome",
+        "full_turn_result",
+    }
+    if isinstance(value, dict):
+        for key, child_value in value.items():
+            assert key not in forbidden_field_resolution_fields
+            _assert_no_field_resolution_fields(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _assert_no_field_resolution_fields(child_value)

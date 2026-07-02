@@ -18,6 +18,7 @@ from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_ACTIVE_FIELDS,
     BATTLE_STATE_CONTEXT_ALLOWED_SOURCES,
     BATTLE_STATE_CONTEXT_FIELD_FIELDS,
+    BATTLE_STATE_CONTEXT_FIELD_ALLOWED_SOURCES,
     BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS,
     BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES,
     BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES,
@@ -876,7 +877,7 @@ def _validate_battle_state_field(field: Any) -> None:
     if set(field) != set(BATTLE_STATE_CONTEXT_FIELD_FIELDS):
         raise ValueError("battle_state_context field shape is not allowed")
     for field_name in BATTLE_STATE_CONTEXT_FIELD_FIELDS:
-        _validate_battle_state_known_value_or_unknown(field[field_name], f"field.{field_name}")
+        _validate_battle_state_known_field_value_or_unknown(field[field_name], f"field.{field_name}")
 
 
 def _validate_battle_state_name_or_unknown(value: Any, field_name: str) -> None:
@@ -924,6 +925,20 @@ def _validate_battle_state_item_or_unknown(value: Any, field_name: str) -> None:
     if value.get("known") is not True:
         raise ValueError(f"battle_state_context {field_name} known value is not allowed")
     if value.get("source") not in BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES:
+        raise ValueError(f"battle_state_context {field_name} source is not allowed")
+    known_value = value.get("value")
+    if known_value is None or known_value == "unknown":
+        raise ValueError(f"battle_state_context {field_name} requires known value")
+
+
+def _validate_battle_state_known_field_value_or_unknown(value: Any, field_name: str) -> None:
+    if value == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD:
+        return
+    if not isinstance(value, dict):
+        raise ValueError(f"battle_state_context {field_name} must be a mapping")
+    if value.get("known") is not True:
+        raise ValueError(f"battle_state_context {field_name} known value is not allowed")
+    if value.get("source") not in BATTLE_STATE_CONTEXT_FIELD_ALLOWED_SOURCES:
         raise ValueError(f"battle_state_context {field_name} source is not allowed")
     known_value = value.get("value")
     if known_value is None or known_value == "unknown":

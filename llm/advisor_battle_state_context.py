@@ -20,16 +20,29 @@ BATTLE_STATE_CONTEXT_ALLOWED_SOURCES = frozenset(
     }
 )
 BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES = frozenset({"explicit_input", "user_confirmed"})
+BATTLE_STATE_CONTEXT_FIELD_ALLOWED_SOURCES = frozenset({"explicit_input", "user_confirmed"})
 BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES = frozenset(
     {
+        "battle_log_observed",
+        "damage_reverse",
         "species_common_set",
+        "species_common_meta",
         "usage_based_guess",
         "meta_inferred",
         "hidden_state_guess",
+        "hidden_guess",
         "damage_reverse_inference",
         "legality_gate_guess",
+        "legality_gate",
         "context_derived",
         "resist_berry_inferred",
+        "resist_berry_context",
+        "ko_context",
+        "turn_order_context",
+        "opponent_move_context",
+        "item_inferred_effect",
+        "model_guess",
+        "parser_observed",
     }
 )
 BATTLE_STATE_CONTEXT_ACTIVE_FIELDS = ("species", "current_hp_percent", "status", "boosts", "item")
@@ -201,7 +214,7 @@ def _active_side(active: Mapping[str, Any] | None) -> dict[str, Any]:
 
 def _field_state(field: Mapping[str, Any] | None) -> dict[str, Any]:
     field = field or {}
-    return {key: _known_value_or_unknown(field.get(key)) for key in BATTLE_STATE_CONTEXT_FIELD_FIELDS}
+    return {key: _known_field_value_or_unknown(field.get(key)) for key in BATTLE_STATE_CONTEXT_FIELD_FIELDS}
 
 
 def _known_conditions(conditions: Sequence[Mapping[str, Any]] | None) -> list[dict[str, Any]]:
@@ -256,6 +269,16 @@ def _known_item_or_unknown(entry: object) -> dict[str, Any]:
     source = entry.get("source")
     value = entry.get("value")
     if not isinstance(source, str) or source not in BATTLE_STATE_CONTEXT_ITEM_ALLOWED_SOURCES or value is None:
+        return _unknown_field()
+    return {"known": True, "source": source, "value": _sanitize_value(value)}
+
+
+def _known_field_value_or_unknown(entry: object) -> dict[str, Any]:
+    if not isinstance(entry, Mapping):
+        return _unknown_field()
+    source = entry.get("source")
+    value = entry.get("value")
+    if not isinstance(source, str) or source not in BATTLE_STATE_CONTEXT_FIELD_ALLOWED_SOURCES or value is None:
         return _unknown_field()
     return {"known": True, "source": source, "value": _sanitize_value(value)}
 

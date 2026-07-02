@@ -1,5 +1,29 @@
 # Master Ball Advisor — Progress
 
+## v12.4 - Field State Contract Tests
+
+Purpose:
+- Lock field-state source contract and forbidden source behavior with helper and payload tests.
+
+Implementation summary:
+- Added field-specific helper tests for default unknown field behavior, `explicit_input`/`user_confirmed` weather, terrain, screens, hazards, and room preservation.
+- Added helper tests that forbidden field sources normalize to unknown.
+- Added helper guard coverage that known field values do not create duration, expiration, or post-turn fields.
+- Added payload contract tests accepting `explicit_input`/`user_confirmed` field sources.
+- Added payload contract tests rejecting forbidden field sources, including `context_derived` and `calculated_from_visible`.
+- Added payload test proving known field values do not mutate `damage_estimate` or `ko_context`.
+- Added field-specific source validation so field values allow only `explicit_input` and `user_confirmed`.
+
+Recommended next:
+- v12.5 Field State Helper.
+- Alternative: v12.5 Field State Prompt/Offline Fixture.
+- Alternative: v12.5 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network call, UI integration, battle log/parser implementation, new checkbox, UI checkbox default change, UI behavior/copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, `damage_estimate`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.3 - Field State Source Design
 
 Purpose:

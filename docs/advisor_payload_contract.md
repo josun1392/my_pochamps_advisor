@@ -124,6 +124,16 @@ species/common/meta, item effects, legality gate, resist berry context, hidden
 guesses, and model guesses must not create known field state. No payload
 contract shape change is made.
 
+v12.4 status note: field state source contract tests now lock the initial field
+source policy. Helper normalization preserves `explicit_input` and
+`user_confirmed` field values and normalizes forbidden field sources to unknown.
+Payload validation accepts only `explicit_input` and `user_confirmed` for known
+field values and rejects `visible_ui`, `calculated_from_visible`,
+`context_derived`, damage/KO/turn/order/opponent-move-derived, species/common,
+item-effect, legality-gate, resist-berry, hidden, and model guesses as field
+sources. Known field values do not create duration, expiration, post-turn,
+`damage_estimate`, or `ko_context` changes.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
