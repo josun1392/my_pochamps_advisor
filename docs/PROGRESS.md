@@ -1,5 +1,43 @@
 # Master Ball Advisor — Progress
 
+## v12.2 - User-confirmed Item Actual Smoke Closure
+
+Purpose:
+- Close the v12.1 controlled user-confirmed item actual Gemini smoke as PASS.
+
+Closure summary:
+- T1 approval confirmation: YES.
+- Actual Gemini call count: `1`.
+- Retry count: `0`.
+- Second provider call: NO.
+- Vertex AI call: NO.
+- Model: `gemini-2.5-flash`.
+- Payload boundary: PASS.
+- Prompt boundary: PASS.
+- Response safety scan: PASS.
+- Forbidden matches: none.
+- Token/cost sanitized summary: input `11770`, output `213`, cached `0`, estimated USD `0.00000000`, pricing status `free_tier_zero_cost`.
+- `logs/token_usage.jsonl` modified remained unstaged.
+- Token log raw lines were not printed.
+- Secrets were not printed.
+
+Known limitations:
+- One controlled fixture only, not broad model behavior proof.
+- No battle log/parser observed item source.
+- No item activation/consumption engine.
+- No field/status/boost integration.
+- No full Turn Engine or resolved outcome implementation.
+
+Recommended next:
+- v12.3 Field State Source Design.
+- Alternative: v12.3 Item Activation/Consumption Boundary Design.
+- Alternative: v12.3 User-confirmed Item Regression Watchlist.
+
+Safety statement:
+- No additional actual Gemini call, retry, second provider call, Vertex AI call, network call, production code change, UI behavior/copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.1 - Controlled User-confirmed Item Gemini Smoke
 
 Purpose:

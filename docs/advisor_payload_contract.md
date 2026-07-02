@@ -107,6 +107,13 @@ response safety scan found no forbidden activation, consumption, post-turn HP,
 RNG, speed tie, Quick Claw, selected move, hidden item, damage reverse, or full
 outcome claims. No payload contract shape change is made.
 
+v12.2 status note: the user-confirmed item actual smoke is closed as PASS.
+Closure records T1 approval, exactly one actual Gemini call, retry count 0, no
+second provider call, no Vertex AI call, payload boundary PASS, prompt boundary
+PASS, response safety scan PASS, forbidden matches none, and sanitized
+token/cost summary only. No payload contract shape or runtime behavior change is
+made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
