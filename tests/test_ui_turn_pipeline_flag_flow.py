@@ -32,6 +32,23 @@ def _with_item_profiles(payload: dict, *, my_active: dict | None, opponent_activ
     return payload
 
 
+def _user_confirmed_item_ui_smoke_payload(
+    *,
+    my_active_item_profile: dict | None,
+    opponent_active_item_profile: dict | None,
+) -> dict:
+    payload = _with_item_profiles(
+        _opponent_move_ui_advice_flow_payload(),
+        my_active=my_active_item_profile,
+        opponent_active=opponent_active_item_profile,
+    )
+    payload["pokemon"]["my_active"]["name_en"] = "Garchomp"
+    payload["pokemon"]["my_active"]["hp_percent"] = 100
+    payload["pokemon"]["opponent_active"]["name_en"] = "Charizard"
+    payload["pokemon"]["opponent_active"]["hp_percent"] = 87
+    return payload
+
+
 def test_limited_context_checkbox_copy_describes_combined_candidate_context() -> None:
     app = QApplication.instance() or QApplication([])
     assert app is not None
@@ -425,6 +442,156 @@ def test_limited_context_checkbox_item_profiles_are_mapped_only_when_checked(
         assert forbidden_field not in battle_state_context
         assert forbidden_field not in battle_state_context["self_active"]
         assert forbidden_field not in battle_state_context["opponent_active"]
+
+
+def test_user_confirmed_item_ui_offline_smoke_covers_checkbox_matrix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    panel = LLMAdvicePanel()
+    valid_payload = _user_confirmed_item_ui_smoke_payload(
+        my_active_item_profile=_user_confirmed_item_profile("leftovers"),
+        opponent_active_item_profile=_user_confirmed_item_profile("choice-scarf"),
+    )
+    malformed_or_forbidden_payload = _user_confirmed_item_ui_smoke_payload(
+        my_active_item_profile={"status": "user_confirmed", "source": "user_input"},
+        opponent_active_item_profile={
+            "status": "user_confirmed",
+            "source": "context_derived",
+            "item_id": "choice-scarf",
+        },
+    )
+    captured_prompts: list[str] = []
+    logged_usages: list[dict[str, int]] = []
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert model == "offline-v11-11-items"
+        captured_prompts.append(prompt)
+        response = (
+            "User-confirmed items are known context, but they do not by themselves resolve activation, "
+            "consumption, post-turn HP, RNG, speed ties, Quick Claw activation, selected opponent moves, "
+            "or the complete resolved result."
+        )
+        return response, {"input_tokens": 50 + len(captured_prompts), "output_tokens": 11, "cached_tokens": 0}
+
+    def fake_log_advisor_call(*, model: str, usage: dict[str, int], game_id: str) -> dict[str, object]:
+        assert model == "offline-v11-11-items"
+        assert game_id == "ui_selected_pokemon_v0_6"
+        logged_usages.append(usage)
+        return {"mocked": True, "call_index": len(logged_usages)}
+
+    def run_from_panel(payload: dict) -> tuple[str, dict[str, int], dict[str, object]]:
+        enabled = panel.turn_pipeline_enabled()
+        return advisor_client.run_ui_selected_advice(
+            payload,
+            model="offline-v11-11-items",
+            enable_turn_pipeline=enabled,
+            enable_turn_order_context=enabled,
+            enable_opponent_move_context=enabled,
+            enable_battle_state_context=enabled,
+        )
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", fake_log_advisor_call)
+
+    panel.turn_pipeline_checkbox.setChecked(True)
+    panel.turn_pipeline_checkbox.setChecked(False)
+    assert captured_prompts == []
+    assert logged_usages == []
+
+    off_response, off_usage, off_summary = run_from_panel(valid_payload)
+
+    panel.turn_pipeline_checkbox.setChecked(True)
+    on_response, on_usage, on_summary = run_from_panel(valid_payload)
+    forbidden_response, forbidden_usage, forbidden_summary = run_from_panel(malformed_or_forbidden_payload)
+
+    assert len(captured_prompts) == 3
+    assert len(logged_usages) == 3
+    assert off_usage == {"input_tokens": 51, "output_tokens": 11, "cached_tokens": 0}
+    assert on_usage == {"input_tokens": 52, "output_tokens": 11, "cached_tokens": 0}
+    assert forbidden_usage == {"input_tokens": 53, "output_tokens": 11, "cached_tokens": 0}
+    assert off_summary == {"mocked": True, "call_index": 1}
+    assert on_summary == {"mocked": True, "call_index": 2}
+    assert forbidden_summary == {"mocked": True, "call_index": 3}
+
+    for response in (off_response, on_response, forbidden_response):
+        response_lower = response.lower()
+        for forbidden_phrase in (
+            "item activates",
+            "item is consumed",
+            "post-turn hp will be",
+            "rng resolved",
+            "speed tie resolved",
+            "quick claw activates",
+            "full turn outcome",
+            "opponent selected move certainty",
+            "hidden item inference",
+        ):
+            assert forbidden_phrase not in response_lower
+
+    off_prompt, on_prompt, forbidden_prompt = captured_prompts
+    off_payload = _prompt_payload(off_prompt)
+    on_payload = _prompt_payload(on_prompt)
+    forbidden_payload = _prompt_payload(forbidden_prompt)
+
+    assert "battle_state_context" not in off_payload
+    assert '"battle_state_context"' not in off_prompt
+    assert "If battle_state_context is present" not in off_prompt
+    assert '"value": "leftovers"' not in off_prompt
+    assert '"value": "choice-scarf"' not in off_prompt
+
+    assert on_payload["turn_pipeline"]["simulated"] == "limited"
+    assert on_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert on_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+    assert on_payload["battle_state_context"]["kind"] == "battle_state_context"
+    on_context = on_payload["battle_state_context"]
+    assert on_context["self_active"]["species"] == {"source": "visible_ui", "name": "Garchomp"}
+    assert on_context["self_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 100}
+    assert on_context["opponent_active"]["species"] == {"source": "visible_ui", "name": "Charizard"}
+    assert on_context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 87}
+    assert on_context["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "leftovers",
+    }
+    assert on_context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "choice-scarf",
+    }
+    assert all(value == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD for value in on_context["field"].values())
+    assert on_context["known_conditions"] == []
+    assert '"value": "leftovers"' in on_prompt
+    assert '"value": "choice-scarf"' in on_prompt
+    assert "If battle_state_context is present" in on_prompt
+    assert "Do not claim post-turn HP, item consumption, RNG result, speed tie result, Quick Claw activation" in on_prompt
+
+    forbidden_context = forbidden_payload["battle_state_context"]
+    assert forbidden_context["self_active"]["species"] == {"source": "visible_ui", "name": "Garchomp"}
+    assert forbidden_context["self_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 100}
+    assert forbidden_context["opponent_active"]["species"] == {"source": "visible_ui", "name": "Charizard"}
+    assert forbidden_context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 87}
+    assert forbidden_context["self_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert forbidden_context["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert '"value": "leftovers"' not in forbidden_prompt
+    assert '"value": "choice-scarf"' not in forbidden_prompt
+
+    for context in (on_context, forbidden_context):
+        for forbidden_field in (
+            "item_activated",
+            "item_consumed",
+            "item_consumption",
+            "post_turn_hp",
+            "rng_resolved",
+            "speed_tie_resolved",
+            "quick_claw_activated",
+            "full_turn_result",
+            "resolved_outcome",
+        ):
+            assert forbidden_field not in context
+            assert forbidden_field not in context["self_active"]
+            assert forbidden_field not in context["opponent_active"]
 
 
 @pytest.mark.parametrize(

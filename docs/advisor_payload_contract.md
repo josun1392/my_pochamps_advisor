@@ -79,6 +79,13 @@ items as possible context when the existing checkbox is enabled. This is a
 copy-only update: payload contract shape, checkbox behavior/default, payload
 builder call flow, and prompt guard wording are unchanged.
 
+v11.11 status note: a mocked UI-selected offline smoke now covers the existing
+checkbox off/on path for user-confirmed battle-state items. Checkbox off omits
+`battle_state_context`; checkbox on can serialize valid user-confirmed item
+envelopes, while malformed or forbidden metadata remains unknown. This does not
+change payload contract shape, UI copy, checkbox behavior/default, payload
+builder call flow, or prompt guard wording.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
