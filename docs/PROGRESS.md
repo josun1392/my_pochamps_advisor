@@ -1,5 +1,33 @@
 # Master Ball Advisor — Progress
 
+## v12.1 - Controlled User-confirmed Item Gemini Smoke
+
+Purpose:
+- Execute the controlled actual Gemini smoke for the user-confirmed item UI path after explicit T1 approval.
+
+Smoke summary:
+- Fixture: self `Garchomp` HP 100 item `leftovers`; opponent `Charizard` HP 87 item `choice-scarf`; both item profiles use `status=user_confirmed`, `source=user_input`, and non-empty `item_id`.
+- Limited-context checkbox was ON, enabling `turn_pipeline`, `turn_order_context`, `opponent_move_context`, and `battle_state_context`.
+- Pre-call repo status was synced on `master` with only expected unstaged `config/env.example` and `logs/token_usage.jsonl`.
+- Pre-call tests passed: targeted suite `347 passed`; full pytest `1305 passed, 2 deselected`.
+- Pre-call payload and prompt boundaries passed without printing the raw prompt.
+- Exactly one actual Gemini call was made with `gemini-2.5-flash`.
+- Retry count was 0.
+- Vertex AI was not used.
+- No second provider call was made.
+- Response safety scan passed with no forbidden activation, consumption, post-turn HP, RNG, speed tie, Quick Claw, selected move, hidden item, damage reverse, or full outcome claims.
+- Sanitized token/cost summary: input `11770`, output `213`, cached `0`, estimated cost USD `0.00000000`, pricing status `free_tier_zero_cost`.
+
+Recommended next:
+- v12.2 User-confirmed Item Actual Smoke Closure.
+- Alternative: v12.2 Field State Source Design.
+- Alternative: v12.2 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No retry, second provider call, Vertex AI call, production code change, new checkbox, UI checkbox default change, UI behavior/copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.0 - Controlled User-confirmed Item Gemini Smoke Design
 
 Purpose:

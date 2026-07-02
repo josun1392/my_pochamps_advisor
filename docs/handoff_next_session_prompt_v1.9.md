@@ -120,18 +120,20 @@ Update after v2.5:
 - v11.11 added a mocked UI-selected offline smoke for user-confirmed items. It verifies checkbox off omits `battle_state_context` and battle-state known item envelopes, checkbox on includes valid user-confirmed self/opponent items with species/HP `visible_ui`, malformed/forbidden metadata keeps items unknown, existing optional contexts coexist, and mocked responses avoid hidden/resolved item and turn outcome claims.
 - v11.12 closed the user-confirmed item phase as PASS for design, contract/helper tests, source adapter, prompt/offline fixture, UI mapping, UI copy, and mocked UI-selected offline smoke. Current runtime behavior is checkbox-gated: off omits `battle_state_context`; on can include only valid user-confirmed item metadata as known item context. No additional actual Gemini item smoke has been run yet.
 - v12.0 designed the controlled actual Gemini smoke for the user-confirmed item UI path without executing it. Future v12.1 execution requires explicit T1 approval, exactly one actual Gemini call, retry count 0, no second provider call, payload/prompt boundary prechecks, response safety scan, and sanitized token/cost reporting only.
+- v12.1 executed the controlled user-confirmed item Gemini smoke after T1 approval. Exactly one Gemini call was made with `gemini-2.5-flash`, retry count was 0, Vertex AI was not used, no second provider call was made, payload/prompt boundaries passed, the response safety scan found no forbidden item/resolved-outcome claims, and sanitized token/cost summary was recorded without raw token-log or secret output.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.0 Controlled User-confirmed Item Gemini Smoke Design.
+T3, continue after v12.1 Controlled User-confirmed Item Gemini Smoke.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
+- Current recommended next milestone is v12.2 User-confirmed Item Actual Smoke Closure.
 - Treat the original item-context verification queue as closed:
   - Focus Band: PASS
   - Quick Claw: PASS

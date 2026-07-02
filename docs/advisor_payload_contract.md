@@ -99,6 +99,14 @@ provider execution requires explicit T1 approval, exactly one actual Gemini
 call, retry count 0, no second provider call, sanitized token/cost reporting
 only, and preservation of the existing user-confirmed item boundary.
 
+v12.1 status note: the controlled user-confirmed item Gemini smoke passed after
+explicit T1 approval. Exactly one actual Gemini call was made with retry count
+0, no second provider call, and no Vertex AI call. Payload and prompt
+boundaries passed for user-confirmed self/opponent item context, and the
+response safety scan found no forbidden activation, consumption, post-turn HP,
+RNG, speed tie, Quick Claw, selected move, hidden item, damage reverse, or full
+outcome claims. No payload contract shape change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
