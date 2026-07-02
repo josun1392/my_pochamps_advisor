@@ -93,6 +93,12 @@ closure. Known items remain limited to allowed user-confirmed/explicit sources,
 and known item context does not imply activation, consumption, post-turn HP,
 RNG, speed tie, Quick Claw activation, selected opponent move, or full outcome.
 
+v12.0 status note: controlled user-confirmed item Gemini smoke is design-only.
+No contract shape or runtime behavior changes are made. Any future v12.1
+provider execution requires explicit T1 approval, exactly one actual Gemini
+call, retry count 0, no second provider call, sanitized token/cost reporting
+only, and preservation of the existing user-confirmed item boundary.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

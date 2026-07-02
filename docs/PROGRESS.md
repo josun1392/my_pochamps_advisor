@@ -1,5 +1,29 @@
 # Master Ball Advisor — Progress
 
+## v12.0 - Controlled User-confirmed Item Gemini Smoke Design
+
+Purpose:
+- Design the controlled actual Gemini smoke for the user-confirmed item UI path without executing a provider call.
+
+Design summary:
+- Fixture: self `Garchomp` HP 100 item `leftovers`; opponent `Charizard` HP 87 item `choice-scarf`; both item profiles use `status=user_confirmed`, `source=user_input`, and non-empty `item_id`.
+- Limited-context checkbox must be ON.
+- Existing limited contexts must be present: `turn_pipeline`, `turn_order_context`, `opponent_move_context`, and `battle_state_context`.
+- Payload boundary requires known item envelopes with `source=user_confirmed`, species/HP `visible_ui`, field unknown, and `known_conditions=[]`.
+- Prompt boundary requires serialized `battle_state_context`, user-confirmed item context, battle-state guard, and existing limited-context guards.
+- Response boundary allows item mention only as user-confirmed context and forbids activation, consumption, post-turn HP, RNG, speed tie, Quick Claw, selected opponent move, hidden item, damage reverse, and full outcome certainty.
+- Future actual call requires separate v12.1 T1 approval, exactly one actual Gemini call, retry count 0, and no second provider call.
+
+Recommended next:
+- v12.1 Controlled User-confirmed Item Gemini Smoke.
+- Alternative: v12.1 Field State Source Design.
+- Alternative: v12.1 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network call, production code change, new checkbox, UI checkbox default change, UI behavior/copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.12 - User-confirmed Item Phase Closure
 
 Purpose:
