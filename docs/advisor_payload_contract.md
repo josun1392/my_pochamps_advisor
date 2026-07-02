@@ -144,6 +144,16 @@ prompt guard wording change, payload builder call-flow change, duration,
 expiration, post-turn, `damage_estimate`, or `ko_context` behavior change is
 made.
 
+v12.6 status note: a mocked offline prompt fixture now verifies known field
+state in `battle_state_context`. The fixture confirms known weather, terrain,
+room, side-specific screens, and side-specific hazards are preserved in payload
+and serialized prompt, the existing battle-state guard remains present, unknown
+field context stays unknown, existing limited contexts coexist, and mocked
+responses avoid duration, expiration, post-turn field state, damage precision,
+hidden field, damage-derived field inference, and full outcome claims. No
+prompt guard wording, UI integration, payload builder call-flow, provider, or
+payload contract shape change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

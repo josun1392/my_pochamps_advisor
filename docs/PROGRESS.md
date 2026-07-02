@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v12.6 - Field State Prompt/Offline Fixture
+
+Purpose:
+- Verify known `battle_state_context.field` prompt serialization with a mocked offline fixture.
+
+Implementation summary:
+- Added a mocked offline prompt fixture for known field state in `tests/test_advisor_payload_contract.py`.
+- Verified known `weather`, `terrain`, `room`, side-specific `screens`, and side-specific `hazards` envelopes are preserved in payload.
+- Verified the serialized prompt contains the known field context and existing `battle_state_context` guard.
+- Verified an unknown-field context keeps all field entries unknown.
+- Verified mocked responses avoid duration, expiration, post-turn field state, damage precision, full outcome, hidden field, and damage-derived field inference claims.
+- Verified known field context does not create duration, expiration, post-turn, or resolved outcome fields.
+- Verified known field context does not mutate `damage_estimate` or `ko_context`.
+- Verified coexistence with `turn_pipeline`, `turn_order_context`, `opponent_move_context`, and `battle_state_context`.
+
+Recommended next:
+- v12.7 Field State UI Source Inventory.
+- Alternative: v12.7 Field State UI Mapping Design.
+- Alternative: v12.7 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, UI integration, battle log/parser implementation, new checkbox, UI checkbox default change, UI behavior/copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, `damage_estimate`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.5 - Field State Helper
 
 Purpose:
