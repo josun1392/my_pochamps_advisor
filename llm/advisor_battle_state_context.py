@@ -118,18 +118,34 @@ def build_battle_state_context(
 
 def build_battle_state_context_from_ui_selected_state(
     battle_input: Mapping[str, Any] | None,
+    *,
+    include_user_confirmed_items: bool = False,
 ) -> dict[str, Any]:
     """Build battle-state context from the current UI-selected payload shape.
 
-    This adapter intentionally extracts only visible species and HP percent.
-    It does not read item profiles, damage estimates, KO context, field state,
-    move context, or other optional contexts.
+    By default this adapter extracts only visible species and HP percent.
+    User-confirmed item profiles are included only through an explicit opt-in.
+    It does not read damage estimates, KO context, field state, move context, or
+    other optional contexts.
     """
     pokemon = battle_input.get("pokemon") if isinstance(battle_input, Mapping) else None
     pokemon = pokemon if isinstance(pokemon, Mapping) else {}
+    self_active = _active_side_from_ui_pokemon(pokemon.get("my_active"))
+    opponent_active = _active_side_from_ui_pokemon(pokemon.get("opponent_active"))
+
+    if include_user_confirmed_items:
+        item_profiles = battle_input.get("item_profiles") if isinstance(battle_input, Mapping) else None
+        item_profiles = item_profiles if isinstance(item_profiles, Mapping) else {}
+        self_item = _item_from_ui_item_profile(item_profiles.get("my_active"))
+        opponent_item = _item_from_ui_item_profile(item_profiles.get("opponent_active"))
+        if self_item is not None:
+            self_active["item"] = self_item
+        if opponent_item is not None:
+            opponent_active["item"] = opponent_item
+
     return build_battle_state_context(
-        self_active=_active_side_from_ui_pokemon(pokemon.get("my_active")),
-        opponent_active=_active_side_from_ui_pokemon(pokemon.get("opponent_active")),
+        self_active=self_active,
+        opponent_active=opponent_active,
     )
 
 
@@ -159,6 +175,17 @@ def _active_side_from_ui_pokemon(pokemon: object) -> dict[str, Any]:
         active["current_hp_percent"] = {"source": "visible_ui", "value": hp_percent}
 
     return active
+
+
+def _item_from_ui_item_profile(profile: object) -> dict[str, Any] | None:
+    if not isinstance(profile, Mapping):
+        return None
+    if profile.get("status") != "user_confirmed" or profile.get("source") != "user_input":
+        return None
+    item_id = profile.get("item_id")
+    if not isinstance(item_id, str) or not item_id.strip():
+        return None
+    return {"source": "user_confirmed", "value": item_id.strip()}
 
 
 def _active_side(active: Mapping[str, Any] | None) -> dict[str, Any]:

@@ -21,6 +21,7 @@ import llm.advisor_client as advisor_client
 from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS as HELPER_BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS,
     build_battle_state_context,
+    build_battle_state_context_from_ui_selected_state,
 )
 from llm.advisor_client import (
     _build_battle_state_context_prompt_guard,
@@ -872,6 +873,51 @@ def test_battle_state_context_payload_adapter_preserves_allowed_known_items() ->
     assert battle_state_context["opponent_active"]["item"] == {
         "known": True,
         "source": "explicit_input",
+        "value": "focus-sash",
+    }
+    _assert_battle_state_context_contract(battle_state_context)
+    _assert_battle_state_context_has_no_forbidden_fields(battle_state_context)
+
+
+def test_battle_state_context_payload_adapter_accepts_ui_item_adapter_output() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = build_battle_state_context_from_ui_selected_state(
+        {
+            "pokemon": {
+                "my_active": {"name_en": "Garchomp", "hp_percent": 100},
+                "opponent_active": {"name_en": "Charizard", "hp_percent": 87},
+            },
+            "item_profiles": {
+                "my_active": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "item_id": "loaded-dice",
+                },
+                "opponent_active": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "item_id": "focus-sash",
+                },
+            },
+        },
+        include_user_confirmed_items=True,
+    )
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    battle_state_context = advice_payload["battle_state_context"]
+    assert battle_state_context["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "loaded-dice",
+    }
+    assert battle_state_context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
         "value": "focus-sash",
     }
     _assert_battle_state_context_contract(battle_state_context)

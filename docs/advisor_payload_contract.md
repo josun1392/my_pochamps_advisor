@@ -42,6 +42,14 @@ future item adapter should require explicit opt-in, read only trusted
 and keep missing, ambiguous, legality-derived, resist-berry-derived,
 damage-derived, or inferred items unknown.
 
+v11.6 status note: the UI-selected battle-state source adapter now has an
+explicit opt-in item path. Default calls still extract species/HP only and keep
+items unknown. When `include_user_confirmed_items=True`, only
+`item_profiles` entries with `status=user_confirmed`, `source=user_input`, and
+non-empty `item_id` become `battle_state_context.item` values with
+`source=user_confirmed`. Runtime UI checkbox mapping and payload builder call
+flow are not connected to this opt-in yet.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

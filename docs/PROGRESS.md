@@ -1,5 +1,33 @@
 # Master Ball Advisor — Progress
 
+## v11.6 - User-confirmed Item Source Adapter
+
+Purpose:
+- Add an explicit opt-in item path to the UI-selected `battle_state_context` adapter.
+
+Implementation summary:
+- Extended `build_battle_state_context_from_ui_selected_state(...)` with keyword-only `include_user_confirmed_items=False`.
+- Default calls remain species/HP-only and ignore `item_profiles`.
+- Opt-in calls inspect `battle_input["item_profiles"]["my_active"]` and `["opponent_active"]`.
+- Known item helper input is produced only for `status=user_confirmed`, `source=user_input`, and non-empty string `item_id`.
+- Self and opponent item profiles follow the same allowed metadata rule.
+- Missing, malformed, wrong-status, wrong-source, legality-gate, resist-berry, damage-reverse, context-derived, visible, or calculated item metadata remains unknown.
+- The adapter still does not read legality gate output, resist berry context, damage estimates, `ko_context`, turn contexts, common sets, usage, or meta assumptions.
+
+Test summary:
+- Adapter tests cover default item omission, opt-in self/opponent known item inclusion, species/HP preservation, missing profiles, malformed metadata, forbidden metadata, and item-resolution field absence.
+- Payload contract test verifies opt-in adapter output is accepted by the existing `battle_state_context` payload adapter.
+
+Recommended next:
+- v11.7 User-confirmed Item Prompt/Offline Fixture.
+- Alternative: v11.7 User-confirmed Item UI Mapping Design.
+- Alternative: v11.7 Field State Source Design.
+
+Safety statement:
+- No UI item integration, UI source adapter runtime connection, limited-context checkbox flow change, UI behavior/default/copy change, payload builder call-flow change, prompt guard wording change, actual Gemini call, retry, second provider call, Vertex AI call, network call, hidden item inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.5 - User-confirmed Item Source Adapter Design
 
 Purpose:

@@ -418,6 +418,100 @@ def test_ui_selected_state_adapter_extracts_visible_species_and_hp_only() -> Non
     _assert_no_forbidden_sources(context)
 
 
+def test_ui_selected_state_adapter_item_opt_in_includes_user_confirmed_items() -> None:
+    context = build_battle_state_context_from_ui_selected_state(
+        {
+            "pokemon": {
+                "my_active": {"name_en": "Garchomp", "hp_percent": 76},
+                "opponent_active": {"name_en": "Charizard", "hp_percent": 42.5},
+            },
+            "item_profiles": {
+                "my_active": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "item_id": "loaded-dice",
+                },
+                "opponent_active": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "item_id": "focus-sash",
+                },
+            },
+        },
+        include_user_confirmed_items=True,
+    )
+
+    assert context["confidence"] == "limited"
+    assert context["self_active"]["species"] == {"source": "visible_ui", "name": "Garchomp"}
+    assert context["self_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 76}
+    assert context["opponent_active"]["species"] == {"source": "visible_ui", "name": "Charizard"}
+    assert context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 42.5}
+    assert context["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "loaded-dice",
+    }
+    assert context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "focus-sash",
+    }
+    _assert_no_item_resolution_fields(context)
+    _assert_no_forbidden_fields(context)
+    _assert_no_forbidden_sources(context)
+
+
+def test_ui_selected_state_adapter_item_opt_in_keeps_missing_profiles_unknown() -> None:
+    context = build_battle_state_context_from_ui_selected_state(
+        {
+            "pokemon": {
+                "my_active": {"name_en": "Garchomp", "hp_percent": 76},
+                "opponent_active": {"name_en": "Charizard", "hp_percent": 42.5},
+            }
+        },
+        include_user_confirmed_items=True,
+    )
+
+    assert context["self_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["self_active"]["species"] == {"source": "visible_ui", "name": "Garchomp"}
+    assert context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 42.5}
+
+
+def test_ui_selected_state_adapter_item_opt_in_requires_complete_user_input_metadata() -> None:
+    bad_profiles = [
+        {"status": "user_confirmed", "source": "user_input"},
+        {"status": "user_confirmed", "source": "user_input", "item_id": ""},
+        {"status": "user_confirmed", "source": "user_input", "item_id": "   "},
+        {"status": "unknown", "source": "user_input", "item_id": "loaded-dice"},
+        {"status": "none", "source": "user_input", "item_id": "loaded-dice"},
+        {"status": "user_confirmed", "item_id": "loaded-dice"},
+        {"status": "user_confirmed", "source": "visible_ui", "item_id": "loaded-dice"},
+        {"status": "user_confirmed", "source": "calculated_from_visible", "item_id": "loaded-dice"},
+        {"status": "user_confirmed", "source": "context_derived", "item_id": "loaded-dice"},
+        {"status": "user_confirmed", "source": "damage_reverse_inference", "item_id": "loaded-dice"},
+        {"status": "user_confirmed", "source": "legality_gate_guess", "item_id": "loaded-dice"},
+        {"status": "user_confirmed", "source": "resist_berry_inferred", "item_id": "loaded-dice"},
+    ]
+
+    for profile in bad_profiles:
+        context = build_battle_state_context_from_ui_selected_state(
+            {
+                "item_profiles": {
+                    "my_active": profile,
+                    "opponent_active": profile,
+                }
+            },
+            include_user_confirmed_items=True,
+        )
+
+        assert context["confidence"] == "unknown", profile
+        assert context["self_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, profile
+        assert context["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, profile
+        _assert_no_forbidden_sources(context)
+        _assert_no_item_resolution_fields(context)
+
+
 def test_ui_selected_state_adapter_keeps_missing_sources_unknown() -> None:
     context = build_battle_state_context_from_ui_selected_state(
         {
