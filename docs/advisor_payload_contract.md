@@ -86,6 +86,13 @@ envelopes, while malformed or forbidden metadata remains unknown. This does not
 change payload contract shape, UI copy, checkbox behavior/default, payload
 builder call flow, or prompt guard wording.
 
+v11.12 status note: the user-confirmed item phase is closed as PASS for design,
+contract/helper tests, source adapter, prompt/offline fixture, UI mapping, UI
+copy, and mocked UI-selected offline smoke. No contract shape change is made in
+closure. Known items remain limited to allowed user-confirmed/explicit sources,
+and known item context does not imply activation, consumption, post-turn HP,
+RNG, speed tie, Quick Claw activation, selected opponent move, or full outcome.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

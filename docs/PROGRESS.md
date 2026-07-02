@@ -1,5 +1,46 @@
 # Master Ball Advisor — Progress
 
+## v11.12 - User-confirmed Item Phase Closure
+
+Purpose:
+- Close the user-confirmed item phase after boundary design, contract/helper tests, source adapter, prompt/offline fixture, UI mapping, UI copy, and UI offline smoke.
+
+Closure summary:
+- Current runtime behavior: limited-context checkbox remains default-off; off omits `battle_state_context` and item payload; on enables `battle_state_context` with existing limited contexts and passes `include_user_confirmed_items=enable_battle_state_context`.
+- Valid UI item metadata requires `status=user_confirmed`, `source=user_input`, and non-empty `item_id`.
+- Valid metadata serializes known item envelopes as `{"known": True, "source": "user_confirmed", "value": "<item-id>"}`.
+- Missing, malformed, forbidden, hidden, inferred, context-derived, legality-derived, resist-berry-derived, usage/meta/common-set, `visible_ui`, and `calculated_from_visible` item sources remain unknown or are rejected at contract validation.
+- Species/HP remain `visible_ui`; field remains unknown; `known_conditions` remains `[]`.
+- Known item is user-confirmed context only and does not imply activation, consumption, post-turn HP, RNG result, speed tie result, Quick Claw activation, full turn outcome, or selected opponent move.
+
+Verification summary:
+- v11.4 contract/helper tests.
+- v11.6 source adapter tests.
+- v11.7 prompt/offline fixture.
+- v11.9 UI mapping tests.
+- v11.10 UI copy tests.
+- v11.11 UI offline smoke.
+- Latest full pytest count recorded for this phase: `1305 passed, 2 deselected`.
+
+Known limitations:
+- No additional actual Gemini item smoke yet.
+- The v11.1 actual smoke covered battle-state context before item UI mapping.
+- Item source depends on existing `item_profiles` metadata.
+- No battle log/parser observed item source.
+- No item activation/consumption engine.
+- No field/status/boost integration.
+- User-confirmed item context does not prove future model behavior for all cases.
+
+Recommended next:
+- v12.0 Controlled User-confirmed Item Gemini Smoke Design.
+- Alternative: v12.0 Field State Source Design.
+- Alternative: v12.0 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No production code change, actual Gemini call, retry, second provider call, Vertex AI call, network call, new checkbox, UI checkbox default change, UI behavior/copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.11 - User-confirmed Item UI Offline Smoke
 
 Purpose:
