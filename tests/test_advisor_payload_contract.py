@@ -2717,6 +2717,140 @@ def test_battle_state_context_offline_advice_fixture_covers_prompt_and_mocked_re
             assert phrase not in response
 
 
+def test_user_confirmed_item_battle_state_offline_prompt_fixture(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    battle_input = {
+        "pokemon": {
+            "my_active": {"name_en": "Garchomp", "hp_percent": 100},
+            "opponent_active": {"name_en": "Charizard", "hp_percent": 87},
+        },
+        "item_profiles": {
+            "my_active": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "item_id": "leftovers",
+            },
+            "opponent_active": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "item_id": "choice-scarf",
+            },
+        },
+    }
+    battle_state_context = build_battle_state_context_from_ui_selected_state(
+        battle_input,
+        include_user_confirmed_items=True,
+    )
+    captured_prompts: list[str] = []
+    mocked_responses: list[str] = []
+    logged_usages: list[dict[str, int]] = []
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert model == "offline-v11-7"
+        captured_prompts.append(prompt)
+        response = (
+            "Known user-confirmed items are present in context, but they do not by themselves "
+            "resolve item consumption, RNG, speed tie, Quick Claw activation, or the full turn outcome."
+        )
+        mocked_responses.append(response)
+        return response, {"input_tokens": 31 + len(captured_prompts), "output_tokens": 9, "cached_tokens": 0}
+
+    def fake_log_advisor_call(*, model: str, usage: dict[str, int], game_id: str) -> dict[str, object]:
+        assert model == "offline-v11-7"
+        assert game_id == "user_confirmed_item_battle_state_offline_fixture_v11_7"
+        logged_usages.append(usage)
+        return {"mocked": True, "call_index": len(logged_usages)}
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", fake_log_advisor_call)
+
+    prompt = _build_ui_selected_prompt(
+        payload,
+        battle_state_context=battle_state_context,
+        enable_battle_state_context=True,
+    )
+    response, usage = advisor_client.call_gemini(prompt, "offline-v11-7")
+    summary = advisor_client._log_advisor_call(
+        model="offline-v11-7",
+        usage=usage,
+        game_id="user_confirmed_item_battle_state_offline_fixture_v11_7",
+    )
+
+    assert len(captured_prompts) == 1
+    assert len(logged_usages) == 1
+    assert response == mocked_responses[0]
+    assert usage == {"input_tokens": 32, "output_tokens": 9, "cached_tokens": 0}
+    assert summary == {"mocked": True, "call_index": 1}
+
+    prompt_payload = json.loads(prompt.rsplit("\n\n", 1)[1])
+    context_payload = prompt_payload["battle_state_context"]
+
+    assert context_payload == battle_state_context
+    assert context_payload["self_active"]["species"] == {"source": "visible_ui", "name": "Garchomp"}
+    assert context_payload["self_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 100}
+    assert context_payload["opponent_active"]["species"] == {"source": "visible_ui", "name": "Charizard"}
+    assert context_payload["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 87}
+    assert context_payload["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "leftovers",
+    }
+    assert context_payload["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "choice-scarf",
+    }
+    assert all(value == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD for value in context_payload["field"].values())
+    assert context_payload["known_conditions"] == []
+    _assert_battle_state_context_contract(context_payload)
+    _assert_battle_state_context_sources(context_payload)
+    _assert_battle_state_context_has_no_forbidden_fields(context_payload)
+
+    assert '"battle_state_context"' in prompt
+    assert '"item": {' in prompt
+    assert '"source": "user_confirmed"' in prompt
+    assert '"value": "leftovers"' in prompt
+    assert '"value": "choice-scarf"' in prompt
+    assert "If battle_state_context is present" in prompt
+    assert "Unknown battle state fields must remain unknown." in prompt
+    assert "Do not infer hidden items." in prompt
+    assert "Do not infer EVs, IVs, or nature." in prompt
+    assert "Do not infer boosts, status, weather, terrain, hazards, screens, or room unless explicitly provided." in prompt
+    assert "Do not reverse-engineer hidden state from damage estimates or KO context." in prompt
+    assert "not a resolved turn simulation" in prompt
+    assert "Do not claim post-turn HP, item consumption, RNG result, speed tie result, Quick Claw activation, or full turn outcome" in prompt
+
+    forbidden_prompt_fields = (
+        "item_consumed",
+        "item_consumption",
+        "post_turn_hp",
+        "rng_resolved",
+        "speed_tie_resolved",
+        "quick_claw_activated",
+        "full_turn_result",
+        "resolved_outcome",
+    )
+    for field_name in forbidden_prompt_fields:
+        assert field_name not in prompt
+
+    forbidden_response_phrases = (
+        "item will be consumed",
+        "item activates",
+        "post-turn hp will be",
+        "rng resolved",
+        "speed tie resolved",
+        "quick claw activates",
+        "full turn outcome is",
+        "opponent will use",
+        "hidden item is",
+    )
+    response_lower = response.lower()
+    for phrase in forbidden_response_phrases:
+        assert phrase not in response_lower
+
+
 def test_advisor_client_does_not_auto_generate_turn_pipeline() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
 

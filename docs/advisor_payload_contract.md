@@ -50,6 +50,13 @@ non-empty `item_id` become `battle_state_context.item` values with
 `source=user_confirmed`. Runtime UI checkbox mapping and payload builder call
 flow are not connected to this opt-in yet.
 
+v11.7 status note: a mocked offline prompt fixture now verifies known
+user-confirmed items in `battle_state_context`. The fixture confirms that
+self/opponent known items are preserved in payload and serialized prompt, the
+existing battle-state guard remains present, field state and `known_conditions`
+stay unknown/empty, and no item consumption, post-turn HP, RNG, speed tie, Quick
+Claw, or full outcome fields are created. UI runtime mapping remains unchanged.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

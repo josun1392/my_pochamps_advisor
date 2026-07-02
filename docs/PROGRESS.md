@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v11.7 - User-confirmed Item Prompt/Offline Fixture
+
+Purpose:
+- Verify that known user-confirmed items can appear in `battle_state_context` payload and prompt without hidden inference or resolved outcome claims.
+
+Implementation summary:
+- Added a mocked offline prompt fixture in `tests/test_advisor_payload_contract.py`.
+- The fixture uses the v11.6 source adapter with `include_user_confirmed_items=True`.
+- Self item `leftovers` and opponent item `choice-scarf` are preserved as `source=user_confirmed` known items.
+- Species/HP remain `visible_ui`.
+- Field values remain unknown and `known_conditions` remains `[]`.
+- The existing battle-state prompt guard appears unchanged.
+- The prompt contains no item consumption, post-turn HP, RNG, speed tie, Quick Claw, or full outcome fields.
+- Mocked response wording avoids item consumption, activation, post-turn, RNG, speed tie, Quick Claw, full outcome, selected opponent move, and hidden item certainty.
+
+Recommended next:
+- v11.8 User-confirmed Item UI Mapping Design.
+- Alternative: v11.8 User-confirmed Item UI Integration.
+- Alternative: v11.8 Field State Source Design.
+
+Safety statement:
+- No UI item integration, UI source adapter runtime connection, limited-context checkbox flow change, UI behavior/default/copy change, payload builder call-flow change, prompt guard wording change, actual Gemini call, retry, second provider call, Vertex AI call, network call, hidden item inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.6 - User-confirmed Item Source Adapter
 
 Purpose:
