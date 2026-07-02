@@ -34,6 +34,14 @@ resist-berry, context-derived, hidden, usage/meta/common-set, and damage-reverse
 item sources must not become known items. UI item integration is still not
 connected.
 
+v11.5 status note: user-confirmed item source adapter design is documentation
+only. Existing UI-selected battle-state extraction remains species/HP-only. A
+future item adapter should require explicit opt-in, read only trusted
+`item_profiles` metadata, map direct `status=user_confirmed` user input to
+`user_confirmed`, reserve `explicit_input` for a direct explicit input surface,
+and keep missing, ambiguous, legality-derived, resist-berry-derived,
+damage-derived, or inferred items unknown.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

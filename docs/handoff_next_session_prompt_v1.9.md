@@ -111,13 +111,14 @@ Update after v2.5:
 - v11.2 closed the Battle State Context actual smoke phase as PASS. It records the v11.1 one-call/no-retry audit, payload/prompt/response boundary PASS, sanitized token/cost summary, local post-call reporting script issue, and the requirement that `logs/token_usage.jsonl` and `config/env.example` remain uncommitted and unreset.
 - v11.3 designed the user-confirmed item boundary for future `battle_state_context.item` support. It keeps current runtime behavior unchanged, treats self/opponent item as known only from direct `user_confirmed` or explicitly allowed `explicit_input` sources, keeps opponent item hidden/unknown by default, and treats legality gate plus item contexts as validation/context rather than source of truth.
 - v11.4 locked user-confirmed item contract/helper behavior. `battle_state_context.item` known sources are limited to `user_confirmed` and `explicit_input`; `visible_ui`, `calculated_from_visible`, legality-gate, resist-berry, context-derived, hidden, usage/meta/common-set, and damage-reverse item sources stay unknown or are rejected at payload validation. UI item integration remains disconnected.
+- v11.5 designed the future user-confirmed item source adapter. Existing UI-selected battle-state extraction remains species/HP-only; future item inclusion should require explicit opt-in, read only trusted `item_profiles` metadata, map direct `status=user_confirmed` user input to `user_confirmed`, reserve `explicit_input` for direct explicit input, and keep missing, ambiguous, legality-derived, resist-berry-derived, damage-derived, or inferred items unknown.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v11.4 User-confirmed Item Contract Tests.
+T3, continue after v11.5 User-confirmed Item Source Adapter Design.
 
 Goal:
 - Do not add new item contexts.
@@ -154,9 +155,9 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v11.5 User-confirmed Item Source Adapter Design
-  - Alternative: v11.5 User-confirmed Item Prompt/Offline Fixture
-  - Alternative: v11.5 Field State Source Design
+  - v11.6 User-confirmed Item Source Adapter
+  - Alternative: v11.6 User-confirmed Item Prompt/Offline Fixture
+  - Alternative: v11.6 Field State Source Design
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.

@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v11.5 - User-confirmed Item Source Adapter Design
+
+Purpose:
+- Design how future UI item profiles can safely feed `battle_state_context.item`.
+
+Design summary:
+- Existing `battle_input["item_profiles"]` already carries `my_active` and `opponent_active` profiles with status/source/item_id metadata.
+- Current `build_battle_state_context_from_ui_selected_state(...)` remains species/HP-only and intentionally ignores item profiles.
+- Future item inclusion should be explicit opt-in, for example `include_user_confirmed_items=False` by default.
+- Current `status=user_confirmed`, `source=user_input`, non-empty `item_id` profiles can map to `source=user_confirmed` helper input.
+- Future `explicit_input` may be allowed only from a direct explicit input surface, not recommendation/filter/legal-gate/damage/context output.
+- Opponent item remains unknown unless the user directly confirms or explicitly inputs it.
+- Legality gate may validate an already confirmed item but must not create or replace a known item.
+- Resist berry context and damage/KO signals must not become `battle_state_context.item` source of truth.
+
+Recommended next:
+- v11.6 User-confirmed Item Source Adapter.
+- Alternative: v11.6 User-confirmed Item Prompt/Offline Fixture.
+- Alternative: v11.6 Field State Source Design.
+
+Safety statement:
+- No production code change, UI item integration, UI source adapter connection, existing battle-state adapter change, limited-context checkbox flow change, UI behavior/default/copy change, prompt guard wording change, payload adapter contract change, actual Gemini call, retry, second provider call, Vertex AI call, network call, hidden item inference, damage reverse inference, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.4 - User-confirmed Item Contract Tests
 
 Purpose:
