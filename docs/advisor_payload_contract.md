@@ -114,6 +114,16 @@ PASS, response safety scan PASS, forbidden matches none, and sanitized
 token/cost summary only. No payload contract shape or runtime behavior change is
 made.
 
+v12.3 status note: field state source design is documentation-only. Current
+runtime behavior remains unchanged: weather, terrain, screens, hazards, and
+room stay unknown in the UI-selected path. Future known field values should be
+limited to explicit/user-confirmed sources first, with `visible_ui`,
+`battle_log_observed`, and `parser_observed` reserved for later designs after
+real sources exist. Damage, KO context, turn order, opponent move context,
+species/common/meta, item effects, legality gate, resist berry context, hidden
+guesses, and model guesses must not create known field state. No payload
+contract shape change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

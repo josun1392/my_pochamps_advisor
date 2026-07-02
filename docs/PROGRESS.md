@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v12.3 - Field State Source Design
+
+Purpose:
+- Design safe source rules for future `battle_state_context.field` weather, terrain, screens, hazards, and room values.
+
+Design summary:
+- Current UI-selected path has no direct field-state source; weather, terrain, screens, hazards, room remain unknown.
+- Current helper requires the five field keys and uses `{"known": false, "value": "unknown"}` for missing values.
+- Immediate future allowed field source candidates are limited to `explicit_input` and `user_confirmed`.
+- `visible_ui` is future-only and requires an actual field UI display/control.
+- `battle_log_observed` and `parser_observed` are future-only and require separate parser/source designs.
+- `calculated_from_visible` should remain forbidden for field state unless a later design proves a narrow deterministic mapping.
+- Damage, KO context, turn order, opponent move context, item inferred effects, legality gate, resist berry context, species/common/meta, hidden guesses, and model guesses must not create known field state.
+- Known field context is current context only; it does not imply duration, expiration, damage precision, post-turn HP, item activation/consumption, RNG, move order, or full outcome.
+
+Recommended next:
+- v12.4 Field State Contract Tests.
+- Alternative: v12.4 Field State Helper.
+- Alternative: v12.4 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network call, production code change, field implementation, battle log/parser implementation, new checkbox, UI checkbox default change, UI behavior/copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v12.2 - User-confirmed Item Actual Smoke Closure
 
 Purpose:
