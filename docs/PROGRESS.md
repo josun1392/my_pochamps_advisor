@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v11.10 - User-confirmed Item UI Copy Update
+
+Purpose:
+- Update the existing limited-context UI copy to safely mention user-confirmed item context after v11.9 connected the item mapping.
+
+Implementation summary:
+- Kept the existing checkbox label unchanged.
+- Updated the limited-context tooltip/help text to mention user-confirmed items alongside candidate events, turn-order helper information, UI-visible opponent move candidates, and the current Pokemon/HP snapshot.
+- Updated the enabled status text to mention user-confirmed item delivery while keeping the "not a confirmed result" boundary.
+- Added copy tests for user-confirmed item wording and forbidden hidden/inferred/recommended item plus resolved-outcome wording.
+- Checkbox default, checkbox behavior, payload builder call flow, prompt guard wording, and provider behavior are unchanged.
+
+Test summary:
+- UI copy tests cover label preservation, user-confirmed item wording, non-confirmed-result wording, forbidden item inference wording, forbidden activation/consumption/post-turn/RNG/speed tie/Quick Claw/full-outcome wording, default-off behavior, and toggle no-call behavior.
+
+Recommended next:
+- v11.11 User-confirmed Item UI Offline Smoke.
+- Alternative: v11.11 User-confirmed Item Phase Closure.
+- Alternative: v11.11 Field State Source Design.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network call, new checkbox, UI checkbox default change, UI behavior change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` changes.
+
+---
+
 ## v11.9 - User-confirmed Item UI Mapping
 
 Purpose:

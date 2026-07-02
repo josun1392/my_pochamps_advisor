@@ -74,6 +74,11 @@ auto-generates `battle_state_context`. Checkbox off still omits
 or forbidden metadata remains unknown. UI copy and prompt guard wording are
 unchanged.
 
+v11.10 status note: the limited-context UI copy now mentions user-confirmed
+items as possible context when the existing checkbox is enabled. This is a
+copy-only update: payload contract shape, checkbox behavior/default, payload
+builder call flow, and prompt guard wording are unchanged.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
