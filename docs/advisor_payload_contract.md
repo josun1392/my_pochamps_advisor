@@ -154,6 +154,15 @@ hidden field, damage-derived field inference, and full outcome claims. No
 prompt guard wording, UI integration, payload builder call-flow, provider, or
 payload contract shape change is made.
 
+v12.7 status note: field state UI source inventory is documentation-only. The
+current UI-selected path has no weather, terrain, screens, hazards, room, or
+field-condition input/display source. `battle_input` does not contain
+`field_profiles`, and the UI battle-state adapter still reads only species/HP
+plus optional trusted item profiles. The item profile metadata pattern can be
+reused by a future `field_profiles` design, but no payload contract shape,
+runtime mapping, UI behavior, prompt guard wording, provider behavior,
+`damage_estimate`, or `ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

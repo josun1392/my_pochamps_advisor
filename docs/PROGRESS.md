@@ -1,5 +1,33 @@
 # Master Ball Advisor — Progress
 
+## v12.7 - Field State UI Source Inventory
+
+Purpose:
+- Re-inventory the current UI-selected path for safe weather, terrain, screens, hazards, and room sources.
+
+Inventory summary:
+- No current UI widget captures or displays weather.
+- No current UI widget captures or displays terrain.
+- No current UI widget captures or displays screens.
+- No current UI widget captures or displays hazards.
+- No current UI widget captures or displays room or Trick Room state.
+- `MainWindow._build_llm_battle_input()` does not emit `field_profiles`, weather, terrain, screens, hazards, room, or field conditions.
+- `build_battle_state_context_from_ui_selected_state(...)` reads UI Pokemon species/HP and optionally trusted item profiles only; it does not read field state.
+- `build_turn_snapshot_from_battle_input(...)` creates weather `None`, terrain `None`, and empty field conditions; these are defaults, not UI field sources.
+- The item profile `status=user_confirmed` + `source=user_input` pattern is reusable as a future `field_profiles` metadata pattern.
+- Immediate usable field UI sources: none.
+- Future candidates: Field Profile Dialog, Battle State Panel, manual explicit input surface, battle log observed source, parser observed source, imported replay/source.
+
+Recommended next:
+- v12.8 Field Profile Dialog Design.
+- Alternative: v12.8 Field State UI Mapping Design.
+- Alternative: v12.8 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, production code change, field UI implementation, field mapping implementation, battle log/parser implementation, new checkbox, UI checkbox default change, UI behavior/copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, `damage_estimate`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.6 - Field State Prompt/Offline Fixture
 
 Purpose:
