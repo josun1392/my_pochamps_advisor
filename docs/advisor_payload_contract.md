@@ -241,6 +241,17 @@ No button integration, MainWindow storage field, payload contract shape,
 payload builder call-flow, prompt guard wording, provider behavior,
 `damage_estimate`, or `ko_context` change is made.
 
+v12.15 status note: FieldProfileDialog Button Integration Tests lock the future
+button/session-state behavior with a test-only seam. Apply stores
+`field_profiles`, Cancel preserves prior state, Reset unknown plus Apply stores
+the default unknown profile shape, and saved field profiles remain gated by the
+existing limited-context checkbox. Checkbox off still omits both
+`battle_state_context` and top-level `field_profiles`; checkbox on can map saved
+profiles into `battle_state_context.field`. No user-facing button,
+`MainWindow._field_profiles` implementation, payload contract shape, payload
+builder call-flow, prompt guard wording, provider behavior, `damage_estimate`,
+or `ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
