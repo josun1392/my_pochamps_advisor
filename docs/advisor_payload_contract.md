@@ -163,6 +163,15 @@ reused by a future `field_profiles` design, but no payload contract shape,
 runtime mapping, UI behavior, prompt guard wording, provider behavior,
 `damage_estimate`, or `ko_context` change is made.
 
+v12.8 status note: Field Profile Dialog design is documentation-only. It
+proposes a future user-confirmed `field_profiles` input surface for weather,
+terrain, room, side-specific screens, and side-specific hazards. The design
+distinguishes `unknown` from user-confirmed `none`, reuses the item profile
+`status=user_confirmed` plus `source=user_input` metadata pattern, and keeps
+known field state as current context only. No payload contract shape, runtime
+mapping, UI behavior, prompt guard wording, provider behavior,
+`damage_estimate`, or `ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

@@ -127,19 +127,20 @@ Update after v2.5:
 - v12.5 aligned field helper normalization with the field source contract. Helper behavior validates field values by key, preserves only valid `explicit_input`/`user_confirmed` known field values, keeps side-specific screens/hazards inside the existing known envelope, normalizes malformed helper input to unknown, and rejects malformed direct payload known field envelopes. No UI integration, prompt guard wording change, payload builder call-flow change, `damage_estimate`, or `ko_context` behavior change was made.
 - v12.6 added a mocked field-state prompt/offline fixture. Known weather, terrain, room, side-specific screens, and side-specific hazards are preserved in payload and serialized prompt with the existing `battle_state_context` guard. Unknown field context stays unknown, existing limited contexts coexist, mocked responses avoid duration/expiration/post-turn/damage precision/full outcome/hidden field claims, and `damage_estimate` plus `ko_context` remain unchanged.
 - v12.7 inventoried current UI field-state sources. No current UI widget or `battle_input` key captures weather, terrain, screens, hazards, room, or field conditions. The UI-selected battle-state adapter still reads only species/HP plus optional trusted item profiles. The item profile metadata pattern can be reused for future `field_profiles`, but no field UI or mapping was implemented.
+- v12.8 designed the future Field Profile Dialog. The design scopes it to user-confirmed current field context only, proposes weather/terrain/room single-select controls plus side-specific screens/hazards multi-select controls, distinguishes `unknown` from user-confirmed `none`, reuses the `status=user_confirmed` + `source=user_input` metadata pattern, and recommends contract tests before any UI implementation or runtime mapping.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.7 Field State UI Source Inventory.
+T3, continue after v12.8 Field Profile Dialog Design.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.8 Field Profile Dialog Design.
+- Current recommended next milestone is v12.9 Field Profile Dialog Contract Tests.
 - Treat the original item-context verification queue as closed:
   - Focus Band: PASS
   - Quick Claw: PASS
@@ -171,9 +172,9 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.8 Field Profile Dialog Design
-  - Alternative: v12.8 Field State UI Mapping Design
-  - Alternative: v12.8 Item Activation/Consumption Boundary Design
+  - v12.9 Field Profile Dialog Contract Tests
+  - Alternative: v12.9 Field Profile Dialog UI Implementation
+  - Alternative: v12.9 Field State UI Mapping Design
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.
