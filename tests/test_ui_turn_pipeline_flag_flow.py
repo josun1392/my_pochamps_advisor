@@ -9,8 +9,11 @@ from PySide6.QtWidgets import QApplication
 import llm.advisor_client as advisor_client
 from llm.advisor_battle_state_context import BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
 from tests.test_advisor_payload_contract import (
+    _move,
     _opponent_move_ui_advice_flow_payload,
+    _panel,
     _turn_pipeline_advice_flow_payload,
+    _window,
 )
 from ui.widgets.llm_advice_panel import LLMAdvicePanel, TURN_PIPELINE_HELP_TEXT, TURN_PIPELINE_STATUS_TEXT
 
@@ -569,6 +572,179 @@ def test_limited_context_checkbox_field_profiles_are_mapped_only_when_checked(
 
     for forbidden_field in (
         "duration",
+        "expiration",
+        "post_turn",
+        "damage_precision",
+        "resolved_outcome",
+        "full_turn_result",
+    ):
+        assert forbidden_field not in battle_state_context
+        assert forbidden_field not in battle_state_context["field"]
+
+
+def test_field_state_ui_end_to_end_offline_smoke_from_saved_dialog_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    panel = LLMAdvicePanel()
+    my_panel = _panel(
+        "garchomp",
+        selected_move_index=0,
+        selected_moves=[_move("earthquake")],
+        item_profile=_user_confirmed_item_profile("leftovers"),
+    )
+    opponent_panel = _panel(
+        "charizard",
+        selected_move_index=0,
+        selected_moves=[_move("flamethrower")],
+        item_profile=_user_confirmed_item_profile("choice-scarf"),
+    )
+    opponent_panel.current_hp_percent = 87
+    window = _window(my_panel, opponent_panel)
+    window._field_profiles = {
+        "weather": _user_confirmed_field_profile("rain"),
+        "terrain": _user_confirmed_field_profile("electric_terrain"),
+        "room": _user_confirmed_field_profile("trick_room"),
+        "screens": _user_confirmed_field_profile({"self": ["reflect"], "opponent": ["light_screen"]}),
+        "hazards": _user_confirmed_field_profile({"self": [], "opponent": ["stealth_rock"]}),
+    }
+    battle_input = window._build_llm_battle_input()
+    captured_prompts: list[str] = []
+    logged_usages: list[dict[str, int]] = []
+    mocked_responses: list[str] = []
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert model == "offline-v12-18-field-ui"
+        captured_prompts.append(prompt)
+        response = (
+            "Known field entries are user-confirmed current context only. They do not resolve duration, "
+            "expiration, post-turn state, exact damage, or the full turn outcome."
+        )
+        mocked_responses.append(response)
+        return response, {"input_tokens": 70 + len(captured_prompts), "output_tokens": 12, "cached_tokens": 0}
+
+    def fake_log_advisor_call(*, model: str, usage: dict[str, int], game_id: str) -> dict[str, object]:
+        assert model == "offline-v12-18-field-ui"
+        assert game_id == "ui_selected_pokemon_v0_6"
+        logged_usages.append(usage)
+        return {"mocked": True, "call_index": len(logged_usages)}
+
+    def run_from_panel() -> tuple[str, dict[str, int], dict[str, object]]:
+        enabled = panel.turn_pipeline_enabled()
+        return advisor_client.run_ui_selected_advice(
+            battle_input,
+            model="offline-v12-18-field-ui",
+            enable_turn_pipeline=enabled,
+            enable_turn_order_context=enabled,
+            enable_opponent_move_context=enabled,
+            enable_battle_state_context=enabled,
+        )
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", fake_log_advisor_call)
+
+    assert panel.turn_pipeline_checkbox.isChecked() is False
+    off_response, off_usage, off_summary = run_from_panel()
+
+    panel.turn_pipeline_checkbox.setChecked(True)
+    on_response, on_usage, on_summary = run_from_panel()
+
+    assert len(captured_prompts) == 2
+    assert len(logged_usages) == 2
+    assert off_response == mocked_responses[0]
+    assert on_response == mocked_responses[1]
+    assert off_usage == {"input_tokens": 71, "output_tokens": 12, "cached_tokens": 0}
+    assert on_usage == {"input_tokens": 72, "output_tokens": 12, "cached_tokens": 0}
+    assert off_summary == {"mocked": True, "call_index": 1}
+    assert on_summary == {"mocked": True, "call_index": 2}
+
+    off_prompt, on_prompt = captured_prompts
+    off_payload = _prompt_payload(off_prompt)
+    on_payload = _prompt_payload(on_prompt)
+
+    assert "battle_state_context" not in off_payload
+    assert "field_profiles" not in off_payload
+    assert '"field_profiles"' not in off_prompt
+    assert '"battle_state_context"' not in off_prompt
+    for serialized_field_value in (
+        '"value": "rain"',
+        '"value": "electric_terrain"',
+        '"value": "trick_room"',
+        '"reflect"',
+        '"light_screen"',
+        '"stealth_rock"',
+    ):
+        assert serialized_field_value not in off_prompt
+
+    assert "field_profiles" not in on_payload
+    assert on_payload["turn_pipeline"]["simulated"] == "limited"
+    assert on_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert on_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+    assert on_payload["battle_state_context"]["kind"] == "battle_state_context"
+    battle_state_context = on_payload["battle_state_context"]
+    assert battle_state_context["self_active"]["species"] == {"source": "visible_ui", "name": "garchomp"}
+    assert battle_state_context["self_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 100}
+    assert battle_state_context["opponent_active"]["species"] == {"source": "visible_ui", "name": "charizard"}
+    assert battle_state_context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 87}
+    assert battle_state_context["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "leftovers",
+    }
+    assert battle_state_context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "choice-scarf",
+    }
+    assert battle_state_context["field"]["weather"] == {"known": True, "source": "user_confirmed", "value": "rain"}
+    assert battle_state_context["field"]["terrain"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "electric_terrain",
+    }
+    assert battle_state_context["field"]["room"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "trick_room",
+    }
+    assert battle_state_context["field"]["screens"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": ["reflect"], "opponent": ["light_screen"]},
+    }
+    assert battle_state_context["field"]["hazards"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": [], "opponent": ["stealth_rock"]},
+    }
+    for serialized_field_value in (
+        '"value": "rain"',
+        '"value": "electric_terrain"',
+        '"value": "trick_room"',
+        '"reflect"',
+        '"light_screen"',
+        '"stealth_rock"',
+    ):
+        assert serialized_field_value in on_prompt
+    assert "If battle_state_context is present" in on_prompt
+    assert "Do not claim post-turn HP, item consumption, RNG result, speed tie result, Quick Claw activation" in on_prompt
+
+    for response in (off_response, on_response):
+        response_lower = response.lower()
+        for unsafe_phrase in (
+            "rain will last",
+            "terrain expires this turn",
+            "reflect definitely remains after the turn",
+            "stealth rock damage is precisely calculated here",
+            "damage is guaranteed",
+            "full turn outcome is resolved",
+            "field was inferred from damage",
+            "hidden field exists",
+        ):
+            assert unsafe_phrase not in response_lower
+    for forbidden_field in (
+        "duration_turns",
         "expiration",
         "post_turn",
         "damage_precision",

@@ -271,6 +271,18 @@ FieldProfileDialog behavior, field mapping behavior, payload contract shape,
 payload builder call-flow, prompt guard wording, provider behavior,
 `damage_estimate`, or `ko_context` change is made.
 
+v12.18 status note: Field State UI End-to-End Offline Smoke verifies the
+UI-selected field-state path with mocked provider calls only. Saved
+`field_profiles` stay omitted when the limited-context checkbox is off; when the
+checkbox is on, they normalize into `battle_state_context.field` while
+top-level `field_profiles` stays absent from the prompt payload. Existing
+`turn_pipeline`, `turn_order_context`, `opponent_move_context`, user-confirmed
+item context, and `battle_state_context` coexist. The mocked response safety
+check avoids duration, expiration, post-turn state, exact damage, full outcome,
+damage-inferred field, and hidden-field claims. No payload contract shape,
+prompt guard wording, provider behavior, `damage_estimate`, or `ko_context`
+change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

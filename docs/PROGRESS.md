@@ -1,5 +1,31 @@
 # Master Ball Advisor — Progress
 
+## v12.18 - Field State UI End-to-End Offline Smoke
+
+Purpose:
+- Verify the saved FieldProfileDialog field state through the UI-selected advice path, limited-context checkbox gate, and mocked provider prompt.
+
+Implementation summary:
+- Added an offline smoke in `tests/test_ui_turn_pipeline_flag_flow.py`.
+- Used a UI-selected fixture with Garchomp, Charizard, user-confirmed self/opponent items, and saved field profiles.
+- Verified checkbox off omits `battle_state_context`.
+- Verified checkbox off omits top-level `field_profiles` and serialized field values from the provider prompt.
+- Verified checkbox on includes `battle_state_context.field` with weather, terrain, room, screens, and hazards known as user-confirmed current context.
+- Verified top-level `field_profiles` does not leak into the checkbox-on provider payload.
+- Verified `turn_pipeline`, `turn_order_context`, `opponent_move_context`, user-confirmed item context, and `battle_state_context` coexist.
+- Verified the mocked response avoids duration, expiration, post-turn state, exact damage, full outcome, damage-inferred field, and hidden-field claims.
+- Verified provider path uses mocked `call_gemini` and mocked logging only.
+
+Recommended next:
+- v12.19 Field State UI Phase Closure.
+- Alternative: v12.19 Controlled Field State Gemini Smoke Design.
+- Alternative: v12.19 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, prompt guard wording change, `FieldProfileDialog` behavior change, field mapping behavior change, new limited-context checkbox, UI checkbox default change, payload builder call-flow change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context` calculation, `damage_estimate`, payload filtering, threshold/skip/xfail, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.17 - Limited Context Copy Update for Field State
 
 Purpose:
