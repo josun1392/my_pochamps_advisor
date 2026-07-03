@@ -22,6 +22,7 @@ from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS as HELPER_BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS,
     build_battle_state_context,
     build_battle_state_context_from_ui_selected_state,
+    build_field_state_from_field_profiles,
 )
 from llm.advisor_client import (
     _build_battle_state_context_prompt_guard,
@@ -1025,6 +1026,64 @@ def test_battle_state_context_payload_adapter_accepts_known_field_sources(source
 
     assert advice_payload["battle_state_context"]["field"] == context["field"]
     _assert_no_field_resolution_fields(advice_payload["battle_state_context"])
+
+
+def test_battle_state_context_payload_adapter_accepts_field_profile_known_none_contract() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    field_state = build_field_state_from_field_profiles(
+        {
+            "weather": {"status": "user_confirmed", "source": "user_input", "value": "none"},
+            "terrain": {"status": "user_confirmed", "source": "user_input", "value": "none"},
+            "room": {"status": "user_confirmed", "source": "user_input", "value": "none"},
+            "screens": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": {"self": [], "opponent": []},
+            },
+            "hazards": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": {"self": [], "opponent": []},
+            },
+        }
+    )
+    context = _sample_battle_state_context()
+    context["field"] = field_state
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=context,
+        enable_battle_state_context=True,
+    )
+
+    battle_state_context = advice_payload["battle_state_context"]
+    assert battle_state_context["field"]["weather"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "none",
+    }
+    assert battle_state_context["field"]["terrain"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "none",
+    }
+    assert battle_state_context["field"]["room"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "none",
+    }
+    assert battle_state_context["field"]["screens"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": [], "opponent": []},
+    }
+    assert battle_state_context["field"]["hazards"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": [], "opponent": []},
+    }
+    _assert_battle_state_context_contract(battle_state_context)
+    _assert_no_field_resolution_fields(battle_state_context)
 
 
 @pytest.mark.parametrize(

@@ -162,6 +162,22 @@ def build_battle_state_context_from_ui_selected_state(
     )
 
 
+def build_field_state_from_field_profiles(field_profiles: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Normalize future Field Profile Dialog metadata into field state.
+
+    This helper is intentionally not wired into the UI-selected payload path.
+    It only locks the future `field_profiles` contract before dialog UI and
+    runtime mapping are implemented.
+    """
+    field_profiles = field_profiles if isinstance(field_profiles, Mapping) else {}
+    field: dict[str, Any] = {}
+    for field_name in BATTLE_STATE_CONTEXT_FIELD_FIELDS:
+        entry = _field_entry_from_profile(field_name, field_profiles.get(field_name))
+        if entry is not None:
+            field[field_name] = entry
+    return _field_state(field)
+
+
 def _confidence(
     *,
     self_active: Mapping[str, Any],
@@ -199,6 +215,24 @@ def _item_from_ui_item_profile(profile: object) -> dict[str, Any] | None:
     if not isinstance(item_id, str) or not item_id.strip():
         return None
     return {"source": "user_confirmed", "value": item_id.strip()}
+
+
+def _field_entry_from_profile(field_name: str, profile: object) -> dict[str, Any] | None:
+    if not isinstance(profile, Mapping):
+        return None
+    if profile.get("status") != "user_confirmed" or profile.get("source") != "user_input":
+        return None
+    value = profile.get("value")
+    if isinstance(value, str):
+        value = value.strip()
+        if not value or value == "unknown":
+            return None
+    elif value is None:
+        return None
+    entry = {"source": "user_confirmed", "value": value}
+    if not _field_value_is_allowed(field_name, value):
+        return None
+    return entry
 
 
 def _active_side(active: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -313,8 +347,13 @@ def _side_specific_field_value_is_allowed(value: object) -> bool:
         return False
     if not set(value).issubset({"self", "opponent"}):
         return False
-    return all(_side_specific_condition_list_is_allowed(side_value) for side_value in value.values()) and any(
-        _side_specific_condition_list_has_known_value(side_value) for side_value in value.values()
+    if not all(_side_specific_condition_list_is_allowed(side_value) for side_value in value.values()):
+        return False
+    if any(_side_specific_condition_list_has_known_value(side_value) for side_value in value.values()):
+        return True
+    return set(value) == {"self", "opponent"} and all(
+        isinstance(side_value, Sequence) and not isinstance(side_value, (str, bytes))
+        for side_value in value.values()
     )
 
 

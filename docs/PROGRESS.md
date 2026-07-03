@@ -1,5 +1,32 @@
 # Master Ball Advisor — Progress
 
+## v12.9 - Field Profile Dialog Contract Tests
+
+Purpose:
+- Lock the future Field Profile Dialog metadata contract before UI implementation or runtime field mapping.
+
+Implementation summary:
+- Added `build_field_state_from_field_profiles(...)` as a standalone helper for future dialog metadata normalization.
+- Locked `field_profiles` shape for `weather`, `terrain`, `room`, `screens`, and `hazards`.
+- Locked `status=user_confirmed` + `source=user_input` + valid `value` as the trusted dialog metadata pattern.
+- Locked mapping from trusted dialog metadata to `source=user_confirmed` known field envelopes.
+- Locked `unknown` as unconfirmed/missing/malformed input that normalizes to the unknown envelope.
+- Locked `none` as user-confirmed known absence for weather, terrain, and room.
+- Locked both-side empty `screens`/`hazards` values as user-confirmed known absence.
+- Kept single-side empty or malformed side-specific screens/hazards unknown.
+- Preserved species/HP and user-confirmed item behavior.
+- Preserved duration, expiration, post-turn, `damage_estimate`, and `ko_context` boundaries.
+
+Recommended next:
+- v12.10 Field Profile Dialog UI Implementation.
+- Alternative: v12.10 Field State UI Mapping Design.
+- Alternative: v12.10 Field Profile Dialog UI Smoke Tests.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, Field Profile Dialog UI implementation, field mapping implementation, battle log/parser implementation, new checkbox, UI checkbox default change, UI behavior/copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, `damage_estimate`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.8 - Field Profile Dialog Design
 
 Purpose:

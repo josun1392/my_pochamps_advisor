@@ -6,6 +6,7 @@ from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
     build_battle_state_context,
     build_battle_state_context_from_ui_selected_state,
+    build_field_state_from_field_profiles,
 )
 
 
@@ -322,6 +323,197 @@ def test_malformed_side_specific_field_values_normalize_to_unknown() -> None:
         assert context["field"]["screens"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, value
         assert context["field"]["hazards"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, value
         _assert_no_field_resolution_fields(context)
+
+
+def test_field_profiles_shape_maps_user_input_to_user_confirmed_field_state() -> None:
+    field_state = build_field_state_from_field_profiles(
+        {
+            "weather": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": "rain",
+            },
+            "terrain": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": "electric_terrain",
+            },
+            "room": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": "trick_room",
+            },
+            "screens": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": {
+                    "self": ["reflect"],
+                    "opponent": ["light_screen"],
+                },
+            },
+            "hazards": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": {
+                    "self": [],
+                    "opponent": ["stealth_rock"],
+                },
+            },
+        }
+    )
+
+    assert field_state == {
+        "weather": {"known": True, "source": "user_confirmed", "value": "rain"},
+        "terrain": {"known": True, "source": "user_confirmed", "value": "electric_terrain"},
+        "screens": {
+            "known": True,
+            "source": "user_confirmed",
+            "value": {"self": ["reflect"], "opponent": ["light_screen"]},
+        },
+        "hazards": {
+            "known": True,
+            "source": "user_confirmed",
+            "value": {"self": [], "opponent": ["stealth_rock"]},
+        },
+        "room": {"known": True, "source": "user_confirmed", "value": "trick_room"},
+    }
+    _assert_no_field_resolution_fields(field_state)
+
+
+def test_field_profiles_none_is_known_absence_and_unknown_is_unconfirmed() -> None:
+    field_state = build_field_state_from_field_profiles(
+        {
+            "weather": {"status": "user_confirmed", "source": "user_input", "value": "none"},
+            "terrain": {"status": "user_confirmed", "source": "user_input", "value": "unknown"},
+            "room": {"status": "unknown", "source": "user_unconfirmed", "value": None},
+            "screens": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": {"self": [], "opponent": []},
+            },
+            "hazards": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": {"self": [], "opponent": []},
+            },
+        }
+    )
+
+    assert field_state["weather"] == {"known": True, "source": "user_confirmed", "value": "none"}
+    assert field_state["terrain"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert field_state["room"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert field_state["screens"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": [], "opponent": []},
+    }
+    assert field_state["hazards"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": [], "opponent": []},
+    }
+    _assert_no_field_resolution_fields(field_state)
+
+
+def test_missing_field_profiles_keep_all_fields_unknown() -> None:
+    assert build_field_state_from_field_profiles(None) == _unknown_field_state()
+    assert build_field_state_from_field_profiles({}) == _unknown_field_state()
+
+
+def test_field_profiles_malformed_metadata_stays_unknown() -> None:
+    bad_profiles = [
+        {"source": "user_input", "value": "rain"},
+        {"status": "user_confirmed", "value": "rain"},
+        {"status": "user_confirmed", "source": "user_input"},
+        {"status": "unknown", "source": "user_input", "value": "rain"},
+        {"status": "none", "source": "user_input", "value": "rain"},
+        {"status": "user_confirmed", "source": "visible_ui", "value": "rain"},
+        {"status": "user_confirmed", "source": "calculated_from_visible", "value": "rain"},
+        {"status": "user_confirmed", "source": "context_derived", "value": "rain"},
+        {"status": "user_confirmed", "source": "damage_reverse", "value": "rain"},
+        {"status": "user_confirmed", "source": "model_guess", "value": "rain"},
+        {"status": "user_confirmed", "source": "user_input", "value": ""},
+        {"status": "user_confirmed", "source": "user_input", "value": "   "},
+    ]
+
+    for profile in bad_profiles:
+        field_state = build_field_state_from_field_profiles(
+            {
+                "weather": profile,
+                "terrain": profile,
+                "room": profile,
+            }
+        )
+
+        assert field_state == _unknown_field_state(), profile
+        _assert_no_field_resolution_fields(field_state)
+
+
+def test_field_profiles_malformed_screens_and_hazards_stay_unknown() -> None:
+    bad_values = [
+        ["reflect"],
+        {"reflect": True},
+        {"self": "reflect"},
+        {"self": []},
+        {"opponent": [None]},
+        {"self": "unknown", "opponent": "unknown"},
+        {},
+    ]
+
+    for value in bad_values:
+        field_state = build_field_state_from_field_profiles(
+            {
+                "screens": {"status": "user_confirmed", "source": "user_input", "value": value},
+                "hazards": {"status": "user_confirmed", "source": "user_input", "value": value},
+            }
+        )
+
+        assert field_state["screens"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, value
+        assert field_state["hazards"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD, value
+        _assert_no_field_resolution_fields(field_state)
+
+
+def test_field_profiles_can_feed_battle_state_context_without_changing_species_hp_or_items() -> None:
+    field_state = build_field_state_from_field_profiles(
+        {
+            "weather": {"status": "user_confirmed", "source": "user_input", "value": "rain"},
+            "terrain": {"status": "user_confirmed", "source": "user_input", "value": "none"},
+            "room": {"status": "user_confirmed", "source": "user_input", "value": "trick_room"},
+        }
+    )
+    context = build_battle_state_context(
+        self_active={
+            "species": {"source": "visible_ui", "name": "Garchomp"},
+            "current_hp_percent": {"source": "visible_ui", "value": 100},
+            "item": {"source": "user_confirmed", "value": "leftovers"},
+        },
+        opponent_active={
+            "species": {"source": "visible_ui", "name": "Charizard"},
+            "current_hp_percent": {"source": "visible_ui", "value": 87},
+            "item": {"source": "user_confirmed", "value": "choice-scarf"},
+        },
+        field=field_state,
+    )
+
+    assert context["self_active"]["species"] == {"source": "visible_ui", "name": "Garchomp"}
+    assert context["self_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 100}
+    assert context["opponent_active"]["species"] == {"source": "visible_ui", "name": "Charizard"}
+    assert context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 87}
+    assert context["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "leftovers",
+    }
+    assert context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "choice-scarf",
+    }
+    assert context["field"]["weather"] == {"known": True, "source": "user_confirmed", "value": "rain"}
+    assert context["field"]["terrain"] == {"known": True, "source": "user_confirmed", "value": "none"}
+    assert context["field"]["room"] == {"known": True, "source": "user_confirmed", "value": "trick_room"}
+    _assert_no_field_resolution_fields(context)
+    _assert_no_item_resolution_fields(context)
 
 
 def test_known_field_values_do_not_create_duration_expiration_or_post_turn_fields() -> None:

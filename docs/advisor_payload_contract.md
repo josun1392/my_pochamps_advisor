@@ -172,6 +172,17 @@ known field state as current context only. No payload contract shape, runtime
 mapping, UI behavior, prompt guard wording, provider behavior,
 `damage_estimate`, or `ko_context` change is made.
 
+v12.9 status note: Field Profile Dialog contract tests lock future
+`field_profiles` metadata before UI implementation. Trusted dialog metadata is
+`status=user_confirmed`, `source=user_input`, and a valid `value`, which maps
+to `source=user_confirmed` known field envelopes. `unknown` remains
+unconfirmed/missing/malformed input, while trusted `none` is known absence.
+Both-side empty screens/hazards values are accepted as user-confirmed known
+absence; single-side empty or malformed side-specific values remain unknown.
+No Field Profile Dialog UI, runtime field mapping, payload builder call-flow,
+prompt guard wording, provider behavior, `damage_estimate`, or `ko_context`
+change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

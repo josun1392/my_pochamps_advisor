@@ -971,9 +971,11 @@ def _battle_state_side_specific_field_value_is_allowed(value: Any) -> bool:
         return False
     if not set(value).issubset({"self", "opponent"}):
         return False
-    return all(_battle_state_side_condition_list_is_allowed(side_value) for side_value in value.values()) and any(
-        _battle_state_side_condition_list_has_known_value(side_value) for side_value in value.values()
-    )
+    if not all(_battle_state_side_condition_list_is_allowed(side_value) for side_value in value.values()):
+        return False
+    if any(_battle_state_side_condition_list_has_known_value(side_value) for side_value in value.values()):
+        return True
+    return set(value) == {"self", "opponent"} and all(isinstance(side_value, list) for side_value in value.values())
 
 
 def _battle_state_side_condition_list_is_allowed(value: Any) -> bool:
