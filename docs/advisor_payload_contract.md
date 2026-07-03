@@ -231,6 +231,16 @@ unknown. No FieldProfileDialog button integration, MainWindow storage UI, prompt
 guard wording change, provider call, `damage_estimate`, or `ko_context` change
 is made.
 
+v12.14 status note: FieldProfileDialog Button Integration Design is
+documentation-only. It recommends adding a future secondary field-state button
+inside `LLMAdvicePanel` near the existing limited-context checkbox, with
+`MainWindow` owning session-local `field_profiles` state. The design keeps the
+limited-context checkbox as the payload hard gate: opening or saving field
+profiles must not send field data unless `enable_battle_state_context=True`.
+No button integration, MainWindow storage field, payload contract shape,
+payload builder call-flow, prompt guard wording, provider behavior,
+`damage_estimate`, or `ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

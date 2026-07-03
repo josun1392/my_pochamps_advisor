@@ -1,5 +1,33 @@
 # Master Ball Advisor — Progress
 
+## v12.14 - FieldProfileDialog Button Integration Design
+
+Purpose:
+- Design where to expose `FieldProfileDialog` before adding the button or MainWindow field-profile session state.
+
+Design summary:
+- Compared four entry options: `LLMAdvicePanel`, MainWindow top/toolbar, `PokemonPanel`, and a future Battle State / Advanced Context Panel.
+- Recommended the first implementation place a secondary field-state button inside `LLMAdvicePanel`, near the existing limited-context checkbox.
+- Rejected `PokemonPanel` as the first choice because field state is global battlefield state, not per-Pokemon slot state.
+- Rejected a MainWindow toolbar as unnecessary for the current layout.
+- Deferred a dedicated Battle State Panel as a larger future UI architecture option.
+- Recommended stable button label `Field state`, with later Korean copy candidate `필드 상태 설정`.
+- Proposed tooltip copy that explicitly says current weather/terrain/room/screens/hazards input does not confirm duration, expiration, damage precision, or turn outcome.
+- Recommended `MainWindow` as the future session-local state owner with `self._field_profiles: dict | None`.
+- Recommended `LLMAdvicePanel` own only the button and signal, not payload state.
+- Designed Apply/Cancel/Reset behavior: Apply stores profiles, Cancel preserves previous state, Reset unknown is dialog-local until Apply.
+- Confirmed the button may open while the limited-context checkbox is off, but saved field profiles must not reach the prompt unless the checkbox enables `battle_state_context`.
+
+Recommended next:
+- v12.15 FieldProfileDialog Button Integration Tests.
+- Alternative: v12.15 FieldProfileDialog Button Integration.
+- Alternative: v12.15 Limited Context Copy Update for Field State.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, production code change, FieldProfileDialog button integration, MainWindow `_field_profiles` implementation, additional field mapping implementation, battle log/parser implementation, new limited-context checkbox, UI checkbox default change, `LLMAdvicePanel` copy implementation, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, `damage_estimate`, threshold/skip/xfail, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.13 - Field State UI Mapping Implementation
 
 Purpose:
