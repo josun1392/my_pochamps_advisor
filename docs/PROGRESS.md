@@ -1,5 +1,34 @@
 # Master Ball Advisor — Progress
 
+## v12.10 - Field Profile Dialog UI Implementation
+
+Purpose:
+- Implement a standalone Field Profile Dialog for user-confirmed current weather, terrain, room, screens, and hazards input.
+
+Implementation summary:
+- Added `ui/widgets/field_profile_dialog.py`.
+- Added `tests/test_field_profile_dialog.py`.
+- Implemented weather, terrain, and room single-select controls.
+- Implemented side-specific screens and hazards controls for `self` and `opponent`.
+- Added explicit side-specific modes for screens/hazards: `Unknown`, `None`, and `Selected`.
+- `Apply` returns the v12.9 `field_profiles` shape.
+- `Cancel` leaves the dialog result unset.
+- `Reset unknown` clears all selections back to unknown without accepting the dialog.
+- Initial `field_profiles` can be loaded into the dialog.
+- `unknown` remains unconfirmed/not-entered metadata.
+- `none` remains user-confirmed known absence.
+- No duration, expiration, post-turn, damage precision, or resolved outcome fields are emitted.
+
+Recommended next:
+- v12.11 Field State UI Mapping Design.
+- Alternative: v12.11 Field Profile Dialog UI Smoke Tests.
+- Alternative: v12.11 Field State UI Mapping Implementation.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, field mapping implementation, `battle_state_context` field-profile connection, battle log/parser implementation, new limited-context checkbox, UI checkbox default change, `LLMAdvicePanel` copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, `damage_estimate`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.9 - Field Profile Dialog Contract Tests
 
 Purpose:

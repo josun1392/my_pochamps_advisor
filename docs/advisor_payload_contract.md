@@ -183,6 +183,15 @@ No Field Profile Dialog UI, runtime field mapping, payload builder call-flow,
 prompt guard wording, provider behavior, `damage_estimate`, or `ko_context`
 change is made.
 
+v12.10 status note: Field Profile Dialog UI is implemented as a standalone
+dialog that returns the v12.9 `field_profiles` metadata shape for weather,
+terrain, room, side-specific screens, and side-specific hazards. `unknown`
+remains unconfirmed/not-entered metadata, while `none` remains user-confirmed
+known absence. The dialog is not wired into `battle_input`,
+`battle_state_context`, prompt generation, payload builder call flow, or the
+limited-context checkbox path. No provider behavior, prompt guard wording,
+`damage_estimate`, or `ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
