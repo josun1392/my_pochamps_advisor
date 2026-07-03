@@ -170,12 +170,7 @@ def build_battle_state_context_from_ui_selected_state(
 
 
 def build_field_state_from_field_profiles(field_profiles: Mapping[str, Any] | None) -> dict[str, Any]:
-    """Normalize future Field Profile Dialog metadata into field state.
-
-    This helper is intentionally not wired into the UI-selected payload path.
-    It only locks the future `field_profiles` contract before dialog UI and
-    runtime mapping are implemented.
-    """
+    """Normalize Field Profile Dialog metadata into field state."""
     field_profiles = field_profiles if isinstance(field_profiles, Mapping) else {}
     field: dict[str, Any] = {}
     for field_name in BATTLE_STATE_CONTEXT_FIELD_FIELDS:

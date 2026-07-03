@@ -1,5 +1,32 @@
 # Master Ball Advisor — Progress
 
+## v12.13 - Field State UI Mapping Implementation
+
+Purpose:
+- Implement the field-profile mapping path from UI-selected metadata into `battle_state_context.field` under the existing limited-context checkbox gate.
+
+Implementation summary:
+- Confirmed `include_user_confirmed_fields=False` as the default UI-selected adapter behavior.
+- Uses `include_user_confirmed_fields=enable_battle_state_context` when `_build_ui_selected_prompt(...)` auto-generates `battle_state_context`.
+- Normalizes valid `field_profiles` with `build_field_state_from_field_profiles(...)`.
+- Keeps checkbox off behavior strict: `battle_state_context` omitted and top-level `field_profiles` removed from the prompt payload.
+- Keeps checkbox on behavior gated: valid field profiles appear only inside normalized `battle_state_context.field`.
+- Preserves `unknown` as unknown envelope and trusted `none` as user-confirmed known absence.
+- Keeps malformed, forbidden, `context_derived`, and `calculated_from_visible` field metadata unknown.
+- Preserves user-confirmed item mapping and existing optional-context coexistence.
+- Added payload-builder coverage proving top-level `field_profiles` does not leak into default advice payloads.
+- Updated helper documentation to reflect the implemented opt-in mapping boundary.
+
+Recommended next:
+- v12.14 FieldProfileDialog Button Integration Design.
+- Alternative: v12.14 FieldProfileDialog Button Integration.
+- Alternative: v12.14 Field State UI Mapping Offline Smoke.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, FieldProfileDialog button integration, MainWindow field-profile storage UI, battle log/parser implementation, new limited-context checkbox, UI checkbox default change, `LLMAdvicePanel` copy change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, `damage_estimate`, threshold/skip/xfail, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.12 - Field State UI Mapping Tests
 
 Purpose:

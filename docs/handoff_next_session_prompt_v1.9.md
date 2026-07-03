@@ -132,19 +132,20 @@ Update after v2.5:
 - v12.10 implemented standalone Field Profile Dialog UI. The dialog exposes weather/terrain/room single-select controls, side-specific screens/hazards controls, explicit `Unknown`/`None`/`Selected` side modes, `Apply`, `Cancel`, and `Reset unknown`, and returns the v12.9 `field_profiles` shape. It is not wired into `battle_input`, `battle_state_context`, the limited-context checkbox, prompt generation, or provider flow.
 - v12.11 designed field state UI mapping without implementation. Future `field_profiles` should be session-local `MainWindow` state, gated by the existing limited-context checkbox, and mapped only when `enable_battle_state_context=True` through a future `include_user_confirmed_fields` helper flag. Checkbox off should omit both `battle_state_context` and field-profile data from the provider payload path; checkbox on may map only valid user-confirmed field metadata while preserving `unknown` and trusted `none` semantics.
 - v12.12 locked Field State UI Mapping Tests. The UI-selected battle-state adapter now has default-off `include_user_confirmed_fields`; automatic prompt generation enables it only under the existing `enable_battle_state_context` gate. UI-only `field_profiles` are removed from provider prompt payloads and can affect advice only through normalized `battle_state_context.field`. Tests cover checkbox off/on, valid field mapping, `unknown`, trusted `none`, malformed/forbidden metadata, item coexistence, optional-context coexistence, and no duration/expiration/post-turn/damage precision/resolved outcome fields.
+- v12.13 implemented Field State UI Mapping under the existing limited-context checkbox gate. Checkbox off omits `battle_state_context` and strips top-level `field_profiles`; checkbox on passes `include_user_confirmed_fields=True` through the UI-selected battle-state adapter so valid `field_profiles` normalize into `battle_state_context.field`. FieldProfileDialog button integration, MainWindow field-profile storage, UI copy changes, prompt guard wording changes, provider calls, `damage_estimate`, and `ko_context` behavior remain unchanged.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.12 Field State UI Mapping Tests.
+T3, continue after v12.13 Field State UI Mapping Implementation.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.13 Field State UI Mapping Implementation.
+- Current recommended next milestone is v12.14 FieldProfileDialog Button Integration Design.
 - Treat the original item-context verification queue as closed:
   - Focus Band: PASS
   - Quick Claw: PASS
@@ -176,9 +177,9 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.13 Field State UI Mapping Implementation
-  - Alternative: v12.13 FieldProfileDialog Button Integration Design
-  - Alternative: v12.13 Field State UI Mapping Closure
+  - v12.14 FieldProfileDialog Button Integration Design
+  - Alternative: v12.14 FieldProfileDialog Button Integration
+  - Alternative: v12.14 Field State UI Mapping Offline Smoke
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.

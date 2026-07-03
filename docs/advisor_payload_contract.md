@@ -218,6 +218,19 @@ Trusted `none` remains known absence. No FieldProfileDialog button integration,
 MainWindow storage UI, prompt guard wording change, provider call,
 `damage_estimate`, or `ko_context` change is made.
 
+v12.13 status note: Field State UI Mapping Implementation confirms the
+field-profile mapping path as active under the existing limited-context
+checkbox. When `_build_ui_selected_prompt(...)` auto-generates
+`battle_state_context`, it passes
+`include_user_confirmed_fields=enable_battle_state_context`; checkbox off still
+omits `battle_state_context`, and top-level `field_profiles` are removed from
+the default advice payload. Checkbox on can normalize valid user-confirmed
+`field_profiles` into `battle_state_context.field`. Missing, `unknown`,
+malformed, `context_derived`, and `calculated_from_visible` metadata remains
+unknown. No FieldProfileDialog button integration, MainWindow storage UI, prompt
+guard wording change, provider call, `damage_estimate`, or `ko_context` change
+is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

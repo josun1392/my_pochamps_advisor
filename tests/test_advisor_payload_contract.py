@@ -798,6 +798,25 @@ def test_battle_state_context_payload_adapter_is_default_off() -> None:
     assert "battle_state_context" not in enabled_without_context_payload
 
 
+def test_field_profiles_are_ui_only_metadata_not_top_level_advice_payload() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    payload["field_profiles"] = {
+        "weather": {
+            "status": "user_confirmed",
+            "source": "user_input",
+            "value": "rain",
+        }
+    }
+
+    baseline_payload = build_ui_advice_payload(payload)
+    enabled_payload = build_ui_advice_payload(payload, enable_battle_state_context=True)
+
+    assert "field_profiles" not in baseline_payload
+    assert "field_profiles" not in enabled_payload
+    assert "battle_state_context" not in baseline_payload
+    assert "battle_state_context" not in enabled_payload
+
+
 def test_battle_state_context_payload_adapter_adds_explicit_top_level_context() -> None:
     payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
     context = build_battle_state_context(
