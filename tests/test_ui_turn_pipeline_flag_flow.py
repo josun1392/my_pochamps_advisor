@@ -23,12 +23,22 @@ def _user_confirmed_item_profile(item_id: str) -> dict:
     return {"status": "user_confirmed", "source": "user_input", "item_id": item_id}
 
 
+def _user_confirmed_field_profile(value: object) -> dict:
+    return {"status": "user_confirmed", "source": "user_input", "value": value}
+
+
 def _with_item_profiles(payload: dict, *, my_active: dict | None, opponent_active: dict | None) -> dict:
     payload = deepcopy(payload)
     payload["item_profiles"] = {
         "my_active": my_active,
         "opponent_active": opponent_active,
     }
+    return payload
+
+
+def _with_field_profiles(payload: dict, field_profiles: dict) -> dict:
+    payload = deepcopy(payload)
+    payload["field_profiles"] = field_profiles
     return payload
 
 
@@ -442,6 +452,162 @@ def test_limited_context_checkbox_item_profiles_are_mapped_only_when_checked(
         assert forbidden_field not in battle_state_context
         assert forbidden_field not in battle_state_context["self_active"]
         assert forbidden_field not in battle_state_context["opponent_active"]
+
+
+def test_limited_context_checkbox_field_profiles_are_mapped_only_when_checked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    panel = LLMAdvicePanel()
+    payload = _with_field_profiles(
+        _with_item_profiles(
+            _opponent_move_ui_advice_flow_payload(),
+            my_active=_user_confirmed_item_profile("leftovers"),
+            opponent_active=_user_confirmed_item_profile("choice-scarf"),
+        ),
+        {
+            "weather": _user_confirmed_field_profile("rain"),
+            "terrain": _user_confirmed_field_profile("electric_terrain"),
+            "room": _user_confirmed_field_profile("trick_room"),
+            "screens": _user_confirmed_field_profile({"self": ["reflect"], "opponent": ["light_screen"]}),
+            "hazards": _user_confirmed_field_profile({"self": [], "opponent": ["stealth_rock"]}),
+        },
+    )
+    captured_prompts: list[str] = []
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert model == "offline-v12-12-fields"
+        captured_prompts.append(prompt)
+        return (
+            "Known field entries are current context only; duration, expiration, post-turn state, "
+            "damage precision, and full outcomes remain unresolved.",
+            {"input_tokens": 1, "output_tokens": 1, "cached_tokens": 0},
+        )
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", lambda **kwargs: {"mocked": True})
+
+    def run_from_panel() -> None:
+        enabled = panel.turn_pipeline_enabled()
+        advisor_client.run_ui_selected_advice(
+            payload,
+            model="offline-v12-12-fields",
+            enable_turn_pipeline=enabled,
+            enable_turn_order_context=enabled,
+            enable_opponent_move_context=enabled,
+            enable_battle_state_context=enabled,
+        )
+
+    run_from_panel()
+    panel.turn_pipeline_checkbox.setChecked(True)
+    run_from_panel()
+
+    assert len(captured_prompts) == 2
+    off_prompt, on_prompt = captured_prompts
+    off_payload = _prompt_payload(off_prompt)
+    on_payload = _prompt_payload(on_prompt)
+
+    assert "battle_state_context" not in off_payload
+    assert "field_profiles" not in off_payload
+    assert '"field_profiles"' not in off_prompt
+    assert '"battle_state_context"' not in off_prompt
+
+    assert "field_profiles" not in on_payload
+    assert on_payload["turn_pipeline"]["simulated"] == "limited"
+    assert on_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+    assert on_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+    assert on_payload["battle_state_context"]["kind"] == "battle_state_context"
+    battle_state_context = on_payload["battle_state_context"]
+    assert battle_state_context["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "leftovers",
+    }
+    assert battle_state_context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "choice-scarf",
+    }
+    assert battle_state_context["field"]["weather"] == {"known": True, "source": "user_confirmed", "value": "rain"}
+    assert battle_state_context["field"]["terrain"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "electric_terrain",
+    }
+    assert battle_state_context["field"]["room"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "trick_room",
+    }
+    assert battle_state_context["field"]["screens"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": ["reflect"], "opponent": ["light_screen"]},
+    }
+    assert battle_state_context["field"]["hazards"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": [], "opponent": ["stealth_rock"]},
+    }
+    assert "If battle_state_context is present" in on_prompt
+
+    for forbidden_field in (
+        "duration",
+        "expiration",
+        "post_turn",
+        "damage_precision",
+        "resolved_outcome",
+        "full_turn_result",
+    ):
+        assert forbidden_field not in battle_state_context
+        assert forbidden_field not in battle_state_context["field"]
+
+
+@pytest.mark.parametrize(
+    ("field_profiles", "expected_weather"),
+    [
+        ({}, BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+        ({"weather": _user_confirmed_field_profile("unknown")}, BATTLE_STATE_CONTEXT_UNKNOWN_FIELD),
+        (
+            {"weather": _user_confirmed_field_profile("none")},
+            {"known": True, "source": "user_confirmed", "value": "none"},
+        ),
+        (
+            {"weather": {"status": "user_confirmed", "source": "context_derived", "value": "rain"}},
+            BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
+        ),
+        (
+            {"weather": {"status": "user_confirmed", "source": "calculated_from_visible", "value": "rain"}},
+            BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
+        ),
+        (
+            {"weather": {"status": "user_confirmed", "source": "user_input"}},
+            BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
+        ),
+    ],
+)
+def test_limited_context_checkbox_on_field_profile_metadata_matrix(
+    field_profiles: dict,
+    expected_weather: dict,
+) -> None:
+    payload = _with_field_profiles(_opponent_move_ui_advice_flow_payload(), field_profiles)
+
+    prompt = advisor_client._build_ui_selected_prompt(
+        payload,
+        enable_turn_pipeline=True,
+        enable_turn_order_context=True,
+        enable_opponent_move_context=True,
+        enable_battle_state_context=True,
+    )
+    prompt_payload = _prompt_payload(prompt)
+    battle_state_context = prompt_payload["battle_state_context"]
+
+    assert "field_profiles" not in prompt_payload
+    assert battle_state_context["field"]["weather"] == expected_weather
+    for key in ("terrain", "screens", "hazards", "room"):
+        assert battle_state_context["field"][key] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert "If battle_state_context is present" in prompt
 
 
 def test_user_confirmed_item_ui_offline_smoke_covers_checkbox_matrix(

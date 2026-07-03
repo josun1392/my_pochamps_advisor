@@ -140,6 +140,7 @@ def build_ui_advice_payload(
 
 def filter_context_for_default_advice(payload: dict[str, Any]) -> dict[str, Any]:
     """Remove debug-only item context from the Gemini default-advice payload."""
+    _remove_ui_only_field_profiles(payload)
     available_item_sides = _collect_available_item_context_sides(payload)
     _hide_move_local_unavailable_type_boost_item_effects(payload)
     hidden_item_sides = _remove_unavailable_item_contexts(payload)
@@ -148,6 +149,10 @@ def filter_context_for_default_advice(payload: dict[str, Any]) -> dict[str, Any]
     _hide_advice_hidden_item_effects(payload, hidden_item_ids)
     _remove_debug_only_limitations(payload)
     return payload
+
+
+def _remove_ui_only_field_profiles(payload: dict[str, Any]) -> None:
+    payload.pop("field_profiles", None)
 
 
 def run_ui_selected_advice(
@@ -228,6 +233,7 @@ def _build_ui_selected_prompt(
         battle_state_context = build_battle_state_context_from_ui_selected_state(
             battle_input,
             include_user_confirmed_items=enable_battle_state_context,
+            include_user_confirmed_fields=enable_battle_state_context,
         )
 
     advice_payload = build_ui_advice_payload(

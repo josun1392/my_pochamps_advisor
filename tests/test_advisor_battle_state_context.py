@@ -879,6 +879,144 @@ def test_ui_selected_state_adapter_item_opt_in_keeps_missing_profiles_unknown() 
     assert context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 42.5}
 
 
+def test_ui_selected_state_adapter_ignores_field_profiles_without_field_opt_in() -> None:
+    context = build_battle_state_context_from_ui_selected_state(
+        {
+            "pokemon": {
+                "my_active": {"name_en": "Garchomp", "hp_percent": 76},
+                "opponent_active": {"name_en": "Charizard", "hp_percent": 42.5},
+            },
+            "field_profiles": {
+                "weather": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "value": "rain",
+                }
+            },
+        }
+    )
+
+    assert context["field"] == _unknown_field_state()
+    assert context["self_active"]["species"] == {"source": "visible_ui", "name": "Garchomp"}
+    assert context["opponent_active"]["current_hp_percent"] == {"source": "visible_ui", "value": 42.5}
+
+
+def test_ui_selected_state_adapter_field_opt_in_maps_user_confirmed_field_profiles() -> None:
+    context = build_battle_state_context_from_ui_selected_state(
+        {
+            "pokemon": {
+                "my_active": {"name_en": "Garchomp", "hp_percent": 76},
+                "opponent_active": {"name_en": "Charizard", "hp_percent": 42.5},
+            },
+            "item_profiles": {
+                "my_active": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "item_id": "leftovers",
+                },
+                "opponent_active": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "item_id": "choice-scarf",
+                },
+            },
+            "field_profiles": {
+                "weather": {"status": "user_confirmed", "source": "user_input", "value": "rain"},
+                "terrain": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "value": "electric_terrain",
+                },
+                "room": {"status": "user_confirmed", "source": "user_input", "value": "trick_room"},
+                "screens": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "value": {"self": ["reflect"], "opponent": ["light_screen"]},
+                },
+                "hazards": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "value": {"self": [], "opponent": ["stealth_rock"]},
+                },
+            },
+        },
+        include_user_confirmed_items=True,
+        include_user_confirmed_fields=True,
+    )
+
+    assert context["field"]["weather"] == {"known": True, "source": "user_confirmed", "value": "rain"}
+    assert context["field"]["terrain"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "electric_terrain",
+    }
+    assert context["field"]["room"] == {"known": True, "source": "user_confirmed", "value": "trick_room"}
+    assert context["field"]["screens"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": ["reflect"], "opponent": ["light_screen"]},
+    }
+    assert context["field"]["hazards"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": [], "opponent": ["stealth_rock"]},
+    }
+    assert context["self_active"]["item"] == {"known": True, "source": "user_confirmed", "value": "leftovers"}
+    assert context["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "choice-scarf",
+    }
+    _assert_no_forbidden_fields(context)
+
+
+def test_ui_selected_state_adapter_field_opt_in_preserves_none_and_unknown_semantics() -> None:
+    context = build_battle_state_context_from_ui_selected_state(
+        {
+            "field_profiles": {
+                "weather": {"status": "user_confirmed", "source": "user_input", "value": "none"},
+                "terrain": {"status": "user_confirmed", "source": "user_input", "value": "unknown"},
+                "room": {"status": "user_confirmed", "source": "user_input", "value": "trick_room"},
+                "screens": {
+                    "status": "user_confirmed",
+                    "source": "user_input",
+                    "value": {"self": [], "opponent": []},
+                },
+            }
+        },
+        include_user_confirmed_fields=True,
+    )
+
+    assert context["field"]["weather"] == {"known": True, "source": "user_confirmed", "value": "none"}
+    assert context["field"]["terrain"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert context["field"]["room"] == {"known": True, "source": "user_confirmed", "value": "trick_room"}
+    assert context["field"]["screens"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": {"self": [], "opponent": []},
+    }
+    assert context["field"]["hazards"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+
+
+def test_ui_selected_state_adapter_field_opt_in_keeps_malformed_and_forbidden_profiles_unknown() -> None:
+    context = build_battle_state_context_from_ui_selected_state(
+        {
+            "field_profiles": {
+                "weather": {"status": "user_confirmed", "source": "context_derived", "value": "rain"},
+                "terrain": {"status": "user_confirmed", "source": "calculated_from_visible", "value": "electric_terrain"},
+                "room": {"source": "user_input", "value": "trick_room"},
+                "screens": {"status": "user_confirmed", "source": "user_input", "value": {"self": []}},
+                "hazards": {"status": "unknown", "source": "user_input", "value": {"opponent": ["stealth_rock"]}},
+            }
+        },
+        include_user_confirmed_fields=True,
+    )
+
+    assert context["field"] == _unknown_field_state()
+    _assert_no_forbidden_sources(context)
+    _assert_no_forbidden_fields(context)
+
+
 def test_ui_selected_state_adapter_item_opt_in_requires_complete_user_input_metadata() -> None:
     bad_profiles = [
         {"status": "user_confirmed", "source": "user_input"},

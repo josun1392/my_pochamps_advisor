@@ -205,6 +205,19 @@ rejected by direct payload validation. No contract shape, runtime mapping,
 payload builder call-flow, prompt guard wording, provider behavior,
 `damage_estimate`, or `ko_context` change is made.
 
+v12.12 status note: Field State UI Mapping Tests lock the helper/client
+boundary for future field-profile mapping. The UI-selected battle-state adapter
+now has default-off `include_user_confirmed_fields=False`; field profiles are
+ignored unless explicitly enabled, and automatic prompt generation enables that
+field opt-in only when `enable_battle_state_context=True`. UI-only
+`field_profiles` are removed from default advice payloads and can reach the LLM
+only as normalized `battle_state_context.field` entries. Valid user-confirmed
+field metadata maps to known field envelopes; missing, `unknown`, malformed,
+`context_derived`, and `calculated_from_visible` metadata remains unknown.
+Trusted `none` remains known absence. No FieldProfileDialog button integration,
+MainWindow storage UI, prompt guard wording change, provider call,
+`damage_estimate`, or `ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

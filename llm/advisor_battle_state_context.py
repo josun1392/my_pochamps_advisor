@@ -133,12 +133,13 @@ def build_battle_state_context_from_ui_selected_state(
     battle_input: Mapping[str, Any] | None,
     *,
     include_user_confirmed_items: bool = False,
+    include_user_confirmed_fields: bool = False,
 ) -> dict[str, Any]:
     """Build battle-state context from the current UI-selected payload shape.
 
     By default this adapter extracts only visible species and HP percent.
-    User-confirmed item profiles are included only through an explicit opt-in.
-    It does not read damage estimates, KO context, field state, move context, or
+    User-confirmed item and field profiles are included only through explicit
+    opt-ins. It does not read damage estimates, KO context, move context, or
     other optional contexts.
     """
     pokemon = battle_input.get("pokemon") if isinstance(battle_input, Mapping) else None
@@ -156,9 +157,15 @@ def build_battle_state_context_from_ui_selected_state(
         if opponent_item is not None:
             opponent_active["item"] = opponent_item
 
+    field = None
+    if include_user_confirmed_fields:
+        field_profiles = battle_input.get("field_profiles") if isinstance(battle_input, Mapping) else None
+        field = build_field_state_from_field_profiles(field_profiles if isinstance(field_profiles, Mapping) else None)
+
     return build_battle_state_context(
         self_active=self_active,
         opponent_active=opponent_active,
+        field=field,
     )
 
 
