@@ -192,6 +192,19 @@ known absence. The dialog is not wired into `battle_input`,
 limited-context checkbox path. No provider behavior, prompt guard wording,
 `damage_estimate`, or `ko_context` change is made.
 
+v12.11 status note: Field State UI Mapping Design is documentation-only. It
+proposes session-local `MainWindow` storage for future `field_profiles`, keeps
+the existing limited-context checkbox as the hard gate, and recommends a future
+`include_user_confirmed_fields=False` helper flag parallel to
+`include_user_confirmed_items`. Checkbox off should omit both
+`battle_state_context` and field-profile data from the provider payload path.
+Checkbox on may map only valid user-confirmed field metadata into
+`battle_state_context.field`; missing, unknown, malformed, untrusted, forbidden,
+`context_derived`, or `calculated_from_visible` metadata stays unknown or is
+rejected by direct payload validation. No contract shape, runtime mapping,
+payload builder call-flow, prompt guard wording, provider behavior,
+`damage_estimate`, or `ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

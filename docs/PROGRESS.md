@@ -1,5 +1,33 @@
 # Master Ball Advisor — Progress
 
+## v12.11 - Field State UI Mapping Design
+
+Purpose:
+- Design how standalone `FieldProfileDialog` results should be stored and later mapped into `battle_state_context.field`.
+
+Design summary:
+- `field_profiles` should be battlefield-level session state owned by `MainWindow`, not per-Pokemon `PokemonPanel` state.
+- The future storage candidate is `MainWindow._field_profiles: dict | None`.
+- `FieldProfileDialog` `Apply` should replace the session-local profiles; `Cancel` should leave them unchanged; applied reset can persist the complete unknown profile dict.
+- The existing limited-context checkbox remains the hard gate.
+- Checkbox off should omit `battle_state_context` and should not send `field_profiles` to the provider payload path.
+- Checkbox on may include `field_profiles` in the UI-selected battle input copy and map only valid user-confirmed field metadata into `battle_state_context.field`.
+- The preferred future helper flag is `include_user_confirmed_fields=False`, parallel to `include_user_confirmed_items`.
+- Future provider-path generation can pass `include_user_confirmed_fields=enable_battle_state_context`.
+- `unknown` remains an unknown envelope, while trusted `none` remains user-confirmed known absence.
+- Missing, malformed, untrusted, forbidden, `context_derived`, or `calculated_from_visible` field metadata should remain unknown at helper level or rejected at direct payload validation.
+- No duration, expiration, post-turn, damage precision, resolved outcome, `damage_estimate`, or `ko_context` behavior should be created by field mapping.
+
+Recommended next:
+- v12.12 Field State UI Mapping Tests.
+- Alternative: v12.12 Field State UI Mapping Implementation.
+- Alternative: v12.12 Field Profile Dialog Button Integration.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, production code change, field mapping implementation, `battle_state_context` field-profile connection, FieldProfileDialog button integration, battle log/parser implementation, new limited-context checkbox, UI checkbox default change, `LLMAdvicePanel` copy change, payload builder call-flow change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context`, `damage_estimate`, payload filtering, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.10 - Field Profile Dialog UI Implementation
 
 Purpose:

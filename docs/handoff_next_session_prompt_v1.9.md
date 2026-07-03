@@ -130,19 +130,20 @@ Update after v2.5:
 - v12.8 designed the future Field Profile Dialog. The design scopes it to user-confirmed current field context only, proposes weather/terrain/room single-select controls plus side-specific screens/hazards multi-select controls, distinguishes `unknown` from user-confirmed `none`, reuses the `status=user_confirmed` + `source=user_input` metadata pattern, and recommends contract tests before any UI implementation or runtime mapping.
 - v12.9 locked Field Profile Dialog contract tests. `build_field_state_from_field_profiles(...)` normalizes future dialog metadata without wiring it into UI mapping. Trusted `status=user_confirmed` + `source=user_input` + valid `value` maps to `user_confirmed` known field envelopes; `unknown` remains unconfirmed/missing/malformed input; `none` is known absence; both-side empty screens/hazards values are accepted as user-confirmed known absence. No Field Profile Dialog UI, field mapping, prompt guard change, payload builder call-flow change, provider call, `damage_estimate`, or `ko_context` change was made.
 - v12.10 implemented standalone Field Profile Dialog UI. The dialog exposes weather/terrain/room single-select controls, side-specific screens/hazards controls, explicit `Unknown`/`None`/`Selected` side modes, `Apply`, `Cancel`, and `Reset unknown`, and returns the v12.9 `field_profiles` shape. It is not wired into `battle_input`, `battle_state_context`, the limited-context checkbox, prompt generation, or provider flow.
+- v12.11 designed field state UI mapping without implementation. Future `field_profiles` should be session-local `MainWindow` state, gated by the existing limited-context checkbox, and mapped only when `enable_battle_state_context=True` through a future `include_user_confirmed_fields` helper flag. Checkbox off should omit both `battle_state_context` and field-profile data from the provider payload path; checkbox on may map only valid user-confirmed field metadata while preserving `unknown` and trusted `none` semantics.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.10 Field Profile Dialog UI Implementation.
+T3, continue after v12.11 Field State UI Mapping Design.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.11 Field State UI Mapping Design.
+- Current recommended next milestone is v12.12 Field State UI Mapping Tests.
 - Treat the original item-context verification queue as closed:
   - Focus Band: PASS
   - Quick Claw: PASS
@@ -174,9 +175,9 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.11 Field State UI Mapping Design
-  - Alternative: v12.11 Field Profile Dialog UI Smoke Tests
-  - Alternative: v12.11 Field State UI Mapping Implementation
+  - v12.12 Field State UI Mapping Tests
+  - Alternative: v12.12 Field State UI Mapping Implementation
+  - Alternative: v12.12 Field Profile Dialog Button Integration
 - Reason:
   - v6.10 actual smoke passed with exactly 1 Gemini call and no retry.
   - v6.11 closed that PASS result and kept the current safety boundary explicit.
