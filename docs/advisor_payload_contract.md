@@ -262,6 +262,15 @@ top-level `field_profiles`; checkbox on can normalize valid saved profiles into
 prompt guard wording change, provider behavior, `damage_estimate`, or
 `ko_context` change is made.
 
+v12.17 status note: Limited Context Copy Update for Field State updates only
+the limited-context checkbox tooltip/status copy and related tests. The copy now
+mentions user-confirmed field state as current weather/terrain/room/screens/
+hazards context, and says it does not confirm turn count, expiration, post-turn
+result, exact damage, or full turn outcome. No checkbox behavior/default,
+FieldProfileDialog behavior, field mapping behavior, payload contract shape,
+payload builder call-flow, prompt guard wording, provider behavior,
+`damage_estimate`, or `ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

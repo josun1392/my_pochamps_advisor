@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v12.17 - Limited Context Copy Update for Field State
+
+Purpose:
+- Update limited-context checkbox tooltip/status copy to mention user-confirmed field state after the FieldProfileDialog button became available.
+
+Implementation summary:
+- Updated `TURN_PIPELINE_HELP_TEXT` to include user-confirmed field state.
+- Clarified that field state means user-confirmed current weather/field/room/screens/hazards context.
+- Added copy that field state does not confirm turn count, expiration, post-turn result, exact damage, or full turn outcome.
+- Updated `TURN_PIPELINE_STATUS_TEXT` to mention user-confirmed field state while keeping it concise.
+- Preserved the existing limited-context checkbox label and default unchecked state.
+- Preserved the existing `Field state` button label and behavior.
+- Preserved field-profile mapping behavior and prompt guard wording.
+- Updated UI copy tests to keep existing limited-context meanings and guard against field-state overclaims.
+
+Recommended next:
+- v12.18 Field State UI End-to-End Offline Smoke.
+- Alternative: v12.18 Field State UI Phase Closure.
+- Alternative: v12.18 Controlled Field State Gemini Smoke Design.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, new limited-context checkbox, UI checkbox default change, `FieldProfileDialog` behavior change, field mapping behavior change, prompt guard wording change, payload builder call-flow change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context` calculation, `damage_estimate`, payload filtering, threshold/skip/xfail, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.16 - FieldProfileDialog Button Integration
 
 Purpose:

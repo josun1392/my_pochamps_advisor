@@ -3813,9 +3813,16 @@ def test_turn_pipeline_dev_flag_widget_defaults_off_and_does_not_auto_call() -> 
     assert "선후공 보조 정보" in panel.turn_pipeline_checkbox.toolTip()
     assert "UI에 보이는 상대 기술 후보" in panel.turn_pipeline_checkbox.toolTip()
     assert "현재 포켓몬/HP 스냅샷" in panel.turn_pipeline_checkbox.toolTip()
+    assert "사용자 확인 필드 상태" in panel.turn_pipeline_checkbox.toolTip()
+    assert "날씨/필드/룸/벽/설치물" in panel.turn_pipeline_checkbox.toolTip()
+    assert "현재 컨텍스트" in panel.turn_pipeline_checkbox.toolTip()
     assert "확정 결과가 아니" in panel.turn_pipeline_checkbox.toolTip()
     assert "상대의 실제 선택 기술" in panel.turn_pipeline_checkbox.toolTip()
     assert "숨겨진 아이템/상태/랭크/필드" in panel.turn_pipeline_checkbox.toolTip()
+    assert "턴 수" in panel.turn_pipeline_checkbox.toolTip()
+    assert "만료" in panel.turn_pipeline_checkbox.toolTip()
+    assert "턴 후 결과" in panel.turn_pipeline_checkbox.toolTip()
+    assert "정확한 데미지" in panel.turn_pipeline_checkbox.toolTip()
     assert "턴 후 HP" in panel.turn_pipeline_checkbox.toolTip()
     assert "아이템 소모" in panel.turn_pipeline_checkbox.toolTip()
     assert "RNG" in panel.turn_pipeline_checkbox.toolTip()
@@ -3826,7 +3833,21 @@ def test_turn_pipeline_dev_flag_widget_defaults_off_and_does_not_auto_call() -> 
     assert "제한 컨텍스트 켜짐" in panel.turn_pipeline_status_label.text()
     assert "상대 기술 후보" in panel.turn_pipeline_status_label.text()
     assert "현재 포켓몬/HP 스냅샷" in panel.turn_pipeline_status_label.text()
+    assert "사용자 확인 필드 상태" in panel.turn_pipeline_status_label.text()
+    assert "현재 컨텍스트" in panel.turn_pipeline_status_label.text()
     assert "확정 결과 아님" in panel.turn_pipeline_status_label.text()
+    for forbidden_copy in (
+        "필드 상태로 데미지를 정확히 계산",
+        "날씨/필드 턴 수를 확정",
+        "다음 턴 결과를 확정",
+        "벽/설치물 만료를 계산",
+        "전체 턴 결과를 시뮬레이션",
+        "필드 상태가 데미지를 확정",
+        "필드 상태가 턴 수를 확정",
+        "필드 상태가 만료를 확정",
+    ):
+        assert forbidden_copy not in panel.turn_pipeline_checkbox.toolTip()
+        assert forbidden_copy not in panel.turn_pipeline_status_label.text()
     assert panel.turn_pipeline_status_label.isHidden() is True
 
     panel.turn_pipeline_checkbox.setChecked(True)
