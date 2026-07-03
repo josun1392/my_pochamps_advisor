@@ -1,5 +1,33 @@
 # Master Ball Advisor — Progress
 
+## v12.16 - FieldProfileDialog Button Integration
+
+Purpose:
+- Add the user-facing FieldProfileDialog entry point and MainWindow-owned field-profile session state.
+
+Implementation summary:
+- Added a secondary `Field state` button to `LLMAdvicePanel`.
+- Added `field_profile_requested` as a local UI signal separate from `advice_requested`.
+- Added `MainWindow._field_profiles: dict | None` as session-local field-profile state.
+- Wired the field-state button to `MainWindow._open_field_profile_dialog()`.
+- Apply stores `dialog.field_profiles` into `_field_profiles`.
+- Cancel preserves the previous `_field_profiles`.
+- Reset unknown plus Apply stores the default unknown-compatible `field_profiles` shape.
+- `_build_llm_battle_input()` now includes saved `field_profiles` when present.
+- Preserved the existing limited-context checkbox as the hard gate: off omits `battle_state_context` and top-level `field_profiles`; on maps saved valid profiles into `battle_state_context.field`.
+- Verified button click does not emit advice requests or call provider code.
+- Verified prompt guard wording remains unchanged.
+
+Recommended next:
+- v12.17 Limited Context Copy Update for Field State.
+- Alternative: v12.17 Field State UI End-to-End Offline Smoke.
+- Alternative: v12.17 Field State UI Phase Closure.
+
+Safety statement:
+- No actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, new limited-context checkbox, UI checkbox default change, prompt guard wording change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context` calculation, `damage_estimate`, payload filtering, threshold/skip/xfail, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.15 - FieldProfileDialog Button Integration Tests
 
 Purpose:

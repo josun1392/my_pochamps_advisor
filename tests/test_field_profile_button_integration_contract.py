@@ -7,7 +7,9 @@ from typing import Any
 from PySide6.QtWidgets import QApplication, QDialog
 
 import llm.advisor_client as advisor_client
-from tests.test_advisor_payload_contract import _opponent_move_ui_advice_flow_payload
+import ui.main_window as main_window_module
+from tests.test_advisor_payload_contract import _move, _opponent_move_ui_advice_flow_payload, _panel, _window
+from ui.main_window import MainWindow
 from ui.widgets.field_profile_dialog import default_field_profiles, user_confirmed_field_profile
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
 
@@ -104,6 +106,81 @@ def test_field_profile_button_contract_open_apply_stores_session_state_without_p
     assert dialog.current_profiles is None
     assert controller.field_profiles == profiles
     assert provider_call.calls == 0
+
+
+def test_field_profile_button_exists_and_emits_field_profile_request_without_provider_call() -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    panel = LLMAdvicePanel()
+    provider_call = _ProviderSpy()
+    advice_requests = 0
+    field_profile_requests = 0
+
+    def record_advice_request() -> None:
+        nonlocal advice_requests
+        advice_requests += 1
+
+    def record_field_profile_request() -> None:
+        nonlocal field_profile_requests
+        field_profile_requests += 1
+
+    panel.advice_requested.connect(record_advice_request)
+    panel.field_profile_requested.connect(record_field_profile_request)
+
+    assert panel.field_profile_button.text() == "Field state"
+    assert panel.field_profile_button.objectName() == "fieldProfileButton"
+    assert panel.turn_pipeline_checkbox.isChecked() is False
+
+    panel.field_profile_button.click()
+
+    assert field_profile_requests == 1
+    assert advice_requests == 0
+    assert provider_call.calls == 0
+
+
+def test_main_window_field_profile_dialog_apply_cancel_and_reset_session_state(
+    monkeypatch: Any,
+) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    accepted_profiles = _field_profiles_fixture()
+    reset_profiles = default_field_profiles()
+    created_dialogs: list[_FakeFieldProfileDialog] = []
+    queued_results = [
+        (accepted_profiles, QDialog.DialogCode.Accepted),
+        (reset_profiles, QDialog.DialogCode.Rejected),
+        (reset_profiles, QDialog.DialogCode.Accepted),
+    ]
+
+    def fake_dialog_factory(*, current_profiles: dict[str, Any] | None, parent: object) -> _FakeFieldProfileDialog:
+        del parent
+        result_profiles, result_code = queued_results.pop(0)
+        dialog = _FakeFieldProfileDialog(
+            current_profiles=current_profiles,
+            result_profiles=result_profiles,
+            result_code=result_code,
+        )
+        created_dialogs.append(dialog)
+        return dialog
+
+    window = MainWindow.__new__(MainWindow)
+    window._field_profiles = None
+    monkeypatch.setattr(main_window_module, "FieldProfileDialog", fake_dialog_factory)
+
+    window._open_field_profile_dialog()
+
+    assert window._field_profiles == accepted_profiles
+    assert created_dialogs[-1].current_profiles is None
+
+    window._open_field_profile_dialog()
+
+    assert window._field_profiles == accepted_profiles
+    assert created_dialogs[-1].current_profiles == accepted_profiles
+
+    window._open_field_profile_dialog()
+
+    assert window._field_profiles == reset_profiles
+    assert created_dialogs[-1].current_profiles == accepted_profiles
 
 
 def test_field_profile_button_contract_cancel_preserves_previous_session_state() -> None:
@@ -224,6 +301,56 @@ def test_field_profile_button_contract_saved_state_respects_limited_context_gate
         "source": "user_confirmed",
         "value": {"self": [], "opponent": ["stealth_rock"]},
     }
+
+
+def test_main_window_saved_field_profiles_flow_into_existing_checkbox_gate() -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    panel = LLMAdvicePanel()
+    my_panel = _panel("garchomp", selected_move_index=0, selected_moves=[_move("earthquake")])
+    opponent_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
+    window = _window(my_panel, opponent_panel)
+    window._field_profiles = _field_profiles_fixture()
+
+    battle_input = window._build_llm_battle_input()
+    assert battle_input["field_profiles"] == _field_profiles_fixture()
+
+    off_prompt = advisor_client._build_ui_selected_prompt(
+        battle_input,
+        enable_turn_pipeline=panel.turn_pipeline_enabled(),
+        enable_turn_order_context=panel.turn_pipeline_enabled(),
+        enable_opponent_move_context=panel.turn_pipeline_enabled(),
+        enable_battle_state_context=panel.turn_pipeline_enabled(),
+    )
+    off_payload = _prompt_payload(off_prompt)
+
+    panel.turn_pipeline_checkbox.setChecked(True)
+    on_prompt = advisor_client._build_ui_selected_prompt(
+        battle_input,
+        enable_turn_pipeline=panel.turn_pipeline_enabled(),
+        enable_turn_order_context=panel.turn_pipeline_enabled(),
+        enable_opponent_move_context=panel.turn_pipeline_enabled(),
+        enable_battle_state_context=panel.turn_pipeline_enabled(),
+    )
+    on_payload = _prompt_payload(on_prompt)
+
+    assert "battle_state_context" not in off_payload
+    assert "field_profiles" not in off_payload
+    assert '"field_profiles"' not in off_prompt
+
+    assert "field_profiles" not in on_payload
+    battle_state_context = on_payload["battle_state_context"]
+    assert battle_state_context["field"]["weather"] == {"known": True, "source": "user_confirmed", "value": "rain"}
+    for forbidden_field in (
+        "duration",
+        "expiration",
+        "post_turn",
+        "damage_precision",
+        "resolved_outcome",
+        "full_turn_result",
+    ):
+        assert forbidden_field not in battle_state_context
+        assert forbidden_field not in battle_state_context["field"]
 
 
 def test_field_profile_button_contract_keeps_checkbox_default_and_battle_state_guard_wording() -> None:

@@ -252,6 +252,16 @@ profiles into `battle_state_context.field`. No user-facing button,
 builder call-flow, prompt guard wording, provider behavior, `damage_estimate`,
 or `ko_context` change is made.
 
+v12.16 status note: FieldProfileDialog Button Integration adds a user-facing
+secondary `Field state` button in `LLMAdvicePanel` and MainWindow-owned
+session-local `field_profiles` storage. Saved profiles are copied into the
+UI-selected battle input, then remain controlled by the existing
+limited-context checkbox gate. Checkbox off omits `battle_state_context` and
+top-level `field_profiles`; checkbox on can normalize valid saved profiles into
+`battle_state_context.field`. No new checkbox, payload contract shape change,
+prompt guard wording change, provider behavior, `damage_estimate`, or
+`ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
