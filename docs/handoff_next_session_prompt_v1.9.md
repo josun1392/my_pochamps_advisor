@@ -139,20 +139,22 @@ Update after v2.5:
 - v12.17 updated limited-context checkbox tooltip/status copy for user-confirmed field state. The copy now states that enabled limited context can include user-confirmed current weather/terrain/room/screens/hazards context, while not confirming turn count, expiration, post-turn result, exact damage, or full turn outcome. Checkbox default, FieldProfileDialog behavior, field mapping behavior, prompt guard wording, provider calls, `damage_estimate`, and `ko_context` behavior remain unchanged.
 - v12.18 added a Field State UI End-to-End Offline Smoke. A UI-selected Garchomp/Charizard fixture with saved `field_profiles` and user-confirmed items is run through mocked `run_ui_selected_advice` provider calls. Checkbox off omits `battle_state_context`, top-level `field_profiles`, and serialized field values; checkbox on serializes known weather, terrain, room, screens, and hazards inside `battle_state_context.field` while preserving existing optional contexts. Mocked responses avoid duration, expiration, post-turn state, exact damage, full outcome, damage-inferred field, and hidden-field claims. No actual Gemini call was made.
 - v12.19 closed the Field State UI phase for the offline path. The closure records the completed source contract, helper normalization, prompt fixture, UI inventory, FieldProfileDialog, checkbox-gated mapping, button integration, limited-context copy update, and mocked end-to-end offline smoke. Current user flow is `Field state` button -> FieldProfileDialog -> `MainWindow._field_profiles` -> existing limited-context checkbox gate -> `battle_state_context.field` -> prompt serialization. The phase remains bounded to user-confirmed current context only: no duration, expiration, post-turn outcome, exact damage, full turn outcome, hidden-field guessing, full Turn Engine, `damage_estimate`, or `ko_context` behavior change. Recommended next is v12.20 Controlled Field State Gemini Smoke Design; it should be design-only unless T1 explicitly approves a later actual call.
+- v12.20 designed the Controlled Field State Gemini Smoke without executing it. The design uses a Garchomp/Charizard fixture with user-confirmed items and user-confirmed field profiles for rain, electric terrain, Trick Room, side-specific screens, and side-specific hazards. Future execution requires clean repo/test preflight, separate T1/T2 approval, exactly one actual Gemini call, retry count 0, no second provider call, no Vertex AI call, no top-level `field_profiles` leakage, unchanged prompt guard wording, response safety checks against duration/expiration/post-turn/exact damage/full outcome/hidden-field claims, and sanitized token/cost summary only. No actual Gemini call was made in v12.20.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.19 Field State UI Phase Closure.
+T3, continue after v12.20 Controlled Field State Gemini Smoke Design.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.20 Controlled Field State Gemini Smoke Design.
-- v12.20 is design-only unless T1 explicitly approves a later actual Gemini call.
+- Current recommended next milestone is v12.21 Controlled Field State Gemini Smoke if repo/test preflight is clean and T1/T2 explicitly approve exactly one actual Gemini call.
+- If PySide6/pytest/uv environment issues continue, prefer v12.21 Field State Actual Smoke Preflight Repair before any provider execution.
+- v12.21 actual Gemini execution still requires separate explicit T1/T2 approval, exactly one call, retry count 0, no second provider, and no Vertex AI.
 - Treat the original item-context verification queue as closed:
   - Focus Band: PASS
   - Quick Claw: PASS

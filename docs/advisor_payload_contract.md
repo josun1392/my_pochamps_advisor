@@ -294,6 +294,16 @@ remains unknown, and trusted `none` remains user-confirmed absence. No contract
 shape, production code, prompt guard wording, provider behavior,
 `damage_estimate`, or `ko_context` change is made.
 
+v12.20 status note: Controlled Field State Gemini Smoke Design is
+documentation-only. It designs a future actual-provider smoke for the
+checkbox-gated user-confirmed field-state path, requiring separate T1/T2
+approval, exactly one actual Gemini call, retry count 0, no second provider
+call, no Vertex AI call, pre-call payload/prompt checks, response safety checks,
+and sanitized token/cost reporting only. No actual provider call is made in
+v12.20, and no contract shape, production code, prompt guard wording,
+FieldProfileDialog behavior, field mapping behavior, payload builder call-flow,
+`damage_estimate`, or `ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
