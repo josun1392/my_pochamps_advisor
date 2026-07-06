@@ -1,5 +1,31 @@
 # Master Ball Advisor — Progress
 
+## v12.26 - Item Activation/Consumption Boundary Design
+
+Purpose:
+- Design the boundary between user-confirmed known item context and item activation, consumption, resolved item effects, and post-turn item state.
+
+Implementation summary:
+- Added `docs/spike_v12.26_item_activation_consumption_boundary_design.md`.
+- Defined current known item meaning: user-confirmed/current context that may support strategic advice, not activation, consumption, resolved effects, post-turn state, hidden item inference, or opponent set/item inference.
+- Defined the item state model: `unknown_item`, `known_item`, `candidate_activation`, `observed_activation`, `observed_consumption`, and `resolved_item_effect`.
+- Documented allowed source boundaries: `user_confirmed_current_item` supports `known_item` only; explicit user confirmation, battle-log observation, parser observation, imported replay events, and future Turn Engine resolution require later source contracts before they can support observed/resolved item states.
+- Documented forbidden sources for activation/consumption: species/common-set/meta inference, damage reverse inference, HP percentage inference, move-selection inference, opponent-move context inference, turn-order context inference, field-state inference, legality gate inference, resist berry context inference, LLM/model guess, hidden item guess, and "usually runs item X" inference.
+- Added item-specific boundaries for Leftovers, Choice Scarf, Focus Sash, Berry, and Quick Claw.
+- Designed current payload boundaries that allow known item context and source metadata while forbidding activation/consumption/resolved-effect fields such as `item_activated`, `item_consumed`, `resolved_item_effect`, `post_turn_item_state`, `quick_claw_activated`, `focus_sash_triggered`, and `berry_consumed`.
+- Designed future-only payload candidates such as `item_event_context`, `observed_item_events`, `resolved_item_effects`, and `post_turn_item_state` for separate design/testing/approval.
+- Recommended v12.27 Item Activation/Consumption Contract Tests before implementation or prompt wording changes.
+
+Recommended next:
+- v12.27 Item Activation/Consumption Contract Tests.
+- Alternative: v12.27 Item Event Source Inventory.
+- Alternative: v12.27 Status/Condition Source Design.
+
+Safety statement:
+- No production code change, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, FieldProfileDialog behavior change, field mapping behavior change, prompt guard wording change, new limited-context checkbox, UI checkbox default change, payload builder call-flow change, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, full Turn Engine, resolved turn order, post-turn HP calculation, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context` calculation, `damage_estimate`, payload filtering, threshold/skip/xfail, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.25 - Field State Actual Smoke Closure
 
 Purpose:

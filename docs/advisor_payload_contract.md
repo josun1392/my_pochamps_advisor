@@ -328,6 +328,16 @@ production code, prompt guard wording, FieldProfileDialog behavior, field
 mapping behavior, payload builder call-flow, `damage_estimate`, or `ko_context`
 change is made.
 
+v12.26 status note: Item Activation/Consumption Boundary Design is
+documentation-only and does not change payload shape or runtime behavior.
+Current known item context remains user-confirmed/current context only. It does
+not imply item activation, item consumption, resolved item effects, post-turn
+item state, exact post-turn HP, exact damage, resolved turn order, hidden item
+inference, opponent set/item inference, or LLM/model guesses. Future fields
+such as `item_event_context`, `observed_item_events`, `resolved_item_effects`,
+and `post_turn_item_state` require separate design, source contracts, tests,
+and approval before implementation.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
