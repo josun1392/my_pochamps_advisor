@@ -146,19 +146,22 @@ Update after v2.5:
 - v12.24 executed the Controlled Field State Gemini Smoke after T1/T2 approval. Targeted preflight tests and full pytest passed, the pre-call prompt payload included gated `battle_state_context.field` values for user-confirmed rain, electric terrain, Trick Room, side-specific screens, and side-specific hazards, and top-level `field_profiles` did not leak. Exactly one actual Gemini call was made with `gemini-2.5-flash`, retry count was 0, second provider call count was 0, and Vertex AI call count was 0. The sanitized response scan found no duration, expiration, post-turn state, exact damage, full outcome, damage-inferred field, hidden field, or hidden item claims. Sanitized token summary: input `11879`, output `172`, cached `0`, estimated cost USD `0.0`. Raw response text and raw token log contents were not printed.
 - v12.25 closed the Field State Actual Smoke phase as `CLOSED - PASS` without another provider call. The closure summarizes v12.20-v12.24, records the one-call/no-retry audit trail, payload/prompt PASS, response safety PASS, sanitized token/cost handling, remaining limitations, and recommends v12.26 Item Activation/Consumption Boundary Design next. No production code, dependency file, prompt guard, FieldProfileDialog behavior, field mapping behavior, `damage_estimate`, or `ko_context` behavior changed.
 - v12.26 designed the Item Activation/Consumption Boundary without implementation. Known/user-confirmed items remain current context only and do not imply activation, consumption, resolved item effects, post-turn item state, exact damage, resolved order, hidden item inference, or opponent set/item inference. The design defines `unknown_item`, `known_item`, `candidate_activation`, `observed_activation`, `observed_consumption`, and `resolved_item_effect`, documents allowed and forbidden sources, gives Leftovers/Choice Scarf/Focus Sash/Berry/Quick Claw examples, and recommends v12.27 Item Activation/Consumption Contract Tests.
+- v12.27 locked Item Activation/Consumption Contract Tests. Known user-confirmed items still serialize only as current context, while malformed battle-state contexts with item-event/resolved fields such as `item_activated`, `item_consumed`, `resolved_item_effect`, `post_turn_item_state`, `quick_claw_activated`, `focus_sash_triggered`, and `berry_consumed` are rejected. Focus Sash, Quick Claw, Berry, Leftovers, and Choice Scarf prompt fixtures verify known items do not serialize activation/consumption fields or positive overclaim phrases. Forbidden inference sources do not upgrade to known items or item events.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.26 Item Activation/Consumption Boundary Design.
+T3, continue after v12.27 Item Activation/Consumption Contract Tests.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.27 Item Activation/Consumption Contract Tests.
+- Current recommended next milestone is v12.28 Item Activation/Consumption Prompt Fixture.
+- v12.27 locked contract tests for known item versus activation/consumption/resolved item effect boundaries.
+- Valid known item context remains unchanged; malformed battle_state_context item-event fields are rejected.
 - v12.26 designed the item activation/consumption boundary without implementation.
 - Known item means user-confirmed/current item context only; it does not mean activated, consumed, resolved effect, post-turn item state, exact damage, resolved order, hidden item inference, or opponent set/item inference.
 - v12.25 closed the field-state actual smoke phase as CLOSED - PASS.
@@ -196,12 +199,12 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.27 Item Activation/Consumption Contract Tests
-  - Alternative: v12.27 Item Event Source Inventory
-  - Alternative: v12.27 Status/Condition Source Design
+  - v12.28 Item Activation/Consumption Prompt Fixture
+  - Alternative: v12.28 Item Event Source Inventory
+  - Alternative: v12.28 Status/Condition Source Design
 - Reason:
-  - v12.26 documented that known user-confirmed items must not imply activation, consumption, post-turn behavior, or resolved outcomes.
-  - The next safe step is to lock that boundary in contract tests before implementation or prompt wording changes.
+  - v12.27 locked payload/battle-state contracts so known user-confirmed items must not imply activation, consumption, post-turn behavior, or resolved outcomes.
+  - The next safe step is an offline prompt/response fixture for item activation overclaim checks.
   - v12.24 controlled field-state actual smoke passed.
   - The one-call/no-retry audit trail is complete and should be closed before starting a new feature boundary.
   - v12.23 restored the uv-managed test environment and passed the field-state targeted preflight set plus full pytest.

@@ -1,5 +1,31 @@
 # Master Ball Advisor — Progress
 
+## v12.27 - Item Activation/Consumption Contract Tests
+
+Purpose:
+- Lock the v12.26 known-item versus activation/consumption/resolved-effect boundary with contract tests.
+
+Implementation summary:
+- Added `docs/spike_v12.27_item_activation_consumption_contract_tests.md`.
+- Extended `tests/test_advisor_payload_contract.py` with item activation/consumption boundary coverage.
+- Locked the known item path for user-confirmed Leftovers and Choice Scarf so items remain known current context only.
+- Added Focus Sash, Quick Claw, Berry, Leftovers, and Choice Scarf boundary prompt fixtures.
+- Added recursive checks that known item prompt payloads do not serialize item-event fields such as `item_activated`, `item_consumed`, `resolved_item_effect`, `post_turn_item_state`, `quick_claw_activated`, `focus_sash_triggered`, or `berry_consumed`.
+- Added malformed `battle_state_context` rejection coverage for v12.26 item-event fields.
+- Added forbidden source coverage so damage reverse, species/common-set, model guess, hidden-state guess, turn-order context, opponent-move context, legality gate, and resist berry inferred sources do not become known items or item events.
+- Extended `BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS` to reject item activation/consumption/resolved/post-turn fields in malformed battle-state contexts.
+- Kept valid user-confirmed known item behavior unchanged.
+
+Recommended next:
+- v12.28 Item Activation/Consumption Prompt Fixture.
+- Alternative: v12.28 Item Event Source Inventory.
+- Alternative: v12.28 Status/Condition Source Design.
+
+Safety statement:
+- No actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, full Turn Engine, resolved turn order, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.26 - Item Activation/Consumption Boundary Design
 
 Purpose:

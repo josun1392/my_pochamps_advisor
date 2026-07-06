@@ -78,6 +78,40 @@ UNAVAILABLE_ITEM_ADVICE_PAYLOAD_FORBIDDEN_TERMS = (
     "blocked",
 )
 
+_ITEM_ACTIVATION_BOUNDARY_FORBIDDEN_FIELDS = frozenset(
+    {
+        "activation_turn",
+        "berry_consumed",
+        "consumed_turn",
+        "damage_reduction_applied",
+        "focus_sash_triggered",
+        "item_activated",
+        "item_consumed",
+        "item_damage_modifier_applied",
+        "item_speed_modifier_applied",
+        "post_hit_hp_1",
+        "post_turn_hp_from_item",
+        "post_turn_item_state",
+        "quick_claw_activated",
+        "recovery_applied",
+        "resolved_item_effect",
+        "rng_roll",
+        "speed_order_override",
+    }
+)
+
+_ITEM_ACTIVATION_BOUNDARY_FORBIDDEN_OVERCLAIM_PHRASES = (
+    "activated this turn",
+    "was consumed",
+    "triggered this turn",
+    "recovered hp this turn",
+    "changed the exact damage",
+    "moves first because of quick claw",
+    "focus sash activated",
+    "berry was consumed",
+    "post-turn hp is",
+)
+
 
 def test_ui_payload_uses_advisor_contract_guardrails() -> None:
     my_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
@@ -897,6 +931,145 @@ def test_battle_state_context_payload_adapter_preserves_allowed_known_items() ->
     }
     _assert_battle_state_context_contract(battle_state_context)
     _assert_battle_state_context_has_no_forbidden_fields(battle_state_context)
+
+
+def test_known_item_context_does_not_emit_activation_or_consumption_fields() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    battle_input = _item_activation_boundary_battle_input(
+        self_item="leftovers",
+        opponent_item="choice-scarf",
+    )
+    battle_state_context = build_battle_state_context_from_ui_selected_state(
+        battle_input,
+        include_user_confirmed_items=True,
+    )
+
+    advice_payload = build_ui_advice_payload(
+        payload,
+        battle_state_context=battle_state_context,
+        enable_battle_state_context=True,
+    )
+    context_payload = advice_payload["battle_state_context"]
+
+    assert context_payload["self_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "leftovers",
+    }
+    assert context_payload["opponent_active"]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "choice-scarf",
+    }
+    _assert_battle_state_context_contract(context_payload)
+    _assert_item_activation_boundary_fields_absent(context_payload)
+
+
+@pytest.mark.parametrize(
+    ("item_id", "side", "expected_value"),
+    [
+        ("focus-sash", "self_active", "focus-sash"),
+        ("quick-claw", "self_active", "quick-claw"),
+        ("sitrus-berry", "self_active", "sitrus-berry"),
+        ("leftovers", "self_active", "leftovers"),
+        ("choice-scarf", "opponent_active", "choice-scarf"),
+    ],
+)
+def test_known_item_boundary_prompt_keeps_item_effects_unresolved(
+    item_id: str,
+    side: str,
+    expected_value: str,
+) -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    self_item = item_id if side == "self_active" else "leftovers"
+    opponent_item = item_id if side == "opponent_active" else "choice-scarf"
+    battle_state_context = build_battle_state_context_from_ui_selected_state(
+        _item_activation_boundary_battle_input(
+            self_item=self_item,
+            opponent_item=opponent_item,
+        ),
+        include_user_confirmed_items=True,
+    )
+
+    prompt = _build_ui_selected_prompt(
+        payload,
+        battle_state_context=battle_state_context,
+        enable_battle_state_context=True,
+    )
+    prompt_payload = json.loads(prompt.rsplit("\n\n", 1)[1])
+    context_payload = prompt_payload["battle_state_context"]
+
+    assert context_payload[side]["item"] == {
+        "known": True,
+        "source": "user_confirmed",
+        "value": expected_value,
+    }
+    _assert_battle_state_context_contract(context_payload)
+    _assert_item_activation_boundary_fields_absent(context_payload)
+    _assert_item_activation_boundary_fields_absent(prompt_payload)
+    _assert_item_activation_boundary_overclaim_phrases_absent(prompt)
+
+
+@pytest.mark.parametrize("field_name", sorted(_ITEM_ACTIVATION_BOUNDARY_FORBIDDEN_FIELDS))
+def test_battle_state_context_rejects_item_activation_boundary_fields(field_name: str) -> None:
+    assert field_name in HELPER_BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    context = _sample_battle_state_context()
+    context["self_active"]["item"] = {
+        "known": True,
+        "source": "user_confirmed",
+        "value": "focus-sash",
+        field_name: True,
+    }
+
+    with pytest.raises(ValueError, match=field_name):
+        build_ui_advice_payload(
+            payload,
+            battle_state_context=context,
+            enable_battle_state_context=True,
+        )
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "damage_reverse_inference",
+        "species_common_set",
+        "model_guess",
+        "hidden_state_guess",
+        "turn_order_context",
+        "opponent_move_context",
+        "legality_gate_guess",
+        "resist_berry_inferred",
+    ],
+)
+def test_forbidden_item_sources_do_not_upgrade_to_item_events(source: str) -> None:
+    battle_state_context = build_battle_state_context_from_ui_selected_state(
+        {
+            "pokemon": {
+                "my_active": {"name_en": "Garchomp", "hp_percent": 100},
+                "opponent_active": {"name_en": "Charizard", "hp_percent": 87},
+            },
+            "item_profiles": {
+                "my_active": {
+                    "status": "user_confirmed",
+                    "source": source,
+                    "item_id": "quick-claw",
+                },
+                "opponent_active": {
+                    "status": "user_confirmed",
+                    "source": source,
+                    "item_id": "focus-sash",
+                },
+            },
+        },
+        include_user_confirmed_items=True,
+    )
+
+    assert battle_state_context["self_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    assert battle_state_context["opponent_active"]["item"] == BATTLE_STATE_CONTEXT_UNKNOWN_FIELD
+    _assert_battle_state_context_contract(battle_state_context)
+    _assert_item_activation_boundary_fields_absent(battle_state_context)
 
 
 def test_battle_state_context_payload_adapter_accepts_ui_item_adapter_output() -> None:
@@ -6889,8 +7062,23 @@ BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS = frozenset(
         "predicted_terrain",
         "likely_terrain",
         "damage_reverse_inferred",
+        "activation_turn",
+        "berry_consumed",
+        "consumed_turn",
+        "damage_reduction_applied",
+        "focus_sash_triggered",
+        "item_activated",
         "post_turn_hp",
+        "post_turn_hp_from_item",
+        "post_turn_item_state",
+        "post_hit_hp_1",
+        "recovery_applied",
+        "resolved_item_effect",
+        "rng_roll",
+        "speed_order_override",
         "item_consumed",
+        "item_damage_modifier_applied",
+        "item_speed_modifier_applied",
         "rng_resolved",
         "speed_tie_resolved",
         "quick_claw_activated",
@@ -7070,6 +7258,43 @@ def _assert_battle_state_context_has_no_forbidden_fields(value: object) -> None:
     elif isinstance(value, list):
         for child_value in value:
             _assert_battle_state_context_has_no_forbidden_fields(child_value)
+
+
+def _assert_item_activation_boundary_fields_absent(value: object) -> None:
+    if isinstance(value, dict):
+        for key, child_value in value.items():
+            assert key not in _ITEM_ACTIVATION_BOUNDARY_FORBIDDEN_FIELDS
+            _assert_item_activation_boundary_fields_absent(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _assert_item_activation_boundary_fields_absent(child_value)
+
+
+def _assert_item_activation_boundary_overclaim_phrases_absent(prompt: str) -> None:
+    prompt_lower = prompt.lower()
+    for phrase in _ITEM_ACTIVATION_BOUNDARY_FORBIDDEN_OVERCLAIM_PHRASES:
+        assert phrase not in prompt_lower
+
+
+def _item_activation_boundary_battle_input(*, self_item: str, opponent_item: str) -> dict:
+    return {
+        "pokemon": {
+            "my_active": {"name_en": "Garchomp", "hp_percent": 100},
+            "opponent_active": {"name_en": "Charizard", "hp_percent": 87},
+        },
+        "item_profiles": {
+            "my_active": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "item_id": self_item,
+            },
+            "opponent_active": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "item_id": opponent_item,
+            },
+        },
+    }
 
 
 def _assert_no_field_resolution_fields(value: object) -> None:

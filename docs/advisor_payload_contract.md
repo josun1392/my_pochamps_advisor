@@ -338,6 +338,19 @@ such as `item_event_context`, `observed_item_events`, `resolved_item_effects`,
 and `post_turn_item_state` require separate design, source contracts, tests,
 and approval before implementation.
 
+v12.27 status note: Item Activation/Consumption Contract Tests lock the v12.26
+boundary. Valid known item context remains unchanged and still means
+user-confirmed/current context only. Malformed `battle_state_context` payloads
+that include item-event or resolved-effect fields such as `item_activated`,
+`item_consumed`, `resolved_item_effect`, `post_turn_item_state`,
+`post_turn_hp_from_item`, `quick_claw_activated`, `focus_sash_triggered`, or
+`berry_consumed` are rejected by contract. Forbidden inference sources such as
+damage reverse, species/common-set, hidden-state/model guesses, turn-order
+context, opponent-move context, legality gate, and resist berry inference do not
+become known items or item events. No prompt guard wording, damage behavior,
+payload filtering, item activation, item consumption, resolved effect, or
+post-turn item state behavior is implemented.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
