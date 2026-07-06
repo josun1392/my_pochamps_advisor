@@ -138,19 +138,21 @@ Update after v2.5:
 - v12.16 implemented FieldProfileDialog button integration. `LLMAdvicePanel` now has a secondary `Field state` button and `field_profile_requested` signal, while `MainWindow` owns `_field_profiles`, opens `FieldProfileDialog`, stores Apply results, preserves Cancel state, and copies saved profiles into UI-selected battle input. The existing limited-context checkbox still gates provider payload behavior: off omits `battle_state_context` and top-level `field_profiles`, on maps valid saved profiles into `battle_state_context.field`. No new checkbox, prompt guard wording change, actual Gemini call, `damage_estimate`, or `ko_context` behavior was added.
 - v12.17 updated limited-context checkbox tooltip/status copy for user-confirmed field state. The copy now states that enabled limited context can include user-confirmed current weather/terrain/room/screens/hazards context, while not confirming turn count, expiration, post-turn result, exact damage, or full turn outcome. Checkbox default, FieldProfileDialog behavior, field mapping behavior, prompt guard wording, provider calls, `damage_estimate`, and `ko_context` behavior remain unchanged.
 - v12.18 added a Field State UI End-to-End Offline Smoke. A UI-selected Garchomp/Charizard fixture with saved `field_profiles` and user-confirmed items is run through mocked `run_ui_selected_advice` provider calls. Checkbox off omits `battle_state_context`, top-level `field_profiles`, and serialized field values; checkbox on serializes known weather, terrain, room, screens, and hazards inside `battle_state_context.field` while preserving existing optional contexts. Mocked responses avoid duration, expiration, post-turn state, exact damage, full outcome, damage-inferred field, and hidden-field claims. No actual Gemini call was made.
+- v12.19 closed the Field State UI phase for the offline path. The closure records the completed source contract, helper normalization, prompt fixture, UI inventory, FieldProfileDialog, checkbox-gated mapping, button integration, limited-context copy update, and mocked end-to-end offline smoke. Current user flow is `Field state` button -> FieldProfileDialog -> `MainWindow._field_profiles` -> existing limited-context checkbox gate -> `battle_state_context.field` -> prompt serialization. The phase remains bounded to user-confirmed current context only: no duration, expiration, post-turn outcome, exact damage, full turn outcome, hidden-field guessing, full Turn Engine, `damage_estimate`, or `ko_context` behavior change. Recommended next is v12.20 Controlled Field State Gemini Smoke Design; it should be design-only unless T1 explicitly approves a later actual call.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.18 Field State UI End-to-End Offline Smoke.
+T3, continue after v12.19 Field State UI Phase Closure.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.19 Field State UI Phase Closure.
+- Current recommended next milestone is v12.20 Controlled Field State Gemini Smoke Design.
+- v12.20 is design-only unless T1 explicitly approves a later actual Gemini call.
 - Treat the original item-context verification queue as closed:
   - Focus Band: PASS
   - Quick Claw: PASS

@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v12.19 - Field State UI Phase Closure
+
+Purpose:
+- Close the v12.3-v12.18 field state UI phase after the mocked end-to-end offline smoke.
+
+Implementation summary:
+- Added `docs/spike_v12.19_field_state_ui_phase_closure.md`.
+- Summarized completed field state milestones from source design through offline UI-selected prompt smoke.
+- Recorded the current user flow: `Field state` button, FieldProfileDialog input, `MainWindow._field_profiles` storage, limited-context checkbox gate, and `battle_state_context.field` prompt serialization.
+- Recorded the current payload/prompt flow: `FieldProfileDialog` -> `MainWindow._field_profiles` -> `battle_input["field_profiles"]` -> limited-context checkbox gate -> `battle_state_context.field` -> prompt serialization -> mocked provider.
+- Reconfirmed checkbox off omits `battle_state_context`, top-level `field_profiles`, and known field values.
+- Reconfirmed checkbox on maps valid field profiles into `battle_state_context.field` without top-level leakage.
+- Reconfirmed `unknown` means unconfirmed/missing/malformed input and `none` means user-confirmed known absence.
+- Documented test coverage, known limitations, and final offline phase status.
+
+Recommended next:
+- v12.20 Controlled Field State Gemini Smoke Design.
+- Alternative: v12.20 Item Activation/Consumption Boundary Design.
+- Alternative: v12.20 Battle State Status/Condition Source Design.
+
+Safety statement:
+- No production code change, actual Gemini call, retry, second provider call, Vertex AI call, network/provider call, FieldProfileDialog behavior change, field mapping behavior change, prompt guard wording change, new limited-context checkbox, UI checkbox default change, payload builder call-flow change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context` calculation, `damage_estimate`, payload filtering, threshold/skip/xfail, `.env`, secrets, API keys, raw token-log contents, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.18 - Field State UI End-to-End Offline Smoke
 
 Purpose:

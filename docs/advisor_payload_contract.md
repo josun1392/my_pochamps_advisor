@@ -283,6 +283,17 @@ damage-inferred field, and hidden-field claims. No payload contract shape,
 prompt guard wording, provider behavior, `damage_estimate`, or `ko_context`
 change is made.
 
+v12.19 status note: Field State UI Phase Closure is documentation-only and
+closes the v12.3-v12.18 offline field-state UI path. Current behavior remains:
+`FieldProfileDialog` stores user-confirmed `field_profiles` in
+`MainWindow._field_profiles`; the existing limited-context checkbox is the hard
+gate; checkbox off omits `battle_state_context` and top-level `field_profiles`;
+checkbox on can normalize valid field profiles into `battle_state_context.field`
+without top-level leakage. Known fields remain current context only, unknown
+remains unknown, and trusted `none` remains user-confirmed absence. No contract
+shape, production code, prompt guard wording, provider behavior,
+`damage_estimate`, or `ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
