@@ -1,5 +1,32 @@
 # Master Ball Advisor — Progress
 
+## v12.23 - Environment Setup Execution
+
+Purpose:
+- Restore the uv-managed project test environment and verify field-state actual-smoke preflight tests before any provider call.
+
+Implementation summary:
+- Added `docs/spike_v12.23_environment_setup_execution.md`.
+- Confirmed initial repo state was clean except the existing unstaged `config/env.example` and `logs/token_usage.jsonl`.
+- Confirmed bare `python` still resolved to Anaconda Python 3.13.5.
+- Confirmed `uv` was unavailable on PATH at task start.
+- Installed/restored `uv 0.11.26` within the approved v12.23 environment-repair scope.
+- Ran `uv sync --dev` with CPython 3.11.9 and restored the repo-local `.venv`.
+- Verified the uv-managed environment has `pytest 9.0.3` and `PySide6 6.11.0`.
+- Ran the field-state targeted preflight set successfully.
+- Ran full pytest successfully: `1397 passed, 2 deselected`.
+- Confirmed PySide6-dependent tests now collect and pass under the uv-managed environment.
+- Confirmed `pyproject.toml`, `uv.lock`, and requirements files were not changed.
+
+Recommended next:
+- v12.24 Controlled Field State Gemini Smoke, only after separate explicit T1/T2 approval for exactly one actual Gemini call.
+- Alternative if approval is not granted: v12.24 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No actual Gemini call, API key validation, retry, second provider call, Vertex AI call, Gemini/Vertex network-provider call, `.env` output, API key output, raw token-log output, production code change, `pyproject.toml` change, lockfile change, requirements file change, FieldProfileDialog behavior change, field mapping behavior change, prompt guard wording change, new limited-context checkbox, UI checkbox default change, payload builder call-flow change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context` calculation, `damage_estimate`, payload filtering, threshold/skip/xfail, `config.env.example`, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.22 - Python Environment Setup Guide
 
 Purpose:
