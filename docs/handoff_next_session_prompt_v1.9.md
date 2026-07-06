@@ -144,19 +144,21 @@ Update after v2.5:
 - v12.22 documented the Python Environment Setup Guide. The guide records the Windows setup path for restoring the repo's uv-managed environment: verify/restore `uv`, restart or refresh PATH, run `uv sync --dev` from the repo root after T1 approval, run the field-state targeted preflight set with `uv run pytest`, then run full `uv run pytest -q`. It also documents troubleshooting for missing uv, PySide6, pytest, wrong Python selection, Anaconda PATH priority, missing/broken `.venv`, and PATH refresh issues. No dependency install, sync, provider call, API key validation, production code change, `pyproject.toml` change, or lockfile change was executed in v12.22.
 - v12.23 executed the approved environment setup. `uv 0.11.26` was installed/restored, `uv sync --dev` completed with CPython 3.11.9, the repo-local `.venv` now has `pytest 9.0.3` and `PySide6 6.11.0`, targeted field-state preflight tests all pass, and full pytest passes with `1397 passed, 2 deselected`. `pyproject.toml`, `uv.lock`, requirements files, production code, prompt guards, FieldProfileDialog behavior, and field mapping behavior were unchanged. No actual Gemini call, provider credential validation, retry, second provider call, Vertex AI call, `.env` output, API key output, or raw token-log output occurred.
 - v12.24 executed the Controlled Field State Gemini Smoke after T1/T2 approval. Targeted preflight tests and full pytest passed, the pre-call prompt payload included gated `battle_state_context.field` values for user-confirmed rain, electric terrain, Trick Room, side-specific screens, and side-specific hazards, and top-level `field_profiles` did not leak. Exactly one actual Gemini call was made with `gemini-2.5-flash`, retry count was 0, second provider call count was 0, and Vertex AI call count was 0. The sanitized response scan found no duration, expiration, post-turn state, exact damage, full outcome, damage-inferred field, hidden field, or hidden item claims. Sanitized token summary: input `11879`, output `172`, cached `0`, estimated cost USD `0.0`. Raw response text and raw token log contents were not printed.
+- v12.25 closed the Field State Actual Smoke phase as `CLOSED - PASS` without another provider call. The closure summarizes v12.20-v12.24, records the one-call/no-retry audit trail, payload/prompt PASS, response safety PASS, sanitized token/cost handling, remaining limitations, and recommends v12.26 Item Activation/Consumption Boundary Design next. No production code, dependency file, prompt guard, FieldProfileDialog behavior, field mapping behavior, `damage_estimate`, or `ko_context` behavior changed.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.24 Controlled Field State Gemini Smoke.
+T3, continue after v12.25 Field State Actual Smoke Closure.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.25 Field State Actual Smoke Closure.
+- Current recommended next milestone is v12.26 Item Activation/Consumption Boundary Design.
+- v12.25 closed the field-state actual smoke phase as CLOSED - PASS.
 - v12.24 passed the controlled actual Gemini smoke with exactly 1 actual Gemini call, retry count 0, no second provider, and no Vertex AI.
 - Do not run another actual Gemini smoke without separate explicit T1/T2 approval for that task.
 - Keep `logs/token_usage.jsonl` and `config/env.example` uncommitted and unreset.
@@ -191,10 +193,12 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.25 Field State Actual Smoke Closure
-  - Alternative: v12.25 Field State Response Guard Polish Design if T2 wants additional wording constraints despite PASS
-  - Alternative: v12.25 Item Activation/Consumption Boundary Design
+  - v12.26 Item Activation/Consumption Boundary Design
+  - Alternative: v12.26 Battle State Status/Condition Source Design
+  - Alternative: v12.26 Field State Response Guard Polish Design if T2 wants additional wording constraints despite PASS
 - Reason:
+  - v12.25 closed the field-state actual validation phase as PASS.
+  - The next likely ambiguity is whether known user-confirmed items imply activation, consumption, post-turn behavior, or resolved outcomes.
   - v12.24 controlled field-state actual smoke passed.
   - The one-call/no-retry audit trail is complete and should be closed before starting a new feature boundary.
   - v12.23 restored the uv-managed test environment and passed the field-state targeted preflight set plus full pytest.

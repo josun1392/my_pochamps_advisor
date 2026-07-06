@@ -1,5 +1,29 @@
 # Master Ball Advisor — Progress
 
+## v12.25 - Field State Actual Smoke Closure
+
+Purpose:
+- Close the v12.20-v12.24 field-state actual smoke preparation and execution phase.
+
+Implementation summary:
+- Added `docs/spike_v12.25_field_state_actual_smoke_closure.md`.
+- Summarized v12.20 controlled smoke design, v12.21 preflight repair, v12.22 setup guide, v12.23 environment setup execution, and v12.24 controlled actual Gemini smoke.
+- Recorded final provider policy result: actual Gemini call count 1, retry count 0, second provider call count 0, Vertex AI call count 0.
+- Recorded v12.24 model and token summary: `gemini-2.5-flash`, input tokens `11879`, output tokens `172`, cached tokens `0`, estimated cost USD `0.0`.
+- Recorded payload/prompt safety PASS: gated `battle_state_context.field` known field values, user-confirmed item coexistence, no top-level `field_profiles` leakage, unchanged prompt guard wording.
+- Recorded response safety PASS: no duration, expiration, post-turn state, exact damage, full outcome, damage-inferred field, hidden field, or hidden item claims.
+- Recorded remaining limitations around duration/expiration tracking, post-turn field updates, parser/replay sources, damage-engine field consumption, exact hazard chip, full simulation, item activation/consumption, status/condition sources, and hidden set/moveset inference.
+- Closed the field-state actual smoke phase as `CLOSED - PASS`.
+
+Recommended next:
+- v12.26 Item Activation/Consumption Boundary Design.
+- Alternative: v12.26 Battle State Status/Condition Source Design.
+
+Safety statement:
+- No additional actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, production code change, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, FieldProfileDialog behavior change, field mapping behavior change, prompt guard wording change, new limited-context checkbox, UI checkbox default change, payload builder call-flow change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context` calculation, `damage_estimate`, payload filtering, threshold/skip/xfail, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.24 - Controlled Field State Gemini Smoke
 
 Purpose:

@@ -316,6 +316,18 @@ shape, production code, prompt guard wording, FieldProfileDialog behavior,
 field mapping behavior, payload builder call-flow, `damage_estimate`, or
 `ko_context` change is made.
 
+v12.25 status note: Field State Actual Smoke Closure is documentation-only and
+closes the v12.20-v12.24 actual validation phase as PASS. The final supported
+field-state payload behavior remains unchanged: user-confirmed
+`field_profiles` may normalize into gated `battle_state_context.field` only
+when the existing limited-context path is enabled, top-level `field_profiles`
+does not leak, known field values are current context only, and duration,
+expiration, post-turn state, exact damage, full outcome, hidden field, and
+damage-inferred field claims remain out of scope. No payload contract shape,
+production code, prompt guard wording, FieldProfileDialog behavior, field
+mapping behavior, payload builder call-flow, `damage_estimate`, or `ko_context`
+change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
