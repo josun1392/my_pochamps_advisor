@@ -141,21 +141,23 @@ Update after v2.5:
 - v12.19 closed the Field State UI phase for the offline path. The closure records the completed source contract, helper normalization, prompt fixture, UI inventory, FieldProfileDialog, checkbox-gated mapping, button integration, limited-context copy update, and mocked end-to-end offline smoke. Current user flow is `Field state` button -> FieldProfileDialog -> `MainWindow._field_profiles` -> existing limited-context checkbox gate -> `battle_state_context.field` -> prompt serialization. The phase remains bounded to user-confirmed current context only: no duration, expiration, post-turn outcome, exact damage, full turn outcome, hidden-field guessing, full Turn Engine, `damage_estimate`, or `ko_context` behavior change. Recommended next is v12.20 Controlled Field State Gemini Smoke Design; it should be design-only unless T1 explicitly approves a later actual call.
 - v12.20 designed the Controlled Field State Gemini Smoke without executing it. The design uses a Garchomp/Charizard fixture with user-confirmed items and user-confirmed field profiles for rain, electric terrain, Trick Room, side-specific screens, and side-specific hazards. Future execution requires clean repo/test preflight, separate T1/T2 approval, exactly one actual Gemini call, retry count 0, no second provider call, no Vertex AI call, no top-level `field_profiles` leakage, unchanged prompt guard wording, response safety checks against duration/expiration/post-turn/exact damage/full outcome/hidden-field claims, and sanitized token/cost summary only. No actual Gemini call was made in v12.20.
 - v12.21 diagnosed the field-state actual-smoke preflight environment without installing dependencies or calling providers. Current shell `python` resolves to Anaconda Python 3.13.5 with `pytest 8.3.4` but no PySide6. Python 3.11 exists but lacks both pytest and PySide6. `uv` is not on PATH and no repo-local `.venv` exists. `pyproject.toml` and `uv.lock` already declare/lock PySide6, pytest, and pytest-mock, and README/AGENTS expect `uv run pytest`. The non-UI `tests/test_advisor_battle_state_context.py -q` passes, while PySide6-dependent targeted suites fail during collection. Actual Gemini smoke remains NOT READY in this shell; recommended next is v12.22 Python Environment Setup Guide before any provider execution.
+- v12.22 documented the Python Environment Setup Guide. The guide records the Windows setup path for restoring the repo's uv-managed environment: verify/restore `uv`, restart or refresh PATH, run `uv sync --dev` from the repo root after T1 approval, run the field-state targeted preflight set with `uv run pytest`, then run full `uv run pytest -q`. It also documents troubleshooting for missing uv, PySide6, pytest, wrong Python selection, Anaconda PATH priority, missing/broken `.venv`, and PATH refresh issues. No dependency install, sync, provider call, API key validation, production code change, `pyproject.toml` change, or lockfile change was executed in v12.22.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.21 Field State Actual Smoke Preflight Repair.
+T3, continue after v12.22 Python Environment Setup Guide.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.22 Python Environment Setup Guide.
-- Do not run an actual Gemini smoke until PySide6-dependent targeted tests pass in the correct project environment and T1/T2 explicitly approve exactly one actual Gemini call.
-- After environment repair, v12.22 Controlled Field State Gemini Smoke remains an alternative only with separate explicit T1/T2 approval, retry count 0, no second provider, and no Vertex AI.
+- Current recommended next milestone is v12.23 Environment Setup Execution if T1 approves dependency environment repair.
+- Do not run `uv sync --dev`, dependency installs, or actual Gemini smoke without explicit approval for that task.
+- Do not run an actual Gemini smoke until PySide6-dependent targeted tests pass in the correct project environment and T1/T2 separately approve exactly one actual Gemini call.
+- After environment repair, Controlled Field State Gemini Smoke remains an alternative only with separate explicit T1/T2 approval, retry count 0, no second provider, and no Vertex AI.
 - Treat the original item-context verification queue as closed:
   - Focus Band: PASS
   - Quick Claw: PASS

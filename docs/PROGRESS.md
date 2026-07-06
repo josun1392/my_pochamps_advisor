@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v12.22 - Python Environment Setup Guide
+
+Purpose:
+- Document the Windows Python/uv/PySide6/pytest setup path required before any field-state actual Gemini smoke.
+
+Implementation summary:
+- Added `docs/spike_v12.22_python_environment_setup_guide.md`.
+- Documented the current runner problem: bare `python` resolves to Anaconda Python 3.13.5, `uv` is unavailable, PySide6 is missing, and Python 3.11 lacks pytest/PySide6.
+- Confirmed repo dependency source remains `pyproject.toml` plus `uv.lock`.
+- Documented the expected runner as `uv run pytest`.
+- Documented Windows setup guide steps for checking/restoring `uv`, running `uv sync --dev`, targeted preflight tests, and full pytest.
+- Documented troubleshooting for missing uv, missing PySide6, missing pytest, wrong Python selection, Anaconda PATH priority, missing/broken `.venv`, and PATH refresh issues.
+- Documented actual smoke readiness checklist and security/logging policy.
+- Kept all setup commands as documentation only; no dependency install or sync was executed.
+
+Recommended next:
+- v12.23 Environment Setup Execution if T1 approves environment repair.
+- Alternative after user-performed environment repair and passing targeted tests: v12.23 Controlled Field State Gemini Smoke with separate explicit T1/T2 approval.
+- Alternative: v12.23 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No production code change, dependency install, `pip install`, `uv sync`, `uv add`, `conda install`, `pyproject.toml` change, lockfile change, requirements file change, actual Gemini call, API key validation, retry, second provider call, Vertex AI call, network/provider call, `.env` output, API key output, raw token-log output, FieldProfileDialog behavior change, field mapping behavior change, prompt guard wording change, new limited-context checkbox, UI checkbox default change, payload builder call-flow change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context` calculation, `damage_estimate`, payload filtering, threshold/skip/xfail, `config.env.example`, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.21 - Field State Actual Smoke Preflight Repair
 
 Purpose:
