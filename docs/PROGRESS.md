@@ -1,5 +1,33 @@
 # Master Ball Advisor — Progress
 
+## v12.29 - Item Activation/Consumption Phase Closure
+
+Purpose:
+- Close the item activation/consumption boundary phase after design, contract tests, and offline prompt fixture coverage.
+
+Implementation summary:
+- Added `docs/spike_v12.29_item_activation_consumption_phase_closure.md`.
+- Summarized the v12.26 boundary design, v12.27 contract tests, and v12.28 prompt fixture.
+- Recorded the final known item boundary: user-confirmed/current context only, not activation, consumption, resolved item effect, post-turn item state, post-turn HP, exact damage modifier application, or Speed/order override.
+- Recorded the item state model: `unknown_item`, `known_item`, `candidate_activation`, `observed_activation`, `observed_consumption`, and `resolved_item_effect`.
+- Recorded current implemented/verified states: `unknown_item`, `known_item`, and `candidate_activation` wording boundary.
+- Recorded future-only states: `observed_activation`, `observed_consumption`, `resolved_item_effect`, and post-turn item state.
+- Recorded current allowed source: `user_confirmed_current_item` -> `known_item` only.
+- Recorded future source candidates: explicit user confirmation, battle log observation, parser observation, imported replay observation, and future Turn Engine resolution.
+- Recorded forbidden sources: species/common/meta, damage reverse, HP percentage, move/context, opponent_move_context, turn_order_context, field_state, legality gate, resist berry context, LLM/model guess, and hidden item guess.
+- Recorded payload safety PASS, prompt/response safety PASS, and coexistence PASS with `battle_state_context.field`, `turn_pipeline`, `turn_order_context`, and `opponent_move_context`.
+- Closed the phase as `CLOSED - PASS`.
+
+Recommended next:
+- v12.30 Item Event Source Inventory.
+- Alternative: v12.30 Status/Condition Source Design.
+- Alternative: v12.30 Damage Calculator Integration Design.
+
+Safety statement:
+- No actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config.env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, full Turn Engine, resolved turn order, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.28 - Item Activation/Consumption Prompt Fixture
 
 Purpose:

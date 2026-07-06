@@ -365,6 +365,16 @@ resolved from current context. No prompt guard wording, provider behavior,
 damage behavior, payload filtering, item activation, item consumption, resolved
 effect, or post-turn item state behavior is implemented.
 
+v12.29 status note: Item Activation/Consumption Phase Closure is
+documentation-only and closes the v12.26-v12.28 boundary phase as PASS. The
+final supported behavior remains: known item means user-confirmed/current
+context only; it does not imply item activation, item consumption, resolved item
+effect, post-turn item state, post-turn HP, exact damage modifier application,
+Speed/order override, hidden item inference, or opponent set/item inference.
+Observed activation, observed consumption, resolved item effects, and post-turn
+item state remain future-only and require separate source inventory, design,
+contract tests, prompt tests, and approval.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
