@@ -1,5 +1,29 @@
 # Master Ball Advisor — Progress
 
+## v12.31 - Item Event Source Contract Tests
+
+Purpose:
+- Lock the v12.30 item event source inventory with contract tests so future item event fields cannot enter the current payload as trusted facts without a trusted observed or resolved source implementation.
+
+Implementation summary:
+- Added `docs/spike_v12.31_item_event_source_contract_tests.md`.
+- Extended `tests/test_advisor_payload_contract.py` with contract coverage for future item event fields and source names.
+- Extended malformed `battle_state_context` forbidden-field validation to reject future item event fields such as `item_event_context`, `observed_events`, `resolved_effects`, `observed_activation`, `observed_consumption`, `item_event_type`, `event_source`, `event_confidence`, `event_turn`, and `event_provenance`.
+- Extended forbidden source validation for future-only item event source names such as `explicit_user_event_confirmation`, `battle_log_observed`, `parser_observed`, `imported_replay_observed`, and `future_turn_engine_resolved`.
+- Verified current user-confirmed item path remains known current context only.
+- Verified forbidden sources such as HP percentage, field state, legality, resist berry, LLM/model, and hidden item guesses do not create item events.
+- Verified generated prompt payloads omit future item event fields and avoid positive observed/resolved item event claims.
+
+Recommended next:
+- v12.32 Explicit User Item Event Confirmation Design.
+- Alternative: v12.32 Battle Log Parser Spike.
+- Alternative: v12.32 Item Event Source Phase Closure.
+
+Safety statement:
+- No actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, battle log parser, replay parser, Turn Engine, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.30 - Item Event Source Inventory
 
 Purpose:

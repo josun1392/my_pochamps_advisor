@@ -385,6 +385,18 @@ contracts, tests, and approval before observed activation, observed
 consumption, resolved item effects, or post-turn item state can appear in the
 payload.
 
+v12.31 status note: Item Event Source Contract Tests lock the v12.30
+future-only boundary. Current known item payloads remain
+`source=user_confirmed` known-item context only. Future item event fields such
+as `item_event_context`, `observed_events`, `resolved_effects`,
+`observed_activation`, `observed_consumption`, `item_event_type`,
+`event_source`, `event_confidence`, `event_turn`, and `event_provenance` are
+rejected by current `battle_state_context` validation. Future source names such
+as `explicit_user_event_confirmation`, `battle_log_observed`,
+`parser_observed`, `imported_replay_observed`, and
+`future_turn_engine_resolved` are still future-only and do not create trusted
+observed/resolved item events without a separate implementation.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
