@@ -149,19 +149,24 @@ Update after v2.5:
 - v12.27 locked Item Activation/Consumption Contract Tests. Known user-confirmed items still serialize only as current context, while malformed battle-state contexts with item-event/resolved fields such as `item_activated`, `item_consumed`, `resolved_item_effect`, `post_turn_item_state`, `quick_claw_activated`, `focus_sash_triggered`, and `berry_consumed` are rejected. Focus Sash, Quick Claw, Berry, Leftovers, and Choice Scarf prompt fixtures verify known items do not serialize activation/consumption fields or positive overclaim phrases. Forbidden inference sources do not upgrade to known items or item events.
 - v12.28 added an Item Activation/Consumption Prompt Fixture. The offline fixture uses mocked provider calls only, covers Leftovers, Choice Scarf, Focus Sash, Berry, and Quick Claw, verifies known items serialize only as user-confirmed current context, checks prompt payloads omit activation/consumption/resolved/post-turn item fields, checks safe mocked response wording, and verifies coexistence with `battle_state_context.field`, `turn_pipeline`, `turn_order_context`, and `opponent_move_context`.
 - v12.29 closed the Item Activation/Consumption boundary phase as `CLOSED - PASS`. The closure records v12.26 boundary design, v12.27 contract tests, v12.28 prompt fixture, final known-item current-context boundary, item state model, source boundaries, payload safety PASS, prompt/response safety PASS, coexistence PASS, and recommends v12.30 Item Event Source Inventory.
+- v12.30 inventoried item event sources without implementation. The only current source remains `user_confirmed_current_item` -> `known_item` only. Future trusted source candidates are explicit user event confirmation, battle log observation, parser observation, imported replay observation, and future Turn Engine resolution; observed activation, observed consumption, resolved item effects, and post-turn item state remain future-only pending source contracts, payload contracts, tests, and approval.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.29 Item Activation/Consumption Phase Closure.
+T3, continue after v12.30 Item Event Source Inventory.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.30 Item Event Source Inventory.
+- Current recommended next milestone is v12.31 Item Event Source Contract Tests.
+- v12.30 inventoried item event sources without implementation.
+- Current allowed source is still `user_confirmed_current_item` -> `known_item` only.
+- Future trusted source candidates are `explicit_user_event_confirmation`, `battle_log_observed`, `parser_observed`, `imported_replay_observed`, and `future_turn_engine_resolved`.
+- Observed activation, observed consumption, resolved item effects, and post-turn item state remain future-only pending source contracts, payload contracts, tests, and approval.
 - v12.29 closed the item activation/consumption boundary phase as CLOSED - PASS.
 - Future observed activation/consumption still requires separate source inventory, design, tests, and approval.
 - v12.28 added an offline mocked prompt/response fixture for item activation/consumption overclaim checks.
@@ -205,12 +210,13 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.30 Item Event Source Inventory
-  - Alternative: v12.30 Status/Condition Source Design
-  - Alternative: v12.30 Damage Calculator Integration Design
+  - v12.31 Item Event Source Contract Tests
+  - Alternative: v12.31 Explicit User Item Event Confirmation Design
+  - Alternative: v12.31 Battle Log Parser Spike
 - Reason:
+  - v12.30 documented trusted item event source candidates without implementing parser, replay, resolver, or Turn Engine behavior.
+  - The next safe step is to lock future item event fields so they cannot enter payloads without trusted observed or resolved sources.
   - v12.29 closed the known-item activation/consumption boundary phase as PASS.
-  - The next safe step is to inventory trusted observed sources before any future activation/consumption implementation.
   - v12.24 controlled field-state actual smoke passed.
   - The one-call/no-retry audit trail is complete and should be closed before starting a new feature boundary.
   - v12.23 restored the uv-managed test environment and passed the field-state targeted preflight set plus full pytest.

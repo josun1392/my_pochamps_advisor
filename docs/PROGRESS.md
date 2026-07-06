@@ -1,5 +1,31 @@
 # Master Ball Advisor — Progress
 
+## v12.30 - Item Event Source Inventory
+
+Purpose:
+- Inventory the source candidates that could support future item activation, consumption, resolved item effects, and post-turn item state.
+
+Implementation summary:
+- Added `docs/spike_v12.30_item_event_source_inventory.md`.
+- Reconfirmed the current phase status: `unknown_item` and `known_item` are supported, while `candidate_activation` remains wording boundary only.
+- Recorded future-only item event states: `observed_activation`, `observed_consumption`, `resolved_item_effect`, and `post_turn_item_state`.
+- Recorded the only current allowed source: `user_confirmed_current_item` -> `known_item` only.
+- Inventoried future trusted source candidates: explicit user event confirmation, battle log observation, parser observation, imported replay observation, and future Turn Engine resolution.
+- Recorded forbidden sources that must not create item events: species/common/meta inference, damage reverse inference, HP percentage inference, move selection inference, opponent_move_context, turn_order_context, field_state, legality gate, resist berry context, LLM/model guesses, hidden item guesses, and usual-set inference.
+- Added item-specific source examples for Focus Sash, Quick Claw, Berry, Leftovers, and Choice Scarf.
+- Documented a future-only `item_event_context` payload shape candidate without implementation.
+- Documented validation requirements and recommended contract tests before any source/runtime implementation.
+
+Recommended next:
+- v12.31 Item Event Source Contract Tests.
+- Alternative: v12.31 Explicit User Item Event Confirmation Design.
+- Alternative: v12.31 Battle Log Parser Spike.
+
+Safety statement:
+- No production code change, tests change, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, battle log parser, replay parser, Turn Engine, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.29 - Item Activation/Consumption Phase Closure
 
 Purpose:

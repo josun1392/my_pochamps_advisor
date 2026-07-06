@@ -375,6 +375,16 @@ Observed activation, observed consumption, resolved item effects, and post-turn
 item state remain future-only and require separate source inventory, design,
 contract tests, prompt tests, and approval.
 
+v12.30 status note: Item Event Source Inventory is documentation-only and does
+not change payload shape or runtime behavior. The only current item-event source
+boundary remains `user_confirmed_current_item` -> `known_item` only. Future
+trusted source candidates are `explicit_user_event_confirmation`,
+`battle_log_observed`, `parser_observed`, `imported_replay_observed`, and
+`future_turn_engine_resolved`; they require separate source contracts, payload
+contracts, tests, and approval before observed activation, observed
+consumption, resolved item effects, or post-turn item state can appear in the
+payload.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
