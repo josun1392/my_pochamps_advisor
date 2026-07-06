@@ -21,9 +21,13 @@ import llm.advisor_client as advisor_client
 from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS as HELPER_BATTLE_STATE_CONTEXT_FORBIDDEN_FIELDS,
     BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES as HELPER_BATTLE_STATE_CONTEXT_FORBIDDEN_SOURCES,
+    EXPLICIT_USER_ITEM_EVENT_ALLOWED_EVENT_TYPES,
+    EXPLICIT_USER_ITEM_EVENT_FORBIDDEN_FIELDS,
+    EXPLICIT_USER_ITEM_EVENT_REQUIRED_FIELDS,
     build_battle_state_context,
     build_battle_state_context_from_ui_selected_state,
     build_field_state_from_field_profiles,
+    validate_explicit_user_item_event_confirmation,
 )
 from llm.advisor_client import (
     _build_battle_state_context_prompt_guard,
@@ -142,6 +146,23 @@ _ITEM_EVENT_SOURCE_FUTURE_SOURCE_NAMES = (
     "parser_observed",
     "imported_replay_observed",
     "future_turn_engine_resolved",
+)
+
+_EXPLICIT_USER_ITEM_EVENT_RESULT_FORBIDDEN_FIELDS = frozenset(
+    {
+        "berry_recovered_exact_hp",
+        "exact_damage",
+        "exact_hp",
+        "focus_sash_post_hit_hp_1",
+        "item_damage_modifier_applied",
+        "item_speed_modifier_applied",
+        "post_turn_hp_from_item",
+        "post_turn_item_state",
+        "quick_claw_activated_by_rng",
+        "resolved_item_effect",
+        "rng_roll",
+        "speed_order_override",
+    }
 )
 
 _ITEM_ACTIVATION_BOUNDARY_FORBIDDEN_RESPONSE_PHRASES = (
@@ -1211,6 +1232,142 @@ def test_future_trusted_source_names_are_future_only(source: str) -> None:
             battle_state_context=context,
             enable_battle_state_context=True,
         )
+
+
+def _valid_explicit_user_item_event_candidate(**overrides: object) -> dict[str, object]:
+    candidate: dict[str, object] = {
+        "side": "opponent",
+        "item": "focus-sash",
+        "event_type": "item_activation_observed",
+        "status": "user_confirmed",
+        "source": "explicit_user_event_confirmation",
+        "turn": 5,
+        "note": "User saw Focus Sash activation text.",
+    }
+    candidate.update(overrides)
+    return candidate
+
+
+def test_explicit_user_item_event_candidate_remains_observed_only() -> None:
+    candidate = _valid_explicit_user_item_event_candidate()
+
+    validated = validate_explicit_user_item_event_confirmation(candidate)
+
+    assert validated == candidate
+    assert set(EXPLICIT_USER_ITEM_EVENT_REQUIRED_FIELDS).issubset(validated)
+    assert validated["event_type"] == "item_activation_observed"
+    assert validated["source"] == "explicit_user_event_confirmation"
+    assert validated["status"] == "user_confirmed"
+    _assert_explicit_user_item_event_result_fields_absent(validated)
+
+
+@pytest.mark.parametrize("event_type", sorted(EXPLICIT_USER_ITEM_EVENT_ALLOWED_EVENT_TYPES))
+def test_explicit_user_item_event_allowed_types_are_observed_candidates(event_type: str) -> None:
+    validated = validate_explicit_user_item_event_confirmation(
+        _valid_explicit_user_item_event_candidate(event_type=event_type)
+    )
+
+    assert validated["event_type"] == event_type
+    _assert_explicit_user_item_event_result_fields_absent(validated)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "battle_log_observed",
+        "parser_observed",
+        "imported_replay_observed",
+        "future_turn_engine_resolved",
+        "llm_guess",
+        "hidden_item_guess",
+        "damage_reverse_inference",
+        "field_state_inference",
+    ],
+)
+def test_explicit_user_item_event_rejects_invalid_source(source: str) -> None:
+    with pytest.raises(ValueError, match="source is not allowed"):
+        validate_explicit_user_item_event_confirmation(
+            _valid_explicit_user_item_event_candidate(source=source)
+        )
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        "inferred",
+        "model_guessed",
+        "calculated",
+        "observed_by_context",
+    ],
+)
+def test_explicit_user_item_event_rejects_invalid_status(status: str) -> None:
+    with pytest.raises(ValueError, match="status is not allowed"):
+        validate_explicit_user_item_event_confirmation(
+            _valid_explicit_user_item_event_candidate(status=status)
+        )
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        "resolved_item_effect",
+        "post_turn_item_state",
+        "item_damage_modifier_applied",
+        "item_speed_modifier_applied",
+        "quick_claw_rng_roll",
+        "focus_sash_post_hit_hp_1",
+        "berry_recovered_exact_hp",
+    ],
+)
+def test_explicit_user_item_event_rejects_invalid_event_type(event_type: str) -> None:
+    with pytest.raises(ValueError, match="event type is not allowed"):
+        validate_explicit_user_item_event_confirmation(
+            _valid_explicit_user_item_event_candidate(event_type=event_type)
+        )
+
+
+@pytest.mark.parametrize("field_name", sorted(EXPLICIT_USER_ITEM_EVENT_REQUIRED_FIELDS))
+def test_explicit_user_item_event_rejects_missing_required_fields(field_name: str) -> None:
+    candidate = _valid_explicit_user_item_event_candidate()
+    candidate.pop(field_name)
+
+    with pytest.raises(ValueError, match=field_name):
+        validate_explicit_user_item_event_confirmation(candidate)
+
+
+@pytest.mark.parametrize("field_name", sorted(_EXPLICIT_USER_ITEM_EVENT_RESULT_FORBIDDEN_FIELDS))
+def test_explicit_user_item_event_rejects_resolved_or_post_turn_fields(field_name: str) -> None:
+    assert field_name in EXPLICIT_USER_ITEM_EVENT_FORBIDDEN_FIELDS
+
+    with pytest.raises(ValueError, match=field_name):
+        validate_explicit_user_item_event_confirmation(
+            _valid_explicit_user_item_event_candidate(**{field_name: "forbidden"})
+        )
+
+
+def test_explicit_user_item_event_candidate_is_not_mapped_into_prompt_payload() -> None:
+    payload = attach_selected_move_damage_estimate(_battle_input(selected_move=_flamethrower()))
+    candidate = validate_explicit_user_item_event_confirmation(_valid_explicit_user_item_event_candidate())
+    battle_state_context = build_battle_state_context_from_ui_selected_state(
+        _item_activation_boundary_battle_input(
+            self_item="focus-sash",
+            opponent_item="quick-claw",
+        ),
+        include_user_confirmed_items=True,
+    )
+
+    prompt = _build_ui_selected_prompt(
+        payload,
+        battle_state_context=battle_state_context,
+        enable_battle_state_context=True,
+    )
+    prompt_payload = json.loads(prompt.rsplit("\n\n", 1)[1])
+
+    assert candidate["source"] == "explicit_user_event_confirmation"
+    assert "item_event_context" not in prompt_payload
+    _assert_explicit_user_item_event_result_fields_absent(prompt_payload)
+    _assert_item_activation_boundary_fields_absent(prompt_payload)
+    _assert_item_event_source_prompt_phrases_absent(prompt)
 
 
 def test_battle_state_context_payload_adapter_accepts_ui_item_adapter_output() -> None:
@@ -7607,6 +7764,16 @@ def _assert_item_event_source_prompt_phrases_absent(prompt: str) -> None:
     prompt_lower = prompt.lower()
     for phrase in _ITEM_EVENT_SOURCE_PROMPT_FORBIDDEN_PHRASES:
         assert phrase not in prompt_lower
+
+
+def _assert_explicit_user_item_event_result_fields_absent(value: object) -> None:
+    if isinstance(value, dict):
+        for key, child_value in value.items():
+            assert key not in _EXPLICIT_USER_ITEM_EVENT_RESULT_FORBIDDEN_FIELDS
+            _assert_explicit_user_item_event_result_fields_absent(child_value)
+    elif isinstance(value, list):
+        for child_value in value:
+            _assert_explicit_user_item_event_result_fields_absent(child_value)
 
 
 def _assert_item_activation_boundary_response_is_safe(response: str) -> None:

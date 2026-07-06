@@ -129,6 +129,99 @@ BATTLE_STATE_CONTEXT_SAFETY_NOTES = (
     "Battle state context is not a resolved turn simulation.",
 )
 BATTLE_STATE_CONTEXT_UNKNOWN_FIELD = {"known": False, "value": "unknown"}
+EXPLICIT_USER_ITEM_EVENT_ALLOWED_EVENT_TYPES = frozenset(
+    {
+        "item_activation_observed",
+        "item_consumption_observed",
+        "item_recovery_observed",
+        "item_prevention_observed",
+        "item_reveal_observed",
+    }
+)
+EXPLICIT_USER_ITEM_EVENT_ALLOWED_SOURCES = frozenset({"explicit_user_event_confirmation"})
+EXPLICIT_USER_ITEM_EVENT_ALLOWED_STATUSES = frozenset({"user_confirmed"})
+EXPLICIT_USER_ITEM_EVENT_REQUIRED_FIELDS = frozenset({"side", "item", "event_type", "status", "source"})
+EXPLICIT_USER_ITEM_EVENT_OPTIONAL_FIELDS = frozenset({"turn", "note"})
+EXPLICIT_USER_ITEM_EVENT_FORBIDDEN_FIELDS = frozenset(
+    {
+        "exact_damage",
+        "exact_hp",
+        "focus_sash_post_hit_hp_1",
+        "berry_recovered_exact_hp",
+        "item_damage_modifier_applied",
+        "item_speed_modifier_applied",
+        "post_turn_hp_from_item",
+        "post_turn_item_state",
+        "quick_claw_activated_by_rng",
+        "resolved_item_effect",
+        "rng_roll",
+        "speed_order_override",
+    }
+)
+
+
+def validate_explicit_user_item_event_confirmation(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate a future explicit user item-event candidate without mapping it to payload."""
+    if not isinstance(candidate, Mapping):
+        raise ValueError("explicit user item event candidate must be a mapping")
+
+    unexpected_fields = set(candidate) - (
+        EXPLICIT_USER_ITEM_EVENT_REQUIRED_FIELDS
+        | EXPLICIT_USER_ITEM_EVENT_OPTIONAL_FIELDS
+        | EXPLICIT_USER_ITEM_EVENT_FORBIDDEN_FIELDS
+    )
+    if unexpected_fields:
+        raise ValueError(f"unexpected explicit user item event field: {sorted(unexpected_fields)[0]}")
+
+    forbidden_fields = EXPLICIT_USER_ITEM_EVENT_FORBIDDEN_FIELDS.intersection(candidate)
+    if forbidden_fields:
+        raise ValueError(f"explicit user item event field is forbidden: {sorted(forbidden_fields)[0]}")
+
+    missing_fields = EXPLICIT_USER_ITEM_EVENT_REQUIRED_FIELDS - set(candidate)
+    if missing_fields:
+        raise ValueError(f"explicit user item event missing required field: {sorted(missing_fields)[0]}")
+
+    side = candidate.get("side")
+    if side not in {"self", "opponent"}:
+        raise ValueError("explicit user item event side must be self or opponent")
+
+    item = candidate.get("item")
+    if not isinstance(item, str) or not item.strip():
+        raise ValueError("explicit user item event item must be a non-empty string")
+
+    event_type = candidate.get("event_type")
+    if event_type not in EXPLICIT_USER_ITEM_EVENT_ALLOWED_EVENT_TYPES:
+        raise ValueError("explicit user item event type is not allowed")
+
+    status = candidate.get("status")
+    if status not in EXPLICIT_USER_ITEM_EVENT_ALLOWED_STATUSES:
+        raise ValueError("explicit user item event status is not allowed")
+
+    source = candidate.get("source")
+    if source not in EXPLICIT_USER_ITEM_EVENT_ALLOWED_SOURCES:
+        raise ValueError("explicit user item event source is not allowed")
+
+    sanitized = {
+        "side": side,
+        "item": item.strip(),
+        "event_type": event_type,
+        "status": status,
+        "source": source,
+    }
+
+    if "turn" in candidate:
+        turn = candidate["turn"]
+        if turn is not None and (not isinstance(turn, int) or isinstance(turn, bool) or turn < 1):
+            raise ValueError("explicit user item event turn must be a positive integer or null")
+        sanitized["turn"] = turn
+
+    if "note" in candidate:
+        note = candidate["note"]
+        if note is not None and not isinstance(note, str):
+            raise ValueError("explicit user item event note must be a string or null")
+        sanitized["note"] = note.strip() if isinstance(note, str) else None
+
+    return sanitized
 
 
 def build_battle_state_context(

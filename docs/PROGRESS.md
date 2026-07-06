@@ -1,5 +1,30 @@
 # Master Ball Advisor — Progress
 
+## v12.33 - Explicit User Item Event Contract Tests
+
+Purpose:
+- Lock the v12.32 explicit user item event confirmation design with contract tests before any UI, payload mapping, parser, replay, or Turn Engine implementation.
+
+Implementation summary:
+- Added `docs/spike_v12.33_explicit_user_item_event_contract_tests.md`.
+- Added helper-level explicit user item event validation for observed candidates only.
+- Added contract tests for valid explicit event candidates with `source=explicit_user_event_confirmation`, `status=user_confirmed`, and allowed observed event types.
+- Verified allowed event types remain observed candidates: `item_activation_observed`, `item_consumption_observed`, `item_recovery_observed`, `item_prevention_observed`, and `item_reveal_observed`.
+- Verified invalid sources such as battle log, parser, imported replay, future Turn Engine, LLM guess, hidden item guess, damage reverse inference, and field state inference are rejected by this explicit source validator.
+- Verified invalid statuses, invalid resolved/post-turn event types, and missing required fields are rejected.
+- Verified explicit user event candidates do not create resolved item effects, post-turn item state, exact HP, exact damage, RNG rolls, or Speed/order overrides.
+- Verified generated prompt payloads still do not include trusted `item_event_context` before a future mapping implementation.
+
+Recommended next:
+- v12.34 Explicit User Item Event Dialog UI Tests.
+- Alternative: v12.34 Explicit User Item Event Dialog Implementation Design.
+- Alternative: v12.34 Explicit User Item Event Source Phase Closure.
+
+Safety statement:
+- No actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, UI implementation, dialog/button implementation, battle log parser, replay parser, Turn Engine, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, exact HP calculation, exact damage calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.32 - Explicit User Item Event Confirmation Design
 
 Purpose:

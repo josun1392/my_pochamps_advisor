@@ -405,6 +405,17 @@ item event candidates only, such as `item_activation_observed` or
 post-turn item state, exact HP, exact damage, RNG results, resolved Speed/order,
 hidden item inference, or full turn outcomes.
 
+v12.33 status note: Explicit User Item Event Contract Tests add a helper-level
+validator for future `explicit_user_event_confirmation` candidates. A valid
+candidate may use `source=explicit_user_event_confirmation`,
+`status=user_confirmed`, and one of the observed event types
+`item_activation_observed`, `item_consumption_observed`,
+`item_recovery_observed`, `item_prevention_observed`, or
+`item_reveal_observed`. This remains an observed-candidate contract only: it is
+not mapped into current prompt payloads as trusted `item_event_context`, and it
+must not create `resolved_item_effect`, `post_turn_item_state`, exact HP, exact
+damage, RNG rolls, or Speed/order overrides.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
