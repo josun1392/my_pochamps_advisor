@@ -151,19 +151,24 @@ Update after v2.5:
 - v12.29 closed the Item Activation/Consumption boundary phase as `CLOSED - PASS`. The closure records v12.26 boundary design, v12.27 contract tests, v12.28 prompt fixture, final known-item current-context boundary, item state model, source boundaries, payload safety PASS, prompt/response safety PASS, coexistence PASS, and recommends v12.30 Item Event Source Inventory.
 - v12.30 inventoried item event sources without implementation. The only current source remains `user_confirmed_current_item` -> `known_item` only. Future trusted source candidates are explicit user event confirmation, battle log observation, parser observation, imported replay observation, and future Turn Engine resolution; observed activation, observed consumption, resolved item effects, and post-turn item state remain future-only pending source contracts, payload contracts, tests, and approval.
 - v12.31 locked Item Event Source Contract Tests. Future item event fields such as `item_event_context`, `observed_events`, `resolved_effects`, `observed_activation`, `observed_consumption`, `item_event_type`, `event_source`, `event_confidence`, `event_turn`, and `event_provenance` are rejected by current battle-state validation, and future source names do not create trusted observed/resolved events without a separate implementation.
+- v12.32 designed Explicit User Item Event Confirmation without implementation. It distinguishes known item, explicit user event confirmation, and resolved item effect; recommends an Item Event Dialog over inline chips; proposes session-local `MainWindow._item_event_confirmations`; and keeps observed event candidates separate from resolved effects, post-turn state, exact HP/damage, RNG, and Speed/order resolution.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.31 Item Event Source Contract Tests.
+T3, continue after v12.32 Explicit User Item Event Confirmation Design.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.32 Explicit User Item Event Confirmation Design.
+- Current recommended next milestone is v12.33 Explicit User Item Event Contract Tests.
+- v12.32 designed explicit user item event confirmation without implementation.
+- Recommended future UI option is Item Event Dialog, not inline chips.
+- Candidate session-local state is `MainWindow._item_event_confirmations`.
+- Explicit user event confirmation may create future observed event candidates only, not resolved effects or post-turn state.
 - v12.31 locked item event source contract tests.
 - Future item event fields are rejected by current battle_state_context validation.
 - Future source names alone do not create trusted observed/resolved item events.
@@ -214,12 +219,13 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.32 Explicit User Item Event Confirmation Design
-  - Alternative: v12.32 Battle Log Parser Spike
-  - Alternative: v12.32 Item Event Source Phase Closure
+  - v12.33 Explicit User Item Event Contract Tests
+  - Alternative: v12.33 Explicit User Item Event Dialog UI Tests
+  - Alternative: v12.33 Item Event Source Phase Closure
 - Reason:
+  - v12.32 documented the smallest trusted observed source before implementation.
+  - Contract tests should lock observed-only behavior before any dialog or payload mapping work.
   - v12.31 locked future item event fields and future source names as rejected until trusted source implementation exists.
-  - The smallest next trusted observed source is direct user confirmation that an item just activated or was consumed.
   - v12.30 documented trusted item event source candidates without implementing parser, replay, resolver, or Turn Engine behavior.
   - v12.29 closed the known-item activation/consumption boundary phase as PASS.
   - v12.24 controlled field-state actual smoke passed.

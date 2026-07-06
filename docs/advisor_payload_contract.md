@@ -397,6 +397,14 @@ as `explicit_user_event_confirmation`, `battle_log_observed`,
 `future_turn_engine_resolved` are still future-only and do not create trusted
 observed/resolved item events without a separate implementation.
 
+v12.32 status note: Explicit User Item Event Confirmation Design is
+documentation-only and does not change payload shape or runtime behavior. The
+future `explicit_user_event_confirmation` source is intended to create observed
+item event candidates only, such as `item_activation_observed` or
+`item_consumption_observed`. It must not directly create resolved item effects,
+post-turn item state, exact HP, exact damage, RNG results, resolved Speed/order,
+hidden item inference, or full turn outcomes.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

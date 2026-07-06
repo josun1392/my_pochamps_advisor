@@ -1,5 +1,31 @@
 # Master Ball Advisor — Progress
 
+## v12.32 - Explicit User Item Event Confirmation Design
+
+Purpose:
+- Design the smallest trusted observed item-event source: explicit user confirmation that an item event just happened.
+
+Implementation summary:
+- Added `docs/spike_v12.32_explicit_user_item_event_confirmation_design.md`.
+- Distinguished known item, explicit user item event confirmation, and resolved item effect.
+- Defined future observed event type candidates: `item_activation_observed`, `item_consumption_observed`, `item_recovery_observed`, `item_prevention_observed`, and `item_reveal_observed`.
+- Added item-specific examples for Focus Sash, Quick Claw, Berry, Leftovers, and Choice Scarf.
+- Compared Option A Item Event Dialog with Option B Inline Confirmation Chips.
+- Recommended Option A because it follows the existing FieldProfileDialog-style pattern and keeps event metadata explicit.
+- Proposed session-local state candidate `MainWindow._item_event_confirmations: list[dict]`.
+- Proposed a future-only `item_event_context.observed_events` payload shape without implementation.
+- Documented validation rules, safety boundary, future implementation path, and test recommendations.
+
+Recommended next:
+- v12.33 Explicit User Item Event Contract Tests.
+- Alternative: v12.33 Explicit User Item Event Dialog UI Tests.
+- Alternative: v12.33 Item Event Source Phase Closure.
+
+Safety statement:
+- No production code change, tests change, UI implementation, dialog/button implementation, item event payload implementation, observed activation implementation, observed consumption implementation, resolved item effect implementation, post-turn item state calculation, item activation implementation, item consumption implementation, battle log parser, replay parser, Turn Engine, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.31 - Item Event Source Contract Tests
 
 Purpose:
