@@ -1,5 +1,32 @@
 # Master Ball Advisor — Progress
 
+## v12.24 - Controlled Field State Gemini Smoke
+
+Purpose:
+- Execute exactly one controlled actual Gemini smoke for the user-confirmed field-state UI path after T1/T2 approval.
+
+Implementation summary:
+- Added `docs/spike_v12.24_controlled_field_state_gemini_smoke.md`.
+- Used the approved Garchomp/Charizard fixture with user-confirmed items and field profiles for rain, electric terrain, Trick Room, side-specific screens, and side-specific hazards.
+- Confirmed preflight repo state was clean except the existing unstaged `config/env.example` and `logs/token_usage.jsonl`.
+- Ran targeted preflight tests successfully.
+- Ran full pytest successfully: `1397 passed, 2 deselected`.
+- Verified the prompt payload contains gated `battle_state_context.field` and no top-level `field_profiles` leakage before the provider call.
+- Executed exactly one actual Gemini call with `gemini-2.5-flash`.
+- Recorded retry count 0, second provider call 0, and Vertex AI call 0.
+- Sanitized response scan passed with no duration, expiration, post-turn, exact damage, full outcome, damage-inferred field, hidden field, or hidden item claims.
+- Sanitized token/cost summary: input tokens `11879`, output tokens `172`, cached tokens `0`, estimated cost USD `0.0`, pricing status `free_tier_zero_cost`.
+- Kept raw response text and raw token-log contents out of documentation and reports.
+
+Recommended next:
+- v12.25 Field State Actual Smoke Closure.
+- Alternative if T2 wants guard polish despite PASS: v12.25 Field State Response Guard Polish Design.
+
+Safety statement:
+- Exactly one actual Gemini call was executed. No retry, automatic retry, second provider call, Vertex AI call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, production code change, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, FieldProfileDialog behavior change, field mapping behavior change, prompt guard wording change, new limited-context checkbox, UI checkbox default change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context` calculation, `damage_estimate`, payload filtering, threshold/skip/xfail, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.23 - Environment Setup Execution
 
 Purpose:

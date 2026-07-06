@@ -304,6 +304,18 @@ v12.20, and no contract shape, production code, prompt guard wording,
 FieldProfileDialog behavior, field mapping behavior, payload builder call-flow,
 `damage_estimate`, or `ko_context` change is made.
 
+v12.24 status note: Controlled Field State Gemini Smoke passed after explicit
+T1/T2 approval. Exactly one actual Gemini call was made with retry count 0, no
+second provider call, and no Vertex AI call. The pre-call prompt payload
+contained gated `battle_state_context.field` values for user-confirmed rain,
+electric terrain, Trick Room, side-specific screens, and side-specific hazards,
+with no top-level `field_profiles` leakage. The sanitized response scan found
+no duration, expiration, post-turn state, exact damage, full outcome,
+damage-inferred field, hidden field, or hidden item claims. No payload contract
+shape, production code, prompt guard wording, FieldProfileDialog behavior,
+field mapping behavior, payload builder call-flow, `damage_estimate`, or
+`ko_context` change is made.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
