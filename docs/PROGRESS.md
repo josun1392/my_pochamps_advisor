@@ -1,5 +1,31 @@
 # Master Ball Advisor — Progress
 
+## v12.28 - Item Activation/Consumption Prompt Fixture
+
+Purpose:
+- Verify offline that known user-confirmed items do not become activation, consumption, resolved item effects, or post-turn item state at the prompt and mocked-response boundary.
+
+Implementation summary:
+- Added `docs/spike_v12.28_item_activation_consumption_prompt_fixture.md`.
+- Extended `tests/test_advisor_payload_contract.py` with `test_item_activation_consumption_prompt_fixture_uses_mocked_provider_only`.
+- Covered Leftovers, Choice Scarf, Focus Sash, Sitrus/Yache Berry, and Quick Claw across mocked prompt fixtures.
+- Verified known item values serialize only as `known=true`, `source=user_confirmed`, and current item `value`.
+- Verified generated prompt payloads recursively omit item-event fields such as `item_activated`, `item_consumed`, `resolved_item_effect`, `post_turn_item_state`, `quick_claw_activated`, `focus_sash_triggered`, `berry_consumed`, `recovery_applied`, `damage_reduction_applied`, `rng_roll`, `speed_order_override`, and `post_hit_hp_1`.
+- Verified positive overclaim phrases are absent from generated prompt text while existing guard wording can still state what must not be claimed.
+- Verified safe mocked response wording passes and forbidden response phrases remain blocked.
+- Verified coexistence with `battle_state_context.field`, `turn_pipeline`, `turn_order_context`, and `opponent_move_context` without turning those contexts into item activation/consumption sources.
+- Used mocked `advisor_client.call_gemini` only; no actual provider call was made.
+
+Recommended next:
+- v12.29 Item Activation/Consumption Phase Closure.
+- Alternative: v12.29 Item Event Source Inventory.
+- Alternative: v12.29 Status/Condition Source Design.
+
+Safety statement:
+- No actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, full Turn Engine, resolved turn order, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.27 - Item Activation/Consumption Contract Tests
 
 Purpose:

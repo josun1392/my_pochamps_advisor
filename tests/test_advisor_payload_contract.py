@@ -112,6 +112,16 @@ _ITEM_ACTIVATION_BOUNDARY_FORBIDDEN_OVERCLAIM_PHRASES = (
     "post-turn hp is",
 )
 
+_ITEM_ACTIVATION_BOUNDARY_FORBIDDEN_RESPONSE_PHRASES = (
+    "focus sash activated",
+    "focus sash was consumed",
+    "quick claw activated",
+    "berry was consumed",
+    "leftovers recovered hp this turn",
+    "post-turn hp is",
+    "exact damage changed by item",
+)
+
 
 def test_ui_payload_uses_advisor_contract_guardrails() -> None:
     my_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
@@ -3287,6 +3297,173 @@ def test_user_confirmed_item_battle_state_offline_prompt_fixture(
     response_lower = response.lower()
     for phrase in forbidden_response_phrases:
         assert phrase not in response_lower
+
+
+def test_item_activation_consumption_prompt_fixture_uses_mocked_provider_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _turn_pipeline_advice_flow_payload()
+    selected_move = payload["moves"]["my_selected_move"]
+    turn_pipeline = build_optional_turn_pipeline_for_advice_payload(
+        build_ui_advice_payload(payload),
+        enable_turn_pipeline=True,
+        selected_move_id=selected_move["move_id"],
+        damage_estimate_ref="moves.my_selected_move.damage_estimate",
+        ko_context_ref="moves.my_selected_move.ko_context",
+    )
+    turn_order_context = build_deterministic_turn_order_context(
+        own_move_priority=0,
+        opponent_move_priority=0,
+        own_base_speed=102,
+        opponent_base_speed=100,
+    )
+    opponent_move_context = build_opponent_move_context(
+        candidate_moves=[
+            {
+                "source": "visible_or_cache_candidate",
+                "move_id": "quick-attack",
+                "name": "Quick Attack",
+                "priority": 1,
+            }
+        ]
+    )
+    field_context = build_field_state_from_field_profiles(
+        {
+            "weather": {"status": "user_confirmed", "source": "user_input", "value": "rain"},
+            "terrain": {"status": "user_confirmed", "source": "user_input", "value": "electric_terrain"},
+            "room": {"status": "user_confirmed", "source": "user_input", "value": "trick_room"},
+            "screens": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": {"self": ["reflect"], "opponent": ["light_screen"]},
+            },
+            "hazards": {
+                "status": "user_confirmed",
+                "source": "user_input",
+                "value": {"self": [], "opponent": ["stealth_rock"]},
+            },
+        }
+    )
+    fixture_pairs = (
+        ("leftovers", "choice-scarf"),
+        ("focus-sash", "quick-claw"),
+        ("sitrus-berry", "yache-berry"),
+    )
+    captured_prompts: list[str] = []
+    mocked_responses: list[str] = []
+    logged_usages: list[dict[str, int]] = []
+
+    def fake_call_gemini(prompt: str, model: str) -> tuple[str, dict[str, int]]:
+        assert model == "offline-v12-28-item-boundary"
+        captured_prompts.append(prompt)
+        response = (
+            "Known items can matter strategically, but no item activation or consumption is "
+            "confirmed from the current context. Focus Sash and Quick Claw may matter if "
+            "their conditions occur, but their activation is not resolved here."
+        )
+        _assert_item_activation_boundary_response_is_safe(response)
+        mocked_responses.append(response)
+        return {"text": response}.get("text", ""), {
+            "input_tokens": 50 + len(captured_prompts),
+            "output_tokens": 14,
+            "cached_tokens": 0,
+        }
+
+    def fake_log_advisor_call(*, model: str, usage: dict[str, int], game_id: str) -> dict[str, object]:
+        assert model == "offline-v12-28-item-boundary"
+        assert game_id == "item_activation_consumption_prompt_fixture_v12_28"
+        logged_usages.append(usage)
+        return {"mocked": True, "call_index": len(logged_usages)}
+
+    monkeypatch.setattr(advisor_client, "call_gemini", fake_call_gemini)
+    monkeypatch.setattr(advisor_client, "_log_advisor_call", fake_log_advisor_call)
+
+    for self_item, opponent_item in fixture_pairs:
+        battle_input = _item_activation_boundary_battle_input(
+            self_item=self_item,
+            opponent_item=opponent_item,
+        )
+        battle_state_context = build_battle_state_context_from_ui_selected_state(
+            {
+                **battle_input,
+                "field_profiles": {
+                    "weather": {"status": "user_confirmed", "source": "user_input", "value": "rain"},
+                    "terrain": {
+                        "status": "user_confirmed",
+                        "source": "user_input",
+                        "value": "electric_terrain",
+                    },
+                    "room": {"status": "user_confirmed", "source": "user_input", "value": "trick_room"},
+                },
+            },
+            include_user_confirmed_items=True,
+            include_user_confirmed_fields=True,
+        )
+        battle_state_context["field"] = field_context
+        prompt = _build_ui_selected_prompt(
+            payload,
+            turn_pipeline=turn_pipeline,
+            turn_order_context=turn_order_context,
+            opponent_move_context=opponent_move_context,
+            battle_state_context=battle_state_context,
+            enable_turn_order_context=True,
+            enable_opponent_move_context=True,
+            enable_battle_state_context=True,
+        )
+        response, usage = advisor_client.call_gemini(prompt, "offline-v12-28-item-boundary")
+        summary = advisor_client._log_advisor_call(
+            model="offline-v12-28-item-boundary",
+            usage=usage,
+            game_id="item_activation_consumption_prompt_fixture_v12_28",
+        )
+
+        assert response == mocked_responses[-1]
+        assert summary == {"mocked": True, "call_index": len(logged_usages)}
+        prompt_payload = json.loads(prompt.rsplit("\n\n", 1)[1])
+        context_payload = prompt_payload["battle_state_context"]
+
+        assert context_payload["self_active"]["item"] == {
+            "known": True,
+            "source": "user_confirmed",
+            "value": self_item,
+        }
+        assert context_payload["opponent_active"]["item"] == {
+            "known": True,
+            "source": "user_confirmed",
+            "value": opponent_item,
+        }
+        assert context_payload["field"]["weather"] == {
+            "known": True,
+            "source": "user_confirmed",
+            "value": "rain",
+        }
+        assert prompt_payload["turn_pipeline"]["simulated"] == "limited"
+        assert prompt_payload["turn_order_context"]["kind"] == "deterministic_turn_order_context"
+        assert prompt_payload["turn_order_context"]["candidate_modifiers"] == []
+        assert prompt_payload["opponent_move_context"]["kind"] == "opponent_move_context"
+        assert prompt_payload["opponent_move_context"]["selected_opponent_move"] == {"status": "unknown"}
+        assert "If battle_state_context is present" in prompt
+        assert "limited planning/debug summary only, not full turn simulation" in prompt
+        assert "limited planning context" in prompt
+        assert "explicitly known or visible opponent move data" in prompt
+        assert '"source": "user_confirmed"' in prompt
+        assert f'"value": "{self_item}"' in prompt
+        assert f'"value": "{opponent_item}"' in prompt
+
+        _assert_battle_state_context_contract(context_payload)
+        _assert_battle_state_context_sources(context_payload)
+        _assert_battle_state_context_has_no_forbidden_fields(context_payload)
+        _assert_item_activation_boundary_fields_absent(prompt_payload)
+        _assert_item_activation_boundary_overclaim_phrases_absent(prompt)
+        _assert_item_activation_boundary_response_is_safe(response)
+
+    assert len(captured_prompts) == len(fixture_pairs)
+    assert len(logged_usages) == len(fixture_pairs)
+    assert logged_usages == [
+        {"input_tokens": 51, "output_tokens": 14, "cached_tokens": 0},
+        {"input_tokens": 52, "output_tokens": 14, "cached_tokens": 0},
+        {"input_tokens": 53, "output_tokens": 14, "cached_tokens": 0},
+    ]
 
 
 def test_field_state_battle_state_offline_prompt_fixture(
@@ -7274,6 +7451,12 @@ def _assert_item_activation_boundary_overclaim_phrases_absent(prompt: str) -> No
     prompt_lower = prompt.lower()
     for phrase in _ITEM_ACTIVATION_BOUNDARY_FORBIDDEN_OVERCLAIM_PHRASES:
         assert phrase not in prompt_lower
+
+
+def _assert_item_activation_boundary_response_is_safe(response: str) -> None:
+    response_lower = response.lower()
+    for phrase in _ITEM_ACTIVATION_BOUNDARY_FORBIDDEN_RESPONSE_PHRASES:
+        assert phrase not in response_lower
 
 
 def _item_activation_boundary_battle_input(*, self_item: str, opponent_item: str) -> dict:

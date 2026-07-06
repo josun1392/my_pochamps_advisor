@@ -351,6 +351,20 @@ become known items or item events. No prompt guard wording, damage behavior,
 payload filtering, item activation, item consumption, resolved effect, or
 post-turn item state behavior is implemented.
 
+v12.28 status note: Item Activation/Consumption Prompt Fixture adds offline
+mocked prompt/response coverage for the v12.26-v12.27 boundary. Generated
+prompts may include known user-confirmed item names and current item context,
+but prompt payloads must not serialize item-event fields such as
+`item_activated`, `item_consumed`, `resolved_item_effect`,
+`post_turn_item_state`, `quick_claw_activated`, `focus_sash_triggered`,
+`berry_consumed`, `recovery_applied`, `damage_reduction_applied`, `rng_roll`,
+`speed_order_override`, or `post_hit_hp_1`. Safe mocked response wording may say
+known items can matter strategically and that Focus Sash or Quick Claw may
+matter if conditions occur, but activation/consumption is not confirmed or
+resolved from current context. No prompt guard wording, provider behavior,
+damage behavior, payload filtering, item activation, item consumption, resolved
+effect, or post-turn item state behavior is implemented.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
