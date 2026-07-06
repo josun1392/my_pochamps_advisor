@@ -1,5 +1,33 @@
 # Master Ball Advisor — Progress
 
+## v12.21 - Field State Actual Smoke Preflight Repair
+
+Purpose:
+- Diagnose the local preflight test environment before any controlled field-state actual Gemini smoke.
+
+Implementation summary:
+- Added `docs/spike_v12.21_field_state_actual_smoke_preflight_repair.md`.
+- Confirmed repo state was clean except the existing unstaged `config/env.example` and `logs/token_usage.jsonl`.
+- Confirmed current shell `python` resolves to Anaconda Python 3.13.5.
+- Confirmed current shell Python has `pytest 8.3.4` but lacks `PySide6`.
+- Confirmed Python 3.11 exists but lacks both `pytest` and `PySide6`.
+- Confirmed `uv` is not available on PATH and no repo-local `.venv` exists.
+- Confirmed `pyproject.toml` and `uv.lock` already declare/lock `PySide6`, `pytest`, and `pytest-mock`.
+- Confirmed README/AGENTS runner expectation is `uv run pytest`.
+- Ran the non-UI helper preflight successfully: `tests/test_advisor_battle_state_context.py -q` passed.
+- Confirmed PySide6-dependent targeted tests fail during collection in the current shell due to missing `PySide6`.
+- Documented the recommended preflight command set using `uv run pytest`.
+
+Recommended next:
+- v12.22 Python Environment Setup Guide.
+- Alternative after environment repair and explicit T1/T2 approval: v12.22 Controlled Field State Gemini Smoke.
+- Alternative: v12.22 Item Activation/Consumption Boundary Design.
+
+Safety statement:
+- No production code change, dependency install, `pip install`, `uv sync`, `uv add`, `conda install`, `pyproject.toml` change, lockfile change, actual Gemini call, API key validation, retry, second provider call, Vertex AI call, network/provider call, `.env` output, API key output, raw token-log output, FieldProfileDialog behavior change, field mapping behavior change, prompt guard wording change, new limited-context checkbox, UI checkbox default change, payload builder call-flow change, full Turn Engine, resolved turn order, post-turn HP calculation, item activation/consumption, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item/field inference, weather/terrain/boosts/status/hazards/screens inference, damage reverse inference, species/common-set/meta state generation, opponent set inference, hidden moveset inference, selected opponent move inference, damage formula, raw roll, Q12 multiplier, `ko_context` calculation, `damage_estimate`, payload filtering, threshold/skip/xfail, `config.env.example`, `config/env.example`, `logs/token_usage.jsonl`, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.20 - Controlled Field State Gemini Smoke Design
 
 Purpose:
