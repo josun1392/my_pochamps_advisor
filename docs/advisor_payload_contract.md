@@ -438,6 +438,12 @@ no real LLMAdvicePanel Item Event button, MainWindow `_item_event_confirmations`
 wiring, `item_event_context` payload mapping, or observed event prompt mapping
 is implemented. Generated prompt payloads still omit item event confirmations.
 
+v12.37 status note: Explicit User Item Event Button Integration adds the real
+LLMAdvicePanel `Item event` button and MainWindow `_item_event_confirmations`
+session-local UI state. This is UI-only wiring: `_item_event_confirmations` is
+not added to `battle_input`, `item_event_context` remains unmapped, and observed
+item event prompt mapping is still future-only.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

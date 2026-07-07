@@ -8,9 +8,11 @@ import pytest
 from PySide6.QtWidgets import QApplication, QDialog
 
 import llm.advisor_client as advisor_client
+import ui.main_window as main_window_module
 from llm.advisor_battle_state_context import validate_explicit_user_item_event_confirmation
 from tests.test_advisor_payload_contract import _move, _opponent_move_ui_advice_flow_payload, _panel, _window
 from tests.test_field_profile_button_integration_contract import _field_profiles_fixture
+from ui.main_window import MainWindow
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
 
 
@@ -297,12 +299,84 @@ def test_item_event_button_invalid_event_is_not_saved(invalid_event: dict[str, A
     assert controller._item_event_confirmations == previous_events
 
 
-def test_item_event_button_contract_does_not_add_real_panel_button_or_change_field_button() -> None:
+def test_main_window_item_event_dialog_apply_cancel_and_reset_session_state(
+    monkeypatch: Any,
+) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    accepted_events = [_valid_item_event(item="focus-sash", event_type="item_activation_observed", turn=5)]
+    reset_events: list[dict[str, Any]] = []
+    created_dialogs: list[_FakeItemEventDialog] = []
+    queued_results = [
+        (accepted_events, QDialog.DialogCode.Accepted),
+        ([_valid_item_event(item="quick-claw", event_type="item_activation_observed", turn=6)], QDialog.DialogCode.Rejected),
+        (reset_events, QDialog.DialogCode.Accepted),
+    ]
+
+    def fake_dialog_factory(*, current_events: list[dict[str, Any]], parent: object) -> _FakeItemEventDialog:
+        del parent
+        result_events, result_code = queued_results.pop(0)
+        dialog = _FakeItemEventDialog(
+            current_events=current_events,
+            result_events=result_events,
+            result_code=result_code,
+        )
+        created_dialogs.append(dialog)
+        return dialog
+
+    window = MainWindow.__new__(MainWindow)
+    window._item_event_confirmations = []
+    monkeypatch.setattr(main_window_module, "ItemEventDialog", fake_dialog_factory)
+
+    window._open_item_event_dialog()
+
+    assert window._item_event_confirmations == accepted_events
+    assert created_dialogs[-1].current_events == []
+
+    window._open_item_event_dialog()
+
+    assert window._item_event_confirmations == accepted_events
+    assert created_dialogs[-1].current_events == accepted_events
+
+    window._open_item_event_dialog()
+
+    assert window._item_event_confirmations == []
+    assert created_dialogs[-1].current_events == accepted_events
+
+
+def test_main_window_item_event_dialog_invalid_event_does_not_replace_session_state(
+    monkeypatch: Any,
+) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    previous_events = [_valid_item_event(item="choice-scarf", event_type="item_reveal_observed", turn=2)]
+    invalid_events = [_valid_item_event(event_type="resolved_item_effect")]
+
+    def fake_dialog_factory(*, current_events: list[dict[str, Any]], parent: object) -> _FakeItemEventDialog:
+        del current_events, parent
+        return _FakeItemEventDialog(
+            current_events=previous_events,
+            result_events=invalid_events,
+            result_code=QDialog.DialogCode.Accepted,
+        )
+
+    window = MainWindow.__new__(MainWindow)
+    window._item_event_confirmations = deepcopy(previous_events)
+    monkeypatch.setattr(main_window_module, "ItemEventDialog", fake_dialog_factory)
+
+    window._open_item_event_dialog()
+
+    assert window._item_event_confirmations == previous_events
+
+
+def test_item_event_button_exists_and_emits_item_event_request_without_advice_or_provider_call() -> None:
     app = QApplication.instance() or QApplication([])
     assert app is not None
     panel = LLMAdvicePanel()
+    provider_call = _ProviderSpy()
     advice_requests = 0
     field_profile_requests = 0
+    item_event_requests = 0
 
     def record_advice_request() -> None:
         nonlocal advice_requests
@@ -312,18 +386,26 @@ def test_item_event_button_contract_does_not_add_real_panel_button_or_change_fie
         nonlocal field_profile_requests
         field_profile_requests += 1
 
+    def record_item_event_request() -> None:
+        nonlocal item_event_requests
+        item_event_requests += 1
+
     panel.advice_requested.connect(record_advice_request)
     panel.field_profile_requested.connect(record_field_profile_request)
+    panel.item_event_requested.connect(record_item_event_request)
 
     assert panel.turn_pipeline_checkbox.isChecked() is False
     assert panel.field_profile_button.objectName() == "fieldProfileButton"
-    assert not hasattr(panel, "item_event_button")
-    assert not hasattr(panel, "item_event_requested")
+    assert panel.item_event_button.text() == "Item event"
+    assert panel.item_event_button.objectName() == "itemEventButton"
 
+    panel.item_event_button.click()
     panel.field_profile_button.click()
 
+    assert item_event_requests == 1
     assert field_profile_requests == 1
     assert advice_requests == 0
+    assert provider_call.calls == 0
 
 
 def test_item_event_button_contract_does_not_change_existing_field_state_gate() -> None:
@@ -383,9 +465,16 @@ def test_item_event_button_session_state_is_not_mapped_into_prompt_payload_yet()
         provider_call=_ProviderSpy(),
     )
     controller.open_item_event_dialog()
+    my_panel = _panel("garchomp", selected_move_index=0, selected_moves=[_move("earthquake")])
+    opponent_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
+    window = _window(my_panel, opponent_panel)
+    window._item_event_confirmations = deepcopy(controller._item_event_confirmations)
 
+    battle_input = window._build_llm_battle_input()
+    assert "item_event_confirmations" not in battle_input
+    assert "item_event_context" not in battle_input
     off_prompt = advisor_client._build_ui_selected_prompt(
-        controller.build_battle_input(),
+        battle_input,
         enable_turn_pipeline=panel.turn_pipeline_enabled(),
         enable_turn_order_context=panel.turn_pipeline_enabled(),
         enable_opponent_move_context=panel.turn_pipeline_enabled(),
@@ -395,7 +484,7 @@ def test_item_event_button_session_state_is_not_mapped_into_prompt_payload_yet()
 
     panel.turn_pipeline_checkbox.setChecked(True)
     on_prompt = advisor_client._build_ui_selected_prompt(
-        controller.build_battle_input(),
+        battle_input,
         enable_turn_pipeline=panel.turn_pipeline_enabled(),
         enable_turn_order_context=panel.turn_pipeline_enabled(),
         enable_opponent_move_context=panel.turn_pipeline_enabled(),

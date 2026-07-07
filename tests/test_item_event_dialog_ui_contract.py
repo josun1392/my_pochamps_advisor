@@ -330,14 +330,32 @@ def test_item_event_dialog_open_action_does_not_request_advice_or_provider_call(
     assert provider_call.calls == 0
 
 
-def test_item_event_dialog_ui_contract_does_not_add_real_panel_button_or_change_checkbox_default() -> None:
+def test_item_event_dialog_ui_contract_keeps_panel_button_separate_from_advice_and_checkbox_default() -> None:
     app = QApplication.instance() or QApplication([])
     assert app is not None
     panel = LLMAdvicePanel()
+    advice_requests = 0
+    item_event_requests = 0
+
+    def record_advice_request() -> None:
+        nonlocal advice_requests
+        advice_requests += 1
+
+    def record_item_event_request() -> None:
+        nonlocal item_event_requests
+        item_event_requests += 1
+
+    panel.advice_requested.connect(record_advice_request)
+    panel.item_event_requested.connect(record_item_event_request)
 
     assert panel.turn_pipeline_checkbox.isChecked() is False
-    assert not hasattr(panel, "item_event_button")
-    assert not hasattr(panel, "item_event_requested")
+    assert panel.item_event_button.text() == "Item event"
+    assert panel.item_event_button.objectName() == "itemEventButton"
+
+    panel.item_event_button.click()
+
+    assert item_event_requests == 1
+    assert advice_requests == 0
 
 
 def test_item_event_confirmations_are_not_mapped_into_prompt_payload_yet() -> None:

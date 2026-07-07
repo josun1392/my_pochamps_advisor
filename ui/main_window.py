@@ -28,6 +28,7 @@ from llm.advisor_damage_estimate import (
     attach_opponent_known_move_damage_estimates,
     attach_selected_move_damage_estimate,
 )
+from llm.advisor_battle_state_context import validate_explicit_user_item_event_confirmation
 from llm.opponent_assumptions import build_opponent_assumptions_payload
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import run_ui_selected_advice
@@ -41,6 +42,7 @@ from ui.widgets.item_profile_dialog import (
     legal_item_options_from_repository,
 )
 from ui.widgets.field_profile_dialog import FieldProfileDialog
+from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
@@ -210,6 +212,7 @@ class MainWindow(QMainWindow):
         self._llm_thread: QThread | None = None
         self._llm_worker: LLMAdviceWorker | None = None
         self._field_profiles: dict | None = None
+        self._item_event_confirmations: list[dict] = []
 
         central_widget = QWidget()
         central_widget.setStyleSheet("background-color: #EEF2F6;")
@@ -247,6 +250,7 @@ class MainWindow(QMainWindow):
         self.center_column.move_search_box.move_selected.connect(self._on_move_selected)
         self.center_column.llm_advice_panel.advice_requested.connect(self._start_llm_advice)
         self.center_column.llm_advice_panel.field_profile_requested.connect(self._open_field_profile_dialog)
+        self.center_column.llm_advice_panel.item_event_requested.connect(self._open_item_event_dialog)
         self.shortcuts = GlobalShortcuts(self, self)
         self.set_active_column(self._active_column_name)
 
@@ -324,6 +328,26 @@ class MainWindow(QMainWindow):
         dialog = FieldProfileDialog(current_profiles=self._field_profiles, parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self._field_profiles = dialog.field_profiles
+
+    @Slot()
+    def _open_item_event_dialog(self) -> None:
+        current_events = getattr(self, "_item_event_confirmations", [])
+        dialog = ItemEventDialog(current_events=current_events, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        events = dialog.item_event_confirmations
+        if events is None:
+            return
+        try:
+            self._item_event_confirmations = [
+                validate_explicit_user_item_event_confirmation(event)
+                for event in events
+            ]
+        except ValueError as exc:
+            try:
+                self.statusBar().showMessage(f"Failed | {exc}")
+            except RuntimeError:
+                pass
 
     @Slot()
     def _start_llm_advice(self) -> None:

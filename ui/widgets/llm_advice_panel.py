@@ -22,6 +22,7 @@ TURN_PIPELINE_STATUS_TEXT = (
 class LLMAdvicePanel(QFrame):
     advice_requested = Signal()
     field_profile_requested = Signal()
+    item_event_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -41,6 +42,14 @@ class LLMAdvicePanel(QFrame):
             "post-turn state, damage precision, or full turn outcome."
         )
         self.field_profile_button.clicked.connect(self.field_profile_requested.emit)
+
+        self.item_event_button = QPushButton("Item event")
+        self.item_event_button.setObjectName("itemEventButton")
+        self.item_event_button.setToolTip(
+            "Open user-confirmed observed item event input. This does not calculate resolved effects, "
+            "exact HP, damage, RNG, or turn order."
+        )
+        self.item_event_button.clicked.connect(self.item_event_requested.emit)
 
         self.turn_pipeline_checkbox = QCheckBox("제한 컨텍스트 포함")
         self.turn_pipeline_checkbox.setObjectName("turnPipelineDevFlag")
@@ -63,6 +72,7 @@ class LLMAdvicePanel(QFrame):
 
         layout.addWidget(self.request_button)
         layout.addWidget(self.field_profile_button)
+        layout.addWidget(self.item_event_button)
         layout.addWidget(self.turn_pipeline_checkbox)
         layout.addWidget(self.turn_pipeline_status_label)
         layout.addWidget(self.output_edit, 1)
@@ -78,6 +88,7 @@ class LLMAdvicePanel(QFrame):
     def set_running(self, is_running: bool) -> None:
         self.request_button.setDisabled(is_running)
         self.field_profile_button.setDisabled(is_running)
+        self.item_event_button.setDisabled(is_running)
         self.turn_pipeline_checkbox.setDisabled(is_running)
         if is_running:
             self.output_edit.setPlainText("분석 중...")
