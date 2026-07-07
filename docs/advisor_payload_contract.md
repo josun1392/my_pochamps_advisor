@@ -423,6 +423,14 @@ but no real dialog, button, MainWindow wiring, or `item_event_context` mapping
 is implemented. Generated prompt payloads still omit `item_event_confirmations`
 and trusted `item_event_context`.
 
+v12.35 status note: Explicit User Item Event Dialog Implementation adds the
+standalone `ItemEventDialog` widget and dialog unit tests only. The dialog can
+return validated explicit user observed event candidates with
+`source=explicit_user_event_confirmation` and `status=user_confirmed`, but it
+does not add LLMAdvicePanel buttons, MainWindow session wiring,
+`item_event_context` payload mapping, or observed event prompt mapping.
+Generated prompt payload shape remains unchanged.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

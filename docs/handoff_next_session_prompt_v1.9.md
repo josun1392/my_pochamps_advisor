@@ -154,19 +154,29 @@ Update after v2.5:
 - v12.32 designed Explicit User Item Event Confirmation without implementation. It distinguishes known item, explicit user event confirmation, and resolved item effect; recommends an Item Event Dialog over inline chips; proposes session-local `MainWindow._item_event_confirmations`; and keeps observed event candidates separate from resolved effects, post-turn state, exact HP/damage, RNG, and Speed/order resolution.
 - v12.33 locked Explicit User Item Event Contract Tests. Helper-level validation accepts `explicit_user_event_confirmation` candidates only with `status=user_confirmed` and observed event types, rejects invalid source/status/event type/missing fields, rejects resolved/post-turn/exact HP/exact damage/RNG/Speed-order fields, and verifies generated prompt payloads still do not include trusted `item_event_context` before a later mapping implementation.
 - v12.34 locked Explicit User Item Event Dialog UI Tests with a test-only fake dialog/controller seam. Apply stores valid observed candidates, Cancel preserves previous session state, Reset clears dialog-local draft and only persists on Apply, invalid events are not saved, opening the future dialog does not request advice or call providers, no real button/dialog/MainWindow wiring is implemented, and `item_event_context` remains unmapped from prompt payloads.
+- v12.35 implemented the standalone `ItemEventDialog` widget without button wiring or payload mapping. The dialog has side, item, observed event type, optional turn, and optional note fields; returns `status=user_confirmed` and `source=explicit_user_event_confirmation`; keeps blank turn/note as `None`; validates through the v12.33 helper; implements Apply/Cancel/Reset; and still does not add `item_event_context`, observed prompt mapping, provider calls, parser/replay/Turn Engine behavior, or resolved/post-turn/exact HP/damage/RNG/order calculations.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.34 Explicit User Item Event Dialog UI Tests.
+T3, continue after v12.35 Explicit User Item Event Dialog Implementation.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.35 Explicit User Item Event Dialog Implementation.
+- Current recommended next milestone is v12.36 Explicit User Item Event Button Integration Tests.
+- v12.35 implemented standalone `ItemEventDialog`.
+- The dialog fields are side, item, event type, optional turn, and optional note.
+- Returned events keep `status=user_confirmed` and `source=explicit_user_event_confirmation`.
+- Blank turn and note are retained as `None`.
+- Apply validates through the explicit user item event helper and accepts valid observed candidates.
+- Cancel rejects without saving a result.
+- Reset clears dialog-local draft; Reset + Apply returns an empty event list.
+- No LLMAdvicePanel button or MainWindow session wiring exists yet.
+- `item_event_context` remains unmapped from generated prompt payloads.
 - v12.34 locked future Item Event Dialog UI behavior with test-only seams.
 - Apply stores valid explicit user item events as session-local observed candidates.
 - Cancel preserves previous session state.
@@ -235,12 +245,13 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.35 Explicit User Item Event Dialog Implementation
-  - Alternative: v12.35 Explicit User Item Event Dialog Implementation Design
-  - Alternative: v12.35 Item Event Payload Mapping Design
+  - v12.36 Explicit User Item Event Button Integration Tests
+  - Alternative: v12.36 Explicit User Item Event Button Integration
+  - Alternative: v12.36 Item Event Payload Mapping Design
 - Reason:
+  - v12.35 implemented the standalone dialog without wiring.
+  - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.
   - v12.34 locked Item Event Dialog Apply/Cancel/Reset/session-local behavior before implementation.
-  - The next safe step is implementing the real dialog against the locked UI contract.
   - v12.33 locked the explicit user event source contract at helper level.
   - v12.32 documented the smallest trusted observed source before implementation.
   - v12.31 locked future item event fields and future source names as rejected until trusted source implementation exists.

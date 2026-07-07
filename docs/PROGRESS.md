@@ -1,5 +1,33 @@
 # Master Ball Advisor — Progress
 
+## v12.35 - Explicit User Item Event Dialog Implementation
+
+Purpose:
+- Implement the standalone Item Event Dialog against the v12.34 UI contract without adding button wiring or payload mapping.
+
+Implementation summary:
+- Added `ui/widgets/item_event_dialog.py`.
+- Added `tests/test_item_event_dialog.py`.
+- Added `docs/spike_v12.35_explicit_user_item_event_dialog_implementation.md`.
+- Implemented `ItemEventDialog` with fields for side, item, event type, optional turn, and optional note.
+- Returned metadata is fixed to `status=user_confirmed` and `source=explicit_user_event_confirmation`.
+- Retained `turn` and `note` keys; blank values return `None`.
+- Implemented Apply validation through `validate_explicit_user_item_event_confirmation(...)`.
+- Implemented Cancel as dialog reject with no saved result.
+- Implemented Reset as dialog-local draft clear; Reset + Apply returns an empty event list.
+- Added unit tests for valid event shape, all allowed observed event types, blank optional values, Cancel, Reset, initial event loading, missing item rejection, invalid event type rejection, and forbidden resolved/post-turn/exact/RNG/order fields.
+- Kept v12.34 UI contract tests green.
+
+Recommended next:
+- v12.36 Explicit User Item Event Button Integration Tests.
+- Alternative: v12.36 Explicit User Item Event Button Integration.
+- Alternative: v12.36 Item Event Payload Mapping Design.
+
+Safety statement:
+- No actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, `item_event_context` payload mapping, observed event prompt mapping, battle log parser, replay parser, Turn Engine, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, exact HP calculation, exact damage calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.34 - Explicit User Item Event Dialog UI Tests
 
 Purpose:
