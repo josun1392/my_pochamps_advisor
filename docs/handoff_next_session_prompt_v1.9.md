@@ -157,19 +157,27 @@ Update after v2.5:
 - v12.35 implemented the standalone `ItemEventDialog` widget without button wiring or payload mapping. The dialog has side, item, observed event type, optional turn, and optional note fields; returns `status=user_confirmed` and `source=explicit_user_event_confirmation`; keeps blank turn/note as `None`; validates through the v12.33 helper; implements Apply/Cancel/Reset; and still does not add `item_event_context`, observed prompt mapping, provider calls, parser/replay/Turn Engine behavior, or resolved/post-turn/exact HP/damage/RNG/order calculations.
 - v12.36 locked Explicit User Item Event Button Integration Tests with a test-only fake dialog/controller/provider seam. Future button open behavior does not request advice or call providers, Apply stores valid events into a session-local `_item_event_confirmations` candidate, Cancel preserves previous state, Reset persists only on Apply, invalid events are not stored, existing FieldProfileDialog button and limited-context checkbox behavior remain unchanged, and `item_event_context` remains unmapped from prompt payloads.
 - v12.37 wired the real LLMAdvicePanel `Item event` button to MainWindow session-local `_item_event_confirmations` state. The button emits `item_event_requested`, not `advice_requested`; MainWindow opens `ItemEventDialog`; Apply saves validated observed candidates; Cancel preserves previous state; Reset + Apply stores an empty list; invalid dialog output does not replace state; existing FieldProfileDialog and limited-context checkbox behavior remain unchanged; and `item_event_context` remains unmapped from prompt payloads.
+- v12.38 designed future Item Event Payload Mapping without implementation. The design keeps `_item_event_confirmations` UI-only for now, proposes a future path through `battle_input["item_event_confirmations"]` into `item_event_context.observed_events`, recommends the existing limited context checkbox as the hard gate, limits source/status/event types to explicit user-confirmed observed candidates, and keeps resolved effects, post-turn state, exact HP/damage, RNG, Speed/order, parser/replay/Turn Engine behavior, and provider calls out of scope.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.37 Explicit User Item Event Button Integration.
+T3, continue after v12.38 Item Event Payload Mapping Design.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.38 Item Event Payload Mapping Design.
+- Current recommended next milestone is v12.39 Item Event Payload Mapping Tests.
+- v12.38 designed future item event payload mapping without implementation.
+- Proposed future path is `_item_event_confirmations` -> `battle_input["item_event_confirmations"]` -> limited context gate/helper -> `item_event_context.observed_events` -> prompt serialization.
+- Existing limited context checkbox is the recommended hard gate.
+- Checkbox off should omit `item_event_context`.
+- Checkbox on should include only valid observed events after source/status/event_type validation.
+- `item_event_context` remains unmapped in current runtime code.
+- Resolved effects, post-turn state, exact HP/damage, RNG, and Speed/order fields remain forbidden.
 - v12.37 wired the real LLMAdvicePanel `Item event` button and MainWindow session-local `_item_event_confirmations` storage.
 - The button emits `item_event_requested`, not `advice_requested`.
 - Button/open action must not request advice or call providers.
@@ -266,12 +274,12 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.38 Item Event Payload Mapping Design
-  - Alternative: v12.38 Item Event Payload Mapping Tests
-  - Alternative: v12.38 Explicit User Item Event UI Phase Closure
+  - v12.39 Item Event Payload Mapping Tests
+  - Alternative: v12.39 Item Event Payload Mapping Implementation
+  - Alternative: v12.39 Explicit User Item Event UI Phase Closure
   - Reason:
-    - v12.37 added the real LLMAdvicePanel Item Event button and MainWindow session-local storage.
-    - The next safe step is designing when and how observed user-confirmed item events may enter payloads.
+    - v12.38 designed the mapping path and gate/source/status boundaries.
+    - Payload mapping affects LLM input directly, so checkbox gate and observed/resolved boundaries should be locked by tests before implementation.
 - Reason:
   - v12.35 implemented the standalone dialog without wiring.
   - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.

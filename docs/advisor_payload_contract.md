@@ -444,6 +444,11 @@ session-local UI state. This is UI-only wiring: `_item_event_confirmations` is
 not added to `battle_input`, `item_event_context` remains unmapped, and observed
 item event prompt mapping is still future-only.
 
+v12.38 status note: Item Event Payload Mapping Design is design-only. It
+proposes a future limited-context-gated path from `_item_event_confirmations` to
+`item_event_context.observed_events`, but current payload shape is unchanged and
+`item_event_context` remains unmapped until future tests and implementation.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
