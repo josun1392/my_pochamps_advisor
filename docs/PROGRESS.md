@@ -1,5 +1,32 @@
 # Master Ball Advisor — Progress
 
+## v12.36 - Explicit User Item Event Button Integration Tests
+
+Purpose:
+- Lock future LLMAdvicePanel/MainWindow Item Event button behavior with test-only integration contracts before real button or session-local wiring implementation.
+
+Implementation summary:
+- Added `tests/test_item_event_button_integration_contract.py`.
+- Added `docs/spike_v12.36_explicit_user_item_event_button_integration_tests.md`.
+- Added a test-only fake dialog/controller/provider spy seam for future button behavior.
+- Verified the future button/open action does not request advice or call a provider.
+- Verified Apply stores valid explicit user item event confirmations into a session-local `_item_event_confirmations` candidate.
+- Verified Cancel preserves previous session-local state and discards the draft.
+- Verified Reset + Cancel preserves previous state, while Reset + Apply stores an empty list.
+- Verified invalid source/status/event type/missing fields and exact/resolved/post-turn/RNG/order fields are rejected and not stored.
+- Verified existing field profile button behavior and limited-context checkbox gating remain unchanged.
+- Verified session-local item event confirmations are not mapped into prompt payloads and trusted `item_event_context` remains absent.
+
+Recommended next:
+- v12.37 Explicit User Item Event Button Integration.
+- Alternative: v12.37 Item Event Payload Mapping Design.
+- Alternative: v12.37 Explicit User Item Event UI Phase Closure.
+
+Safety statement:
+- No actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, real LLMAdvicePanel Item Event button implementation, real MainWindow `_item_event_confirmations` wiring, `item_event_context` payload mapping, observed event prompt mapping, battle log parser, replay parser, Turn Engine, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, exact HP calculation, exact damage calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.35 - Explicit User Item Event Dialog Implementation
 
 Purpose:
