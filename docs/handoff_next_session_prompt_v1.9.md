@@ -153,19 +153,28 @@ Update after v2.5:
 - v12.31 locked Item Event Source Contract Tests. Future item event fields such as `item_event_context`, `observed_events`, `resolved_effects`, `observed_activation`, `observed_consumption`, `item_event_type`, `event_source`, `event_confidence`, `event_turn`, and `event_provenance` are rejected by current battle-state validation, and future source names do not create trusted observed/resolved events without a separate implementation.
 - v12.32 designed Explicit User Item Event Confirmation without implementation. It distinguishes known item, explicit user event confirmation, and resolved item effect; recommends an Item Event Dialog over inline chips; proposes session-local `MainWindow._item_event_confirmations`; and keeps observed event candidates separate from resolved effects, post-turn state, exact HP/damage, RNG, and Speed/order resolution.
 - v12.33 locked Explicit User Item Event Contract Tests. Helper-level validation accepts `explicit_user_event_confirmation` candidates only with `status=user_confirmed` and observed event types, rejects invalid source/status/event type/missing fields, rejects resolved/post-turn/exact HP/exact damage/RNG/Speed-order fields, and verifies generated prompt payloads still do not include trusted `item_event_context` before a later mapping implementation.
+- v12.34 locked Explicit User Item Event Dialog UI Tests with a test-only fake dialog/controller seam. Apply stores valid observed candidates, Cancel preserves previous session state, Reset clears dialog-local draft and only persists on Apply, invalid events are not saved, opening the future dialog does not request advice or call providers, no real button/dialog/MainWindow wiring is implemented, and `item_event_context` remains unmapped from prompt payloads.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.33 Explicit User Item Event Contract Tests.
+T3, continue after v12.34 Explicit User Item Event Dialog UI Tests.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.34 Explicit User Item Event Dialog UI Tests.
+- Current recommended next milestone is v12.35 Explicit User Item Event Dialog Implementation.
+- v12.34 locked future Item Event Dialog UI behavior with test-only seams.
+- Apply stores valid explicit user item events as session-local observed candidates.
+- Cancel preserves previous session state.
+- Reset clears dialog-local draft only; Reset + Cancel preserves previous state and Reset + Apply stores an empty event list.
+- Invalid event candidates are rejected and are not saved.
+- Opening the future item event dialog does not request advice and does not call providers.
+- No real Item Event Dialog, real button, or real MainWindow wiring exists yet.
+- `item_event_context` remains unmapped from generated prompt payloads.
 - v12.33 locked explicit user item event contract tests.
 - Helper-level explicit user event validation accepts observed candidates only.
 - Valid explicit user event candidates require `source=explicit_user_event_confirmation`, `status=user_confirmed`, and an allowed observed event type.
@@ -226,12 +235,13 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.34 Explicit User Item Event Dialog UI Tests
-  - Alternative: v12.34 Explicit User Item Event Dialog Implementation Design
-  - Alternative: v12.34 Explicit User Item Event Source Phase Closure
+  - v12.35 Explicit User Item Event Dialog Implementation
+  - Alternative: v12.35 Explicit User Item Event Dialog Implementation Design
+  - Alternative: v12.35 Item Event Payload Mapping Design
 - Reason:
+  - v12.34 locked Item Event Dialog Apply/Cancel/Reset/session-local behavior before implementation.
+  - The next safe step is implementing the real dialog against the locked UI contract.
   - v12.33 locked the explicit user event source contract at helper level.
-  - UI tests should lock Item Event Dialog Apply/Cancel/Reset/session-local behavior before implementation.
   - v12.32 documented the smallest trusted observed source before implementation.
   - v12.31 locked future item event fields and future source names as rejected until trusted source implementation exists.
   - v12.30 documented trusted item event source candidates without implementing parser, replay, resolver, or Turn Engine behavior.

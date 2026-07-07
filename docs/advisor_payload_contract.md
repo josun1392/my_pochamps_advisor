@@ -416,6 +416,13 @@ not mapped into current prompt payloads as trusted `item_event_context`, and it
 must not create `resolved_item_effect`, `post_turn_item_state`, exact HP, exact
 damage, RNG rolls, or Speed/order overrides.
 
+v12.34 status note: Explicit User Item Event Dialog UI Tests are test-only and
+do not change payload shape or runtime behavior. The future dialog contract
+locks Apply/Cancel/Reset/session-local behavior with a fake controller seam,
+but no real dialog, button, MainWindow wiring, or `item_event_context` mapping
+is implemented. Generated prompt payloads still omit `item_event_confirmations`
+and trusted `item_event_context`.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
