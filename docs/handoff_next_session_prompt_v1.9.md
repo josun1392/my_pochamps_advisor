@@ -161,19 +161,23 @@ Update after v2.5:
 - v12.39 locked Item Event Payload Mapping Tests with a test-only mapper seam. Checkbox off omits the future item event context candidate; checkbox on normalizes only validated explicit user-confirmed observed events with `confidence=observed`; invalid and resolved/post-turn/exact HP/damage/RNG/order inputs are rejected; known item and field state behavior remain unchanged; safe observed-event wording is locked; and current runtime payloads/prompts still omit `item_event_context` pending implementation.
 - v12.40 implemented limited-context-gated Item Event Payload Mapping. Checkbox off keeps `_item_event_confirmations` out of battle input and payloads. Checkbox on copies session-local confirmations to battle input, strips the raw UI field before provider payload serialization, and normalizes valid explicit user-confirmed events into `item_event_context.observed_events` with `confidence=observed`. Invalid events are omitted, resolved/post-turn/exact HP/damage/RNG/Speed-order fields remain blocked, known item and field state behavior remain unchanged, and no new natural-language prompt wording or provider call was added.
 - v12.41 added an Observed Item Event Prompt Fixture. A minimal prompt guard appears only with `item_event_context` and states that explicit user-confirmed events are observed context only, not resolved mechanics, exact calculations, post-turn state, RNG, or resolved order. Offline fixtures use the production advice path with mocked `call_gemini` and logging, cover all five observed event types, checkbox off/on behavior, optional values, known-item separation, invalid raw event omission, and forbidden claim/field scans without a provider call.
+- v12.42 closed the Item Event Payload Mapping phase as `CLOSED - PASS`. The limited-context hard gate, trusted observed-event contract, invalid-event omission, observed-only prompt guard, and unchanged known-item/field-state boundaries are recorded in the closure; no provider call was made.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.41 Observed Item Event Prompt Fixture.
+T3, continue after v12.42 Item Event Payload Mapping Phase Closure.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.42 Controlled Observed Item Event Smoke Design.
+- Current recommended next milestone is v12.43 Item Event Phase Follow-up Inventory.
+- v12.42 closed the v12.38-v12.41 item event payload-mapping phase as `CLOSED - PASS`.
+- The current scope is explicit user-confirmed observed events only; resolved effects, post-turn state, exact HP/damage, RNG, and resolved order remain out of scope.
+- v12.43 is an inventory-only comparison of possible follow-up policies; it does not implement new item-event behavior.
 - v12.41 added a minimal item-event prompt guard and offline production prompt fixture.
 - The guard applies only when `item_event_context` exists and preserves observed-only meaning.
 - Offline mocked fixtures cover all five event types, checkbox off/on, known-item separation, and invalid raw event omission.
@@ -294,12 +298,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.42 Controlled Observed Item Event Smoke Design
-  - Alternative: v12.42 Item Event Mapping Closure
-  - Alternative: v12.42 Status/Condition Source Design
+  - v12.43 Item Event Phase Follow-up Inventory
   - Reason:
-    - v12.41 locks observed-only prompt semantics through offline production-path fixtures.
-    - The next safe step is designing a controlled approval-gated smoke plan without executing a provider call.
+    - v12.42 closed the payload-mapping phase with offline evidence and no provider call.
+    - The next step compares follow-up lifecycle and display policies before any new implementation.
 - Reason:
   - v12.35 implemented the standalone dialog without wiring.
   - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.

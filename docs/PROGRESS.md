@@ -1,5 +1,28 @@
 # Master Ball Advisor — Progress
 
+## v12.42 - Item Event Payload Mapping Phase Closure
+
+Purpose:
+- Close the v12.38-v12.41 Item Event Payload Mapping phase after design, contract tests, implementation, and offline prompt-fixture verification.
+
+Implementation summary:
+- Added `docs/spike_v12.42_item_event_payload_mapping_phase_closure.md` with the final phase audit.
+- Confirmed `MainWindow._item_event_confirmations` remains a session-local, explicit user-confirmed source: Apply saves validated events, Cancel preserves state, Reset + Apply stores an empty list, and invalid dialog output is not stored.
+- Confirmed the existing limited context checkbox is the hard gate: off omits session events, `item_event_context`, observed events, and the item-event guard; on maps only valid events into `item_event_context.observed_events`.
+- Confirmed the trusted contract remains `source=explicit_user_event_confirmation`, `status=user_confirmed`, and `confidence=observed`, limited to the five observed event types.
+- Confirmed invalid individual events are omitted and all-invalid input omits `item_event_context`; resolved, post-turn, exact HP/damage, RNG, and order fields remain blocked.
+- Confirmed known current items, field state mapping, dialogs, the existing field gate, damage/KO contexts, Q12, raw rolls, and provider retry behavior remain unchanged.
+- Confirmed the production prompt path is covered offline with monkeypatched provider/logging functions and emits the observed-only guard only when item-event context exists.
+- Final phase status: `CLOSED - PASS`.
+
+Recommended next:
+- v12.43 Item Event Phase Follow-up Inventory.
+
+Safety statement:
+- No production code change, test code change, actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, battle log parser, replay parser, Turn Engine, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, exact HP calculation, exact damage calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, FieldProfileDialog behavior change, field mapping behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.41 - Observed Item Event Prompt Fixture
 
 Purpose:

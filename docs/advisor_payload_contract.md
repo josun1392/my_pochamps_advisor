@@ -472,6 +472,12 @@ post-turn state, RNG, or resolved order. Offline fixtures capture the production
 prompt with mocked provider and logging functions; runtime provider behavior is
 unchanged.
 
+v12.42 status note: The Item Event Payload Mapping phase is `CLOSED - PASS`.
+v12.38-v12.41 established the design, contract tests, limited-context-gated
+mapping, and offline prompt fixture. Current scope remains explicit
+user-confirmed observed events only; resolved effects, post-turn state, exact
+HP/damage, RNG, and Speed/order behavior remain outside this phase.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
