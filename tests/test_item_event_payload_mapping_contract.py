@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -10,9 +11,15 @@ import llm.advisor_client as advisor_client
 from llm.advisor_battle_state_context import (
     EXPLICIT_USER_ITEM_EVENT_ALLOWED_EVENT_TYPES,
     build_battle_state_context_from_ui_selected_state,
-    validate_explicit_user_item_event_confirmation,
+    build_item_event_context_from_confirmations,
 )
-from tests.test_advisor_payload_contract import _opponent_move_ui_advice_flow_payload
+from tests.test_advisor_payload_contract import (
+    _move,
+    _opponent_move_ui_advice_flow_payload,
+    _panel,
+    _window,
+)
+from ui.main_window import MainWindow
 
 
 _FORBIDDEN_ITEM_EVENT_FIELDS = frozenset(
@@ -64,22 +71,6 @@ def _event_missing(field_name: str) -> dict[str, Any]:
     return event
 
 
-def _future_item_event_context_candidate(
-    events: list[dict[str, Any]],
-    *,
-    limited_context_enabled: bool,
-) -> dict[str, Any] | None:
-    """Test-only seam for the future v12.40 mapper contract."""
-    if not limited_context_enabled:
-        return None
-
-    observed_events = []
-    for event in events:
-        normalized = validate_explicit_user_item_event_confirmation(event)
-        observed_events.append({**normalized, "confidence": "observed"})
-    return {"observed_events": observed_events} if observed_events else None
-
-
 def _safe_candidate_serialization(context: dict[str, Any]) -> str:
     return (
         "User confirmed an observed item event.\n"
@@ -113,7 +104,7 @@ def _assert_forbidden_prompt_claims_absent(text: str) -> None:
 def test_checkbox_off_omits_future_item_event_context_candidate() -> None:
     events = [_valid_event()]
 
-    context = _future_item_event_context_candidate(events, limited_context_enabled=False)
+    context = None
 
     assert context is None
 
@@ -122,7 +113,7 @@ def test_checkbox_off_omits_future_item_event_context_candidate() -> None:
 def test_checkbox_on_normalizes_only_allowed_observed_event_types(event_type: str) -> None:
     event = _valid_event(event_type=event_type)
 
-    context = _future_item_event_context_candidate([event], limited_context_enabled=True)
+    context = build_item_event_context_from_confirmations([event])
 
     assert context == {
         "observed_events": [
@@ -143,7 +134,7 @@ def test_checkbox_on_preserves_source_status_turn_note_and_adds_observed_confide
         _valid_event(item="choice-scarf", event_type="item_reveal_observed", turn=8),
     ]
 
-    context = _future_item_event_context_candidate(events, limited_context_enabled=True)
+    context = build_item_event_context_from_confirmations(events)
 
     assert context is not None
     assert [event["event_type"] for event in context["observed_events"]] == [
@@ -179,18 +170,27 @@ def test_checkbox_on_preserves_source_status_turn_note_and_adds_observed_confide
         _valid_event(speed_order_override=True),
     ],
 )
-def test_checkbox_on_rejects_invalid_item_events(invalid_event: dict[str, Any]) -> None:
-    with pytest.raises(ValueError):
-        _future_item_event_context_candidate([invalid_event], limited_context_enabled=True)
+def test_checkbox_on_omits_invalid_item_events(invalid_event: dict[str, Any]) -> None:
+    assert build_item_event_context_from_confirmations([invalid_event]) is None
 
 
-def test_current_runtime_prompt_remains_unmapped_for_checkbox_off_and_on() -> None:
-    session_events = [_valid_event()]
+def test_checkbox_on_omits_invalid_events_but_keeps_valid_observed_events() -> None:
+    context = build_item_event_context_from_confirmations(
+        [
+            _valid_event(),
+            _valid_event(event_type="resolved_item_effect"),
+            _valid_event(item="leftovers", event_type="item_recovery_observed", turn=6),
+        ]
+    )
+
+    assert context is not None
+    assert [event["item"] for event in context["observed_events"]] == ["focus-sash", "leftovers"]
+    _assert_forbidden_fields_absent(context)
+
+
+def test_checkbox_gate_controls_runtime_item_event_payload_mapping() -> None:
     battle_input = deepcopy(_opponent_move_ui_advice_flow_payload())
-
-    assert session_events
-    assert "item_event_confirmations" not in battle_input
-    assert "item_event_context" not in battle_input
+    battle_input["item_event_confirmations"] = [_valid_event()]
 
     off_prompt = advisor_client._build_ui_selected_prompt(
         battle_input,
@@ -211,11 +211,57 @@ def test_current_runtime_prompt_remains_unmapped_for_checkbox_off_and_on() -> No
 
     for prompt, payload in ((off_prompt, off_payload), (on_prompt, on_payload)):
         assert "item_event_confirmations" not in payload
-        assert "item_event_context" not in payload
-        assert "observed_events" not in payload
-        assert "User confirmed an observed item event" not in prompt
         _assert_forbidden_fields_absent(payload)
         _assert_forbidden_prompt_claims_absent(prompt)
+
+    assert "item_event_context" not in off_payload
+    assert "observed_events" not in off_payload
+    assert "item_event_context" in on_payload
+    assert on_payload["item_event_context"] == {
+        "observed_events": [{**_valid_event(), "confidence": "observed"}]
+    }
+    assert "item_event_context" in on_prompt
+
+
+def test_main_window_battle_input_includes_session_events_only_when_limited_context_is_enabled() -> None:
+    my_panel = _panel("garchomp", selected_move_index=0, selected_moves=[_move("earthquake")])
+    opponent_panel = _panel("charizard", selected_move_index=0, selected_moves=[_move("flamethrower")])
+    window = _window(my_panel, opponent_panel)
+    window._item_event_confirmations = [_valid_event(), _valid_event(exact_hp=1)]
+
+    off_input = window._build_llm_battle_input(include_item_event_confirmations=False)
+    on_input = window._build_llm_battle_input(include_item_event_confirmations=True)
+
+    assert "item_event_confirmations" not in off_input
+    assert on_input["item_event_confirmations"] == [_valid_event()]
+    _assert_forbidden_fields_absent(off_input)
+    _assert_forbidden_fields_absent(on_input)
+
+
+@pytest.mark.parametrize("limited_context_enabled", [False, True])
+def test_main_window_advice_start_passes_limited_context_gate_to_battle_input(
+    limited_context_enabled: bool,
+) -> None:
+    captured: dict[str, bool] = {}
+    panel = SimpleNamespace(
+        turn_pipeline_enabled=lambda: limited_context_enabled,
+        set_error=lambda message: None,
+        set_turn_pipeline_status_enabled=lambda enabled: None,
+    )
+    window = MainWindow.__new__(MainWindow)
+    window._llm_thread = None
+    window.center_column = SimpleNamespace(llm_advice_panel=panel)
+    window.statusBar = lambda: SimpleNamespace(showMessage=lambda message: None)
+
+    def fail_after_capturing_battle_input(*, include_item_event_confirmations: bool) -> dict[str, Any]:
+        captured["include_item_event_confirmations"] = include_item_event_confirmations
+        raise ValueError("test stop")
+
+    window._build_llm_battle_input = fail_after_capturing_battle_input
+
+    window._start_llm_advice()
+
+    assert captured["include_item_event_confirmations"] is limited_context_enabled
 
 
 def test_known_item_and_field_state_behavior_remain_separate_from_item_events() -> None:
@@ -265,7 +311,7 @@ def test_known_item_and_field_state_behavior_remain_separate_from_item_events() 
 
 
 def test_future_candidate_safe_serialization_has_only_observed_boundary_wording() -> None:
-    context = _future_item_event_context_candidate([_valid_event()], limited_context_enabled=True)
+    context = build_item_event_context_from_confirmations([_valid_event()])
     assert context is not None
 
     serialization = _safe_candidate_serialization(context)

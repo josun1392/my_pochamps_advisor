@@ -457,6 +457,14 @@ events may enter future `item_event_context.observed_events`, with
 Speed/order fields remain forbidden. Runtime mapping and prompt serialization
 are still pending.
 
+v12.40 status note: Item Event Payload Mapping Implementation connects
+session-local confirmations to `battle_input` only under the existing limited
+context gate. The raw UI field is removed before provider payload serialization;
+valid events normalize into `item_event_context.observed_events` with
+`confidence=observed`. Invalid events are omitted, and resolved/post-turn/exact
+HP/damage/RNG/Speed-order fields remain forbidden. No new natural-language
+prompt wording was added.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

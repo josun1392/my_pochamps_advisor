@@ -224,6 +224,24 @@ def validate_explicit_user_item_event_confirmation(candidate: Mapping[str, Any])
     return sanitized
 
 
+def build_item_event_context_from_confirmations(
+    confirmations: Sequence[Mapping[str, Any]] | None,
+) -> dict[str, Any] | None:
+    """Normalize explicit user observed item events for the limited payload path."""
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, str | bytes):
+        return None
+
+    observed_events: list[dict[str, Any]] = []
+    for candidate in confirmations:
+        try:
+            normalized = validate_explicit_user_item_event_confirmation(candidate)
+        except ValueError:
+            continue
+        observed_events.append({**normalized, "confidence": "observed"})
+
+    return {"observed_events": observed_events} if observed_events else None
+
+
 def build_battle_state_context(
     *,
     self_active: Mapping[str, Any] | None = None,

@@ -1,5 +1,31 @@
 # Master Ball Advisor — Progress
 
+## v12.40 - Item Event Payload Mapping Implementation
+
+Purpose:
+- Map explicit user-confirmed observed item events into LLM payloads only when the existing limited context checkbox is enabled.
+
+Implementation summary:
+- Added `build_item_event_context_from_confirmations(...)` in `llm/advisor_battle_state_context.py`.
+- Added limited-context-gated `item_event_context.observed_events` support in `llm/advisor_client.py`.
+- Added `MainWindow._build_llm_battle_input(include_item_event_confirmations=...)` so checkbox-off advice requests do not pass session events downstream.
+- Checkbox on copies session-local confirmations to battle input, strips the raw UI field before provider payload serialization, and emits only normalized observed events.
+- Valid events preserve source/status/turn/note and add `confidence=observed`.
+- Invalid individual events are omitted; all-invalid input omits `item_event_context`.
+- Resolved/post-turn/exact HP/damage/RNG/order fields remain rejected from normalized payloads.
+- Existing known-item mapping, field state mapping, Item Event dialog behavior, and limited-context field gate remain unchanged.
+- No new natural-language prompt wording or response fixture was added.
+
+Recommended next:
+- v12.41 Item Event Prompt Fixture.
+- Alternative: v12.41 Item Event Mapping Closure.
+- Alternative: v12.41 Controlled Item Event Gemini Smoke Design.
+
+Safety statement:
+- No actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, battle log parser, replay parser, Turn Engine, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, exact HP calculation, exact damage calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, unrelated payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.39 - Item Event Payload Mapping Tests
 
 Purpose:

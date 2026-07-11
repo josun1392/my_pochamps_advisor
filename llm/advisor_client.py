@@ -26,6 +26,8 @@ from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
     BATTLE_STATE_CONTEXT_UNSUPPORTED_BOUNDARIES,
     build_battle_state_context_from_ui_selected_state,
+    build_item_event_context_from_confirmations,
+    validate_explicit_user_item_event_confirmation,
 )
 from llm.advisor_opponent_move_context import (
     OPPONENT_MOVE_CONTEXT_ALLOWED_MOVE_FIELDS,
@@ -110,10 +112,12 @@ def build_ui_advice_payload(
     turn_order_context: dict[str, Any] | None = None,
     opponent_move_context: dict[str, Any] | None = None,
     battle_state_context: dict[str, Any] | None = None,
+    item_event_context: dict[str, Any] | None = None,
     *,
     enable_turn_order_context: bool = False,
     enable_opponent_move_context: bool = False,
     enable_battle_state_context: bool = False,
+    enable_item_event_context: bool = False,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
@@ -135,6 +139,11 @@ def build_ui_advice_payload(
         battle_state_context,
         enable_battle_state_context=enable_battle_state_context,
     )
+    _add_item_event_context_to_advice_payload(
+        filtered_payload,
+        item_event_context,
+        enable_item_event_context=enable_item_event_context,
+    )
     return filtered_payload
 
 
@@ -153,6 +162,7 @@ def filter_context_for_default_advice(payload: dict[str, Any]) -> dict[str, Any]
 
 def _remove_ui_only_field_profiles(payload: dict[str, Any]) -> None:
     payload.pop("field_profiles", None)
+    payload.pop("item_event_confirmations", None)
 
 
 def run_ui_selected_advice(
@@ -195,6 +205,7 @@ def _build_ui_selected_prompt(
     turn_order_context: dict[str, Any] | None = None,
     opponent_move_context: dict[str, Any] | None = None,
     battle_state_context: dict[str, Any] | None = None,
+    item_event_context: dict[str, Any] | None = None,
     *,
     enable_turn_pipeline: bool = False,
     enable_turn_order_context: bool = False,
@@ -236,6 +247,11 @@ def _build_ui_selected_prompt(
             include_user_confirmed_fields=enable_battle_state_context,
         )
 
+    if item_event_context is None and enable_battle_state_context:
+        item_event_context = build_item_event_context_from_confirmations(
+            battle_input.get("item_event_confirmations")
+        )
+
     advice_payload = build_ui_advice_payload(
         battle_input,
         turn_snapshot=turn_snapshot,
@@ -243,9 +259,11 @@ def _build_ui_selected_prompt(
         turn_order_context=turn_order_context,
         opponent_move_context=opponent_move_context,
         battle_state_context=battle_state_context,
+        item_event_context=item_event_context,
         enable_turn_order_context=enable_turn_order_context,
         enable_opponent_move_context=enable_opponent_move_context,
         enable_battle_state_context=enable_battle_state_context,
+        enable_item_event_context=enable_battle_state_context,
     )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
@@ -818,6 +836,37 @@ def _add_battle_state_context_to_advice_payload(
     if _is_empty_battle_state_context(context):
         return
     payload["battle_state_context"] = context
+
+
+def _add_item_event_context_to_advice_payload(
+    payload: dict[str, Any],
+    item_event_context: dict[str, Any] | None,
+    *,
+    enable_item_event_context: bool,
+) -> None:
+    if not enable_item_event_context or item_event_context is None:
+        return
+
+    context = deepcopy(item_event_context)
+    if not isinstance(context, dict) or set(context) != {"observed_events"}:
+        raise ValueError("item_event_context must contain observed_events only")
+    observed_events = context.get("observed_events")
+    if not isinstance(observed_events, list):
+        raise ValueError("item_event_context observed_events must be a list")
+
+    normalized_events: list[dict[str, Any]] = []
+    for event in observed_events:
+        if not isinstance(event, dict):
+            raise ValueError("item_event_context observed_events must contain mappings")
+        confidence = event.get("confidence")
+        candidate = {key: value for key, value in event.items() if key != "confidence"}
+        normalized = validate_explicit_user_item_event_confirmation(candidate)
+        if confidence != "observed":
+            raise ValueError("item_event_context observed event confidence must be observed")
+        normalized_events.append({**normalized, "confidence": "observed"})
+
+    if normalized_events:
+        payload["item_event_context"] = {"observed_events": normalized_events}
 
 
 def _validate_battle_state_context_payload(context: dict[str, Any]) -> None:

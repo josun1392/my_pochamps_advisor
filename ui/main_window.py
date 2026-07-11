@@ -355,8 +355,14 @@ class MainWindow(QMainWindow):
             return
 
         panel = self.center_column.llm_advice_panel
+        enable_turn_pipeline = panel.turn_pipeline_enabled()
+        enable_turn_order_context = enable_turn_pipeline
+        enable_opponent_move_context = enable_turn_pipeline
+        enable_battle_state_context = enable_turn_pipeline
         try:
-            battle_input = self._build_llm_battle_input()
+            battle_input = self._build_llm_battle_input(
+                include_item_event_confirmations=enable_battle_state_context,
+            )
         except ValueError as exc:
             message = str(exc)
             panel.set_error(message)
@@ -364,10 +370,6 @@ class MainWindow(QMainWindow):
             return
 
         panel.set_running(True)
-        enable_turn_pipeline = panel.turn_pipeline_enabled()
-        enable_turn_order_context = enable_turn_pipeline
-        enable_opponent_move_context = enable_turn_pipeline
-        enable_battle_state_context = enable_turn_pipeline
         panel.set_turn_pipeline_status_enabled(enable_turn_pipeline)
         self.statusBar().showMessage("Analyzing...")
 
@@ -445,7 +447,7 @@ class MainWindow(QMainWindow):
         self._llm_thread = None
         self._llm_worker = None
 
-    def _build_llm_battle_input(self) -> dict:
+    def _build_llm_battle_input(self, *, include_item_event_confirmations: bool = False) -> dict:
         my_slot_index = self.selected_slots.get("team_my")
         opponent_slot_index = self.selected_slots.get("team_enemy")
         if my_slot_index is None:
@@ -502,6 +504,19 @@ class MainWindow(QMainWindow):
         field_profiles = getattr(self, "_field_profiles", None)
         if field_profiles is not None:
             battle_input["field_profiles"] = deepcopy(field_profiles)
+        if include_item_event_confirmations:
+            confirmations = getattr(self, "_item_event_confirmations", [])
+            normalized_confirmations = []
+            if isinstance(confirmations, list):
+                for confirmation in confirmations:
+                    try:
+                        normalized_confirmations.append(
+                            validate_explicit_user_item_event_confirmation(confirmation)
+                        )
+                    except ValueError:
+                        continue
+            if normalized_confirmations:
+                battle_input["item_event_confirmations"] = normalized_confirmations
         return attach_opponent_known_move_damage_estimates(
             attach_selected_move_damage_estimate(battle_input)
         )
