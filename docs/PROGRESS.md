@@ -1,5 +1,24 @@
 # Master Ball Advisor — Progress
 
+## v12.51 - Item Event Actual Gemini Re-smoke Execution
+
+Purpose:
+- Execute the separately approved one-call re-smoke for the v12.49 contrast correction.
+
+Implementation summary:
+- Required pre-call contracts and production prompt checks passed for the fixed Leftovers/Focus Sash fixture.
+- Made exactly one `gemini-2.5-flash` call with retry/fallback/second-provider/Vertex AI count zero; TokenLogger metadata completed with sanitized usage input `9930`, output `106`, cached `0`.
+- Result: `FAIL - SEMANTIC BOUNDARY`. The response now read back an opponent Focus Sash activation observation and did not overclaim resolved/exact/post-turn/RNG/order results, but it did not identify self Leftovers as current known-item context or explicitly attribute the event to user confirmation.
+- Damage context and event acknowledgement coexisted; no immediate prompt/payload/test change or second call was made.
+
+Recommended next:
+- v12.52 Item Event Re-smoke Failure Analysis Design.
+
+Safety statement:
+- Exactly one approved actual Gemini call; no retry, fallback, second provider call, Vertex AI call, API key output, credential output, raw response/token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, production/test/script/dependency change, prompt/payload fix, parser, replay parser, Turn Engine, resolved/post-turn/exact calculation, RNG/order resolver, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.50 - Item Event Offline Response Validation and Re-smoke Readiness
 
 Purpose:
