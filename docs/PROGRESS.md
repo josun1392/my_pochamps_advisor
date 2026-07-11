@@ -1,5 +1,26 @@
 # Master Ball Advisor — Progress
 
+## v12.45 - Item Event Actual Gemini Smoke Execution
+
+Purpose:
+- Execute the separately approved single actual Gemini smoke for the observed-only Item Event path.
+
+Implementation summary:
+- Used the v12.44 fixed fixture through the existing production UI-selected advice path.
+- Pre-call offline contracts and prompt checks passed: limited context gate, self known Leftovers context, opponent Focus Sash observed event, normalized source/status/confidence, forbidden-field absence, and observed-only guard.
+- Made exactly one `gemini-2.5-flash` call with retry/fallback/second-provider/Vertex AI count zero.
+- TokenLogger metadata completed; sanitized usage was input `9899`, output `140`, cached `0`.
+- Result: `FAIL - SEMANTIC BOUNDARY`. The response did not clearly distinguish the explicit Focus Sash observation from known-item context, foregrounded unrelated available context, and included a specific HP damage range. It did not claim Focus Sash exact HP=1, resolved post-turn state, RNG, or final order.
+- No prompt, payload, production code, test, or fixture change was made after the result; no second call was made.
+
+Recommended next:
+- v12.46 Item Event Smoke Failure Analysis Design.
+
+Safety statement:
+- Exactly one approved actual Gemini call; no retry, automatic retry, fallback, second provider call, Vertex AI call, API key output, `.env` output, credential output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, production code change, test code change, smoke script, dependency file change, parser, replay parser, Turn Engine, resolved item effect implementation, post-turn item state calculation, exact HP/damage/order/RNG calculation, prompt fix, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.44 - Item Event Actual Gemini Smoke Design
 
 Purpose:
