@@ -173,21 +173,22 @@ Update after v2.5:
 - v12.51 executed the separately approved one-call re-smoke with `gemini-2.5-flash`. Result: `FAIL - SEMANTIC BOUNDARY`. The response now acknowledged an opponent Focus Sash activation observation and kept resolved/exact/post-turn/RNG/order boundaries, but it did not identify self Leftovers as current known-item context or explicitly attribute the event to user confirmation. No prompt/payload/test change or second call was made.
 - v12.52 fixed the remaining attribution gap offline. The event-present guard now conditionally requests side/item user-confirmed current-known readback and explicitly prevents known-item promotion into observed event meaning, while retaining observed-event side/item/type readback. Contracts cover both contexts, event-without-known-item, known-only, disabled, and all-invalid paths. Status: `READY FOR FINAL SINGLE ACTUAL RE-SMOKE`; readiness is not approval.
 - v12.53 executed the separately approved final one-call re-smoke with `gemini-2.5-flash`. Result: `PASS`. The response read back self Leftovers as user-confirmed current known-item context and opponent Focus Sash activation as a separate observed event, retained uncertainty, kept damage context alongside both readbacks, and made no detected resolved/exact/post-turn/RNG/final-order overclaim. No prompt/payload/test change or second call was made.
+- v12.54 closed the v12.26-v12.53 Item Event phase as `CLOSED - PASS`. The closed scope covers known-item and explicit-observed-event contracts, session-local confirmation, limited-context mapping, prompt attribution, and final actual smoke validation. Remaining lifecycle, automated-source, and resolved-calculation work stays separate. Recommended next: v12.55 Item Event Session Lifecycle Design and Contract Tests.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.53 Final Item Event Actual Gemini Re-smoke.
+T3, continue after v12.54 Item Event Phase Closure and Next Priority Selection.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.54 Item Event Actual Smoke Phase Closure.
-- v12.53 completed the separately approved final actual re-smoke with `PASS`.
-- The closure should preserve the one-call/no-retry audit and semantic boundaries without another provider call.
+- Current recommended next milestone is v12.55 Item Event Session Lifecycle Design and Contract Tests.
+- v12.54 closed the Item Event phase as `CLOSED - PASS` after final actual smoke validation.
+- The next lifecycle task should design and contract-test summary/readback, edit/delete, duplicate/order policy, and session reset/new-battle boundaries before production UI expansion.
 - v12.45 has already consumed its separately approved single actual Gemini call and ended `FAIL - SEMANTIC BOUNDARY`.
 - Do not run another item-event provider call without a new explicit T1/T2 approval.
 - Analyze response salience and known-item/observed-event separation before proposing any prompt or payload change.
@@ -316,10 +317,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.54 Item Event Actual Smoke Phase Closure
+  - v12.55 Item Event Session Lifecycle Design and Contract Tests
   - Reason:
-    - v12.53 passes the final current-known and observed-event attribution smoke.
-    - Close the smoke phase before starting a new source or lifecycle scope.
+    - v12.54 closes the observed-event phase with final actual smoke PASS.
+    - Lifecycle is the most localized user-visible gap before adding automated sources or resolved mechanics.
 - Reason:
   - v12.35 implemented the standalone dialog without wiring.
   - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.

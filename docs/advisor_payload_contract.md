@@ -498,6 +498,12 @@ meaning. Event-without-known-item paths retain observed readback without
 inventing a known item. Payload shape and existing item-event boundaries are
 unchanged.
 
+v12.54 status note: The v12.26-v12.53 Item Event phase is `CLOSED - PASS`.
+Known current-item, explicit observed-event, limited-context gate, invalid
+omission, prompt attribution, and final actual smoke boundaries are closed.
+Future lifecycle, automated source, and resolved-calculation features remain
+separate scopes and do not alter this payload contract.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

@@ -1,5 +1,25 @@
 # Master Ball Advisor — Progress
 
+## v12.54 - Item Event Phase Closure and Next Priority Selection
+
+Purpose:
+- Close the v12.26-v12.53 Item Event phase and select one next implementation priority.
+
+Implementation summary:
+- Added `docs/spike_v12.54_item_event_phase_closure_and_next_priority.md`.
+- Closed boundary/source contracts, UI/session-local confirmation, payload/prompt integration, smoke correction, and final actual validation as `ITEM EVENT PHASE: CLOSED - PASS`.
+- Recorded remaining lifecycle, automated-source, and resolved-calculation limitations as out-of-scope follow-up work.
+- Compared session lifecycle, battle-log source, status/condition source, and damage-calculator integration candidates.
+- Selected v12.55 Item Event Session Lifecycle Design and Contract Tests as the next localized user-visible priority.
+
+Recommended next:
+- v12.55 Item Event Session Lifecycle Design and Contract Tests.
+
+Safety statement:
+- No production code change, test code change, actual Gemini call, provider/network call, retry, fallback, second provider call, Vertex AI call, credential check, raw response/token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, parser, replay parser, Turn Engine, resolved/post-turn/exact calculation, RNG/order resolver, Q12/raw roll change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.53 - Final Item Event Actual Gemini Re-smoke
 
 Purpose:
