@@ -79,16 +79,22 @@ def _evaluate_item_event_readback(response: str) -> set[str]:
     """Test-only evaluator for the v12.45 synthetic response contracts."""
     lower = response.lower()
     failures: set[str] = set()
-    known_current = all(anchor in lower for anchor in ("self", "leftovers", "user-confirmed", "current"))
-    observed_event = all(
-        anchor in lower for anchor in ("opponent", "focus sash", "activation", "observed", "user explicitly confirmed")
-    )
-    if not known_current:
-        failures.add("known_item_identity_missing")
-    if not observed_event:
+    known_identity = all(anchor in lower for anchor in ("self", "leftovers"))
+    known_attribution = all(anchor in lower for anchor in ("user-confirmed", "current"))
+    observed_identity = all(anchor in lower for anchor in ("opponent", "focus sash", "activation", "observed"))
+    observed_attribution = "user explicitly confirmed" in lower
+    if not known_identity:
+        failures.add("known_item_omitted")
+    elif not known_attribution:
+        failures.add("known_item_attribution_missing")
+    if not observed_identity:
         failures.add("observed_event_omitted")
-    if "both activated" in lower or "leftovers activation" in lower or "focus sash recovery" in lower:
+    elif not observed_attribution:
+        failures.add("observed_event_attribution_missing")
+    if "both activated" in lower or "focus sash recovery" in lower:
         failures.add("identity_mixing")
+    if "leftovers activation" in lower or "leftovers recovery observed" in lower:
+        failures.add("known_item_promoted_to_observed")
     if any(
         claim in lower
         for claim in (
@@ -104,7 +110,7 @@ def _evaluate_item_event_readback(response: str) -> set[str]:
     ):
         failures.add("unsupported_resolution")
     has_damage_range = " hp" in lower and ("-" in lower or "%" in lower)
-    if has_damage_range and not observed_event:
+    if has_damage_range and not observed_identity:
         failures.add("damage_distraction")
     return failures
 
@@ -129,6 +135,8 @@ def test_fixture_a_prompt_keeps_observed_only_guard_and_current_known_item_struc
     assert "If item_event_context is present" in prompt
     assert "explicitly user-confirmed observed item event" in prompt
     assert "Distinguish current known items from explicitly observed item events." in prompt
+    assert "acknowledge each known item by side and item as user-confirmed current context only" in prompt
+    assert "not an observed activation, consumption, or resolved effect" in prompt
     assert "Briefly acknowledge each observed event by side, item, and event type" in prompt
     assert "user-confirmed observation only" in prompt
     assert "not a resolved mechanic result" in prompt
@@ -149,6 +157,7 @@ def test_fixture_b_full_prompt_includes_contrast_readback_without_suppressing_da
     prompt = _build_ui_selected_prompt(_fixture_b_battle_input(), enable_battle_state_context=True)
 
     assert "Distinguish current known items from explicitly observed item events." in prompt
+    assert "acknowledge each known item by side and item as user-confirmed current context only" in prompt
     assert "Briefly acknowledge each observed event by side, item, and event type" in prompt
     assert "damage_estimate" in prompt
 
@@ -162,6 +171,22 @@ def test_known_item_without_event_omits_contrast_readback_instruction() -> None:
     assert "item_event_context" not in _prompt_payload(prompt)
     assert "Distinguish current known items from explicitly observed item events." not in prompt
     assert "Briefly acknowledge each observed event by side, item, and event type" not in prompt
+
+
+def test_event_without_known_item_keeps_observed_readback_without_inventing_known_item() -> None:
+    payload = _fixture_a_battle_input()
+    payload["item_profiles"] = {}
+
+    prompt = _build_ui_selected_prompt(payload, enable_battle_state_context=True)
+    prompt_payload = _prompt_payload(prompt)
+
+    assert prompt_payload["battle_state_context"]["self_active"]["item"] == {
+        "known": False,
+        "value": "unknown",
+    }
+    assert prompt_payload["item_event_context"]["observed_events"] == [{**_focus_sash_event(), "confidence": "observed"}]
+    assert "acknowledge each known item by side and item as user-confirmed current context only" in prompt
+    assert "Briefly acknowledge each observed event by side, item, and event type" in prompt
 
 
 def test_synthetic_good_readback_passes_narrow_semantics_contract() -> None:
@@ -185,6 +210,29 @@ def test_synthetic_event_omission_fails_contract() -> None:
     response = "Use Flamethrower for general battle advice; self has a user-confirmed current Leftovers item."
 
     assert "observed_event_omitted" in _evaluate_item_event_readback(response)
+
+
+def test_synthetic_known_item_omission_fails_contract() -> None:
+    response = "The user explicitly confirmed an opponent Focus Sash activation event was observed."
+
+    assert "known_item_omitted" in _evaluate_item_event_readback(response)
+
+
+def test_synthetic_attribution_omission_fails_contract() -> None:
+    response = "Self has Leftovers. An opponent Focus Sash activation event was observed."
+
+    failures = _evaluate_item_event_readback(response)
+    assert "known_item_attribution_missing" in failures
+    assert "observed_event_attribution_missing" in failures
+
+
+def test_synthetic_known_item_promotion_to_observed_fails_contract() -> None:
+    response = (
+        "Self has a user-confirmed current Leftovers item, and Leftovers activation was observed. The user explicitly "
+        "confirmed an opponent Focus Sash activation event was observed."
+    )
+
+    assert "known_item_promoted_to_observed" in _evaluate_item_event_readback(response)
 
 
 def test_synthetic_unsupported_resolution_fails_contract() -> None:

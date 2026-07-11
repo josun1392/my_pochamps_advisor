@@ -171,21 +171,22 @@ Update after v2.5:
 - v12.49 implemented that compact extension in the existing item-event guard. It is emitted only for non-empty normalized observed events, distinguishes current known items from observed events, requests side/item/event-type user-confirmed readback, preserves non-inference wording, and coexists with trusted damage context. Offline production-path fixtures and reproduction contracts pass without provider calls.
 - v12.50 validated the v12.49 correction offline without a provider call. Mocked production-path capture confirms contrast/readback and observed-only anchors for valid events, absence for disabled/known-only/all-invalid paths, and coexistence with trusted damage context. Synthetic contracts reject identity mixing, omission, exact outcomes, RNG/order claims, and damage distraction without event readback. Status: `READY FOR SINGLE ACTUAL RE-SMOKE`, which is readiness only and not approval.
 - v12.51 executed the separately approved one-call re-smoke with `gemini-2.5-flash`. Result: `FAIL - SEMANTIC BOUNDARY`. The response now acknowledged an opponent Focus Sash activation observation and kept resolved/exact/post-turn/RNG/order boundaries, but it did not identify self Leftovers as current known-item context or explicitly attribute the event to user confirmation. No prompt/payload/test change or second call was made.
+- v12.52 fixed the remaining attribution gap offline. The event-present guard now conditionally requests side/item user-confirmed current-known readback and explicitly prevents known-item promotion into observed event meaning, while retaining observed-event side/item/type readback. Contracts cover both contexts, event-without-known-item, known-only, disabled, and all-invalid paths. Status: `READY FOR FINAL SINGLE ACTUAL RE-SMOKE`; readiness is not approval.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.51 Item Event Actual Gemini Re-smoke Execution.
+T3, continue after v12.52 Known Item Attribution Contrast Fix.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.52 Item Event Re-smoke Failure Analysis Design.
-- v12.51 consumed its separately approved single actual Gemini re-smoke and ended `FAIL - SEMANTIC BOUNDARY`.
-- Focus Sash readback improved, but known Leftovers readback and user-confirmed attribution remain absent.
+- Current recommended next milestone is v12.53 Controlled Final Item Event Gemini Re-smoke Design.
+- v12.52 reports `READY FOR FINAL SINGLE ACTUAL RE-SMOKE` from offline evidence only.
+- Known-current and observed-event attribution contracts are now separately locked.
 - Do not run another provider call without new explicit T1/T2 approval.
 - v12.45 has already consumed its separately approved single actual Gemini call and ended `FAIL - SEMANTIC BOUNDARY`.
 - Do not run another item-event provider call without a new explicit T1/T2 approval.
@@ -315,10 +316,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.52 Item Event Re-smoke Failure Analysis Design
+  - v12.53 Controlled Final Item Event Gemini Re-smoke Design
   - Reason:
-    - v12.51 shows partial improvement while isolating remaining contrast/readback failures.
-    - Analyze the gap before any further prompt change or provider approval.
+    - v12.52 applies the minimal current-known attribution correction with offline contracts.
+    - Design a final one-call re-smoke before considering execution.
 - Reason:
   - v12.35 implemented the standalone dialog without wiring.
   - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.

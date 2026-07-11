@@ -165,6 +165,8 @@ def test_checkbox_on_serializes_each_observed_event_type_safely(
     assert "If item_event_context is present" in prompt
     assert "explicitly user-confirmed observed item event" in prompt
     assert "Distinguish current known items from explicitly observed item events." in prompt
+    assert "acknowledge each known item by side and item as user-confirmed current context only" in prompt
+    assert "not an observed activation, consumption, or resolved effect" in prompt
     assert "Briefly acknowledge each observed event by side, item, and event type" in prompt
     assert "user-confirmed observation only" in prompt
     assert "not a resolved mechanic result" in prompt
@@ -217,6 +219,7 @@ def test_known_item_without_explicit_event_omits_observed_event_section(
     assert "item_event_context" not in payload
     assert "If item_event_context is present" not in prompt
     assert "Distinguish current known items from explicitly observed item events." not in prompt
+    assert "acknowledge each known item by side and item as user-confirmed current context only" not in prompt
     assert "Briefly acknowledge each observed event by side, item, and event type" not in prompt
 
 
@@ -238,6 +241,7 @@ def test_invalid_raw_events_do_not_reappear_in_prompt(monkeypatch: pytest.Monkey
     assert "item_event_context" not in payload
     assert "If item_event_context is present" not in prompt
     assert "Distinguish current known items from explicitly observed item events." not in prompt
+    assert "acknowledge each known item by side and item as user-confirmed current context only" not in prompt
     assert "Briefly acknowledge each observed event by side, item, and event type" not in prompt
     for item_name in ("missing-side", "wrong-source", "exact-hp", "rng-order"):
         assert item_name not in prompt

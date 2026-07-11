@@ -491,6 +491,13 @@ events, absent for disabled/absent/invalid/known-item-only paths, and coexists
 with trusted damage context. This is readiness evidence only; it does not
 authorize an actual provider re-smoke.
 
+v12.52 status note: When valid observed events and current known item context
+coexist, the item-event prompt guard also requests side/item user-confirmed
+current-known readback and explicitly keeps it separate from observed event
+meaning. Event-without-known-item paths retain observed readback without
+inventing a known item. Payload shape and existing item-event boundaries are
+unchanged.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

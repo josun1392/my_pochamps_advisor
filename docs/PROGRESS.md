@@ -1,5 +1,26 @@
 # Master Ball Advisor — Progress
 
+## v12.52 - Known Item Attribution Contrast Fix
+
+Purpose:
+- Fix the remaining known-item attribution gap and validate final re-smoke readiness offline.
+
+Implementation summary:
+- Extended the existing event-present item-event guard with conditional side/item user-confirmed current-known readback and explicit non-promotion boundary.
+- Retained observed-event side/item/type user-confirmed unresolved readback.
+- Contracts cover both contexts, event without known item, known-item-only, disabled, and all-invalid paths.
+- Test-only validation rejects known-item omission, attribution omission, known-to-observed promotion, observed-to-resolved promotion, exact outcomes, and RNG/order claims.
+- Trusted damage context continues to coexist with attribution/readback instructions.
+- Offline readiness: `READY FOR FINAL SINGLE ACTUAL RE-SMOKE`; this is not call approval.
+
+Recommended next:
+- v12.53 Controlled Final Item Event Gemini Re-smoke Design, with any actual execution separately T1/T2 approved.
+
+Safety statement:
+- No actual Gemini call, provider/network call, retry, fallback, second provider call, Vertex AI call, credential check, raw response/token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, payload redesign, broad damage suppression, parser, replay parser, Turn Engine, resolved/post-turn/exact calculation, RNG/order resolver, Q12/raw roll change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.51 - Item Event Actual Gemini Re-smoke Execution
 
 Purpose:
