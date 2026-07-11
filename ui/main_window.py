@@ -74,6 +74,33 @@ SPEED_CONTEXT_UNAVAILABLE_LIMITATIONS = [
 ]
 
 
+def _item_event_identity(event: dict) -> tuple[object, object, object, object]:
+    return (event["side"], event["item"], event["event_type"], event.get("turn"))
+
+
+def _normalize_item_event_session(events: list[dict]) -> list[dict]:
+    """Validate, de-duplicate, and order explicit item-event session state."""
+    entries: list[tuple[int, dict]] = []
+    positions: dict[tuple[object, object, object, object], int] = {}
+    for event in events:
+        normalized = validate_explicit_user_item_event_confirmation(event)
+        key = _item_event_identity(normalized)
+        existing_position = positions.get(key)
+        if existing_position is None:
+            positions[key] = len(entries)
+            entries.append((len(entries), normalized))
+        else:
+            original_index, _ = entries[existing_position]
+            entries[existing_position] = (original_index, normalized)
+
+    def sort_key(entry: tuple[int, dict]) -> tuple[int, int, int]:
+        original_index, event = entry
+        turn = event.get("turn")
+        return (1 if turn is None else 0, 0 if turn is None else int(turn), original_index)
+
+    return [event for _, event in sorted(entries, key=sort_key)]
+
+
 class LLMAdviceWorker(QObject):
     finished = Signal(str, dict)
     failed = Signal(str)
@@ -251,6 +278,10 @@ class MainWindow(QMainWindow):
         self.center_column.llm_advice_panel.advice_requested.connect(self._start_llm_advice)
         self.center_column.llm_advice_panel.field_profile_requested.connect(self._open_field_profile_dialog)
         self.center_column.llm_advice_panel.item_event_requested.connect(self._open_item_event_dialog)
+        self.center_column.llm_advice_panel.item_event_session_reset_requested.connect(
+            self._clear_item_event_confirmations
+        )
+        self._update_item_event_summary()
         self.shortcuts = GlobalShortcuts(self, self)
         self.set_active_column(self._active_column_name)
 
@@ -339,15 +370,26 @@ class MainWindow(QMainWindow):
         if events is None:
             return
         try:
-            self._item_event_confirmations = [
-                validate_explicit_user_item_event_confirmation(event)
-                for event in events
-            ]
+            self._item_event_confirmations = _normalize_item_event_session(events)
+            self._update_item_event_summary()
         except ValueError as exc:
             try:
                 self.statusBar().showMessage(f"Failed | {exc}")
             except RuntimeError:
                 pass
+
+    @Slot()
+    def _clear_item_event_confirmations(self) -> None:
+        """Explicitly clear the session-local events at a new-battle boundary."""
+        self._item_event_confirmations = []
+        self._update_item_event_summary()
+
+    def _update_item_event_summary(self) -> None:
+        try:
+            panel = self.center_column.llm_advice_panel
+            panel.set_item_event_count(len(self._item_event_confirmations))
+        except (AttributeError, RuntimeError):
+            pass
 
     @Slot()
     def _start_llm_advice(self) -> None:
@@ -508,13 +550,15 @@ class MainWindow(QMainWindow):
             confirmations = getattr(self, "_item_event_confirmations", [])
             normalized_confirmations = []
             if isinstance(confirmations, list):
+                valid_confirmations = []
                 for confirmation in confirmations:
                     try:
-                        normalized_confirmations.append(
+                        valid_confirmations.append(
                             validate_explicit_user_item_event_confirmation(confirmation)
                         )
                     except ValueError:
                         continue
+                normalized_confirmations = _normalize_item_event_session(valid_confirmations)
             if normalized_confirmations:
                 battle_input["item_event_confirmations"] = normalized_confirmations
         return attach_opponent_known_move_damage_estimates(

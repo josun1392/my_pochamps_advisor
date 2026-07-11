@@ -1,5 +1,20 @@
 # Master Ball Advisor — Progress
 
+## v12.55 - Item Event Session Lifecycle
+
+Purpose:
+- Add session-local summary, edit/delete, duplicate/order, and explicit reset behavior without changing item-event payload or prompt contracts.
+
+Implementation summary:
+- Added summary count/readback, draft-list edit/delete, duplicate update identity, stable turn ordering, and an explicit `Clear item events` session reset action.
+- Existing limited-context mapping remains unchanged: off omits events; on maps only valid lifecycle state.
+- Added lifecycle contract tests for state preservation, payload regression, and provider isolation.
+
+Safety statement:
+- No actual Gemini/provider/network call, retry, fallback, second provider call, Vertex AI call, secret/token-log output, dependency change, parser/replay/Turn Engine, resolved/post-turn/exact calculation, RNG/order resolver, or payload/prompt contract redesign.
+
+---
+
 ## v12.54 - Item Event Phase Closure and Next Priority Selection
 
 Purpose:

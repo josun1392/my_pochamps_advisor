@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QLabel,
+    QListWidget,
     QPushButton,
     QSpinBox,
     QTextEdit,
@@ -53,6 +54,8 @@ class ItemEventDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Item Event")
         self._result_events: list[dict[str, Any]] | None = None
+        self._draft_events: list[dict[str, Any]] = deepcopy(current_events or [])
+        self._selected_event_index: int | None = None
         self._draft_reset = False
 
         layout = QVBoxLayout(self)
@@ -62,6 +65,22 @@ class ItemEventDialog(QDialog):
         title = QLabel("Item event")
         title.setStyleSheet("font-weight: 700; color: #17202A;")
         layout.addWidget(title)
+
+        self.event_list = QListWidget()
+        self.event_list.setObjectName("itemEventSummaryList")
+        self.event_list.setToolTip("Current user-confirmed observed item events for this session.")
+        self.event_list.currentRowChanged.connect(self._load_selected_event)
+        layout.addWidget(self.event_list)
+
+        list_actions = QHBoxLayout()
+        add_button = QPushButton("Add event")
+        add_button.clicked.connect(self._start_new_event)
+        self.delete_button = QPushButton("Delete selected")
+        self.delete_button.clicked.connect(self._delete_selected_event)
+        list_actions.addWidget(add_button)
+        list_actions.addWidget(self.delete_button)
+        list_actions.addStretch(1)
+        layout.addLayout(list_actions)
 
         form = QFormLayout()
         form.setSpacing(8)
@@ -112,23 +131,96 @@ class ItemEventDialog(QDialog):
         button_row.addWidget(button_box)
         layout.addLayout(button_row)
 
-        self._load_initial_event(current_events)
+        self._refresh_event_list()
+        self._load_initial_event(self._draft_events)
 
     @property
     def item_event_confirmations(self) -> list[dict[str, Any]] | None:
         return deepcopy(self._result_events) if self._result_events is not None else None
 
     def _save_and_accept(self) -> None:
-        self._result_events = [] if self._draft_reset else [self._build_event()]
+        if self._draft_reset:
+            self._result_events = []
+        else:
+            event = self._build_event()
+            if self._selected_event_index is None:
+                self._draft_events.append(event)
+            else:
+                self._draft_events[self._selected_event_index] = event
+            self._result_events = deepcopy(self._draft_events)
         self.accept()
 
     def _reset_draft(self) -> None:
         self._draft_reset = True
+        self._draft_events = []
+        self._selected_event_index = None
+        self._refresh_event_list()
         self._set_combo_value(self.side_combo, "opponent")
         self._set_combo_value(self.event_type_combo, "item_activation_observed")
         self.item_combo.setEditText("")
         self.turn_spin.setValue(0)
         self.note_edit.clear()
+
+    def _start_new_event(self) -> None:
+        self._draft_reset = False
+        self._selected_event_index = None
+        self.event_list.clearSelection()
+        self._set_combo_value(self.side_combo, "opponent")
+        self._set_combo_value(self.event_type_combo, "item_activation_observed")
+        self.item_combo.setEditText("")
+        self.turn_spin.setValue(0)
+        self.note_edit.clear()
+
+    def _delete_selected_event(self) -> None:
+        if self._selected_event_index is None:
+            return
+        deleted_index = self._selected_event_index
+        del self._draft_events[deleted_index]
+        self._selected_event_index = None
+        self._draft_reset = not self._draft_events
+        self._refresh_event_list()
+        if self._draft_events:
+            self.event_list.setCurrentRow(min(deleted_index, len(self._draft_events) - 1))
+        else:
+            self._set_combo_value(self.side_combo, "opponent")
+            self._set_combo_value(self.event_type_combo, "item_activation_observed")
+            self.item_combo.setEditText("")
+            self.turn_spin.setValue(0)
+            self.note_edit.clear()
+
+    def _refresh_event_list(self) -> None:
+        self.event_list.blockSignals(True)
+        self.event_list.clear()
+        for event in self._draft_events:
+            self.event_list.addItem(self._event_summary(event))
+        self.event_list.blockSignals(False)
+        self.delete_button.setEnabled(bool(self._draft_events))
+
+    @staticmethod
+    def _event_summary(event: dict[str, Any]) -> str:
+        side = str(event.get("side", "unknown"))
+        item = str(event.get("item", "unknown"))
+        event_type = str(event.get("event_type", "unknown"))
+        turn = event.get("turn")
+        turn_text = f" | Turn {turn}" if isinstance(turn, int) and turn > 0 else ""
+        note = event.get("note")
+        note_text = f" | {note}" if isinstance(note, str) and note.strip() else ""
+        return f"{side}: {item} | {event_type}{turn_text}{note_text}"
+
+    def _load_selected_event(self, index: int) -> None:
+        if not 0 <= index < len(self._draft_events):
+            self._selected_event_index = None
+            return
+        self._draft_reset = False
+        self._selected_event_index = index
+        event = self._draft_events[index]
+        self._set_combo_value(self.side_combo, str(event.get("side", "opponent")))
+        self._set_combo_value(self.event_type_combo, str(event.get("event_type", "item_activation_observed")))
+        self.item_combo.setEditText(str(event.get("item", "")))
+        turn = event.get("turn")
+        self.turn_spin.setValue(turn if isinstance(turn, int) and not isinstance(turn, bool) and turn > 0 else 0)
+        note = event.get("note")
+        self.note_edit.setPlainText(note if isinstance(note, str) else "")
 
     def _build_event(self) -> dict[str, Any]:
         self._draft_reset = False
@@ -163,6 +255,8 @@ class ItemEventDialog(QDialog):
         note = event.get("note")
         if isinstance(note, str):
             self.note_edit.setPlainText(note)
+        self._selected_event_index = len(current_events) - 1
+        self.event_list.setCurrentRow(self._selected_event_index)
 
     def _combo(self, options: tuple[tuple[str, str], ...]) -> QComboBox:
         combo = QComboBox()

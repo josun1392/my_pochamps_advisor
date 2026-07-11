@@ -504,6 +504,10 @@ omission, prompt attribution, and final actual smoke boundaries are closed.
 Future lifecycle, automated source, and resolved-calculation features remain
 separate scopes and do not alter this payload contract.
 
+v12.55 lifecycle note: Session-local item event summary, edit/delete,
+duplicate, ordering, and explicit reset behavior do not change the payload
+contract. The limited-context gate and observed-only mapping remain unchanged.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
