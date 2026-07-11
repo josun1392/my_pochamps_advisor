@@ -162,6 +162,9 @@ def test_checkbox_on_serializes_each_observed_event_type_safely(
     assert observed_event == {**event, "confidence": "observed"}
     assert "If item_event_context is present" in prompt
     assert "explicitly user-confirmed observed item event" in prompt
+    assert "Distinguish current known items from explicitly observed item events." in prompt
+    assert "Briefly acknowledge each observed event by side, item, and event type" in prompt
+    assert "user-confirmed observation only" in prompt
     assert "not a resolved mechanic result" in prompt
     assert "Do not infer exact HP, exact damage" in prompt
     _assert_forbidden_fields_absent(payload)
@@ -210,6 +213,8 @@ def test_known_item_without_explicit_event_omits_observed_event_section(
     }
     assert "item_event_context" not in payload
     assert "If item_event_context is present" not in prompt
+    assert "Distinguish current known items from explicitly observed item events." not in prompt
+    assert "Briefly acknowledge each observed event by side, item, and event type" not in prompt
 
 
 def test_invalid_raw_events_do_not_reappear_in_prompt(monkeypatch: pytest.MonkeyPatch) -> None:

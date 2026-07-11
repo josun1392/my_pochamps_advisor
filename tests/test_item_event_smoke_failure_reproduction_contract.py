@@ -109,16 +109,6 @@ def _evaluate_item_event_readback(response: str) -> set[str]:
     return failures
 
 
-def _future_full_advice_prioritization_instruction() -> str:
-    """Test-only expected delta; current production prompt intentionally lacks it."""
-    return (
-        "Explicitly distinguish the observed item event from known current items. "
-        "Acknowledge the observed event before unrelated battle detail when it is directly relevant. "
-        "Do not replace the event explanation with unrelated damage detail. "
-        "Do not infer a resolved effect, exact HP, exact damage, post-turn state, RNG, or final order."
-    )
-
-
 def test_fixture_a_payload_separates_known_leftovers_from_observed_focus_sash() -> None:
     prompt = _build_ui_selected_prompt(_fixture_a_battle_input(), enable_battle_state_context=True)
     payload = _prompt_payload(prompt)
@@ -138,6 +128,9 @@ def test_fixture_a_prompt_keeps_observed_only_guard_and_current_known_item_struc
 
     assert "If item_event_context is present" in prompt
     assert "explicitly user-confirmed observed item event" in prompt
+    assert "Distinguish current known items from explicitly observed item events." in prompt
+    assert "Briefly acknowledge each observed event by side, item, and event type" in prompt
+    assert "user-confirmed observation only" in prompt
     assert "not a resolved mechanic result" in prompt
     assert "Do not infer exact HP, exact damage" in prompt
 
@@ -152,14 +145,23 @@ def test_fixture_b_full_prompt_preserves_item_event_guard_with_broad_advice_cont
     assert "Recommend the best one-turn action" in prompt
 
 
-def test_fixture_b_characterizes_missing_future_prioritization_instruction() -> None:
+def test_fixture_b_full_prompt_includes_contrast_readback_without_suppressing_damage_context() -> None:
     prompt = _build_ui_selected_prompt(_fixture_b_battle_input(), enable_battle_state_context=True)
-    future_instruction = _future_full_advice_prioritization_instruction()
 
-    assert "Explicitly distinguish the observed item event from known current items." not in prompt
-    assert "Do not replace the event explanation with unrelated damage detail." not in prompt
-    assert "observed item event" in future_instruction
-    assert "unrelated damage detail" in future_instruction
+    assert "Distinguish current known items from explicitly observed item events." in prompt
+    assert "Briefly acknowledge each observed event by side, item, and event type" in prompt
+    assert "damage_estimate" in prompt
+
+
+def test_known_item_without_event_omits_contrast_readback_instruction() -> None:
+    payload = _fixture_a_battle_input()
+    payload.pop("item_event_confirmations")
+
+    prompt = _build_ui_selected_prompt(payload, enable_battle_state_context=True)
+
+    assert "item_event_context" not in _prompt_payload(prompt)
+    assert "Distinguish current known items from explicitly observed item events." not in prompt
+    assert "Briefly acknowledge each observed event by side, item, and event type" not in prompt
 
 
 def test_synthetic_good_readback_passes_narrow_semantics_contract() -> None:

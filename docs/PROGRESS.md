@@ -1,5 +1,25 @@
 # Master Ball Advisor — Progress
 
+## v12.49 - Minimal Item Event Prompt Contrast Fix
+
+Purpose:
+- Implement and verify the smallest observed-event contrast/readback prompt correction.
+
+Implementation summary:
+- Extended the existing `item_event_context` guard with compact known-item versus observed-event contrast and side/item/event-type readback instruction.
+- The extension is present only for normalized non-empty observed events and remains absent for disabled, absent, empty, all-invalid, and known-item-only paths.
+- Existing observed-only non-inference wording remains intact.
+- Mocked production-path fixtures and reproduction contracts verify identity separation, event-present/absent behavior, and damage-context coexistence.
+- No payload mapper, UI, damage/KO, or retry behavior changed.
+
+Recommended next:
+- v12.50 Item Event Offline Prompt/Response Fixture.
+
+Safety statement:
+- No actual Gemini call, provider/network call, retry, fallback, second provider call, Vertex AI call, API key check/output, raw response/token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, broad damage suppression, payload redesign, parser, replay parser, Turn Engine, resolved/post-turn/exact calculation, RNG/order resolver, Q12/raw roll change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.48 - Minimal Item Event Prompt Contrast Design
 
 Purpose:

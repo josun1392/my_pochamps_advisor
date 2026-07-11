@@ -1333,7 +1333,10 @@ def _build_item_event_context_prompt_guard(payload: dict[str, Any]) -> str:
         return ""
     return (
         "If item_event_context is present, treat it only as an explicitly "
-        "user-confirmed observed item event. It is observed context only, not "
+        "user-confirmed observed item event. Distinguish current known items "
+        "from explicitly observed item events. Briefly acknowledge each "
+        "observed event by side, item, and event type as user-confirmed "
+        "observation only. It is observed context only, not "
         "a resolved mechanic result, exact calculation, post-turn state, RNG "
         "result, or resolved turn order. Do not infer exact HP, exact damage, "
         "item consumption, item effect application, Quick Claw RNG outcome, "

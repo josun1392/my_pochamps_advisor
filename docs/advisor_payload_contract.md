@@ -478,6 +478,13 @@ mapping, and offline prompt fixture. Current scope remains explicit
 user-confirmed observed events only; resolved effects, post-turn state, exact
 HP/damage, RNG, and Speed/order behavior remain outside this phase.
 
+v12.49 status note: The item-event prompt guard adds a compact response
+contrast/readback instruction only when normalized non-empty
+`item_event_context.observed_events` is present. It distinguishes known current
+items from observed events and requests side/item/event-type acknowledgement;
+the payload contract and resolved/post-turn/exact/RNG/Speed-order boundaries are
+unchanged.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

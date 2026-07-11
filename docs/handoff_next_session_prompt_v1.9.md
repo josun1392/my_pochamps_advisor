@@ -168,21 +168,22 @@ Update after v2.5:
 - v12.46 analyzed the v12.45 failure without another provider call. The likely issue is response salience and fixture ambiguity, not a proven mapper failure: the observed-only guard lacks positive identity/contrast requirements, while the generic advisor path continues with broad damage/KO/item instructions and full payload context. The recommended next step is v12.47 failure reproduction contracts separating narrow event semantics from full-advice prioritization.
 - v12.47 added offline failure-reproduction contracts without production changes. Fixture A locks current known Leftovers versus observed opponent Focus Sash separation; Fixture B characterizes the current full-advice guard plus broad-context gap. A test-only evaluator rejects identity mixing, event omission, unsupported resolution, and damage distraction only when event readback is absent.
 - v12.48 designed the minimal correction without implementation. It recommends a compact extension of the existing event-present observed-only guard: explicitly contrast known current items with observed events and briefly read back each event's side, item, type, and user-confirmed unresolved status. Damage context remains available but must not replace event acknowledgement.
+- v12.49 implemented that compact extension in the existing item-event guard. It is emitted only for non-empty normalized observed events, distinguishes current known items from observed events, requests side/item/event-type user-confirmed readback, preserves non-inference wording, and coexists with trusted damage context. Offline production-path fixtures and reproduction contracts pass without provider calls.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.48 Minimal Item Event Prompt Contrast Design.
+T3, continue after v12.49 Minimal Item Event Prompt Contrast Fix.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.49 Minimal Item Event Prompt Contrast Contract Tests.
-- v12.48 selects a compact extension of the existing event-present guard rather than a new guard or payload ordering change.
-- Production prompt correction remains unimplemented; tests must lock present/absent, identity, and damage-coexistence behavior first.
+- Current recommended next milestone is v12.50 Item Event Offline Prompt/Response Fixture.
+- v12.49 implemented the compact existing-guard extension and locked event-present/absent, identity, and damage-coexistence behavior.
+- The next fixture should verify mocked provider response wording through the updated production prompt path.
 - v12.45 has already consumed its separately approved single actual Gemini call and ended `FAIL - SEMANTIC BOUNDARY`.
 - Do not run another item-event provider call without a new explicit T1/T2 approval.
 - Analyze response salience and known-item/observed-event separation before proposing any prompt or payload change.
@@ -311,10 +312,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.49 Minimal Item Event Prompt Contrast Contract Tests
+  - v12.50 Item Event Offline Prompt/Response Fixture
   - Reason:
-    - v12.48 identifies the minimal guard extension and its activation boundary.
-    - Lock the correction contract before any prompt implementation.
+    - v12.49 applies the minimal prompt correction with focused contracts.
+    - Verify safe mocked response wording before any re-smoke design.
 - Reason:
   - v12.35 implemented the standalone dialog without wiring.
   - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.
