@@ -162,19 +162,22 @@ Update after v2.5:
 - v12.40 implemented limited-context-gated Item Event Payload Mapping. Checkbox off keeps `_item_event_confirmations` out of battle input and payloads. Checkbox on copies session-local confirmations to battle input, strips the raw UI field before provider payload serialization, and normalizes valid explicit user-confirmed events into `item_event_context.observed_events` with `confidence=observed`. Invalid events are omitted, resolved/post-turn/exact HP/damage/RNG/Speed-order fields remain blocked, known item and field state behavior remain unchanged, and no new natural-language prompt wording or provider call was added.
 - v12.41 added an Observed Item Event Prompt Fixture. A minimal prompt guard appears only with `item_event_context` and states that explicit user-confirmed events are observed context only, not resolved mechanics, exact calculations, post-turn state, RNG, or resolved order. Offline fixtures use the production advice path with mocked `call_gemini` and logging, cover all five observed event types, checkbox off/on behavior, optional values, known-item separation, invalid raw event omission, and forbidden claim/field scans without a provider call.
 - v12.42 closed the Item Event Payload Mapping phase as `CLOSED - PASS`. The limited-context hard gate, trusted observed-event contract, invalid-event omission, observed-only prompt guard, and unchanged known-item/field-state boundaries are recorded in the closure; no provider call was made.
+- v12.43 inventoried the post-closure Item Event follow-ups without implementation. It recommends v12.44 Item Event Actual Gemini Smoke Design, records Battle Log Item Event Source Design as the automation-oriented alternative, and keeps status/condition and damage-calculator design as later, broader options.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.42 Item Event Payload Mapping Phase Closure.
+T3, continue after v12.43 Item Event Phase Follow-up Inventory.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.43 Item Event Phase Follow-up Inventory.
+- Current recommended next milestone is v12.44 Item Event Actual Gemini Smoke Design.
+- v12.43 compared item-event smoke, battle-log source, status/condition source, and damage-calculator design work without implementation.
+- The recommendation is smoke design only; any actual Gemini execution remains a separately approved future task.
 - v12.42 closed the v12.38-v12.41 item event payload-mapping phase as `CLOSED - PASS`.
 - The current scope is explicit user-confirmed observed events only; resolved effects, post-turn state, exact HP/damage, RNG, and resolved order remain out of scope.
 - v12.43 is an inventory-only comparison of possible follow-up policies; it does not implement new item-event behavior.
@@ -298,10 +301,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.43 Item Event Phase Follow-up Inventory
+  - v12.44 Item Event Actual Gemini Smoke Design
   - Reason:
-    - v12.42 closed the payload-mapping phase with offline evidence and no provider call.
-    - The next step compares follow-up lifecycle and display policies before any new implementation.
+    - v12.43 selected a controlled smoke design as the narrowest next verification step after the mapping closure.
+    - Any actual provider call remains outside the design task and requires separate approval.
 - Reason:
   - v12.35 implemented the standalone dialog without wiring.
   - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.

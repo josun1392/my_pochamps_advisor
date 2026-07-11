@@ -1,5 +1,25 @@
 # Master Ball Advisor — Progress
 
+## v12.43 - Item Event Phase Follow-up Inventory
+
+Purpose:
+- Inventory post-closure Item Event work and recommend the next large development axis without adding behavior.
+
+Implementation summary:
+- Added `docs/spike_v12.43_item_event_phase_followup_inventory.md`.
+- Recorded the completed known-item, explicit-observed-event, dialog/button/session-local, limited-context-gated mapping, invalid-omission, and offline prompt-fixture scope.
+- Recorded remaining parser/replay/Turn Engine, resolved/post-turn/exact calculation, RNG/order, actual-smoke, and UI-polish limitations.
+- Compared Item Event Actual Gemini Smoke Design, Battle Log Item Event Source Design, Status/Condition Source Design, and Damage Calculator Integration Design by value, risk, prerequisites, and order.
+- Recommended v12.44 Item Event Actual Gemini Smoke Design; actual execution remains a separately approved future task.
+
+Recommended next:
+- v12.44 Item Event Actual Gemini Smoke Design.
+
+Safety statement:
+- No production code change, test code change, actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, battle log parser, replay parser, Turn Engine, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, exact HP calculation, exact damage calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.42 - Item Event Payload Mapping Phase Closure
 
 Purpose:
