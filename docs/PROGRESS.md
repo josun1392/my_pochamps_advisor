@@ -1,5 +1,26 @@
 # Master Ball Advisor — Progress
 
+## v12.46 - Item Event Smoke Failure Analysis Design
+
+Purpose:
+- Analyze the v12.45 semantic-boundary smoke failure and define a test-first correction path without changing behavior.
+
+Implementation summary:
+- Added `docs/spike_v12.46_item_event_smoke_failure_analysis_design.md`.
+- Separated preserved boundaries from the failed observed-event salience, known-item separation, and narrow-response-focus requirements.
+- Classified identity separation, prioritization, response focus, damage-context leakage, guard weakness, labeling ambiguity, and fixture ambiguity as evidence-backed hypotheses.
+- Confirmed the current prompt path places the observed-only guard before extensive generic damage/KO/item instructions and full structured payload serialization.
+- Distinguished likely existing trusted damage-estimate context from unproven model invention; raw request/response provenance remains intentionally unknown.
+- Recommended separate narrow semantic and full-advice prioritization fixtures before any minimal prompt correction.
+
+Recommended next:
+- v12.47 Item Event Smoke Failure Reproduction Contract Tests.
+
+Safety statement:
+- No production code change, test code change, prompt change, payload change, actual Gemini call, provider/network call, retry, fallback, second provider call, Vertex AI call, credential check, token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, parser, replay parser, Turn Engine, resolved/post-turn/exact calculation, RNG/order resolver, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.45 - Item Event Actual Gemini Smoke Execution
 
 Purpose:

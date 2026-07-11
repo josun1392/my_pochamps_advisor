@@ -165,20 +165,23 @@ Update after v2.5:
 - v12.43 inventoried the post-closure Item Event follow-ups without implementation. It recommends v12.44 Item Event Actual Gemini Smoke Design, records Battle Log Item Event Source Design as the automation-oriented alternative, and keeps status/condition and damage-calculator design as later, broader options.
 - v12.44 designed, but did not execute, a one-call Item Event actual Gemini smoke. The representative fixture separates self known Leftovers from an opponent Focus Sash activation observed through explicit user confirmation. The design fixes observed-only PASS/FAIL criteria, pre-call and manual review checks, sanitized failure handling, and requires separate T1/T2 approval before a future v12.45 execution.
 - v12.45 executed the separately approved one-call Item Event Gemini smoke with `gemini-2.5-flash`. Pre-call contracts passed and retry/fallback/second-provider/Vertex AI count was zero. Result: `FAIL - SEMANTIC BOUNDARY`; the response did not clearly distinguish the explicit Focus Sash observation from known-item context, foregrounded unrelated available context, and included a specific HP damage range. No prompt, payload, production code, test, or fixture change was made, and no second call was made.
+- v12.46 analyzed the v12.45 failure without another provider call. The likely issue is response salience and fixture ambiguity, not a proven mapper failure: the observed-only guard lacks positive identity/contrast requirements, while the generic advisor path continues with broad damage/KO/item instructions and full payload context. The recommended next step is v12.47 failure reproduction contracts separating narrow event semantics from full-advice prioritization.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.45 Item Event Actual Gemini Smoke Execution.
+T3, continue after v12.46 Item Event Smoke Failure Analysis Design.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.46 Item Event Smoke Failure Analysis Design.
-- v12.45 has already consumed the separately approved single actual Gemini call and ended `FAIL - SEMANTIC BOUNDARY`.
+- Current recommended next milestone is v12.47 Item Event Smoke Failure Reproduction Contract Tests.
+- v12.46 identifies response salience and fixture/question ambiguity as the primary correction hypotheses.
+- The next tests must separate narrow observed-event semantics from full-advice prioritization before any prompt change.
+- v12.45 has already consumed its separately approved single actual Gemini call and ended `FAIL - SEMANTIC BOUNDARY`.
 - Do not run another item-event provider call without a new explicit T1/T2 approval.
 - Analyze response salience and known-item/observed-event separation before proposing any prompt or payload change.
 - v12.43 compared item-event smoke, battle-log source, status/condition source, and damage-calculator design work without implementation.
@@ -306,10 +309,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.46 Item Event Smoke Failure Analysis Design
+  - v12.47 Item Event Smoke Failure Reproduction Contract Tests
   - Reason:
-    - v12.45 actual smoke failed the observed-event salience and context-separation requirements.
-    - No additional provider call or immediate prompt change is permitted before analysis.
+    - v12.46 separates the suspected semantic fixture issue from broad-advice context prioritization.
+    - Lock reproduction expectations before approving any minimal prompt correction.
 - Reason:
   - v12.35 implemented the standalone dialog without wiring.
   - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.
