@@ -196,6 +196,24 @@ def test_synthetic_unsupported_resolution_fails_contract() -> None:
     assert "unsupported_resolution" in _evaluate_item_event_readback(response)
 
 
+def test_synthetic_exact_outcome_claim_fails_contract() -> None:
+    response = (
+        "Self has a user-confirmed current Leftovers item. The user explicitly confirmed an opponent Focus "
+        "Sash activation event was observed. Exact damage was prevented."
+    )
+
+    assert "unsupported_resolution" in _evaluate_item_event_readback(response)
+
+
+def test_synthetic_rng_and_final_order_claims_fail_contract() -> None:
+    response = (
+        "Self has a user-confirmed current Leftovers item. The user explicitly confirmed an opponent Focus "
+        "Sash activation event was observed. Quick Claw RNG roll is known, and final speed order is known."
+    )
+
+    assert "unsupported_resolution" in _evaluate_item_event_readback(response)
+
+
 def test_synthetic_damage_range_only_fails_as_event_distraction() -> None:
     response = "Self has a user-confirmed current Leftovers item. Use Flamethrower: it deals 31-37 HP (16.9-20.2%)."
 

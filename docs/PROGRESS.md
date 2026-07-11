@@ -1,5 +1,26 @@
 # Master Ball Advisor — Progress
 
+## v12.50 - Item Event Offline Response Validation and Re-smoke Readiness
+
+Purpose:
+- Validate the v12.49 correction offline and determine re-smoke readiness without a provider call.
+
+Implementation summary:
+- Added `docs/spike_v12.50_item_event_offline_response_validation.md`.
+- Verified mocked production-path prompt capture retains known Leftovers versus observed Focus Sash separation, contrast/readback instructions, observed-only boundaries, and trusted damage context.
+- Locked contrast/readback absence for disabled, known-item-only, and all-invalid paths.
+- Expanded synthetic validation for exact outcome and RNG/final-order failure claims alongside identity mixing, omission, unsupported resolution, and conditional damage distraction.
+- No additional production prompt change was required beyond v12.49.
+- Offline readiness: `READY FOR SINGLE ACTUAL RE-SMOKE`; this is not provider-call approval.
+
+Recommended next:
+- v12.51 Controlled Item Event Gemini Re-smoke Design, with a future actual call separately T1/T2 approved.
+
+Safety statement:
+- No actual Gemini call, provider/network call, retry, fallback, second provider call, Vertex AI call, credential check, raw response/token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, broad damage suppression, payload redesign, parser, replay parser, Turn Engine, resolved/post-turn/exact calculation, RNG/order resolver, Q12/raw roll change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.49 - Minimal Item Event Prompt Contrast Fix
 
 Purpose:

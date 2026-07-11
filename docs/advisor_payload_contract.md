@@ -485,6 +485,12 @@ items from observed events and requests side/item/event-type acknowledgement;
 the payload contract and resolved/post-turn/exact/RNG/Speed-order boundaries are
 unchanged.
 
+v12.50 status note: Offline production-path validation passes for the v12.49
+contrast/readback guard. The instruction is present only for valid observed
+events, absent for disabled/absent/invalid/known-item-only paths, and coexists
+with trusted damage context. This is readiness evidence only; it does not
+authorize an actual provider re-smoke.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

@@ -139,6 +139,8 @@ def test_checkbox_off_omits_observed_event_payload_and_guard(monkeypatch: pytest
     assert "yache-berry" not in prompt
     assert "item_prevention_observed" not in prompt
     assert "If item_event_context is present" not in prompt
+    assert "Distinguish current known items from explicitly observed item events." not in prompt
+    assert "Briefly acknowledge each observed event by side, item, and event type" not in prompt
     _assert_forbidden_fields_absent(payload)
     _assert_forbidden_positive_claims_absent(prompt)
 
@@ -167,6 +169,7 @@ def test_checkbox_on_serializes_each_observed_event_type_safely(
     assert "user-confirmed observation only" in prompt
     assert "not a resolved mechanic result" in prompt
     assert "Do not infer exact HP, exact damage" in prompt
+    assert "damage_estimate" in prompt
     _assert_forbidden_fields_absent(payload)
     _assert_forbidden_positive_claims_absent(prompt)
 
@@ -233,6 +236,9 @@ def test_invalid_raw_events_do_not_reappear_in_prompt(monkeypatch: pytest.Monkey
     payload = _prompt_payload(prompt)
 
     assert "item_event_context" not in payload
+    assert "If item_event_context is present" not in prompt
+    assert "Distinguish current known items from explicitly observed item events." not in prompt
+    assert "Briefly acknowledge each observed event by side, item, and event type" not in prompt
     for item_name in ("missing-side", "wrong-source", "exact-hp", "rng-order"):
         assert item_name not in prompt
     _assert_forbidden_fields_absent(payload)
