@@ -167,21 +167,22 @@ Update after v2.5:
 - v12.45 executed the separately approved one-call Item Event Gemini smoke with `gemini-2.5-flash`. Pre-call contracts passed and retry/fallback/second-provider/Vertex AI count was zero. Result: `FAIL - SEMANTIC BOUNDARY`; the response did not clearly distinguish the explicit Focus Sash observation from known-item context, foregrounded unrelated available context, and included a specific HP damage range. No prompt, payload, production code, test, or fixture change was made, and no second call was made.
 - v12.46 analyzed the v12.45 failure without another provider call. The likely issue is response salience and fixture ambiguity, not a proven mapper failure: the observed-only guard lacks positive identity/contrast requirements, while the generic advisor path continues with broad damage/KO/item instructions and full payload context. The recommended next step is v12.47 failure reproduction contracts separating narrow event semantics from full-advice prioritization.
 - v12.47 added offline failure-reproduction contracts without production changes. Fixture A locks current known Leftovers versus observed opponent Focus Sash separation; Fixture B characterizes the current full-advice guard plus broad-context gap. A test-only evaluator rejects identity mixing, event omission, unsupported resolution, and damage distraction only when event readback is absent.
+- v12.48 designed the minimal correction without implementation. It recommends a compact extension of the existing event-present observed-only guard: explicitly contrast known current items with observed events and briefly read back each event's side, item, type, and user-confirmed unresolved status. Damage context remains available but must not replace event acknowledgement.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.47 Item Event Smoke Failure Reproduction Contract Tests.
+T3, continue after v12.48 Minimal Item Event Prompt Contrast Design.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.48 Minimal Item Event Prompt Contrast Design.
-- v12.47 locks the narrow semantics and full-advice prioritization contracts separately.
-- Production prompt correction remains unimplemented; the next task chooses the smallest contrast/readback design.
+- Current recommended next milestone is v12.49 Minimal Item Event Prompt Contrast Contract Tests.
+- v12.48 selects a compact extension of the existing event-present guard rather than a new guard or payload ordering change.
+- Production prompt correction remains unimplemented; tests must lock present/absent, identity, and damage-coexistence behavior first.
 - v12.45 has already consumed its separately approved single actual Gemini call and ended `FAIL - SEMANTIC BOUNDARY`.
 - Do not run another item-event provider call without a new explicit T1/T2 approval.
 - Analyze response salience and known-item/observed-event separation before proposing any prompt or payload change.
@@ -310,10 +311,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.48 Minimal Item Event Prompt Contrast Design
+  - v12.49 Minimal Item Event Prompt Contrast Contract Tests
   - Reason:
-    - v12.47 characterizes the current prompt gap and locks future semantic evaluation without a failing production test.
-    - Choose the smallest prompt-only contrast/readback change before implementation.
+    - v12.48 identifies the minimal guard extension and its activation boundary.
+    - Lock the correction contract before any prompt implementation.
 - Reason:
   - v12.35 implemented the standalone dialog without wiring.
   - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.

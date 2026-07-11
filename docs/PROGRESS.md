@@ -1,5 +1,25 @@
 # Master Ball Advisor — Progress
 
+## v12.48 - Minimal Item Event Prompt Contrast Design
+
+Purpose:
+- Design the smallest observed-event contrast/readback correction without implementing it.
+
+Implementation summary:
+- Added `docs/spike_v12.48_minimal_item_event_prompt_contrast_design.md`.
+- Identified the existing observed-only guard's positive-guidance gap: it lacks explicit known-item contrast and side/item/type readback requirements.
+- Designed event-present-only activation for compact contrast/readback wording; off, absent, empty, all-invalid, and known-item-only paths remain unchanged.
+- Compared three wording candidates and recommends one concise extension of the existing guard over a second guard or payload reordering.
+- Preserved trusted damage/KO context while requiring it not to replace observed-event acknowledgement.
+
+Recommended next:
+- v12.49 Minimal Item Event Prompt Contrast Contract Tests.
+
+Safety statement:
+- No production code change, test code change, prompt/payload implementation, actual Gemini call, provider/network call, retry, fallback, second provider call, Vertex AI call, credential check, raw response/token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, broad damage suppression, parser, replay parser, Turn Engine, resolved/post-turn/exact calculation, RNG/order resolver, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.47 - Item Event Smoke Failure Reproduction Contract Tests
 
 Purpose:
