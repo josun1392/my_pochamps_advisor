@@ -1,5 +1,25 @@
 # Master Ball Advisor — Progress
 
+## v12.47 - Item Event Smoke Failure Reproduction Contract Tests
+
+Purpose:
+- Reproduce v12.45 semantic-boundary failure modes offline before any correction.
+
+Implementation summary:
+- Added `tests/test_item_event_smoke_failure_reproduction_contract.py` and the v12.47 contract-test document.
+- Fixture A locks separate known Leftovers current context and explicit opponent Focus Sash observed-event payload structure.
+- Fixture B characterizes the current full-advice prompt: observed-only guard coexists with broad damage/advice context, while the future contrast/prioritization instruction is intentionally absent.
+- Added a test-only synthetic response evaluator for identity mixing, event omission, unsupported resolution, and conditional damage distraction.
+- A damage range is not failed by itself when explicit observed-event readback remains present.
+
+Recommended next:
+- v12.48 Minimal Item Event Prompt Contrast Design.
+
+Safety statement:
+- No production code change, production prompt/payload change, actual Gemini call, provider/network call, retry, fallback, second provider call, Vertex AI call, API key check/output, raw Gemini response, token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, parser, replay parser, Turn Engine, resolved/post-turn/exact calculation, RNG/order resolver, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.46 - Item Event Smoke Failure Analysis Design
 
 Purpose:
