@@ -163,19 +163,22 @@ Update after v2.5:
 - v12.41 added an Observed Item Event Prompt Fixture. A minimal prompt guard appears only with `item_event_context` and states that explicit user-confirmed events are observed context only, not resolved mechanics, exact calculations, post-turn state, RNG, or resolved order. Offline fixtures use the production advice path with mocked `call_gemini` and logging, cover all five observed event types, checkbox off/on behavior, optional values, known-item separation, invalid raw event omission, and forbidden claim/field scans without a provider call.
 - v12.42 closed the Item Event Payload Mapping phase as `CLOSED - PASS`. The limited-context hard gate, trusted observed-event contract, invalid-event omission, observed-only prompt guard, and unchanged known-item/field-state boundaries are recorded in the closure; no provider call was made.
 - v12.43 inventoried the post-closure Item Event follow-ups without implementation. It recommends v12.44 Item Event Actual Gemini Smoke Design, records Battle Log Item Event Source Design as the automation-oriented alternative, and keeps status/condition and damage-calculator design as later, broader options.
+- v12.44 designed, but did not execute, a one-call Item Event actual Gemini smoke. The representative fixture separates self known Leftovers from an opponent Focus Sash activation observed through explicit user confirmation. The design fixes observed-only PASS/FAIL criteria, pre-call and manual review checks, sanitized failure handling, and requires separate T1/T2 approval before a future v12.45 execution.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.43 Item Event Phase Follow-up Inventory.
+T3, continue after v12.44 Item Event Actual Gemini Smoke Design.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.44 Item Event Actual Gemini Smoke Design.
+- Current recommended next milestone is v12.45 Controlled Item Event Gemini Smoke, only after separate explicit T1/T2 approval.
+- v12.44 is design-only: it fixes the one-call, no-retry, no-fallback execution contract but does not authorize a provider call.
+- The representative scenario separates self known Leftovers from an opponent Focus Sash activation observed through explicit user confirmation.
 - v12.43 compared item-event smoke, battle-log source, status/condition source, and damage-calculator design work without implementation.
 - The recommendation is smoke design only; any actual Gemini execution remains a separately approved future task.
 - v12.42 closed the v12.38-v12.41 item event payload-mapping phase as `CLOSED - PASS`.
@@ -301,10 +304,10 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.44 Item Event Actual Gemini Smoke Design
+  - v12.45 Controlled Item Event Gemini Smoke, only after separate explicit T1/T2 approval
   - Reason:
-    - v12.43 selected a controlled smoke design as the narrowest next verification step after the mapping closure.
-    - Any actual provider call remains outside the design task and requires separate approval.
+    - v12.44 defines a deterministic fixture, no-retry execution contract, semantic PASS/FAIL criteria, and sanitized failure reporting.
+    - A real provider call remains outside v12.44 and needs a separately approved task.
 - Reason:
   - v12.35 implemented the standalone dialog without wiring.
   - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.

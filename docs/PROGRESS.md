@@ -1,5 +1,25 @@
 # Master Ball Advisor — Progress
 
+## v12.44 - Item Event Actual Gemini Smoke Design
+
+Purpose:
+- Define the approval-gated execution contract for one future Gemini smoke of the observed-only item event path, without executing it.
+
+Implementation summary:
+- Added `docs/spike_v12.44_item_event_actual_gemini_smoke_design.md`.
+- Fixed a representative fixture with self known Leftovers and an opponent Focus Sash activation observed through explicit user confirmation.
+- Documented the production path from session-local confirmation through limited-context gating, normalized `item_event_context.observed_events`, UI-selected prompt construction, Gemini call, and TokenLogger metadata.
+- Defined one-call/no-retry/no-fallback policy, automated pre-call and response-anchor checks, and required manual semantic review.
+- Defined semantic FAIL conditions, sanitized failure handling, security/logging limits, and the future T1/T2 approval procedure.
+
+Recommended next:
+- v12.45 Controlled Item Event Gemini Smoke, only after separate explicit T1/T2 approval.
+
+Safety statement:
+- No production code change, test code change, smoke script, actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key validation/output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, battle log parser, replay parser, Turn Engine, item-event automatic detection, resolved item effect implementation, post-turn item state calculation, exact HP/damage/order/RNG calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.43 - Item Event Phase Follow-up Inventory
 
 Purpose:
