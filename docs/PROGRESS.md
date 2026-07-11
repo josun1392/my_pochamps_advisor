@@ -1,5 +1,24 @@
 # Master Ball Advisor — Progress
 
+## v12.53 - Final Item Event Actual Gemini Re-smoke
+
+Purpose:
+- Execute the separately approved final one-call validation of current-known and observed-event attribution.
+
+Implementation summary:
+- Required pre-call contracts and production prompt checks passed for the fixed Leftovers/Focus Sash fixture.
+- Made exactly one `gemini-2.5-flash` call with retry/fallback/second-provider/Vertex AI count zero; TokenLogger metadata completed with sanitized usage input `9978`, output `209`, cached `0`.
+- Result: `PASS`. The response identified self Leftovers as user-confirmed current known-item context and opponent Focus Sash activation as a separate observed event, retained uncertainty, and made no detected resolved/exact/post-turn/RNG/final-order overclaim.
+- Damage context coexisted with both readbacks. No prompt, payload, production code, test, or fixture change and no second call was made.
+
+Recommended next:
+- v12.54 Item Event Actual Smoke Phase Closure.
+
+Safety statement:
+- Exactly one approved actual Gemini call; no retry, fallback, second provider call, Vertex AI call, API key output, credential output, raw response/token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, production/test/script/dependency change, prompt/payload fix, parser, replay parser, Turn Engine, resolved/post-turn/exact calculation, RNG/order resolver, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.52 - Known Item Attribution Contrast Fix
 
 Purpose:
