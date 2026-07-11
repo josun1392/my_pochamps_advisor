@@ -1,5 +1,34 @@
 # Master Ball Advisor — Progress
 
+## v12.39 - Item Event Payload Mapping Tests
+
+Purpose:
+- Lock the future limited-context-gated item event mapping contract before runtime payload or prompt implementation.
+
+Implementation summary:
+- Added `tests/test_item_event_payload_mapping_contract.py`.
+- Added `docs/spike_v12.39_item_event_payload_mapping_tests.md`.
+- Added a test-only future mapper seam; production mapping remains unchanged.
+- Locked checkbox off to omit the future item event context candidate.
+- Locked checkbox on to normalize only valid explicit user-confirmed observed events.
+- Verified all five observed event types and preservation of source/status/turn/note with `confidence=observed`.
+- Verified invalid source/status/event type/missing fields and resolved/post-turn/exact HP/damage/RNG/order fields are rejected.
+- Added recursive forbidden-field scans for helper candidates and current prompt payloads.
+- Verified known item/current item behavior remains separate and unchanged.
+- Verified existing field state behavior and limited context gating remain unchanged.
+- Locked safe observed-event serialization wording in a test-only candidate.
+- Verified current runtime `battle_input` and generated prompts still omit `item_event_confirmations` and `item_event_context` because implementation remains pending.
+
+Recommended next:
+- v12.40 Item Event Payload Mapping Implementation.
+- Alternative: v12.40 Item Event Prompt Fixture.
+- Alternative: v12.40 Item Event Mapping Design Closure.
+
+Safety statement:
+- No actual `item_event_context` payload mapping, observed event prompt mapping, actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, battle log parser, replay parser, Turn Engine, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, exact HP calculation, exact damage calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, prompt guard wording change, FieldProfileDialog behavior change, field mapping behavior change, payload filtering behavior change, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.38 - Item Event Payload Mapping Design
 
 Purpose:

@@ -158,19 +158,26 @@ Update after v2.5:
 - v12.36 locked Explicit User Item Event Button Integration Tests with a test-only fake dialog/controller/provider seam. Future button open behavior does not request advice or call providers, Apply stores valid events into a session-local `_item_event_confirmations` candidate, Cancel preserves previous state, Reset persists only on Apply, invalid events are not stored, existing FieldProfileDialog button and limited-context checkbox behavior remain unchanged, and `item_event_context` remains unmapped from prompt payloads.
 - v12.37 wired the real LLMAdvicePanel `Item event` button to MainWindow session-local `_item_event_confirmations` state. The button emits `item_event_requested`, not `advice_requested`; MainWindow opens `ItemEventDialog`; Apply saves validated observed candidates; Cancel preserves previous state; Reset + Apply stores an empty list; invalid dialog output does not replace state; existing FieldProfileDialog and limited-context checkbox behavior remain unchanged; and `item_event_context` remains unmapped from prompt payloads.
 - v12.38 designed future Item Event Payload Mapping without implementation. The design keeps `_item_event_confirmations` UI-only for now, proposes a future path through `battle_input["item_event_confirmations"]` into `item_event_context.observed_events`, recommends the existing limited context checkbox as the hard gate, limits source/status/event types to explicit user-confirmed observed candidates, and keeps resolved effects, post-turn state, exact HP/damage, RNG, Speed/order, parser/replay/Turn Engine behavior, and provider calls out of scope.
+- v12.39 locked Item Event Payload Mapping Tests with a test-only mapper seam. Checkbox off omits the future item event context candidate; checkbox on normalizes only validated explicit user-confirmed observed events with `confidence=observed`; invalid and resolved/post-turn/exact HP/damage/RNG/order inputs are rejected; known item and field state behavior remain unchanged; safe observed-event wording is locked; and current runtime payloads/prompts still omit `item_event_context` pending implementation.
 
 Battle State UI Gemini smoke reached actual Gemini PASS in v11.1 and closure in v11.2. Payload preflight PASS still does not imply actual Gemini PASS for future new contexts. Chilan Berry reached actual Gemini PASS after v2.7.1. Light Ball reached actual Gemini PASS after v3.1.1. The original Focus Band / Quick Claw / Light Ball / Chilan Berry pending queue is closed.
 
 ## Copy-Paste Prompt
 
 ```text
-T3, continue after v12.38 Item Event Payload Mapping Design.
+T3, continue after v12.39 Item Event Payload Mapping Tests.
 
 Goal:
 - Do not add new item contexts.
 - Do not run extra Gemini calls unless T1/T2 explicitly approve them.
 - Treat `turn_snapshot` as selected/pre-turn known state only, not full Turn Engine output.
-- Current recommended next milestone is v12.39 Item Event Payload Mapping Tests.
+- Current recommended next milestone is v12.40 Item Event Payload Mapping Implementation.
+- v12.39 locked the future mapping contract with a test-only helper seam.
+- Checkbox off omits item event context.
+- Checkbox on accepts only validated explicit user-confirmed observed events and adds `confidence=observed`.
+- Invalid events and resolved/post-turn/exact HP/damage/RNG/order fields are rejected.
+- Known item/current item and field state behavior remain unchanged.
+- Current runtime payload and prompt mapping remain unimplemented.
 - v12.38 designed future item event payload mapping without implementation.
 - Proposed future path is `_item_event_confirmations` -> `battle_input["item_event_confirmations"]` -> limited context gate/helper -> `item_event_context.observed_events` -> prompt serialization.
 - Existing limited context checkbox is the recommended hard gate.
@@ -274,12 +281,12 @@ Goal:
 - The original pending item-context actual verification queue is closed.
 - Chilan Berry can be treated as full PASS unless later changes regress it.
 - Recommended next milestone:
-  - v12.39 Item Event Payload Mapping Tests
-  - Alternative: v12.39 Item Event Payload Mapping Implementation
-  - Alternative: v12.39 Explicit User Item Event UI Phase Closure
+  - v12.40 Item Event Payload Mapping Implementation
+  - Alternative: v12.40 Item Event Prompt Fixture
+  - Alternative: v12.40 Item Event Mapping Design Closure
   - Reason:
-    - v12.38 designed the mapping path and gate/source/status boundaries.
-    - Payload mapping affects LLM input directly, so checkbox gate and observed/resolved boundaries should be locked by tests before implementation.
+    - v12.38 designed the mapping path and v12.39 locked gate/source/status/forbidden boundaries.
+    - Runtime mapping can now be implemented against the test-first contract in a separately approved phase.
 - Reason:
   - v12.35 implemented the standalone dialog without wiring.
   - Button/session-local storage behavior should be locked test-first before adding LLMAdvicePanel/MainWindow wiring.
