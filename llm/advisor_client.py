@@ -271,6 +271,7 @@ def _build_ui_selected_prompt(
     turn_order_context_guard = _build_turn_order_context_prompt_guard(advice_payload)
     opponent_move_context_guard = _build_opponent_move_context_prompt_guard(advice_payload)
     battle_state_context_guard = _build_battle_state_context_prompt_guard(advice_payload)
+    item_event_context_guard = _build_item_event_context_prompt_guard(advice_payload)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
@@ -281,6 +282,7 @@ def _build_ui_selected_prompt(
         f"{turn_order_context_guard}"
         f"{opponent_move_context_guard}"
         f"{battle_state_context_guard}"
+        f"{item_event_context_guard}"
         "If a damage_estimate is present, use it only under its stated "
         "assumption_profile and never describe it as final battle damage. Do "
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "
@@ -1323,6 +1325,19 @@ def _build_battle_state_context_prompt_guard(payload: dict[str, Any]) -> str:
         "result, speed tie result, Quick Claw activation, or full turn outcome "
         "from battle_state_context. Treat unsupported entries as boundaries, "
         "not facts to fill in. "
+    )
+
+
+def _build_item_event_context_prompt_guard(payload: dict[str, Any]) -> str:
+    if "item_event_context" not in payload:
+        return ""
+    return (
+        "If item_event_context is present, treat it only as an explicitly "
+        "user-confirmed observed item event. It is observed context only, not "
+        "a resolved mechanic result, exact calculation, post-turn state, RNG "
+        "result, or resolved turn order. Do not infer exact HP, exact damage, "
+        "item consumption, item effect application, Quick Claw RNG outcome, "
+        "Focus Sash HP result, or Berry recovery amount from it. "
     )
 
 

@@ -1,5 +1,34 @@
 # Master Ball Advisor — Progress
 
+## v12.41 - Observed Item Event Prompt Fixture
+
+Purpose:
+- Verify that limited-context-gated observed item event payloads serialize into the production prompt with observed-only meaning.
+
+Implementation summary:
+- Added `tests/test_item_event_prompt_fixture.py`.
+- Added `docs/spike_v12.41_observed_item_event_prompt_fixture.md`.
+- Added a minimal `item_event_context` prompt guard in `llm/advisor_client.py`.
+- The guard states that explicit user-confirmed item events are observed context only, not resolved mechanics, exact calculations, post-turn state, RNG, or resolved order.
+- Fixtures use `run_ui_selected_advice(...)` with mocked `call_gemini` and mocked token logging to capture the real production prompt path offline.
+- Verified checkbox-off omission of event context, event values, and item-event guard.
+- Verified checkbox-on serialization for all five allowed observed event types.
+- Verified source/status/confidence/turn/note preservation, including `None` optional values.
+- Verified known current item and explicit observed event remain separate sections.
+- Verified known item alone does not create observed event context.
+- Verified representative invalid raw events and forbidden fields do not reappear in prompt payloads.
+- Verified positive resolved/exact HP/damage/RNG/order claims remain absent.
+
+Recommended next:
+- v12.42 Controlled Observed Item Event Smoke Design.
+- Alternative: v12.42 Item Event Mapping Closure.
+- Alternative: v12.42 Status/Condition Source Design.
+
+Safety statement:
+- No actual Gemini call, retry, automatic retry, second provider call, Vertex AI call, network/provider call, API key output, `.env` output, raw token-log output, `logs/token_usage.jsonl` commit/reset, `config.env.example` commit/reset, `config/env.example` commit/reset, dependency file change, `pyproject.toml` change, `uv.lock` change, requirements file change, battle log parser, replay parser, Turn Engine, item activation implementation, item consumption implementation, resolved item effect implementation, post-turn item state calculation, exact HP calculation, exact damage calculation, damage formula change, `damage_estimate` change, `ko_context` change, Q12 multiplier change, raw damage roll change, RNG resolver, speed tie resolver, Quick Claw activation resolution, hidden item inference, opponent set/item inference, FieldProfileDialog behavior change, field mapping behavior change, unrelated prompt refactor, threshold/skip/xfail change, or `docs/handoff_capsule_v1.1.md` committed/reset changes.
+
+---
+
 ## v12.40 - Item Event Payload Mapping Implementation
 
 Purpose:

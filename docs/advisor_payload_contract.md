@@ -465,6 +465,13 @@ valid events normalize into `item_event_context.observed_events` with
 HP/damage/RNG/Speed-order fields remain forbidden. No new natural-language
 prompt wording was added.
 
+v12.41 status note: Observed Item Event Prompt Fixture adds a minimal guard
+only when `item_event_context` is present. It states that explicit user-confirmed
+events are observed context only, not resolved mechanics, exact calculations,
+post-turn state, RNG, or resolved order. Offline fixtures capture the production
+prompt with mocked provider and logging functions; runtime provider behavior is
+unchanged.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
