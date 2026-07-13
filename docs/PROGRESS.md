@@ -1,5 +1,20 @@
 # Master Ball Advisor — Progress
 
+## v12.57 - Status/Condition Source Boundary and Contract Foundation
+
+Purpose:
+- Establish source-bound current-major-condition validation without adding UI, payload, or prompt behavior.
+
+Implementation summary:
+- Inventoried existing generic battle-state status/known-condition seams and confirmed the UI-selected adapter keeps status unknown.
+- Added a user-confirmed-current-condition normalization contract for major status types only.
+- Rejected future source names, resolved/post-turn/exact/RNG/order fields, and inference-shaped input.
+
+Safety statement:
+- No status UI, status payload/prompt mapping, provider/network call, retry, parser/replay/Turn Engine, automatic detection, exact calculation, or dependency change.
+
+---
+
 ## v12.56 - Item Event Lifecycle Integration Hardening
 
 Purpose:

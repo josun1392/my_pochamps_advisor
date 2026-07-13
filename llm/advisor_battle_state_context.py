@@ -158,6 +158,49 @@ EXPLICIT_USER_ITEM_EVENT_FORBIDDEN_FIELDS = frozenset(
         "speed_order_override",
     }
 )
+USER_CONFIRMED_CURRENT_CONDITION_ALLOWED_TYPES = frozenset(
+    {
+        "burn",
+        "poison",
+        "toxic",
+        "paralysis",
+        "sleep",
+        "freeze",
+        "none",
+        "unknown",
+    }
+)
+USER_CONFIRMED_CURRENT_CONDITION_ALLOWED_SOURCES = frozenset({"user_confirmed_current_condition"})
+USER_CONFIRMED_CURRENT_CONDITION_ALLOWED_STATUSES = frozenset({"user_confirmed"})
+USER_CONFIRMED_CURRENT_CONDITION_REQUIRED_FIELDS = frozenset(
+    {"side", "condition_type", "status", "source"}
+)
+USER_CONFIRMED_CURRENT_CONDITION_OPTIONAL_FIELDS = frozenset({"confidence"})
+USER_CONFIRMED_CURRENT_CONDITION_FORBIDDEN_FIELDS = frozenset(
+    {
+        "exact_status_damage",
+        "exact_post_turn_hp",
+        "condition_applied_this_turn",
+        "condition_triggered_this_turn",
+        "full_paralysis_occurred",
+        "sleep_turns_remaining",
+        "wake_up_turn",
+        "freeze_thaw_roll",
+        "rng_roll",
+        "final_speed_order",
+        "resolved_condition_effect",
+        "post_turn_condition_state",
+    }
+)
+USER_CONFIRMED_CURRENT_CONDITION_FUTURE_UNSUPPORTED_SOURCES = frozenset(
+    {
+        "explicit_user_condition_event_confirmation",
+        "battle_log",
+        "parser",
+        "imported_replay",
+        "future_turn_engine",
+    }
+)
 
 
 def validate_explicit_user_item_event_confirmation(candidate: Mapping[str, Any]) -> dict[str, Any]:
@@ -222,6 +265,65 @@ def validate_explicit_user_item_event_confirmation(candidate: Mapping[str, Any])
         sanitized["note"] = note.strip() if isinstance(note, str) else None
 
     return sanitized
+
+
+def normalize_user_confirmed_current_condition(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize only a user-confirmed current major condition for future mapping."""
+    if not isinstance(candidate, Mapping):
+        raise ValueError("current condition candidate must be a mapping")
+    forbidden_field = _first_forbidden_condition_field(candidate)
+    if forbidden_field is not None:
+        raise ValueError(f"current condition field is forbidden: {forbidden_field}")
+
+    allowed_fields = (
+        USER_CONFIRMED_CURRENT_CONDITION_REQUIRED_FIELDS
+        | USER_CONFIRMED_CURRENT_CONDITION_OPTIONAL_FIELDS
+    )
+    unexpected_fields = set(candidate) - allowed_fields
+    if unexpected_fields:
+        raise ValueError(f"unexpected current condition field: {sorted(unexpected_fields)[0]}")
+    missing_fields = USER_CONFIRMED_CURRENT_CONDITION_REQUIRED_FIELDS - set(candidate)
+    if missing_fields:
+        raise ValueError(f"current condition missing required field: {sorted(missing_fields)[0]}")
+
+    side = candidate.get("side")
+    if side not in {"self", "opponent"}:
+        raise ValueError("current condition side must be self or opponent")
+    condition_type = candidate.get("condition_type")
+    if condition_type not in USER_CONFIRMED_CURRENT_CONDITION_ALLOWED_TYPES:
+        raise ValueError("current condition type is not allowed")
+    status = candidate.get("status")
+    if status not in USER_CONFIRMED_CURRENT_CONDITION_ALLOWED_STATUSES:
+        raise ValueError("current condition status is not allowed")
+    source = candidate.get("source")
+    if source not in USER_CONFIRMED_CURRENT_CONDITION_ALLOWED_SOURCES:
+        raise ValueError("current condition source is not allowed")
+    if "confidence" in candidate and candidate["confidence"] != "known":
+        raise ValueError("current condition confidence must be known")
+
+    return {
+        "side": side,
+        "condition_type": condition_type,
+        "status": status,
+        "source": source,
+        "confidence": "known",
+    }
+
+
+def _first_forbidden_condition_field(value: object) -> str | None:
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if key in USER_CONFIRMED_CURRENT_CONDITION_FORBIDDEN_FIELDS:
+                return str(key)
+            nested = _first_forbidden_condition_field(child)
+            if nested is not None:
+                return nested
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for child in value:
+            nested = _first_forbidden_condition_field(child)
+            if nested is not None:
+                return nested
+    return None
 
 
 def build_item_event_context_from_confirmations(

@@ -513,6 +513,11 @@ limited-context mapping and observed-only prompt guard. Clear/delete omit the
 context when no valid events remain; checkbox off preserves session state while
 omitting it from payload. No payload shape or prompt contract changed.
 
+v12.57 status/condition note: `normalize_user_confirmed_current_condition(...)`
+is validation-only. It recognizes only user-confirmed current major-condition
+facts and does not map them into the existing payload or prompt. Event,
+resolved, post-turn, exact, RNG, and order semantics remain excluded.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.
