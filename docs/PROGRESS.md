@@ -1,5 +1,20 @@
 # Master Ball Advisor — Progress
 
+## v12.56 - Item Event Lifecycle Integration Hardening
+
+Purpose:
+- Verify the lifecycle through dialog/session state, limited-context payload mapping, and mocked provider prompt capture.
+
+Implementation summary:
+- Added end-to-end Apply/edit/delete/clear coverage, limited-context off/on state preservation, numeric/stable ordering edge coverage, and collision policy coverage.
+- Hardened delete UX so a delete clears selection instead of auto-selecting another event; Apply can persist that deletion without creating a new draft.
+- Kept the payload and prompt contracts unchanged.
+
+Safety statement:
+- No actual Gemini/provider/network call, retry, fallback, second provider call, Vertex AI call, secret/token-log output, dependency change, or payload/prompt redesign.
+
+---
+
 ## v12.55 - Item Event Session Lifecycle
 
 Purpose:

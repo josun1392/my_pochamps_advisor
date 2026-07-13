@@ -508,6 +508,11 @@ v12.55 lifecycle note: Session-local item event summary, edit/delete,
 duplicate, ordering, and explicit reset behavior do not change the payload
 contract. The limited-context gate and observed-only mapping remain unchanged.
 
+v12.56 integration note: Lifecycle mutations are verified through the existing
+limited-context mapping and observed-only prompt guard. Clear/delete omit the
+context when no valid events remain; checkbox off preserves session state while
+omitting it from payload. No payload shape or prompt contract changed.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

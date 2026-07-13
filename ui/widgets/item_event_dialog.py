@@ -57,6 +57,7 @@ class ItemEventDialog(QDialog):
         self._draft_events: list[dict[str, Any]] = deepcopy(current_events or [])
         self._selected_event_index: int | None = None
         self._draft_reset = False
+        self._has_list_mutation = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 14)
@@ -141,17 +142,37 @@ class ItemEventDialog(QDialog):
     def _save_and_accept(self) -> None:
         if self._draft_reset:
             self._result_events = []
+        elif self._selected_event_index is None and self._has_list_mutation:
+            self._result_events = deepcopy(self._draft_events)
         else:
             event = self._build_event()
             if self._selected_event_index is None:
                 self._draft_events.append(event)
             else:
                 self._draft_events[self._selected_event_index] = event
+                self._remove_duplicates_for_selected_event(event)
             self._result_events = deepcopy(self._draft_events)
         self.accept()
 
+    def _remove_duplicates_for_selected_event(self, event: dict[str, Any]) -> None:
+        """Keep an edited event when its new identity matches another draft entry."""
+        if self._selected_event_index is None:
+            return
+        identity = self._event_identity(event)
+        selected_index = self._selected_event_index
+        self._draft_events = [
+            candidate
+            for index, candidate in enumerate(self._draft_events)
+            if index == selected_index or self._event_identity(candidate) != identity
+        ]
+
+    @staticmethod
+    def _event_identity(event: dict[str, Any]) -> tuple[object, object, object, object]:
+        return (event.get("side"), event.get("item"), event.get("event_type"), event.get("turn"))
+
     def _reset_draft(self) -> None:
         self._draft_reset = True
+        self._has_list_mutation = True
         self._draft_events = []
         self._selected_event_index = None
         self._refresh_event_list()
@@ -163,6 +184,7 @@ class ItemEventDialog(QDialog):
 
     def _start_new_event(self) -> None:
         self._draft_reset = False
+        self._has_list_mutation = False
         self._selected_event_index = None
         self.event_list.clearSelection()
         self._set_combo_value(self.side_combo, "opponent")
@@ -178,15 +200,13 @@ class ItemEventDialog(QDialog):
         del self._draft_events[deleted_index]
         self._selected_event_index = None
         self._draft_reset = not self._draft_events
+        self._has_list_mutation = True
         self._refresh_event_list()
-        if self._draft_events:
-            self.event_list.setCurrentRow(min(deleted_index, len(self._draft_events) - 1))
-        else:
-            self._set_combo_value(self.side_combo, "opponent")
-            self._set_combo_value(self.event_type_combo, "item_activation_observed")
-            self.item_combo.setEditText("")
-            self.turn_spin.setValue(0)
-            self.note_edit.clear()
+        self._set_combo_value(self.side_combo, "opponent")
+        self._set_combo_value(self.event_type_combo, "item_activation_observed")
+        self.item_combo.setEditText("")
+        self.turn_spin.setValue(0)
+        self.note_edit.clear()
 
     def _refresh_event_list(self) -> None:
         self.event_list.blockSignals(True)
@@ -212,6 +232,7 @@ class ItemEventDialog(QDialog):
             self._selected_event_index = None
             return
         self._draft_reset = False
+        self._has_list_mutation = False
         self._selected_event_index = index
         event = self._draft_events[index]
         self._set_combo_value(self.side_combo, str(event.get("side", "opponent")))
