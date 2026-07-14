@@ -1,5 +1,20 @@
 # Advisor Payload Contract
 
+## v12 Phase Closure
+
+The v12 trusted-context categories are normalized independently and are only
+included when limited context is enabled: current condition, current ability,
+current stat stage, current field state, and observed item event. Their
+structured acknowledgement entries are generated from the normalized payload
+and exact-compared by the deterministic parser. Existing known current items
+remain `item_profiles`/item-context data and do not gain a new acknowledgement
+category through v12 closure.
+
+These contexts are not deterministic calculation results. They do not establish
+transition timing, source, duration, resolved mechanics, exact stats/damage/HP,
+final order, RNG, or post-turn state. See `docs/V12_PHASE_REVIEW.md` for the
+v13 calculation-boundary entry point.
+
 ## v12.79 Current Field State Context
 
 With the limited-context gate enabled, a validated user-confirmed field

@@ -1,5 +1,16 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v12 Phase Closed
+
+- v12 trusted-context integration is closed after the combined offline
+  production-path regression. Do not create further v12.xx feature work.
+- Existing actual evidence remains v12.71 structured condition/item limited
+  sample and v12.77 combined ability stable smoke. Stat-stage and field state
+  remain offline-only.
+- Next target: v13 **Final Battle Stat Input and Calculation Boundary**. Keep
+  deterministic calculation inputs separate from LLM inference and preserve all
+  v12 source, gate, acknowledgement, and forbidden-boundary contracts.
+
 ## v12.79 Current Field State Context
 
 - Current field state is now a separately validated user-confirmed snapshot:

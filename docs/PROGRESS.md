@@ -1,5 +1,18 @@
 # Master Ball Advisor — Progress
 
+## v12.80 - Integrated Trusted-Context Regression And Phase Closure
+
+Result:
+- Combined all v12 structured categories in one production-normalized offline
+  fixture and locked exact-set, gate, semantic-boundary, normal UI, and CLI
+  regression behavior.
+- Recorded existing actual evidence separately from offline-only stat-stage and
+  field-state coverage. No provider call occurred in this closure task.
+- v12 is closed: `COMPLETE - V12 PHASE CLOSED`. The next integration target is
+  v13 Final Battle Stat Input and Calculation Boundary.
+
+---
+
 ## v12.79 - Current Field State End-To-End Integration
 
 Result:
