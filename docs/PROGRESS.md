@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.66 - CLI-Captured Current Condition Gemini Stability Smoke
+
+Result:
+- Pre-call CLI, capture, condition, and item-event contracts passed. Production normalization and prompt checks confirmed the fixed self-burn, opponent-unknown, and opponent-Focus-Sash contexts.
+- Exactly three approved independent `gemini-2.5-flash` CLI attempts ran with parseable one-line sanitized JSON, exit code 0, empty stderr, provider success, and response available.
+- All three attempts returned semantic fail with the same sanitized attribution-boundary summary. No raw response, prompt, provider object, or error body was stored or output.
+- Final status: `FAIL - SEMANTIC STABILITY` (semantic PASS 0, semantic FAIL 3, response unavailable 0, evaluator failure 0, provider failure 0, CLI/precall failure 0). The capture transport is validated; no fourth call or immediate correction was made.
+
+---
+
 ## v12.65 - Sanitized Smoke CLI Output Contract
 
 Result:
