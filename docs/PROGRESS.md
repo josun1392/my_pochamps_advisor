@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.76 - Known Ability Structured-Context Gemini Stability Smoke
+
+Result:
+- All required ability, structured-acknowledgement, CLI, condition, and item-event offline contracts passed; full regression was `1888 passed, 2 deselected`.
+- Status: `BLOCKED - ABILITY SMOKE FIXTURE UNAVAILABLE`. The approved single-attempt CLI supports only the existing condition/item-event fixture and cannot construct the required fixed ability context.
+- Actual provider attempts: 0. Credential availability was not checked after fixture preflight failed. No retry, fallback, second provider, Vertex AI, response recovery, or token-log inspection occurred.
+- A separately authorized offline CLI-fixture integration is required before an ability actual smoke can run.
+
+---
+
 ## v12.75 - Known Ability End-to-End Integration
 
 Result:

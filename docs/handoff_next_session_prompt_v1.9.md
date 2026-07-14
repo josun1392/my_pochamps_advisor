@@ -1,5 +1,17 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v12.76 Ability Smoke Block
+
+- The v12.76 pre-call contracts passed, including full regression:
+  `1888 passed, 2 deselected`. No provider call was made.
+- Status is `BLOCKED - ABILITY SMOKE FIXTURE UNAVAILABLE`: the sanctioned
+  single-attempt CLI only has `current-condition-item-event`, not a fixed
+  ability-bearing fixture. Running it would omit the required ability entries
+  and cannot establish the v12.76 acknowledgement exact set.
+- Do not substitute arbitrary input, modify the CLI during an actual-smoke
+  task, or make a credential/provider call. A separately approved offline CLI
+  fixture-contract task is the next safe prerequisite.
+
 ## v12.75 Known Ability End-to-End Integration
 
 - `ability_context.current_abilities` is now live only behind the existing
