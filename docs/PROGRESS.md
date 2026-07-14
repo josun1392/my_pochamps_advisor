@@ -1,5 +1,16 @@
 # Master Ball Advisor — Progress
 
+## v12.77 - Ability Smoke Fixture Integration And Actual Stability Validation
+
+Result:
+- Added the fixed allowlisted `current-condition-ability-item-event` CLI fixture while preserving the existing condition/item-event fixture. Raw entries normalize through the production path into condition, ability, and observed-item-event contexts, then generate the five-entry structured acknowledgement exact set.
+- Added subprocess contracts for ability fixture selection, normalized context/expected entries, semantic pass, missing ability acknowledgement, unknown-ability inference, activation/stat-drop claim rejection, and raw-response non-disclosure. CLI JSON schema and exit codes are unchanged.
+- Ran exactly three independent `gemini-2.5-flash` attempts with the identical fixed fixture, prompt, evaluator, and environment. All returned provider success, response available, and semantic pass.
+- Final status: `PASS - STABLE` (semantic PASS 3, semantic FAIL 0, response unavailable 0, evaluator failure 0, provider failure 0, CLI/precall failure 0). Full regression: `1893 passed, 2 deselected`.
+- No retry, fallback, second provider, Vertex AI, credential-validation call, raw-response recovery, or fourth provider attempt occurred.
+
+---
+
 ## v12.76 - Known Ability Structured-Context Gemini Stability Smoke
 
 Result:

@@ -22,6 +22,8 @@ import llm.advisor_client as advisor_client  # noqa: E402
 
 SCHEMA_VERSION = 1
 FIXTURE_NAME = "current-condition-item-event"
+ABILITY_FIXTURE_NAME = "current-condition-ability-item-event"
+FIXTURE_NAMES = frozenset({FIXTURE_NAME, ABILITY_FIXTURE_NAME})
 DEFAULT_MODEL = "gemini-2.5-flash"
 
 EXIT_SUCCESS = 0
@@ -109,6 +111,40 @@ def build_current_condition_item_event_fixture() -> dict[str, Any]:
     return fixture
 
 
+def build_current_condition_ability_item_event_fixture() -> dict[str, Any]:
+    """Return the fixed raw ability fixture without pre-normalized confidence."""
+    fixture = build_current_condition_item_event_fixture()
+    fixture["scenario"]["format_note"] = (
+        "Limited current-condition, current-ability, and observed-item-event smoke fixture."
+    )
+    fixture["scenario"]["known_limitations"].append(
+        "Current abilities are user-confirmed identities only, not resolved mechanics."
+    )
+    fixture["current_ability_confirmations"] = [
+        {
+            "side": "self",
+            "ability": "intimidate",
+            "status": "user_confirmed",
+            "source": "user_confirmed_current_ability",
+        },
+        {
+            "side": "opponent",
+            "ability": "unknown",
+            "status": "user_confirmed",
+            "source": "user_confirmed_current_ability",
+        },
+    ]
+    return fixture
+
+
+def _build_fixture(fixture_name: str) -> dict[str, Any]:
+    if fixture_name == FIXTURE_NAME:
+        return build_current_condition_item_event_fixture()
+    if fixture_name == ABILITY_FIXTURE_NAME:
+        return build_current_condition_ability_item_event_fixture()
+    raise ValueError("unsupported fixed smoke fixture")
+
+
 def evaluate_current_condition_item_event_response(
     response: str,
     *,
@@ -152,6 +188,10 @@ def evaluate_current_condition_item_event_response(
         "immunity was resolved",
         "prevention was resolved",
         "boosted stat is",
+        "intimidate activated this turn",
+        "opponent attack was definitely lowered",
+        "ability was triggered",
+        "ability is definitely unsuppressed",
     )
     opponent_unknown_inference = any(
         f"opponent {condition}" in text
@@ -252,7 +292,7 @@ def _parse_args(argv: list[str]) -> tuple[str, str] | None:
         args, extra = parser.parse_known_args(argv)
     except SystemExit:
         return None
-    if extra or args.fixture != FIXTURE_NAME or not isinstance(args.model, str) or not args.model.strip():
+    if extra or args.fixture not in FIXTURE_NAMES or not isinstance(args.model, str) or not args.model.strip():
         return None
     return args.fixture, args.model
 
@@ -276,9 +316,9 @@ def main(argv: list[str] | None = None, *, smoke_runner: SmokeRunner = _default_
         )
         return EXIT_PREFLIGHT_FAILURE
 
-    _, model = parsed
+    fixture_name, model = parsed
     try:
-        battle_input = build_current_condition_item_event_fixture()
+        battle_input = _build_fixture(fixture_name)
         expected_entries = advisor_client.build_ui_selected_trusted_context_entries(
             battle_input,
             enable_battle_state_context=True,

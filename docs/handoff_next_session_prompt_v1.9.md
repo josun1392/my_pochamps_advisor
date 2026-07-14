@@ -1,5 +1,18 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v12.77 Ability Structured Smoke
+
+- The fixed `current-condition-ability-item-event` CLI fixture is now covered
+  by production-normalization and subprocess contracts. It is allowlisted and
+  single-attempt only; it does not accept arbitrary ability input.
+- Three independent `gemini-2.5-flash` attempts completed with sanitized
+  provider success, available responses, and semantic PASS. Final status:
+  `PASS - STABLE` for this fixed fixture.
+- Evidence is limited to user-confirmed ability identity attribution and the
+  guarded condition/item-event coexistence contract. Do not use it to infer
+  abilities from species, activation, suppression, resolved effects, damage,
+  or order. New actual calls still require explicit approval.
+
 ## v12.76 Ability Smoke Block
 
 - The v12.76 pre-call contracts passed, including full regression:

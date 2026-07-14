@@ -1,5 +1,20 @@
 # Advisor Payload Contract
 
+## v12.77 Fixed Ability Smoke Fixture
+
+The sanitized smoke CLI additionally accepts the fixed allowlisted fixture
+`current-condition-ability-item-event`. It sends raw user-confirmed self
+`burn`, opponent condition `unknown`, self `intimidate`, opponent ability
+`unknown`, and opponent Focus Sash activation input through the same production
+normalization path. Confidence is not present in raw fixture entries.
+
+The normalized payload drives the exact structured acknowledgement set:
+current condition self/opponent, current ability self/opponent, and observed
+item event opponent. This fixture does not expand arbitrary input support or
+change CLI output schema/exit codes. It remains a trusted-context identity
+fixture, not evidence of ability activation, resolved mechanics, exact
+outcomes, or current species ability inference.
+
 ## v12.75 Known Ability Trusted Context
 
 With the limited-context gate enabled, validated
