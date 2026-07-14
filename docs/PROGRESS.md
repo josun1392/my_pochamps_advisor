@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.73 - Known Ability Source Boundary and Contract Foundation
+
+Result:
+- Inventoried cache/repository species ability lists, static ability categories, calculation inputs, UI/payload absence, and future observed-source candidates without treating any of them as current ability truth.
+- Added `normalize_user_confirmed_current_ability(...)` as a pure current-identity seam. It accepts only user-confirmed self/opponent input, normalizes lowercase kebab-case IDs, preserves explicit `unknown`, rejects `none`, and adds `confidence=known`.
+- Species/meta/common-set, move/damage/speed/item inference, future source names, candidate lists, and recursive activation/suppression/replacement/resolved/post-turn/exact/RNG/order fields are rejected.
+- No ability UI/session/payload/prompt/structured acknowledgement integration was added. Status: `COMPLETE`.
+
+---
+
 ## v12.72 - Structured Acknowledgement UX and Context Matrix Validation
 
 Result:

@@ -1,5 +1,19 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v12.73 Known Ability Source Foundation
+
+- Current ability is now a validation-only source boundary. The sole accepted
+  source is `user_confirmed_current_ability` with `status=user_confirmed` and a
+  normalized self/opponent identity; the helper adds `confidence=known`.
+- Species/cache possible abilities, hidden abilities, common sets, selected
+  species defaults, interaction inference, future source names, and all
+  activation/suppression/replacement/resolved/post-turn claims remain rejected.
+- `unknown` is an allowed explicit identity; `none` is rejected because it
+  would conflate absence with suppression/removal state.
+- No ability UI/session state, payload/prompt mapping, or structured
+  acknowledgement line exists. Future integration requires a separate design
+  and contract task; no provider call is authorized by this foundation.
+
 ## v12.72 Structured Acknowledgement Matrix Status
 
 - Offline matrix coverage now locks condition-plus-item-event, condition-only,

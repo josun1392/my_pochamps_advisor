@@ -8,6 +8,7 @@ post-turn HP, RNG results, or full turn outcomes.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import re
 from typing import Any
 
 
@@ -201,6 +202,41 @@ USER_CONFIRMED_CURRENT_CONDITION_FUTURE_UNSUPPORTED_SOURCES = frozenset(
         "future_turn_engine",
     }
 )
+USER_CONFIRMED_CURRENT_ABILITY_ALLOWED_SOURCES = frozenset({"user_confirmed_current_ability"})
+USER_CONFIRMED_CURRENT_ABILITY_ALLOWED_STATUSES = frozenset({"user_confirmed"})
+USER_CONFIRMED_CURRENT_ABILITY_REQUIRED_FIELDS = frozenset({"side", "ability", "status", "source"})
+USER_CONFIRMED_CURRENT_ABILITY_OPTIONAL_FIELDS = frozenset({"confidence"})
+USER_CONFIRMED_CURRENT_ABILITY_FORBIDDEN_FIELDS = frozenset(
+    {
+        "ability_activated_this_turn",
+        "ability_triggered_this_turn",
+        "ability_suppressed",
+        "ability_replaced",
+        "ability_copied",
+        "ability_revealed_by_inference",
+        "resolved_ability_effect",
+        "exact_stat_change",
+        "exact_damage_modifier",
+        "exact_damage",
+        "exact_post_turn_hp",
+        "boosted_stat",
+        "final_speed_order",
+        "immunity_resolved",
+        "prevention_resolved",
+        "rng_roll",
+        "post_turn_ability_state",
+    }
+)
+USER_CONFIRMED_CURRENT_ABILITY_FUTURE_UNSUPPORTED_SOURCES = frozenset(
+    {
+        "explicit_user_ability_event_confirmation",
+        "battle_log",
+        "parser",
+        "imported_replay",
+        "future_turn_engine",
+    }
+)
+_ABILITY_ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
 def validate_explicit_user_item_event_confirmation(candidate: Mapping[str, Any]) -> dict[str, Any]:
@@ -321,6 +357,78 @@ def _first_forbidden_condition_field(value: object) -> str | None:
     elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         for child in value:
             nested = _first_forbidden_condition_field(child)
+            if nested is not None:
+                return nested
+    return None
+
+
+def normalize_user_confirmed_current_ability(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize only a user-confirmed current ability identity.
+
+    This helper deliberately does not consult species/cache ability lists. Those
+    lists describe possible species abilities, not a trusted current ability.
+    """
+    if not isinstance(candidate, Mapping):
+        raise ValueError("current ability candidate must be a mapping")
+    forbidden_field = _first_forbidden_ability_field(candidate)
+    if forbidden_field is not None:
+        raise ValueError(f"current ability field is forbidden: {forbidden_field}")
+
+    allowed_fields = (
+        USER_CONFIRMED_CURRENT_ABILITY_REQUIRED_FIELDS
+        | USER_CONFIRMED_CURRENT_ABILITY_OPTIONAL_FIELDS
+    )
+    unexpected_fields = set(candidate) - allowed_fields
+    if unexpected_fields:
+        raise ValueError(f"unexpected current ability field: {sorted(unexpected_fields)[0]}")
+    missing_fields = USER_CONFIRMED_CURRENT_ABILITY_REQUIRED_FIELDS - set(candidate)
+    if missing_fields:
+        raise ValueError(f"current ability missing required field: {sorted(missing_fields)[0]}")
+
+    side = candidate.get("side")
+    if side not in {"self", "opponent"}:
+        raise ValueError("current ability side must be self or opponent")
+    ability = _normalize_current_ability_id(candidate.get("ability"))
+    status = candidate.get("status")
+    if status not in USER_CONFIRMED_CURRENT_ABILITY_ALLOWED_STATUSES:
+        raise ValueError("current ability status is not allowed")
+    source = candidate.get("source")
+    if source not in USER_CONFIRMED_CURRENT_ABILITY_ALLOWED_SOURCES:
+        raise ValueError("current ability source is not allowed")
+    if "confidence" in candidate and candidate["confidence"] != "known":
+        raise ValueError("current ability confidence must be known")
+
+    return {
+        "side": side,
+        "ability": ability,
+        "status": status,
+        "source": source,
+        "confidence": "known",
+    }
+
+
+def _normalize_current_ability_id(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("current ability must be a non-empty string")
+    if any(delimiter in value for delimiter in (",", "/", ";", "|")):
+        raise ValueError("current ability must name exactly one ability")
+    normalized = re.sub(r"[\s_]+", "-", value.strip().lower())
+    if normalized in {"", "none"} or _ABILITY_ID_PATTERN.fullmatch(normalized) is None:
+        raise ValueError("current ability must be a canonical ability id or unknown")
+    return normalized
+
+
+def _first_forbidden_ability_field(value: object) -> str | None:
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if key in USER_CONFIRMED_CURRENT_ABILITY_FORBIDDEN_FIELDS:
+                return str(key)
+            nested = _first_forbidden_ability_field(child)
+            if nested is not None:
+                return nested
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for child in value:
+            nested = _first_forbidden_ability_field(child)
             if nested is not None:
                 return nested
     return None

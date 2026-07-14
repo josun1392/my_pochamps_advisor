@@ -54,6 +54,15 @@ def test_active_and_field_sections_keep_required_keys() -> None:
     assert set(context["field"]) == {"weather", "terrain", "screens", "hazards", "room"}
 
 
+def test_battle_state_context_does_not_add_current_ability_mapping() -> None:
+    context = build_battle_state_context(
+        self_active={"ability": {"source": "user_confirmed", "value": "intimidate"}}
+    )
+
+    assert "ability" not in context["self_active"]
+    assert context["self_active"] == _unknown_active_side()
+
+
 def test_missing_active_and_field_values_become_explicit_unknowns() -> None:
     context = build_battle_state_context(self_active={"species": {"source": "visible_ui"}})
 

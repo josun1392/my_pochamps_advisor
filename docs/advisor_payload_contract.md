@@ -1,5 +1,23 @@
 # Advisor Payload Contract
 
+## v12.73 Known Current Ability Foundation
+
+`normalize_user_confirmed_current_ability(...)` is validation-only and does
+not add an ability field to the advisor payload. It accepts only
+`user_confirmed_current_ability` with `status=user_confirmed`, self/opponent
+side, one normalized lowercase-kebab-case ability identity, and normalized
+`confidence=known`. `unknown` is allowed as an explicit unknown identity;
+`none` is rejected to avoid conflating a current ability identity with
+suppression or replacement state.
+
+Species/cache ability lists, hidden ability metadata, common sets, selected
+species defaults, move interactions, damage/speed/item inference, and model
+guesses are not current ability sources. Activation, suppression, replacement,
+copy, resolved effect, exact damage/stat/HP, immunity/prevention, RNG, final
+order, and post-turn state are rejected and remain future contracts. No ability
+payload context, prompt wording, or structured acknowledgement entry exists in
+this phase.
+
 ## v12.72 Structured Acknowledgement Matrix Status
 
 When normalized `condition_context.current_conditions` or
