@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.62 - Current Condition Gemini Stability Smoke Retry
+
+Result:
+- Raw item-event confirmation correctly omitted `confidence`; normalized `item_event_context.observed_events` added `confidence=observed`. Current-condition normalization similarly produced `confidence=known`.
+- All required offline/pre-call contracts passed and both context guards were present.
+- Executed exactly three approved independent `gemini-2.5-flash` production attempts with no retry, fallback, second provider, or Vertex AI.
+- Final status: `INCONCLUSIVE - INSUFFICIENT PROVIDER RESULTS`. Existing logger metadata changed consistently with three completed calls, but the one-shot runner did not return sanitized per-attempt response-evaluator output. No raw response or token-log content was recovered, and no additional call was made.
+
+---
+
 ## v12.61 - Current Condition Gemini Stability Smoke
 
 Result:
