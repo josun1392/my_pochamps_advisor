@@ -60,3 +60,12 @@ def test_none_condition_remains_exact_identity() -> None:
 
     assert advisor_client.validate_trusted_context_acknowledgement(good, expected) is None
     assert advisor_client.validate_trusted_context_acknowledgement(bad, expected) == "trusted-context entry mismatch"
+
+
+def test_empty_expected_context_rejects_a_structured_extra_entry() -> None:
+    response = _response(
+        "- Current condition | self | burn",
+        advice="Choose a cautious action without claiming an exact outcome.",
+    )
+
+    assert advisor_client.validate_trusted_context_acknowledgement(response, ()) == "trusted-context entry mismatch"

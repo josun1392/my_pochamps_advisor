@@ -1,5 +1,31 @@
 # Advisor Payload Contract
 
+## v12.72 Structured Acknowledgement Matrix Status
+
+When normalized `condition_context.current_conditions` or
+`item_event_context.observed_events` exist under the limited-context gate, the
+prompt requires a short `[Trusted Context]` acknowledgement followed by
+`[Advice]`. Expected acknowledgement entries are generated from those normalized
+payload contexts, not UI raw confirmations. Each entry preserves category, side,
+identity, and item-event type where applicable.
+
+The acknowledgement validator requires the expected ordered exact set and
+rejects missing, extra, duplicate, swapped, category-changed, identity-changed,
+or event-type-changed entries. A normal response with no enabled trusted context
+does not require a block; if one is supplied with entries, those entries are
+rejected as extra. The acknowledgement is readback only and must not replace an
+actionable `[Advice]` body or expose raw source/status/confidence metadata.
+
+`none` means user-confirmed current absence of a major condition and `unknown`
+means the specific condition is unavailable. Neither establishes a removal,
+recovery, application, trigger, exact effect, post-turn state, RNG, or order.
+Observed item events remain observations and do not establish resolved effects,
+exact recovery/HP, current possession, consumption, or final order.
+
+Status: `STRUCTURED ACKNOWLEDGEMENT PHASE: READY - LIMITED ACTUAL EVIDENCE`.
+The v12.72 offline matrix is green and v12.71 supplied 2/2 assessable semantic
+PASS responses; this status does not authorize an additional provider call.
+
 **Milestone:** v0.38 - Opponent Possible Sample Payload
 **Payload mode:** `ui-selected-pokemon-v0.18`
 **Status:** Current contract for the PySide6 UI to Gemini LLM advisor path.

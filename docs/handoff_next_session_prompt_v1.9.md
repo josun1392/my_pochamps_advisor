@@ -1,5 +1,18 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v12.72 Structured Acknowledgement Matrix Status
+
+- Offline matrix coverage now locks condition-plus-item-event, condition-only,
+  `none`, `unknown`, item-only, multiple-event, absent, and limited-context-off
+  combinations through normalized payload-derived expected entries.
+- Exact-set validation rejects missing, extra, duplicate, swapped, category,
+  identity, and event-type changes. Normal UI advice preserves the complete
+  structured response while CLI JSON remains CLI-only.
+- Phase status: `STRUCTURED ACKNOWLEDGEMENT PHASE: READY - LIMITED ACTUAL
+  EVIDENCE`. This combines v12.72 offline green with v12.71's 2/2 assessable
+  PASS evidence. Do not recover the unavailable attempt or make another
+  provider call without new explicit approval.
+
 ## v12.71 Structured Trusted-Context Smoke Closure
 
 - The v12.70 structured acknowledgement path was smoke-tested with the fixed

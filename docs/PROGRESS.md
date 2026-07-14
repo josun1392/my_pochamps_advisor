@@ -1,5 +1,16 @@
 # Master Ball Advisor — Progress
 
+## v12.72 - Structured Acknowledgement UX and Context Matrix Validation
+
+Result:
+- Added offline matrix coverage for condition-plus-item-event, one/both-side conditions, `none`, `unknown`, item-only, multiple observed events, absent context, and limited-context-off paths.
+- Expected acknowledgement entries are confirmed to derive from normalized production payloads; required prompt lines are dynamic and omit inactive categories.
+- Exact-set validation rejects missing, extra, duplicate, swapped, changed, and malformed entries. Normal UI advice without trusted context does not require a block, while an unsolicited entry is rejected.
+- Mocked normal UI advice and worker delivery preserve the full `[Trusted Context]` plus `[Advice]` response without exposing CLI JSON; CLI schema/exit-code regression remains green.
+- Phase status: `STRUCTURED ACKNOWLEDGEMENT PHASE: READY - LIMITED ACTUAL EVIDENCE`. Full offline matrix is green and v12.71 remains 2/2 assessable PASS; no provider call was made.
+
+---
+
 ## v12.71 - Structured Trusted-Context Gemini Stability Smoke
 
 Result:
