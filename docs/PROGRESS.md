@@ -1,5 +1,14 @@
 # Master Ball Advisor — Progress
 
+## v12.69 - Structured Trusted-Context Acknowledgement Contract
+
+Result:
+- `BLOCKED - CLI CONTRACT CONFLICT` before implementation or any provider call.
+- The proposed minimal `[Trusted Context]` acknowledgement block requires deterministic parsing and exact-set validation, while existing CLI semantic evaluation remains a free-form function inside the explicitly protected `scripts/run_sanitized_condition_smoke.py`.
+- A parser or prompt change outside that script would not affect actual CLI semantic status. No dead parser-only contract, prompt modification, test modification, or re-smoke was added.
+
+---
+
 ## v12.68 - CLI-Captured Attribution Gemini Re-smoke
 
 Result:
