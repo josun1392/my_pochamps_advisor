@@ -11,6 +11,17 @@ RAW_SENTINEL = "RAW_SECRET_RESPONSE_SENTINEL"
 SCRIPT_MODULE = "scripts.run_sanitized_condition_smoke"
 
 
+def _acknowledged_response(advice: str) -> str:
+    return (
+        "[Trusted Context]\n"
+        "- Current condition | self | burn\n"
+        "- Current condition | opponent | unknown\n"
+        "- Observed item event | opponent | focus-sash | item_activation_observed\n\n"
+        "[Advice]\n"
+        f"{advice}"
+    )
+
+
 def _run_cli_harness(*, provider_body: str, evaluator_failure: bool = False, provider_failure: bool = False) -> subprocess.CompletedProcess[str]:
     provider_setup = (
         "raise RuntimeError('RAW_SECRET_RESPONSE_SENTINEL provider failure')"
@@ -79,10 +90,8 @@ def _result(process: subprocess.CompletedProcess[str]) -> dict[str, object]:
 
 
 def test_subprocess_cli_emits_one_sanitized_json_line_for_semantic_pass() -> None:
-    response = (
-        f"{RAW_SENTINEL} Self has burn as a user-confirmed current condition. "
-        "The opponent condition is unknown. The opponent Focus Sash activation is a "
-        "user-confirmed observed item event. These observations do not establish resolved outcomes."
+    response = _acknowledged_response(
+        f"{RAW_SENTINEL} Choose cautiously; the acknowledgement does not establish resolved outcomes."
     )
     process = _run_cli_harness(provider_body=response)
     result = _result(process)
@@ -101,11 +110,7 @@ def test_subprocess_cli_emits_one_sanitized_json_line_for_semantic_pass() -> Non
 
 
 def test_subprocess_cli_reports_semantic_fail_without_echoing_response() -> None:
-    response = (
-        f"{RAW_SENTINEL} Self has burn as a user-confirmed current condition. "
-        "The opponent condition is unknown, but the opponent is paralyzed. "
-        "The opponent Focus Sash activation is an observed item event."
-    )
+    response = _acknowledged_response(f"{RAW_SENTINEL} The opponent paralysis is known.")
     process = _run_cli_harness(provider_body=response)
     result = _result(process)
 
@@ -127,10 +132,7 @@ def test_subprocess_cli_separates_response_unavailable_from_provider_failure() -
 
 
 def test_subprocess_cli_separates_evaluator_failure_without_traceback() -> None:
-    response = (
-        f"{RAW_SENTINEL} Self has burn as a user-confirmed current condition. "
-        "The opponent condition is unknown. Focus Sash activation was observed."
-    )
+    response = _acknowledged_response(f"{RAW_SENTINEL} Advice remains cautious.")
     process = _run_cli_harness(provider_body=response, evaluator_failure=True)
     result = _result(process)
 

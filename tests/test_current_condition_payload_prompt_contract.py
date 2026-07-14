@@ -198,6 +198,11 @@ def test_valid_conditions_coexist_with_item_events_and_offline_production_path(
     ) in prompt
     assert "Briefly acknowledge each listed category and identity" in prompt
     assert "Do not merge current conditions with observed item events" in prompt
+    assert "Start the answer with exactly this short trusted-context acknowledgement format" in prompt
+    assert "[Trusted Context]\n- Current condition | self | burn" in prompt
+    assert "- Current condition | opponent | unknown" in prompt
+    assert "- Observed item event | opponent | focus-sash | item_activation_observed" in prompt
+    assert "[Advice]" in prompt
     _assert_forbidden_fields_absent(payload)
 
 

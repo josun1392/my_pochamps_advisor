@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-import re
 import sys
 from typing import Any, Callable
 
@@ -109,14 +108,16 @@ def build_current_condition_item_event_fixture() -> dict[str, Any]:
     return fixture
 
 
-def evaluate_current_condition_item_event_response(response: str) -> tuple[str, str]:
+def evaluate_current_condition_item_event_response(
+    response: str,
+    *,
+    expected_entries: tuple[tuple[str, str, str, str | None], ...],
+) -> tuple[str, str]:
     """Evaluate only the fixed smoke fixture without retaining response text."""
     text = response.lower()
-    required = (
-        "self" in text and "burn" in text and "user-confirmed" in text and "current" in text,
-        "opponent" in text and "unknown" in text,
-        "focus sash" in text and "observed" in text and "activation" in text,
-    )
+    acknowledgement_failure = advisor_client.validate_trusted_context_acknowledgement(response, expected_entries)
+    if acknowledgement_failure is not None:
+        return "fail", acknowledgement_failure
     forbidden = (
         "burn was applied this turn",
         "burn damage triggered this turn",
@@ -130,20 +131,22 @@ def evaluate_current_condition_item_event_response(response: str) -> tuple[str, 
         "focus sash left the pokemon at exactly 1 hp",
         "focus sash left the pokémon at exactly 1 hp",
         "resolved item effect",
+        "exactly 1 hp",
+        "was removed",
+        "was recovered",
     )
-    opponent_unknown_inference = re.search(
-        r"opponent[^.]{0,100}\b(paralysis|paralyzed|poison|poisoned|toxic|sleep|asleep|freeze|frozen)\b",
-        text,
+    opponent_unknown_inference = any(
+        f"opponent {condition}" in text
+        for condition in ("paralysis", "paralyzed", "poison", "poisoned", "toxic", "sleep", "asleep", "freeze", "frozen")
     )
-    if all(required) and not opponent_unknown_inference and not any(claim in text for claim in forbidden):
+    if not opponent_unknown_inference and not any(claim in text for claim in forbidden):
         return (
             "pass",
-            "Self burn, opponent unknown, and the separate Focus Sash observation were acknowledged without resolved outcomes.",
+            "trusted-context acknowledgement matched; no forbidden condition or item-event outcome claim was found.",
         )
-    return (
-        "fail",
-        "Current-condition or observed-item-event attribution was missing, mixed, or overstated.",
-    )
+    if opponent_unknown_inference:
+        return "fail", "unknown-condition inference"
+    return "fail", "forbidden resolved, exact, timing, RNG, or order claim"
 
 
 def _default_smoke_runner(
@@ -246,9 +249,16 @@ def main(argv: list[str] | None = None, *, smoke_runner: SmokeRunner = _default_
 
     _, model = parsed
     try:
+        battle_input = build_current_condition_item_event_fixture()
+        expected_entries = advisor_client.build_ui_selected_trusted_context_entries(
+            battle_input,
+            enable_battle_state_context=True,
+        )
         capture, usage, session_summary = smoke_runner(
-            build_current_condition_item_event_fixture(),
-            evaluate_current_condition_item_event_response,
+            battle_input,
+            lambda response: evaluate_current_condition_item_event_response(
+                response, expected_entries=expected_entries
+            ),
             model,
         )
     except Exception:

@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.70 - Structured Trusted-Context Acknowledgement Integration
+
+Result:
+- Implemented a payload-driven `[Trusted Context]` plus `[Advice]` response requirement for normalized current conditions and observed item events.
+- Added deterministic parser, normalization, duplicate/missing/extra/category/side/identity/type rejection, exact expected-entry comparison, and advice-body validation.
+- Connected the actual sanitized smoke CLI evaluator to expected entries derived from the production normalized prompt payload, then preserved forbidden-claim and unknown-inference checks. CLI JSON schema and exit codes are unchanged.
+- Offline readiness: `READY FOR STRUCTURED ACKNOWLEDGEMENT ACTUAL SMOKE`; no provider call was made.
+
+---
+
 ## v12.69 - Structured Trusted-Context Acknowledgement Contract
 
 Result:

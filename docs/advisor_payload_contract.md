@@ -2447,3 +2447,15 @@ requires that the two categories and their side/identity values remain
 separate. It does not alter either payload schema, authorize condition-event or
 item-effect inference, or establish resolved effects, exact HP/damage, timing,
 post-turn state, RNG, or final order.
+
+## v12.70 Structured Trusted-Context Acknowledgement
+
+When normalized trusted condition or observed-item-event entries exist, the
+prompt requires a short `[Trusted Context]` block followed by `[Advice]`.
+Current-condition lines use `Current condition | side | condition_type` and
+observed-item-event lines use `Observed item event | side | item | event_type`.
+The required values are derived from normalized payload contexts. The smoke CLI
+parser exact-compares the acknowledgement entries to that normalized expected
+set and separately rejects empty advice or forbidden resolved/exact/timing/RNG
+claims. This changes response formatting only; it does not change payload
+schema, source trust, calculations, or turn resolution.

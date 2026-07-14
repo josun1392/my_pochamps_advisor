@@ -8,6 +8,7 @@ for the v0.5 spike.
 from __future__ import annotations
 
 import json
+import re
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -364,6 +365,7 @@ def _build_ui_selected_prompt(
     item_event_context_guard = _build_item_event_context_prompt_guard(advice_payload)
     condition_context_guard = _build_condition_context_prompt_guard(advice_payload)
     context_attribution_guard = _build_condition_item_event_attribution_prompt_guard(advice_payload)
+    structured_acknowledgement_guard = _build_structured_trusted_context_acknowledgement_prompt_guard(advice_payload)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
@@ -377,6 +379,7 @@ def _build_ui_selected_prompt(
         f"{item_event_context_guard}"
         f"{condition_context_guard}"
         f"{context_attribution_guard}"
+        f"{structured_acknowledgement_guard}"
         "If a damage_estimate is present, use it only under its stated "
         "assumption_profile and never describe it as final battle damage. Do "
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "
@@ -1534,6 +1537,104 @@ def _build_condition_item_event_attribution_prompt_guard(payload: dict[str, Any]
         "promote either into a resolved effect, exact HP, damage, timing, RNG, "
         "or final-order claim. "
     )
+
+
+def build_trusted_context_acknowledgement_entries(payload: dict[str, Any]) -> tuple[tuple[str, str, str, str | None], ...]:
+    """Return canonical acknowledgement entries from validated normalized payload."""
+    entries: list[tuple[str, str, str, str | None]] = []
+    condition_context = payload.get("condition_context")
+    if isinstance(condition_context, dict) and isinstance(condition_context.get("current_conditions"), list):
+        for condition in condition_context["current_conditions"]:
+            if isinstance(condition, dict):
+                side, condition_type = condition.get("side"), condition.get("condition_type")
+                if isinstance(side, str) and isinstance(condition_type, str):
+                    entries.append(("current_condition", side.lower(), condition_type.lower(), None))
+    item_event_context = payload.get("item_event_context")
+    if isinstance(item_event_context, dict) and isinstance(item_event_context.get("observed_events"), list):
+        for event in item_event_context["observed_events"]:
+            if isinstance(event, dict):
+                side, item, event_type = event.get("side"), event.get("item"), event.get("event_type")
+                if isinstance(side, str) and isinstance(item, str) and isinstance(event_type, str):
+                    entries.append(("observed_item_event", side.lower(), _normalize_trusted_context_identity(item), event_type.lower()))
+    return tuple(entries)
+
+
+def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict[str, Any]) -> str:
+    entries = build_trusted_context_acknowledgement_entries(payload)
+    if not entries:
+        return ""
+    lines = ["[Trusted Context]"]
+    for category, side, identity, event_type in entries:
+        if category == "current_condition":
+            lines.append(f"- Current condition | {side} | {identity}")
+        else:
+            lines.append(f"- Observed item event | {side} | {identity} | {event_type}")
+    lines.append("[Advice]")
+    return (
+        "Start the answer with exactly this short trusted-context acknowledgement format, "
+        "copying every entry once without adding, omitting, inferring, merging, resolving, "
+        "or changing it: "
+        + "\n".join(lines)
+        + " Then provide normal battle advice under [Advice]. "
+    )
+
+
+def _normalize_trusted_context_identity(value: str) -> str:
+    return re.sub(r"[\s_]+", "-", value.strip().lower())
+
+
+def parse_trusted_context_acknowledgement(response: str) -> tuple[tuple[tuple[str, str, str, str | None], ...], bool]:
+    """Parse only the small acknowledgement block; do not interpret advice text."""
+    block_match = re.search(r"(?im)^\[trusted context\]\s*$", response)
+    if block_match is None:
+        raise ValueError("trusted-context acknowledgement missing")
+    advice_match = re.search(r"(?im)^\[advice\]\s*$", response[block_match.end():])
+    if advice_match is None:
+        raise ValueError("trusted-context advice delimiter missing")
+    start = block_match.end()
+    advice_start = start + advice_match.start()
+    entries: list[tuple[str, str, str, str | None]] = []
+    for line in response[start:advice_start].splitlines():
+        if not line.strip():
+            continue
+        if not line.startswith("- "):
+            raise ValueError("trusted-context malformed delimiter")
+        parts = [part.strip() for part in line[2:].split("|")]
+        if any(not part for part in parts):
+            raise ValueError("trusted-context entry missing field")
+        category = parts[0].lower()
+        if category == "current condition" and len(parts) == 3:
+            entry = ("current_condition", parts[1].lower(), parts[2].lower(), None)
+        elif category == "observed item event" and len(parts) == 4:
+            entry = ("observed_item_event", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), parts[3].lower())
+        else:
+            raise ValueError("trusted-context malformed entry")
+        if entry in entries:
+            raise ValueError("trusted-context duplicate entry")
+        entries.append(entry)
+    return tuple(entries), bool(response[start + advice_match.end():].strip())
+
+
+def validate_trusted_context_acknowledgement(
+    response: str, expected_entries: tuple[tuple[str, str, str, str | None], ...]
+) -> str | None:
+    """Return a safe failure category or ``None`` for an exact acknowledgement."""
+    try:
+        acknowledged, advice_present = parse_trusted_context_acknowledgement(response)
+    except ValueError as exc:
+        return str(exc)
+    if acknowledged != expected_entries:
+        return "trusted-context entry mismatch"
+    if not advice_present:
+        return "trusted-context advice body missing"
+    return None
+
+
+def build_ui_selected_trusted_context_entries(battle_input: dict[str, Any], *, enable_battle_state_context: bool) -> tuple[tuple[str, str, str, str | None], ...]:
+    """Extract expected acknowledgement entries from the production normalized prompt payload."""
+    prompt = _build_ui_selected_prompt(battle_input, enable_battle_state_context=enable_battle_state_context)
+    payload = json.loads(prompt.rsplit("\n\n", 1)[1])
+    return build_trusted_context_acknowledgement_entries(payload)
 
 
 def _build_available_item_context_required_mention_guard(payload: dict[str, Any]) -> str:
