@@ -1,5 +1,16 @@
 # Master Ball Advisor — Progress
 
+## v12.71 - Structured Trusted-Context Gemini Stability Smoke
+
+Result:
+- All required offline contracts and the production structured-context preflight passed before execution.
+- Exactly three approved independent `gemini-2.5-flash` CLI attempts were initiated with the fixed current-condition/item-event fixture and no retry, fallback, second provider, or Vertex AI call.
+- Two returned parseable sanitized CLI results with exit 0, provider success, response available, and semantic pass. Both matched the normalized trusted-context exact set and had no forbidden condition or item-event outcome claim.
+- The first attempt's outer execution result was not preserved, so it is recorded as response unavailable without raw-response recovery or a replacement call.
+- Final status: `PASS - LIMITED SAMPLE` (semantic PASS 2, semantic FAIL 0, response unavailable 1, evaluator failure 0, provider failure 0 observed, CLI/precall failure 0). No code change or additional provider call was made.
+
+---
+
 ## v12.70 - Structured Trusted-Context Acknowledgement Integration
 
 Result:
