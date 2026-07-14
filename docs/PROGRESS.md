@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.74 - Known Ability UI and Payload Foundation
+
+Result:
+- Added a side-keyed current-ability dialog/session flow with `Ability (N)` readback, Apply replacement per side, explicit `unknown`, and Clear current abilities. Cancel/invalid input preserve state.
+- Limited context off retains session state while omitting ability confirmations from battle input. On normalizes valid entries into the `ability_context.current_abilities` payload foundation; invalid/all-invalid candidates are omitted.
+- The foundation is intentionally stripped before prompt serialization. No ability prompt guard, natural-language readback, structured acknowledgement line, CLI evaluator change, or provider call was added.
+- Existing UI has no distinct new-battle reset hook for this state, so explicit Clear is the documented reset policy. Status: `COMPLETE`.
+
+---
+
 ## v12.73 - Known Ability Source Boundary and Contract Foundation
 
 Result:

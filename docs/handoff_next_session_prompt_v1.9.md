@@ -1,5 +1,19 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v12.74 Known Ability UI/Payload Foundation
+
+- The UI now stores one user-confirmed current ability per self/opponent side,
+  with editable validated input, explicit `unknown`, summary count/readback,
+  replacement on Apply, and explicit Clear. `none` and candidate-list input are
+  rejected; Cancel/invalid input preserve state.
+- The limited-context gate controls battle-input and intermediate
+  `ability_context.current_abilities` construction. Off preserves session state
+  but omits it from battle input; on reuses the existing normalization helper.
+- Ability remains prompt-isolated: raw confirmations and `ability_context` are
+  removed before prompt serialization. Do not add an ability guard, natural
+  language readback, `[Trusted Context]` ability line, CLI evaluator rule, or
+  actual provider call without a separate approved integration task.
+
 ## v12.73 Known Ability Source Foundation
 
 - Current ability is now a validation-only source boundary. The sole accepted

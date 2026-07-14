@@ -257,9 +257,11 @@ def test_main_window_advice_start_passes_limited_context_gate_to_battle_input(
         *,
         include_item_event_confirmations: bool,
         include_current_condition_confirmations: bool,
+        include_current_ability_confirmations: bool,
     ) -> dict[str, Any]:
         captured["include_item_event_confirmations"] = include_item_event_confirmations
         captured["include_current_condition_confirmations"] = include_current_condition_confirmations
+        captured["include_current_ability_confirmations"] = include_current_ability_confirmations
         raise ValueError("test stop")
 
     window._build_llm_battle_input = fail_after_capturing_battle_input
@@ -268,6 +270,7 @@ def test_main_window_advice_start_passes_limited_context_gate_to_battle_input(
 
     assert captured["include_item_event_confirmations"] is limited_context_enabled
     assert captured["include_current_condition_confirmations"] is limited_context_enabled
+    assert captured["include_current_ability_confirmations"] is limited_context_enabled
 
 
 def test_known_item_and_field_state_behavior_remain_separate_from_item_events() -> None:

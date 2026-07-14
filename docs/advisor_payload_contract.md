@@ -1,5 +1,21 @@
 # Advisor Payload Contract
 
+## v12.74 Current Ability Payload Foundation
+
+When the limited-context gate is enabled, validated user-confirmed current
+ability entries may form the intermediate payload foundation
+`ability_context.current_abilities`. Entries are side-keyed and contain only
+`side`, canonical `ability`, `status=user_confirmed`,
+`source=user_confirmed_current_ability`, and `confidence=known`. Raw UI
+confirmations are removed before payload serialization.
+
+This foundation is not yet provider prompt context. `_build_ui_selected_prompt`
+removes `ability_context` before serializing its prompt payload, so no ability
+guard, readback instruction, or structured acknowledgement line is present.
+`unknown` is valid; `none`, candidate lists, possible species ability sources,
+event/suppression/replacement fields, resolved effects, exact outcomes, RNG,
+and final order remain rejected.
+
 ## v12.73 Known Current Ability Foundation
 
 `normalize_user_confirmed_current_ability(...)` is validation-only and does

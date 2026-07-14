@@ -28,8 +28,10 @@ from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
     BATTLE_STATE_CONTEXT_UNSUPPORTED_BOUNDARIES,
     build_battle_state_context_from_ui_selected_state,
+    build_current_ability_context_from_confirmations,
     build_current_condition_context_from_confirmations,
     build_item_event_context_from_confirmations,
+    normalize_user_confirmed_current_ability,
     normalize_user_confirmed_current_condition,
     validate_explicit_user_item_event_confirmation,
 )
@@ -129,12 +131,14 @@ def build_ui_advice_payload(
     battle_state_context: dict[str, Any] | None = None,
     item_event_context: dict[str, Any] | None = None,
     condition_context: dict[str, Any] | None = None,
+    ability_context: dict[str, Any] | None = None,
     *,
     enable_turn_order_context: bool = False,
     enable_opponent_move_context: bool = False,
     enable_battle_state_context: bool = False,
     enable_item_event_context: bool = False,
     enable_condition_context: bool = False,
+    enable_ability_context: bool = False,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
@@ -166,6 +170,11 @@ def build_ui_advice_payload(
         condition_context,
         enable_condition_context=enable_condition_context,
     )
+    _add_ability_context_to_advice_payload(
+        filtered_payload,
+        ability_context,
+        enable_ability_context=enable_ability_context,
+    )
     return filtered_payload
 
 
@@ -186,6 +195,7 @@ def _remove_ui_only_field_profiles(payload: dict[str, Any]) -> None:
     payload.pop("field_profiles", None)
     payload.pop("item_event_confirmations", None)
     payload.pop("current_condition_confirmations", None)
+    payload.pop("current_ability_confirmations", None)
 
 
 def run_ui_selected_advice(
@@ -290,6 +300,7 @@ def _build_ui_selected_prompt(
     battle_state_context: dict[str, Any] | None = None,
     item_event_context: dict[str, Any] | None = None,
     condition_context: dict[str, Any] | None = None,
+    ability_context: dict[str, Any] | None = None,
     *,
     enable_turn_pipeline: bool = False,
     enable_turn_order_context: bool = False,
@@ -341,6 +352,11 @@ def _build_ui_selected_prompt(
             battle_input.get("current_condition_confirmations")
         )
 
+    if ability_context is None and enable_battle_state_context:
+        ability_context = build_current_ability_context_from_confirmations(
+            battle_input.get("current_ability_confirmations")
+        )
+
     advice_payload = build_ui_advice_payload(
         battle_input,
         turn_snapshot=turn_snapshot,
@@ -350,12 +366,16 @@ def _build_ui_selected_prompt(
         battle_state_context=battle_state_context,
         item_event_context=item_event_context,
         condition_context=condition_context,
+        ability_context=ability_context,
         enable_turn_order_context=enable_turn_order_context,
         enable_opponent_move_context=enable_opponent_move_context,
         enable_battle_state_context=enable_battle_state_context,
         enable_item_event_context=enable_battle_state_context,
         enable_condition_context=enable_battle_state_context,
+        enable_ability_context=enable_battle_state_context,
     )
+    # Ability context is payload foundation only until its prompt contract exists.
+    advice_payload.pop("ability_context", None)
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
     turn_pipeline_guard = _build_turn_pipeline_prompt_guard(advice_payload)
@@ -999,6 +1019,39 @@ def _add_condition_context_to_advice_payload(
     normalized_conditions = [by_side[side] for side in ("self", "opponent") if side in by_side]
     if normalized_conditions:
         payload["condition_context"] = {"current_conditions": normalized_conditions}
+
+
+def _add_ability_context_to_advice_payload(
+    payload: dict[str, Any],
+    ability_context: dict[str, Any] | None,
+    *,
+    enable_ability_context: bool,
+) -> None:
+    """Add validated current ability identities without adding prompt behavior."""
+    if not enable_ability_context or ability_context is None:
+        return
+
+    context = deepcopy(ability_context)
+    if not isinstance(context, dict) or set(context) != {"current_abilities"}:
+        raise ValueError("ability_context must contain current_abilities only")
+    current_abilities = context.get("current_abilities")
+    if not isinstance(current_abilities, list):
+        raise ValueError("ability_context current_abilities must be a list")
+
+    by_side: dict[str, dict[str, Any]] = {}
+    for ability in current_abilities:
+        if not isinstance(ability, dict):
+            raise ValueError("ability_context current_abilities must contain mappings")
+        confidence = ability.get("confidence")
+        candidate = {key: value for key, value in ability.items() if key != "confidence"}
+        normalized = normalize_user_confirmed_current_ability(candidate)
+        if confidence != "known":
+            raise ValueError("ability_context current ability confidence must be known")
+        by_side[normalized["side"]] = {**normalized, "confidence": "known"}
+
+    normalized_abilities = [by_side[side] for side in ("self", "opponent") if side in by_side]
+    if normalized_abilities:
+        payload["ability_context"] = {"current_abilities": normalized_abilities}
 
 
 def _validate_battle_state_context_payload(context: dict[str, Any]) -> None:

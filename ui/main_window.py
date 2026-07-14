@@ -29,6 +29,7 @@ from llm.advisor_damage_estimate import (
     attach_selected_move_damage_estimate,
 )
 from llm.advisor_battle_state_context import (
+    normalize_user_confirmed_current_ability,
     normalize_user_confirmed_current_condition,
     validate_explicit_user_item_event_confirmation,
 )
@@ -47,6 +48,7 @@ from ui.widgets.item_profile_dialog import (
 from ui.widgets.field_profile_dialog import FieldProfileDialog
 from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
+from ui.widgets.current_ability_dialog import CurrentAbilityDialog
 from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
@@ -112,6 +114,20 @@ def _normalize_current_condition_session(conditions: object) -> dict[str, dict]:
     for side, condition in conditions.items():
         try:
             candidate = normalize_user_confirmed_current_condition(condition)
+        except ValueError:
+            continue
+        if candidate["side"] == side:
+            normalized[side] = candidate
+    return normalized
+
+
+def _normalize_current_ability_session(abilities: object) -> dict[str, dict]:
+    if not isinstance(abilities, dict):
+        return {}
+    normalized: dict[str, dict] = {}
+    for side, ability in abilities.items():
+        try:
+            candidate = normalize_user_confirmed_current_ability(ability)
         except ValueError:
             continue
         if candidate["side"] == side:
@@ -259,6 +275,7 @@ class MainWindow(QMainWindow):
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
+        self._current_ability_confirmations: dict[str, dict] = {}
 
         central_widget = QWidget()
         central_widget.setStyleSheet("background-color: #EEF2F6;")
@@ -306,8 +323,13 @@ class MainWindow(QMainWindow):
         self.center_column.llm_advice_panel.current_condition_session_reset_requested.connect(
             self._clear_current_condition_confirmations
         )
+        self.center_column.llm_advice_panel.current_ability_requested.connect(self._open_current_ability_dialog)
+        self.center_column.llm_advice_panel.current_ability_session_reset_requested.connect(
+            self._clear_current_ability_confirmations
+        )
         self._update_item_event_summary()
         self._update_current_condition_summary()
+        self._update_current_ability_summary()
         self.shortcuts = GlobalShortcuts(self, self)
         self.set_active_column(self._active_column_name)
 
@@ -438,6 +460,34 @@ class MainWindow(QMainWindow):
         self._current_condition_confirmations = {}
         self._update_current_condition_summary()
 
+    @Slot()
+    def _open_current_ability_dialog(self) -> None:
+        current_abilities = getattr(self, "_current_ability_confirmations", {})
+        dialog = CurrentAbilityDialog(current_abilities=current_abilities, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        ability = dialog.current_ability_confirmation
+        if ability is None:
+            return
+        try:
+            normalized = normalize_user_confirmed_current_ability(ability)
+        except ValueError as exc:
+            try:
+                self.statusBar().showMessage(f"Failed | {exc}")
+            except (AttributeError, RuntimeError):
+                pass
+            return
+        self._current_ability_confirmations = {
+            **_normalize_current_ability_session(current_abilities),
+            normalized["side"]: normalized,
+        }
+        self._update_current_ability_summary()
+
+    @Slot()
+    def _clear_current_ability_confirmations(self) -> None:
+        self._current_ability_confirmations = {}
+        self._update_current_ability_summary()
+
     def _update_item_event_summary(self) -> None:
         try:
             panel = self.center_column.llm_advice_panel
@@ -449,6 +499,13 @@ class MainWindow(QMainWindow):
         try:
             panel = self.center_column.llm_advice_panel
             panel.set_current_condition_count(len(self._current_condition_confirmations))
+        except (AttributeError, RuntimeError):
+            pass
+
+    def _update_current_ability_summary(self) -> None:
+        try:
+            panel = self.center_column.llm_advice_panel
+            panel.set_current_ability_count(len(self._current_ability_confirmations))
         except (AttributeError, RuntimeError):
             pass
 
@@ -466,6 +523,7 @@ class MainWindow(QMainWindow):
             battle_input = self._build_llm_battle_input(
                 include_item_event_confirmations=enable_battle_state_context,
                 include_current_condition_confirmations=enable_battle_state_context,
+                include_current_ability_confirmations=enable_battle_state_context,
             )
         except ValueError as exc:
             message = str(exc)
@@ -556,6 +614,7 @@ class MainWindow(QMainWindow):
         *,
         include_item_event_confirmations: bool = False,
         include_current_condition_confirmations: bool = False,
+        include_current_ability_confirmations: bool = False,
     ) -> dict:
         my_slot_index = self.selected_slots.get("team_my")
         opponent_slot_index = self.selected_slots.get("team_enemy")
@@ -635,6 +694,13 @@ class MainWindow(QMainWindow):
             ordered_conditions = [conditions[side] for side in ("self", "opponent") if side in conditions]
             if ordered_conditions:
                 battle_input["current_condition_confirmations"] = ordered_conditions
+        if include_current_ability_confirmations:
+            abilities = _normalize_current_ability_session(
+                getattr(self, "_current_ability_confirmations", {})
+            )
+            ordered_abilities = [abilities[side] for side in ("self", "opponent") if side in abilities]
+            if ordered_abilities:
+                battle_input["current_ability_confirmations"] = ordered_abilities
         return attach_opponent_known_move_damage_estimates(
             attach_selected_move_damage_estimate(battle_input)
         )

@@ -26,6 +26,8 @@ class LLMAdvicePanel(QFrame):
     item_event_session_reset_requested = Signal()
     current_condition_requested = Signal()
     current_condition_session_reset_requested = Signal()
+    current_ability_requested = Signal()
+    current_ability_session_reset_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -71,6 +73,18 @@ class LLMAdvicePanel(QFrame):
         self.clear_current_conditions_button.setToolTip("Clear user-confirmed current conditions for this battle session.")
         self.clear_current_conditions_button.clicked.connect(self.current_condition_session_reset_requested.emit)
 
+        self.current_ability_button = QPushButton("Ability")
+        self.current_ability_button.setObjectName("currentAbilityButton")
+        self.current_ability_button.setToolTip(
+            "Open user-confirmed current ability input. This does not resolve activation, effects, damage, RNG, or order."
+        )
+        self.current_ability_button.clicked.connect(self.current_ability_requested.emit)
+
+        self.clear_current_abilities_button = QPushButton("Clear current abilities")
+        self.clear_current_abilities_button.setObjectName("clearCurrentAbilitiesButton")
+        self.clear_current_abilities_button.setToolTip("Clear user-confirmed current abilities for this battle session.")
+        self.clear_current_abilities_button.clicked.connect(self.current_ability_session_reset_requested.emit)
+
         self.turn_pipeline_checkbox = QCheckBox("제한 컨텍스트 포함")
         self.turn_pipeline_checkbox.setObjectName("turnPipelineDevFlag")
         self.turn_pipeline_checkbox.setToolTip(TURN_PIPELINE_HELP_TEXT)
@@ -96,6 +110,8 @@ class LLMAdvicePanel(QFrame):
         layout.addWidget(self.clear_item_events_button)
         layout.addWidget(self.current_condition_button)
         layout.addWidget(self.clear_current_conditions_button)
+        layout.addWidget(self.current_ability_button)
+        layout.addWidget(self.clear_current_abilities_button)
         layout.addWidget(self.turn_pipeline_checkbox)
         layout.addWidget(self.turn_pipeline_status_label)
         layout.addWidget(self.output_edit, 1)
@@ -118,6 +134,11 @@ class LLMAdvicePanel(QFrame):
         label = "Condition" if normalized_count == 0 else f"Condition ({normalized_count})"
         self.current_condition_button.setText(label)
 
+    def set_current_ability_count(self, count: int) -> None:
+        normalized_count = max(0, int(count))
+        label = "Ability" if normalized_count == 0 else f"Ability ({normalized_count})"
+        self.current_ability_button.setText(label)
+
     def set_running(self, is_running: bool) -> None:
         self.request_button.setDisabled(is_running)
         self.field_profile_button.setDisabled(is_running)
@@ -125,6 +146,8 @@ class LLMAdvicePanel(QFrame):
         self.clear_item_events_button.setDisabled(is_running)
         self.current_condition_button.setDisabled(is_running)
         self.clear_current_conditions_button.setDisabled(is_running)
+        self.current_ability_button.setDisabled(is_running)
+        self.clear_current_abilities_button.setDisabled(is_running)
         self.turn_pipeline_checkbox.setDisabled(is_running)
         if is_running:
             self.output_edit.setPlainText("분석 중...")

@@ -451,6 +451,23 @@ def build_current_condition_context_from_confirmations(
     return {"current_conditions": current_conditions} if current_conditions else None
 
 
+def build_current_ability_context_from_confirmations(
+    confirmations: Sequence[Mapping[str, Any]] | None,
+) -> dict[str, Any] | None:
+    """Normalize user-confirmed current abilities for a future payload context."""
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, str | bytes):
+        return None
+    by_side: dict[str, dict[str, Any]] = {}
+    for candidate in confirmations:
+        try:
+            normalized = normalize_user_confirmed_current_ability(candidate)
+        except ValueError:
+            continue
+        by_side[normalized["side"]] = normalized
+    current_abilities = [by_side[side] for side in ("self", "opponent") if side in by_side]
+    return {"current_abilities": current_abilities} if current_abilities else None
+
+
 def build_item_event_context_from_confirmations(
     confirmations: Sequence[Mapping[str, Any]] | None,
 ) -> dict[str, Any] | None:
