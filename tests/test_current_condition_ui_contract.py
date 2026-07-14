@@ -123,7 +123,7 @@ def test_none_and_unknown_remain_distinct_current_condition_values() -> None:
     assert none_context != unknown_context
 
 
-def test_limited_context_gate_controls_battle_input_but_not_session_state_or_prompt() -> None:
+def test_limited_context_gate_controls_battle_input_and_prompt_but_not_session_state() -> None:
     window = _payload_window()
     conditions = {
         "self": _condition(condition_type="burn"),
@@ -141,7 +141,10 @@ def test_limited_context_gate_controls_battle_input_but_not_session_state_or_pro
     assert on_input["current_condition_confirmations"] == [conditions["self"], conditions["opponent"]]
     assert "current_condition_confirmations" not in _prompt_payload(off_prompt)
     assert "current_condition_confirmations" not in _prompt_payload(on_prompt)
-    assert "condition_context" not in _prompt_payload(on_prompt)
+    assert _prompt_payload(on_prompt)["condition_context"] == {
+        "current_conditions": [conditions["self"], conditions["opponent"]]
+    }
+    assert "If condition_context is present" in on_prompt
 
 
 def test_clear_action_resets_state_count_and_payload_candidate_without_advice_request() -> None:

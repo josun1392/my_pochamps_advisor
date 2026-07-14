@@ -26,7 +26,9 @@ from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_UNKNOWN_FIELD,
     BATTLE_STATE_CONTEXT_UNSUPPORTED_BOUNDARIES,
     build_battle_state_context_from_ui_selected_state,
+    build_current_condition_context_from_confirmations,
     build_item_event_context_from_confirmations,
+    normalize_user_confirmed_current_condition,
     validate_explicit_user_item_event_confirmation,
 )
 from llm.advisor_opponent_move_context import (
@@ -113,11 +115,13 @@ def build_ui_advice_payload(
     opponent_move_context: dict[str, Any] | None = None,
     battle_state_context: dict[str, Any] | None = None,
     item_event_context: dict[str, Any] | None = None,
+    condition_context: dict[str, Any] | None = None,
     *,
     enable_turn_order_context: bool = False,
     enable_opponent_move_context: bool = False,
     enable_battle_state_context: bool = False,
     enable_item_event_context: bool = False,
+    enable_condition_context: bool = False,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
@@ -143,6 +147,11 @@ def build_ui_advice_payload(
         filtered_payload,
         item_event_context,
         enable_item_event_context=enable_item_event_context,
+    )
+    _add_condition_context_to_advice_payload(
+        filtered_payload,
+        condition_context,
+        enable_condition_context=enable_condition_context,
     )
     return filtered_payload
 
@@ -207,6 +216,7 @@ def _build_ui_selected_prompt(
     opponent_move_context: dict[str, Any] | None = None,
     battle_state_context: dict[str, Any] | None = None,
     item_event_context: dict[str, Any] | None = None,
+    condition_context: dict[str, Any] | None = None,
     *,
     enable_turn_pipeline: bool = False,
     enable_turn_order_context: bool = False,
@@ -253,6 +263,11 @@ def _build_ui_selected_prompt(
             battle_input.get("item_event_confirmations")
         )
 
+    if condition_context is None and enable_battle_state_context:
+        condition_context = build_current_condition_context_from_confirmations(
+            battle_input.get("current_condition_confirmations")
+        )
+
     advice_payload = build_ui_advice_payload(
         battle_input,
         turn_snapshot=turn_snapshot,
@@ -261,10 +276,12 @@ def _build_ui_selected_prompt(
         opponent_move_context=opponent_move_context,
         battle_state_context=battle_state_context,
         item_event_context=item_event_context,
+        condition_context=condition_context,
         enable_turn_order_context=enable_turn_order_context,
         enable_opponent_move_context=enable_opponent_move_context,
         enable_battle_state_context=enable_battle_state_context,
         enable_item_event_context=enable_battle_state_context,
+        enable_condition_context=enable_battle_state_context,
     )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
@@ -273,6 +290,7 @@ def _build_ui_selected_prompt(
     opponent_move_context_guard = _build_opponent_move_context_prompt_guard(advice_payload)
     battle_state_context_guard = _build_battle_state_context_prompt_guard(advice_payload)
     item_event_context_guard = _build_item_event_context_prompt_guard(advice_payload)
+    condition_context_guard = _build_condition_context_prompt_guard(advice_payload)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
@@ -284,6 +302,7 @@ def _build_ui_selected_prompt(
         f"{opponent_move_context_guard}"
         f"{battle_state_context_guard}"
         f"{item_event_context_guard}"
+        f"{condition_context_guard}"
         "If a damage_estimate is present, use it only under its stated "
         "assumption_profile and never describe it as final battle damage. Do "
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "
@@ -872,6 +891,39 @@ def _add_item_event_context_to_advice_payload(
         payload["item_event_context"] = {"observed_events": normalized_events}
 
 
+def _add_condition_context_to_advice_payload(
+    payload: dict[str, Any],
+    condition_context: dict[str, Any] | None,
+    *,
+    enable_condition_context: bool,
+) -> None:
+    """Add only validated user-confirmed current conditions to advice payload."""
+    if not enable_condition_context or condition_context is None:
+        return
+
+    context = deepcopy(condition_context)
+    if not isinstance(context, dict) or set(context) != {"current_conditions"}:
+        raise ValueError("condition_context must contain current_conditions only")
+    current_conditions = context.get("current_conditions")
+    if not isinstance(current_conditions, list):
+        raise ValueError("condition_context current_conditions must be a list")
+
+    by_side: dict[str, dict[str, Any]] = {}
+    for condition in current_conditions:
+        if not isinstance(condition, dict):
+            raise ValueError("condition_context current_conditions must contain mappings")
+        confidence = condition.get("confidence")
+        candidate = {key: value for key, value in condition.items() if key != "confidence"}
+        normalized = normalize_user_confirmed_current_condition(candidate)
+        if confidence != "known":
+            raise ValueError("condition_context current condition confidence must be known")
+        by_side[normalized["side"]] = {**normalized, "confidence": "known"}
+
+    normalized_conditions = [by_side[side] for side in ("self", "opponent") if side in by_side]
+    if normalized_conditions:
+        payload["condition_context"] = {"current_conditions": normalized_conditions}
+
+
 def _validate_battle_state_context_payload(context: dict[str, Any]) -> None:
     if not isinstance(context, dict):
         raise ValueError("battle_state_context must be a mapping")
@@ -1347,6 +1399,21 @@ def _build_item_event_context_prompt_guard(payload: dict[str, Any]) -> str:
         "result, or resolved turn order. Do not infer exact HP, exact damage, "
         "item consumption, item effect application, Quick Claw RNG outcome, "
         "Focus Sash HP result, or Berry recovery amount from it. "
+    )
+
+
+def _build_condition_context_prompt_guard(payload: dict[str, Any]) -> str:
+    if "condition_context" not in payload:
+        return ""
+    return (
+        "If condition_context is present, treat each current condition only as "
+        "user-confirmed present-state context. Briefly distinguish self and "
+        "opponent condition types, including none (user-confirmed no current "
+        "major status) versus unknown (current major status is not known). Do "
+        "not infer when a condition was applied, whether it triggered or ticked "
+        "this turn, exact status damage, sleep duration, wake-up turn, freeze "
+        "thaw, full paralysis, post-turn HP or condition state, RNG outcome, "
+        "or final order from it. "
     )
 
 

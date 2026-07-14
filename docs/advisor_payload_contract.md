@@ -2412,3 +2412,20 @@ Unavailable statuses include:
 Future versions may add candidate move threat scoring or opponent-to-my-active KO probability, but those require separate guardrails because candidate moves are not confirmed.
 
 Turn Engine state should later enter a separate top-level `battle_state` section instead of being mixed into Pokemon identity metadata.
+
+## v12.59 Current Condition Context
+
+With limited context enabled, the advisor payload may include
+`condition_context.current_conditions`. Each entry is a separately validated
+user-confirmed present-state value with `side`, `condition_type`,
+`status=user_confirmed`, `source=user_confirmed_current_condition`, and
+`confidence=known`. Valid values are limited to `burn`, `poison`, `toxic`,
+`paralysis`, `sleep`, `freeze`, `none`, and `unknown`; there is at most one
+entry per side.
+
+`none` means the user confirmed no current major status. `unknown` means the
+current major status is not known; it is not a request to infer one. This
+context does not establish application/trigger timing, resolved effects, exact
+status damage, duration, post-turn HP/state, thaw/full-paralysis, RNG, or final
+order. Limited context off omits both the raw confirmation candidate and this
+payload context.

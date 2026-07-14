@@ -1,5 +1,21 @@
 # Master Ball Advisor — Progress
 
+## v12.59 - Current Condition Payload and Prompt Integration
+
+Implemented limited-context mapping for validated session current conditions.
+Checkbox off preserves session state while omitting raw confirmations,
+`condition_context`, and its prompt guard. Checkbox on serializes only valid
+`user_confirmed_current_condition` values as
+`condition_context.current_conditions`; invalid values are omitted and an
+all-invalid list produces no context. The prompt guard marks conditions as
+user-confirmed present-state context, distinguishes self/opponent and
+`none`/`unknown`, and prohibits application, trigger, exact damage/duration,
+post-turn, RNG, and order inferences. Offline production-path fixtures cover
+condition and item-event coexistence with mocked `call_gemini`; no actual
+provider call was made.
+
+---
+
 ## v12.58 - Current Condition UI and Payload Foundation
 
 Purpose:
