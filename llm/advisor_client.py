@@ -363,6 +363,7 @@ def _build_ui_selected_prompt(
     battle_state_context_guard = _build_battle_state_context_prompt_guard(advice_payload)
     item_event_context_guard = _build_item_event_context_prompt_guard(advice_payload)
     condition_context_guard = _build_condition_context_prompt_guard(advice_payload)
+    context_attribution_guard = _build_condition_item_event_attribution_prompt_guard(advice_payload)
     return (
         "You are Master Ball Advisor. Recommend the best one-turn action using "
         "only the selected Pokemon identity and UI state below. Be concise, "
@@ -375,6 +376,7 @@ def _build_ui_selected_prompt(
         f"{battle_state_context_guard}"
         f"{item_event_context_guard}"
         f"{condition_context_guard}"
+        f"{context_attribution_guard}"
         "If a damage_estimate is present, use it only under its stated "
         "assumption_profile and never describe it as final battle damage. Do "
         "not claim OHKO, 2HKO, KO chance, survival, or speed order unless those "
@@ -1488,6 +1490,49 @@ def _build_condition_context_prompt_guard(payload: dict[str, Any]) -> str:
         "this turn, exact status damage, sleep duration, wake-up turn, freeze "
         "thaw, full paralysis, post-turn HP or condition state, RNG outcome, "
         "or final order from it. "
+    )
+
+
+def _build_condition_item_event_attribution_prompt_guard(payload: dict[str, Any]) -> str:
+    """Require compact category readback only for supplied condition/event context."""
+    attribution_lines: list[str] = []
+    condition_context = payload.get("condition_context")
+    if isinstance(condition_context, dict):
+        conditions = condition_context.get("current_conditions")
+        if isinstance(conditions, list):
+            for condition in conditions:
+                if isinstance(condition, dict):
+                    side = condition.get("side")
+                    condition_type = condition.get("condition_type")
+                    if isinstance(side, str) and isinstance(condition_type, str):
+                        attribution_lines.append(
+                            f"Current condition - {side}: {condition_type} (user-confirmed current state)."
+                        )
+
+    item_event_context = payload.get("item_event_context")
+    if isinstance(item_event_context, dict):
+        events = item_event_context.get("observed_events")
+        if isinstance(events, list):
+            for event in events:
+                if isinstance(event, dict):
+                    side = event.get("side")
+                    item = event.get("item")
+                    event_type = event.get("event_type")
+                    if isinstance(side, str) and isinstance(item, str) and isinstance(event_type, str):
+                        attribution_lines.append(
+                            "Observed item event - "
+                            f"{side}: {item} / {event_type} (explicitly user-confirmed observation)."
+                        )
+
+    if not attribution_lines:
+        return ""
+    return (
+        "Trusted context attribution: "
+        + " ".join(attribution_lines)
+        + " Briefly acknowledge each listed category and identity while giving advice. "
+        "Do not merge current conditions with observed item events, and do not "
+        "promote either into a resolved effect, exact HP, damage, timing, RNG, "
+        "or final-order claim. "
     )
 
 

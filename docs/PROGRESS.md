@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.67 - Condition and Item-Event Attribution Prompt Hardening
+
+Result:
+- v12.66's three sanitized attribution failures confirm a response-readback contract failure, not a capture loss; raw response wording remains unavailable and was not recovered.
+- Added a payload-driven `Trusted context attribution` prompt block that distinguishes current conditions from observed item events by category, side, identity, and user-confirmed meaning.
+- The block is conditional for both-context, condition-only, item-event-only, and absent/disabled/invalid paths; it preserves `none`/`unknown` and exact/resolved/timing/RNG/order boundaries.
+- Expanded synthetic attribution contracts for category omission, source collapse, category promotion, omission, side mixing, unknown inference, and resolved/timing promotion. Offline readiness: `READY FOR ATTRIBUTION RE-SMOKE`.
+
+---
+
 ## v12.66 - CLI-Captured Current Condition Gemini Stability Smoke
 
 Result:

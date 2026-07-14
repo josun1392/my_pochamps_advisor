@@ -2435,3 +2435,15 @@ prompt guard requires a side/type readback as user-confirmed present-state
 context and retains the `none`/`unknown` distinction plus non-inference
 boundaries. Disabled, absent, empty, invalid, and item-event-only paths omit
 condition-specific wording. Offline readiness is not actual-provider approval.
+
+## v12.67 Condition and Item-Event Attribution
+
+When validated `condition_context.current_conditions` or
+`item_event_context.observed_events` is present, prompt generation may add a
+payload-driven `Trusted context attribution` readback instruction. Each current
+condition remains a user-confirmed current state, while each item event remains
+an explicitly user-confirmed observation. When both exist, the instruction
+requires that the two categories and their side/identity values remain
+separate. It does not alter either payload schema, authorize condition-event or
+item-effect inference, or establish resolved effects, exact HP/damage, timing,
+post-turn state, RNG, or final order.

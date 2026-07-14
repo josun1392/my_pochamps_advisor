@@ -189,6 +189,15 @@ def test_valid_conditions_coexist_with_item_events_and_offline_production_path(
     assert "If condition_context is present" in prompt
     assert "If item_event_context is present" in prompt
     assert "Do not infer when a condition was applied" in prompt
+    assert "Trusted context attribution:" in prompt
+    assert "Current condition - self: burn (user-confirmed current state)." in prompt
+    assert "Current condition - opponent: unknown (user-confirmed current state)." in prompt
+    assert (
+        "Observed item event - opponent: focus-sash / item_activation_observed "
+        "(explicitly user-confirmed observation)."
+    ) in prompt
+    assert "Briefly acknowledge each listed category and identity" in prompt
+    assert "Do not merge current conditions with observed item events" in prompt
     _assert_forbidden_fields_absent(payload)
 
 
@@ -205,3 +214,30 @@ def test_item_event_only_does_not_add_condition_specific_guard() -> None:
     assert "If item_event_context is present" in prompt
     assert "If condition_context is present" not in prompt
     assert "Briefly acknowledge each current condition by side and condition type" not in prompt
+    assert "Trusted context attribution:" in prompt
+    assert "Observed item event - opponent: focus-sash / item_activation_observed" in prompt
+    assert "Current condition -" not in prompt
+
+
+def test_condition_only_attribution_has_no_observed_item_event_wording() -> None:
+    prompt = advisor_client._build_ui_selected_prompt(
+        _battle_input(conditions=[_condition(condition_type="none")]),
+        enable_battle_state_context=True,
+    )
+
+    assert "Trusted context attribution:" in prompt
+    assert "Current condition - self: none (user-confirmed current state)." in prompt
+    assert "Observed item event -" not in prompt
+
+
+def test_disabled_or_invalid_context_omits_attribution_block() -> None:
+    disabled = _battle_input(conditions=[_condition()])
+    disabled["item_event_confirmations"] = [_event()]
+    disabled_prompt = advisor_client._build_ui_selected_prompt(disabled, enable_battle_state_context=False)
+    invalid_prompt = advisor_client._build_ui_selected_prompt(
+        _battle_input(conditions=[_condition(condition_type="confusion")]),
+        enable_battle_state_context=True,
+    )
+
+    assert "Trusted context attribution:" not in disabled_prompt
+    assert "Trusted context attribution:" not in invalid_prompt
