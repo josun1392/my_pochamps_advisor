@@ -1,5 +1,22 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v12.75 Known Ability End-to-End Integration
+
+- `ability_context.current_abilities` is now live only behind the existing
+  limited-context gate. It carries user-confirmed current identities, not
+  species possibilities or observed/resolved ability mechanics.
+- Structured advice must acknowledge each entry as `Current ability | side |
+  ability`; the deterministic parser exact-compares normalized payload entries
+  across condition, ability, and observed item-event categories.
+- The CLI semantic evaluator now applies the same ability acknowledgement
+  validation and rejects unknown-ability inference plus activation,
+  suppression/replacement/copy/restoration, resolved, exact, RNG, and order
+  claims. Schema and exit codes remain unchanged.
+- Offline matrix and normal UI-response contracts are green. Status:
+  `COMPLETE - READY FOR ABILITY ACTUAL SMOKE`. This status is not approval for
+  a provider call; require explicit new approval and retain the single-attempt
+  CLI discipline.
+
 ## v12.74 Known Ability UI/Payload Foundation
 
 - The UI now stores one user-confirmed current ability per self/opponent side,

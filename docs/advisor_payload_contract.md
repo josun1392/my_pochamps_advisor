@@ -1,5 +1,29 @@
 # Advisor Payload Contract
 
+## v12.75 Known Ability Trusted Context
+
+With the limited-context gate enabled, validated
+`current_ability_confirmations` map to
+`ability_context.current_abilities`. Every entry is a side-keyed
+`user_confirmed_current_ability` identity with `status=user_confirmed` and
+`confidence=known`; at most one exists per side. `unknown` means the current
+ability is not known. `none`, candidate lists, species/cache metadata, and
+future event/resolution fields are rejected.
+
+When ability context exists, the prompt requires a compact structured line:
+
+```text
+Current ability | <side> | <ability>
+```
+
+This line is exact-set validated together with current conditions and observed
+item events from the normalized payload. It establishes only a current ability
+identity. It does not establish activation, triggering, suppression,
+replacement, copying, restoration, immunity/prevention resolution, boosted
+stats, exact modifiers/damage/HP, RNG, final order, or post-turn state. With
+the gate off, ability state remains in session but is omitted from payload,
+prompt, acknowledgement expectations, and CLI evaluation.
+
 ## v12.74 Current Ability Payload Foundation
 
 When the limited-context gate is enabled, validated user-confirmed current

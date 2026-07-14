@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 import sys
 from typing import Any, Callable
@@ -117,6 +118,11 @@ def evaluate_current_condition_item_event_response(
     text = response.lower()
     acknowledgement_failure = advisor_client.validate_trusted_context_acknowledgement(response, expected_entries)
     if acknowledgement_failure is not None:
+        if (
+            any(entry[0] == "current_ability" for entry in expected_entries)
+            and acknowledgement_failure != "trusted-context advice body missing"
+        ):
+            return "fail", "trusted-context ability entry missing or mismatch"
         return "fail", acknowledgement_failure
     forbidden = (
         "burn was applied this turn",
@@ -134,18 +140,41 @@ def evaluate_current_condition_item_event_response(
         "exactly 1 hp",
         "was removed",
         "was recovered",
+        "ability activated this turn",
+        "ability triggered this turn",
+        "ability was suppressed",
+        "ability was replaced",
+        "ability was copied",
+        "ability was restored",
+        "resolved ability effect",
+        "exact stat change",
+        "exact damage modifier",
+        "immunity was resolved",
+        "prevention was resolved",
+        "boosted stat is",
     )
     opponent_unknown_inference = any(
         f"opponent {condition}" in text
         for condition in ("paralysis", "paralyzed", "poison", "poisoned", "toxic", "sleep", "asleep", "freeze", "frozen")
     )
-    if not opponent_unknown_inference and not any(claim in text for claim in forbidden):
+    unknown_ability_inference = any(
+        entry[0] == "current_ability"
+        and entry[2] == "unknown"
+        and re.search(
+            rf"\b{re.escape(entry[1])}(?:'s)?\s+(?:current\s+)?ability\s+(?:is|=)\s+(?!unknown\b)[a-z][a-z -]*\b",
+            text,
+        )
+        for entry in expected_entries
+    )
+    if not opponent_unknown_inference and not unknown_ability_inference and not any(claim in text for claim in forbidden):
         return (
             "pass",
             "trusted-context acknowledgement matched; no forbidden condition or item-event outcome claim was found.",
         )
     if opponent_unknown_inference:
         return "fail", "unknown-condition inference"
+    if unknown_ability_inference:
+        return "fail", "unknown-ability inference"
     return "fail", "forbidden resolved, exact, timing, RNG, or order claim"
 
 

@@ -1,5 +1,16 @@
 # Master Ball Advisor — Progress
 
+## v12.75 - Known Ability End-to-End Integration
+
+Result:
+- Connected validated side-keyed current abilities through the limited-context production payload, compact prompt boundary, and structured `[Trusted Context]` acknowledgement.
+- Extended deterministic parsing and exact-set validation with `Current ability | side | ability`; expected values are generated from normalized payload only.
+- Extended the sanitized CLI evaluator to reject ability attribution mismatches, unknown-ability inference, activation/suppression/replacement claims, and unsupported resolved/exact outcomes without changing its JSON schema or exit codes.
+- Added an offline ability matrix covering ability-only, `unknown`, both sides, combined condition/item-event contexts, gate-off, invalid `none`, candidate lists, and absent paths; mocked normal UI advice preserves the full structured response.
+- Actual provider calls: none. Status: `COMPLETE - READY FOR ABILITY ACTUAL SMOKE`.
+
+---
+
 ## v12.74 - Known Ability UI and Payload Foundation
 
 Result:

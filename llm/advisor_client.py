@@ -374,8 +374,6 @@ def _build_ui_selected_prompt(
         enable_condition_context=enable_battle_state_context,
         enable_ability_context=enable_battle_state_context,
     )
-    # Ability context is payload foundation only until its prompt contract exists.
-    advice_payload.pop("ability_context", None)
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
     turn_pipeline_guard = _build_turn_pipeline_prompt_guard(advice_payload)
@@ -384,6 +382,7 @@ def _build_ui_selected_prompt(
     battle_state_context_guard = _build_battle_state_context_prompt_guard(advice_payload)
     item_event_context_guard = _build_item_event_context_prompt_guard(advice_payload)
     condition_context_guard = _build_condition_context_prompt_guard(advice_payload)
+    ability_context_guard = _build_ability_context_prompt_guard(advice_payload)
     context_attribution_guard = _build_condition_item_event_attribution_prompt_guard(advice_payload)
     structured_acknowledgement_guard = _build_structured_trusted_context_acknowledgement_prompt_guard(advice_payload)
     return (
@@ -398,6 +397,7 @@ def _build_ui_selected_prompt(
         f"{battle_state_context_guard}"
         f"{item_event_context_guard}"
         f"{condition_context_guard}"
+        f"{ability_context_guard}"
         f"{context_attribution_guard}"
         f"{structured_acknowledgement_guard}"
         "If a damage_estimate is present, use it only under its stated "
@@ -1549,8 +1549,23 @@ def _build_condition_context_prompt_guard(payload: dict[str, Any]) -> str:
     )
 
 
+def _build_ability_context_prompt_guard(payload: dict[str, Any]) -> str:
+    """Describe known abilities without promoting them into battle outcomes."""
+    if "ability_context" not in payload:
+        return ""
+    return (
+        "If ability_context is present, treat each ability only as a "
+        "user-confirmed current ability identity. Briefly acknowledge each "
+        "ability by side and identity, keeping self and opponent separate; "
+        "unknown means the current ability is not known. Do not infer possible "
+        "species abilities, activation, trigger, suppression, replacement, "
+        "copying, restoration, resolved immunity or prevention, exact stat or "
+        "damage modifiers, HP, boosted stat, RNG, or final order from it. "
+    )
+
+
 def _build_condition_item_event_attribution_prompt_guard(payload: dict[str, Any]) -> str:
-    """Require compact category readback only for supplied condition/event context."""
+    """Require compact category readback only for supplied trusted context."""
     attribution_lines: list[str] = []
     condition_context = payload.get("condition_context")
     if isinstance(condition_context, dict):
@@ -1563,6 +1578,19 @@ def _build_condition_item_event_attribution_prompt_guard(payload: dict[str, Any]
                     if isinstance(side, str) and isinstance(condition_type, str):
                         attribution_lines.append(
                             f"Current condition - {side}: {condition_type} (user-confirmed current state)."
+                        )
+
+    ability_context = payload.get("ability_context")
+    if isinstance(ability_context, dict):
+        abilities = ability_context.get("current_abilities")
+        if isinstance(abilities, list):
+            for ability in abilities:
+                if isinstance(ability, dict):
+                    side = ability.get("side")
+                    ability_name = ability.get("ability")
+                    if isinstance(side, str) and isinstance(ability_name, str):
+                        attribution_lines.append(
+                            f"Current ability - {side}: {ability_name} (user-confirmed current identity)."
                         )
 
     item_event_context = payload.get("item_event_context")
@@ -1586,9 +1614,10 @@ def _build_condition_item_event_attribution_prompt_guard(payload: dict[str, Any]
         "Trusted context attribution: "
         + " ".join(attribution_lines)
         + " Briefly acknowledge each listed category and identity while giving advice. "
-        "Do not merge current conditions with observed item events, and do not "
-        "promote either into a resolved effect, exact HP, damage, timing, RNG, "
-        "or final-order claim. "
+        "Do not merge current conditions with observed item events. Keep current "
+        "abilities separate from both categories, and do not promote any of "
+        "them into a resolved effect, exact HP, damage, timing, RNG, or "
+        "final-order claim. "
     )
 
 
@@ -1602,6 +1631,13 @@ def build_trusted_context_acknowledgement_entries(payload: dict[str, Any]) -> tu
                 side, condition_type = condition.get("side"), condition.get("condition_type")
                 if isinstance(side, str) and isinstance(condition_type, str):
                     entries.append(("current_condition", side.lower(), condition_type.lower(), None))
+    ability_context = payload.get("ability_context")
+    if isinstance(ability_context, dict) and isinstance(ability_context.get("current_abilities"), list):
+        for ability in ability_context["current_abilities"]:
+            if isinstance(ability, dict):
+                side, ability_name = ability.get("side"), ability.get("ability")
+                if isinstance(side, str) and isinstance(ability_name, str):
+                    entries.append(("current_ability", side.lower(), _normalize_trusted_context_identity(ability_name), None))
     item_event_context = payload.get("item_event_context")
     if isinstance(item_event_context, dict) and isinstance(item_event_context.get("observed_events"), list):
         for event in item_event_context["observed_events"]:
@@ -1620,6 +1656,8 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
     for category, side, identity, event_type in entries:
         if category == "current_condition":
             lines.append(f"- Current condition | {side} | {identity}")
+        elif category == "current_ability":
+            lines.append(f"- Current ability | {side} | {identity}")
         else:
             lines.append(f"- Observed item event | {side} | {identity} | {event_type}")
     lines.append("[Advice]")
@@ -1658,6 +1696,8 @@ def parse_trusted_context_acknowledgement(response: str) -> tuple[tuple[tuple[st
         category = parts[0].lower()
         if category == "current condition" and len(parts) == 3:
             entry = ("current_condition", parts[1].lower(), parts[2].lower(), None)
+        elif category == "current ability" and len(parts) == 3:
+            entry = ("current_ability", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), None)
         elif category == "observed item event" and len(parts) == 4:
             entry = ("observed_item_event", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), parts[3].lower())
         else:

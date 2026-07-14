@@ -62,6 +62,29 @@ def test_none_condition_remains_exact_identity() -> None:
     assert advisor_client.validate_trusted_context_acknowledgement(bad, expected) == "trusted-context entry mismatch"
 
 
+def test_current_ability_is_a_distinct_exact_identity_category() -> None:
+    expected = (
+        ("current_ability", "self", "mold-breaker", None),
+        ("current_ability", "opponent", "unknown", None),
+    )
+    canonical = _response(
+        "- Current ability | self | mold-breaker\n"
+        "- Current ability | opponent | unknown"
+    )
+    variation = _response(
+        "- current Ability | self | Mold Breaker\n"
+        "- Current Ability | opponent | unknown"
+    )
+    category_swap = _response(
+        "- Current condition | self | mold-breaker\n"
+        "- Current ability | opponent | unknown"
+    )
+
+    assert advisor_client.validate_trusted_context_acknowledgement(canonical, expected) is None
+    assert advisor_client.validate_trusted_context_acknowledgement(variation, expected) is None
+    assert advisor_client.validate_trusted_context_acknowledgement(category_swap, expected) == "trusted-context entry mismatch"
+
+
 def test_empty_expected_context_rejects_a_structured_extra_entry() -> None:
     response = _response(
         "- Current condition | self | burn",

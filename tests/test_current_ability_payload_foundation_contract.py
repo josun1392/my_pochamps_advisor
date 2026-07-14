@@ -102,7 +102,7 @@ def test_invalid_and_forbidden_abilities_are_omitted_from_foundation(field_name:
     assert context == {"current_abilities": [{**_ability(), "confidence": "known"}]}
 
 
-def test_prompt_isolation_strips_raw_and_normalized_ability_context_without_changing_acknowledgement() -> None:
+def test_prompt_uses_normalized_ability_context_without_exposing_raw_confirmation() -> None:
     battle_input = deepcopy(_opponent_move_ui_advice_flow_payload())
     battle_input["current_ability_confirmations"] = [_ability(), _ability(side="opponent", ability="unknown")]
     battle_input["current_condition_confirmations"] = [
@@ -117,8 +117,14 @@ def test_prompt_isolation_strips_raw_and_normalized_ability_context_without_chan
     payload = _payload(prompt)
 
     assert "current_ability_confirmations" not in payload
-    assert "ability_context" not in payload
-    assert "ability_context" not in prompt
-    assert "Current ability |" not in prompt
+    assert payload["ability_context"] == {
+        "current_abilities": [
+            {**_ability(), "confidence": "known"},
+            {**_ability(side="opponent", ability="unknown"), "confidence": "known"},
+        ]
+    }
+    assert "If ability_context is present" in prompt
+    assert "- Current ability | self | intimidate" in prompt
+    assert "- Current ability | opponent | unknown" in prompt
     assert "condition_context" in payload
     assert "- Current condition | self | burn" in prompt
