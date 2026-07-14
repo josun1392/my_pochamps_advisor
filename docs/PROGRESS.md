@@ -1,5 +1,21 @@
 # Master Ball Advisor — Progress
 
+## v12.63 - Actual Smoke Response Capture Hardening
+
+Purpose:
+- Preserve actual smoke response text in memory through semantic evaluation without raw response persistence.
+
+Implementation summary:
+- Confirmed advisor return and worker signal paths retain response text; v12.62 loss was in the one-shot smoke runner's usable capture output, not a proven provider-empty-response case.
+- Added `run_ui_selected_advice_with_sanitized_smoke_capture(...)`, which uses the existing production entry point, returns provider/semantic status plus a short sanitized summary, and rejects full raw-response summaries.
+- Added fake-provider sentinel contracts for return preservation, evaluator delivery, non-persistence, evaluator-unavailable versus provider-failure classification, worker signal preservation, and offline execution-channel output.
+- Offline readiness: `READY FOR CAPTURED ACTUAL STABILITY SMOKE`. This is not actual-call approval.
+
+Safety statement:
+- No actual Gemini/provider/network call, raw response recovery, token-log reading, payload/prompt contract change, retry/fallback, or dependency change.
+
+---
+
 ## v12.62 - Current Condition Gemini Stability Smoke Retry
 
 Result:

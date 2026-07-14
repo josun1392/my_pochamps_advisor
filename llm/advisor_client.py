@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Callable
 
 from core.turn_event import TurnPipelineResult, normalize_turn_pipeline_result
 from core.turn_state import TurnSnapshot, normalize_turn_snapshot
@@ -66,6 +67,15 @@ from scripts.spike_advisor import (
     call_gemini,
     collect_battle_data,
 )
+
+
+@dataclass(frozen=True)
+class SanitizedSmokeResponseCapture:
+    """Non-persistent smoke result after in-memory response evaluation."""
+
+    provider_status: str
+    semantic_status: str
+    sanitized_summary: str
 
 
 def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dict[str, Any]]:
@@ -206,6 +216,54 @@ def run_ui_selected_advice(
         game_id="ui_selected_pokemon_v0_6",
     )
     return recommendation, usage, summary
+
+
+def run_ui_selected_advice_with_sanitized_smoke_capture(
+    battle_input: dict[str, Any],
+    response_evaluator: Callable[[str], tuple[str, str]],
+    model: str | None = None,
+    *,
+    enable_turn_pipeline: bool = False,
+    enable_turn_order_context: bool = False,
+    enable_opponent_move_context: bool = False,
+    enable_battle_state_context: bool = False,
+) -> tuple[SanitizedSmokeResponseCapture, dict[str, int], dict[str, Any]]:
+    """Evaluate an advice response in memory without persisting its raw text.
+
+    Provider exceptions intentionally propagate so smoke callers can classify
+    them separately from a successful provider call whose evaluator is unable
+    to produce a semantic result.
+    """
+    recommendation, usage, summary = run_ui_selected_advice(
+        battle_input,
+        model=model,
+        enable_turn_pipeline=enable_turn_pipeline,
+        enable_turn_order_context=enable_turn_order_context,
+        enable_opponent_move_context=enable_opponent_move_context,
+        enable_battle_state_context=enable_battle_state_context,
+    )
+    try:
+        semantic_status, sanitized_summary = response_evaluator(recommendation)
+    except Exception:
+        semantic_status = "response_unavailable"
+        sanitized_summary = "Semantic evaluator did not produce a result."
+
+    if semantic_status not in {"pass", "fail", "response_unavailable"}:
+        raise ValueError("smoke evaluator returned an unsupported semantic status")
+    if not isinstance(sanitized_summary, str):
+        raise ValueError("smoke evaluator summary must be a string")
+    sanitized_summary = " ".join(sanitized_summary.split())[:240]
+    if recommendation and recommendation in sanitized_summary:
+        raise ValueError("smoke evaluator summary must not contain the full provider response")
+    return (
+        SanitizedSmokeResponseCapture(
+            provider_status="provider_success",
+            semantic_status=semantic_status,
+            sanitized_summary=sanitized_summary,
+        ),
+        usage,
+        summary,
+    )
 
 
 def _build_ui_selected_prompt(
