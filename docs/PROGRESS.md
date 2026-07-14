@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.64 - Captured Current Condition Gemini Stability Smoke
+
+Result:
+- Required offline capture, condition, and item-event contracts passed. The v12.63 sentinel path confirmed in-memory response evaluation with sanitized-only capture output.
+- Invoked exactly three approved independent `gemini-2.5-flash` attempts with the fixed raw self-burn, opponent-unknown, and opponent-Focus-Sash fixture. No retry, fallback, second provider, Vertex AI, diagnostic call, or fourth call occurred.
+- The execution channel did not return any per-attempt sanitized capture result. Raw responses and token-log content were neither read nor recovered; a metadata-only log change cannot establish every provider status or semantic outcome.
+- Final status: `INCONCLUSIVE - INSUFFICIENT PROVIDER RESULTS` with semantic PASS 0 assessable, semantic FAIL 0 assessable, response unavailable 3, and provider failures 0 observed. This is not a semantic failure classification and does not justify another call.
+
+---
+
 ## v12.63 - Actual Smoke Response Capture Hardening
 
 Purpose:
