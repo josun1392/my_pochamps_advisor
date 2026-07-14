@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.65 - Sanitized Smoke CLI Output Contract
+
+Result:
+- Added `scripts/run_sanitized_condition_smoke.py`, a fixed-fixture, one-attempt CLI that reuses the production sanitized capture seam and emits exactly one schema-validated sanitized JSON line to stdout.
+- The CLI distinguishes semantic pass/fail, response unavailable, evaluator failure, provider failure, invalid input, and malformed capture output with fixed exit codes. It rejects raw-response, prompt, request, credential, environment, traceback, and provider-body keys.
+- Fake-provider subprocess contracts confirm no raw sentinel reaches stdout or stderr and no extra output is mixed with the JSON result. The normal UI, payload, and prompt paths are unchanged.
+- Offline readiness: `READY FOR CLI-CAPTURED ACTUAL STABILITY SMOKE`. This is not provider-call approval.
+
+---
+
 ## v12.64 - Captured Current Condition Gemini Stability Smoke
 
 Result:

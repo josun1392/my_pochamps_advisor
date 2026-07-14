@@ -76,6 +76,8 @@ class SanitizedSmokeResponseCapture:
     provider_status: str
     semantic_status: str
     sanitized_summary: str
+    response_status: str = "available"
+    error_category: str | None = None
 
 
 def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dict[str, Any]]:
@@ -242,11 +244,21 @@ def run_ui_selected_advice_with_sanitized_smoke_capture(
         enable_opponent_move_context=enable_opponent_move_context,
         enable_battle_state_context=enable_battle_state_context,
     )
-    try:
-        semantic_status, sanitized_summary = response_evaluator(recommendation)
-    except Exception:
+    if not isinstance(recommendation, str) or not recommendation.strip():
         semantic_status = "response_unavailable"
-        sanitized_summary = "Semantic evaluator did not produce a result."
+        sanitized_summary = "Provider response text was unavailable for semantic evaluation."
+        response_status = "unavailable"
+        error_category = "response_unavailable"
+    else:
+        try:
+            semantic_status, sanitized_summary = response_evaluator(recommendation)
+            response_status = "available"
+            error_category = None
+        except Exception:
+            semantic_status = "response_unavailable"
+            sanitized_summary = "Semantic evaluator did not produce a result."
+            response_status = "available"
+            error_category = "evaluator_failure"
 
     if semantic_status not in {"pass", "fail", "response_unavailable"}:
         raise ValueError("smoke evaluator returned an unsupported semantic status")
@@ -260,6 +272,8 @@ def run_ui_selected_advice_with_sanitized_smoke_capture(
             provider_status="provider_success",
             semantic_status=semantic_status,
             sanitized_summary=sanitized_summary,
+            response_status=response_status,
+            error_category=error_category,
         ),
         usage,
         summary,
