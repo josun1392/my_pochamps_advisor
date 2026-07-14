@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.61 - Current Condition Gemini Stability Smoke
+
+Result:
+- `BLOCKED - PRECALL CONTRACT FAILURE`; actual Gemini calls: 0 of 3.
+- Offline current-condition, response-validation, UI, source, and item-event prompt suites passed.
+- The approved raw item-event fixture included `confidence=observed`, but the current raw confirmation validator accepts it only after normalization into `item_event_context.observed_events`. The raw candidate was omitted, so the required coexistence prompt preflight failed.
+- No fixture/code/prompt/payload workaround, credential validation, provider call, retry, fallback, second provider, or Vertex AI call was made.
+
+---
+
 ## v12.60 - Current Condition Offline Response Validation and Smoke Readiness
 
 Purpose:
