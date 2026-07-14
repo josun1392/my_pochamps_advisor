@@ -1,5 +1,14 @@
 # Master Ball Advisor — Progress
 
+## v12.68 - CLI-Captured Attribution Gemini Re-smoke
+
+Result:
+- v12.67 attribution preflight and all required offline contracts passed; the payload-driven block was present for self burn, opponent unknown, and opponent Focus Sash activation.
+- Exactly three approved independent `gemini-2.5-flash` CLI attempts returned parseable sanitized JSON, exit 0, empty stderr, provider success, response available, and semantic fail.
+- Final status: `FAIL - SEMANTIC STABILITY` (semantic PASS 0, semantic FAIL 3, response unavailable 0, evaluator failure 0, provider failure 0, CLI/precall failure 0). Capture transport remains healthy, but no fourth call or immediate correction was made.
+
+---
+
 ## v12.67 - Condition and Item-Event Attribution Prompt Hardening
 
 Result:
