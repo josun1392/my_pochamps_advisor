@@ -518,6 +518,11 @@ is validation-only. It recognizes only user-confirmed current major-condition
 facts and does not map them into the existing payload or prompt. Event,
 resolved, post-turn, exact, RNG, and order semantics remain excluded.
 
+v12.58 status/condition note: The UI stores valid current conditions in
+`battle_input["current_condition_confirmations"]` only behind the existing
+limited-context gate. The advisor payload filter removes that candidate field,
+so `condition_context` and condition-specific prompt wording remain unmapped.
+
 ## Item Context Guard Registry
 
 v3.4 centralizes available item context mention labels, item-specific prompt guard text, and forbidden wording metadata in `ADVICE_ITEM_CONTEXT_GUARD_METADATA` beside `ADVICE_ITEM_CONTEXT_KEYS`.

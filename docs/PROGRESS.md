@@ -1,5 +1,20 @@
 # Master Ball Advisor — Progress
 
+## v12.58 - Current Condition UI and Payload Foundation
+
+Purpose:
+- Add explicit current-major-condition UI/session state and limited-context battle-input candidates without prompt exposure.
+
+Implementation summary:
+- Added a compact condition dialog, panel count/clear actions, side-keyed session replacement, and summary/readback.
+- Reused the v12.57 normalization seam and gated `current_condition_confirmations` in `battle_input` with the existing limited-context checkbox.
+- Removed the candidate field from advisor payload filtering so no condition prompt wording is introduced.
+
+Safety statement:
+- No actual Gemini/provider/network call, condition prompt guard, condition event UI, automatic detection, parser/replay/Turn Engine, exact calculation, RNG/order resolver, or dependency change.
+
+---
+
 ## v12.57 - Status/Condition Source Boundary and Contract Foundation
 
 Purpose:

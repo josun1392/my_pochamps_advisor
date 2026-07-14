@@ -163,6 +163,7 @@ def filter_context_for_default_advice(payload: dict[str, Any]) -> dict[str, Any]
 def _remove_ui_only_field_profiles(payload: dict[str, Any]) -> None:
     payload.pop("field_profiles", None)
     payload.pop("item_event_confirmations", None)
+    payload.pop("current_condition_confirmations", None)
 
 
 def run_ui_selected_advice(
