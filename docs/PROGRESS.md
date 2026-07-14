@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v12.78 - Current Stat Stages End-To-End Integration
+
+Result:
+- Added a side/stat keyed user-confirmed current-stage UI/session flow, strict normalization for the seven supported stats and integer -6..+6 values, explicit Clear, and limited-context gating.
+- Added normalized `stat_stage_context.current_stages`, prompt boundary, structured acknowledgement line, deterministic parser/exact-set support, and CLI semantic guards without connecting stages to damage or speed calculations.
+- Matrix contracts cover stage-only, combined trusted contexts, 0/-6/+6, invalid/gated/absent paths, exact-set failures, forbidden claims, and UI behavior. Existing condition, ability, item-event, CLI, and worker regressions are green.
+- Actual provider calls: none. Status: `COMPLETE - READY FOR OPTIONAL STAT-STAGE ACTUAL SMOKE`.
+
+---
+
 ## v12.77 - Ability Smoke Fixture Integration And Actual Stability Validation
 
 Result:

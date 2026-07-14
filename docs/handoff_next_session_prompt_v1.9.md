@@ -1,5 +1,16 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v12.78 Current Stat Stage Context
+
+- Current stat stages are now user-confirmed limited trusted context only:
+  one `(side, stat)` integer -6..+6 entry, no inferred source or resolved
+  calculation meaning. The UI, payload, prompt, acknowledgement parser, and
+  CLI evaluator are connected behind the existing limited-context gate.
+- It is intentionally not connected to damage/speed calculations, ability/item
+  inference, or stage-change event resolution. Do not add an actual provider
+  call without separate approval.
+- Offline status: `COMPLETE - READY FOR OPTIONAL STAT-STAGE ACTUAL SMOKE`.
+
 ## v12.77 Ability Structured Smoke
 
 - The fixed `current-condition-ability-item-event` CLI fixture is now covered

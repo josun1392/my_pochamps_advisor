@@ -1,5 +1,21 @@
 # Advisor Payload Contract
 
+## v12.78 Current Stat Stage Context
+
+With the limited-context gate enabled, validated
+`current_stat_stage_confirmations` may map to
+`stat_stage_context.current_stages`. Each entry has `side`, canonical `stat`,
+integer `stage` in -6..+6, `status=user_confirmed`,
+`source=user_confirmed_current_stat_stage`, and `confidence=known`. There is
+at most one entry for each side/stat pair.
+
+This context is a user-confirmed current stage only. It does not establish when
+or why the stage changed, its ability/item/move source, exact final stats,
+damage, HP, speed tie, final order, RNG, resolved effect, or post-turn stage.
+It is not connected to damage or speed calculation. Structured advice requires
+`Current stat stage | side | stat | signed stage` and exact-compares normalized
+entries alongside condition, ability, and observed-item-event contexts.
+
 ## v12.77 Fixed Ability Smoke Fixture
 
 The sanitized smoke CLI additionally accepts the fixed allowlisted fixture

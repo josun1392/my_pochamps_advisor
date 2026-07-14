@@ -159,6 +159,8 @@ def evaluate_current_condition_item_event_response(
             and acknowledgement_failure != "trusted-context advice body missing"
         ):
             return "fail", "trusted-context ability entry missing or mismatch"
+        if any(entry[0] == "current_stat_stage" for entry in expected_entries):
+            return "fail", "trusted-context stat-stage entry missing or mismatch"
         return "fail", acknowledgement_failure
     forbidden = (
         "burn was applied this turn",
@@ -185,6 +187,7 @@ def evaluate_current_condition_item_event_response(
         "resolved ability effect",
         "exact stat change",
         "exact damage modifier",
+        "exact damage is",
         "immunity was resolved",
         "prevention was resolved",
         "boosted stat is",
@@ -192,6 +195,13 @@ def evaluate_current_condition_item_event_response(
         "opponent attack was definitely lowered",
         "ability was triggered",
         "ability is definitely unsuppressed",
+        "intimidate activated this turn",
+        "swords dance was used",
+        "attack dropped this turn",
+        "exact final attack",
+        "exact final speed",
+        "speed tie result",
+        "post-turn stage",
     )
     opponent_unknown_inference = any(
         f"opponent {condition}" in text

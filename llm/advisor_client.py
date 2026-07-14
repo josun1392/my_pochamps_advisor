@@ -29,9 +29,11 @@ from llm.advisor_battle_state_context import (
     BATTLE_STATE_CONTEXT_UNSUPPORTED_BOUNDARIES,
     build_battle_state_context_from_ui_selected_state,
     build_current_ability_context_from_confirmations,
+    build_current_stat_stage_context_from_confirmations,
     build_current_condition_context_from_confirmations,
     build_item_event_context_from_confirmations,
     normalize_user_confirmed_current_ability,
+    normalize_user_confirmed_current_stat_stage,
     normalize_user_confirmed_current_condition,
     validate_explicit_user_item_event_confirmation,
 )
@@ -132,6 +134,7 @@ def build_ui_advice_payload(
     item_event_context: dict[str, Any] | None = None,
     condition_context: dict[str, Any] | None = None,
     ability_context: dict[str, Any] | None = None,
+    stat_stage_context: dict[str, Any] | None = None,
     *,
     enable_turn_order_context: bool = False,
     enable_opponent_move_context: bool = False,
@@ -139,6 +142,7 @@ def build_ui_advice_payload(
     enable_item_event_context: bool = False,
     enable_condition_context: bool = False,
     enable_ability_context: bool = False,
+    enable_stat_stage_context: bool = False,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
@@ -175,6 +179,7 @@ def build_ui_advice_payload(
         ability_context,
         enable_ability_context=enable_ability_context,
     )
+    _add_stat_stage_context_to_advice_payload(filtered_payload, stat_stage_context, enable_stat_stage_context=enable_stat_stage_context)
     return filtered_payload
 
 
@@ -196,6 +201,7 @@ def _remove_ui_only_field_profiles(payload: dict[str, Any]) -> None:
     payload.pop("item_event_confirmations", None)
     payload.pop("current_condition_confirmations", None)
     payload.pop("current_ability_confirmations", None)
+    payload.pop("current_stat_stage_confirmations", None)
 
 
 def run_ui_selected_advice(
@@ -301,6 +307,7 @@ def _build_ui_selected_prompt(
     item_event_context: dict[str, Any] | None = None,
     condition_context: dict[str, Any] | None = None,
     ability_context: dict[str, Any] | None = None,
+    stat_stage_context: dict[str, Any] | None = None,
     *,
     enable_turn_pipeline: bool = False,
     enable_turn_order_context: bool = False,
@@ -356,6 +363,10 @@ def _build_ui_selected_prompt(
         ability_context = build_current_ability_context_from_confirmations(
             battle_input.get("current_ability_confirmations")
         )
+    if stat_stage_context is None and enable_battle_state_context:
+        stat_stage_context = build_current_stat_stage_context_from_confirmations(
+            battle_input.get("current_stat_stage_confirmations")
+        )
 
     advice_payload = build_ui_advice_payload(
         battle_input,
@@ -367,12 +378,14 @@ def _build_ui_selected_prompt(
         item_event_context=item_event_context,
         condition_context=condition_context,
         ability_context=ability_context,
+        stat_stage_context=stat_stage_context,
         enable_turn_order_context=enable_turn_order_context,
         enable_opponent_move_context=enable_opponent_move_context,
         enable_battle_state_context=enable_battle_state_context,
         enable_item_event_context=enable_battle_state_context,
         enable_condition_context=enable_battle_state_context,
         enable_ability_context=enable_battle_state_context,
+        enable_stat_stage_context=enable_battle_state_context,
     )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
@@ -383,6 +396,7 @@ def _build_ui_selected_prompt(
     item_event_context_guard = _build_item_event_context_prompt_guard(advice_payload)
     condition_context_guard = _build_condition_context_prompt_guard(advice_payload)
     ability_context_guard = _build_ability_context_prompt_guard(advice_payload)
+    stat_stage_context_guard = _build_stat_stage_context_prompt_guard(advice_payload)
     context_attribution_guard = _build_condition_item_event_attribution_prompt_guard(advice_payload)
     structured_acknowledgement_guard = _build_structured_trusted_context_acknowledgement_prompt_guard(advice_payload)
     return (
@@ -398,6 +412,7 @@ def _build_ui_selected_prompt(
         f"{item_event_context_guard}"
         f"{condition_context_guard}"
         f"{ability_context_guard}"
+        f"{stat_stage_context_guard}"
         f"{context_attribution_guard}"
         f"{structured_acknowledgement_guard}"
         "If a damage_estimate is present, use it only under its stated "
@@ -1054,6 +1069,34 @@ def _add_ability_context_to_advice_payload(
         payload["ability_context"] = {"current_abilities": normalized_abilities}
 
 
+def _add_stat_stage_context_to_advice_payload(
+    payload: dict[str, Any],
+    stat_stage_context: dict[str, Any] | None,
+    *,
+    enable_stat_stage_context: bool,
+) -> None:
+    if not enable_stat_stage_context or stat_stage_context is None:
+        return
+    context = deepcopy(stat_stage_context)
+    if not isinstance(context, dict) or set(context) != {"current_stages"}:
+        raise ValueError("stat_stage_context must contain current_stages only")
+    stages = context.get("current_stages")
+    if not isinstance(stages, list):
+        raise ValueError("stat_stage_context current_stages must be a list")
+    by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    for stage in stages:
+        if not isinstance(stage, dict):
+            raise ValueError("stat_stage_context current_stages must contain mappings")
+        confidence = stage.get("confidence")
+        normalized = normalize_user_confirmed_current_stat_stage({key: value for key, value in stage.items() if key != "confidence"})
+        if confidence != "known":
+            raise ValueError("stat_stage_context current stage confidence must be known")
+        by_key[(normalized["side"], normalized["stat"])] = {**normalized, "confidence": "known"}
+    normalized_stages = [by_key[key] for key in sorted(by_key, key=lambda key: (("self", "opponent").index(key[0]), key[1]))]
+    if normalized_stages:
+        payload["stat_stage_context"] = {"current_stages": normalized_stages}
+
+
 def _validate_battle_state_context_payload(context: dict[str, Any]) -> None:
     if not isinstance(context, dict):
         raise ValueError("battle_state_context must be a mapping")
@@ -1564,6 +1607,17 @@ def _build_ability_context_prompt_guard(payload: dict[str, Any]) -> str:
     )
 
 
+def _build_stat_stage_context_prompt_guard(payload: dict[str, Any]) -> str:
+    if "stat_stage_context" not in payload:
+        return ""
+    return (
+        "If stat_stage_context is present, treat each entry only as a user-confirmed "
+        "current stat stage by side and stat. Do not infer when or why it changed, "
+        "the move, ability, or item that caused it, exact final stats, damage, HP, "
+        "or final move order. Keep every side and stat separate. "
+    )
+
+
 def _build_condition_item_event_attribution_prompt_guard(payload: dict[str, Any]) -> str:
     """Require compact category readback only for supplied trusted context."""
     attribution_lines: list[str] = []
@@ -1593,6 +1647,12 @@ def _build_condition_item_event_attribution_prompt_guard(payload: dict[str, Any]
                             f"Current ability - {side}: {ability_name} (user-confirmed current identity)."
                         )
 
+    stat_stage_context = payload.get("stat_stage_context")
+    if isinstance(stat_stage_context, dict) and isinstance(stat_stage_context.get("current_stages"), list):
+        for stage in stat_stage_context["current_stages"]:
+            if isinstance(stage, dict) and isinstance(stage.get("side"), str) and isinstance(stage.get("stat"), str) and isinstance(stage.get("stage"), int):
+                attribution_lines.append(f"Current stat stage - {stage['side']}: {stage['stat']} {stage['stage']:+d} (user-confirmed current stage).")
+
     item_event_context = payload.get("item_event_context")
     if isinstance(item_event_context, dict):
         events = item_event_context.get("observed_events")
@@ -1615,7 +1675,7 @@ def _build_condition_item_event_attribution_prompt_guard(payload: dict[str, Any]
         + " ".join(attribution_lines)
         + " Briefly acknowledge each listed category and identity while giving advice. "
         "Do not merge current conditions with observed item events. Keep current "
-        "abilities separate from both categories, and do not promote any of "
+        "abilities and current stat stages separate from both categories, and do not promote any of "
         "them into a resolved effect, exact HP, damage, timing, RNG, or "
         "final-order claim. "
     )
@@ -1638,6 +1698,13 @@ def build_trusted_context_acknowledgement_entries(payload: dict[str, Any]) -> tu
                 side, ability_name = ability.get("side"), ability.get("ability")
                 if isinstance(side, str) and isinstance(ability_name, str):
                     entries.append(("current_ability", side.lower(), _normalize_trusted_context_identity(ability_name), None))
+    stat_stage_context = payload.get("stat_stage_context")
+    if isinstance(stat_stage_context, dict) and isinstance(stat_stage_context.get("current_stages"), list):
+        for stage in stat_stage_context["current_stages"]:
+            if isinstance(stage, dict):
+                side, stat, value = stage.get("side"), stage.get("stat"), stage.get("stage")
+                if isinstance(side, str) and isinstance(stat, str) and isinstance(value, int) and not isinstance(value, bool):
+                    entries.append(("current_stat_stage", side.lower(), _normalize_trusted_context_identity(stat), str(value)))
     item_event_context = payload.get("item_event_context")
     if isinstance(item_event_context, dict) and isinstance(item_event_context.get("observed_events"), list):
         for event in item_event_context["observed_events"]:
@@ -1658,6 +1725,8 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             lines.append(f"- Current condition | {side} | {identity}")
         elif category == "current_ability":
             lines.append(f"- Current ability | {side} | {identity}")
+        elif category == "current_stat_stage":
+            lines.append(f"- Current stat stage | {side} | {identity} | {int(event_type):+d}" if int(event_type) else f"- Current stat stage | {side} | {identity} | 0")
         else:
             lines.append(f"- Observed item event | {side} | {identity} | {event_type}")
     lines.append("[Advice]")
@@ -1698,6 +1767,14 @@ def parse_trusted_context_acknowledgement(response: str) -> tuple[tuple[tuple[st
             entry = ("current_condition", parts[1].lower(), parts[2].lower(), None)
         elif category == "current ability" and len(parts) == 3:
             entry = ("current_ability", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), None)
+        elif category == "current stat stage" and len(parts) == 4:
+            try:
+                stage_value = int(parts[3])
+            except ValueError as exc:
+                raise ValueError("trusted-context malformed entry") from exc
+            if not -6 <= stage_value <= 6:
+                raise ValueError("trusted-context malformed entry")
+            entry = ("current_stat_stage", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), str(stage_value))
         elif category == "observed item event" and len(parts) == 4:
             entry = ("observed_item_event", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), parts[3].lower())
         else:

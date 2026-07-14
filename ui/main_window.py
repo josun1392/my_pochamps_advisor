@@ -29,6 +29,7 @@ from llm.advisor_damage_estimate import (
     attach_selected_move_damage_estimate,
 )
 from llm.advisor_battle_state_context import (
+    normalize_user_confirmed_current_stat_stage,
     normalize_user_confirmed_current_ability,
     normalize_user_confirmed_current_condition,
     validate_explicit_user_item_event_confirmation,
@@ -49,6 +50,7 @@ from ui.widgets.field_profile_dialog import FieldProfileDialog
 from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
 from ui.widgets.current_ability_dialog import CurrentAbilityDialog
+from ui.widgets.current_stat_stage_dialog import CurrentStatStageDialog
 from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
@@ -132,6 +134,20 @@ def _normalize_current_ability_session(abilities: object) -> dict[str, dict]:
             continue
         if candidate["side"] == side:
             normalized[side] = candidate
+    return normalized
+
+
+def _normalize_current_stat_stage_session(stages: object) -> dict[tuple[str, str], dict]:
+    if not isinstance(stages, dict):
+        return {}
+    normalized: dict[tuple[str, str], dict] = {}
+    for key, stage in stages.items():
+        try:
+            candidate = normalize_user_confirmed_current_stat_stage(stage)
+        except ValueError:
+            continue
+        if key == (candidate["side"], candidate["stat"]):
+            normalized[key] = candidate
     return normalized
 
 
@@ -276,6 +292,7 @@ class MainWindow(QMainWindow):
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
         self._current_ability_confirmations: dict[str, dict] = {}
+        self._current_stat_stage_confirmations: dict[tuple[str, str], dict] = {}
 
         central_widget = QWidget()
         central_widget.setStyleSheet("background-color: #EEF2F6;")
@@ -327,9 +344,14 @@ class MainWindow(QMainWindow):
         self.center_column.llm_advice_panel.current_ability_session_reset_requested.connect(
             self._clear_current_ability_confirmations
         )
+        self.center_column.llm_advice_panel.current_stat_stage_requested.connect(self._open_current_stat_stage_dialog)
+        self.center_column.llm_advice_panel.current_stat_stage_session_reset_requested.connect(
+            self._clear_current_stat_stage_confirmations
+        )
         self._update_item_event_summary()
         self._update_current_condition_summary()
         self._update_current_ability_summary()
+        self._update_current_stat_stage_summary()
         self.shortcuts = GlobalShortcuts(self, self)
         self.set_active_column(self._active_column_name)
 
@@ -488,6 +510,30 @@ class MainWindow(QMainWindow):
         self._current_ability_confirmations = {}
         self._update_current_ability_summary()
 
+    @Slot()
+    def _open_current_stat_stage_dialog(self) -> None:
+        current_stages = getattr(self, "_current_stat_stage_confirmations", {})
+        dialog = CurrentStatStageDialog(current_stages=current_stages, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        stage = dialog.current_stat_stage_confirmation
+        if stage is None:
+            return
+        try:
+            normalized = normalize_user_confirmed_current_stat_stage(stage)
+        except ValueError:
+            return
+        self._current_stat_stage_confirmations = {
+            **_normalize_current_stat_stage_session(current_stages),
+            (normalized["side"], normalized["stat"]): normalized,
+        }
+        self._update_current_stat_stage_summary()
+
+    @Slot()
+    def _clear_current_stat_stage_confirmations(self) -> None:
+        self._current_stat_stage_confirmations = {}
+        self._update_current_stat_stage_summary()
+
     def _update_item_event_summary(self) -> None:
         try:
             panel = self.center_column.llm_advice_panel
@@ -509,6 +555,12 @@ class MainWindow(QMainWindow):
         except (AttributeError, RuntimeError):
             pass
 
+    def _update_current_stat_stage_summary(self) -> None:
+        try:
+            self.center_column.llm_advice_panel.set_current_stat_stage_count(len(self._current_stat_stage_confirmations))
+        except (AttributeError, RuntimeError):
+            pass
+
     @Slot()
     def _start_llm_advice(self) -> None:
         if self._llm_thread is not None:
@@ -524,6 +576,7 @@ class MainWindow(QMainWindow):
                 include_item_event_confirmations=enable_battle_state_context,
                 include_current_condition_confirmations=enable_battle_state_context,
                 include_current_ability_confirmations=enable_battle_state_context,
+                include_current_stat_stage_confirmations=enable_battle_state_context,
             )
         except ValueError as exc:
             message = str(exc)
@@ -615,6 +668,7 @@ class MainWindow(QMainWindow):
         include_item_event_confirmations: bool = False,
         include_current_condition_confirmations: bool = False,
         include_current_ability_confirmations: bool = False,
+        include_current_stat_stage_confirmations: bool = False,
     ) -> dict:
         my_slot_index = self.selected_slots.get("team_my")
         opponent_slot_index = self.selected_slots.get("team_enemy")
@@ -701,6 +755,11 @@ class MainWindow(QMainWindow):
             ordered_abilities = [abilities[side] for side in ("self", "opponent") if side in abilities]
             if ordered_abilities:
                 battle_input["current_ability_confirmations"] = ordered_abilities
+        if include_current_stat_stage_confirmations:
+            stages = _normalize_current_stat_stage_session(getattr(self, "_current_stat_stage_confirmations", {}))
+            ordered_stages = [stages[key] for key in sorted(stages, key=lambda key: (("self", "opponent").index(key[0]), key[1]))]
+            if ordered_stages:
+                battle_input["current_stat_stage_confirmations"] = ordered_stages
         return attach_opponent_known_move_damage_estimates(
             attach_selected_move_damage_estimate(battle_input)
         )

@@ -237,6 +237,23 @@ USER_CONFIRMED_CURRENT_ABILITY_FUTURE_UNSUPPORTED_SOURCES = frozenset(
     }
 )
 _ABILITY_ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+USER_CONFIRMED_CURRENT_STAT_STAGE_ALLOWED_SOURCES = frozenset({"user_confirmed_current_stat_stage"})
+USER_CONFIRMED_CURRENT_STAT_STAGE_REQUIRED_FIELDS = frozenset({"side", "stat", "stage", "status", "source"})
+USER_CONFIRMED_CURRENT_STAT_STAGE_OPTIONAL_FIELDS = frozenset({"confidence"})
+USER_CONFIRMED_CURRENT_STAT_STAGE_FORBIDDEN_FIELDS = frozenset(
+    {
+        "stage_changed_this_turn", "stage_change_triggered", "stage_change_source",
+        "ability_triggered", "item_triggered", "move_resolved", "exact_stat_value",
+        "effective_stat", "exact_damage", "exact_post_turn_hp", "final_speed_order",
+        "speed_tie_result", "rng_roll", "resolved_stage_effect", "post_turn_stage",
+    }
+)
+_STAT_STAGE_ALIASES = {
+    "attack": "attack", "atk": "attack", "defense": "defense", "def": "defense",
+    "special-attack": "special-attack", "special attack": "special-attack", "spa": "special-attack", "sp-atk": "special-attack",
+    "special-defense": "special-defense", "special defense": "special-defense", "sp-def": "special-defense",
+    "speed": "speed", "spe": "speed", "accuracy": "accuracy", "evasion": "evasion",
+}
 
 
 def validate_explicit_user_item_event_confirmation(candidate: Mapping[str, Any]) -> dict[str, Any]:
@@ -466,6 +483,77 @@ def build_current_ability_context_from_confirmations(
         by_side[normalized["side"]] = normalized
     current_abilities = [by_side[side] for side in ("self", "opponent") if side in by_side]
     return {"current_abilities": current_abilities} if current_abilities else None
+
+
+def normalize_user_confirmed_current_stat_stage(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize one user-confirmed current stat stage without resolving its cause or effect."""
+    if not isinstance(candidate, Mapping):
+        raise ValueError("current stat stage candidate must be a mapping")
+    forbidden = _first_forbidden_stat_stage_field(candidate)
+    if forbidden is not None:
+        raise ValueError(f"current stat stage field is forbidden: {forbidden}")
+    allowed = USER_CONFIRMED_CURRENT_STAT_STAGE_REQUIRED_FIELDS | USER_CONFIRMED_CURRENT_STAT_STAGE_OPTIONAL_FIELDS
+    unexpected = set(candidate) - allowed
+    if unexpected:
+        raise ValueError(f"unexpected current stat stage field: {sorted(unexpected)[0]}")
+    missing = USER_CONFIRMED_CURRENT_STAT_STAGE_REQUIRED_FIELDS - set(candidate)
+    if missing:
+        raise ValueError(f"current stat stage missing required field: {sorted(missing)[0]}")
+    side = candidate.get("side")
+    if side not in {"self", "opponent"}:
+        raise ValueError("current stat stage side must be self or opponent")
+    stat = _normalize_stat_stage_id(candidate.get("stat"))
+    stage = candidate.get("stage")
+    if isinstance(stage, bool) or not isinstance(stage, int) or not -6 <= stage <= 6:
+        raise ValueError("current stat stage must be an integer from -6 to 6")
+    if candidate.get("status") != "user_confirmed":
+        raise ValueError("current stat stage status is not allowed")
+    if candidate.get("source") not in USER_CONFIRMED_CURRENT_STAT_STAGE_ALLOWED_SOURCES:
+        raise ValueError("current stat stage source is not allowed")
+    if "confidence" in candidate and candidate["confidence"] != "known":
+        raise ValueError("current stat stage confidence must be known")
+    return {"side": side, "stat": stat, "stage": stage, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}
+
+
+def _normalize_stat_stage_id(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("current stat stage stat must be supported")
+    normalized = value.strip().lower().replace("_", "-")
+    canonical = _STAT_STAGE_ALIASES.get(normalized)
+    if canonical is None:
+        raise ValueError("current stat stage stat must be supported")
+    return canonical
+
+
+def _first_forbidden_stat_stage_field(value: object) -> str | None:
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if key in USER_CONFIRMED_CURRENT_STAT_STAGE_FORBIDDEN_FIELDS:
+                return str(key)
+            nested = _first_forbidden_stat_stage_field(child)
+            if nested is not None:
+                return nested
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for child in value:
+            nested = _first_forbidden_stat_stage_field(child)
+            if nested is not None:
+                return nested
+    return None
+
+
+def build_current_stat_stage_context_from_confirmations(confirmations: Sequence[Mapping[str, Any]] | None) -> dict[str, Any] | None:
+    """Build a normalized current-stage context keyed by side and stat."""
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, str | bytes):
+        return None
+    by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    for candidate in confirmations:
+        try:
+            normalized = normalize_user_confirmed_current_stat_stage(candidate)
+        except ValueError:
+            continue
+        by_key[(normalized["side"], normalized["stat"])] = normalized
+    stages = [by_key[key] for key in sorted(by_key, key=lambda key: (("self", "opponent").index(key[0]), key[1]))]
+    return {"current_stages": stages} if stages else None
 
 
 def build_item_event_context_from_confirmations(
