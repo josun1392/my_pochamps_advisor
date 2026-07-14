@@ -254,6 +254,13 @@ _STAT_STAGE_ALIASES = {
     "special-defense": "special-defense", "special defense": "special-defense", "sp-def": "special-defense",
     "speed": "speed", "spe": "speed", "accuracy": "accuracy", "evasion": "evasion",
 }
+USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
+    "started_this_turn", "activated_this_turn", "ended_this_turn", "turns_remaining", "source_move", "source_ability", "source_item", "resolved_weather_effect", "resolved_terrain_effect", "resolved_screen_effect", "resolved_tailwind_effect", "exact_damage_modifier", "exact_damage", "exact_post_turn_hp", "effective_speed", "final_speed_order", "speed_tie_result", "rng_roll", "post_turn_field_state",
+})
+_FIELD_WEATHER = frozenset({"none", "sun", "rain", "sandstorm", "snow"})
+_FIELD_TERRAIN = frozenset({"none", "electric", "grassy", "psychic", "misty"})
+_FIELD_GLOBAL_EFFECTS = frozenset({"trick-room", "gravity"})
+_FIELD_SIDE_EFFECTS = frozenset({"reflect", "light-screen", "aurora-veil", "tailwind"})
 
 
 def validate_explicit_user_item_event_confirmation(candidate: Mapping[str, Any]) -> dict[str, Any]:
@@ -554,6 +561,63 @@ def build_current_stat_stage_context_from_confirmations(confirmations: Sequence[
         by_key[(normalized["side"], normalized["stat"])] = normalized
     stages = [by_key[key] for key in sorted(by_key, key=lambda key: (("self", "opponent").index(key[0]), key[1]))]
     return {"current_stages": stages} if stages else None
+
+
+def normalize_user_confirmed_current_field_state(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize a snapshot of user-confirmed current field identities only."""
+    if not isinstance(candidate, Mapping):
+        raise ValueError("current field state must be a mapping")
+    forbidden = _first_forbidden_field_state_field(candidate)
+    if forbidden is not None:
+        raise ValueError(f"current field state field is forbidden: {forbidden}")
+    required = {"weather", "terrain", "global_effects", "side_effects", "status", "source"}
+    allowed = required | {"confidence"}
+    unexpected, missing = set(candidate) - allowed, required - set(candidate)
+    if unexpected:
+        raise ValueError(f"unexpected current field state field: {sorted(unexpected)[0]}")
+    if missing:
+        raise ValueError(f"current field state missing required field: {sorted(missing)[0]}")
+    weather, terrain = candidate.get("weather"), candidate.get("terrain")
+    if weather not in _FIELD_WEATHER or terrain not in _FIELD_TERRAIN:
+        raise ValueError("current field weather or terrain is not supported")
+    if candidate.get("status") != "user_confirmed" or candidate.get("source") != "user_confirmed_current_field_state":
+        raise ValueError("current field state source or status is not allowed")
+    if "confidence" in candidate and candidate["confidence"] != "known":
+        raise ValueError("current field state confidence must be known")
+    global_effects = candidate.get("global_effects")
+    if not isinstance(global_effects, list) or any(effect not in _FIELD_GLOBAL_EFFECTS for effect in global_effects):
+        raise ValueError("current field global effects are not supported")
+    if len(set(global_effects)) != len(global_effects):
+        raise ValueError("current field global effects must not duplicate")
+    side_effects = candidate.get("side_effects")
+    if not isinstance(side_effects, list):
+        raise ValueError("current field side effects must be a list")
+    normalized_side: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for entry in side_effects:
+        if not isinstance(entry, Mapping) or set(entry) != {"side", "effect"}:
+            raise ValueError("current field side effect is invalid")
+        side, effect = entry.get("side"), entry.get("effect")
+        if side not in {"self", "opponent"} or effect not in _FIELD_SIDE_EFFECTS or (side, effect) in seen:
+            raise ValueError("current field side effect is invalid")
+        seen.add((side, effect)); normalized_side.append({"side": side, "effect": effect})
+    return {"weather": weather, "terrain": terrain, "global_effects": sorted(global_effects), "side_effects": sorted(normalized_side, key=lambda value: (("self", "opponent").index(value["side"]), value["effect"])), "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}
+
+
+def _first_forbidden_field_state_field(value: object) -> str | None:
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if key in USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS:
+                return str(key)
+            nested = _first_forbidden_field_state_field(child)
+            if nested is not None:
+                return nested
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for child in value:
+            nested = _first_forbidden_field_state_field(child)
+            if nested is not None:
+                return nested
+    return None
 
 
 def build_item_event_context_from_confirmations(

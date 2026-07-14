@@ -1,5 +1,21 @@
 # Master Ball Advisor — Progress
 
+## v12.79 - Current Field State End-To-End Integration
+
+Result:
+- Added a separate user-confirmed current-field snapshot for weather, terrain,
+  global effects, and side effects. The calculation-oriented `field_profiles`
+  path remains unchanged and excluded from default advice payloads.
+- Added strict normalization, UI Apply/Cancel/Clear/readback, limited-context
+  gating, normalized payload mapping, prompt guard, structured acknowledgement,
+  parser/exact-set validation, and sanitized CLI evaluator coverage.
+- Contracts cover explicit `none`, invalid and duration/resolution rejection,
+  field-only and all trusted-context coexistence paths, normal UI text
+  preservation, and no provider call for dialog actions.
+- Actual provider calls: none. Status: `COMPLETE - CURRENT FIELD STATE END-TO-END GREEN`.
+
+---
+
 ## v12.78 - Current Stat Stages End-To-End Integration
 
 Result:

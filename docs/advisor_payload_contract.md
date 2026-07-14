@@ -1,5 +1,20 @@
 # Advisor Payload Contract
 
+## v12.79 Current Field State Context
+
+With the limited-context gate enabled, a validated user-confirmed field
+snapshot may map to `field_state_context.current_field`. It contains weather,
+terrain, optional global effects, optional side effects, `status=user_confirmed`,
+`source=user_confirmed_current_field_state`, and `confidence=known`.
+
+It is a current identity snapshot only. It does not establish how or when a
+field began or ended, duration, source move/ability/item, resolved effects,
+exact damage/HP/effective speed/final order, RNG, or post-turn state. Explicit
+weather or terrain `none` is confirmed current absence, not an end event.
+Structured advice exact-compares `Current weather`, `Current terrain`,
+`Current global field effect`, and `Current side field effect` entries against
+the normalized snapshot. This context is not connected to calculation inputs.
+
 ## v12.78 Current Stat Stage Context
 
 With the limited-context gate enabled, validated

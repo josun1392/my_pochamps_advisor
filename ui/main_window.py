@@ -29,6 +29,7 @@ from llm.advisor_damage_estimate import (
     attach_selected_move_damage_estimate,
 )
 from llm.advisor_battle_state_context import (
+    normalize_user_confirmed_current_field_state,
     normalize_user_confirmed_current_stat_stage,
     normalize_user_confirmed_current_ability,
     normalize_user_confirmed_current_condition,
@@ -51,6 +52,7 @@ from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
 from ui.widgets.current_ability_dialog import CurrentAbilityDialog
 from ui.widgets.current_stat_stage_dialog import CurrentStatStageDialog
+from ui.widgets.current_field_state_dialog import CurrentFieldStateDialog
 from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
@@ -293,6 +295,7 @@ class MainWindow(QMainWindow):
         self._current_condition_confirmations: dict[str, dict] = {}
         self._current_ability_confirmations: dict[str, dict] = {}
         self._current_stat_stage_confirmations: dict[tuple[str, str], dict] = {}
+        self._current_field_state_confirmation: dict | None = None
 
         central_widget = QWidget()
         central_widget.setStyleSheet("background-color: #EEF2F6;")
@@ -348,10 +351,17 @@ class MainWindow(QMainWindow):
         self.center_column.llm_advice_panel.current_stat_stage_session_reset_requested.connect(
             self._clear_current_stat_stage_confirmations
         )
+        self.center_column.llm_advice_panel.current_field_state_requested.connect(
+            self._open_current_field_state_dialog
+        )
+        self.center_column.llm_advice_panel.current_field_state_session_reset_requested.connect(
+            self._clear_current_field_state_confirmation
+        )
         self._update_item_event_summary()
         self._update_current_condition_summary()
         self._update_current_ability_summary()
         self._update_current_stat_stage_summary()
+        self._update_current_field_state_summary()
         self.shortcuts = GlobalShortcuts(self, self)
         self.set_active_column(self._active_column_name)
 
@@ -534,6 +544,26 @@ class MainWindow(QMainWindow):
         self._current_stat_stage_confirmations = {}
         self._update_current_stat_stage_summary()
 
+    @Slot()
+    def _open_current_field_state_dialog(self) -> None:
+        current_field = getattr(self, "_current_field_state_confirmation", None)
+        dialog = CurrentFieldStateDialog(current_field=current_field, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        snapshot = dialog.current_field_state_confirmation
+        if snapshot is None:
+            return
+        try:
+            self._current_field_state_confirmation = normalize_user_confirmed_current_field_state(snapshot)
+        except ValueError:
+            return
+        self._update_current_field_state_summary()
+
+    @Slot()
+    def _clear_current_field_state_confirmation(self) -> None:
+        self._current_field_state_confirmation = None
+        self._update_current_field_state_summary()
+
     def _update_item_event_summary(self) -> None:
         try:
             panel = self.center_column.llm_advice_panel
@@ -561,6 +591,16 @@ class MainWindow(QMainWindow):
         except (AttributeError, RuntimeError):
             pass
 
+    def _update_current_field_state_summary(self) -> None:
+        try:
+            snapshot = getattr(self, "_current_field_state_confirmation", None)
+            count = 0
+            if isinstance(snapshot, dict):
+                count = 2 + len(snapshot.get("global_effects", [])) + len(snapshot.get("side_effects", []))
+            self.center_column.llm_advice_panel.set_current_field_state_count(count)
+        except (AttributeError, RuntimeError):
+            pass
+
     @Slot()
     def _start_llm_advice(self) -> None:
         if self._llm_thread is not None:
@@ -577,6 +617,7 @@ class MainWindow(QMainWindow):
                 include_current_condition_confirmations=enable_battle_state_context,
                 include_current_ability_confirmations=enable_battle_state_context,
                 include_current_stat_stage_confirmations=enable_battle_state_context,
+                include_current_field_state_confirmation=enable_battle_state_context,
             )
         except ValueError as exc:
             message = str(exc)
@@ -669,6 +710,7 @@ class MainWindow(QMainWindow):
         include_current_condition_confirmations: bool = False,
         include_current_ability_confirmations: bool = False,
         include_current_stat_stage_confirmations: bool = False,
+        include_current_field_state_confirmation: bool = False,
     ) -> dict:
         my_slot_index = self.selected_slots.get("team_my")
         opponent_slot_index = self.selected_slots.get("team_enemy")
@@ -760,6 +802,15 @@ class MainWindow(QMainWindow):
             ordered_stages = [stages[key] for key in sorted(stages, key=lambda key: (("self", "opponent").index(key[0]), key[1]))]
             if ordered_stages:
                 battle_input["current_stat_stage_confirmations"] = ordered_stages
+        if include_current_field_state_confirmation:
+            snapshot = getattr(self, "_current_field_state_confirmation", None)
+            if isinstance(snapshot, dict):
+                try:
+                    battle_input["current_field_state_confirmation"] = (
+                        normalize_user_confirmed_current_field_state(snapshot)
+                    )
+                except ValueError:
+                    pass
         return attach_opponent_known_move_damage_estimates(
             attach_selected_move_damage_estimate(battle_input)
         )

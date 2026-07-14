@@ -161,6 +161,8 @@ def evaluate_current_condition_item_event_response(
             return "fail", "trusted-context ability entry missing or mismatch"
         if any(entry[0] == "current_stat_stage" for entry in expected_entries):
             return "fail", "trusted-context stat-stage entry missing or mismatch"
+        if any(entry[0] in {"current_weather", "current_terrain", "current_global_field_effect", "current_side_field_effect"} for entry in expected_entries):
+            return "fail", "trusted-context field entry missing or mismatch"
         return "fail", acknowledgement_failure
     forbidden = (
         "burn was applied this turn",
@@ -202,6 +204,16 @@ def evaluate_current_condition_item_event_response(
         "exact final speed",
         "speed tie result",
         "post-turn stage",
+        "rain dance was used this turn",
+        "drought activated",
+        "field started this turn",
+        "field ended this turn",
+        "turns remaining",
+        "reflect halves the damage exactly",
+        "tailwind guarantees moving first",
+        "trick room guarantees moving first",
+        "exact effective speed",
+        "post-turn field state",
     )
     opponent_unknown_inference = any(
         f"opponent {condition}" in text

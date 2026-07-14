@@ -1,5 +1,17 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v12.79 Current Field State Context
+
+- Current field state is now a separately validated user-confirmed snapshot:
+  weather, terrain, global effects, and side effects. It is gated with the
+  existing limited-context switch and rendered through structured trusted
+  acknowledgement entries.
+- Do not connect it to damage/speed calculations or infer start/end timing,
+  duration, a source move/ability/item, resolved mechanics, exact outcomes, or
+  final order. The old `field_profiles` calculation path remains separate.
+- Offline status: `COMPLETE - CURRENT FIELD STATE END-TO-END GREEN`; no actual
+  provider calls were made.
+
 ## v12.78 Current Stat Stage Context
 
 - Current stat stages are now user-confirmed limited trusted context only:
