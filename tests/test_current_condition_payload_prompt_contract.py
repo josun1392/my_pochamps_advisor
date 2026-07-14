@@ -106,6 +106,7 @@ def test_limited_context_maps_valid_self_and_opponent_current_conditions() -> No
     assert payload["condition_context"] == {"current_conditions": conditions}
     assert "current_condition_confirmations" not in payload
     assert "If condition_context is present" in prompt
+    assert "Briefly acknowledge each current condition by side and condition type" in prompt
     assert "none (user-confirmed no current major status) versus unknown" in prompt
     _assert_forbidden_fields_absent(payload)
 
@@ -189,3 +190,18 @@ def test_valid_conditions_coexist_with_item_events_and_offline_production_path(
     assert "If item_event_context is present" in prompt
     assert "Do not infer when a condition was applied" in prompt
     _assert_forbidden_fields_absent(payload)
+
+
+def test_item_event_only_does_not_add_condition_specific_guard() -> None:
+    battle_input = _battle_input(conditions=None)
+    battle_input["item_event_confirmations"] = [_event()]
+
+    prompt = advisor_client._build_ui_selected_prompt(
+        battle_input,
+        enable_battle_state_context=True,
+    )
+
+    assert "item_event_context" in _prompt_payload(prompt)
+    assert "If item_event_context is present" in prompt
+    assert "If condition_context is present" not in prompt
+    assert "Briefly acknowledge each current condition by side and condition type" not in prompt

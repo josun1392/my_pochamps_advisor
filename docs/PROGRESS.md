@@ -1,5 +1,21 @@
 # Master Ball Advisor — Progress
 
+## v12.60 - Current Condition Offline Response Validation and Smoke Readiness
+
+Purpose:
+- Strengthen offline prompt and response-boundary contracts for the v12.59 current-condition context.
+
+Implementation summary:
+- Added a compact side/type readback requirement only when valid `condition_context` exists.
+- Added fixture-specific synthetic response validation for self burn and opponent unknown, including side mixing, unknown inference, event/resolved promotion, exact/post-turn, duration/RNG/order, `none`, and omission failures.
+- Confirmed condition and observed-item-event contexts coexist without source/meaning mixing; disabled, invalid, and item-event-only paths omit condition wording.
+- Offline readiness: `READY FOR SINGLE ACTUAL CONDITION SMOKE`. This is not provider-call approval.
+
+Safety statement:
+- No actual Gemini/provider/network call, retry, fallback, second provider, Vertex AI, credential check, automatic detection, parser/replay/Turn Engine, exact calculation, or dependency change.
+
+---
+
 ## v12.59 - Current Condition Payload and Prompt Integration
 
 Implemented limited-context mapping for validated session current conditions.

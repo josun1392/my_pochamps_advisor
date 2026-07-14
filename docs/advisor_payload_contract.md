@@ -2429,3 +2429,9 @@ context does not establish application/trigger timing, resolved effects, exact
 status damage, duration, post-turn HP/state, thaw/full-paralysis, RNG, or final
 order. Limited context off omits both the raw confirmation candidate and this
 payload context.
+
+v12.60 status note: when valid `condition_context` is present, the compact
+prompt guard requires a side/type readback as user-confirmed present-state
+context and retains the `none`/`unknown` distinction plus non-inference
+boundaries. Disabled, absent, empty, invalid, and item-event-only paths omit
+condition-specific wording. Offline readiness is not actual-provider approval.
