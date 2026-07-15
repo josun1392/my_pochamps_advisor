@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v13.2 - Deterministic Effective Stat And Speed Comparison
+
+Result:
+- Added stage-only effective-stat calculation and an explicitly limited Speed
+  comparison from user-confirmed final stats plus user-confirmed stat stages.
+- Added separate deterministic-result payload, acknowledgement parser/evaluator,
+  and limited-context production wiring without altering legacy stat profiles.
+- Verification: `uv run pytest -q` — 1999 passed, 2 deselected in 41.52s.
+- Status: `COMPLETE - EFFECTIVE STAT AND SPEED COMPARISON GREEN`.
+
+---
+
 ## v13.1 - Final Battle Stat Input And Calculation Boundary
 
 Result:

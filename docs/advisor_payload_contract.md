@@ -1,5 +1,15 @@
 # Advisor Payload Contract
 
+## v13.2 Deterministic Calculation Context
+
+With limited context enabled, `deterministic_calculation_context` is generated
+only from normalized v13.1 final-stat context and v12 current-stage context.
+It separates `effective_stats` from `speed_comparison`; its scope is
+`final_stat_plus_stage_only` / `stage_only`, so it does not resolve priority,
+items, abilities, weather, terrain, Tailwind, Trick Room, RNG, or final move
+order. Its acknowledgement belongs in `[Deterministic Results]`, separate from
+the exact user-confirmed `[Trusted Context]` inputs.
+
 ## v13.1 Final Stat Context
 
 With limited context enabled, direct user-confirmed entries may map to

@@ -266,6 +266,11 @@ _FINAL_STAT_ALIASES = {
     "special-defense": "special-defense", "special defense": "special-defense", "spd": "special-defense",
     "speed": "speed", "spe": "speed",
 }
+EFFECTIVE_STAT_CALCULATION_SCOPE = "final_stat_plus_stage_only"
+EFFECTIVE_STAT_EXCLUDED_MODIFIERS = (
+    "priority", "item", "ability", "weather", "terrain", "tailwind", "trick-room", "rng",
+)
+_STAGE_ADJUSTABLE_FINAL_STATS = frozenset({"attack", "defense", "special-attack", "special-defense", "speed"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
     "started_this_turn", "activated_this_turn", "ended_this_turn", "turns_remaining", "source_move", "source_ability", "source_item", "resolved_weather_effect", "resolved_terrain_effect", "resolved_screen_effect", "resolved_tailwind_effect", "exact_damage_modifier", "exact_damage", "exact_post_turn_hp", "effective_speed", "final_speed_order", "speed_tie_result", "rng_roll", "post_turn_field_state",
 })
@@ -650,6 +655,84 @@ def build_deterministic_stat_inputs(
             if isinstance(entry, Mapping):
                 normalized = normalize_user_confirmed_current_stat_stage({key: value for key, value in entry.items() if key != "confidence"})
                 result["current_stat_stages"].setdefault(normalized["side"], {})[normalized["stat"]] = normalized["stage"]
+    return result
+
+
+def calculate_stage_adjusted_stat(final_stat: int, stage: int) -> int:
+    """Return the floor-rounded standard stat-stage result for a trusted final stat."""
+    if isinstance(final_stat, bool) or not isinstance(final_stat, int) or final_stat < 1:
+        raise ValueError("final stat must be a positive integer")
+    if isinstance(stage, bool) or not isinstance(stage, int) or not -6 <= stage <= 6:
+        raise ValueError("stat stage must be an integer from -6 to 6")
+    if stage >= 0:
+        return final_stat * (2 + stage) // 2
+    return final_stat * 2 // (2 - stage)
+
+
+def build_effective_stat_inputs(
+    final_stat_context: Mapping[str, Any] | None,
+    stat_stage_context: Mapping[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Build deterministic stage-only results from user-confirmed input contexts.
+
+    This deliberately does not consume species, item, ability, field, move, or
+    legacy stat-profile data, and it never resolves final move order.
+    """
+    final_stats = build_deterministic_stat_inputs(final_stat_context, None)["base_final_stats"]
+    if not final_stats:
+        return None
+    stages = build_deterministic_stat_inputs(None, stat_stage_context)["current_stat_stages"]
+    effective_stats: list[dict[str, Any]] = []
+    for side in ("self", "opponent"):
+        for stat in sorted(final_stats.get(side, {})):
+            if stat not in _STAGE_ADJUSTABLE_FINAL_STATS:
+                continue
+            base_value = final_stats[side][stat]
+            stage = stages.get(side, {}).get(stat, 0)
+            effective_stats.append(
+                {
+                    "side": side,
+                    "stat": stat,
+                    "base_final_value": base_value,
+                    "stage": stage,
+                    "effective_value": calculate_stage_adjusted_stat(base_value, stage),
+                    "calculation_status": "resolved",
+                }
+            )
+    return {
+        "calculation_status": "resolved",
+        "calculation_scope": EFFECTIVE_STAT_CALCULATION_SCOPE,
+        "excluded_modifiers": list(EFFECTIVE_STAT_EXCLUDED_MODIFIERS),
+        "effective_stats": effective_stats,
+        "speed_comparison": build_speed_comparison_result(effective_stats),
+    }
+
+
+def build_speed_comparison_result(effective_stats: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Compare only resolved stage-adjusted speed; never determine move order."""
+    speeds: dict[str, int] = {}
+    for entry in effective_stats:
+        if entry.get("stat") == "speed" and entry.get("side") in {"self", "opponent"}:
+            value = entry.get("effective_value")
+            if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+                speeds[entry["side"]] = value
+    result: dict[str, Any] = {
+        "calculation_scope": "stage_only",
+        "calculation_status": "resolved" if len(speeds) == 2 else "unavailable",
+        "result": "unavailable",
+    }
+    if "self" in speeds:
+        result["self_effective_speed"] = speeds["self"]
+    if "opponent" in speeds:
+        result["opponent_effective_speed"] = speeds["opponent"]
+    if len(speeds) != 2:
+        return result
+    if speeds["self"] > speeds["opponent"]:
+        result["result"] = "self_faster"
+    elif speeds["self"] < speeds["opponent"]:
+        result["result"] = "opponent_faster"
+    else:
+        result["result"] = "tie"
     return result
 
 

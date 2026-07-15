@@ -30,6 +30,7 @@ from llm.advisor_battle_state_context import (
     build_battle_state_context_from_ui_selected_state,
     build_current_ability_context_from_confirmations,
     build_current_stat_stage_context_from_confirmations,
+    build_effective_stat_inputs,
     build_final_stat_context_from_confirmations,
     build_current_condition_context_from_confirmations,
     build_item_event_context_from_confirmations,
@@ -140,6 +141,7 @@ def build_ui_advice_payload(
     stat_stage_context: dict[str, Any] | None = None,
     final_stat_context: dict[str, Any] | None = None,
     field_state_context: dict[str, Any] | None = None,
+    deterministic_calculation_context: dict[str, Any] | None = None,
     *,
     enable_turn_order_context: bool = False,
     enable_opponent_move_context: bool = False,
@@ -150,6 +152,7 @@ def build_ui_advice_payload(
     enable_stat_stage_context: bool = False,
     enable_final_stat_context: bool = False,
     enable_field_state_context: bool = False,
+    enable_deterministic_calculation_context: bool = False,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
@@ -192,6 +195,11 @@ def build_ui_advice_payload(
         filtered_payload,
         field_state_context,
         enable_field_state_context=enable_field_state_context,
+    )
+    _add_deterministic_calculation_context_to_advice_payload(
+        filtered_payload,
+        deterministic_calculation_context,
+        enable_deterministic_calculation_context=enable_deterministic_calculation_context,
     )
     return filtered_payload
 
@@ -325,6 +333,7 @@ def _build_ui_selected_prompt(
     stat_stage_context: dict[str, Any] | None = None,
     final_stat_context: dict[str, Any] | None = None,
     field_state_context: dict[str, Any] | None = None,
+    deterministic_calculation_context: dict[str, Any] | None = None,
     *,
     enable_turn_pipeline: bool = False,
     enable_turn_order_context: bool = False,
@@ -397,6 +406,8 @@ def _build_ui_selected_prompt(
                 }
             except ValueError:
                 field_state_context = None
+    if deterministic_calculation_context is None and enable_battle_state_context:
+        deterministic_calculation_context = build_effective_stat_inputs(final_stat_context, stat_stage_context)
 
     advice_payload = build_ui_advice_payload(
         battle_input,
@@ -411,6 +422,7 @@ def _build_ui_selected_prompt(
         stat_stage_context=stat_stage_context,
         final_stat_context=final_stat_context,
         field_state_context=field_state_context,
+        deterministic_calculation_context=deterministic_calculation_context,
         enable_turn_order_context=enable_turn_order_context,
         enable_opponent_move_context=enable_opponent_move_context,
         enable_battle_state_context=enable_battle_state_context,
@@ -420,6 +432,7 @@ def _build_ui_selected_prompt(
         enable_stat_stage_context=enable_battle_state_context,
         enable_final_stat_context=enable_battle_state_context,
         enable_field_state_context=enable_battle_state_context,
+        enable_deterministic_calculation_context=enable_battle_state_context,
     )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
     turn_snapshot_guard = _build_turn_snapshot_prompt_guard(advice_payload)
@@ -432,6 +445,7 @@ def _build_ui_selected_prompt(
     ability_context_guard = _build_ability_context_prompt_guard(advice_payload)
     stat_stage_context_guard = _build_stat_stage_context_prompt_guard(advice_payload)
     final_stat_context_guard = _build_final_stat_context_prompt_guard(advice_payload)
+    deterministic_calculation_context_guard = _build_deterministic_calculation_context_prompt_guard(advice_payload)
     field_state_context_guard = _build_field_state_context_prompt_guard(advice_payload)
     context_attribution_guard = _build_condition_item_event_attribution_prompt_guard(advice_payload)
     structured_acknowledgement_guard = _build_structured_trusted_context_acknowledgement_prompt_guard(advice_payload)
@@ -450,6 +464,7 @@ def _build_ui_selected_prompt(
         f"{ability_context_guard}"
         f"{stat_stage_context_guard}"
         f"{final_stat_context_guard}"
+        f"{deterministic_calculation_context_guard}"
         f"{field_state_context_guard}"
         f"{context_attribution_guard}"
         f"{structured_acknowledgement_guard}"
@@ -1173,6 +1188,18 @@ def _add_final_stat_context_to_advice_payload(payload: dict[str, Any], context: 
         payload["final_stat_context"] = {"current_final_stats": [by_key[key] for key in sorted(by_key)]}
 
 
+def _add_deterministic_calculation_context_to_advice_payload(
+    payload: dict[str, Any], context: dict[str, Any] | None, *, enable_deterministic_calculation_context: bool
+) -> None:
+    """Attach only internally constructed stage-only calculation results."""
+    if not enable_deterministic_calculation_context or context is None:
+        return
+    expected = build_effective_stat_inputs(payload.get("final_stat_context"), payload.get("stat_stage_context"))
+    if expected is None or context != expected:
+        raise ValueError("deterministic_calculation_context must match trusted stage-only inputs")
+    payload["deterministic_calculation_context"] = deepcopy(expected)
+
+
 def _validate_battle_state_context_payload(context: dict[str, Any]) -> None:
     if not isinstance(context, dict):
         raise ValueError("battle_state_context must be a mapping")
@@ -1718,6 +1745,17 @@ def _build_final_stat_context_prompt_guard(payload: dict[str, Any]) -> str:
     )
 
 
+def _build_deterministic_calculation_context_prompt_guard(payload: dict[str, Any]) -> str:
+    if "deterministic_calculation_context" not in payload:
+        return ""
+    return (
+        "deterministic_calculation_context contains deterministic stage-only effective-stat and Speed-comparison "
+        "results. Do not recalculate or alter them. They are not final move order: do not apply or claim priority, "
+        "item, ability, weather, terrain, Tailwind, Trick Room, or RNG modifiers. A tie means equal stage-adjusted "
+        "Speed only, never a tie winner or first action. "
+    )
+
+
 def _build_condition_item_event_attribution_prompt_guard(payload: dict[str, Any]) -> str:
     """Require compact category readback only for supplied trusted context."""
     attribution_lines: list[str] = []
@@ -1853,9 +1891,29 @@ def build_trusted_context_acknowledgement_entries(payload: dict[str, Any]) -> tu
     return tuple(entries)
 
 
+def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) -> tuple[tuple[str, str, str, str, str], ...]:
+    """Return result acknowledgement entries separately from user-confirmed input."""
+    context = payload.get("deterministic_calculation_context")
+    if not isinstance(context, dict):
+        return ()
+    entries: list[tuple[str, str, str, str, str]] = []
+    for entry in context.get("effective_stats", []):
+        if isinstance(entry, dict):
+            side, stat, value = entry.get("side"), entry.get("stat"), entry.get("effective_value")
+            if isinstance(side, str) and isinstance(stat, str) and isinstance(value, int):
+                entries.append(("effective_stat", side.lower(), _normalize_trusted_context_identity(stat), str(value), "final-stat-plus-stage"))
+    comparison = context.get("speed_comparison")
+    if isinstance(comparison, dict) and comparison.get("calculation_status") == "resolved":
+        result, scope = comparison.get("result"), comparison.get("calculation_scope")
+        if isinstance(result, str) and isinstance(scope, str):
+            entries.append(("speed_comparison", "", result.replace("_", "-"), scope.replace("_", "-"), ""))
+    return tuple(entries)
+
+
 def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict[str, Any]) -> str:
     entries = build_trusted_context_acknowledgement_entries(payload)
-    if not entries:
+    result_entries = build_deterministic_result_acknowledgement_entries(payload)
+    if not entries and not result_entries:
         return ""
     lines = ["[Trusted Context]"]
     for category, side, identity, event_type in entries:
@@ -1877,11 +1935,17 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             lines.append(f"- Current side field effect | {side} | {identity}")
         else:
             lines.append(f"- Observed item event | {side} | {identity} | {event_type}")
+    if result_entries:
+        lines.append("[Deterministic Results]")
+        for category, side, identity, value, scope in result_entries:
+            if category == "effective_stat":
+                lines.append(f"- Effective stat | {side} | {identity} | {value} | {scope}")
+            else:
+                lines.append(f"- Speed comparison | {identity} | {value}")
     lines.append("[Advice]")
     return (
-        "Start the answer with exactly this short trusted-context acknowledgement format, "
-        "copying every entry once without adding, omitting, inferring, merging, resolving, "
-        "or changing it: "
+        "Start the answer with exactly this short trusted-context acknowledgement format, copying every trusted input and "
+        "deterministic result once without adding, omitting, inferring, merging, resolving, or changing it: "
         + "\n".join(lines)
         + " Then provide normal battle advice under [Advice]. "
     )
@@ -1896,11 +1960,16 @@ def parse_trusted_context_acknowledgement(response: str) -> tuple[tuple[tuple[st
     block_match = re.search(r"(?im)^\[trusted context\]\s*$", response)
     if block_match is None:
         raise ValueError("trusted-context acknowledgement missing")
-    advice_match = re.search(r"(?im)^\[advice\]\s*$", response[block_match.end():])
+    remainder = response[block_match.end():]
+    advice_match = re.search(r"(?im)^\[advice\]\s*$", remainder)
     if advice_match is None:
         raise ValueError("trusted-context advice delimiter missing")
+    result_match = re.search(r"(?im)^\[deterministic results\]\s*$", remainder)
     start = block_match.end()
-    advice_start = start + advice_match.start()
+    if result_match is not None and result_match.start() < advice_match.start():
+        advice_start = start + result_match.start()
+    else:
+        advice_start = start + advice_match.start()
     entries: list[tuple[str, str, str, str | None]] = []
     for line in response[start:advice_start].splitlines():
         if not line.strip():
@@ -1964,11 +2033,94 @@ def validate_trusted_context_acknowledgement(
     return None
 
 
+def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tuple[str, str, str, str, str], ...], bool]:
+    """Parse only deterministic result lines; trusted input parsing remains separate."""
+    block_match = re.search(r"(?im)^\[deterministic results\]\s*$", response)
+    if block_match is None:
+        raise ValueError("deterministic-results acknowledgement missing")
+    advice_match = re.search(r"(?im)^\[advice\]\s*$", response[block_match.end():])
+    if advice_match is None:
+        raise ValueError("deterministic-results advice delimiter missing")
+    start, end = block_match.end(), block_match.end() + advice_match.start()
+    entries: list[tuple[str, str, str, str, str]] = []
+    for line in response[start:end].splitlines():
+        if not line.strip():
+            continue
+        if not line.startswith("- "):
+            raise ValueError("deterministic-results malformed delimiter")
+        parts = [part.strip() for part in line[2:].split("|")]
+        if any(not part for part in parts):
+            raise ValueError("deterministic-results entry missing field")
+        category = parts[0].lower()
+        if category == "effective stat" and len(parts) == 5:
+            try:
+                value = int(parts[3])
+            except ValueError as exc:
+                raise ValueError("deterministic-results malformed entry") from exc
+            if value < 0 or parts[4].lower() != "final-stat-plus-stage":
+                raise ValueError("deterministic-results malformed entry")
+            entry = ("effective_stat", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), str(value), "final-stat-plus-stage")
+        elif category == "speed comparison" and len(parts) == 3:
+            result, scope = parts[1].lower().replace("_", "-"), parts[2].lower()
+            if result not in {"self-faster", "opponent-faster", "tie"} or scope != "stage-only":
+                raise ValueError("deterministic-results malformed entry")
+            entry = ("speed_comparison", "", result, scope, "")
+        else:
+            raise ValueError("deterministic-results malformed entry")
+        if entry in entries:
+            raise ValueError("deterministic-results duplicate entry")
+        entries.append(entry)
+    return tuple(entries), bool(response[start + advice_match.end():].strip())
+
+
+def validate_deterministic_result_acknowledgement(
+    response: str, expected_entries: tuple[tuple[str, str, str, str, str], ...]
+) -> str | None:
+    try:
+        acknowledged, advice_present = parse_deterministic_result_acknowledgement(response)
+    except ValueError as exc:
+        return str(exc)
+    if acknowledged != expected_entries:
+        return "deterministic-results entry mismatch"
+    if not advice_present:
+        return "deterministic-results advice body missing"
+    return None
+
+
+def evaluate_deterministic_result_response(
+    response: str,
+    expected_trusted_entries: tuple[tuple[str, str, str, str | None], ...],
+    expected_result_entries: tuple[tuple[str, str, str, str, str], ...],
+) -> str | None:
+    """Validate exact result acknowledgement plus the stage-only advice boundary."""
+    if failure := validate_trusted_context_acknowledgement(response, expected_trusted_entries):
+        return failure
+    if failure := validate_deterministic_result_acknowledgement(response, expected_result_entries):
+        return failure
+    advice_match = re.search(r"(?ims)^\[advice\]\s*$([\s\S]*)", response)
+    advice = advice_match.group(1) if advice_match else ""
+    forbidden = (
+        r"\b(will|must|guaranteed to) move first\b",
+        r"\b(choice scarf.*(?:applied|included)|tailwind.*(?:applied|included)|trick room.*(?:applied|included))\b",
+        r"\b(speed tie.*(?:wins|winner)|exact (?:damage|ko))\b",
+    )
+    if any(re.search(pattern, advice, re.IGNORECASE) for pattern in forbidden):
+        return "deterministic-results semantic boundary violation"
+    return None
+
+
 def build_ui_selected_trusted_context_entries(battle_input: dict[str, Any], *, enable_battle_state_context: bool) -> tuple[tuple[str, str, str, str | None], ...]:
     """Extract expected acknowledgement entries from the production normalized prompt payload."""
     prompt = _build_ui_selected_prompt(battle_input, enable_battle_state_context=enable_battle_state_context)
     payload = json.loads(prompt.rsplit("\n\n", 1)[1])
     return build_trusted_context_acknowledgement_entries(payload)
+
+
+def build_ui_selected_deterministic_result_entries(battle_input: dict[str, Any], *, enable_battle_state_context: bool) -> tuple[tuple[str, str, str, str, str], ...]:
+    """Extract expected deterministic result entries from the production prompt payload."""
+    prompt = _build_ui_selected_prompt(battle_input, enable_battle_state_context=enable_battle_state_context)
+    payload = json.loads(prompt.rsplit("\n\n", 1)[1])
+    return build_deterministic_result_acknowledgement_entries(payload)
 
 
 def _build_available_item_context_required_mention_guard(payload: dict[str, Any]) -> str:

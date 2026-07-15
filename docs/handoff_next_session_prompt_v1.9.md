@@ -1,5 +1,12 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.2 Stage-Only Effective Stat Boundary
+
+- `deterministic_calculation_context` is intentionally separate from legacy
+  `stat_profiles`, `speed_context`, and all damage/KO calculations.
+- Its Speed comparison is stage-only, never final action order. Future work may
+  connect verified modifiers only with explicit activation/applicability rules.
+
 ## v13.1 Final Battle Stat Boundary
 
 - Direct user-confirmed final stats are stage-unmodified context only and are
