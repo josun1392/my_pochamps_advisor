@@ -254,6 +254,18 @@ _STAT_STAGE_ALIASES = {
     "special-defense": "special-defense", "special defense": "special-defense", "sp-def": "special-defense",
     "speed": "speed", "spe": "speed", "accuracy": "accuracy", "evasion": "evasion",
 }
+USER_CONFIRMED_FINAL_BATTLE_STAT_FORBIDDEN_FIELDS = frozenset({
+    "estimated_ev", "estimated_iv", "inferred_nature", "inferred_level", "inferred_item",
+    "inferred_ability", "effective_stat", "stage_applied_stat", "exact_damage",
+    "exact_damage_range", "ko_probability", "exact_post_turn_hp", "final_speed_order",
+    "speed_tie_result", "rng_roll", "post_turn_stat", "current_hp", "current_hp_percent",
+})
+_FINAL_STAT_ALIASES = {
+    "hp": "hp", "attack": "attack", "atk": "attack", "defense": "defense", "def": "defense",
+    "special-attack": "special-attack", "special attack": "special-attack", "spa": "special-attack",
+    "special-defense": "special-defense", "special defense": "special-defense", "spd": "special-defense",
+    "speed": "speed", "spe": "speed",
+}
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
     "started_this_turn", "activated_this_turn", "ended_this_turn", "turns_remaining", "source_move", "source_ability", "source_item", "resolved_weather_effect", "resolved_terrain_effect", "resolved_screen_effect", "resolved_tailwind_effect", "exact_damage_modifier", "exact_damage", "exact_post_turn_hp", "effective_speed", "final_speed_order", "speed_tie_result", "rng_roll", "post_turn_field_state",
 })
@@ -561,6 +573,84 @@ def build_current_stat_stage_context_from_confirmations(confirmations: Sequence[
         by_key[(normalized["side"], normalized["stat"])] = normalized
     stages = [by_key[key] for key in sorted(by_key, key=lambda key: (("self", "opponent").index(key[0]), key[1]))]
     return {"current_stages": stages} if stages else None
+
+
+def normalize_user_confirmed_final_battle_stat(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize one stage-unmodified final stat supplied by the user."""
+    if not isinstance(candidate, Mapping):
+        raise ValueError("final battle stat candidate must be a mapping")
+    forbidden = _first_forbidden_final_stat_field(candidate)
+    if forbidden is not None:
+        raise ValueError(f"final battle stat field is forbidden: {forbidden}")
+    required = {"side", "stat", "value", "status", "source"}
+    if set(candidate) - (required | {"confidence"}):
+        raise ValueError("unexpected final battle stat field")
+    if required - set(candidate):
+        raise ValueError("final battle stat missing required field")
+    side = candidate.get("side")
+    if side not in {"self", "opponent"}:
+        raise ValueError("final battle stat side must be self or opponent")
+    stat_value = candidate.get("stat")
+    stat = _FINAL_STAT_ALIASES.get(stat_value.strip().lower().replace("_", "-") if isinstance(stat_value, str) else "")
+    if stat is None:
+        raise ValueError("final battle stat must be hp, attack, defense, special-attack, special-defense, or speed")
+    value = candidate.get("value")
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 9999:
+        raise ValueError("final battle stat value must be an integer from 1 to 9999")
+    if candidate.get("status") != "user_confirmed" or candidate.get("source") != "user_confirmed_final_battle_stat":
+        raise ValueError("final battle stat source or status is not allowed")
+    if "confidence" in candidate and candidate["confidence"] != "known":
+        raise ValueError("final battle stat confidence must be known")
+    return {"side": side, "stat": stat, "value": value, "status": "user_confirmed", "source": "user_confirmed_final_battle_stat", "confidence": "known"}
+
+
+def _first_forbidden_final_stat_field(value: object) -> str | None:
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if key in USER_CONFIRMED_FINAL_BATTLE_STAT_FORBIDDEN_FIELDS:
+                return str(key)
+            nested = _first_forbidden_final_stat_field(child)
+            if nested is not None:
+                return nested
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for child in value:
+            nested = _first_forbidden_final_stat_field(child)
+            if nested is not None:
+                return nested
+    return None
+
+
+def build_final_stat_context_from_confirmations(confirmations: Sequence[Mapping[str, Any]] | None) -> dict[str, Any] | None:
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, (str, bytes)):
+        return None
+    by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    for candidate in confirmations:
+        try:
+            normalized = normalize_user_confirmed_final_battle_stat(candidate)
+        except ValueError:
+            continue
+        by_key[(normalized["side"], normalized["stat"])] = normalized
+    stats = [by_key[key] for key in sorted(by_key, key=lambda key: (("self", "opponent").index(key[0]), key[1]))]
+    return {"current_final_stats": stats} if stats else None
+
+
+def build_deterministic_stat_inputs(
+    final_stat_context: Mapping[str, Any] | None,
+    stat_stage_context: Mapping[str, Any] | None = None,
+) -> dict[str, dict[str, dict[str, int]]]:
+    """Expose validated inputs without applying stages or calculating outcomes."""
+    result: dict[str, dict[str, dict[str, int]]] = {"base_final_stats": {}, "current_stat_stages": {}}
+    if isinstance(final_stat_context, Mapping):
+        for entry in final_stat_context.get("current_final_stats", []):
+            if isinstance(entry, Mapping):
+                normalized = normalize_user_confirmed_final_battle_stat({key: value for key, value in entry.items() if key != "confidence"})
+                result["base_final_stats"].setdefault(normalized["side"], {})[normalized["stat"]] = normalized["value"]
+    if isinstance(stat_stage_context, Mapping):
+        for entry in stat_stage_context.get("current_stages", []):
+            if isinstance(entry, Mapping):
+                normalized = normalize_user_confirmed_current_stat_stage({key: value for key, value in entry.items() if key != "confidence"})
+                result["current_stat_stages"].setdefault(normalized["side"], {})[normalized["stat"]] = normalized["stage"]
+    return result
 
 
 def normalize_user_confirmed_current_field_state(candidate: Mapping[str, Any]) -> dict[str, Any]:

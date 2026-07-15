@@ -1,5 +1,14 @@
 # Advisor Payload Contract
 
+## v13.1 Final Stat Context
+
+With limited context enabled, direct user-confirmed entries may map to
+`final_stat_context.current_final_stats`. Each is a stage-unmodified final
+stat with side, canonical stat ID, positive integer value,
+`source=user_confirmed_final_battle_stat`, and `confidence=known`. HP is
+maximum HP, not current HP. The context does not infer build inputs or apply
+stages/modifiers; its structured acknowledgement is exact-compared.
+
 ## v12 Phase Closure
 
 The v12 trusted-context categories are normalized independently and are only

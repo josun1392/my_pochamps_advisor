@@ -1,5 +1,13 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.1 Final Battle Stat Boundary
+
+- Direct user-confirmed final stats are stage-unmodified context only and are
+  separate from current stages. The adapter exposes both inputs without applying
+  a multiplier or calculating outcomes.
+- v13.2 should evaluate a safe deterministic calculation integration boundary;
+  do not infer EVs, IVs, nature, level, modifiers, damage, or order.
+
 ## v12 Phase Closed
 
 - v12 trusted-context integration is closed after the combined offline

@@ -30,11 +30,13 @@ from llm.advisor_battle_state_context import (
     build_battle_state_context_from_ui_selected_state,
     build_current_ability_context_from_confirmations,
     build_current_stat_stage_context_from_confirmations,
+    build_final_stat_context_from_confirmations,
     build_current_condition_context_from_confirmations,
     build_item_event_context_from_confirmations,
     normalize_user_confirmed_current_ability,
     normalize_user_confirmed_current_field_state,
     normalize_user_confirmed_current_stat_stage,
+    normalize_user_confirmed_final_battle_stat,
     normalize_user_confirmed_current_condition,
     validate_explicit_user_item_event_confirmation,
 )
@@ -136,6 +138,7 @@ def build_ui_advice_payload(
     condition_context: dict[str, Any] | None = None,
     ability_context: dict[str, Any] | None = None,
     stat_stage_context: dict[str, Any] | None = None,
+    final_stat_context: dict[str, Any] | None = None,
     field_state_context: dict[str, Any] | None = None,
     *,
     enable_turn_order_context: bool = False,
@@ -145,6 +148,7 @@ def build_ui_advice_payload(
     enable_condition_context: bool = False,
     enable_ability_context: bool = False,
     enable_stat_stage_context: bool = False,
+    enable_final_stat_context: bool = False,
     enable_field_state_context: bool = False,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
@@ -183,6 +187,7 @@ def build_ui_advice_payload(
         enable_ability_context=enable_ability_context,
     )
     _add_stat_stage_context_to_advice_payload(filtered_payload, stat_stage_context, enable_stat_stage_context=enable_stat_stage_context)
+    _add_final_stat_context_to_advice_payload(filtered_payload, final_stat_context, enable_final_stat_context=enable_final_stat_context)
     _add_field_state_context_to_advice_payload(
         filtered_payload,
         field_state_context,
@@ -210,6 +215,7 @@ def _remove_ui_only_field_profiles(payload: dict[str, Any]) -> None:
     payload.pop("current_condition_confirmations", None)
     payload.pop("current_ability_confirmations", None)
     payload.pop("current_stat_stage_confirmations", None)
+    payload.pop("current_final_stat_confirmations", None)
     payload.pop("current_field_state_confirmation", None)
 
 
@@ -317,6 +323,7 @@ def _build_ui_selected_prompt(
     condition_context: dict[str, Any] | None = None,
     ability_context: dict[str, Any] | None = None,
     stat_stage_context: dict[str, Any] | None = None,
+    final_stat_context: dict[str, Any] | None = None,
     field_state_context: dict[str, Any] | None = None,
     *,
     enable_turn_pipeline: bool = False,
@@ -377,6 +384,10 @@ def _build_ui_selected_prompt(
         stat_stage_context = build_current_stat_stage_context_from_confirmations(
             battle_input.get("current_stat_stage_confirmations")
         )
+    if final_stat_context is None and enable_battle_state_context:
+        final_stat_context = build_final_stat_context_from_confirmations(
+            battle_input.get("current_final_stat_confirmations")
+        )
     if field_state_context is None and enable_battle_state_context:
         raw_field_state = battle_input.get("current_field_state_confirmation")
         if isinstance(raw_field_state, dict):
@@ -398,6 +409,7 @@ def _build_ui_selected_prompt(
         condition_context=condition_context,
         ability_context=ability_context,
         stat_stage_context=stat_stage_context,
+        final_stat_context=final_stat_context,
         field_state_context=field_state_context,
         enable_turn_order_context=enable_turn_order_context,
         enable_opponent_move_context=enable_opponent_move_context,
@@ -406,6 +418,7 @@ def _build_ui_selected_prompt(
         enable_condition_context=enable_battle_state_context,
         enable_ability_context=enable_battle_state_context,
         enable_stat_stage_context=enable_battle_state_context,
+        enable_final_stat_context=enable_battle_state_context,
         enable_field_state_context=enable_battle_state_context,
     )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
@@ -418,6 +431,7 @@ def _build_ui_selected_prompt(
     condition_context_guard = _build_condition_context_prompt_guard(advice_payload)
     ability_context_guard = _build_ability_context_prompt_guard(advice_payload)
     stat_stage_context_guard = _build_stat_stage_context_prompt_guard(advice_payload)
+    final_stat_context_guard = _build_final_stat_context_prompt_guard(advice_payload)
     field_state_context_guard = _build_field_state_context_prompt_guard(advice_payload)
     context_attribution_guard = _build_condition_item_event_attribution_prompt_guard(advice_payload)
     structured_acknowledgement_guard = _build_structured_trusted_context_acknowledgement_prompt_guard(advice_payload)
@@ -435,6 +449,7 @@ def _build_ui_selected_prompt(
         f"{condition_context_guard}"
         f"{ability_context_guard}"
         f"{stat_stage_context_guard}"
+        f"{final_stat_context_guard}"
         f"{field_state_context_guard}"
         f"{context_attribution_guard}"
         f"{structured_acknowledgement_guard}"
@@ -1143,6 +1158,21 @@ def _add_field_state_context_to_advice_payload(
     payload["field_state_context"] = {"current_field": {**normalized, "confidence": "known"}}
 
 
+def _add_final_stat_context_to_advice_payload(payload: dict[str, Any], context: dict[str, Any] | None, *, enable_final_stat_context: bool) -> None:
+    if not enable_final_stat_context or context is None:
+        return
+    if not isinstance(context, dict) or set(context) != {"current_final_stats"} or not isinstance(context["current_final_stats"], list):
+        raise ValueError("final_stat_context must contain current_final_stats only")
+    by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    for entry in context["current_final_stats"]:
+        if not isinstance(entry, dict) or entry.get("confidence") != "known":
+            raise ValueError("final_stat_context entry must be known")
+        normalized = normalize_user_confirmed_final_battle_stat({key: value for key, value in entry.items() if key != "confidence"})
+        by_key[(normalized["side"], normalized["stat"])] = {**normalized, "confidence": "known"}
+    if by_key:
+        payload["final_stat_context"] = {"current_final_stats": [by_key[key] for key in sorted(by_key)]}
+
+
 def _validate_battle_state_context_payload(context: dict[str, Any]) -> None:
     if not isinstance(context, dict):
         raise ValueError("battle_state_context must be a mapping")
@@ -1677,6 +1707,17 @@ def _build_field_state_context_prompt_guard(payload: dict[str, Any]) -> str:
     )
 
 
+def _build_final_stat_context_prompt_guard(payload: dict[str, Any]) -> str:
+    if "final_stat_context" not in payload:
+        return ""
+    return (
+        "If final_stat_context is present, treat each value only as a user-confirmed, "
+        "stage-unmodified final stat. Do not infer EVs, IVs, nature, level, item, or ability; "
+        "do not apply stages or temporary modifiers unless a deterministic result is provided, "
+        "and do not infer exact damage, KO chance, HP, or final order. "
+    )
+
+
 def _build_condition_item_event_attribution_prompt_guard(payload: dict[str, Any]) -> str:
     """Require compact category readback only for supplied trusted context."""
     attribution_lines: list[str] = []
@@ -1779,6 +1820,11 @@ def build_trusted_context_acknowledgement_entries(payload: dict[str, Any]) -> tu
                 side, stat, value = stage.get("side"), stage.get("stat"), stage.get("stage")
                 if isinstance(side, str) and isinstance(stat, str) and isinstance(value, int) and not isinstance(value, bool):
                     entries.append(("current_stat_stage", side.lower(), _normalize_trusted_context_identity(stat), str(value)))
+    final_stat_context = payload.get("final_stat_context")
+    if isinstance(final_stat_context, dict) and isinstance(final_stat_context.get("current_final_stats"), list):
+        for stat in final_stat_context["current_final_stats"]:
+            if isinstance(stat, dict) and isinstance(stat.get("side"), str) and isinstance(stat.get("stat"), str) and isinstance(stat.get("value"), int):
+                entries.append(("current_final_stat", stat["side"].lower(), _normalize_trusted_context_identity(stat["stat"]), str(stat["value"])))
     field_state_context = payload.get("field_state_context")
     if isinstance(field_state_context, dict) and isinstance(field_state_context.get("current_field"), dict):
         field = field_state_context["current_field"]
@@ -1819,6 +1865,8 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             lines.append(f"- Current ability | {side} | {identity}")
         elif category == "current_stat_stage":
             lines.append(f"- Current stat stage | {side} | {identity} | {int(event_type):+d}" if int(event_type) else f"- Current stat stage | {side} | {identity} | 0")
+        elif category == "current_final_stat":
+            lines.append(f"- Current final stat | {side} | {identity} | {event_type}")
         elif category == "current_weather":
             lines.append(f"- Current weather | {identity}")
         elif category == "current_terrain":
@@ -1875,6 +1923,14 @@ def parse_trusted_context_acknowledgement(response: str) -> tuple[tuple[tuple[st
             if not -6 <= stage_value <= 6:
                 raise ValueError("trusted-context malformed entry")
             entry = ("current_stat_stage", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), str(stage_value))
+        elif category == "current final stat" and len(parts) == 4:
+            try:
+                value = int(parts[3])
+            except ValueError as exc:
+                raise ValueError("trusted-context malformed entry") from exc
+            if not 1 <= value <= 9999:
+                raise ValueError("trusted-context malformed entry")
+            entry = ("current_final_stat", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), str(value))
         elif category == "current weather" and len(parts) == 2:
             entry = ("current_weather", "", _normalize_trusted_context_identity(parts[1]), None)
         elif category == "current terrain" and len(parts) == 2:

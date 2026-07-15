@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v13.1 - Final Battle Stat Input And Calculation Boundary
+
+Result:
+- Added direct user-confirmed stage-unmodified final-stat input, normalization,
+  limited-context payload/prompt/acknowledgement support, and a non-calculating
+  deterministic input adapter.
+- Existing Champions stat-profile and damage/speed paths remain unchanged.
+- Verification: `uv run pytest` — 1984 passed, 2 deselected in 32.18s.
+- Status: `COMPLETE - FINAL STAT INPUT AND ADAPTER BOUNDARY GREEN`.
+
+---
+
 ## v12.80 - Integrated Trusted-Context Regression And Phase Closure
 
 Result:
