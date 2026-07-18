@@ -22,6 +22,11 @@ The session dialog replaces one snapshot per side; Cancel/invalid preserve the
 prior state and Clear removes it. The existing limited-context checkbox gates
 both raw HP context and every HP/KO result.
 
+When `current_hp=0`, the target is already fainted. Trusted HP context and the
+maximum-HP percentage range remain available, but the assessment is
+`not_applicable` with reason `target_already_fainted`; it emits no OHKO or
+within-two-hits result, count, or status.
+
 For a resolved v13.3 damage estimate, percentage uses integer rolls divided by
 maximum HP and rounds display values to one decimal. OHKO counts `damage >=
 current_hp` over 16 rolls. Within-two-hits enumerates all 256 independent roll
@@ -40,4 +45,5 @@ Leftovers, accuracy, criticals, or turn transitions.
 ## Verification
 
 - HP/UI/gate contracts: 44 passed.
-- `uv run pytest -q`: 2027 passed, 2 deselected in 27.65s (offline full suite).
+- Corrective zero-HP contracts: 16 passed; related regression: 572 passed.
+- `uv run pytest -q`: 2028 passed, 2 deselected in 26.39s (offline full suite).

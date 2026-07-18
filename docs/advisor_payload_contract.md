@@ -9,6 +9,8 @@ produce separate `hp_assessments`: percentage, 16-roll OHKO, and 256-pair
 within-two-hits results. These include no recovery, chip, hazards, survival,
 accuracy, critical, modifier, or between-turn semantics and do not replace
 legacy `ko_context`.
+For `current_hp=0`, the target is already fainted: percentage may remain, but
+`hp_assessments` omits OHKO/two-hit entries and records `not_applicable`.
 
 ## v13.3 Limited Damage Result
 

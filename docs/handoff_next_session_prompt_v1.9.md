@@ -5,7 +5,9 @@
 - Exact current/max HP is separate from percent and final-stat HP. The v13.4
   result is only independent v13.3 damage rolls against a current snapshot.
 - Do not add survival, recovery, chip, accuracy, critical, or turn-transition
-  mechanics without a separately verified contract.
+mechanics without a separately verified contract.
+- A trusted zero current HP means already fainted, not guaranteed future KO;
+  retain percentage only and keep KO assessment not applicable.
 
 ## v13.3 Base-Damage-Only Boundary
 

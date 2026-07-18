@@ -877,19 +877,25 @@ def build_hp_ko_assessment(
     base = base_damage(level, power, offense, defense)
     rolls = [base * factor // 100 for factor in range(85, 101)]
     current_hp, maximum_hp = normalized["current_hp"], normalized["maximum_hp"]
-    ohko_successes = sum(damage >= current_hp for damage in rolls)
-    two_hit_successes = sum(first + second >= current_hp for first in rolls for second in rolls)
-    def status(successes: int, total: int) -> str:
-        return "guaranteed" if successes == total else "possible" if successes else "impossible"
-    return {
+    base_result = {
         "attacker_side": damage_estimate["attacker_side"], "defender_side": defender, "move": damage_estimate["move"],
         "current_hp": current_hp, "maximum_hp": maximum_hp,
         "min_damage": min(rolls), "max_damage": max(rolls),
         "min_percent": round(min(rolls) * 100 / maximum_hp, 1), "max_percent": round(max(rolls) * 100 / maximum_hp, 1),
         "percentage_scope": LIMITED_DAMAGE_CALCULATION_SCOPE,
+        "calculation_scope": LIMITED_DAMAGE_CALCULATION_SCOPE,
+    }
+    if current_hp == 0:
+        return {**base_result, "calculation_status": "resolved", "assessment_status": "not_applicable", "reason": "target_already_fainted"}
+    ohko_successes = sum(damage >= current_hp for damage in rolls)
+    two_hit_successes = sum(first + second >= current_hp for first in rolls for second in rolls)
+    def status(successes: int, total: int) -> str:
+        return "guaranteed" if successes == total else "possible" if successes else "impossible"
+    return {
+        **base_result,
         "ohko": {"successful_rolls": ohko_successes, "total_rolls": 16, "chance_percent": ohko_successes * 100 / 16, "status": status(ohko_successes, 16), "scope": LIMITED_DAMAGE_CALCULATION_SCOPE},
         "two_hit_ko": {"successful_combinations": two_hit_successes, "total_combinations": 256, "chance_percent": two_hit_successes * 100 / 256, "status": status(two_hit_successes, 256), "scope": "two-hit-independent-rolls-no-between-turn-effects"},
-        "calculation_status": "resolved", "calculation_scope": LIMITED_DAMAGE_CALCULATION_SCOPE,
+        "calculation_status": "resolved", "assessment_status": "resolved",
     }
 
 

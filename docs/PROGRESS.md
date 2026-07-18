@@ -7,7 +7,9 @@ Result:
   OHKO, and 256-pair within-two-hits assessments under the existing gate.
 - Legacy damage, `ko_context`, Q12/raw-roll conventions, recovery, chip, and
   survival contexts remain unchanged and separate.
-- Verification: `uv run pytest -q` — 2027 passed, 2 deselected in 27.65s.
+- Corrective policy: `current_hp=0` is a trusted fainted snapshot; percentage
+  remains available while KO assessments are `not_applicable`.
+- Corrective verification: `uv run pytest -q` — 2028 passed, 2 deselected in 26.39s.
 - Status: `COMPLETE - DETERMINISTIC HP AND KO ASSESSMENT GREEN`.
 
 ---
