@@ -1,5 +1,12 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.3 Base-Damage-Only Boundary
+
+- v13.3 damage ranges use direct final stats plus current stages and selected
+  move metadata only; they do not merge with legacy `stat_profiles` damage.
+- Follow-up work must not add STAB, types, critical, item, ability, field, or
+  KO semantics without an explicit separately verified contract.
+
 ## v13.2 Stage-Only Effective Stat Boundary
 
 - `deterministic_calculation_context` is intentionally separate from legacy

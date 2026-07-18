@@ -11,6 +11,8 @@ from collections.abc import Mapping, Sequence
 import re
 from typing import Any
 
+from advisor.damage.formula import base_damage
+
 
 BATTLE_STATE_CONTEXT_ALLOWED_SOURCES = frozenset(
     {
@@ -270,7 +272,17 @@ EFFECTIVE_STAT_CALCULATION_SCOPE = "final_stat_plus_stage_only"
 EFFECTIVE_STAT_EXCLUDED_MODIFIERS = (
     "priority", "item", "ability", "weather", "terrain", "tailwind", "trick-room", "rng",
 )
+LIMITED_DAMAGE_LEVEL = 50
+LIMITED_DAMAGE_CALCULATION_SCOPE = "base_damage_stage_only"
+LIMITED_DAMAGE_EXCLUDED_MODIFIERS = (
+    "stab", "type-effectiveness", "critical-hit", "burn", "weather", "terrain", "screens",
+    "item", "ability", "spread", "helping-hand", "friend-guard", "priority", "ko",
+)
 _STAGE_ADJUSTABLE_FINAL_STATS = frozenset({"attack", "defense", "special-attack", "special-defense", "speed"})
+_VARIABLE_POWER_MOVE_IDS = frozenset({"acrobatics", "avalanche", "brine", "crush-grip", "electro-ball", "eruption", "facade", "flail", "fling", "frustration", "grass-knot", "gyro-ball", "heat-crash", "heavy-slam", "low-kick", "payback", "power-trip", "punishment", "return", "reversal", "stored-power", "water-spout"})
+_FIXED_DAMAGE_MOVE_IDS = frozenset({"dragon-rage", "endeavor", "final-gambit", "night-shade", "psywave", "seismic-toss", "sonic-boom", "super-fang"})
+_OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
+_MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
     "started_this_turn", "activated_this_turn", "ended_this_turn", "turns_remaining", "source_move", "source_ability", "source_item", "resolved_weather_effect", "resolved_terrain_effect", "resolved_screen_effect", "resolved_tailwind_effect", "exact_damage_modifier", "exact_damage", "exact_post_turn_hp", "effective_speed", "final_speed_order", "speed_tie_result", "rng_roll", "post_turn_field_state",
 })
@@ -734,6 +746,73 @@ def build_speed_comparison_result(effective_stats: Sequence[Mapping[str, Any]]) 
     else:
         result["result"] = "tie"
     return result
+
+
+def build_deterministic_calculation_context(
+    final_stat_context: Mapping[str, Any] | None,
+    stat_stage_context: Mapping[str, Any] | None = None,
+    selected_move: Mapping[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Combine v13.2 effective stats with a separately scoped v13.3 damage result."""
+    context = build_effective_stat_inputs(final_stat_context, stat_stage_context)
+    if context is None:
+        return None
+    estimate = build_limited_damage_estimate(context["effective_stats"], selected_move)
+    return {**context, "damage_estimates": [estimate] if estimate is not None else []}
+
+
+def build_limited_damage_estimate(
+    effective_stats: Sequence[Mapping[str, Any]], selected_move: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """Return one base-damage-only range, never legacy or modifier-resolved damage."""
+    if not isinstance(selected_move, Mapping):
+        return None
+    move_id = selected_move.get("move_id")
+    category = selected_move.get("category")
+    power = selected_move.get("power")
+    base = {
+        "attacker_side": "self",
+        "defender_side": "opponent",
+        "move": move_id if isinstance(move_id, str) and move_id else "unknown",
+        "damage_class": category if isinstance(category, str) else "unknown",
+        "calculation_scope": LIMITED_DAMAGE_CALCULATION_SCOPE,
+        "excluded_modifiers": list(LIMITED_DAMAGE_EXCLUDED_MODIFIERS),
+    }
+    if not isinstance(move_id, str) or not move_id:
+        return {**base, "calculation_status": "unavailable", "reason": "missing_move_id"}
+    if move_id in _OHKO_MOVE_IDS:
+        return {**base, "calculation_status": "unsupported_move", "reason": "ohko"}
+    if move_id in _FIXED_DAMAGE_MOVE_IDS:
+        return {**base, "calculation_status": "unsupported_move", "reason": "fixed_damage"}
+    if move_id in _MULTI_HIT_MOVE_IDS:
+        return {**base, "calculation_status": "unsupported_move", "reason": "multi_hit_unresolved"}
+    if move_id in _VARIABLE_POWER_MOVE_IDS or selected_move.get("power_status") == "variable":
+        return {**base, "calculation_status": "unsupported_move", "reason": "variable_power"}
+    if category == "status":
+        return {**base, "calculation_status": "unsupported_move", "reason": "status_move"}
+    if category not in {"physical", "special"}:
+        return {**base, "calculation_status": "unavailable", "reason": "missing_move_category"}
+    if isinstance(power, bool) or not isinstance(power, int) or power < 1:
+        return {**base, "calculation_status": "unavailable", "reason": "missing_move_power"}
+    stat = ("attack", "defense") if category == "physical" else ("special-attack", "special-defense")
+    values = {(entry.get("side"), entry.get("stat")): entry.get("effective_value") for entry in effective_stats if isinstance(entry, Mapping)}
+    offense, defense = values.get(("self", stat[0])), values.get(("opponent", stat[1]))
+    if isinstance(offense, bool) or not isinstance(offense, int) or offense < 1:
+        return {**base, "power": power, "level": LIMITED_DAMAGE_LEVEL, "calculation_status": "unavailable", "reason": "missing_offensive_stat"}
+    if isinstance(defense, bool) or not isinstance(defense, int) or defense < 1:
+        return {**base, "power": power, "level": LIMITED_DAMAGE_LEVEL, "offensive_stat": offense, "calculation_status": "unavailable", "reason": "missing_defensive_stat"}
+    unmodified_base = base_damage(LIMITED_DAMAGE_LEVEL, power, offense, defense)
+    rolls = [unmodified_base * random_factor // 100 for random_factor in range(85, 101)]
+    return {
+        **base,
+        "power": power,
+        "level": LIMITED_DAMAGE_LEVEL,
+        "offensive_stat": offense,
+        "defensive_stat": defense,
+        "min_damage": min(rolls),
+        "max_damage": max(rolls),
+        "calculation_status": "resolved",
+    }
 
 
 def normalize_user_confirmed_current_field_state(candidate: Mapping[str, Any]) -> dict[str, Any]:

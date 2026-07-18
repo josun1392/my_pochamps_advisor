@@ -149,6 +149,7 @@ def evaluate_current_condition_item_event_response(
     response: str,
     *,
     expected_entries: tuple[tuple[str, str, str, str | None], ...],
+    expected_result_entries: tuple[tuple[str, ...], ...] = (),
 ) -> tuple[str, str]:
     """Evaluate only the fixed smoke fixture without retaining response text."""
     text = response.lower()
@@ -164,6 +165,13 @@ def evaluate_current_condition_item_event_response(
         if any(entry[0] in {"current_weather", "current_terrain", "current_global_field_effect", "current_side_field_effect"} for entry in expected_entries):
             return "fail", "trusted-context field entry missing or mismatch"
         return "fail", acknowledgement_failure
+    if expected_result_entries:
+        result_failure = advisor_client.validate_deterministic_result_acknowledgement(
+            response,
+            expected_result_entries,
+        )
+        if result_failure is not None:
+            return "fail", "deterministic-result entry missing or mismatch"
     forbidden = (
         "burn was applied this turn",
         "burn damage triggered this turn",
@@ -214,6 +222,15 @@ def evaluate_current_condition_item_event_response(
         "trick room guarantees moving first",
         "exact effective speed",
         "post-turn field state",
+        "exactly 95 damage",
+        "guaranteed ohko",
+        "guaranteed 2hko",
+        "exact remaining hp",
+        "stab applied",
+        "type effectiveness applied",
+        "choice specs applied",
+        "light screen applied",
+        "critical hit applied",
     )
     opponent_unknown_inference = any(
         f"opponent {condition}" in text

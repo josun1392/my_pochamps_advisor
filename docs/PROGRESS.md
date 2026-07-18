@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v13.3 - Deterministic Limited-Scope Damage Estimate
+
+Result:
+- Added a separate base-damage-stage-only range from user-confirmed final
+  stats/stages and selected move metadata, with unsupported/unavailable states.
+- Legacy `damage_estimate`, `ko_context`, Q12, raw-roll semantics, and
+  `stat_profiles` remain unchanged.
+- Verification: `uv run pytest -q` — 2010 passed, 2 deselected in 27.68s.
+- Status: `COMPLETE - LIMITED DAMAGE ESTIMATE GREEN`.
+
+---
+
 ## v13.2 - Deterministic Effective Stat And Speed Comparison
 
 Result:

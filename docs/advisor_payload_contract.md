@@ -1,5 +1,15 @@
 # Advisor Payload Contract
 
+## v13.3 Limited Damage Result
+
+`deterministic_calculation_context.damage_estimates` is separate from legacy
+`damage_estimate` and may contain a resolved `base_damage_stage_only` range
+only when trusted final stats/stages and selected move id/category/power are
+available. It uses the documented project level-50 rule and excludes STAB,
+type effectiveness, critical, burn, item, ability, weather, terrain, screens,
+spread, priority, and KO work. Its exact acknowledgement is a
+`Damage estimate` line in `[Deterministic Results]`, not `[Trusted Context]`.
+
 ## v13.2 Deterministic Calculation Context
 
 With limited context enabled, `deterministic_calculation_context` is generated

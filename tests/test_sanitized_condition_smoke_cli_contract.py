@@ -34,6 +34,21 @@ def _acknowledged_response(advice: str, *, ability_fixture: bool = False) -> str
     )
 
 
+def test_sanitized_evaluator_optionally_exact_checks_deterministic_damage_results() -> None:
+    expected = (("damage_estimate", "self", "opponent", "tackle", "40-48", "base-damage-stage-only"),)
+    response = (
+        "[Trusted Context]\n\n[Deterministic Results]\n"
+        "- Damage estimate | self | opponent | tackle | 40-48 | base-damage-stage-only\n\n"
+        "[Advice]\nThe limited range is unresolved outside the declared scope."
+    )
+    assert smoke_cli.evaluate_current_condition_item_event_response(
+        response, expected_entries=(), expected_result_entries=expected
+    )[0] == "pass"
+    assert smoke_cli.evaluate_current_condition_item_event_response(
+        response.replace("40-48", "41-48"), expected_entries=(), expected_result_entries=expected
+    )[0] == "fail"
+
+
 def _run_cli_harness(
     *,
     provider_body: str,
