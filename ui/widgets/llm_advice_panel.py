@@ -34,6 +34,8 @@ class LLMAdvicePanel(QFrame):
     current_field_state_session_reset_requested = Signal()
     current_final_stat_requested = Signal()
     current_final_stat_session_reset_requested = Signal()
+    current_hp_requested = Signal()
+    current_hp_session_reset_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -104,6 +106,10 @@ class LLMAdvicePanel(QFrame):
         self.current_final_stat_button.clicked.connect(self.current_final_stat_requested.emit)
         self.clear_current_final_stats_button = QPushButton("Clear final stats")
         self.clear_current_final_stats_button.clicked.connect(self.current_final_stat_session_reset_requested.emit)
+        self.current_hp_button = QPushButton("Current HP")
+        self.current_hp_button.clicked.connect(self.current_hp_requested.emit)
+        self.clear_current_hp_button = QPushButton("Clear current HP")
+        self.clear_current_hp_button.clicked.connect(self.current_hp_session_reset_requested.emit)
 
         self.turn_pipeline_checkbox = QCheckBox("제한 컨텍스트 포함")
         self.turn_pipeline_checkbox.setObjectName("turnPipelineDevFlag")
@@ -138,6 +144,8 @@ class LLMAdvicePanel(QFrame):
         layout.addWidget(self.clear_current_field_state_button)
         layout.addWidget(self.current_final_stat_button)
         layout.addWidget(self.clear_current_final_stats_button)
+        layout.addWidget(self.current_hp_button)
+        layout.addWidget(self.clear_current_hp_button)
         layout.addWidget(self.turn_pipeline_checkbox)
         layout.addWidget(self.turn_pipeline_status_label)
         layout.addWidget(self.output_edit, 1)
@@ -172,6 +180,8 @@ class LLMAdvicePanel(QFrame):
         self.current_field_state_button.setText("Field state" if not count else f"Field state ({count})")
     def set_current_final_stat_count(self, count: int) -> None:
         self.current_final_stat_button.setText("Final stats" if not count else f"Final stats ({count})")
+    def set_current_hp_count(self, count: int) -> None:
+        self.current_hp_button.setText("Current HP" if not count else f"Current HP ({count})")
 
     def set_running(self, is_running: bool) -> None:
         self.request_button.setDisabled(is_running)
@@ -188,6 +198,8 @@ class LLMAdvicePanel(QFrame):
         self.clear_current_field_state_button.setDisabled(is_running)
         self.current_final_stat_button.setDisabled(is_running)
         self.clear_current_final_stats_button.setDisabled(is_running)
+        self.current_hp_button.setDisabled(is_running)
+        self.clear_current_hp_button.setDisabled(is_running)
         self.turn_pipeline_checkbox.setDisabled(is_running)
         if is_running:
             self.output_edit.setPlainText("분석 중...")

@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v13.4 - Deterministic HP And KO Assessment
+
+Result:
+- Added exact user-confirmed current/max HP input, damage percentage, 16-roll
+  OHKO, and 256-pair within-two-hits assessments under the existing gate.
+- Legacy damage, `ko_context`, Q12/raw-roll conventions, recovery, chip, and
+  survival contexts remain unchanged and separate.
+- Verification: `uv run pytest -q` — 2027 passed, 2 deselected in 27.65s.
+- Status: `COMPLETE - DETERMINISTIC HP AND KO ASSESSMENT GREEN`.
+
+---
+
 ## v13.3 - Deterministic Limited-Scope Damage Estimate
 
 Result:

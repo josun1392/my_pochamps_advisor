@@ -1,5 +1,12 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.4 HP/KO Boundary
+
+- Exact current/max HP is separate from percent and final-stat HP. The v13.4
+  result is only independent v13.3 damage rolls against a current snapshot.
+- Do not add survival, recovery, chip, accuracy, critical, or turn-transition
+  mechanics without a separately verified contract.
+
 ## v13.3 Base-Damage-Only Boundary
 
 - v13.3 damage ranges use direct final stats plus current stages and selected

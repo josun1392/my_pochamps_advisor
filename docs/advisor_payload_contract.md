@@ -1,5 +1,15 @@
 # Advisor Payload Contract
 
+## v13.4 Exact HP And KO Assessment
+
+With limited context enabled, `current_hp_context.current_hp` carries only
+user-confirmed exact current/max HP snapshots. It is distinct from visible
+`hp_percent` and final-stat maximum HP. A resolved v13.3 damage estimate may
+produce separate `hp_assessments`: percentage, 16-roll OHKO, and 256-pair
+within-two-hits results. These include no recovery, chip, hazards, survival,
+accuracy, critical, modifier, or between-turn semantics and do not replace
+legacy `ko_context`.
+
 ## v13.3 Limited Damage Result
 
 `deterministic_calculation_context.damage_estimates` is separate from legacy

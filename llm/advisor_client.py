@@ -30,6 +30,7 @@ from llm.advisor_battle_state_context import (
     build_battle_state_context_from_ui_selected_state,
     build_current_ability_context_from_confirmations,
     build_current_stat_stage_context_from_confirmations,
+    build_current_hp_context_from_confirmations,
     build_deterministic_calculation_context,
     build_final_stat_context_from_confirmations,
     build_current_condition_context_from_confirmations,
@@ -37,6 +38,7 @@ from llm.advisor_battle_state_context import (
     normalize_user_confirmed_current_ability,
     normalize_user_confirmed_current_field_state,
     normalize_user_confirmed_current_stat_stage,
+    normalize_user_confirmed_current_hp,
     normalize_user_confirmed_final_battle_stat,
     normalize_user_confirmed_current_condition,
     validate_explicit_user_item_event_confirmation,
@@ -141,6 +143,7 @@ def build_ui_advice_payload(
     stat_stage_context: dict[str, Any] | None = None,
     final_stat_context: dict[str, Any] | None = None,
     field_state_context: dict[str, Any] | None = None,
+    current_hp_context: dict[str, Any] | None = None,
     deterministic_calculation_context: dict[str, Any] | None = None,
     *,
     enable_turn_order_context: bool = False,
@@ -152,6 +155,7 @@ def build_ui_advice_payload(
     enable_stat_stage_context: bool = False,
     enable_final_stat_context: bool = False,
     enable_field_state_context: bool = False,
+    enable_current_hp_context: bool = False,
     enable_deterministic_calculation_context: bool = False,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
@@ -196,6 +200,7 @@ def build_ui_advice_payload(
         field_state_context,
         enable_field_state_context=enable_field_state_context,
     )
+    _add_current_hp_context_to_advice_payload(filtered_payload, current_hp_context, enable_current_hp_context=enable_current_hp_context)
     _add_deterministic_calculation_context_to_advice_payload(
         filtered_payload,
         deterministic_calculation_context,
@@ -224,6 +229,7 @@ def _remove_ui_only_field_profiles(payload: dict[str, Any]) -> None:
     payload.pop("current_ability_confirmations", None)
     payload.pop("current_stat_stage_confirmations", None)
     payload.pop("current_final_stat_confirmations", None)
+    payload.pop("current_hp_confirmations", None)
     payload.pop("current_field_state_confirmation", None)
 
 
@@ -333,6 +339,7 @@ def _build_ui_selected_prompt(
     stat_stage_context: dict[str, Any] | None = None,
     final_stat_context: dict[str, Any] | None = None,
     field_state_context: dict[str, Any] | None = None,
+    current_hp_context: dict[str, Any] | None = None,
     deterministic_calculation_context: dict[str, Any] | None = None,
     *,
     enable_turn_pipeline: bool = False,
@@ -397,6 +404,8 @@ def _build_ui_selected_prompt(
         final_stat_context = build_final_stat_context_from_confirmations(
             battle_input.get("current_final_stat_confirmations")
         )
+    if current_hp_context is None and enable_battle_state_context:
+        current_hp_context = build_current_hp_context_from_confirmations(battle_input.get("current_hp_confirmations"))
     if field_state_context is None and enable_battle_state_context:
         raw_field_state = battle_input.get("current_field_state_confirmation")
         if isinstance(raw_field_state, dict):
@@ -411,6 +420,7 @@ def _build_ui_selected_prompt(
             final_stat_context,
             stat_stage_context,
             _selected_move_payload_from_advice_payload(battle_input),
+            current_hp_context,
         )
 
     advice_payload = build_ui_advice_payload(
@@ -426,6 +436,7 @@ def _build_ui_selected_prompt(
         stat_stage_context=stat_stage_context,
         final_stat_context=final_stat_context,
         field_state_context=field_state_context,
+        current_hp_context=current_hp_context,
         deterministic_calculation_context=deterministic_calculation_context,
         enable_turn_order_context=enable_turn_order_context,
         enable_opponent_move_context=enable_opponent_move_context,
@@ -436,6 +447,7 @@ def _build_ui_selected_prompt(
         enable_stat_stage_context=enable_battle_state_context,
         enable_final_stat_context=enable_battle_state_context,
         enable_field_state_context=enable_battle_state_context,
+        enable_current_hp_context=enable_battle_state_context,
         enable_deterministic_calculation_context=enable_battle_state_context,
     )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
@@ -450,6 +462,7 @@ def _build_ui_selected_prompt(
     stat_stage_context_guard = _build_stat_stage_context_prompt_guard(advice_payload)
     final_stat_context_guard = _build_final_stat_context_prompt_guard(advice_payload)
     deterministic_calculation_context_guard = _build_deterministic_calculation_context_prompt_guard(advice_payload)
+    current_hp_context_guard = _build_current_hp_context_prompt_guard(advice_payload)
     field_state_context_guard = _build_field_state_context_prompt_guard(advice_payload)
     context_attribution_guard = _build_condition_item_event_attribution_prompt_guard(advice_payload)
     structured_acknowledgement_guard = _build_structured_trusted_context_acknowledgement_prompt_guard(advice_payload)
@@ -469,6 +482,7 @@ def _build_ui_selected_prompt(
         f"{stat_stage_context_guard}"
         f"{final_stat_context_guard}"
         f"{deterministic_calculation_context_guard}"
+        f"{current_hp_context_guard}"
         f"{field_state_context_guard}"
         f"{context_attribution_guard}"
         f"{structured_acknowledgement_guard}"
@@ -1202,10 +1216,21 @@ def _add_deterministic_calculation_context_to_advice_payload(
         payload.get("final_stat_context"),
         payload.get("stat_stage_context"),
         _selected_move_payload_from_advice_payload(payload),
+        payload.get("current_hp_context"),
     )
     if expected is None or context != expected:
         raise ValueError("deterministic_calculation_context must match trusted stage-only inputs")
     payload["deterministic_calculation_context"] = deepcopy(expected)
+
+
+def _add_current_hp_context_to_advice_payload(payload: dict[str, Any], context: dict[str, Any] | None, *, enable_current_hp_context: bool) -> None:
+    if not enable_current_hp_context or context is None:
+        return
+    if not isinstance(context, dict) or not isinstance(context.get("current_hp"), list):
+        raise ValueError("current_hp_context must contain current_hp")
+    entries = [normalize_user_confirmed_current_hp(entry) for entry in context["current_hp"] if isinstance(entry, dict)]
+    if entries:
+        payload["current_hp_context"] = {"current_hp": entries}
 
 
 def _validate_battle_state_context_payload(context: dict[str, Any]) -> None:
@@ -1762,7 +1787,18 @@ def _build_deterministic_calculation_context_prompt_guard(payload: dict[str, Any
         "item, ability, weather, terrain, Tailwind, Trick Room, or RNG modifiers. A tie means equal stage-adjusted "
         "Speed only, never a tie winner or first action. Any damage estimate is base-damage-stage-only: do not alter "
         "its range or infer STAB, type effectiveness, burn, item, ability, weather, terrain, screens, critical hits, "
-        "remaining HP, or KO chance. "
+        "remaining HP, or KO chance. If an HP assessment is present, use only its declared current/max HP, 16-roll "
+        "OHKO count, and independent two-hit roll-pair result; do not add recovery, chip, hazards, survival effects, "
+        "accuracy, critical hits, or between-turn state changes. "
+    )
+
+
+def _build_current_hp_context_prompt_guard(payload: dict[str, Any]) -> str:
+    if "current_hp_context" not in payload:
+        return ""
+    return (
+        "current_hp_context contains user-confirmed exact current HP and maximum HP snapshots. Do not convert visible "
+        "HP percent into exact HP, infer post-turn HP, damage taken, recovery, or survival effects. "
     )
 
 
@@ -1873,6 +1909,11 @@ def build_trusted_context_acknowledgement_entries(payload: dict[str, Any]) -> tu
         for stat in final_stat_context["current_final_stats"]:
             if isinstance(stat, dict) and isinstance(stat.get("side"), str) and isinstance(stat.get("stat"), str) and isinstance(stat.get("value"), int):
                 entries.append(("current_final_stat", stat["side"].lower(), _normalize_trusted_context_identity(stat["stat"]), str(stat["value"])))
+    current_hp_context = payload.get("current_hp_context")
+    if isinstance(current_hp_context, dict) and isinstance(current_hp_context.get("current_hp"), list):
+        for hp in current_hp_context["current_hp"]:
+            if isinstance(hp, dict) and isinstance(hp.get("side"), str) and isinstance(hp.get("current_hp"), int) and isinstance(hp.get("maximum_hp"), int):
+                entries.append(("current_hp", hp["side"].lower(), str(hp["current_hp"]), str(hp["maximum_hp"])))
     field_state_context = payload.get("field_state_context")
     if isinstance(field_state_context, dict) and isinstance(field_state_context.get("current_field"), dict):
         field = field_state_context["current_field"]
@@ -1923,6 +1964,18 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
             minimum, maximum, scope = estimate.get("min_damage"), estimate.get("max_damage"), estimate.get("calculation_scope")
             if all(isinstance(value, str) for value in (attacker, defender, move, scope)) and all(isinstance(value, int) for value in (minimum, maximum)):
                 entries.append(("damage_estimate", attacker.lower(), defender.lower(), move.lower(), f"{minimum}-{maximum}", scope.replace("_", "-")))  # type: ignore[arg-type]
+    for assessment in context.get("hp_assessments", []):
+        if not isinstance(assessment, dict) or assessment.get("calculation_status") != "resolved":
+            continue
+        attacker, defender, move = assessment.get("attacker_side"), assessment.get("defender_side"), assessment.get("move")
+        minimum, maximum, scope = assessment.get("min_percent"), assessment.get("max_percent"), assessment.get("percentage_scope")
+        ohko, two_hit = assessment.get("ohko"), assessment.get("two_hit_ko")
+        if all(isinstance(value, str) for value in (attacker, defender, move, scope)) and all(isinstance(value, (int, float)) and not isinstance(value, bool) for value in (minimum, maximum)):
+            entries.append(("damage_percentage", attacker.lower(), defender.lower(), move.lower(), f"{minimum:.1f}-{maximum:.1f}", scope.replace("_", "-")))
+        if isinstance(ohko, dict) and isinstance(ohko.get("successful_rolls"), int) and isinstance(ohko.get("total_rolls"), int) and isinstance(ohko.get("status"), str):
+            entries.append(("ohko_assessment", attacker.lower(), defender.lower(), move.lower(), f"{ohko['successful_rolls']}/{ohko['total_rolls']}", ohko["status"]))
+        if isinstance(two_hit, dict) and isinstance(two_hit.get("successful_combinations"), int) and isinstance(two_hit.get("total_combinations"), int) and isinstance(two_hit.get("status"), str) and isinstance(two_hit.get("scope"), str):
+            entries.append(("two_hit_ko_assessment", attacker.lower(), defender.lower(), move.lower(), f"{two_hit['successful_combinations']}/{two_hit['total_combinations']}", two_hit["status"], two_hit["scope"]))
     return tuple(entries)
 
 
@@ -1941,6 +1994,8 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             lines.append(f"- Current stat stage | {side} | {identity} | {int(event_type):+d}" if int(event_type) else f"- Current stat stage | {side} | {identity} | 0")
         elif category == "current_final_stat":
             lines.append(f"- Current final stat | {side} | {identity} | {event_type}")
+        elif category == "current_hp":
+            lines.append(f"- Current HP | {side} | {identity} | maximum {event_type}")
         elif category == "current_weather":
             lines.append(f"- Current weather | {identity}")
         elif category == "current_terrain":
@@ -1962,8 +2017,18 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
                 _, _, identity, value, _ = entry
                 lines.append(f"- Speed comparison | {identity} | {value}")
             else:
-                _, attacker, defender, move, damage_range, scope = entry
-                lines.append(f"- Damage estimate | {attacker} | {defender} | {move} | {damage_range} | {scope}")
+                if category == "damage_estimate":
+                    _, attacker, defender, move, damage_range, scope = entry
+                    lines.append(f"- Damage estimate | {attacker} | {defender} | {move} | {damage_range} | {scope}")
+                elif category == "damage_percentage":
+                    _, attacker, defender, move, percent_range, scope = entry
+                    lines.append(f"- Damage percentage | {attacker} | {defender} | {move} | {percent_range} | {scope}")
+                elif category == "ohko_assessment":
+                    _, attacker, defender, move, count, status = entry
+                    lines.append(f"- OHKO assessment | {attacker} | {defender} | {move} | {count} | {status}")
+                else:
+                    _, attacker, defender, move, count, status, scope = entry
+                    lines.append(f"- Two-hit KO assessment | {attacker} | {defender} | {move} | {count} | {status} | {scope}")
     lines.append("[Advice]")
     return (
         "Start the answer with exactly this short trusted-context acknowledgement format, copying every trusted input and "
@@ -2022,6 +2087,14 @@ def parse_trusted_context_acknowledgement(response: str) -> tuple[tuple[tuple[st
             if not 1 <= value <= 9999:
                 raise ValueError("trusted-context malformed entry")
             entry = ("current_final_stat", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), str(value))
+        elif category == "current hp" and len(parts) == 4:
+            try:
+                current_hp, maximum_hp = int(parts[2]), int(parts[3].removeprefix("maximum "))
+            except ValueError as exc:
+                raise ValueError("trusted-context malformed entry") from exc
+            if current_hp < 0 or maximum_hp < 1 or current_hp > maximum_hp:
+                raise ValueError("trusted-context malformed entry")
+            entry = ("current_hp", parts[1].lower(), str(current_hp), str(maximum_hp))
         elif category == "current weather" and len(parts) == 2:
             entry = ("current_weather", "", _normalize_trusted_context_identity(parts[1]), None)
         elif category == "current terrain" and len(parts) == 2:
@@ -2095,6 +2168,21 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             if minimum < 0 or minimum > maximum:
                 raise ValueError("deterministic-results malformed entry")
             entry = ("damage_estimate", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), f"{minimum}-{maximum}", "base-damage-stage-only")
+        elif category == "damage percentage" and len(parts) == 6:
+            range_match = re.fullmatch(r"(\d+(?:\.\d)?)-(\d+(?:\.\d)?)", parts[4])
+            if range_match is None or parts[5].lower() != "base-damage-stage-only" or float(range_match.group(1)) > float(range_match.group(2)):
+                raise ValueError("deterministic-results malformed entry")
+            entry = ("damage_percentage", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), f"{float(range_match.group(1)):.1f}-{float(range_match.group(2)):.1f}", "base-damage-stage-only")
+        elif category == "ohko assessment" and len(parts) == 6:
+            count_match = re.fullmatch(r"(\d+)/16", parts[4])
+            if count_match is None or not 0 <= int(count_match.group(1)) <= 16 or parts[5].lower() not in {"guaranteed", "possible", "impossible"}:
+                raise ValueError("deterministic-results malformed entry")
+            entry = ("ohko_assessment", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), f"{int(count_match.group(1))}/16", parts[5].lower())
+        elif category == "two-hit ko assessment" and len(parts) == 7:
+            count_match = re.fullmatch(r"(\d+)/256", parts[4])
+            if count_match is None or not 0 <= int(count_match.group(1)) <= 256 or parts[5].lower() not in {"guaranteed", "possible", "impossible"} or parts[6].lower() != "two-hit-independent-rolls-no-between-turn-effects":
+                raise ValueError("deterministic-results malformed entry")
+            entry = ("two_hit_ko_assessment", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), f"{int(count_match.group(1))}/256", parts[5].lower(), parts[6].lower())
         else:
             raise ValueError("deterministic-results malformed entry")
         if entry in entries:

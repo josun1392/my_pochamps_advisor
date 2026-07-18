@@ -268,6 +268,7 @@ _FINAL_STAT_ALIASES = {
     "special-defense": "special-defense", "special defense": "special-defense", "spd": "special-defense",
     "speed": "speed", "spe": "speed",
 }
+USER_CONFIRMED_CURRENT_HP_FORBIDDEN_FIELDS = frozenset({"current_hp_percent", "post_turn_hp", "damage_taken", "estimated_hp", "remaining_hp_after_move", "exact_damage"})
 EFFECTIVE_STAT_CALCULATION_SCOPE = "final_stat_plus_stage_only"
 EFFECTIVE_STAT_EXCLUDED_MODIFIERS = (
     "priority", "item", "ability", "weather", "terrain", "tailwind", "trick-room", "rng",
@@ -651,6 +652,42 @@ def build_final_stat_context_from_confirmations(confirmations: Sequence[Mapping[
     return {"current_final_stats": stats} if stats else None
 
 
+def normalize_user_confirmed_current_hp(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize one exact current/max HP snapshot; percent and post-turn values are excluded."""
+    if not isinstance(candidate, Mapping):
+        raise ValueError("current HP candidate must be a mapping")
+    forbidden = next((str(key) for key in candidate if key in USER_CONFIRMED_CURRENT_HP_FORBIDDEN_FIELDS), None)
+    if forbidden is not None:
+        raise ValueError(f"current HP field is forbidden: {forbidden}")
+    required = {"side", "current_hp", "maximum_hp", "status", "source"}
+    if set(candidate) - (required | {"confidence"}) or required - set(candidate):
+        raise ValueError("current HP fields are invalid")
+    side, current_hp, maximum_hp = candidate.get("side"), candidate.get("current_hp"), candidate.get("maximum_hp")
+    if side not in {"self", "opponent"}:
+        raise ValueError("current HP side must be self or opponent")
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in (current_hp, maximum_hp)) or maximum_hp < 1 or current_hp < 0 or current_hp > maximum_hp:
+        raise ValueError("current HP values are invalid")
+    if candidate.get("status") != "user_confirmed" or candidate.get("source") != "user_confirmed_current_hp":
+        raise ValueError("current HP source or status is not allowed")
+    if "confidence" in candidate and candidate["confidence"] != "known":
+        raise ValueError("current HP confidence must be known")
+    return {"side": side, "current_hp": current_hp, "maximum_hp": maximum_hp, "status": "user_confirmed", "source": "user_confirmed_current_hp", "confidence": "known"}
+
+
+def build_current_hp_context_from_confirmations(confirmations: Sequence[Mapping[str, Any]] | None) -> dict[str, Any] | None:
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, (str, bytes)):
+        return None
+    by_side: dict[str, dict[str, Any]] = {}
+    for candidate in confirmations:
+        try:
+            normalized = normalize_user_confirmed_current_hp(candidate)
+        except ValueError:
+            continue
+        by_side[normalized["side"]] = normalized
+    entries = [by_side[side] for side in ("self", "opponent") if side in by_side]
+    return {"current_hp": entries} if entries else None
+
+
 def build_deterministic_stat_inputs(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -752,13 +789,15 @@ def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
     selected_move: Mapping[str, Any] | None = None,
+    current_hp_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Combine v13.2 effective stats with a separately scoped v13.3 damage result."""
     context = build_effective_stat_inputs(final_stat_context, stat_stage_context)
     if context is None:
         return None
     estimate = build_limited_damage_estimate(context["effective_stats"], selected_move)
-    return {**context, "damage_estimates": [estimate] if estimate is not None else []}
+    hp_assessment = build_hp_ko_assessment(estimate, current_hp_context)
+    return {**context, "damage_estimates": [estimate] if estimate is not None else [], "hp_assessments": [hp_assessment] if hp_assessment is not None else []}
 
 
 def build_limited_damage_estimate(
@@ -812,6 +851,45 @@ def build_limited_damage_estimate(
         "min_damage": min(rolls),
         "max_damage": max(rolls),
         "calculation_status": "resolved",
+    }
+
+
+def build_hp_ko_assessment(
+    damage_estimate: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """Assess user-confirmed current HP against v13.3's unchanged 16-roll range only."""
+    if not isinstance(damage_estimate, Mapping) or damage_estimate.get("calculation_status") != "resolved":
+        return None
+    hp_entries = current_hp_context.get("current_hp") if isinstance(current_hp_context, Mapping) else None
+    if not isinstance(hp_entries, list):
+        return None
+    defender = damage_estimate.get("defender_side")
+    hp = next((entry for entry in hp_entries if isinstance(entry, Mapping) and entry.get("side") == defender), None)
+    if hp is None:
+        return None
+    try:
+        normalized = normalize_user_confirmed_current_hp(hp)
+    except ValueError:
+        return None
+    level, power, offense, defense = (damage_estimate.get(key) for key in ("level", "power", "offensive_stat", "defensive_stat"))
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in (level, power, offense, defense)):
+        return None
+    base = base_damage(level, power, offense, defense)
+    rolls = [base * factor // 100 for factor in range(85, 101)]
+    current_hp, maximum_hp = normalized["current_hp"], normalized["maximum_hp"]
+    ohko_successes = sum(damage >= current_hp for damage in rolls)
+    two_hit_successes = sum(first + second >= current_hp for first in rolls for second in rolls)
+    def status(successes: int, total: int) -> str:
+        return "guaranteed" if successes == total else "possible" if successes else "impossible"
+    return {
+        "attacker_side": damage_estimate["attacker_side"], "defender_side": defender, "move": damage_estimate["move"],
+        "current_hp": current_hp, "maximum_hp": maximum_hp,
+        "min_damage": min(rolls), "max_damage": max(rolls),
+        "min_percent": round(min(rolls) * 100 / maximum_hp, 1), "max_percent": round(max(rolls) * 100 / maximum_hp, 1),
+        "percentage_scope": LIMITED_DAMAGE_CALCULATION_SCOPE,
+        "ohko": {"successful_rolls": ohko_successes, "total_rolls": 16, "chance_percent": ohko_successes * 100 / 16, "status": status(ohko_successes, 16), "scope": LIMITED_DAMAGE_CALCULATION_SCOPE},
+        "two_hit_ko": {"successful_combinations": two_hit_successes, "total_combinations": 256, "chance_percent": two_hit_successes * 100 / 256, "status": status(two_hit_successes, 256), "scope": "two-hit-independent-rolls-no-between-turn-effects"},
+        "calculation_status": "resolved", "calculation_scope": LIMITED_DAMAGE_CALCULATION_SCOPE,
     }
 
 
