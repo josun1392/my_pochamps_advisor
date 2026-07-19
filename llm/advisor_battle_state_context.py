@@ -322,6 +322,7 @@ _STAT_STAGE_OPPONENT_POWER_MOVES = frozenset({"punishment"})
 TARGET_HP_POWER_SCOPE = "explicit-target-hp-based-move-power-only"
 _TARGET_HP_POWER_MOVES = frozenset({"crush-grip", "wring-out"})
 ENVIRONMENT_MOVE_SCOPE = "explicit-environment-based-move-transformation-only"
+BINARY_CONDITION_POWER_SCOPE = "explicit-binary-condition-move-power-only"
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1267,6 +1268,26 @@ def build_environment_based_move_assessment(selected_move: Mapping[str, Any] | N
     if grounded is None:return {**base,"status":"unavailable","reason":"missing_grounded_state"}
     if not grounded:return {**base,"environment":terrain,"grounded":False,"effective_type":"normal","effective_power":50,"status":"resolved"}
     return {**base,"environment":terrain,"grounded":True,"effective_type":mapping[terrain],"effective_power":100,"status":"resolved"}
+
+
+def build_binary_condition_power_assessment(selected_move: Mapping[str, Any] | None, condition_context: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in {"facade","hex","venoshock","brine"}: return None
+    move=selected_move["move_id"]; base={"move":move,"scope":BINARY_CONDITION_POWER_SCOPE}; powers={"facade":70,"hex":65,"venoshock":65,"brine":65}
+    if move=="brine":
+        entries=(current_hp_context or {}).get("current_hp",[]) if isinstance(current_hp_context,Mapping) else []; entry=next((x for x in entries if isinstance(x,Mapping) and x.get("side")=="opponent"),None)
+        if not isinstance(entry,Mapping) or "current_hp" not in entry:return {**base,"status":"unavailable","reason":"missing_opponent_current_hp"}
+        if "maximum_hp" not in entry:return {**base,"status":"unavailable","reason":"missing_opponent_maximum_hp"}
+        c,m=entry.get("current_hp"),entry.get("maximum_hp")
+        if any(isinstance(v,bool) or not isinstance(v,int) for v in (c,m)) or c<0 or m<=0 or c>m:return {**base,"status":"unavailable","reason":"invalid_opponent_hp_context"}
+        if c==0:return {**base,"status":"not_applicable","reason":"opponent_already_fainted"}
+        matched=c*2<=m; return {**base,"rule":"opponent-half-hp-or-less-doubles-power","opponent_current_hp":c,"opponent_maximum_hp":m,"condition_met":matched,"effective_power":powers[move]*(2 if matched else 1),"status":"resolved"}
+    side="self" if move=="facade" else "opponent"; entries=(condition_context or {}).get("current_conditions",[]) if isinstance(condition_context,Mapping) else []; entry=next((x for x in entries if isinstance(x,Mapping) and x.get("side")==side),None)
+    if not isinstance(entry,Mapping):return {**base,"status":"unavailable","reason":f"missing_{side}_condition"}
+    condition=entry.get("condition_type"); allowed={"none","burn","poison","toxic","paralysis","sleep","freeze"}
+    if condition not in allowed:return {**base,"status":"unavailable","reason":"invalid_condition"}
+    matched=condition in ({"burn","poison","toxic","paralysis"} if move=="facade" else {"poison","toxic"} if move=="venoshock" else allowed-{"none"})
+    rule="self-major-status-doubles-power" if move=="facade" else "opponent-poison-doubles-power" if move=="venoshock" else "opponent-major-status-doubles-power"
+    return {**base,"rule":rule,"condition":condition,"condition_met":matched,"effective_power":powers[move]*(2 if matched else 1),"status":"resolved"}
 
 
 def build_deterministic_calculation_context(
