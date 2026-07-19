@@ -1,5 +1,10 @@
 # Advisor Payload Contract
 
+## v13.27 consecutive-use power
+
+`consecutive_use_power_assessment` is derived only from explicit current-chain
+stage snapshots, with scope `explicit-consecutive-use-move-power-only`.
+
 ## v13.26 battle-counter power
 
 `battle_counter_power_assessment` is emitted only for Rage Fist and Last

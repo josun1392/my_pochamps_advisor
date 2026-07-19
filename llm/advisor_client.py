@@ -455,6 +455,7 @@ def _build_ui_selected_prompt(
             battle_input.get("attacker_level_confirmation") if isinstance(battle_input.get("attacker_level_confirmation"), dict) else None,
             observed_previous_damage_context,
             battle_input.get("battle_counter_confirmation") if isinstance(battle_input.get("battle_counter_confirmation"), dict) else None,
+            battle_input.get("consecutive_use_confirmation") if isinstance(battle_input.get("consecutive_use_confirmation"), dict) else None,
         )
 
     advice_payload = build_ui_advice_payload(
@@ -1309,6 +1310,7 @@ def _add_deterministic_calculation_context_to_advice_payload(
         _selected_opponent_move_payload_from_advice_payload(payload),
         observed_previous_damage_context=payload.get("observed_previous_damage_context"),
         battle_counter_context=payload.get("battle_counter_confirmation"),
+        consecutive_use_context=payload.get("consecutive_use_confirmation"),
     )
     if expected is None or context != expected:
         raise ValueError("deterministic_calculation_context must match trusted stage-only inputs")
@@ -2179,6 +2181,13 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
             entries.append(("battle_counter_move_power", "self", move, battle_counter["rule"].replace("_", "-"), str(battle_counter["counter"]), str(battle_counter["effective_power"]), battle_counter["scope"].replace("_", "-")))
         elif status == "unavailable" and isinstance(battle_counter.get("reason"), str):
             entries.append(("battle_counter_move_power", "self", move, "unavailable", battle_counter["reason"].replace("_", "-")))
+    consecutive = context.get("consecutive_use_power_assessment")
+    if isinstance(consecutive, dict) and isinstance(consecutive.get("move"), str):
+        move, status = consecutive["move"].lower(), consecutive.get("status")
+        if status == "resolved" and isinstance(consecutive.get("consecutive_uses"), int) and isinstance(consecutive.get("effective_power"), int) and isinstance(consecutive.get("rule"), str) and isinstance(consecutive.get("scope"), str):
+            entries.append(("consecutive_use_move_power", "self", move, consecutive["rule"].replace("_", "-"), str(consecutive["consecutive_uses"]), str(consecutive["effective_power"]), consecutive["scope"].replace("_", "-")))
+        elif status == "unavailable" and isinstance(consecutive.get("reason"), str):
+            entries.append(("consecutive_use_move_power", "self", move, "unavailable", consecutive["reason"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")

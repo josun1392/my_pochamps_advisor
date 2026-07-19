@@ -309,6 +309,7 @@ class MainWindow(QMainWindow):
         self._current_battle_format_confirmation: dict | None = None
         self._current_observed_damage_confirmation: dict[str, object] | None = None
         self._battle_counter_confirmation: dict[str, int] | None = None
+        self._consecutive_use_confirmation: dict[str, int | bool] | None = None
 
         central_widget = QWidget()
         central_widget.setStyleSheet("background-color: #EEF2F6;")
@@ -721,12 +722,21 @@ class MainWindow(QMainWindow):
         if not accepted:
             return
         fainted, accepted = QInputDialog.getInt(self, "Battle counters", "Last Respects fainted allies", snapshot.get("last_respects_fainted_allies", 0), 0, 5)
+        if not accepted:
+            return
+        consecutive = self._consecutive_use_confirmation or {}
+        fury, accepted = QInputDialog.getInt(self, "Consecutive-use counters", "Fury Cutter current chain stage", consecutive.get("fury_cutter_consecutive_uses", 1), 1)
+        if not accepted:
+            return
+        echoed, accepted = QInputDialog.getInt(self, "Consecutive-use counters", "Echoed Voice current chain stage", consecutive.get("echoed_voice_consecutive_uses", 1), 1)
         if accepted:
             self._battle_counter_confirmation = {"rage_fist_hits_received": rage, "last_respects_fainted_allies": fainted}
+            self._consecutive_use_confirmation = {"fury_cutter_consecutive_uses": fury, "echoed_voice_consecutive_uses": echoed, "chain_confirmed": True}
             self._update_battle_counter_summary()
 
     def _clear_battle_counter_confirmation(self) -> None:
         self._battle_counter_confirmation = None
+        self._consecutive_use_confirmation = None
         self._update_battle_counter_summary()
 
     def _update_battle_counter_summary(self) -> None:
@@ -762,6 +772,8 @@ class MainWindow(QMainWindow):
             )
             if enable_battle_state_context and isinstance(getattr(self, "_battle_counter_confirmation", None), dict):
                 battle_input["battle_counter_confirmation"] = dict(self._battle_counter_confirmation)
+            if enable_battle_state_context and isinstance(getattr(self, "_consecutive_use_confirmation", None), dict):
+                battle_input["consecutive_use_confirmation"] = dict(self._consecutive_use_confirmation)
         except ValueError as exc:
             message = str(exc)
             panel.set_error(message)

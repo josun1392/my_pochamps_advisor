@@ -1,5 +1,11 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.27
+
+Consecutive-use power uses only explicit stage snapshots. Fury Cutter is 40,
+80, then capped at 160; Echoed Voice is 40 per stage capped at 200. Never
+infer resets or automatically advance the chain.
+
 ## v13.26
 
 Battle-counter move power accepts only explicit current-battle snapshots. Rage

@@ -1,5 +1,13 @@
 # Master Ball Advisor — Progress
 
+## v13.27 - Deterministic Consecutive-Use Move Power
+
+Result:
+- Added explicit consecutive-use snapshots for Fury Cutter and Echoed Voice;
+  no automatic chain reconstruction or increment is performed.
+
+---
+
 ## v13.26 - Deterministic Battle-Counter Move Power
 
 Result:
