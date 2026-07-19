@@ -349,6 +349,16 @@ _DYNAMIC_FAMILY_KEYS = {
     "binary_condition_power": "binary_condition_power_assessment", "turn_event_power": "turn_event_power_assessment",
     "battle_counter_power": "battle_counter_power_assessment", "consecutive_use_power": "consecutive_use_power_assessment",
 }
+DYNAMIC_MOVE_PRODUCTION_COVERAGE = {
+    move: {"family": family, "assessment_key": _DYNAMIC_FAMILY_KEYS[family], "scope": {
+        "current_hp_based_power": CURRENT_HP_POWER_SCOPE, "speed_based_power": SPEED_POWER_SCOPE,
+        "weight_based_power": WEIGHT_POWER_SCOPE, "stat_stage_based_power": STAT_STAGE_POWER_SCOPE,
+        "target_hp_based_power": TARGET_HP_POWER_SCOPE, "environment_based_move": ENVIRONMENT_MOVE_SCOPE,
+        "binary_condition_power": BINARY_CONDITION_POWER_SCOPE, "turn_event_power": TURN_EVENT_POWER_SCOPE,
+        "battle_counter_power": BATTLE_COUNTER_POWER_SCOPE, "consecutive_use_power": CONSECUTIVE_USE_POWER_SCOPE,
+    }[family], "type_override": family == "environment_based_move"}
+    for move, family in DYNAMIC_MOVE_ASSESSMENT_REGISTRY.items()
+}
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1417,6 +1427,22 @@ def validate_dynamic_move_assessment_registry(registry: Mapping[str, str] | None
     for family, moves in expected.items():
         if {move for move, registered in candidate.items() if registered == family} != set(moves):
             raise ValueError("dynamic registry helper allowlist mismatch")
+
+
+def validate_dynamic_move_production_coverage(coverage: Mapping[str, Mapping[str, Any]] | None = None) -> None:
+    """Fail closed when production coverage drifts from the registry."""
+    candidate = DYNAMIC_MOVE_PRODUCTION_COVERAGE if coverage is None else coverage
+    if set(candidate) != set(DYNAMIC_MOVE_ASSESSMENT_REGISTRY):
+        raise ValueError("dynamic production coverage registry mismatch")
+    fixtures: set[str] = set()
+    for move, entry in candidate.items():
+        if not isinstance(entry, Mapping) or entry.get("family") != DYNAMIC_MOVE_ASSESSMENT_REGISTRY[move]:
+            raise ValueError("dynamic production coverage family mismatch")
+        if entry.get("assessment_key") != _DYNAMIC_FAMILY_KEYS[entry["family"]]:
+            raise ValueError("dynamic production coverage assessment mismatch")
+        fixture = f"{move}-{entry['family']}"
+        if fixture in fixtures: raise ValueError("duplicate dynamic production fixture")
+        fixtures.add(fixture)
 
 
 def resolve_registered_dynamic_move(
