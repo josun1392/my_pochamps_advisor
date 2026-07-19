@@ -951,3 +951,4 @@ Documentation expectations:
   overrides, Tera, field modifiers, or final outcomes without a new contract.
 - v13.6 deliberately blocks screen resolution pending a trusted battle-format
   source; do not infer singles/doubles from the selected UI state.
+- v13.7 screen reduction requires an explicit normalized singles/doubles value.

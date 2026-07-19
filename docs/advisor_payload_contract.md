@@ -2661,3 +2661,7 @@ It may apply only confirmed attacker burn and ordinary confirmed rain/sun.
 Screens require a trusted battle-format source; without one they are unavailable
 with `missing_battle_format_for_screen` and are never silently treated as a
 singles or doubles modifier.
+## v13.7 battle-format screen adapter
+
+Only `user_confirmed_battle_format` values `singles` and `doubles` may resolve
+a present defender screen. Missing format retains the v13.6 unavailable result.

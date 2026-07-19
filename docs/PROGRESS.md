@@ -17956,3 +17956,9 @@ Maintained boundaries:
   exists; the adapter does not guess singles or doubles.
 - Status: `PARTIAL - MODIFIER SOURCES GREEN, DAMAGE INTEGRATION DEFERRED` for
   screen resolution.
+## v13.7 Trusted battle format screen adapter
+
+- Added strict singles/doubles normalization and supplied it to the existing
+  screen helper; no UI/team-size inference is permitted.
+- Reflect/Light Screen take precedence over Aurora Veil and apply once with Q12
+  singles 1/2 or doubles 2/3 rounding.
