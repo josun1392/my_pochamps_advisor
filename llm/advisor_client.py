@@ -2148,6 +2148,13 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
                 if isinstance(self_consequence.get("self_faint_status"), str): entries.append(("self_faint", "self", move, self_consequence["self_faint_status"].replace("_", "-")))
         elif status in {"unavailable", "not_applicable"} and isinstance(self_consequence.get("reason"), str):
             entries.append(("self_consequence", "self", move, status.replace("_", "-"), self_consequence["reason"].replace("_", "-")))
+    power = context.get("current_hp_based_power_assessment")
+    if isinstance(power, dict) and isinstance(power.get("move"), str):
+        move, status = power["move"].lower(), power.get("status")
+        if status == "resolved" and isinstance(power.get("effective_power"), int) and isinstance(power.get("rule"), str) and isinstance(power.get("scope"), str):
+            entries.append(("current_hp_move_power", "self", move, str(power["effective_power"]), power["rule"].replace("_", "-"), power["scope"].replace("_", "-")))
+        elif status in {"unavailable", "not_applicable"} and isinstance(power.get("reason"), str):
+            entries.append(("current_hp_move_power", "self", move, status.replace("_", "-"), power["reason"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")
@@ -2299,6 +2306,11 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
                 _, side, move, damage, rule, scope = entry; lines.append(f"- Self damage | {side} | {move} | {damage} | {rule} | {scope}")
             elif category == "self_resulting_hp":
                 _, side, move, hp = entry; lines.append(f"- Self resulting HP | {side} | {move} | {hp}")
+            elif category == "current_hp_move_power":
+                if len(entry) == 6:
+                    _, side, move, value, rule, scope = entry; lines.append(f"- Current-HP move power | {side} | {move} | {value} | {rule} | {scope}")
+                else:
+                    _, side, move, status, reason = entry; lines.append(f"- Current-HP move power | {side} | {move} | {status} | {reason}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry
@@ -2505,6 +2517,12 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             entry = ("self_damage", "self", _normalize_trusted_context_identity(parts[2]), parts[3], "maximum-hp-proportional", parts[5].lower())
         elif category == "self resulting hp" and len(parts) == 4 and parts[1].lower() == "self" and re.fullmatch(r"\d+ HP", parts[3]):
             entry = ("self_resulting_hp", "self", _normalize_trusted_context_identity(parts[2]), parts[3])
+        elif category == "current-hp move power" and len(parts) >= 4 and parts[1].lower() == "self":
+            if len(parts) == 6 and parts[3].isdigit() and parts[4].lower() in {"current-hp-proportional-150", "current-hp-power-bracket"} and parts[5].lower() == "explicit-current-hp-based-move-power-only":
+                entry = ("current_hp_move_power", "self", _normalize_trusted_context_identity(parts[2]), parts[3], parts[4].lower(), parts[5].lower())
+            elif len(parts) == 5 and parts[3].lower() in {"unavailable", "not-applicable"} and parts[4].lower() in {"missing-self-current-hp", "missing-self-maximum-hp", "invalid-self-hp-context", "user-already-fainted"}:
+                entry = ("current_hp_move_power", "self", _normalize_trusted_context_identity(parts[2]), parts[3].lower(), parts[4].lower())
+            else: raise ValueError("deterministic-results malformed entry")
         elif category == "reactive damage" and len(parts) >= 4 and parts[1].lower() == "self" and parts[2].lower() == "opponent":
             if len(parts) == 7 and parts[4].lower() in {"double-observed-physical-damage", "double-observed-special-damage", "floor-three-halves-observed-damage"} and re.fullmatch(r"\d+ HP", parts[5]) and parts[6].lower() == "trusted-observed-direct-damage-counter-only":
                 entry = ("reactive_damage", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower(), parts[5], parts[6].lower())

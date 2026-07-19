@@ -2762,3 +2762,9 @@ Limited context uses existing trusted self current/max HP only for explicit
 maximum-HP costs. `self_consequence_assessment` is separate from recoil and
 Final Gambit; it does not simulate replacement, delayed healing, stat changes,
 or ability overrides.
+
+## v13.18 Current-HP Move Power
+
+Limited context computes only allowlisted current-HP variable move power from
+trusted self current/max HP. Missing HP produces unavailable/not-applicable,
+never a metadata-power fallback.

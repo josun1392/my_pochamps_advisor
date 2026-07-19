@@ -6,6 +6,11 @@ Self-sacrifice moves and explicit max-HP costs use a separate deterministic
 consequence contract. Do not extend it into post-faint switching, Healing
 Wish/Lunar Dance recovery, Memento drops, or generic exceptional recoil.
 
+## v13.18
+
+Eruption-family and Flail/Reversal power is trusted-current-HP only; do not
+infer exact HP or add excluded variable-power mechanics.
+
 ## v13.16 Closure
 
 Observed direct damage is sourced from the Previous Damage panel dialog and

@@ -18073,3 +18073,8 @@ Maintained boundaries:
   exact acknowledgement validation, and distinct semantic boundaries.
 - Post-faint switching, delayed recovery, Memento stat changes, generic
   exceptional recoil, and ability overrides remain unsupported.
+
+## v13.18 Deterministic Current-HP Move Power
+
+- Added trusted exact-HP power rules for Eruption family and Flail/Reversal;
+  unavailable HP inputs never use metadata-power fallback.

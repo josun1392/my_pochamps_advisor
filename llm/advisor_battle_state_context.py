@@ -297,7 +297,7 @@ LIMITED_DAMAGE_EXCLUDED_MODIFIERS = (
     "item", "ability", "spread", "helping-hand", "friend-guard", "priority", "ko",
 )
 _STAGE_ADJUSTABLE_FINAL_STATS = frozenset({"attack", "defense", "special-attack", "special-defense", "speed"})
-_VARIABLE_POWER_MOVE_IDS = frozenset({"acrobatics", "avalanche", "brine", "crush-grip", "electro-ball", "eruption", "facade", "flail", "fling", "frustration", "grass-knot", "gyro-ball", "heat-crash", "heavy-slam", "low-kick", "payback", "power-trip", "punishment", "return", "reversal", "stored-power", "water-spout"})
+_VARIABLE_POWER_MOVE_IDS = frozenset({"acrobatics", "avalanche", "brine", "crush-grip", "electro-ball", "eruption", "dragon-energy", "facade", "flail", "fling", "frustration", "grass-knot", "gyro-ball", "heat-crash", "heavy-slam", "low-kick", "payback", "power-trip", "punishment", "return", "reversal", "stored-power", "water-spout"})
 _FIXED_DAMAGE_MOVE_IDS = frozenset({"dragon-rage", "endeavor", "final-gambit", "night-shade", "psywave", "seismic-toss", "sonic-boom", "super-fang"})
 FIXED_DAMAGE_SCOPE = "explicit-fixed-damage-rules-only"
 _SUPPORTED_FIXED_DAMAGE_RULES = {"seismic-toss": "attacker-level", "night-shade": "attacker-level", "dragon-rage": "literal-40", "sonic-boom": "literal-20", "super-fang": "defender-current-hp-half", "natures-madness": "defender-current-hp-half", "ruination": "defender-current-hp-half"}
@@ -308,6 +308,9 @@ SELF_CONSEQUENCE_SCOPE = "explicit-self-sacrifice-and-hp-cost-only"
 _GUARANTEED_SELF_SACRIFICE_MOVES = frozenset({"explosion", "self-destruct", "misty-explosion", "memento", "healing-wish", "lunar-dance"})
 _MAX_HP_SELF_DAMAGE_DIVISORS = {"steel-beam": 2, "mind-blown": 2, "chloroblast": 2}
 _UNSUPPORTED_SELF_DAMAGE_MOVES = frozenset({"struggle"})
+CURRENT_HP_POWER_SCOPE = "explicit-current-hp-based-move-power-only"
+_CURRENT_HP_PROPORTIONAL_MOVES = frozenset({"eruption", "water-spout", "dragon-energy"})
+_CURRENT_HP_BRACKET_MOVES = frozenset({"flail", "reversal"})
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1157,6 +1160,27 @@ def build_self_consequence_assessment(selected_move: Mapping[str, Any] | None, c
     return {**base, "effect": "maximum-hp-proportional-self-damage", "rule": "maximum-hp-half-floor-minimum-one", "self_current_hp": current, "self_maximum_hp": maximum, "self_damage": damage, "self_resulting_hp": resulting, "self_faint_status": "guaranteed_self_faint" if resulting == 0 else "no_self_faint", "status": "resolved"}
 
 
+def build_current_hp_based_power_assessment(selected_move: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or not isinstance(selected_move.get("move_id"), str): return None
+    move = selected_move["move_id"]
+    if move not in _CURRENT_HP_PROPORTIONAL_MOVES | _CURRENT_HP_BRACKET_MOVES: return None
+    base = {"move": move, "scope": CURRENT_HP_POWER_SCOPE}
+    entries = (current_hp_context or {}).get("current_hp", []) if isinstance(current_hp_context, Mapping) else []
+    entry = next((item for item in entries if isinstance(item, Mapping) and item.get("side") == "self"), None)
+    if not isinstance(entry, Mapping) or "current_hp" not in entry: return {**base, "status": "unavailable", "reason": "missing_self_current_hp"}
+    if "maximum_hp" not in entry: return {**base, "status": "unavailable", "reason": "missing_self_maximum_hp"}
+    current, maximum = entry.get("current_hp"), entry.get("maximum_hp")
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in (current, maximum)) or current < 0 or maximum <= 0 or current > maximum: return {**base, "status": "unavailable", "reason": "invalid_self_hp_context"}
+    if current == 0: return {**base, "status": "not_applicable", "reason": "user_already_fainted"}
+    if move in _CURRENT_HP_PROPORTIONAL_MOVES:
+        power, rule = max(1, 150 * current // maximum), "current-hp-proportional-150"
+    else:
+        scaled = 48 * current // maximum
+        power = 200 if scaled < 2 else 150 if scaled < 5 else 100 if scaled < 10 else 80 if scaled < 17 else 40 if scaled < 33 else 20
+        rule = "current-hp-power-bracket"
+    return {**base, "rule": rule, "self_current_hp": current, "self_maximum_hp": maximum, "effective_power": power, "status": "resolved"}
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -1178,14 +1202,21 @@ def build_deterministic_calculation_context(
         special = build_hp_based_special_damage_assessment(selected_move, current_hp_context, pokemon)
         reactive = build_observed_damage_counter_assessment(selected_move, observed_previous_damage_context, current_hp_context, pokemon)
         self_consequence = build_self_consequence_assessment(selected_move, current_hp_context)
+        power_assessment = build_current_hp_based_power_assessment(selected_move, current_hp_context)
         result = {}
         if healing is not None: result["direct_healing_assessment"] = healing
         if fixed is not None: result["fixed_damage_assessment"] = fixed
         if special is not None: result["hp_based_special_damage_assessment"] = special
         if reactive is not None: result["observed_damage_counter_assessment"] = reactive
         if self_consequence is not None: result["self_consequence_assessment"] = self_consequence
+        if power_assessment is not None: result["current_hp_based_power_assessment"] = power_assessment
         return result or None
-    estimate = build_limited_damage_estimate(context["effective_stats"], selected_move)
+    power_assessment = build_current_hp_based_power_assessment(selected_move, current_hp_context)
+    effective_move = dict(selected_move) if isinstance(selected_move, Mapping) else selected_move
+    if power_assessment is not None and power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
+        effective_move["power"] = power_assessment["effective_power"]
+        effective_move.pop("power_status", None)
+    estimate = build_limited_damage_estimate(context["effective_stats"], effective_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
     context_estimate = build_context_modified_damage_estimate(type_estimate, condition_context, field_state_context, battle_format_context)
     # Preserve the v13.3 result as a distinct calculator intermediate.  When
@@ -1236,6 +1267,14 @@ def build_deterministic_calculation_context(
         result["damage_estimates"] = []
     if self_consequence is not None:
         result["self_consequence_assessment"] = self_consequence
+    if power_assessment is not None:
+        result["current_hp_based_power_assessment"] = power_assessment
+        if power_assessment.get("status") != "resolved":
+            result["damage_estimates"] = []
+            result["base_damage_estimates"] = []
+            result["type_aware_damage_estimates"] = []
+            result["context_modified_damage_estimates"] = []
+            result["hp_assessments"] = []
     return result
 
 
