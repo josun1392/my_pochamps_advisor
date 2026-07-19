@@ -18090,3 +18090,7 @@ Maintained boundaries:
 ## v13.21 Deterministic Stat-Stage Move Power
 
 - Added trusted positive-stage power contracts for Stored Power, Power Trip, and Punishment.
+
+## v13.22 Target-HP Move Power
+
+- Added exact opponent-HP power formula for Crush Grip and Wring Out.

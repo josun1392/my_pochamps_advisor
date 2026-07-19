@@ -2780,3 +2780,7 @@ Weight power uses canonical integer hectograms and no missing-weight fallback.
 ## v13.21 Stat-Stage Move Power
 
 Stat-stage power uses only normalized current stages; missing side context has no metadata fallback.
+
+## v13.22 Target-HP Move Power
+
+Target-HP power consumes only normalized opponent current/max HP.

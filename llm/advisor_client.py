@@ -2165,6 +2165,11 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
         move, status = stage_power["move"].lower(), stage_power.get("status")
         if status == "resolved" and isinstance(stage_power.get("effective_power"), int) and isinstance(stage_power.get("rule"), str) and isinstance(stage_power.get("scope"), str): entries.append(("stat_stage_move_power", "self", move, str(stage_power["effective_power"]), stage_power["rule"].replace("_", "-"), stage_power["scope"].replace("_", "-")))
         elif status == "unavailable" and isinstance(stage_power.get("reason"), str): entries.append(("stat_stage_move_power", "self", move, "unavailable", stage_power["reason"].replace("_", "-")))
+    target_power = context.get("target_hp_based_power_assessment")
+    if isinstance(target_power, dict) and isinstance(target_power.get("move"), str):
+        move, status = target_power["move"].lower(), target_power.get("status")
+        if status == "resolved" and isinstance(target_power.get("effective_power"), int) and isinstance(target_power.get("rule"), str) and isinstance(target_power.get("scope"), str): entries.append(("target_hp_move_power", "opponent", move, str(target_power["effective_power"]), target_power["rule"].replace("_", "-"), target_power["scope"].replace("_", "-")))
+        elif status in {"unavailable", "not_applicable"} and isinstance(target_power.get("reason"), str): entries.append(("target_hp_move_power", "opponent", move, status.replace("_", "-"), target_power["reason"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")

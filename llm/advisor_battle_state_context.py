@@ -319,6 +319,8 @@ _WEIGHT_ABSOLUTE_MOVES = frozenset({"grass-knot", "low-kick"})
 STAT_STAGE_POWER_SCOPE = "explicit-stat-stage-based-move-power-only"
 _STAT_STAGE_SELF_POWER_MOVES = frozenset({"stored-power", "power-trip"})
 _STAT_STAGE_OPPONENT_POWER_MOVES = frozenset({"punishment"})
+TARGET_HP_POWER_SCOPE = "explicit-target-hp-based-move-power-only"
+_TARGET_HP_POWER_MOVES = frozenset({"crush-grip", "wring-out"})
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1238,6 +1240,19 @@ def build_stat_stage_based_power_assessment(selected_move: Mapping[str, Any] | N
     return {**base,"rule":rule,"positive_stage_sum":total,"effective_power":power,"status":"resolved"}
 
 
+def build_target_hp_based_power_assessment(selected_move: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in _TARGET_HP_POWER_MOVES: return None
+    move=selected_move["move_id"]; base={"move":move,"scope":TARGET_HP_POWER_SCOPE}
+    entries=(current_hp_context or {}).get("current_hp",[]) if isinstance(current_hp_context,Mapping) else []
+    entry=next((item for item in entries if isinstance(item,Mapping) and item.get("side")=="opponent"),None)
+    if not isinstance(entry,Mapping) or "current_hp" not in entry:return {**base,"status":"unavailable","reason":"missing_opponent_current_hp"}
+    if "maximum_hp" not in entry:return {**base,"status":"unavailable","reason":"missing_opponent_maximum_hp"}
+    current,maximum=entry.get("current_hp"),entry.get("maximum_hp")
+    if any(isinstance(v,bool) or not isinstance(v,int) for v in (current,maximum)) or current<0 or maximum<=0 or current>maximum:return {**base,"status":"unavailable","reason":"invalid_opponent_hp_context"}
+    if current==0:return {**base,"status":"not_applicable","reason":"opponent_already_fainted"}
+    return {**base,"rule":"target-current-hp-proportional","opponent_current_hp":current,"opponent_maximum_hp":maximum,"effective_power":max(1,120*current//maximum+1),"status":"resolved"}
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -1262,6 +1277,7 @@ def build_deterministic_calculation_context(
         power_assessment = build_current_hp_based_power_assessment(selected_move, current_hp_context)
         speed_power_assessment = build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context)
         stat_power_assessment = build_stat_stage_based_power_assessment(selected_move, stat_stage_context)
+        target_power_assessment = build_target_hp_based_power_assessment(selected_move, current_hp_context)
         result = {}
         if healing is not None: result["direct_healing_assessment"] = healing
         if fixed is not None: result["fixed_damage_assessment"] = fixed
@@ -1271,10 +1287,12 @@ def build_deterministic_calculation_context(
         if power_assessment is not None: result["current_hp_based_power_assessment"] = power_assessment
         if speed_power_assessment is not None: result["speed_based_power_assessment"] = speed_power_assessment
         if stat_power_assessment is not None: result["stat_stage_based_power_assessment"] = stat_power_assessment
+        if target_power_assessment is not None: result["target_hp_based_power_assessment"] = target_power_assessment
         return result or None
     power_assessment = build_current_hp_based_power_assessment(selected_move, current_hp_context)
     speed_power_assessment = build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context)
     stat_power_assessment = build_stat_stage_based_power_assessment(selected_move, stat_stage_context)
+    target_power_assessment = build_target_hp_based_power_assessment(selected_move, current_hp_context)
     effective_move = dict(selected_move) if isinstance(selected_move, Mapping) else selected_move
     if power_assessment is not None and power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
         effective_move["power"] = power_assessment["effective_power"]
@@ -1284,6 +1302,9 @@ def build_deterministic_calculation_context(
         effective_move.pop("power_status", None)
     if stat_power_assessment is not None and stat_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
         effective_move["power"] = stat_power_assessment["effective_power"]
+        effective_move.pop("power_status", None)
+    if target_power_assessment is not None and target_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
+        effective_move["power"] = target_power_assessment["effective_power"]
         effective_move.pop("power_status", None)
     estimate = build_limited_damage_estimate(context["effective_stats"], effective_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
@@ -1351,6 +1372,9 @@ def build_deterministic_calculation_context(
     if stat_power_assessment is not None:
         result["stat_stage_based_power_assessment"] = stat_power_assessment
         if stat_power_assessment.get("status") != "resolved": result["damage_estimates"] = []
+    if target_power_assessment is not None:
+        result["target_hp_based_power_assessment"] = target_power_assessment
+        if target_power_assessment.get("status") != "resolved": result["damage_estimates"] = []
     return result
 
 

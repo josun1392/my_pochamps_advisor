@@ -23,6 +23,10 @@ Weight-based power requires canonical selected-form weight; never infer weight.
 
 Positive stage sums are separate from damage stat-stage multipliers.
 
+## v13.22
+
+Target-HP power does not infer or recalculate opponent HP.
+
 ## v13.16 Closure
 
 Observed direct damage is sourced from the Previous Damage panel dialog and
