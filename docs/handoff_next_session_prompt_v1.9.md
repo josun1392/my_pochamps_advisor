@@ -949,3 +949,5 @@ Documentation expectations:
 - v13.5 type-aware deterministic results use selected resolved types, ordinary
   STAB, and the base type chart only; do not expand them to ability/item
   overrides, Tera, field modifiers, or final outcomes without a new contract.
+- v13.6 deliberately blocks screen resolution pending a trusted battle-format
+  source; do not infer singles/doubles from the selected UI state.

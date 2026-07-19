@@ -14,6 +14,8 @@ from typing import Any
 from advisor.damage.formula import base_damage
 from advisor.damage.modifiers.core import calc_stab
 from advisor.damage.q12 import M_STAB, apply_damage_modifier
+from advisor.damage.q12 import Q12_ONE
+from advisor.damage.modifiers.core import weather_modifier
 from advisor.damage.types import TYPES, load_type_chart
 
 
@@ -794,6 +796,8 @@ def build_deterministic_calculation_context(
     selected_move: Mapping[str, Any] | None = None,
     current_hp_context: Mapping[str, Any] | None = None,
     pokemon: Mapping[str, Any] | None = None,
+    condition_context: Mapping[str, Any] | None = None,
+    field_state_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Combine trusted stats with separately-scoped base and type-aware results."""
     context = build_effective_stat_inputs(final_stat_context, stat_stage_context)
@@ -801,14 +805,16 @@ def build_deterministic_calculation_context(
         return None
     estimate = build_limited_damage_estimate(context["effective_stats"], selected_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
+    context_estimate = build_context_modified_damage_estimate(type_estimate, condition_context, field_state_context)
     # Preserve the v13.3 result as a distinct calculator intermediate.  When
     # type sources resolve, the primary acknowledgement/result is type-aware.
-    primary_estimate = type_estimate if type_estimate and type_estimate.get("calculation_status") == "resolved" else estimate
+    primary_estimate = context_estimate if context_estimate and context_estimate.get("calculation_status") == "resolved" else (type_estimate if type_estimate and type_estimate.get("calculation_status") == "resolved" else estimate)
     hp_assessment = build_hp_ko_assessment(primary_estimate, current_hp_context)
     return {
         **context,
         "base_damage_estimates": [estimate] if estimate is not None else [],
         "type_aware_damage_estimates": [type_estimate] if type_estimate is not None else [],
+        "context_modified_damage_estimates": [context_estimate] if context_estimate is not None else [],
         "damage_estimates": [primary_estimate] if primary_estimate is not None else [],
         "hp_assessments": [hp_assessment] if hp_assessment is not None else [],
     }
@@ -949,6 +955,54 @@ def _damage_rolls_from_estimate(estimate: Mapping[str, Any]) -> list[int] | None
     if any(not isinstance(value, int) or isinstance(value, bool) for value in values):
         return None
     return [base_damage(*values) * factor // 100 for factor in range(85, 101)]
+
+
+CONTEXT_DAMAGE_CALCULATION_SCOPE = "base_damage_stage_stab_type_context"
+
+
+def build_context_modified_damage_estimate(
+    type_estimate: Mapping[str, Any] | None,
+    condition_context: Mapping[str, Any] | None,
+    field_state_context: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Apply only trusted burn, ordinary rain/sun, and singles screens."""
+    if not isinstance(type_estimate, Mapping):
+        return None
+    if condition_context is None and field_state_context is None:
+        return None
+    result = dict(type_estimate)
+    result["calculation_scope"] = CONTEXT_DAMAGE_CALCULATION_SCOPE
+    if type_estimate.get("calculation_status") != "resolved":
+        return result
+    conditions = condition_context.get("current_conditions") if isinstance(condition_context, Mapping) else []
+    field = field_state_context.get("current_field") if isinstance(field_state_context, Mapping) else None
+    if conditions is None: conditions = []
+    if field is None: field = {"weather": "none", "side_effects": []}
+    if not isinstance(conditions, list) or not isinstance(field, Mapping):
+        return {**result, "calculation_status": "unavailable", "reason": "unresolved_context_state"}
+    category, move_type = result.get("damage_class"), result.get("move_type")
+    burned = any(isinstance(entry, Mapping) and entry.get("side") == "self" and entry.get("condition_type") == "burn" for entry in conditions)
+    burn_q12 = 2048 if burned and category == "physical" else Q12_ONE
+    weather = field.get("weather")
+    if weather not in {"none", "rain", "sun", "sandstorm", "snow"}:
+        return {**result, "calculation_status": "unavailable", "reason": "unknown_weather"}
+    weather_q12 = weather_modifier(str(move_type), str(weather)) if weather in {"rain", "sun"} else Q12_ONE
+    side_effects = field.get("side_effects", [])
+    if not isinstance(side_effects, list):
+        return {**result, "calculation_status": "unavailable", "reason": "unresolved_screen_state"}
+    defender_screens = {entry.get("effect") for entry in side_effects if isinstance(entry, Mapping) and entry.get("side") == "opponent"}
+    if any(entry.get("side") not in {"self", "opponent"} for entry in side_effects if isinstance(entry, Mapping)):
+        return {**result, "calculation_status": "unavailable", "reason": "invalid_screen_side"}
+    applicable = "aurora-veil" if "aurora-veil" in defender_screens else ("reflect" if category == "physical" and "reflect" in defender_screens else "light-screen" if category == "special" and "light-screen" in defender_screens else None)
+    # No trusted battle-format field exists. A present screen therefore cannot
+    # be silently treated as singles or doubles.
+    if applicable is not None:
+        return {**result, "calculation_status": "unavailable", "reason": "missing_battle_format_for_screen"}
+    rolls = _damage_rolls_from_estimate(result)
+    if rolls is None:
+        return {**result, "calculation_status": "unavailable", "reason": "missing_damage_rolls"}
+    rolls = [apply_damage_modifier(apply_damage_modifier(roll, burn_q12), weather_q12) for roll in rolls]
+    return {**result, "burn_modifier": {"applied": burn_q12 != Q12_ONE, "numerator": 1 if burn_q12 != Q12_ONE else 1, "denominator": 2 if burn_q12 != Q12_ONE else 1}, "weather_modifier": {"weather": weather, "numerator": {6144: 3, 2048: 1}.get(weather_q12, 1), "denominator": {6144: 2, 2048: 2}.get(weather_q12, 1)}, "screen_modifier": {"applied": False, "numerator": 1, "denominator": 1}, "damage_rolls": rolls, "min_damage": min(rolls), "max_damage": max(rolls), "calculation_status": "resolved"}
 
 
 def build_hp_ko_assessment(

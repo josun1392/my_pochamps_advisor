@@ -17948,3 +17948,11 @@ Maintained boundaries:
   modifiers remain excluded. HP/OHKO/two-hit assessments reuse type-aware rolls.
 - Offline verification: `2034 passed, 2 deselected` (`uv run pytest -q`); the
   focused v13.5 plus v12/v13 regression selection passed `559` tests.
+## v13.6 Burn/Weather Context Modifier Boundary
+
+- Added deterministic confirmed-burn physical and ordinary rain/sun Fire/Water
+  modifiers after v13.5 type-aware rolls, retaining Q12 rounding and HP/KO reuse.
+- Screen effects remain unavailable when present because no trusted battle format
+  exists; the adapter does not guess singles or doubles.
+- Status: `PARTIAL - MODIFIER SOURCES GREEN, DAMAGE INTEGRATION DEFERRED` for
+  screen resolution.

@@ -2654,3 +2654,10 @@ resolved primary `damage_estimates` record has scope
 `type_effectiveness` rationals. The acknowledgement parser requires exact STAB
 and type-effectiveness lines before the type-aware damage line. Ability/item
 overrides and Tera remain excluded.
+## v13.6 Context-modified damage boundary
+
+`context_modified_damage_estimates` is separate from v13.5 type-aware results.
+It may apply only confirmed attacker burn and ordinary confirmed rain/sun.
+Screens require a trusted battle-format source; without one they are unavailable
+with `missing_battle_format_for_screen` and are never silently treated as a
+singles or doubles modifier.

@@ -422,6 +422,8 @@ def _build_ui_selected_prompt(
             _selected_move_payload_from_advice_payload(battle_input),
             current_hp_context,
             battle_input.get("pokemon"),
+            condition_context,
+            field_state_context,
         )
 
     advice_payload = build_ui_advice_payload(
@@ -1219,6 +1221,8 @@ def _add_deterministic_calculation_context_to_advice_payload(
         _selected_move_payload_from_advice_payload(payload),
         payload.get("current_hp_context"),
         payload.get("pokemon"),
+        payload.get("condition_context"),
+        payload.get("field_state_context"),
     )
     if expected is None or context != expected:
         raise ValueError("deterministic_calculation_context must match trusted stage-only inputs")
