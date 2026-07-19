@@ -1,5 +1,10 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.28
+
+Dynamic move identities are registered to exactly one family. Preserve the
+registry integrity guard and fail closed on unavailable trusted context.
+
 ## v13.27
 
 Consecutive-use power uses only explicit stage snapshots. Fury Cutter is 40,

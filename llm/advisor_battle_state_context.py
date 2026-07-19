@@ -328,6 +328,27 @@ BATTLE_COUNTER_POWER_SCOPE = "explicit-current-battle-counter-move-power-only"
 _BATTLE_COUNTER_POWER_MOVES = frozenset({"rage-fist", "last-respects"})
 CONSECUTIVE_USE_POWER_SCOPE = "explicit-consecutive-use-move-power-only"
 _CONSECUTIVE_USE_POWER_MOVES = frozenset({"fury-cutter", "echoed-voice"})
+DYNAMIC_MOVE_RESOLUTION_SCOPE = "registered-dynamic-move-resolution-only"
+DYNAMIC_MOVE_ASSESSMENT_REGISTRY = {
+    **{move: "current_hp_based_power" for move in _CURRENT_HP_PROPORTIONAL_MOVES | _CURRENT_HP_BRACKET_MOVES},
+    **{move: "speed_based_power" for move in _SPEED_POWER_MOVES},
+    **{move: "weight_based_power" for move in _WEIGHT_RATIO_MOVES | _WEIGHT_ABSOLUTE_MOVES},
+    **{move: "stat_stage_based_power" for move in _STAT_STAGE_SELF_POWER_MOVES | _STAT_STAGE_OPPONENT_POWER_MOVES},
+    **{move: "target_hp_based_power" for move in _TARGET_HP_POWER_MOVES},
+    "weather-ball": "environment_based_move",
+    "terrain-pulse": "environment_based_move",
+    **{move: "binary_condition_power" for move in {"facade", "hex", "venoshock", "brine"}},
+    **{move: "turn_event_power" for move in {"avalanche", "revenge", "payback", "assurance"}},
+    **{move: "battle_counter_power" for move in _BATTLE_COUNTER_POWER_MOVES},
+    **{move: "consecutive_use_power" for move in _CONSECUTIVE_USE_POWER_MOVES},
+}
+_DYNAMIC_FAMILY_KEYS = {
+    "current_hp_based_power": "current_hp_based_power_assessment", "speed_based_power": "speed_based_power_assessment",
+    "weight_based_power": "weight_based_power_assessment", "stat_stage_based_power": "stat_stage_based_power_assessment",
+    "target_hp_based_power": "target_hp_based_power_assessment", "environment_based_move": "environment_based_move_assessment",
+    "binary_condition_power": "binary_condition_power_assessment", "turn_event_power": "turn_event_power_assessment",
+    "battle_counter_power": "battle_counter_power_assessment", "consecutive_use_power": "consecutive_use_power_assessment",
+}
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1372,6 +1393,68 @@ def build_consecutive_use_power_assessment(
     else:
         power, rule = min(200, 40 * uses), "consecutive-use-additive-increase"
     return {**base, "rule": rule, "consecutive_uses": uses, "effective_power": power, "status": "resolved"}
+
+
+def validate_dynamic_move_assessment_registry(registry: Mapping[str, str] | None = None) -> None:
+    """Pure integrity guard for canonical one-move/one-family registrations."""
+    candidate = DYNAMIC_MOVE_ASSESSMENT_REGISTRY if registry is None else registry
+    if not isinstance(candidate, Mapping):
+        raise ValueError("dynamic registry must be a mapping")
+    expected = {
+        "current_hp_based_power": _CURRENT_HP_PROPORTIONAL_MOVES | _CURRENT_HP_BRACKET_MOVES,
+        "speed_based_power": _SPEED_POWER_MOVES, "weight_based_power": _WEIGHT_RATIO_MOVES | _WEIGHT_ABSOLUTE_MOVES,
+        "stat_stage_based_power": _STAT_STAGE_SELF_POWER_MOVES | _STAT_STAGE_OPPONENT_POWER_MOVES,
+        "target_hp_based_power": _TARGET_HP_POWER_MOVES, "environment_based_move": frozenset({"weather-ball", "terrain-pulse"}),
+        "binary_condition_power": frozenset({"facade", "hex", "venoshock", "brine"}),
+        "turn_event_power": frozenset({"avalanche", "revenge", "payback", "assurance"}),
+        "battle_counter_power": _BATTLE_COUNTER_POWER_MOVES, "consecutive_use_power": _CONSECUTIVE_USE_POWER_MOVES,
+    }
+    if set(candidate.values()) - set(expected):
+        raise ValueError("unknown dynamic assessment family")
+    for move, family in candidate.items():
+        if not isinstance(move, str) or not move or move != move.strip().lower() or move not in expected[family]:
+            raise ValueError("dynamic registry helper allowlist mismatch")
+    for family, moves in expected.items():
+        if {move for move, registered in candidate.items() if registered == family} != set(moves):
+            raise ValueError("dynamic registry helper allowlist mismatch")
+
+
+def resolve_registered_dynamic_move(
+    selected_move: Mapping[str, Any] | None, *, limited_context_enabled: bool, current_hp_context: Mapping[str, Any] | None = None,
+    final_stat_context: Mapping[str, Any] | None = None, stat_stage_context: Mapping[str, Any] | None = None,
+    field_state_context: Mapping[str, Any] | None = None, condition_context: Mapping[str, Any] | None = None,
+    weight_context: Mapping[str, Any] | None = None,
+    turn_event_context: Mapping[str, Any] | None = None, battle_counter_context: Mapping[str, Any] | None = None,
+    consecutive_use_context: Mapping[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Select exactly one registered helper; ordinary moves return no resolution."""
+    if not isinstance(selected_move, Mapping) or not isinstance(selected_move.get("move_id"), str):
+        return None
+    move = selected_move["move_id"]
+    family = DYNAMIC_MOVE_ASSESSMENT_REGISTRY.get(move)
+    if family is None or not limited_context_enabled:
+        return None
+    helpers = {
+        "current_hp_based_power": lambda: build_current_hp_based_power_assessment(selected_move, current_hp_context),
+        "speed_based_power": lambda: build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context),
+        "weight_based_power": lambda: build_weight_based_power_assessment(selected_move, weight_context),
+        "stat_stage_based_power": lambda: build_stat_stage_based_power_assessment(selected_move, stat_stage_context),
+        "target_hp_based_power": lambda: build_target_hp_based_power_assessment(selected_move, current_hp_context),
+        "environment_based_move": lambda: build_environment_based_move_assessment(selected_move, field_state_context),
+        "binary_condition_power": lambda: build_binary_condition_power_assessment(selected_move, condition_context, current_hp_context),
+        "turn_event_power": lambda: build_turn_event_power_assessment(selected_move, turn_event_context),
+        "battle_counter_power": lambda: build_battle_counter_power_assessment(selected_move, battle_counter_context),
+        "consecutive_use_power": lambda: build_consecutive_use_power_assessment(selected_move, consecutive_use_context),
+    }
+    assessment = helpers[family]()
+    key = _DYNAMIC_FAMILY_KEYS[family]
+    if not isinstance(assessment, Mapping) or assessment.get("move") != move:
+        return {"dynamic_move_resolution": {"move": move, "status": "unavailable", "reason": "conflicting_dynamic_move_assessments", "scope": DYNAMIC_MOVE_RESOLUTION_SCOPE}}
+    result = {"assessment_key": key, "assessment_payload": dict(assessment)}
+    if assessment.get("status") == "resolved":
+        result["effective_power_override"] = assessment.get("effective_power")
+        if family == "environment_based_move": result["effective_type_override"] = assessment.get("effective_type")
+    return result
 
 
 def build_deterministic_calculation_context(

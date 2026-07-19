@@ -1,5 +1,13 @@
 # Master Ball Advisor — Progress
 
+## v13.28 - Dynamic Move Registry Consolidation
+
+Result:
+- Added a pure registry validator and single-family resolver for all existing
+  dynamic power/type assessments without adding mechanics.
+
+---
+
 ## v13.27 - Deterministic Consecutive-Use Move Power
 
 Result:

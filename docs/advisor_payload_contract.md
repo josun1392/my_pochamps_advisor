@@ -1,5 +1,11 @@
 # Advisor Payload Contract
 
+## v13.28 dynamic move registry
+
+The registry maps each dynamic move identity to one assessment family. A
+resolved family supplies only its effective power/type override; unavailable
+results do not permit metadata fallback.
+
 ## v13.27 consecutive-use power
 
 `consecutive_use_power_assessment` is derived only from explicit current-chain
