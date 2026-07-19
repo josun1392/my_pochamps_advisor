@@ -2768,3 +2768,7 @@ or ability overrides.
 Limited context computes only allowlisted current-HP variable move power from
 trusted self current/max HP. Missing HP produces unavailable/not-applicable,
 never a metadata-power fallback.
+
+## v13.19 Speed-Based Move Power
+
+Electro Ball/Gyro Ball use trusted final Speed, stages, and Tailwind only.

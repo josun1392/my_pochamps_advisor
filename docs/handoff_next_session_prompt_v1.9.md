@@ -11,6 +11,10 @@ Wish/Lunar Dance recovery, Memento drops, or generic exceptional recoil.
 Eruption-family and Flail/Reversal power is trusted-current-HP only; do not
 infer exact HP or add excluded variable-power mechanics.
 
+## v13.19
+
+Speed-based power excludes Trick Room reversal and all ability/item modifiers.
+
 ## v13.16 Closure
 
 Observed direct damage is sourced from the Previous Damage panel dialog and

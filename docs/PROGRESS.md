@@ -18078,3 +18078,7 @@ Maintained boundaries:
 
 - Added trusted exact-HP power rules for Eruption family and Flail/Reversal;
   unavailable HP inputs never use metadata-power fallback.
+
+## v13.19 Deterministic Speed-Based Move Power
+
+- Added Electro Ball and Gyro Ball trusted stage/Tailwind speed-power rules.
