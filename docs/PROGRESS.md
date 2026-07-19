@@ -1,5 +1,14 @@
 # Master Ball Advisor — Progress
 
+## v13.11 - Deterministic Multi-Hit Damage And KO
+
+Result:
+- Added repository hit-count metadata, generic convolution totals, and separate
+  multi-hit KO assessment with exceptional-move safety boundary.
+- Full-suite result: `2079 passed, 2 deselected`.
+
+---
+
 ## v13.10 - Deterministic Drain And Recoil
 
 Result:

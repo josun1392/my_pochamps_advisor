@@ -2709,3 +2709,9 @@ confirmed defender HP. The scope is
 ability/item exception, or between-turn effect is included. Exact result lines
 cover drain/recoil percentage and range, optional HP-capped healing, and
 optional recoil KO count/status.
+
+## v13.11 multi-hit damage
+
+`multi_hit_assessment` is separate from single-hit and two-use KO results.
+Generic metadata-backed hit counts use independent-roll convolution and current
+defender HP for KO status. Exceptional multi-hit rules remain unavailable.

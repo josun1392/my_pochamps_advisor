@@ -1,5 +1,10 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.11 Multi-Hit
+
+- Generic multi-hit totals use independent rolls only; do not add Skill Link,
+  Loaded Dice, per-hit events, hit chance, or drain/recoil integration.
+
 ## v13.10 Deterministic Drain And Recoil
 
 - Ordinary move `meta.drain` uses actual capped damage rolls only. Do not add

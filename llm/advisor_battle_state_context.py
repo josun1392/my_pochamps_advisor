@@ -8,6 +8,7 @@ post-turn HP, RNG results, or full turn outcomes.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from collections import Counter
 import re
 from typing import Any
 
@@ -280,6 +281,8 @@ EFFECTIVE_STAT_CALCULATION_SCOPE = "final_stat_plus_stage_only"
 MOVE_ORDER_CALCULATION_SCOPE = "priority-stage-speed-tailwind-trick-room-only"
 HIT_CHANCE_CALCULATION_SCOPE = "move-accuracy-and-stages-only"
 DRAIN_RECOIL_CALCULATION_SCOPE = "damage-dealt-proportional-drain-recoil-only"
+MULTI_HIT_CALCULATION_SCOPE = "generic-multi-hit-damage-only"
+_UNSUPPORTED_MULTI_HIT_MOVES = frozenset({"population-bomb", "triple-axel", "triple-kick", "beat-up", "dragon-darts", "surging-strikes", "tachyon-cutter"})
 _UNSUPPORTED_PROPORTIONAL_RECOIL_MOVES = frozenset({"struggle", "mind-blown", "steel-beam", "chloroblast", "high-jump-kick", "jump-kick"})
 EFFECTIVE_STAT_EXCLUDED_MODIFIERS = (
     "priority", "item", "ability", "weather", "terrain", "tailwind", "trick-room", "rng",
@@ -914,6 +917,43 @@ def build_drain_recoil_assessment(
     return result
 
 
+def build_multi_hit_assessment(damage_estimate: Mapping[str, Any] | None, selected_move: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or not isinstance(selected_move.get("move_id"), str): return None
+    minimum, maximum = selected_move.get("min_hits"), selected_move.get("max_hits")
+    if minimum is None and maximum is None: return None
+    base = {"move": selected_move["move_id"], "scope": MULTI_HIT_CALCULATION_SCOPE}
+    if any(isinstance(v, bool) or not isinstance(v, int) for v in (minimum, maximum)) or not 2 <= minimum <= maximum <= 5:
+        return {**base, "calculation_status": "unavailable", "reason": "invalid_multi_hit_metadata"}
+    if selected_move["move_id"] in _UNSUPPORTED_MULTI_HIT_MOVES:
+        return {**base, "calculation_status": "unavailable", "reason": "unsupported_multi_hit_rule"}
+    rolls = _damage_rolls_from_estimate(damage_estimate) if isinstance(damage_estimate, Mapping) and damage_estimate.get("calculation_status") == "resolved" else None
+    if rolls is None: return {**base, "calculation_status": "unavailable", "reason": "missing_damage_rolls"}
+    def distribution(hits: int):
+        values = Counter({0: 1})
+        for _ in range(hits): values = Counter({total + roll: count + 0 for total, count in values.items() for roll in []}) if False else _convolve(values, rolls)
+        return values
+    hit_counts = range(minimum, maximum + 1)
+    distributions = {hits: distribution(hits) for hits in hit_counts}
+    all_values = [value for dist in distributions.values() for value in dist]
+    result: dict[str, Any] = {**base, "calculation_status": "resolved", "hit_count_type": "fixed" if minimum == maximum else "variable", "minimum_hits": minimum, "maximum_hits": maximum, "total_damage_range": {"minimum": min(all_values), "maximum": max(all_values)}}
+    hp = next((entry.get("current_hp") for entry in (current_hp_context or {}).get("current_hp", []) if isinstance(entry, Mapping) and entry.get("side") == "opponent"), None)
+    if hp == 0: return {**result, "calculation_status": "not_applicable", "reason": "target_already_fainted"}
+    if isinstance(hp, int):
+        # Modern standard 2-5 weights: 3/8,3/8,1/8,1/8.
+        weights = {2: 3, 3: 3, 4: 1, 5: 1} if (minimum, maximum) == (2, 5) else {minimum: 1}
+        numerator = sum(sum(count for total, count in distributions[h].items() if total >= hp) * weights[h] for h in hit_counts)
+        denominator = sum(sum(distributions[h].values()) * weights[h] for h in hit_counts)
+        result.update({"ko_outcome_count": numerator, "outcome_count": denominator, "ko_status": "guaranteed_ko" if numerator == denominator else "possible_ko" if numerator else "no_ko"})
+    return result
+
+
+def _convolve(values: Counter[int], rolls: Sequence[int]) -> Counter[int]:
+    result: Counter[int] = Counter()
+    for total, count in values.items():
+        for roll in rolls: result[total + roll] += count
+    return result
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -956,6 +996,8 @@ def build_deterministic_calculation_context(
     drain_recoil = build_drain_recoil_assessment(primary_estimate, selected_move, current_hp_context)
     if drain_recoil is not None:
         result["drain_recoil_assessment"] = drain_recoil
+    multi_hit = build_multi_hit_assessment(primary_estimate, selected_move, current_hp_context)
+    if multi_hit is not None: result["multi_hit_assessment"] = multi_hit
     return result
 
 
@@ -984,7 +1026,7 @@ def build_limited_damage_estimate(
         return {**base, "calculation_status": "unsupported_move", "reason": "ohko"}
     if move_id in _FIXED_DAMAGE_MOVE_IDS:
         return {**base, "calculation_status": "unsupported_move", "reason": "fixed_damage"}
-    if move_id in _MULTI_HIT_MOVE_IDS:
+    if move_id in _MULTI_HIT_MOVE_IDS and not (isinstance(selected_move.get("min_hits"), int) and isinstance(selected_move.get("max_hits"), int)):
         return {**base, "calculation_status": "unsupported_move", "reason": "multi_hit_unresolved"}
     if move_id in _VARIABLE_POWER_MOVE_IDS or selected_move.get("power_status") == "variable":
         return {**base, "calculation_status": "unsupported_move", "reason": "variable_power"}

@@ -19,6 +19,8 @@ class MoveView:
     accuracy: int | None
     pp: int | None
     drain: int | None = None
+    min_hits: int | None = None
+    max_hits: int | None = None
 
 
 class MoveRepository:
@@ -50,6 +52,8 @@ class MoveRepository:
             accuracy=_optional_int(data.get("accuracy")),
             pp=_optional_int(data.get("pp")),
             drain=_optional_int(data.get("meta", {}).get("drain") if isinstance(data.get("meta"), dict) else None),
+            min_hits=_optional_int(data.get("meta", {}).get("min_hits") if isinstance(data.get("meta"), dict) else None),
+            max_hits=_optional_int(data.get("meta", {}).get("max_hits") if isinstance(data.get("meta"), dict) else None),
         )
 
     def _get_from_champions_movepool(self, move_id: str) -> MoveView:
@@ -69,6 +73,7 @@ class MoveRepository:
             accuracy=_optional_int(data.get("accuracy")),
             pp=_optional_int(data.get("pp")),
             drain=_optional_int(data.get("drain")),
+            min_hits=_optional_int(data.get("min_hits")), max_hits=_optional_int(data.get("max_hits")),
         )
 
 
