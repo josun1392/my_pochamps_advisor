@@ -1000,7 +1000,10 @@ def build_context_modified_damage_estimate(
     applicable = "reflect" if category == "physical" and "reflect" in defender_screens else ("light-screen" if category == "special" and "light-screen" in defender_screens else "aurora-veil" if "aurora-veil" in defender_screens else None)
     # No trusted battle-format field exists. A present screen therefore cannot
     # be silently treated as singles or doubles.
-    battle_format = battle_format_context.get("battle_format") if isinstance(battle_format_context, Mapping) else None
+    current_format = battle_format_context.get("current_battle_format") if isinstance(battle_format_context, Mapping) else None
+    # Accept the older direct helper argument for calculator compatibility;
+    # production always supplies the normalized nested context.
+    battle_format = current_format.get("battle_format") if isinstance(current_format, Mapping) else (battle_format_context.get("battle_format") if isinstance(battle_format_context, Mapping) else None)
     if applicable is not None and battle_format not in {"singles", "doubles"}:
         return {**result, "calculation_status": "unavailable", "reason": "missing_battle_format_for_screen"}
     rolls = _damage_rolls_from_estimate(result)
@@ -1012,6 +1015,7 @@ def build_context_modified_damage_estimate(
 
 
 def normalize_user_confirmed_battle_format(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize an explicit user-confirmed singles/doubles selection only."""
     if not isinstance(candidate, Mapping) or set(candidate) - {"battle_format", "source", "confidence"} or candidate.get("battle_format") not in {"singles", "doubles"} or candidate.get("source") != "user_confirmed_battle_format":
         raise ValueError("battle format is invalid")
     if candidate.get("confidence", "known") != "known":

@@ -92,3 +92,24 @@ def test_empty_expected_context_rejects_a_structured_extra_entry() -> None:
     )
 
     assert advisor_client.validate_trusted_context_acknowledgement(response, ()) == "trusted-context entry mismatch"
+
+
+def test_battle_format_and_screen_modifier_are_exact_readbacks() -> None:
+    trusted = (("battle_format", "", "singles", None),)
+    results = (("screen_modifier", "opponent", "reflect", "singles", "1/2"),)
+    response = (
+        "[Trusted Context]\n- Battle format | singles\n[Deterministic Results]\n"
+        "- Screen modifier | opponent | reflect | singles | 1/2\n[Advice]\n"
+        "The current battle format is confirmed as singles. The opponent's Reflect halves the physical damage in this limited calculation."
+    )
+    assert advisor_client.validate_trusted_context_acknowledgement(response, trusted) is None
+    assert advisor_client.validate_deterministic_result_acknowledgement(response, results) is None
+    assert advisor_client.evaluate_deterministic_result_response(response, trusted, results) is None
+    assert advisor_client.validate_trusted_context_acknowledgement(response.replace("singles", "doubles", 1), trusted) is not None
+    for old, mutation in (("1/2", "2/3"), ("opponent | reflect", "self | reflect"), ("reflect", "light-screen")):
+        assert advisor_client.validate_deterministic_result_acknowledgement(response.replace(old, mutation, 1), results) is not None
+
+
+def test_screen_boundary_claims_are_rejected() -> None:
+    response = "[Trusted Context]\n[Deterministic Results]\n[Advice]\nInfiltrator will bypass it."
+    assert advisor_client.evaluate_deterministic_result_response(response, (), ()) == "deterministic-results semantic boundary violation"

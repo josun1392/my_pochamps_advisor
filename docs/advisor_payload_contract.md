@@ -2664,4 +2664,15 @@ singles or doubles modifier.
 ## v13.7 battle-format screen adapter
 
 Only `user_confirmed_battle_format` values `singles` and `doubles` may resolve
-a present defender screen. Missing format retains the v13.6 unavailable result.
+a present defender screen. The production payload uses
+`battle_format_context.current_battle_format`, preserving only the confirmed
+format/source/known-confidence tuple; raw UI confirmation is removed. Missing
+format retains the v13.6 unavailable result.
+
+The trusted exact-set entry is `Battle format | singles` or `Battle format |
+doubles`. A resolved screen adds `Screen modifier | opponent | screen |
+format | multiplier` to deterministic results. The accepted multipliers are
+singles `1/2` and doubles `2/3`; Reflect precedes Aurora Veil for physical
+moves and Light Screen precedes Aurora Veil for special moves. One defender
+screen reduction is applied, never a stack. Format, side, identity,
+multiplier, damage/percentage, KO, and scope mutations are rejected.

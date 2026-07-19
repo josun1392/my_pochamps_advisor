@@ -41,6 +41,7 @@ from llm.advisor_battle_state_context import (
     normalize_user_confirmed_current_hp,
     normalize_user_confirmed_final_battle_stat,
     normalize_user_confirmed_current_condition,
+    normalize_user_confirmed_battle_format,
     validate_explicit_user_item_event_confirmation,
 )
 from llm.advisor_opponent_move_context import (
@@ -144,6 +145,7 @@ def build_ui_advice_payload(
     final_stat_context: dict[str, Any] | None = None,
     field_state_context: dict[str, Any] | None = None,
     current_hp_context: dict[str, Any] | None = None,
+    battle_format_context: dict[str, Any] | None = None,
     deterministic_calculation_context: dict[str, Any] | None = None,
     *,
     enable_turn_order_context: bool = False,
@@ -156,6 +158,7 @@ def build_ui_advice_payload(
     enable_final_stat_context: bool = False,
     enable_field_state_context: bool = False,
     enable_current_hp_context: bool = False,
+    enable_battle_format_context: bool = False,
     enable_deterministic_calculation_context: bool = False,
 ) -> dict[str, Any]:
     """Return the Gemini default-advice payload without debug-only item context."""
@@ -201,6 +204,9 @@ def build_ui_advice_payload(
         enable_field_state_context=enable_field_state_context,
     )
     _add_current_hp_context_to_advice_payload(filtered_payload, current_hp_context, enable_current_hp_context=enable_current_hp_context)
+    _add_battle_format_context_to_advice_payload(
+        filtered_payload, battle_format_context, enable_battle_format_context=enable_battle_format_context
+    )
     _add_deterministic_calculation_context_to_advice_payload(
         filtered_payload,
         deterministic_calculation_context,
@@ -231,6 +237,7 @@ def _remove_ui_only_field_profiles(payload: dict[str, Any]) -> None:
     payload.pop("current_final_stat_confirmations", None)
     payload.pop("current_hp_confirmations", None)
     payload.pop("current_field_state_confirmation", None)
+    payload.pop("current_battle_format_confirmation", None)
 
 
 def run_ui_selected_advice(
@@ -415,6 +422,16 @@ def _build_ui_selected_prompt(
                 }
             except ValueError:
                 field_state_context = None
+    battle_format_context = None
+    if enable_battle_state_context:
+        raw_battle_format = battle_input.get("current_battle_format_confirmation")
+        if isinstance(raw_battle_format, dict):
+            try:
+                battle_format_context = {
+                    "current_battle_format": normalize_user_confirmed_battle_format(raw_battle_format)
+                }
+            except ValueError:
+                battle_format_context = None
     if deterministic_calculation_context is None and enable_battle_state_context:
         deterministic_calculation_context = build_deterministic_calculation_context(
             final_stat_context,
@@ -424,6 +441,7 @@ def _build_ui_selected_prompt(
             battle_input.get("pokemon"),
             condition_context,
             field_state_context,
+            battle_format_context,
         )
 
     advice_payload = build_ui_advice_payload(
@@ -440,6 +458,7 @@ def _build_ui_selected_prompt(
         final_stat_context=final_stat_context,
         field_state_context=field_state_context,
         current_hp_context=current_hp_context,
+        battle_format_context=battle_format_context,
         deterministic_calculation_context=deterministic_calculation_context,
         enable_turn_order_context=enable_turn_order_context,
         enable_opponent_move_context=enable_opponent_move_context,
@@ -451,6 +470,7 @@ def _build_ui_selected_prompt(
         enable_final_stat_context=enable_battle_state_context,
         enable_field_state_context=enable_battle_state_context,
         enable_current_hp_context=enable_battle_state_context,
+        enable_battle_format_context=enable_battle_state_context,
         enable_deterministic_calculation_context=enable_battle_state_context,
     )
     available_item_context_guard = _build_available_item_context_required_mention_guard(advice_payload)
@@ -1194,6 +1214,21 @@ def _add_field_state_context_to_advice_payload(
     payload["field_state_context"] = {"current_field": {**normalized, "confidence": "known"}}
 
 
+def _add_battle_format_context_to_advice_payload(
+    payload: dict[str, Any], context: dict[str, Any] | None, *, enable_battle_format_context: bool
+) -> None:
+    """Attach only the explicit, user-confirmed battle format."""
+    if not enable_battle_format_context or context is None:
+        return
+    if not isinstance(context, dict) or set(context) != {"current_battle_format"}:
+        raise ValueError("battle_format_context must contain current_battle_format only")
+    current = context.get("current_battle_format")
+    if not isinstance(current, dict) or current.get("confidence") != "known":
+        raise ValueError("battle_format_context must be known")
+    normalized = normalize_user_confirmed_battle_format({key: value for key, value in current.items() if key != "confidence"})
+    payload["battle_format_context"] = {"current_battle_format": {**normalized, "confidence": "known"}}
+
+
 def _add_final_stat_context_to_advice_payload(payload: dict[str, Any], context: dict[str, Any] | None, *, enable_final_stat_context: bool) -> None:
     if not enable_final_stat_context or context is None:
         return
@@ -1223,6 +1258,7 @@ def _add_deterministic_calculation_context_to_advice_payload(
         payload.get("pokemon"),
         payload.get("condition_context"),
         payload.get("field_state_context"),
+        payload.get("battle_format_context"),
     )
     if expected is None or context != expected:
         raise ValueError("deterministic_calculation_context must match trusted stage-only inputs")
@@ -1940,6 +1976,11 @@ def build_trusted_context_acknowledgement_entries(payload: dict[str, Any]) -> tu
             for effect in side_effects:
                 if isinstance(effect, dict) and isinstance(effect.get("side"), str) and isinstance(effect.get("effect"), str):
                     entries.append(("current_side_field_effect", effect["side"].lower(), _normalize_trusted_context_identity(effect["effect"]), None))
+    battle_format_context = payload.get("battle_format_context")
+    if isinstance(battle_format_context, dict):
+        current = battle_format_context.get("current_battle_format")
+        if isinstance(current, dict) and current.get("battle_format") in {"singles", "doubles"}:
+            entries.append(("battle_format", "", current["battle_format"], None))
     item_event_context = payload.get("item_event_context")
     if isinstance(item_event_context, dict) and isinstance(item_event_context.get("observed_events"), list):
         for event in item_event_context["observed_events"]:
@@ -1976,6 +2017,12 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
             if isinstance(effectiveness, dict) and (effectiveness.get("numerator"), effectiveness.get("denominator")) in {(0, 1), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1)} and isinstance(attacker, str) and isinstance(defender, str) and isinstance(move, str):
                 labels = {(0, 1): "0x", (1, 4): "0.25x", (1, 2): "0.5x", (1, 1): "1x", (2, 1): "2x", (4, 1): "4x"}
                 entries.append(("type_effectiveness", attacker.lower(), defender.lower(), move.lower(), labels[(effectiveness["numerator"], effectiveness["denominator"])]))
+            screen = estimate.get("screen_modifier")
+            if isinstance(screen, dict) and screen.get("applied") is True and isinstance(defender, str):
+                identity, battle_format = screen.get("screen"), screen.get("battle_format")
+                numerator, denominator = screen.get("numerator"), screen.get("denominator")
+                if identity in {"reflect", "light-screen", "aurora-veil"} and battle_format in {"singles", "doubles"} and (numerator, denominator) in {(1, 2), (2, 3)}:
+                    entries.append(("screen_modifier", defender.lower(), identity, battle_format, f"{numerator}/{denominator}"))
             if all(isinstance(value, str) for value in (attacker, defender, move, scope)) and all(isinstance(value, int) for value in (minimum, maximum)):
                 entries.append(("damage_estimate", attacker.lower(), defender.lower(), move.lower(), f"{minimum}-{maximum}", scope.replace("_", "-")))  # type: ignore[arg-type]
     for assessment in context.get("hp_assessments", []):
@@ -2018,6 +2065,8 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             lines.append(f"- Current global field effect | {identity}")
         elif category == "current_side_field_effect":
             lines.append(f"- Current side field effect | {side} | {identity}")
+        elif category == "battle_format":
+            lines.append(f"- Battle format | {identity}")
         else:
             lines.append(f"- Observed item event | {side} | {identity} | {event_type}")
     if result_entries:
@@ -2036,6 +2085,9 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             elif category == "type_effectiveness":
                 _, attacker, defender, move, multiplier = entry
                 lines.append(f"- Type effectiveness | {attacker} | {defender} | {move} | {multiplier}")
+            elif category == "screen_modifier":
+                _, side, screen, battle_format, multiplier = entry
+                lines.append(f"- Screen modifier | {side} | {screen} | {battle_format} | {multiplier}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry
@@ -2123,6 +2175,8 @@ def parse_trusted_context_acknowledgement(response: str) -> tuple[tuple[tuple[st
             entry = ("current_global_field_effect", "", _normalize_trusted_context_identity(parts[1]), None)
         elif category == "current side field effect" and len(parts) == 3:
             entry = ("current_side_field_effect", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), None)
+        elif category == "battle format" and len(parts) == 2 and parts[1].lower() in {"singles", "doubles"}:
+            entry = ("battle_format", "", parts[1].lower(), None)
         elif category == "observed item event" and len(parts) == 4:
             entry = ("observed_item_event", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), parts[3].lower())
         else:
@@ -2186,9 +2240,11 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             entry = ("stab", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), parts[3].lower(), parts[4])
         elif category == "type effectiveness" and len(parts) == 5 and parts[4].lower() in {"0x", "0.25x", "0.5x", "1x", "2x", "4x"}:
             entry = ("type_effectiveness", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), parts[4].lower())
+        elif category == "screen modifier" and len(parts) == 5 and parts[1].lower() in {"self", "opponent"} and _normalize_trusted_context_identity(parts[2]) in {"reflect", "light-screen", "aurora-veil"} and parts[3].lower() in {"singles", "doubles"} and parts[4] in {"1/2", "2/3"}:
+            entry = ("screen_modifier", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), parts[3].lower(), parts[4])
         elif category == "damage estimate" and len(parts) == 6:
             range_match = re.fullmatch(r"(\d+)-(\d+)", parts[4])
-            if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type"}:
+            if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type", "base-damage-stage-stab-type-context"}:
                 raise ValueError("deterministic-results malformed entry")
             minimum, maximum = int(range_match.group(1)), int(range_match.group(2))
             if minimum < 0 or minimum > maximum:
@@ -2196,7 +2252,7 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             entry = ("damage_estimate", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), f"{minimum}-{maximum}", parts[5].lower())
         elif category == "damage percentage" and len(parts) == 6:
             range_match = re.fullmatch(r"(\d+(?:\.\d)?)-(\d+(?:\.\d)?)", parts[4])
-            if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type"} or float(range_match.group(1)) > float(range_match.group(2)):
+            if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type", "base-damage-stage-stab-type-context"} or float(range_match.group(1)) > float(range_match.group(2)):
                 raise ValueError("deterministic-results malformed entry")
             entry = ("damage_percentage", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), f"{float(range_match.group(1)):.1f}-{float(range_match.group(2)):.1f}", parts[5].lower())
         elif category == "ohko assessment" and len(parts) == 6:
@@ -2249,6 +2305,7 @@ def evaluate_deterministic_result_response(
         r"\b(speed tie.*(?:wins|winner)|exact (?:damage|ko)|(?:guaranteed|confirmed) (?:ohko|2hko)|remaining hp)\b",
         r"\b(?:stab|type effectiveness|choice specs|light screen|critical hit).*(?:applied|included|reflected)\b",
         r"\b(?:levitate|flash fire|water absorb|adaptability|protean|libero|tera|air balloon|mold breaker)\b.*\b(?:applied|included|reflected|overrid)",
+        r"\b(?:infiltrator|brick break|psychic fangs|critical[- ]hit screen bypass|light clay|screen expiration|next-turn persistence|ability/item override)\b",
     )
     if any(re.search(pattern, advice, re.IGNORECASE) for pattern in forbidden):
         return "deterministic-results semantic boundary violation"

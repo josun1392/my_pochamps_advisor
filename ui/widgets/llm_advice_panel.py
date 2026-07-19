@@ -36,6 +36,8 @@ class LLMAdvicePanel(QFrame):
     current_final_stat_session_reset_requested = Signal()
     current_hp_requested = Signal()
     current_hp_session_reset_requested = Signal()
+    current_battle_format_requested = Signal()
+    current_battle_format_session_reset_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -110,6 +112,10 @@ class LLMAdvicePanel(QFrame):
         self.current_hp_button.clicked.connect(self.current_hp_requested.emit)
         self.clear_current_hp_button = QPushButton("Clear current HP")
         self.clear_current_hp_button.clicked.connect(self.current_hp_session_reset_requested.emit)
+        self.current_battle_format_button = QPushButton("Battle Format")
+        self.current_battle_format_button.clicked.connect(self.current_battle_format_requested.emit)
+        self.clear_current_battle_format_button = QPushButton("Clear battle format")
+        self.clear_current_battle_format_button.clicked.connect(self.current_battle_format_session_reset_requested.emit)
 
         self.turn_pipeline_checkbox = QCheckBox("제한 컨텍스트 포함")
         self.turn_pipeline_checkbox.setObjectName("turnPipelineDevFlag")
@@ -146,6 +152,8 @@ class LLMAdvicePanel(QFrame):
         layout.addWidget(self.clear_current_final_stats_button)
         layout.addWidget(self.current_hp_button)
         layout.addWidget(self.clear_current_hp_button)
+        layout.addWidget(self.current_battle_format_button)
+        layout.addWidget(self.clear_current_battle_format_button)
         layout.addWidget(self.turn_pipeline_checkbox)
         layout.addWidget(self.turn_pipeline_status_label)
         layout.addWidget(self.output_edit, 1)
@@ -182,6 +190,8 @@ class LLMAdvicePanel(QFrame):
         self.current_final_stat_button.setText("Final stats" if not count else f"Final stats ({count})")
     def set_current_hp_count(self, count: int) -> None:
         self.current_hp_button.setText("Current HP" if not count else f"Current HP ({count})")
+    def set_current_battle_format(self, value: str | None) -> None:
+        self.current_battle_format_button.setText("Battle Format" if value is None else f"Battle Format ({value})")
 
     def set_running(self, is_running: bool) -> None:
         self.request_button.setDisabled(is_running)

@@ -1,5 +1,18 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.7 Trusted Battle Format And Screens
+
+- Limited-context UI state now supplies only an explicit user-confirmed
+  `singles`/`doubles` format to the normalized payload. Do not infer it from
+  team size, active slots, or layout; gate-off retains the UI snapshot but
+  emits no raw or normalized format context.
+- Reflect/Light Screen/Aurora Veil use one defender-side reduction only:
+  singles `1/2`, doubles `2/3`. Missing format with an applicable screen is
+  unavailable; burn/weather without a screen still calculate normally.
+- Structured readback requires the exact battle-format and, when applied,
+  screen-modifier lines. Do not add Infiltrator, Brick Break, Psychic Fangs,
+  critical bypass, Light Clay, timing, persistence, ability, or item claims.
+
 ## v13.4 HP/KO Boundary
 
 - Exact current/max HP is separate from percent and final-stat HP. The v13.4

@@ -1,5 +1,21 @@
 # Master Ball Advisor — Progress
 
+## v13.7 - Trusted Battle Format And Screen Modifiers
+
+Result:
+- Completed the explicit `singles`/`doubles` normalization and limited-context
+  production payload path, with raw confirmation omitted from serialized
+  advice data and session state retained when the gate is off.
+- Connected format-aware defender-side screen math, exact trusted/deterministic
+  acknowledgement parsing, mutation rejection, and screen semantic boundaries.
+- Preserved no-screen burn/weather, immunity, and zero-HP not-applicable KO
+  behavior. Actual provider calls: none.
+- Verification: targeted 559 passed; related regression 32 passed; full suite:
+  `2054 passed, 2 deselected`.
+- Status: `COMPLETE - TRUSTED BATTLE FORMAT AND SCREEN MODIFIERS GREEN`.
+
+---
+
 ## v13.4 - Deterministic HP And KO Assessment
 
 Result:
