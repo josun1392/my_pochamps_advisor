@@ -443,6 +443,7 @@ def _build_ui_selected_prompt(
             field_state_context,
             battle_format_context,
             _selected_opponent_move_payload_from_advice_payload(battle_input),
+            battle_input.get("attacker_level_confirmation") if isinstance(battle_input.get("attacker_level_confirmation"), dict) else None,
         )
 
     advice_payload = build_ui_advice_payload(
@@ -2063,6 +2064,13 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
                 entries.append(("direct_healing", "self", move.lower(), f"{percent}%", "0 HP", "already-at-full-hp", scope.replace("_", "-")))
             elif status in {"unavailable", "not_applicable"} and isinstance(direct_healing.get("reason"), str):
                 entries.append(("direct_healing", "self", move.lower(), status.replace("_", "-"), direct_healing["reason"].replace("_", "-")))
+    fixed = context.get("fixed_damage_assessment")
+    if isinstance(fixed, dict) and isinstance(fixed.get("move"), str):
+        if fixed.get("status") == "resolved" and isinstance(fixed.get("damage"), int) and isinstance(fixed.get("rule"), str):
+            entries.append(("fixed_damage", "self", "opponent", fixed["move"].lower(), fixed["rule"].replace("_", "-"), f"{fixed['damage']} HP", fixed["scope"].replace("_", "-")))
+            if isinstance(fixed.get("ko_status"), str): entries.append(("fixed_damage_ko", "self", "opponent", fixed["move"].lower(), fixed["ko_status"].replace("_", "-")))
+        elif fixed.get("status") in {"unavailable", "not_applicable"} and isinstance(fixed.get("reason"), str):
+            entries.append(("fixed_damage", "self", "opponent", fixed["move"].lower(), fixed["status"].replace("_", "-"), fixed["reason"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")
@@ -2174,6 +2182,16 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
                 else:
                     _, side, move, status, reason = entry
                     lines.append(f"- Direct healing | {side} | {move} | {status} | {reason}")
+            elif category == "fixed_damage":
+                if len(entry) == 7:
+                    _, attacker, defender, move, rule, damage, scope = entry
+                    lines.append(f"- Fixed damage | {attacker} | {defender} | {move} | {rule} | {damage} | {scope}")
+                else:
+                    _, attacker, defender, move, status, reason = entry
+                    lines.append(f"- Fixed damage | {attacker} | {defender} | {move} | {status} | {reason}")
+            elif category == "fixed_damage_ko":
+                _, attacker, defender, move, status = entry
+                lines.append(f"- Fixed-damage KO assessment | {attacker} | {defender} | {move} | {status}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry
@@ -2356,6 +2374,14 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
                 entry = ("direct_healing", "self", _normalize_trusted_context_identity(parts[2]), parts[3].lower(), parts[4].lower())
             else:
                 raise ValueError("deterministic-results malformed entry")
+        elif category == "fixed damage" and len(parts) >= 4 and parts[1].lower() == "self" and parts[2].lower() == "opponent":
+            if len(parts) == 7 and parts[4].lower() in {"attacker-level", "literal-40", "literal-20", "defender-current-hp-half"} and re.fullmatch(r"\d+ HP", parts[5]) and parts[6].lower() == "explicit-fixed-damage-rules-only":
+                entry = ("fixed_damage", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower(), parts[5], parts[6].lower())
+            elif len(parts) == 6 and parts[4].lower() in {"unavailable", "not-applicable"} and parts[5].lower() in {"unsupported-fixed-damage-rule", "missing-attacker-level", "invalid-attacker-level", "missing-defender-current-hp", "invalid-defender-current-hp", "target-already-fainted"}:
+                entry = ("fixed_damage", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower(), parts[5].lower())
+            else: raise ValueError("deterministic-results malformed entry")
+        elif category == "fixed-damage ko assessment" and len(parts) == 5 and parts[1].lower() == "self" and parts[2].lower() == "opponent" and parts[4].lower() in {"guaranteed-ko", "no-ko"}:
+            entry = ("fixed_damage_ko", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower())
         elif category == "damage estimate" and len(parts) == 6:
             range_match = re.fullmatch(r"(\d+)-(\d+)", parts[4])
             if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type", "base-damage-stage-stab-type-context"}:

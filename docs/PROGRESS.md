@@ -18019,6 +18019,13 @@ Maintained boundaries:
 - Verification results are recorded after the required targeted, related, and
   full-suite runs.
 
+## v13.14 Deterministic Fixed Damage
+
+- Explicit fixed-damage rules now cover level-based, literal, and current-HP
+  half damage without normal formula modifiers or unsupported-rule inference.
+- Fixed results use `explicit-fixed-damage-rules-only`, exact acknowledgement
+  lines, and type-immunity boundaries for Seismic Toss and Night Shade.
+
 ## v13.5 Deterministic STAB and Type Effectiveness Integration
 
 - Added a limited deterministic type-aware adapter using UI-selected resolved

@@ -2729,3 +2729,11 @@ self is `not_applicable`; absent current or maximum HP is unavailable; and
 current HP above maximum HP is invalid. Conditional, weather-based, delayed,
 or target-dependent healing is unavailable. Gate-off emits neither the result
 nor its acknowledgement. Direct healing does not merge with drain/recoil.
+
+## v13.14 fixed damage
+
+`fixed_damage_assessment` is gate-on only and uses scope
+`explicit-fixed-damage-rules-only`. Resolved explicit rules carry move, rule,
+damage, and deterministic KO status. Level rules require a trusted integer
+level 1..100; HP-half rules require exact defender current HP. Unsupported
+special and OHKO rules remain unavailable and never use normal formula fallback.

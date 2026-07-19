@@ -9,6 +9,11 @@
 - The documentation completion commit and regression baseline must be recorded
   only after validation. The next proposed feature is v13.14 fixed damage.
 
+## v13.14 Fixed Damage
+
+- Keep fixed-damage support on its explicit allowlist. Do not add OHKO,
+  Counter-family, ability/status overrides, or normal damage modifiers.
+
 ## v13.11 Multi-Hit
 
 - Generic multi-hit totals use independent rolls only; do not add Skill Link,
