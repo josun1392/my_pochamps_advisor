@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v13.10 - Deterministic Drain And Recoil
+
+Result:
+- Added PokeAPI move drain metadata, actual-damage capping, ordinary drain and
+  recoil ranges, optional HP-capped restoration, and recoil KO assessment.
+- Preserved exceptional-recoil, ability/item, expected-value, and turn-engine
+  exclusions. Full-suite result: `2074 passed, 2 deselected`.
+
+---
+
 ## v13.9 - Deterministic Accuracy And Hit Chance
 
 Result:

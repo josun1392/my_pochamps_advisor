@@ -1,5 +1,12 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.10 Deterministic Drain And Recoil
+
+- Ordinary move `meta.drain` uses actual capped damage rolls only. Do not add
+  Big Root, Liquid Ooze, Rock Head, Life Orb, Shell Bell, hit chance, expected
+  values, or between-turn effects.
+- Exceptional recoil/crash moves remain unavailable rather than inferred.
+
 ## v13.9 Deterministic Hit Chance
 
 - Hit chance is selected move accuracy plus user-confirmed accuracy/evasion

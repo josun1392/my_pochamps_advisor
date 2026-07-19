@@ -2699,3 +2699,13 @@ canonical `always_hit` marker exists. It does not affect damage, immunity, KO,
 or expected damage and excludes ability, item, weather, OHKO, and special move
 rules. The exact deterministic line is `Hit chance | self | opponent | move |
 percent-or-unavailable | reason | move-accuracy-and-stages-only`.
+
+## v13.10 drain and recoil
+
+Selected move PokeAPI `meta.drain` is mapped into repository metadata. Positive
+values drain and negative values recoil from actual roll damage capped by
+confirmed defender HP. The scope is
+`damage-dealt-proportional-drain-recoil-only`; no hit-chance expected value,
+ability/item exception, or between-turn effect is included. Exact result lines
+cover drain/recoil percentage and range, optional HP-capped healing, and
+optional recoil KO count/status.

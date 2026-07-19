@@ -18,6 +18,7 @@ class MoveView:
     power: int | None
     accuracy: int | None
     pp: int | None
+    drain: int | None = None
 
 
 class MoveRepository:
@@ -48,6 +49,7 @@ class MoveRepository:
             power=_optional_int(data.get("power")),
             accuracy=_optional_int(data.get("accuracy")),
             pp=_optional_int(data.get("pp")),
+            drain=_optional_int(data.get("meta", {}).get("drain") if isinstance(data.get("meta"), dict) else None),
         )
 
     def _get_from_champions_movepool(self, move_id: str) -> MoveView:
@@ -66,6 +68,7 @@ class MoveRepository:
             power=_optional_int(data.get("power")),
             accuracy=_optional_int(data.get("accuracy")),
             pp=_optional_int(data.get("pp")),
+            drain=_optional_int(data.get("drain")),
         )
 
 

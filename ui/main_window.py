@@ -1213,6 +1213,7 @@ def _move_payload(move: MoveView, slot_index: int) -> dict:
         "power": move.power,
         "accuracy": move.accuracy,
         "pp": move.pp,
+        "drain": move.drain,
     }
 
 

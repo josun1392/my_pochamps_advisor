@@ -279,6 +279,8 @@ USER_CONFIRMED_CURRENT_HP_FORBIDDEN_FIELDS = frozenset({"current_hp_percent", "p
 EFFECTIVE_STAT_CALCULATION_SCOPE = "final_stat_plus_stage_only"
 MOVE_ORDER_CALCULATION_SCOPE = "priority-stage-speed-tailwind-trick-room-only"
 HIT_CHANCE_CALCULATION_SCOPE = "move-accuracy-and-stages-only"
+DRAIN_RECOIL_CALCULATION_SCOPE = "damage-dealt-proportional-drain-recoil-only"
+_UNSUPPORTED_PROPORTIONAL_RECOIL_MOVES = frozenset({"struggle", "mind-blown", "steel-beam", "chloroblast", "high-jump-kick", "jump-kick"})
 EFFECTIVE_STAT_EXCLUDED_MODIFIERS = (
     "priority", "item", "ability", "weather", "terrain", "tailwind", "trick-room", "rng",
 )
@@ -868,6 +870,50 @@ def build_deterministic_hit_chance_assessment(
         "reason": "calculated_100_percent" if percent == 100 else "stage_adjusted_accuracy"}
 
 
+def build_drain_recoil_assessment(
+    damage_estimate: Mapping[str, Any] | None, selected_move: Mapping[str, Any] | None,
+    current_hp_context: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Apply only ordinary metadata drain/recoil to actual capped damage rolls."""
+    if not isinstance(selected_move, Mapping) or not isinstance(selected_move.get("move_id"), str):
+        return None
+    drain = selected_move.get("drain")
+    if drain is None or drain == 0:
+        return None
+    base = {"move": selected_move["move_id"], "scope": DRAIN_RECOIL_CALCULATION_SCOPE}
+    if isinstance(drain, bool) or not isinstance(drain, int) or not -100 <= drain <= 100:
+        return {**base, "calculation_status": "unavailable", "reason": "invalid_move_drain_metadata"}
+    if drain < 0 and selected_move["move_id"] in _UNSUPPORTED_PROPORTIONAL_RECOIL_MOVES:
+        return {**base, "calculation_status": "unavailable", "reason": "unsupported_recoil_rule"}
+    if not isinstance(damage_estimate, Mapping) or damage_estimate.get("calculation_status") != "resolved":
+        return {**base, "calculation_status": "unavailable", "reason": "missing_damage_rolls"}
+    rolls = _damage_rolls_from_estimate(damage_estimate)
+    hp_entries = current_hp_context.get("current_hp") if isinstance(current_hp_context, Mapping) else None
+    if not isinstance(hp_entries, list):
+        return {**base, "calculation_status": "unavailable", "reason": "missing_defender_current_hp_for_effect_amount"}
+    hp_by_side = {entry.get("side"): entry for entry in hp_entries if isinstance(entry, Mapping)}
+    defender = hp_by_side.get("opponent")
+    if not isinstance(defender, Mapping) or not isinstance(defender.get("current_hp"), int):
+        return {**base, "calculation_status": "unavailable", "reason": "missing_defender_current_hp_for_effect_amount"}
+    defender_hp = defender["current_hp"]
+    if defender_hp == 0:
+        return {**base, "calculation_status": "not_applicable", "reason": "target_already_fainted"}
+    if rolls is None:
+        return {**base, "calculation_status": "unavailable", "reason": "missing_damage_rolls"}
+    actual = [min(roll, defender_hp) for roll in rolls]
+    amounts = [damage * abs(drain) // 100 for damage in actual]
+    result: dict[str, Any] = {**base, "calculation_status": "resolved", "effect": "drain" if drain > 0 else "recoil", "percent": abs(drain), "actual_damage_range": {"minimum": min(actual), "maximum": max(actual)}, "effect_amount_range": {"minimum": min(amounts), "maximum": max(amounts)}}
+    attacker = hp_by_side.get("self")
+    if drain > 0 and isinstance(attacker, Mapping) and isinstance(attacker.get("current_hp"), int) and isinstance(attacker.get("maximum_hp"), int):
+        missing = attacker["maximum_hp"] - attacker["current_hp"]
+        restored = [min(amount, missing) for amount in amounts]
+        result["actual_restored_hp_range"] = {"minimum": min(restored), "maximum": max(restored)}
+    if drain < 0 and isinstance(attacker, Mapping) and isinstance(attacker.get("current_hp"), int):
+        ko = sum(amount >= attacker["current_hp"] for amount in amounts)
+        result.update({"recoil_ko_count": ko, "roll_count": len(amounts), "recoil_ko_status": "guaranteed_recoil_ko" if ko == len(amounts) else "possible_recoil_ko" if ko else "no_recoil_ko"})
+    return result
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -907,6 +953,9 @@ def build_deterministic_calculation_context(
     hit_chance = build_deterministic_hit_chance_assessment(selected_move, stat_stage_context) if has_accuracy_metadata else None
     if hit_chance is not None:
         result["hit_chance_assessment"] = hit_chance
+    drain_recoil = build_drain_recoil_assessment(primary_estimate, selected_move, current_hp_context)
+    if drain_recoil is not None:
+        result["drain_recoil_assessment"] = drain_recoil
     return result
 
 

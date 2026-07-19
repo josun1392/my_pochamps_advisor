@@ -2041,6 +2041,17 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
             display = "unavailable" if result == "unavailable" else f"{percent}%" if isinstance(percent, int) else None
             if display is not None:
                 entries.append(("hit_chance", "self", "opponent", move.lower(), display, reason.replace("_", "-"), scope.replace("_", "-")))
+    drain_recoil = context.get("drain_recoil_assessment")
+    if isinstance(drain_recoil, dict) and drain_recoil.get("calculation_status") == "resolved":
+        move, effect, percent, scope = (drain_recoil.get(key) for key in ("move", "effect", "percent", "scope"))
+        amounts = drain_recoil.get("effect_amount_range")
+        if isinstance(move, str) and effect in {"drain", "recoil"} and isinstance(percent, int) and isinstance(scope, str) and isinstance(amounts, dict) and all(isinstance(amounts.get(key), int) for key in ("minimum", "maximum")):
+            entries.append(("drain_recoil", effect, move.lower(), f"{percent}%", f"{amounts['minimum']}-{amounts['maximum']} HP", scope.replace("_", "-")))
+        restored = drain_recoil.get("actual_restored_hp_range")
+        if effect == "drain" and isinstance(restored, dict) and all(isinstance(restored.get(key), int) for key in ("minimum", "maximum")):
+            entries.append(("actual_healing", "self", move.lower(), f"{restored['minimum']}-{restored['maximum']} HP", "current-hp-capped"))
+        if effect == "recoil" and isinstance(drain_recoil.get("recoil_ko_count"), int) and isinstance(drain_recoil.get("roll_count"), int) and isinstance(drain_recoil.get("recoil_ko_status"), str):
+            entries.append(("recoil_ko", "self", move.lower(), f"{drain_recoil['recoil_ko_count']}/{drain_recoil['roll_count']}", drain_recoil["recoil_ko_status"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")
@@ -2136,6 +2147,15 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             elif category == "hit_chance":
                 _, attacker, defender, move, percent, reason, scope = entry
                 lines.append(f"- Hit chance | {attacker} | {defender} | {move} | {percent} | {reason} | {scope}")
+            elif category == "drain_recoil":
+                _, effect, move, percent, amount, scope = entry
+                lines.append(f"- {'Drain' if effect == 'drain' else 'Recoil'} effect | self | {move} | {percent} | {amount} | {scope}")
+            elif category == "actual_healing":
+                _, side, move, amount, cap = entry
+                lines.append(f"- Actual healing | {side} | {move} | {amount} | {cap}")
+            elif category == "recoil_ko":
+                _, side, move, count, status = entry
+                lines.append(f"- Recoil KO assessment | {side} | {move} | {count} | {status}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry
@@ -2300,6 +2320,12 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             entry = ("move_order", parts[1].lower(), parts[2].lower(), parts[3].lower())
         elif category == "hit chance" and len(parts) == 7 and parts[1].lower() == "self" and parts[2].lower() == "opponent" and parts[6].lower() == "move-accuracy-and-stages-only" and ((re.fullmatch(r"(?:100|[1-9]\d?)%", parts[4]) and parts[5].lower() in {"stage-adjusted-accuracy", "calculated-100-percent", "move-always-hits"}) or (parts[4].lower() == "unavailable" and parts[5].lower() == "missing-move-accuracy")):
             entry = ("hit_chance", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower(), parts[5].lower(), parts[6].lower())
+        elif category in {"drain effect", "recoil effect"} and len(parts) == 6 and parts[1].lower() == "self" and re.fullmatch(r"\d+%", parts[3]) and re.fullmatch(r"\d+-\d+ HP", parts[4]) and parts[5].lower() == "damage-dealt-proportional-drain-recoil-only":
+            entry = ("drain_recoil", "drain" if category == "drain effect" else "recoil", _normalize_trusted_context_identity(parts[2]), parts[3], parts[4], parts[5].lower())
+        elif category == "actual healing" and len(parts) == 5 and parts[1].lower() == "self" and re.fullmatch(r"\d+-\d+ HP", parts[3]) and parts[4].lower() == "current-hp-capped":
+            entry = ("actual_healing", "self", _normalize_trusted_context_identity(parts[2]), parts[3], parts[4].lower())
+        elif category == "recoil ko assessment" and len(parts) == 5 and parts[1].lower() == "self" and re.fullmatch(r"\d+/16", parts[3]) and parts[4].lower() in {"guaranteed-recoil-ko", "possible-recoil-ko", "no-recoil-ko"}:
+            entry = ("recoil_ko", "self", _normalize_trusted_context_identity(parts[2]), parts[3], parts[4].lower())
         elif category == "damage estimate" and len(parts) == 6:
             range_match = re.fullmatch(r"(\d+)-(\d+)", parts[4])
             if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type", "base-damage-stage-stab-type-context"}:
