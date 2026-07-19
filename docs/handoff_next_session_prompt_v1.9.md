@@ -1,5 +1,10 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.30 closure
+
+v14 candidate: battle-advisor integration planning using the completed
+deterministic mechanic inventory. No v14 implementation is authorized here.
+
 ## v13.28
 
 Dynamic move identities are registered to exactly one family. Preserve the
