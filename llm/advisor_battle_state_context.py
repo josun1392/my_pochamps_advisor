@@ -301,7 +301,8 @@ _VARIABLE_POWER_MOVE_IDS = frozenset({"acrobatics", "avalanche", "brine", "crush
 _FIXED_DAMAGE_MOVE_IDS = frozenset({"dragon-rage", "endeavor", "final-gambit", "night-shade", "psywave", "seismic-toss", "sonic-boom", "super-fang"})
 FIXED_DAMAGE_SCOPE = "explicit-fixed-damage-rules-only"
 _SUPPORTED_FIXED_DAMAGE_RULES = {"seismic-toss": "attacker-level", "night-shade": "attacker-level", "dragon-rage": "literal-40", "sonic-boom": "literal-20", "super-fang": "defender-current-hp-half", "natures-madness": "defender-current-hp-half", "ruination": "defender-current-hp-half"}
-_UNSUPPORTED_FIXED_DAMAGE_MOVES = frozenset({"endeavor", "final-gambit", "psywave", "counter", "mirror-coat", "metal-burst", "bide", "comeuppance", "fissure", "guillotine", "horn-drill", "sheer-cold"})
+_UNSUPPORTED_FIXED_DAMAGE_MOVES = frozenset({"psywave", "counter", "mirror-coat", "metal-burst", "bide", "comeuppance", "fissure", "guillotine", "horn-drill", "sheer-cold"})
+HP_BASED_SPECIAL_DAMAGE_SCOPE = "explicit-hp-based-special-damage-only"
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1064,6 +1065,39 @@ def build_fixed_damage_assessment(selected_move: Mapping[str, Any] | None, curre
     return result
 
 
+def build_hp_based_special_damage_assessment(selected_move: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None, pokemon: Mapping[str, Any] | None = None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in {"endeavor", "final-gambit"}:
+        return None
+    move = selected_move["move_id"]
+    entries = (current_hp_context or {}).get("current_hp", []) if isinstance(current_hp_context, Mapping) else []
+    by_side = {entry.get("side"): entry for entry in entries if isinstance(entry, Mapping)}
+    base = {"move": move, "scope": HP_BASED_SPECIAL_DAMAGE_SCOPE}
+    def hp(side: str) -> tuple[int | None, str | None]:
+        entry = by_side.get(side)
+        if not isinstance(entry, Mapping) or "current_hp" not in entry: return None, f"missing_{side}_current_hp"
+        value, maximum = entry.get("current_hp"), entry.get("maximum_hp")
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0 or (maximum is not None and (isinstance(maximum, bool) or not isinstance(maximum, int) or maximum < 1 or value > maximum)):
+            return None, f"invalid_{side}_current_hp"
+        return value, None
+    self_hp, error = hp("self")
+    if error: return {**base, "status": "unavailable", "reason": error}
+    opponent_hp, error = hp("opponent")
+    if error: return {**base, "status": "unavailable", "reason": error}
+    assert self_hp is not None and opponent_hp is not None
+    if self_hp == 0: return {**base, "status": "not_applicable", "reason": "user_already_fainted"}
+    if opponent_hp == 0: return {**base, "status": "not_applicable", "reason": "target_already_fainted"}
+    move_type = "normal" if move == "endeavor" else "fighting"
+    defender_types = _selected_types(pokemon, "opponent_active")
+    immune = defender_types is not None and any(load_type_chart()[move_type][target] == 0 for target in defender_types)
+    if move == "endeavor":
+        if immune: return {**base, "rule": "equalize-target-current-hp", "self_current_hp": self_hp, "opponent_current_hp": opponent_hp, "damage": 0, "opponent_resulting_hp": opponent_hp, "ko_status": "no_ko", "status": "no_effect", "reason": "type_immunity"}
+        if opponent_hp <= self_hp: return {**base, "rule": "equalize-target-current-hp", "self_current_hp": self_hp, "opponent_current_hp": opponent_hp, "damage": 0, "opponent_resulting_hp": opponent_hp, "ko_status": "no_ko", "status": "no_effect", "reason": "target_hp_not_higher"}
+        return {**base, "rule": "equalize-target-current-hp", "self_current_hp": self_hp, "opponent_current_hp": opponent_hp, "damage": opponent_hp-self_hp, "opponent_resulting_hp": self_hp, "ko_status": "no_ko", "status": "resolved"}
+    actual = 0 if immune else min(self_hp, opponent_hp)
+    remaining = opponent_hp - actual
+    return {**base, "rule": "user-current-hp-damage-and-self-faint", "self_current_hp": self_hp, "opponent_current_hp": opponent_hp, "damage": self_hp, "actual_damage": actual, "opponent_resulting_hp": remaining, "opponent_ko_status": "guaranteed_ko" if remaining == 0 else "no_ko", "self_resulting_hp": 0, "self_faint_status": "guaranteed_self_faint", "status": "resolved", **({"reason": "type_immunity"} if immune else {})}
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -1081,9 +1115,11 @@ def build_deterministic_calculation_context(
     if context is None:
         healing = build_direct_healing_assessment(selected_move, current_hp_context)
         fixed = build_fixed_damage_assessment(selected_move, current_hp_context, pokemon, attacker_level_context)
+        special = build_hp_based_special_damage_assessment(selected_move, current_hp_context, pokemon)
         result = {}
         if healing is not None: result["direct_healing_assessment"] = healing
         if fixed is not None: result["fixed_damage_assessment"] = fixed
+        if special is not None: result["hp_based_special_damage_assessment"] = special
         return result or None
     estimate = build_limited_damage_estimate(context["effective_stats"], selected_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
@@ -1119,8 +1155,13 @@ def build_deterministic_calculation_context(
     healing = build_direct_healing_assessment(selected_move, current_hp_context)
     if healing is not None: result["direct_healing_assessment"] = healing
     fixed = build_fixed_damage_assessment(selected_move, current_hp_context, pokemon, attacker_level_context)
+    special = build_hp_based_special_damage_assessment(selected_move, current_hp_context, pokemon)
     if fixed is not None:
         result["fixed_damage_assessment"] = fixed
+        result["damage_estimates"] = []
+    if special is not None:
+        result["hp_based_special_damage_assessment"] = special
+        result["fixed_damage_assessment"] = None
         result["damage_estimates"] = []
     return result
 

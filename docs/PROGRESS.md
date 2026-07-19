@@ -18026,6 +18026,11 @@ Maintained boundaries:
 - Fixed results use `explicit-fixed-damage-rules-only`, exact acknowledgement
   lines, and type-immunity boundaries for Seismic Toss and Night Shade.
 
+## v13.15 HP-Based Special Damage
+
+- Added explicit exact-HP-only Endeavor and Final Gambit assessments, including
+  target resulting HP and Final Gambit's self-faint consequence.
+
 ## v13.5 Deterministic STAB and Type Effectiveness Integration
 
 - Added a limited deterministic type-aware adapter using UI-selected resolved

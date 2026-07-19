@@ -2071,6 +2071,15 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
             if isinstance(fixed.get("ko_status"), str): entries.append(("fixed_damage_ko", "self", "opponent", fixed["move"].lower(), fixed["ko_status"].replace("_", "-")))
         elif fixed.get("status") in {"unavailable", "not_applicable"} and isinstance(fixed.get("reason"), str):
             entries.append(("fixed_damage", "self", "opponent", fixed["move"].lower(), fixed["status"].replace("_", "-"), fixed["reason"].replace("_", "-")))
+    special = context.get("hp_based_special_damage_assessment")
+    if isinstance(special, dict) and isinstance(special.get("move"), str):
+        move, status = special["move"].lower(), special.get("status")
+        if status == "resolved" and isinstance(special.get("rule"), str) and isinstance(special.get("damage"), int):
+            entries.append(("hp_special_damage", "self", "opponent", move, special["rule"].replace("_", "-"), f"{special['damage']} HP", special["scope"].replace("_", "-")))
+            entries.append(("target_resulting_hp", "opponent", move, f"{special['opponent_resulting_hp']} HP"))
+            if move == "final-gambit": entries.append(("self_faint", "self", move, "guaranteed-self-faint"))
+        elif status in {"no_effect", "unavailable", "not_applicable"} and isinstance(special.get("reason"), str):
+            entries.append(("hp_special_damage", "self", "opponent", move, status.replace("_", "-"), special["reason"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")
@@ -2192,6 +2201,15 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             elif category == "fixed_damage_ko":
                 _, attacker, defender, move, status = entry
                 lines.append(f"- Fixed-damage KO assessment | {attacker} | {defender} | {move} | {status}")
+            elif category == "hp_special_damage":
+                if len(entry) == 7:
+                    _, attacker, defender, move, rule, damage, scope = entry; lines.append(f"- HP-based special damage | {attacker} | {defender} | {move} | {rule} | {damage} | {scope}")
+                else:
+                    _, attacker, defender, move, status, reason = entry; lines.append(f"- HP-based special damage | {attacker} | {defender} | {move} | {status} | {reason}")
+            elif category == "target_resulting_hp":
+                _, side, move, hp = entry; lines.append(f"- Target resulting HP | {side} | {move} | {hp}")
+            elif category == "self_faint":
+                _, side, move, status = entry; lines.append(f"- Self-faint consequence | {side} | {move} | {status}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry

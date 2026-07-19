@@ -14,6 +14,11 @@
 - Keep fixed-damage support on its explicit allowlist. Do not add OHKO,
   Counter-family, ability/status overrides, or normal damage modifiers.
 
+## v13.15 HP-Based Special Damage
+
+- Endeavor and Final Gambit require exact confirmed current HP for both sides;
+  Final Gambit's self-faint is not recoil and has no replacement-turn logic.
+
 ## v13.11 Multi-Hit
 
 - Generic multi-hit totals use independent rolls only; do not add Skill Link,

@@ -2737,3 +2737,10 @@ nor its acknowledgement. Direct healing does not merge with drain/recoil.
 damage, and deterministic KO status. Level rules require a trusted integer
 level 1..100; HP-half rules require exact defender current HP. Unsupported
 special and OHKO rules remain unavailable and never use normal formula fallback.
+
+## v13.15 HP-based special damage
+
+`hp_based_special_damage_assessment` is limited-context only with scope
+`explicit-hp-based-special-damage-only`. It accepts exact self/opponent HP for
+Endeavor and Final Gambit only; it does not use normal damage, recoil, or
+post-faint switching mechanics.
