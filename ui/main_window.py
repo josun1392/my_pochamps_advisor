@@ -841,7 +841,7 @@ class MainWindow(QMainWindow):
                 "my_available_moves": self._panel_moves_payload(my_panel),
                 "my_selected_move": self._selected_move_payload(my_panel),
                 "opponent_available_moves": [],
-                "opponent_selected_move": None,
+                "opponent_selected_move": self._selected_move_payload(opponent_panel),
                 "opponent_selected_move_index": opponent_panel.selected_move_index,
                 "move_data_status": "four_move_damage_comparison_v0.10",
                 "notes": [

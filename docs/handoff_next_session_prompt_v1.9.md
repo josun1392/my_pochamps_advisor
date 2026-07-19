@@ -1,5 +1,13 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.8 Priority And Field-Aware Move Order
+
+- The deterministic result is priority/stage-Speed/Tailwind/Trick Room only.
+  Never infer opponent priority zero, ability/item modifiers, random tie
+  winners, duration, expiry, move success, switching, or a full turn result.
+- Explicit UI opponent selection is the only production opponent-move source;
+  absent priority stays unavailable. Priority brackets always precede Speed.
+
 ## v13.7 Trusted Battle Format And Screens
 
 - Limited-context UI state now supplies only an explicit user-confirmed

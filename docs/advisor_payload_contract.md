@@ -2676,3 +2676,14 @@ singles `1/2` and doubles `2/3`; Reflect precedes Aurora Veil for physical
 moves and Light Screen precedes Aurora Veil for special moves. One defender
 screen reduction is applied, never a stack. Format, side, identity,
 multiplier, damage/percentage, KO, and scope mutations are rejected.
+
+## v13.8 priority and field-aware move order
+
+`deterministic_calculation_context.move_order_assessment` is emitted only under
+the existing limited-context gate. It uses selected-move metadata priority,
+explicitly selected opponent-move metadata priority, final Speed, current
+Speed stage, Tailwind, and Trick Room. Missing opponent priority is explicitly
+unavailable; priority zero is never inferred. The result scope is
+`priority-stage-speed-tailwind-trick-room-only`. Priority precedes Speed;
+Tailwind doubles only its side's stage-adjusted integer Speed; Trick Room
+reverses equal-priority speed comparison only; equal speed is `tie`.

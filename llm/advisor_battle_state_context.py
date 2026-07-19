@@ -277,6 +277,7 @@ _FINAL_STAT_ALIASES = {
 }
 USER_CONFIRMED_CURRENT_HP_FORBIDDEN_FIELDS = frozenset({"current_hp_percent", "post_turn_hp", "damage_taken", "estimated_hp", "remaining_hp_after_move", "exact_damage"})
 EFFECTIVE_STAT_CALCULATION_SCOPE = "final_stat_plus_stage_only"
+MOVE_ORDER_CALCULATION_SCOPE = "priority-stage-speed-tailwind-trick-room-only"
 EFFECTIVE_STAT_EXCLUDED_MODIFIERS = (
     "priority", "item", "ability", "weather", "terrain", "tailwind", "trick-room", "rng",
 )
@@ -792,6 +793,53 @@ def build_speed_comparison_result(effective_stats: Sequence[Mapping[str, Any]]) 
     return result
 
 
+def build_deterministic_move_order_assessment(
+    final_stat_context: Mapping[str, Any] | None,
+    stat_stage_context: Mapping[str, Any] | None,
+    field_state_context: Mapping[str, Any] | None,
+    self_move: Mapping[str, Any] | None,
+    opponent_move: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Resolve only explicit priority, stage Speed, Tailwind, and Trick Room."""
+    result: dict[str, Any] = {"result": "unavailable", "scope": MOVE_ORDER_CALCULATION_SCOPE,
+        "excluded_modifiers": ["ability", "item", "random-tie-resolution", "move-success", "switching", "turn-engine", "paralysis"]}
+    for side, move in (("self", self_move), ("opponent", opponent_move)):
+        if not isinstance(move, Mapping) or not isinstance(move.get("move_id"), str) or not move["move_id"]:
+            return {**result, "reason": f"missing_{side}_move_priority"}
+        priority = move.get("priority")
+        if isinstance(priority, bool) or not isinstance(priority, int) or not -7 <= priority <= 7:
+            return {**result, "reason": f"missing_{side}_move_priority"}
+        result[f"{side}_move"] = move["move_id"]
+        result[f"{side}_priority"] = priority
+    if result["self_priority"] != result["opponent_priority"]:
+        first = "self" if result["self_priority"] > result["opponent_priority"] else "opponent"
+        return {**result, "result": f"{first}_first", "reason": "priority_advantage"}
+    effective = build_effective_stat_inputs(final_stat_context, stat_stage_context)
+    speeds = {entry["side"]: entry["effective_value"] for entry in (effective or {}).get("effective_stats", []) if entry.get("stat") == "speed" and entry.get("side") in {"self", "opponent"}}
+    if "self" not in speeds:
+        return {**result, "reason": "missing_self_final_speed"}
+    if "opponent" not in speeds:
+        return {**result, "reason": "missing_opponent_final_speed"}
+    field = field_state_context.get("current_field") if isinstance(field_state_context, Mapping) else None
+    if not isinstance(field, Mapping):
+        field = {"global_effects": [], "side_effects": []}
+    side_effects = field.get("side_effects", [])
+    global_effects = field.get("global_effects", [])
+    if not isinstance(side_effects, list) or not isinstance(global_effects, list):
+        return {**result, "reason": "unresolved_field_state"}
+    tailwind = {side: any(isinstance(entry, Mapping) and entry.get("side") == side and entry.get("effect") == "tailwind" for entry in side_effects) for side in ("self", "opponent")}
+    trick_room = "trick-room" in global_effects
+    for side in ("self", "opponent"):
+        result[f"{side}_tailwind"] = tailwind[side]
+        result[f"{side}_effective_speed"] = speeds[side] * (2 if tailwind[side] else 1)
+    result["trick_room"] = trick_room
+    self_speed, opponent_speed = result["self_effective_speed"], result["opponent_effective_speed"]
+    if self_speed == opponent_speed:
+        return {**result, "result": "tie", "reason": "equal_priority_equal_speed"}
+    self_first = self_speed < opponent_speed if trick_room else self_speed > opponent_speed
+    return {**result, "result": "self_first" if self_first else "opponent_first", "reason": "speed_advantage"}
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -801,6 +849,7 @@ def build_deterministic_calculation_context(
     condition_context: Mapping[str, Any] | None = None,
     field_state_context: Mapping[str, Any] | None = None,
     battle_format_context: Mapping[str, Any] | None = None,
+    opponent_selected_move: Mapping[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Combine trusted stats with separately-scoped base and type-aware results."""
     context = build_effective_stat_inputs(final_stat_context, stat_stage_context)
@@ -813,7 +862,10 @@ def build_deterministic_calculation_context(
     # type sources resolve, the primary acknowledgement/result is type-aware.
     primary_estimate = context_estimate if context_estimate and context_estimate.get("calculation_status") == "resolved" else (type_estimate if type_estimate and type_estimate.get("calculation_status") == "resolved" else estimate)
     hp_assessment = build_hp_ko_assessment(primary_estimate, current_hp_context)
-    return {
+    has_self_priority = isinstance(selected_move, Mapping) and isinstance(selected_move.get("priority"), int) and not isinstance(selected_move.get("priority"), bool)
+    has_opponent_selection = isinstance(opponent_selected_move, Mapping)
+    move_order = build_deterministic_move_order_assessment(final_stat_context, stat_stage_context, field_state_context, selected_move, opponent_selected_move) if has_self_priority or has_opponent_selection else None
+    result = {
         **context,
         "base_damage_estimates": [estimate] if estimate is not None else [],
         "type_aware_damage_estimates": [type_estimate] if type_estimate is not None else [],
@@ -821,6 +873,9 @@ def build_deterministic_calculation_context(
         "damage_estimates": [primary_estimate] if primary_estimate is not None else [],
         "hp_assessments": [hp_assessment] if hp_assessment is not None else [],
     }
+    if move_order is not None:
+        result["move_order_assessment"] = move_order
+    return result
 
 
 def build_limited_damage_estimate(

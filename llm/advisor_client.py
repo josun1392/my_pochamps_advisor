@@ -442,6 +442,7 @@ def _build_ui_selected_prompt(
             condition_context,
             field_state_context,
             battle_format_context,
+            _selected_opponent_move_payload_from_advice_payload(battle_input),
         )
 
     advice_payload = build_ui_advice_payload(
@@ -829,6 +830,14 @@ def _selected_move_payload_from_advice_payload(payload: dict[str, Any]) -> dict[
     if not isinstance(selected_move, dict):
         return None
     return selected_move
+
+
+def _selected_opponent_move_payload_from_advice_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    moves = payload.get("moves")
+    if not isinstance(moves, dict):
+        return None
+    selected_move = moves.get("opponent_selected_move")
+    return selected_move if isinstance(selected_move, dict) else None
 
 
 def _build_optional_turn_order_context_for_advice_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -1259,6 +1268,7 @@ def _add_deterministic_calculation_context_to_advice_payload(
         payload.get("condition_context"),
         payload.get("field_state_context"),
         payload.get("battle_format_context"),
+        _selected_opponent_move_payload_from_advice_payload(payload),
     )
     if expected is None or context != expected:
         raise ValueError("deterministic_calculation_context must match trusted stage-only inputs")
@@ -1981,6 +1991,9 @@ def build_trusted_context_acknowledgement_entries(payload: dict[str, Any]) -> tu
         current = battle_format_context.get("current_battle_format")
         if isinstance(current, dict) and current.get("battle_format") in {"singles", "doubles"}:
             entries.append(("battle_format", "", current["battle_format"], None))
+    opponent_move = _selected_opponent_move_payload_from_advice_payload(payload)
+    if isinstance(opponent_move, dict) and isinstance(opponent_move.get("move_id"), str) and isinstance(opponent_move.get("priority"), int) and not isinstance(opponent_move.get("priority"), bool):
+        entries.append(("opponent_move", "", opponent_move["move_id"].lower(), str(opponent_move["priority"])))
     item_event_context = payload.get("item_event_context")
     if isinstance(item_event_context, dict) and isinstance(item_event_context.get("observed_events"), list):
         for event in item_event_context["observed_events"]:
@@ -2007,6 +2020,19 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
         result, scope = comparison.get("result"), comparison.get("calculation_scope")
         if isinstance(result, str) and isinstance(scope, str):
             entries.append(("speed_comparison", "", result.replace("_", "-"), scope.replace("_", "-"), ""))
+    order = context.get("move_order_assessment")
+    if isinstance(order, dict):
+        scope = order.get("scope")
+        for side in ("self", "opponent"):
+            move, priority = order.get(f"{side}_move"), order.get(f"{side}_priority")
+            if isinstance(move, str) and isinstance(priority, int) and not isinstance(priority, bool):
+                entries.append(("move_priority", side, move.lower(), str(priority)))
+            speed = order.get(f"{side}_effective_speed")
+            if isinstance(speed, int) and not isinstance(speed, bool):
+                entries.append(("effective_speed", side, str(speed), "stage-tailwind-only"))
+        result, reason = order.get("result"), order.get("reason")
+        if isinstance(result, str) and isinstance(reason, str) and isinstance(scope, str):
+            entries.append(("move_order", result.replace("_", "-"), reason.replace("_", "-"), scope.replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")
@@ -2067,6 +2093,8 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             lines.append(f"- Current side field effect | {side} | {identity}")
         elif category == "battle_format":
             lines.append(f"- Battle format | {identity}")
+        elif category == "opponent_move":
+            lines.append(f"- Opponent move | {identity} | priority {event_type}")
         else:
             lines.append(f"- Observed item event | {side} | {identity} | {event_type}")
     if result_entries:
@@ -2088,6 +2116,15 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             elif category == "screen_modifier":
                 _, side, screen, battle_format, multiplier = entry
                 lines.append(f"- Screen modifier | {side} | {screen} | {battle_format} | {multiplier}")
+            elif category == "move_priority":
+                _, side, move, priority = entry
+                lines.append(f"- Move priority | {side} | {move} | {priority}")
+            elif category == "effective_speed":
+                _, side, speed, scope = entry
+                lines.append(f"- Effective speed | {side} | {speed} | {scope}")
+            elif category == "move_order":
+                _, result, reason, scope = entry
+                lines.append(f"- Move order | {result} | {reason} | {scope}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry
@@ -2177,6 +2214,8 @@ def parse_trusted_context_acknowledgement(response: str) -> tuple[tuple[tuple[st
             entry = ("current_side_field_effect", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), None)
         elif category == "battle format" and len(parts) == 2 and parts[1].lower() in {"singles", "doubles"}:
             entry = ("battle_format", "", parts[1].lower(), None)
+        elif category == "opponent move" and len(parts) == 3 and re.fullmatch(r"priority -?\d+", parts[2].lower()):
+            entry = ("opponent_move", "", _normalize_trusted_context_identity(parts[1]), parts[2].lower().removeprefix("priority "))
         elif category == "observed item event" and len(parts) == 4:
             entry = ("observed_item_event", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), parts[3].lower())
         else:
@@ -2242,6 +2281,12 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             entry = ("type_effectiveness", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), parts[4].lower())
         elif category == "screen modifier" and len(parts) == 5 and parts[1].lower() in {"self", "opponent"} and _normalize_trusted_context_identity(parts[2]) in {"reflect", "light-screen", "aurora-veil"} and parts[3].lower() in {"singles", "doubles"} and parts[4] in {"1/2", "2/3"}:
             entry = ("screen_modifier", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), parts[3].lower(), parts[4])
+        elif category == "move priority" and len(parts) == 4 and parts[1].lower() in {"self", "opponent"} and re.fullmatch(r"-?\d+", parts[3]):
+            entry = ("move_priority", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), parts[3])
+        elif category == "effective speed" and len(parts) == 4 and parts[1].lower() in {"self", "opponent"} and parts[2].isdigit() and parts[3].lower() == "stage-tailwind-only":
+            entry = ("effective_speed", parts[1].lower(), parts[2], parts[3].lower())
+        elif category == "move order" and len(parts) == 4 and parts[1].lower() in {"self-first", "opponent-first", "tie", "unavailable"} and parts[2].lower() in {"priority-advantage", "speed-advantage", "equal-priority-equal-speed", "missing-self-move-priority", "missing-opponent-move-priority", "missing-self-final-speed", "missing-opponent-final-speed", "unresolved-field-state"} and parts[3].lower() == "priority-stage-speed-tailwind-trick-room-only":
+            entry = ("move_order", parts[1].lower(), parts[2].lower(), parts[3].lower())
         elif category == "damage estimate" and len(parts) == 6:
             range_match = re.fullmatch(r"(\d+)-(\d+)", parts[4])
             if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type", "base-damage-stage-stab-type-context"}:
@@ -2301,11 +2346,13 @@ def evaluate_deterministic_result_response(
     advice = advice_match.group(1) if advice_match else ""
     forbidden = (
         r"\b(will|must|guaranteed to) move first\b",
-        r"\b(choice scarf.*(?:applied|included)|tailwind.*(?:applied|included)|trick room.*(?:applied|included))\b",
+        r"\b(choice scarf.*(?:applied|included))\b",
         r"\b(speed tie.*(?:wins|winner)|exact (?:damage|ko)|(?:guaranteed|confirmed) (?:ohko|2hko)|remaining hp)\b",
         r"\b(?:stab|type effectiveness|choice specs|light screen|critical hit).*(?:applied|included|reflected)\b",
         r"\b(?:levitate|flash fire|water absorb|adaptability|protean|libero|tera|air balloon|mold breaker)\b.*\b(?:applied|included|reflected|overrid)",
         r"\b(?:infiltrator|brick break|psychic fangs|critical[- ]hit screen bypass|light clay|screen expiration|next-turn persistence|ability/item override)\b",
+        r"\b(?:quick claw|choice scarf|prankster|gale wings|triage|stall|lagging tail|full incense|custap berry)\b.*\b(?:first|priority|applied|included)\b",
+        r"\b(?:usually|normally).*(?:priority 0|priority zero)\b|\btrick room.*priority bracket\b|\btailwind.*next turn\b",
     )
     if any(re.search(pattern, advice, re.IGNORECASE) for pattern in forbidden):
         return "deterministic-results semantic boundary violation"

@@ -1,5 +1,18 @@
 # Master Ball Advisor — Progress
 
+## v13.8 - Deterministic Priority And Field-Aware Move Order
+
+Result:
+- Added explicit selected-move and explicitly selected opponent-move priority,
+  v13.2 stage Speed reuse, Tailwind x2, Trick Room equal-priority reversal,
+  deterministic ties, and explicit unavailable reasons.
+- Added exact trusted/deterministic acknowledgement, parser and semantic
+  boundaries while retaining legacy stage-only Speed comparison.
+- Offline-only verification; no provider calls. Full-suite result:
+  `2062 passed, 2 deselected`.
+
+---
+
 ## v13.7 - Trusted Battle Format And Screen Modifiers
 
 Result:
