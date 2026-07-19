@@ -2160,6 +2160,11 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
         move, status = speed_power["move"].lower(), speed_power.get("status")
         if status == "resolved" and isinstance(speed_power.get("effective_power"), int) and isinstance(speed_power.get("rule"), str) and isinstance(speed_power.get("scope"), str): entries.append(("speed_move_power", "self", move, str(speed_power["effective_power"]), speed_power["rule"].replace("_", "-"), speed_power["scope"].replace("_", "-")))
         elif status == "unavailable" and isinstance(speed_power.get("reason"), str): entries.append(("speed_move_power", "self", move, "unavailable", speed_power["reason"].replace("_", "-")))
+    stage_power = context.get("stat_stage_based_power_assessment")
+    if isinstance(stage_power, dict) and isinstance(stage_power.get("move"), str):
+        move, status = stage_power["move"].lower(), stage_power.get("status")
+        if status == "resolved" and isinstance(stage_power.get("effective_power"), int) and isinstance(stage_power.get("rule"), str) and isinstance(stage_power.get("scope"), str): entries.append(("stat_stage_move_power", "self", move, str(stage_power["effective_power"]), stage_power["rule"].replace("_", "-"), stage_power["scope"].replace("_", "-")))
+        elif status == "unavailable" and isinstance(stage_power.get("reason"), str): entries.append(("stat_stage_move_power", "self", move, "unavailable", stage_power["reason"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")

@@ -19,6 +19,10 @@ Speed-based power excludes Trick Room reversal and all ability/item modifiers.
 
 Weight-based power requires canonical selected-form weight; never infer weight.
 
+## v13.21
+
+Positive stage sums are separate from damage stat-stage multipliers.
+
 ## v13.16 Closure
 
 Observed direct damage is sourced from the Previous Damage panel dialog and

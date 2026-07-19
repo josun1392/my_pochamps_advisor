@@ -2776,3 +2776,7 @@ Electro Ball/Gyro Ball use trusted final Speed, stages, and Tailwind only.
 ## v13.20 Weight-Based Move Power
 
 Weight power uses canonical integer hectograms and no missing-weight fallback.
+
+## v13.21 Stat-Stage Move Power
+
+Stat-stage power uses only normalized current stages; missing side context has no metadata fallback.

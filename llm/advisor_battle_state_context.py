@@ -1261,6 +1261,7 @@ def build_deterministic_calculation_context(
         self_consequence = build_self_consequence_assessment(selected_move, current_hp_context)
         power_assessment = build_current_hp_based_power_assessment(selected_move, current_hp_context)
         speed_power_assessment = build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context)
+        stat_power_assessment = build_stat_stage_based_power_assessment(selected_move, stat_stage_context)
         result = {}
         if healing is not None: result["direct_healing_assessment"] = healing
         if fixed is not None: result["fixed_damage_assessment"] = fixed
@@ -1269,15 +1270,20 @@ def build_deterministic_calculation_context(
         if self_consequence is not None: result["self_consequence_assessment"] = self_consequence
         if power_assessment is not None: result["current_hp_based_power_assessment"] = power_assessment
         if speed_power_assessment is not None: result["speed_based_power_assessment"] = speed_power_assessment
+        if stat_power_assessment is not None: result["stat_stage_based_power_assessment"] = stat_power_assessment
         return result or None
     power_assessment = build_current_hp_based_power_assessment(selected_move, current_hp_context)
     speed_power_assessment = build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context)
+    stat_power_assessment = build_stat_stage_based_power_assessment(selected_move, stat_stage_context)
     effective_move = dict(selected_move) if isinstance(selected_move, Mapping) else selected_move
     if power_assessment is not None and power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
         effective_move["power"] = power_assessment["effective_power"]
         effective_move.pop("power_status", None)
     if speed_power_assessment is not None and speed_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
         effective_move["power"] = speed_power_assessment["effective_power"]
+        effective_move.pop("power_status", None)
+    if stat_power_assessment is not None and stat_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
+        effective_move["power"] = stat_power_assessment["effective_power"]
         effective_move.pop("power_status", None)
     estimate = build_limited_damage_estimate(context["effective_stats"], effective_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
@@ -1342,6 +1348,9 @@ def build_deterministic_calculation_context(
         result["speed_based_power_assessment"] = speed_power_assessment
         if speed_power_assessment.get("status") != "resolved":
             result["damage_estimates"] = []
+    if stat_power_assessment is not None:
+        result["stat_stage_based_power_assessment"] = stat_power_assessment
+        if stat_power_assessment.get("status") != "resolved": result["damage_estimates"] = []
     return result
 
 

@@ -18086,3 +18086,7 @@ Maintained boundaries:
 ## v13.20 Deterministic Weight-Based Move Power
 
 - Added canonical hectogram bracket contracts for four weight-based moves.
+
+## v13.21 Deterministic Stat-Stage Move Power
+
+- Added trusted positive-stage power contracts for Stored Power, Power Trip, and Punishment.
