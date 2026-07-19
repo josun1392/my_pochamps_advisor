@@ -421,6 +421,7 @@ def _build_ui_selected_prompt(
             stat_stage_context,
             _selected_move_payload_from_advice_payload(battle_input),
             current_hp_context,
+            battle_input.get("pokemon"),
         )
 
     advice_payload = build_ui_advice_payload(
@@ -1217,6 +1218,7 @@ def _add_deterministic_calculation_context_to_advice_payload(
         payload.get("stat_stage_context"),
         _selected_move_payload_from_advice_payload(payload),
         payload.get("current_hp_context"),
+        payload.get("pokemon"),
     )
     if expected is None or context != expected:
         raise ValueError("deterministic_calculation_context must match trusted stage-only inputs")
@@ -1787,7 +1789,9 @@ def _build_deterministic_calculation_context_prompt_guard(payload: dict[str, Any
         "item, ability, weather, terrain, Tailwind, Trick Room, or RNG modifiers. A tie means equal stage-adjusted "
         "Speed only, never a tie winner or first action. Any damage estimate is base-damage-stage-only: do not alter "
         "its range or infer STAB, type effectiveness, burn, item, ability, weather, terrain, screens, critical hits, "
-        "remaining HP, or KO chance. If an HP assessment is present, use only its declared current/max HP, 16-roll "
+        "remaining HP, or KO chance. A type-aware estimate includes only ordinary STAB and the base type chart: do not "
+        "alter its values or infer ability/item type overrides (including Levitate), Adaptability, Protean, Libero, Tera, "
+        "or type-changing effects. If an HP assessment is present, use only its declared current/max HP, 16-roll "
         "OHKO count, and independent two-hit roll-pair result; do not add recovery, chip, hazards, survival effects, "
         "accuracy, critical hits, or between-turn state changes. "
     )
@@ -1962,6 +1966,12 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")
             minimum, maximum, scope = estimate.get("min_damage"), estimate.get("max_damage"), estimate.get("calculation_scope")
+            stab, effectiveness = estimate.get("stab"), estimate.get("type_effectiveness")
+            if isinstance(stab, dict) and isinstance(stab.get("applied"), bool) and (stab.get("numerator"), stab.get("denominator")) in {(1, 1), (3, 2)} and isinstance(attacker, str) and isinstance(move, str):
+                entries.append(("stab", attacker.lower(), move.lower(), "applied" if stab["applied"] else "not-applied", "1.5" if stab["applied"] else "1.0"))
+            if isinstance(effectiveness, dict) and (effectiveness.get("numerator"), effectiveness.get("denominator")) in {(0, 1), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1)} and isinstance(attacker, str) and isinstance(defender, str) and isinstance(move, str):
+                labels = {(0, 1): "0x", (1, 4): "0.25x", (1, 2): "0.5x", (1, 1): "1x", (2, 1): "2x", (4, 1): "4x"}
+                entries.append(("type_effectiveness", attacker.lower(), defender.lower(), move.lower(), labels[(effectiveness["numerator"], effectiveness["denominator"])]))
             if all(isinstance(value, str) for value in (attacker, defender, move, scope)) and all(isinstance(value, int) for value in (minimum, maximum)):
                 entries.append(("damage_estimate", attacker.lower(), defender.lower(), move.lower(), f"{minimum}-{maximum}", scope.replace("_", "-")))  # type: ignore[arg-type]
     for assessment in context.get("hp_assessments", []):
@@ -2016,6 +2026,12 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             elif category == "speed_comparison":
                 _, _, identity, value, _ = entry
                 lines.append(f"- Speed comparison | {identity} | {value}")
+            elif category == "stab":
+                _, attacker, move, applied, multiplier = entry
+                lines.append(f"- STAB | {attacker} | {move} | {applied} | {multiplier}")
+            elif category == "type_effectiveness":
+                _, attacker, defender, move, multiplier = entry
+                lines.append(f"- Type effectiveness | {attacker} | {defender} | {move} | {multiplier}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry
@@ -2160,19 +2176,25 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             if result not in {"self-faster", "opponent-faster", "tie"} or scope != "stage-only":
                 raise ValueError("deterministic-results malformed entry")
             entry = ("speed_comparison", "", result, scope, "")
+        elif category == "stab" and len(parts) == 5 and parts[3].lower() in {"applied", "not-applied"} and parts[4] in {"1.5", "1.0"}:
+            if (parts[3].lower(), parts[4]) not in {("applied", "1.5"), ("not-applied", "1.0")}:
+                raise ValueError("deterministic-results malformed entry")
+            entry = ("stab", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), parts[3].lower(), parts[4])
+        elif category == "type effectiveness" and len(parts) == 5 and parts[4].lower() in {"0x", "0.25x", "0.5x", "1x", "2x", "4x"}:
+            entry = ("type_effectiveness", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), parts[4].lower())
         elif category == "damage estimate" and len(parts) == 6:
             range_match = re.fullmatch(r"(\d+)-(\d+)", parts[4])
-            if range_match is None or parts[5].lower() != "base-damage-stage-only":
+            if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type"}:
                 raise ValueError("deterministic-results malformed entry")
             minimum, maximum = int(range_match.group(1)), int(range_match.group(2))
             if minimum < 0 or minimum > maximum:
                 raise ValueError("deterministic-results malformed entry")
-            entry = ("damage_estimate", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), f"{minimum}-{maximum}", "base-damage-stage-only")
+            entry = ("damage_estimate", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), f"{minimum}-{maximum}", parts[5].lower())
         elif category == "damage percentage" and len(parts) == 6:
             range_match = re.fullmatch(r"(\d+(?:\.\d)?)-(\d+(?:\.\d)?)", parts[4])
-            if range_match is None or parts[5].lower() != "base-damage-stage-only" or float(range_match.group(1)) > float(range_match.group(2)):
+            if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type"} or float(range_match.group(1)) > float(range_match.group(2)):
                 raise ValueError("deterministic-results malformed entry")
-            entry = ("damage_percentage", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), f"{float(range_match.group(1)):.1f}-{float(range_match.group(2)):.1f}", "base-damage-stage-only")
+            entry = ("damage_percentage", parts[1].lower(), parts[2].lower(), _normalize_trusted_context_identity(parts[3]), f"{float(range_match.group(1)):.1f}-{float(range_match.group(2)):.1f}", parts[5].lower())
         elif category == "ohko assessment" and len(parts) == 6:
             count_match = re.fullmatch(r"(\d+)/16", parts[4])
             if count_match is None or not 0 <= int(count_match.group(1)) <= 16 or parts[5].lower() not in {"guaranteed", "possible", "impossible"}:
@@ -2222,6 +2244,7 @@ def evaluate_deterministic_result_response(
         r"\b(choice scarf.*(?:applied|included)|tailwind.*(?:applied|included)|trick room.*(?:applied|included))\b",
         r"\b(speed tie.*(?:wins|winner)|exact (?:damage|ko)|(?:guaranteed|confirmed) (?:ohko|2hko)|remaining hp)\b",
         r"\b(?:stab|type effectiveness|choice specs|light screen|critical hit).*(?:applied|included|reflected)\b",
+        r"\b(?:levitate|flash fire|water absorb|adaptability|protean|libero|tera|air balloon|mold breaker)\b.*\b(?:applied|included|reflected|overrid)",
     )
     if any(re.search(pattern, advice, re.IGNORECASE) for pattern in forbidden):
         return "deterministic-results semantic boundary violation"

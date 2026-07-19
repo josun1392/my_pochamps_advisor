@@ -946,3 +946,6 @@ Documentation expectations:
 - Larger next direction: v6.21 TurnPipeline UI Phase Closure, with v6.21 UI Copy Polish only if wording / layout refinement is requested. Keep additional actual Gemini calls disabled unless T1/T2 explicitly approve a separate one-call smoke.
 - v2.7.1 used Developer API only and did not use Vertex AI.
 - Use "Pokemon" rather than non-ASCII variants in new handoff text unless a file already requires non-ASCII.
+- v13.5 type-aware deterministic results use selected resolved types, ordinary
+  STAB, and the base type chart only; do not expand them to ability/item
+  overrides, Tera, field modifiers, or final outcomes without a new contract.

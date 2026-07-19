@@ -12,6 +12,9 @@ import re
 from typing import Any
 
 from advisor.damage.formula import base_damage
+from advisor.damage.modifiers.core import calc_stab
+from advisor.damage.q12 import M_STAB, apply_damage_modifier
+from advisor.damage.types import TYPES, load_type_chart
 
 
 BATTLE_STATE_CONTEXT_ALLOWED_SOURCES = frozenset(
@@ -790,14 +793,25 @@ def build_deterministic_calculation_context(
     stat_stage_context: Mapping[str, Any] | None = None,
     selected_move: Mapping[str, Any] | None = None,
     current_hp_context: Mapping[str, Any] | None = None,
+    pokemon: Mapping[str, Any] | None = None,
 ) -> dict[str, Any] | None:
-    """Combine v13.2 effective stats with a separately scoped v13.3 damage result."""
+    """Combine trusted stats with separately-scoped base and type-aware results."""
     context = build_effective_stat_inputs(final_stat_context, stat_stage_context)
     if context is None:
         return None
     estimate = build_limited_damage_estimate(context["effective_stats"], selected_move)
-    hp_assessment = build_hp_ko_assessment(estimate, current_hp_context)
-    return {**context, "damage_estimates": [estimate] if estimate is not None else [], "hp_assessments": [hp_assessment] if hp_assessment is not None else []}
+    type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
+    # Preserve the v13.3 result as a distinct calculator intermediate.  When
+    # type sources resolve, the primary acknowledgement/result is type-aware.
+    primary_estimate = type_estimate if type_estimate and type_estimate.get("calculation_status") == "resolved" else estimate
+    hp_assessment = build_hp_ko_assessment(primary_estimate, current_hp_context)
+    return {
+        **context,
+        "base_damage_estimates": [estimate] if estimate is not None else [],
+        "type_aware_damage_estimates": [type_estimate] if type_estimate is not None else [],
+        "damage_estimates": [primary_estimate] if primary_estimate is not None else [],
+        "hp_assessments": [hp_assessment] if hp_assessment is not None else [],
+    }
 
 
 def build_limited_damage_estimate(
@@ -809,11 +823,13 @@ def build_limited_damage_estimate(
     move_id = selected_move.get("move_id")
     category = selected_move.get("category")
     power = selected_move.get("power")
+    move_type = selected_move.get("type") or selected_move.get("type_en")
     base = {
         "attacker_side": "self",
         "defender_side": "opponent",
         "move": move_id if isinstance(move_id, str) and move_id else "unknown",
         "damage_class": category if isinstance(category, str) else "unknown",
+        "move_type": move_type.strip().lower() if isinstance(move_type, str) else None,
         "calculation_scope": LIMITED_DAMAGE_CALCULATION_SCOPE,
         "excluded_modifiers": list(LIMITED_DAMAGE_EXCLUDED_MODIFIERS),
     }
@@ -854,6 +870,87 @@ def build_limited_damage_estimate(
     }
 
 
+TYPE_AWARE_DAMAGE_CALCULATION_SCOPE = "base_damage_stage_stab_type"
+_TYPE_RATIOS = {0.0: (0, 1), 0.25: (1, 4), 0.5: (1, 2), 1.0: (1, 1), 2.0: (2, 1), 4.0: (4, 1)}
+
+
+def build_type_aware_damage_estimate(
+    base_estimate: Mapping[str, Any] | None, pokemon: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """Apply only ordinary STAB and the base chart to the v13.3 raw-roll path."""
+    if not isinstance(base_estimate, Mapping):
+        return None
+    result = {key: value for key, value in base_estimate.items() if key != "excluded_modifiers"}
+    result.update({
+        "calculation_scope": TYPE_AWARE_DAMAGE_CALCULATION_SCOPE,
+        "excluded_modifiers": ["ability", "item", "weather", "terrain", "screens", "burn", "critical-hit", "tera", "type-changing-effects", "survival-effects", "between-turn-effects"],
+    })
+    if base_estimate.get("calculation_status") != "resolved":
+        return result
+    move_type = _normalized_type(base_estimate.get("move_type"))
+    # v13.3's selected-move result intentionally did not retain type; callers
+    # attach it below from the trusted selected move when available.
+    if move_type is None:
+        return {**result, "calculation_status": "unavailable", "reason": "missing_move_type"}
+    attacker_types = _selected_types(pokemon, "my_active")
+    defender_types = _selected_types(pokemon, "opponent_active")
+    if attacker_types is None:
+        return {**result, "calculation_status": "unavailable", "reason": "missing_attacker_type"}
+    if defender_types is None:
+        return {**result, "calculation_status": "unavailable", "reason": "missing_defender_type"}
+    chart = load_type_chart()
+    try:
+        multiplier = 1.0
+        for defender_type in defender_types:
+            multiplier *= chart[move_type][defender_type]
+        numerator, denominator = _TYPE_RATIOS[multiplier]
+    except (KeyError, TypeError):
+        return {**result, "calculation_status": "unavailable", "reason": "unknown_type"}
+    stab_q12 = calc_stab(attacker_types, move_type, is_terastallized=False, tera_type=None)
+    rolls = _damage_rolls_from_estimate(base_estimate)
+    if rolls is None:
+        return {**result, "calculation_status": "unavailable", "reason": "missing_damage_rolls"}
+    typed_rolls = [(apply_damage_modifier(roll, stab_q12) * numerator) // denominator for roll in rolls]
+    return {
+        **result,
+        "move_type": move_type,
+        "attacker_types": list(attacker_types),
+        "defender_types": list(defender_types),
+        "stab": {"applied": stab_q12 == M_STAB, "numerator": 3 if stab_q12 == M_STAB else 1, "denominator": 2 if stab_q12 == M_STAB else 1},
+        "type_effectiveness": {"numerator": numerator, "denominator": denominator, "label": _type_label(numerator, denominator)},
+        "min_damage": min(typed_rolls), "max_damage": max(typed_rolls),
+        "damage_rolls": typed_rolls,
+        "calculation_status": "resolved",
+    }
+
+
+def _normalized_type(value: object) -> str | None:
+    return value.strip().lower() if isinstance(value, str) and value.strip().lower() in TYPES else None
+
+
+def _selected_types(pokemon: Mapping[str, Any] | None, side: str) -> tuple[str, ...] | None:
+    active = pokemon.get(side) if isinstance(pokemon, Mapping) else None
+    raw = active.get("types") if isinstance(active, Mapping) else None
+    if not isinstance(raw, list) or not raw:
+        return None
+    normalized = tuple(item.strip().lower() for item in raw if isinstance(item, str) and item.strip().lower() in TYPES)
+    return normalized if len(normalized) == len(raw) and len(normalized) <= 2 else None
+
+
+def _type_label(numerator: int, denominator: int) -> str:
+    return {(0, 1): "immune", (1, 4): "quarter-effective", (1, 2): "resisted", (1, 1): "neutral", (2, 1): "super-effective", (4, 1): "quadruple-effective"}[(numerator, denominator)]
+
+
+def _damage_rolls_from_estimate(estimate: Mapping[str, Any]) -> list[int] | None:
+    raw = estimate.get("damage_rolls")
+    if isinstance(raw, list) and len(raw) == 16 and all(isinstance(value, int) and not isinstance(value, bool) for value in raw):
+        return list(raw)
+    values = tuple(estimate.get(key) for key in ("level", "power", "offensive_stat", "defensive_stat"))
+    if any(not isinstance(value, int) or isinstance(value, bool) for value in values):
+        return None
+    return [base_damage(*values) * factor // 100 for factor in range(85, 101)]
+
+
 def build_hp_ko_assessment(
     damage_estimate: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None
 ) -> dict[str, Any] | None:
@@ -871,19 +968,17 @@ def build_hp_ko_assessment(
         normalized = normalize_user_confirmed_current_hp(hp)
     except ValueError:
         return None
-    level, power, offense, defense = (damage_estimate.get(key) for key in ("level", "power", "offensive_stat", "defensive_stat"))
-    if any(isinstance(value, bool) or not isinstance(value, int) for value in (level, power, offense, defense)):
+    rolls = _damage_rolls_from_estimate(damage_estimate)
+    if rolls is None:
         return None
-    base = base_damage(level, power, offense, defense)
-    rolls = [base * factor // 100 for factor in range(85, 101)]
     current_hp, maximum_hp = normalized["current_hp"], normalized["maximum_hp"]
     base_result = {
         "attacker_side": damage_estimate["attacker_side"], "defender_side": defender, "move": damage_estimate["move"],
         "current_hp": current_hp, "maximum_hp": maximum_hp,
         "min_damage": min(rolls), "max_damage": max(rolls),
         "min_percent": round(min(rolls) * 100 / maximum_hp, 1), "max_percent": round(max(rolls) * 100 / maximum_hp, 1),
-        "percentage_scope": LIMITED_DAMAGE_CALCULATION_SCOPE,
-        "calculation_scope": LIMITED_DAMAGE_CALCULATION_SCOPE,
+        "percentage_scope": str(damage_estimate.get("calculation_scope", LIMITED_DAMAGE_CALCULATION_SCOPE)),
+        "calculation_scope": str(damage_estimate.get("calculation_scope", LIMITED_DAMAGE_CALCULATION_SCOPE)),
     }
     if current_hp == 0:
         return {**base_result, "calculation_status": "resolved", "assessment_status": "not_applicable", "reason": "target_already_fainted"}
@@ -893,7 +988,7 @@ def build_hp_ko_assessment(
         return "guaranteed" if successes == total else "possible" if successes else "impossible"
     return {
         **base_result,
-        "ohko": {"successful_rolls": ohko_successes, "total_rolls": 16, "chance_percent": ohko_successes * 100 / 16, "status": status(ohko_successes, 16), "scope": LIMITED_DAMAGE_CALCULATION_SCOPE},
+        "ohko": {"successful_rolls": ohko_successes, "total_rolls": 16, "chance_percent": ohko_successes * 100 / 16, "status": status(ohko_successes, 16), "scope": str(damage_estimate.get("calculation_scope", LIMITED_DAMAGE_CALCULATION_SCOPE))},
         "two_hit_ko": {"successful_combinations": two_hit_successes, "total_combinations": 256, "chance_percent": two_hit_successes * 100 / 256, "status": status(two_hit_successes, 256), "scope": "two-hit-independent-rolls-no-between-turn-effects"},
         "calculation_status": "resolved", "assessment_status": "resolved",
     }

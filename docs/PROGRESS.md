@@ -17937,3 +17937,14 @@ Maintained boundaries:
 - No damage/speed integration.
 - No sample additions.
 - No logs, `.env`, secrets, API keys, or handoff capsule commits.
+## v13.5 Deterministic STAB and Type Effectiveness Integration
+
+- Added a limited deterministic type-aware adapter using UI-selected resolved
+  attacker/defender types, selected move type, ordinary 1.5x STAB, and the
+  cached base Gen 9 type chart.
+- Type-aware rolls retain the existing base-damage and 85..100 roll convention,
+  use existing Q12 STAB rounding, then apply an exact rational chart multiplier.
+- Base-only v13.3 records remain separate; ability/item/Tera and other battle
+  modifiers remain excluded. HP/OHKO/two-hit assessments reuse type-aware rolls.
+- Offline verification: `2034 passed, 2 deselected` (`uv run pytest -q`); the
+  focused v13.5 plus v12/v13 regression selection passed `559` tests.

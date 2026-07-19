@@ -2645,3 +2645,12 @@ parser exact-compares the acknowledgement entries to that normalized expected
 set and separately rejects empty advice or forbidden resolved/exact/timing/RNG
 claims. This changes response formatting only; it does not change payload
 schema, source trust, calculations, or turn resolution.
+## v13.5 Type-aware deterministic results
+
+`deterministic_calculation_context.type_aware_damage_estimates` records the
+limited STAB/type calculation separately from `base_damage_estimates`. A
+resolved primary `damage_estimates` record has scope
+`base_damage_stage_stab_type`, move/type metadata, `stab`, and
+`type_effectiveness` rationals. The acknowledgement parser requires exact STAB
+and type-effectiveness lines before the type-aware damage line. Ability/item
+overrides and Tera remain excluded.
