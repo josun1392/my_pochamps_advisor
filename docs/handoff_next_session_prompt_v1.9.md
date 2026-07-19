@@ -27,6 +27,10 @@ Positive stage sums are separate from damage stat-stage multipliers.
 
 Target-HP power does not infer or recalculate opponent HP.
 
+## v13.23
+
+Do not infer grounded state or future weather/terrain state.
+
 ## v13.16 Closure
 
 Observed direct damage is sourced from the Previous Damage panel dialog and

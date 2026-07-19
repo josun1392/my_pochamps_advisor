@@ -18094,3 +18094,7 @@ Maintained boundaries:
 ## v13.22 Target-HP Move Power
 
 - Added exact opponent-HP power formula for Crush Grip and Wring Out.
+
+## v13.23 Environment Move Transformation
+
+- Added canonical Weather Ball and Terrain Pulse transformation contracts.

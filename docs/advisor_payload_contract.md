@@ -2784,3 +2784,7 @@ Stat-stage power uses only normalized current stages; missing side context has n
 ## v13.22 Target-HP Move Power
 
 Target-HP power consumes only normalized opponent current/max HP.
+
+## v13.23 Environment Move Transformation
+
+Environment transformations use trusted field state; Terrain Pulse requires explicit grounded state.

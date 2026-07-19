@@ -321,6 +321,7 @@ _STAT_STAGE_SELF_POWER_MOVES = frozenset({"stored-power", "power-trip"})
 _STAT_STAGE_OPPONENT_POWER_MOVES = frozenset({"punishment"})
 TARGET_HP_POWER_SCOPE = "explicit-target-hp-based-move-power-only"
 _TARGET_HP_POWER_MOVES = frozenset({"crush-grip", "wring-out"})
+ENVIRONMENT_MOVE_SCOPE = "explicit-environment-based-move-transformation-only"
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1253,6 +1254,21 @@ def build_target_hp_based_power_assessment(selected_move: Mapping[str, Any] | No
     return {**base,"rule":"target-current-hp-proportional","opponent_current_hp":current,"opponent_maximum_hp":maximum,"effective_power":max(1,120*current//maximum+1),"status":"resolved"}
 
 
+def build_environment_based_move_assessment(selected_move: Mapping[str, Any] | None, field_state_context: Mapping[str, Any] | None, grounded: bool | None = None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in {"weather-ball", "terrain-pulse"}: return None
+    move=selected_move["move_id"]; base={"move":move,"scope":ENVIRONMENT_MOVE_SCOPE}; field=(field_state_context or {}).get("current_field",{}) if isinstance(field_state_context,Mapping) else {}
+    if move=="weather-ball":
+        weather=field.get("weather","none"); mapping={"sun":"fire","rain":"water","sandstorm":"rock","snow":"ice"}
+        if weather not in {"none",*mapping}: return {**base,"status":"unavailable","reason":"invalid_weather"}
+        return {**base,"environment":weather,"effective_type":mapping.get(weather,"normal"),"effective_power":100 if weather in mapping else 50,"status":"resolved"}
+    terrain=field.get("terrain","none"); mapping={"electric":"electric","grassy":"grass","misty":"fairy","psychic":"psychic"}
+    if terrain not in {"none",*mapping}: return {**base,"status":"unavailable","reason":"invalid_terrain"}
+    if terrain=="none": return {**base,"environment":"none","effective_type":"normal","effective_power":50,"status":"resolved"}
+    if grounded is None:return {**base,"status":"unavailable","reason":"missing_grounded_state"}
+    if not grounded:return {**base,"environment":terrain,"grounded":False,"effective_type":"normal","effective_power":50,"status":"resolved"}
+    return {**base,"environment":terrain,"grounded":True,"effective_type":mapping[terrain],"effective_power":100,"status":"resolved"}
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -1293,6 +1309,7 @@ def build_deterministic_calculation_context(
     speed_power_assessment = build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context)
     stat_power_assessment = build_stat_stage_based_power_assessment(selected_move, stat_stage_context)
     target_power_assessment = build_target_hp_based_power_assessment(selected_move, current_hp_context)
+    environment_assessment = build_environment_based_move_assessment(selected_move, field_state_context)
     effective_move = dict(selected_move) if isinstance(selected_move, Mapping) else selected_move
     if power_assessment is not None and power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
         effective_move["power"] = power_assessment["effective_power"]
@@ -1306,6 +1323,9 @@ def build_deterministic_calculation_context(
     if target_power_assessment is not None and target_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
         effective_move["power"] = target_power_assessment["effective_power"]
         effective_move.pop("power_status", None)
+    if environment_assessment is not None and environment_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
+        effective_move["power"] = environment_assessment["effective_power"]
+        effective_move["type"] = environment_assessment["effective_type"]
     estimate = build_limited_damage_estimate(context["effective_stats"], effective_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
     context_estimate = build_context_modified_damage_estimate(type_estimate, condition_context, field_state_context, battle_format_context)
@@ -1375,6 +1395,9 @@ def build_deterministic_calculation_context(
     if target_power_assessment is not None:
         result["target_hp_based_power_assessment"] = target_power_assessment
         if target_power_assessment.get("status") != "resolved": result["damage_estimates"] = []
+    if environment_assessment is not None:
+        result["environment_based_move_assessment"] = environment_assessment
+        if environment_assessment.get("status") != "resolved": result["damage_estimates"] = []
     return result
 
 
