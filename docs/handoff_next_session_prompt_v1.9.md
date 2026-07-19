@@ -31,6 +31,10 @@ Target-HP power does not infer or recalculate opponent HP.
 
 Do not infer grounded state or future weather/terrain state.
 
+## v13.25
+
+Do not substitute predicted order or prior-turn events for current-turn confirmations.
+
 ## v13.16 Closure
 
 Observed direct damage is sourced from the Previous Damage panel dialog and

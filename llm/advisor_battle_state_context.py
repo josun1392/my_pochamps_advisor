@@ -323,6 +323,7 @@ TARGET_HP_POWER_SCOPE = "explicit-target-hp-based-move-power-only"
 _TARGET_HP_POWER_MOVES = frozenset({"crush-grip", "wring-out"})
 ENVIRONMENT_MOVE_SCOPE = "explicit-environment-based-move-transformation-only"
 BINARY_CONDITION_POWER_SCOPE = "explicit-binary-condition-move-power-only"
+TURN_EVENT_POWER_SCOPE = "explicit-current-turn-event-move-power-only"
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1288,6 +1289,21 @@ def build_binary_condition_power_assessment(selected_move: Mapping[str, Any] | N
     matched=condition in ({"burn","poison","toxic","paralysis"} if move=="facade" else {"poison","toxic"} if move=="venoshock" else allowed-{"none"})
     rule="self-major-status-doubles-power" if move=="facade" else "opponent-poison-doubles-power" if move=="venoshock" else "opponent-major-status-doubles-power"
     return {**base,"rule":rule,"condition":condition,"condition_met":matched,"effective_power":powers[move]*(2 if matched else 1),"status":"resolved"}
+
+
+def build_turn_event_power_assessment(selected_move: Mapping[str, Any] | None, turn_event_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in {"avalanche","revenge","payback","assurance"}: return None
+    move=selected_move["move_id"]; base={"move":move,"scope":TURN_EVENT_POWER_SCOPE}; context=turn_event_context if isinstance(turn_event_context,Mapping) else {}
+    if move in {"avalanche","revenge"}:
+        if "received_target_direct_damage" not in context:return {**base,"status":"unavailable","reason":"missing_current_turn_received_target_damage"}
+        met=context["received_target_direct_damage"] is True; rule="received-target-damage-this-turn-doubles-power"; power=120
+    elif move=="payback":
+        if "target_acted_before_user" not in context:return {**base,"status":"unavailable","reason":"missing_current_turn_action_order"}
+        met=context["target_acted_before_user"] is True; rule="target-acted-before-user-doubles-power"; power=100
+    else:
+        if "target_lost_hp_this_turn" not in context:return {**base,"status":"unavailable","reason":"missing_current_turn_target_hp_loss"}
+        met=context["target_lost_hp_this_turn"] is True; rule="target-lost-hp-this-turn-doubles-power"; power=120
+    return {**base,"rule":rule,"condition_met":met,"effective_power":power if met else power//2,"status":"resolved"}
 
 
 def build_deterministic_calculation_context(

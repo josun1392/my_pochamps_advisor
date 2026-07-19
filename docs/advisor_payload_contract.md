@@ -2788,3 +2788,7 @@ Target-HP power consumes only normalized opponent current/max HP.
 ## v13.23 Environment Move Transformation
 
 Environment transformations use trusted field state; Terrain Pulse requires explicit grounded state.
+
+## v13.25 Turn-Event Move Power
+
+Turn-event power consumes explicit current-turn confirmations only.

@@ -18098,3 +18098,7 @@ Maintained boundaries:
 ## v13.23 Environment Move Transformation
 
 - Added canonical Weather Ball and Terrain Pulse transformation contracts.
+
+## v13.25 Turn-Event Move Power
+
+- Added explicit current-turn event power contracts without prediction.
