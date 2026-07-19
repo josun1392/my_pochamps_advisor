@@ -34,7 +34,7 @@ def test_missing_required_final_stat_stays_unavailable_without_inference() -> No
     )
     assert context is not None
     assert context["damage_estimates"] == [{
-        "attacker_side": "self", "defender_side": "opponent", "move": "tackle", "damage_class": "physical",
+        "attacker_side": "self", "defender_side": "opponent", "move": "tackle", "damage_class": "physical", "move_type": None,
         "calculation_scope": "base_damage_stage_only", "excluded_modifiers": ["stab", "type-effectiveness", "critical-hit", "burn", "weather", "terrain", "screens", "item", "ability", "spread", "helping-hand", "friend-guard", "priority", "ko"],
         "power": 40, "level": 50, "offensive_stat": 200, "calculation_status": "unavailable", "reason": "missing_defensive_stat",
     }]

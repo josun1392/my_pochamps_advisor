@@ -1000,8 +1000,15 @@ def build_direct_healing_assessment(selected_move: Mapping[str, Any] | None, cur
     if selected_move["move_id"] in _UNSUPPORTED_DIRECT_HEALING_MOVES: return {**base,"status":"unavailable","reason":"unsupported_direct_healing_rule"}
     entries=(current_hp_context or {}).get("current_hp",[]) if isinstance(current_hp_context,Mapping) else []
     self_hp=next((entry for entry in entries if isinstance(entry,Mapping) and entry.get("side")=="self"),None)
-    if not isinstance(self_hp,Mapping) or not isinstance(self_hp.get("current_hp"),int) or not isinstance(self_hp.get("maximum_hp"),int): return {**base,"status":"unavailable","reason":"missing_attacker_hp"}
+    if not isinstance(self_hp,Mapping) or "current_hp" not in self_hp:
+        return {**base,"status":"unavailable","reason":"missing_attacker_current_hp"}
+    if "maximum_hp" not in self_hp:
+        return {**base,"status":"unavailable","reason":"missing_attacker_maximum_hp"}
+    if any(isinstance(self_hp.get(key), bool) or not isinstance(self_hp.get(key), int) for key in ("current_hp", "maximum_hp")):
+        return {**base,"status":"unavailable","reason":"invalid_attacker_hp_context"}
     current,maximum=self_hp["current_hp"],self_hp["maximum_hp"]
+    if current < 0 or maximum <= 0 or current > maximum:
+        return {**base,"status":"unavailable","reason":"invalid_attacker_hp_context"}
     if current==0:return {**base,"status":"not_applicable","reason":"user_already_fainted"}
     raw=maximum*healing//100; actual=min(raw,maximum-current)
     if actual==0:return {**base,"healing_percent":healing,"raw_healing":raw,"actual_healing":0,"current_hp":current,"maximum_hp":maximum,"resulting_hp":current,"status":"no_effect","reason":"already_at_full_hp"}
@@ -1022,7 +1029,8 @@ def build_deterministic_calculation_context(
     """Combine trusted stats with separately-scoped base and type-aware results."""
     context = build_effective_stat_inputs(final_stat_context, stat_stage_context)
     if context is None:
-        return None
+        healing = build_direct_healing_assessment(selected_move, current_hp_context)
+        return {"direct_healing_assessment": healing} if healing is not None else None
     estimate = build_limited_damage_estimate(context["effective_stats"], selected_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
     context_estimate = build_context_modified_damage_estimate(type_estimate, condition_context, field_state_context, battle_format_context)

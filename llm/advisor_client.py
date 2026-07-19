@@ -2052,6 +2052,17 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
             entries.append(("actual_healing", "self", move.lower(), f"{restored['minimum']}-{restored['maximum']} HP", "current-hp-capped"))
         if effect == "recoil" and isinstance(drain_recoil.get("recoil_ko_count"), int) and isinstance(drain_recoil.get("roll_count"), int) and isinstance(drain_recoil.get("recoil_ko_status"), str):
             entries.append(("recoil_ko", "self", move.lower(), f"{drain_recoil['recoil_ko_count']}/{drain_recoil['roll_count']}", drain_recoil["recoil_ko_status"].replace("_", "-")))
+    direct_healing = context.get("direct_healing_assessment")
+    if isinstance(direct_healing, dict):
+        move, status, scope = (direct_healing.get(key) for key in ("move", "status", "scope"))
+        percent = direct_healing.get("healing_percent")
+        if isinstance(move, str) and isinstance(status, str) and isinstance(scope, str):
+            if status == "resolved" and isinstance(percent, int) and all(isinstance(direct_healing.get(key), int) for key in ("actual_healing", "resulting_hp", "maximum_hp")):
+                entries.append(("direct_healing", "self", move.lower(), f"{percent}%", f"{direct_healing['actual_healing']} HP", f"{direct_healing['resulting_hp']}/{direct_healing['maximum_hp']}", scope.replace("_", "-")))
+            elif status == "no_effect" and isinstance(percent, int) and direct_healing.get("actual_healing") == 0 and direct_healing.get("reason") == "already_at_full_hp":
+                entries.append(("direct_healing", "self", move.lower(), f"{percent}%", "0 HP", "already-at-full-hp", scope.replace("_", "-")))
+            elif status in {"unavailable", "not_applicable"} and isinstance(direct_healing.get("reason"), str):
+                entries.append(("direct_healing", "self", move.lower(), status.replace("_", "-"), direct_healing["reason"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")
@@ -2156,6 +2167,13 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             elif category == "recoil_ko":
                 _, side, move, count, status = entry
                 lines.append(f"- Recoil KO assessment | {side} | {move} | {count} | {status}")
+            elif category == "direct_healing":
+                if len(entry) == 7:
+                    _, side, move, percent, amount, result, scope = entry
+                    lines.append(f"- Direct healing | {side} | {move} | {percent} | {amount} | {result} | {scope}")
+                else:
+                    _, side, move, status, reason = entry
+                    lines.append(f"- Direct healing | {side} | {move} | {status} | {reason}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry
@@ -2326,6 +2344,18 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             entry = ("actual_healing", "self", _normalize_trusted_context_identity(parts[2]), parts[3], parts[4].lower())
         elif category == "recoil ko assessment" and len(parts) == 5 and parts[1].lower() == "self" and re.fullmatch(r"\d+/16", parts[3]) and parts[4].lower() in {"guaranteed-recoil-ko", "possible-recoil-ko", "no-recoil-ko"}:
             entry = ("recoil_ko", "self", _normalize_trusted_context_identity(parts[2]), parts[3], parts[4].lower())
+        elif category == "direct healing" and len(parts) >= 2 and parts[1].lower() == "self":
+            if len(parts) == 7 and re.fullmatch(r"\d+%", parts[3]) and re.fullmatch(r"\d+ HP", parts[4]) and re.fullmatch(r"\d+/\d+", parts[5]) and parts[6].lower() == "direct-max-hp-proportional-healing-only":
+                actual, resulting = int(parts[4].split()[0]), tuple(int(value) for value in parts[5].split("/"))
+                if actual < 0 or resulting[0] < 0 or resulting[0] > resulting[1] or resulting[1] < 1:
+                    raise ValueError("deterministic-results malformed entry")
+                entry = ("direct_healing", "self", _normalize_trusted_context_identity(parts[2]), parts[3], parts[4], parts[5], parts[6].lower())
+            elif len(parts) == 7 and re.fullmatch(r"\d+%", parts[3]) and parts[4] == "0 HP" and parts[5].lower() == "already-at-full-hp" and parts[6].lower() == "direct-max-hp-proportional-healing-only":
+                entry = ("direct_healing", "self", _normalize_trusted_context_identity(parts[2]), parts[3], "0 HP", "already-at-full-hp", parts[6].lower())
+            elif len(parts) == 5 and parts[3].lower() in {"unavailable", "not-applicable"} and parts[4].lower() in {"unsupported-direct-healing-rule", "user-already-fainted", "missing-attacker-current-hp", "missing-attacker-maximum-hp", "invalid-attacker-hp-context", "invalid-healing-metadata"}:
+                entry = ("direct_healing", "self", _normalize_trusted_context_identity(parts[2]), parts[3].lower(), parts[4].lower())
+            else:
+                raise ValueError("deterministic-results malformed entry")
         elif category == "damage estimate" and len(parts) == 6:
             range_match = re.fullmatch(r"(\d+)-(\d+)", parts[4])
             if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type", "base-damage-stage-stab-type-context"}:
@@ -2394,6 +2424,7 @@ def evaluate_deterministic_result_response(
         r"\b(?:usually|normally).*(?:priority 0|priority zero)\b|\btrick room.*priority bracket\b|\btailwind.*next turn\b",
         r"\b(?:no guard|compound eyes|hustle|victory star|wide lens|zoom lens|bright powder|lax incense|gravity|lock-on|mind reader|thunder.*rain|hurricane.*rain|blizzard.*snow|ohko).*\b(?:hit|accuracy|applied|guaranteed)\b",
         r"\b100%.*(?:damage|bypass.*immunity|ignore.*immunity)\b",
+        r"\b(?:leftovers|big root|synthesis.*(?:rain|sun|weather)|rest.*sleep|wish.*next turn|strength sap.*attack|expected healing|healing.*(?:accuracy|hit chance))\b",
     )
     if any(re.search(pattern, advice, re.IGNORECASE) for pattern in forbidden):
         return "deterministic-results semantic boundary violation"

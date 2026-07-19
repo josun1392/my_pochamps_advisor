@@ -35,6 +35,7 @@ def test_production_prompt_keeps_trusted_inputs_and_stage_only_results_separate(
 - Effective stat | self | speed | 334 | final-stat-plus-stage
 - Effective stat | opponent | speed | 201 | final-stat-plus-stage
 - Speed comparison | self-faster | stage-only
+- Hit chance | self | opponent | flamethrower | 100% | calculated-100-percent | move-accuracy-and-stages-only
 
 [Advice]
 Self is faster by stage-adjusted Speed only; final move order remains unresolved."""
