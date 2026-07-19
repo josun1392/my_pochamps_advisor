@@ -283,6 +283,8 @@ HIT_CHANCE_CALCULATION_SCOPE = "move-accuracy-and-stages-only"
 DRAIN_RECOIL_CALCULATION_SCOPE = "damage-dealt-proportional-drain-recoil-only"
 MULTI_HIT_CALCULATION_SCOPE = "generic-multi-hit-damage-only"
 MULTI_HIT_DRAIN_RECOIL_SCOPE = "generic-multi-hit-damage-proportional-drain-recoil-only"
+DIRECT_HEALING_SCOPE = "direct-max-hp-proportional-healing-only"
+_UNSUPPORTED_DIRECT_HEALING_MOVES = frozenset({"synthesis", "morning-sun", "moonlight", "shore-up", "rest", "strength-sap", "pain-split", "wish", "aqua-ring", "ingrain", "floral-healing", "life-dew", "jungle-healing"})
 _UNSUPPORTED_MULTI_HIT_MOVES = frozenset({"population-bomb", "triple-axel", "triple-kick", "beat-up", "dragon-darts", "surging-strikes", "tachyon-cutter"})
 _UNSUPPORTED_PROPORTIONAL_RECOIL_MOVES = frozenset({"struggle", "mind-blown", "steel-beam", "chloroblast", "high-jump-kick", "jump-kick"})
 EFFECTIVE_STAT_EXCLUDED_MODIFIERS = (
@@ -989,6 +991,23 @@ def _convolve(values: Counter[int], rolls: Sequence[int]) -> Counter[int]:
     return result
 
 
+def build_direct_healing_assessment(selected_move: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or not isinstance(selected_move.get("move_id"), str): return None
+    healing = selected_move.get("healing")
+    if healing in {None, 0}: return None
+    base={"move":selected_move["move_id"],"scope":DIRECT_HEALING_SCOPE}
+    if isinstance(healing,bool) or not isinstance(healing,int) or not 1<=healing<=100: return {**base,"status":"unavailable","reason":"invalid_healing_metadata"}
+    if selected_move["move_id"] in _UNSUPPORTED_DIRECT_HEALING_MOVES: return {**base,"status":"unavailable","reason":"unsupported_direct_healing_rule"}
+    entries=(current_hp_context or {}).get("current_hp",[]) if isinstance(current_hp_context,Mapping) else []
+    self_hp=next((entry for entry in entries if isinstance(entry,Mapping) and entry.get("side")=="self"),None)
+    if not isinstance(self_hp,Mapping) or not isinstance(self_hp.get("current_hp"),int) or not isinstance(self_hp.get("maximum_hp"),int): return {**base,"status":"unavailable","reason":"missing_attacker_hp"}
+    current,maximum=self_hp["current_hp"],self_hp["maximum_hp"]
+    if current==0:return {**base,"status":"not_applicable","reason":"user_already_fainted"}
+    raw=maximum*healing//100; actual=min(raw,maximum-current)
+    if actual==0:return {**base,"healing_percent":healing,"raw_healing":raw,"actual_healing":0,"current_hp":current,"maximum_hp":maximum,"resulting_hp":current,"status":"no_effect","reason":"already_at_full_hp"}
+    return {**base,"healing_percent":healing,"raw_healing":raw,"actual_healing":actual,"current_hp":current,"maximum_hp":maximum,"resulting_hp":current+actual,"status":"resolved"}
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -1035,6 +1054,8 @@ def build_deterministic_calculation_context(
     if multi_hit is not None: result["multi_hit_assessment"] = multi_hit
     combined = build_multi_hit_drain_recoil_assessment(primary_estimate, selected_move, current_hp_context)
     if combined is not None: result["multi_hit_drain_recoil_assessment"] = combined
+    healing = build_direct_healing_assessment(selected_move, current_hp_context)
+    if healing is not None: result["direct_healing_assessment"] = healing
     return result
 
 
