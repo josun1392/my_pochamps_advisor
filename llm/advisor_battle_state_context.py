@@ -278,6 +278,7 @@ _FINAL_STAT_ALIASES = {
 USER_CONFIRMED_CURRENT_HP_FORBIDDEN_FIELDS = frozenset({"current_hp_percent", "post_turn_hp", "damage_taken", "estimated_hp", "remaining_hp_after_move", "exact_damage"})
 EFFECTIVE_STAT_CALCULATION_SCOPE = "final_stat_plus_stage_only"
 MOVE_ORDER_CALCULATION_SCOPE = "priority-stage-speed-tailwind-trick-room-only"
+HIT_CHANCE_CALCULATION_SCOPE = "move-accuracy-and-stages-only"
 EFFECTIVE_STAT_EXCLUDED_MODIFIERS = (
     "priority", "item", "ability", "weather", "terrain", "tailwind", "trick-room", "rng",
 )
@@ -840,6 +841,33 @@ def build_deterministic_move_order_assessment(
     return {**result, "result": "self_first" if self_first else "opponent_first", "reason": "speed_advantage"}
 
 
+def build_deterministic_hit_chance_assessment(
+    selected_move: Mapping[str, Any] | None, stat_stage_context: Mapping[str, Any] | None
+) -> dict[str, Any] | None:
+    """Calculate move accuracy from trusted metadata and explicit stage context only."""
+    if not isinstance(selected_move, Mapping) or not isinstance(selected_move.get("move_id"), str):
+        return None
+    result: dict[str, Any] = {"move": selected_move["move_id"], "scope": HIT_CHANCE_CALCULATION_SCOPE,
+        "excluded_modifiers": ["ability", "item", "weather", "gravity", "ohko", "conditional-accuracy", "immunity", "move-failure"]}
+    if selected_move.get("always_hit") is True:
+        return {**result, "base_accuracy": None, "hit_chance_percent": 100, "result": "guaranteed_hit", "reason": "move_always_hits"}
+    accuracy = selected_move.get("accuracy")
+    if isinstance(accuracy, bool) or not isinstance(accuracy, int) or not 1 <= accuracy <= 100:
+        return {**result, "result": "unavailable", "reason": "missing_move_accuracy"}
+    stages = build_deterministic_stat_inputs(None, stat_stage_context)["current_stat_stages"]
+    attacker_stage = stages.get("self", {}).get("accuracy", 0)
+    defender_stage = stages.get("opponent", {}).get("evasion", 0)
+    net_stage = max(-6, min(6, attacker_stage - defender_stage))
+    numerator, denominator = (3 + net_stage, 3) if net_stage >= 0 else (3, 3 - net_stage)
+    # Integer floor rational convention, then clamp; no float accumulation.
+    percent = min(100, accuracy * numerator // denominator)
+    return {**result, "base_accuracy": accuracy, "attacker_accuracy_stage": attacker_stage,
+        "defender_evasion_stage": defender_stage, "net_stage": net_stage,
+        "stage_numerator": numerator, "stage_denominator": denominator,
+        "hit_chance_percent": percent, "result": "guaranteed_hit" if percent == 100 else "chance_to_hit",
+        "reason": "calculated_100_percent" if percent == 100 else "stage_adjusted_accuracy"}
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -875,6 +903,10 @@ def build_deterministic_calculation_context(
     }
     if move_order is not None:
         result["move_order_assessment"] = move_order
+    has_accuracy_metadata = isinstance(selected_move, Mapping) and ("accuracy" in selected_move or selected_move.get("always_hit") is True)
+    hit_chance = build_deterministic_hit_chance_assessment(selected_move, stat_stage_context) if has_accuracy_metadata else None
+    if hit_chance is not None:
+        result["hit_chance_assessment"] = hit_chance
     return result
 
 

@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v13.9 - Deterministic Accuracy And Hit Chance
+
+Result:
+- Added metadata-only hit chance from neutral/default accuracy-evasion stages,
+  standard exact stage ratio, integer floor rounding, and 100% clamping.
+- Null metadata remains unavailable absent an explicit canonical always-hit
+  field; hit chance remains independent of damage and move order.
+- Added deterministic acknowledgement/parser/semantic boundaries and offline
+  production integration. Full-suite result: `2070 passed, 2 deselected`.
+
+---
+
 ## v13.8 - Deterministic Priority And Field-Aware Move Order
 
 Result:

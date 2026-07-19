@@ -2033,6 +2033,14 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
         result, reason = order.get("result"), order.get("reason")
         if isinstance(result, str) and isinstance(reason, str) and isinstance(scope, str):
             entries.append(("move_order", result.replace("_", "-"), reason.replace("_", "-"), scope.replace("_", "-")))
+    hit_chance = context.get("hit_chance_assessment")
+    if isinstance(hit_chance, dict):
+        move, result, reason, scope = (hit_chance.get(key) for key in ("move", "result", "reason", "scope"))
+        percent = hit_chance.get("hit_chance_percent")
+        if all(isinstance(value, str) for value in (move, result, reason, scope)):
+            display = "unavailable" if result == "unavailable" else f"{percent}%" if isinstance(percent, int) else None
+            if display is not None:
+                entries.append(("hit_chance", "self", "opponent", move.lower(), display, reason.replace("_", "-"), scope.replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")
@@ -2125,6 +2133,9 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             elif category == "move_order":
                 _, result, reason, scope = entry
                 lines.append(f"- Move order | {result} | {reason} | {scope}")
+            elif category == "hit_chance":
+                _, attacker, defender, move, percent, reason, scope = entry
+                lines.append(f"- Hit chance | {attacker} | {defender} | {move} | {percent} | {reason} | {scope}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry
@@ -2287,6 +2298,8 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             entry = ("effective_speed", parts[1].lower(), parts[2], parts[3].lower())
         elif category == "move order" and len(parts) == 4 and parts[1].lower() in {"self-first", "opponent-first", "tie", "unavailable"} and parts[2].lower() in {"priority-advantage", "speed-advantage", "equal-priority-equal-speed", "missing-self-move-priority", "missing-opponent-move-priority", "missing-self-final-speed", "missing-opponent-final-speed", "unresolved-field-state"} and parts[3].lower() == "priority-stage-speed-tailwind-trick-room-only":
             entry = ("move_order", parts[1].lower(), parts[2].lower(), parts[3].lower())
+        elif category == "hit chance" and len(parts) == 7 and parts[1].lower() == "self" and parts[2].lower() == "opponent" and parts[6].lower() == "move-accuracy-and-stages-only" and ((re.fullmatch(r"(?:100|[1-9]\d?)%", parts[4]) and parts[5].lower() in {"stage-adjusted-accuracy", "calculated-100-percent", "move-always-hits"}) or (parts[4].lower() == "unavailable" and parts[5].lower() == "missing-move-accuracy")):
+            entry = ("hit_chance", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower(), parts[5].lower(), parts[6].lower())
         elif category == "damage estimate" and len(parts) == 6:
             range_match = re.fullmatch(r"(\d+)-(\d+)", parts[4])
             if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type", "base-damage-stage-stab-type-context"}:
@@ -2353,6 +2366,8 @@ def evaluate_deterministic_result_response(
         r"\b(?:infiltrator|brick break|psychic fangs|critical[- ]hit screen bypass|light clay|screen expiration|next-turn persistence|ability/item override)\b",
         r"\b(?:quick claw|choice scarf|prankster|gale wings|triage|stall|lagging tail|full incense|custap berry)\b.*\b(?:first|priority|applied|included)\b",
         r"\b(?:usually|normally).*(?:priority 0|priority zero)\b|\btrick room.*priority bracket\b|\btailwind.*next turn\b",
+        r"\b(?:no guard|compound eyes|hustle|victory star|wide lens|zoom lens|bright powder|lax incense|gravity|lock-on|mind reader|thunder.*rain|hurricane.*rain|blizzard.*snow|ohko).*\b(?:hit|accuracy|applied|guaranteed)\b",
+        r"\b100%.*(?:damage|bypass.*immunity|ignore.*immunity)\b",
     )
     if any(re.search(pattern, advice, re.IGNORECASE) for pattern in forbidden):
         return "deterministic-results semantic boundary violation"

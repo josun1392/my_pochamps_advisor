@@ -1,5 +1,13 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.9 Deterministic Hit Chance
+
+- Hit chance is selected move accuracy plus user-confirmed accuracy/evasion
+  stages only. Missing metadata remains unavailable; do not infer always-hit
+  from a null accuracy field.
+- Keep hit chance independent from damage, immunity, KO, expected damage, and
+  all ability/item/weather/OHKO/special-rule mechanics.
+
 ## v13.8 Priority And Field-Aware Move Order
 
 - The deterministic result is priority/stage-Speed/Tailwind/Trick Room only.

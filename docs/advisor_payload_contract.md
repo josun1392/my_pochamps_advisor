@@ -2687,3 +2687,15 @@ unavailable; priority zero is never inferred. The result scope is
 `priority-stage-speed-tailwind-trick-room-only`. Priority precedes Speed;
 Tailwind doubles only its side's stage-adjusted integer Speed; Trick Room
 reverses equal-priority speed comparison only; equal speed is `tie`.
+
+## v13.9 deterministic hit chance
+
+`deterministic_calculation_context.hit_chance_assessment` uses only selected
+move metadata accuracy and current self accuracy/opponent evasion stages.
+Omitted stages use the existing neutral-zero stage convention. Accuracy is an
+integer rational calculation with standard 3-based stage ratios and floor
+rounding before a 100% clamp. Metadata `None` is unavailable unless an explicit
+canonical `always_hit` marker exists. It does not affect damage, immunity, KO,
+or expected damage and excludes ability, item, weather, OHKO, and special move
+rules. The exact deterministic line is `Hit chance | self | opponent | move |
+percent-or-unavailable | reason | move-accuracy-and-stages-only`.
