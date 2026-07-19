@@ -15,6 +15,10 @@ infer exact HP or add excluded variable-power mechanics.
 
 Speed-based power excludes Trick Room reversal and all ability/item modifiers.
 
+## v13.20
+
+Weight-based power requires canonical selected-form weight; never infer weight.
+
 ## v13.16 Closure
 
 Observed direct damage is sourced from the Previous Damage panel dialog and

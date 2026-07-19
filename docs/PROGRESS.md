@@ -18082,3 +18082,7 @@ Maintained boundaries:
 ## v13.19 Deterministic Speed-Based Move Power
 
 - Added Electro Ball and Gyro Ball trusted stage/Tailwind speed-power rules.
+
+## v13.20 Deterministic Weight-Based Move Power
+
+- Added canonical hectogram bracket contracts for four weight-based moves.

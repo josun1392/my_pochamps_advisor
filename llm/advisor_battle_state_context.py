@@ -313,6 +313,9 @@ _CURRENT_HP_PROPORTIONAL_MOVES = frozenset({"eruption", "water-spout", "dragon-e
 _CURRENT_HP_BRACKET_MOVES = frozenset({"flail", "reversal"})
 SPEED_POWER_SCOPE = "explicit-speed-based-move-power-only"
 _SPEED_POWER_MOVES = frozenset({"electro-ball", "gyro-ball"})
+WEIGHT_POWER_SCOPE = "explicit-weight-based-move-power-only"
+_WEIGHT_RATIO_MOVES = frozenset({"heavy-slam", "heat-crash"})
+_WEIGHT_ABSOLUTE_MOVES = frozenset({"grass-knot", "low-kick"})
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1199,6 +1202,23 @@ def build_speed_based_power_assessment(selected_move: Mapping[str, Any] | None, 
     else:
         power, rule = min(150, 25 * opponent_speed // self_speed + 1), "opponent-to-self-speed-ratio"
     return {**base, "rule": rule, "self_effective_speed": self_speed, "opponent_effective_speed": opponent_speed, "effective_power": power, "status": "resolved"}
+
+
+def build_weight_based_power_assessment(selected_move: Mapping[str, Any] | None, weight_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in _WEIGHT_RATIO_MOVES | _WEIGHT_ABSOLUTE_MOVES: return None
+    move = selected_move["move_id"]; base = {"move": move, "scope": WEIGHT_POWER_SCOPE}
+    context = weight_context if isinstance(weight_context, Mapping) else {}
+    opponent = context.get("opponent_weight")
+    if move in _WEIGHT_RATIO_MOVES and "self_weight" not in context: return {**base, "status":"unavailable","reason":"missing_self_weight"}
+    if "opponent_weight" not in context: return {**base, "status":"unavailable","reason":"missing_opponent_weight"}
+    values = [opponent] + ([context.get("self_weight")] if move in _WEIGHT_RATIO_MOVES else [])
+    if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in values): return {**base, "status":"unavailable","reason":"invalid_weight_context"}
+    if move in _WEIGHT_RATIO_MOVES:
+        self_weight = context["self_weight"]; ratio = self_weight / opponent
+        power = 120 if ratio >= 5 else 100 if ratio >= 4 else 80 if ratio >= 3 else 60 if ratio >= 2 else 40
+        return {**base,"rule":"self-to-opponent-weight-ratio","self_weight":self_weight,"opponent_weight":opponent,"weight_unit":"hectogram","effective_power":power,"status":"resolved"}
+    power = 120 if opponent >= 2000 else 100 if opponent >= 1000 else 80 if opponent >= 500 else 60 if opponent >= 250 else 40 if opponent >= 100 else 20
+    return {**base,"rule":"opponent-absolute-weight-bracket","opponent_weight":opponent,"weight_unit":"hectogram","effective_power":power,"status":"resolved"}
 
 
 def build_deterministic_calculation_context(

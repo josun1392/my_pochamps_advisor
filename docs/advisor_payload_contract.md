@@ -2772,3 +2772,7 @@ never a metadata-power fallback.
 ## v13.19 Speed-Based Move Power
 
 Electro Ball/Gyro Ball use trusted final Speed, stages, and Tailwind only.
+
+## v13.20 Weight-Based Move Power
+
+Weight power uses canonical integer hectograms and no missing-weight fallback.
