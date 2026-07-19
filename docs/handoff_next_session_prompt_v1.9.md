@@ -1,5 +1,11 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.26
+
+Battle-counter move power accepts only explicit current-battle snapshots. Rage
+Fist is capped at 350 from qualifying hits; Last Respects uses 0–5 fainted
+allies. Do not infer or simulate counter changes.
+
 ## v13.17
 
 Self-sacrifice moves and explicit max-HP costs use a separate deterministic

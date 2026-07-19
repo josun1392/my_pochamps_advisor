@@ -324,6 +324,8 @@ _TARGET_HP_POWER_MOVES = frozenset({"crush-grip", "wring-out"})
 ENVIRONMENT_MOVE_SCOPE = "explicit-environment-based-move-transformation-only"
 BINARY_CONDITION_POWER_SCOPE = "explicit-binary-condition-move-power-only"
 TURN_EVENT_POWER_SCOPE = "explicit-current-turn-event-move-power-only"
+BATTLE_COUNTER_POWER_SCOPE = "explicit-current-battle-counter-move-power-only"
+_BATTLE_COUNTER_POWER_MOVES = frozenset({"rage-fist", "last-respects"})
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1306,6 +1308,45 @@ def build_turn_event_power_assessment(selected_move: Mapping[str, Any] | None, t
     return {**base,"rule":rule,"condition_met":met,"effective_power":power if met else power//2,"status":"resolved"}
 
 
+def build_battle_counter_power_assessment(
+    selected_move: Mapping[str, Any] | None,
+    battle_counter_context: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Resolve only a user-confirmed snapshot of the current battle counter."""
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in _BATTLE_COUNTER_POWER_MOVES:
+        return None
+    move = selected_move["move_id"]
+    base = {"move": move, "scope": BATTLE_COUNTER_POWER_SCOPE}
+    context = battle_counter_context if isinstance(battle_counter_context, Mapping) else {}
+    if move == "rage-fist":
+        field, rule, reason = (
+            "rage_fist_hits_received",
+            "qualifying-hits-received-counter",
+            "missing_rage_fist_hits_received",
+        )
+        maximum = None
+    else:
+        field, rule, reason = (
+            "last_respects_fainted_allies",
+            "fainted-allies-counter",
+            "missing_last_respects_fainted_allies",
+        )
+        maximum = 5
+    if field not in context:
+        return {**base, "status": "unavailable", "reason": reason}
+    counter = context[field]
+    if isinstance(counter, bool) or not isinstance(counter, int) or counter < 0 or (maximum is not None and counter > maximum):
+        return {**base, "status": "unavailable", "reason": "invalid_battle_counter"}
+    effective_power = min(350, 50 + 50 * counter) if move == "rage-fist" else 50 + 50 * counter
+    return {
+        **base,
+        "rule": rule,
+        "counter": counter,
+        "effective_power": effective_power,
+        "status": "resolved",
+    }
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -1318,6 +1359,7 @@ def build_deterministic_calculation_context(
     opponent_selected_move: Mapping[str, Any] | None = None,
     attacker_level_context: Mapping[str, Any] | None = None,
     observed_previous_damage_context: Mapping[str, Any] | None = None,
+    battle_counter_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Combine trusted stats with separately-scoped base and type-aware results."""
     context = build_effective_stat_inputs(final_stat_context, stat_stage_context)
@@ -1331,6 +1373,7 @@ def build_deterministic_calculation_context(
         speed_power_assessment = build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context)
         stat_power_assessment = build_stat_stage_based_power_assessment(selected_move, stat_stage_context)
         target_power_assessment = build_target_hp_based_power_assessment(selected_move, current_hp_context)
+        counter_power_assessment = build_battle_counter_power_assessment(selected_move, battle_counter_context)
         result = {}
         if healing is not None: result["direct_healing_assessment"] = healing
         if fixed is not None: result["fixed_damage_assessment"] = fixed
@@ -1341,11 +1384,13 @@ def build_deterministic_calculation_context(
         if speed_power_assessment is not None: result["speed_based_power_assessment"] = speed_power_assessment
         if stat_power_assessment is not None: result["stat_stage_based_power_assessment"] = stat_power_assessment
         if target_power_assessment is not None: result["target_hp_based_power_assessment"] = target_power_assessment
+        if counter_power_assessment is not None: result["battle_counter_power_assessment"] = counter_power_assessment
         return result or None
     power_assessment = build_current_hp_based_power_assessment(selected_move, current_hp_context)
     speed_power_assessment = build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context)
     stat_power_assessment = build_stat_stage_based_power_assessment(selected_move, stat_stage_context)
     target_power_assessment = build_target_hp_based_power_assessment(selected_move, current_hp_context)
+    counter_power_assessment = build_battle_counter_power_assessment(selected_move, battle_counter_context)
     environment_assessment = build_environment_based_move_assessment(selected_move, field_state_context)
     effective_move = dict(selected_move) if isinstance(selected_move, Mapping) else selected_move
     if power_assessment is not None and power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
@@ -1363,6 +1408,9 @@ def build_deterministic_calculation_context(
     if environment_assessment is not None and environment_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
         effective_move["power"] = environment_assessment["effective_power"]
         effective_move["type"] = environment_assessment["effective_type"]
+    if counter_power_assessment is not None and counter_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
+        effective_move["power"] = counter_power_assessment["effective_power"]
+        effective_move.pop("power_status", None)
     estimate = build_limited_damage_estimate(context["effective_stats"], effective_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
     context_estimate = build_context_modified_damage_estimate(type_estimate, condition_context, field_state_context, battle_format_context)
@@ -1435,6 +1483,14 @@ def build_deterministic_calculation_context(
     if environment_assessment is not None:
         result["environment_based_move_assessment"] = environment_assessment
         if environment_assessment.get("status") != "resolved": result["damage_estimates"] = []
+    if counter_power_assessment is not None:
+        result["battle_counter_power_assessment"] = counter_power_assessment
+        if counter_power_assessment.get("status") != "resolved":
+            result["damage_estimates"] = []
+            result["base_damage_estimates"] = []
+            result["type_aware_damage_estimates"] = []
+            result["context_modified_damage_estimates"] = []
+            result["hp_assessments"] = []
     return result
 
 

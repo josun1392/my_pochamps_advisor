@@ -1,5 +1,11 @@
 # Advisor Payload Contract
 
+## v13.26 battle-counter power
+
+`battle_counter_power_assessment` is emitted only for Rage Fist and Last
+Respects from explicit current-battle counters. It includes move, rule, counter,
+effective power, status, and `explicit-current-battle-counter-move-power-only`.
+
 ## v13.4 Exact HP And KO Assessment
 
 With limited context enabled, `current_hp_context.current_hp` carries only

@@ -1,5 +1,13 @@
 # Master Ball Advisor — Progress
 
+## v13.26 - Deterministic Battle-Counter Move Power
+
+Result:
+- Added explicit current-battle counters for Rage Fist (50 per qualifying hit,
+  capped at 350) and Last Respects (50 per fainted ally, 0–5 trusted range).
+
+---
+
 ## v13.12 - Multi-Hit Drain And Recoil
 
 Result:

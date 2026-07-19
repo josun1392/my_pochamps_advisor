@@ -454,6 +454,7 @@ def _build_ui_selected_prompt(
             _selected_opponent_move_payload_from_advice_payload(battle_input),
             battle_input.get("attacker_level_confirmation") if isinstance(battle_input.get("attacker_level_confirmation"), dict) else None,
             observed_previous_damage_context,
+            battle_input.get("battle_counter_confirmation") if isinstance(battle_input.get("battle_counter_confirmation"), dict) else None,
         )
 
     advice_payload = build_ui_advice_payload(
@@ -1307,6 +1308,7 @@ def _add_deterministic_calculation_context_to_advice_payload(
         payload.get("battle_format_context"),
         _selected_opponent_move_payload_from_advice_payload(payload),
         observed_previous_damage_context=payload.get("observed_previous_damage_context"),
+        battle_counter_context=payload.get("battle_counter_confirmation"),
     )
     if expected is None or context != expected:
         raise ValueError("deterministic_calculation_context must match trusted stage-only inputs")
@@ -2170,6 +2172,13 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
         move, status = target_power["move"].lower(), target_power.get("status")
         if status == "resolved" and isinstance(target_power.get("effective_power"), int) and isinstance(target_power.get("rule"), str) and isinstance(target_power.get("scope"), str): entries.append(("target_hp_move_power", "opponent", move, str(target_power["effective_power"]), target_power["rule"].replace("_", "-"), target_power["scope"].replace("_", "-")))
         elif status in {"unavailable", "not_applicable"} and isinstance(target_power.get("reason"), str): entries.append(("target_hp_move_power", "opponent", move, status.replace("_", "-"), target_power["reason"].replace("_", "-")))
+    battle_counter = context.get("battle_counter_power_assessment")
+    if isinstance(battle_counter, dict) and isinstance(battle_counter.get("move"), str):
+        move, status = battle_counter["move"].lower(), battle_counter.get("status")
+        if status == "resolved" and isinstance(battle_counter.get("counter"), int) and isinstance(battle_counter.get("effective_power"), int) and isinstance(battle_counter.get("rule"), str) and isinstance(battle_counter.get("scope"), str):
+            entries.append(("battle_counter_move_power", "self", move, battle_counter["rule"].replace("_", "-"), str(battle_counter["counter"]), str(battle_counter["effective_power"]), battle_counter["scope"].replace("_", "-")))
+        elif status == "unavailable" and isinstance(battle_counter.get("reason"), str):
+            entries.append(("battle_counter_move_power", "self", move, "unavailable", battle_counter["reason"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")

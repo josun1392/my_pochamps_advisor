@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QFrame,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMainWindow,
     QVBoxLayout,
@@ -307,6 +308,7 @@ class MainWindow(QMainWindow):
         self._current_hp_confirmations: dict[str, dict] = {}
         self._current_battle_format_confirmation: dict | None = None
         self._current_observed_damage_confirmation: dict[str, object] | None = None
+        self._battle_counter_confirmation: dict[str, int] | None = None
 
         central_widget = QWidget()
         central_widget.setStyleSheet("background-color: #EEF2F6;")
@@ -376,6 +378,8 @@ class MainWindow(QMainWindow):
         self.center_column.llm_advice_panel.current_battle_format_session_reset_requested.connect(self._clear_current_battle_format_confirmation)
         self.center_column.llm_advice_panel.current_observed_damage_requested.connect(self._open_current_observed_damage_dialog)
         self.center_column.llm_advice_panel.current_observed_damage_reset_requested.connect(self._clear_current_observed_damage_confirmation)
+        self.center_column.llm_advice_panel.battle_counter_requested.connect(self._open_battle_counter_dialog)
+        self.center_column.llm_advice_panel.battle_counter_reset_requested.connect(self._clear_battle_counter_confirmation)
         self._update_item_event_summary()
         self._update_current_condition_summary()
         self._update_current_ability_summary()
@@ -385,6 +389,7 @@ class MainWindow(QMainWindow):
         self._update_current_hp_summary()
         self._update_current_battle_format_summary()
         self._update_current_observed_damage_summary()
+        self._update_battle_counter_summary()
         self.shortcuts = GlobalShortcuts(self, self)
         self.set_active_column(self._active_column_name)
 
@@ -710,6 +715,29 @@ class MainWindow(QMainWindow):
         except (AttributeError, RuntimeError):
             pass
 
+    def _open_battle_counter_dialog(self) -> None:
+        snapshot = self._battle_counter_confirmation or {}
+        rage, accepted = QInputDialog.getInt(self, "Battle counters", "Rage Fist hits received", snapshot.get("rage_fist_hits_received", 0), 0)
+        if not accepted:
+            return
+        fainted, accepted = QInputDialog.getInt(self, "Battle counters", "Last Respects fainted allies", snapshot.get("last_respects_fainted_allies", 0), 0, 5)
+        if accepted:
+            self._battle_counter_confirmation = {"rage_fist_hits_received": rage, "last_respects_fainted_allies": fainted}
+            self._update_battle_counter_summary()
+
+    def _clear_battle_counter_confirmation(self) -> None:
+        self._battle_counter_confirmation = None
+        self._update_battle_counter_summary()
+
+    def _update_battle_counter_summary(self) -> None:
+        try:
+            panel = getattr(self.center_column, "llm_advice_panel", None)
+            if panel is not None:
+                snapshot = self._battle_counter_confirmation
+                panel.set_battle_counter_count(snapshot.get("rage_fist_hits_received") if isinstance(snapshot, dict) else None)
+        except (AttributeError, RuntimeError):
+            pass
+
     @Slot()
     def _start_llm_advice(self) -> None:
         if self._llm_thread is not None:
@@ -732,6 +760,8 @@ class MainWindow(QMainWindow):
                 include_current_battle_format_confirmation=enable_battle_state_context,
                 include_observed_previous_damage_confirmation=enable_battle_state_context,
             )
+            if enable_battle_state_context and isinstance(getattr(self, "_battle_counter_confirmation", None), dict):
+                battle_input["battle_counter_confirmation"] = dict(self._battle_counter_confirmation)
         except ValueError as exc:
             message = str(exc)
             panel.set_error(message)

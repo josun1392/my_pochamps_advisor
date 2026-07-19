@@ -40,6 +40,8 @@ class LLMAdvicePanel(QFrame):
     current_battle_format_session_reset_requested = Signal()
     current_observed_damage_requested = Signal()
     current_observed_damage_reset_requested = Signal()
+    battle_counter_requested = Signal()
+    battle_counter_reset_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -122,6 +124,10 @@ class LLMAdvicePanel(QFrame):
         self.current_observed_damage_button.clicked.connect(self.current_observed_damage_requested.emit)
         self.clear_current_observed_damage_button = QPushButton("Clear previous damage")
         self.clear_current_observed_damage_button.clicked.connect(self.current_observed_damage_reset_requested.emit)
+        self.battle_counter_button = QPushButton("Battle counters")
+        self.battle_counter_button.clicked.connect(self.battle_counter_requested.emit)
+        self.clear_battle_counter_button = QPushButton("Clear battle counters")
+        self.clear_battle_counter_button.clicked.connect(self.battle_counter_reset_requested.emit)
 
         self.turn_pipeline_checkbox = QCheckBox("제한 컨텍스트 포함")
         self.turn_pipeline_checkbox.setObjectName("turnPipelineDevFlag")
@@ -162,6 +168,8 @@ class LLMAdvicePanel(QFrame):
         layout.addWidget(self.clear_current_battle_format_button)
         layout.addWidget(self.current_observed_damage_button)
         layout.addWidget(self.clear_current_observed_damage_button)
+        layout.addWidget(self.battle_counter_button)
+        layout.addWidget(self.clear_battle_counter_button)
         layout.addWidget(self.turn_pipeline_checkbox)
         layout.addWidget(self.turn_pipeline_status_label)
         layout.addWidget(self.output_edit, 1)
@@ -202,6 +210,8 @@ class LLMAdvicePanel(QFrame):
         self.current_battle_format_button.setText("Battle Format" if value is None else f"Battle Format ({value})")
     def set_current_observed_damage(self, value: int | None) -> None:
         self.current_observed_damage_button.setText("Previous Damage" if value is None else f"Previous Damage ({value} HP)")
+    def set_battle_counter_count(self, value: int | None) -> None:
+        self.battle_counter_button.setText("Battle counters" if value is None else f"Battle counters ({value})")
 
     def set_running(self, is_running: bool) -> None:
         self.request_button.setDisabled(is_running)
@@ -224,6 +234,8 @@ class LLMAdvicePanel(QFrame):
         self.clear_current_battle_format_button.setDisabled(is_running)
         self.current_observed_damage_button.setDisabled(is_running)
         self.clear_current_observed_damage_button.setDisabled(is_running)
+        self.battle_counter_button.setDisabled(is_running)
+        self.clear_battle_counter_button.setDisabled(is_running)
         self.turn_pipeline_checkbox.setDisabled(is_running)
         if is_running:
             self.output_edit.setPlainText("분석 중...")
