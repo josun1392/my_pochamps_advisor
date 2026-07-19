@@ -2715,3 +2715,17 @@ optional recoil KO count/status.
 `multi_hit_assessment` is separate from single-hit and two-use KO results.
 Generic metadata-backed hit counts use independent-roll convolution and current
 defender HP for KO status. Exceptional multi-hit rules remain unavailable.
+
+## v13.13 direct healing
+
+`direct_healing_assessment` uses selected move `meta.healing` only under the
+limited-context gate. Its scope is `direct-max-hp-proportional-healing-only`.
+The calculation is `raw_healing = floor(maximum_hp * healing_percent / 100)`;
+actual healing is capped at `maximum_hp - current_hp`, and resulting HP is
+current plus actual healing.
+
+Missing or zero metadata emits no result. Full HP is `no_effect`; a fainted
+self is `not_applicable`; absent current or maximum HP is unavailable; and
+current HP above maximum HP is invalid. Conditional, weather-based, delayed,
+or target-dependent healing is unavailable. Gate-off emits neither the result
+nor its acknowledgement. Direct healing does not merge with drain/recoil.

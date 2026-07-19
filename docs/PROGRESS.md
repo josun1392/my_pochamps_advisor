@@ -18005,6 +18005,20 @@ Maintained boundaries:
 - No damage/speed integration.
 - No sample additions.
 - No logs, `.env`, secrets, API keys, or handoff capsule commits.
+## v13.13 Deterministic Direct Healing
+
+- Mapped PokeAPI `meta.healing` to `MoveView.healing` and connected the
+  limited-context selected-move plus exact self-HP production path.
+- Generic direct healing floors the max-HP percentage, caps at missing HP,
+  reports full HP as `no_effect`, fainted users as `not_applicable`, and
+  missing HP as unavailable.
+- Conditional, weather-dependent, delayed, status-linked, and target-dependent
+  healing remain unavailable. Direct healing remains separate from drain/recoil.
+- Deterministic acknowledgement, parser, and semantic validation use scope
+  `direct-max-hp-proportional-healing-only`.
+- Verification results are recorded after the required targeted, related, and
+  full-suite runs.
+
 ## v13.5 Deterministic STAB and Type Effectiveness Integration
 
 - Added a limited deterministic type-aware adapter using UI-selected resolved

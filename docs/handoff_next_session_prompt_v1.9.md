@@ -1,5 +1,14 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.13 Direct Healing
+
+- Implementation commit: `8dcef1d feat: add deterministic direct healing`.
+- Direct healing uses `meta.healing`, exact self current/max HP, max-HP floor,
+  and a missing-HP cap only. Conditional, weather, delayed, status, and
+  target-dependent healing remain unavailable.
+- The documentation completion commit and regression baseline must be recorded
+  only after validation. The next proposed feature is v13.14 fixed damage.
+
 ## v13.11 Multi-Hit
 
 - Generic multi-hit totals use independent rolls only; do not add Skill Link,
