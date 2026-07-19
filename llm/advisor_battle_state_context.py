@@ -304,6 +304,10 @@ _SUPPORTED_FIXED_DAMAGE_RULES = {"seismic-toss": "attacker-level", "night-shade"
 _UNSUPPORTED_FIXED_DAMAGE_MOVES = frozenset({"psywave", "counter", "mirror-coat", "metal-burst", "bide", "comeuppance", "fissure", "guillotine", "horn-drill", "sheer-cold"})
 HP_BASED_SPECIAL_DAMAGE_SCOPE = "explicit-hp-based-special-damage-only"
 OBSERVED_DAMAGE_COUNTER_SCOPE = "trusted-observed-direct-damage-counter-only"
+SELF_CONSEQUENCE_SCOPE = "explicit-self-sacrifice-and-hp-cost-only"
+_GUARANTEED_SELF_SACRIFICE_MOVES = frozenset({"explosion", "self-destruct", "misty-explosion", "memento", "healing-wish", "lunar-dance"})
+_MAX_HP_SELF_DAMAGE_DIVISORS = {"steel-beam": 2, "mind-blown": 2, "chloroblast": 2}
+_UNSUPPORTED_SELF_DAMAGE_MOVES = frozenset({"struggle"})
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1124,6 +1128,35 @@ def build_observed_damage_counter_assessment(selected_move: Mapping[str, Any] | 
     actual=min(returned,hp); return {**result,"actual_damage":actual,"opponent_current_hp":hp,"opponent_resulting_hp":hp-actual,"ko_status":"guaranteed_ko" if actual==hp else "no_ko"}
 
 
+def build_self_consequence_assessment(selected_move: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """Return only explicit user self-faint or maximum-HP-cost consequences."""
+    if not isinstance(selected_move, Mapping) or not isinstance(selected_move.get("move_id"), str):
+        return None
+    move = selected_move["move_id"]
+    if move not in _GUARANTEED_SELF_SACRIFICE_MOVES | set(_MAX_HP_SELF_DAMAGE_DIVISORS) | _UNSUPPORTED_SELF_DAMAGE_MOVES:
+        return None
+    base = {"move": move, "scope": SELF_CONSEQUENCE_SCOPE}
+    if move in _UNSUPPORTED_SELF_DAMAGE_MOVES:
+        return {**base, "status": "unavailable", "reason": "unsupported_self_damage_rule"}
+    if move in _GUARANTEED_SELF_SACRIFICE_MOVES:
+        return {**base, "effect": "guaranteed_self_faint", "self_resulting_hp": 0, "self_faint_status": "guaranteed_self_faint", "status": "resolved"}
+    entries = (current_hp_context or {}).get("current_hp", []) if isinstance(current_hp_context, Mapping) else []
+    self_hp = next((entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == "self"), None)
+    if not isinstance(self_hp, Mapping) or "current_hp" not in self_hp:
+        return {**base, "status": "unavailable", "reason": "missing_self_current_hp"}
+    current, maximum = self_hp.get("current_hp"), self_hp.get("maximum_hp")
+    if maximum is None:
+        return {**base, "status": "unavailable", "reason": "missing_self_maximum_hp"}
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in (current, maximum)) or current < 0 or maximum <= 0 or current > maximum:
+        return {**base, "status": "unavailable", "reason": "invalid_self_hp_context"}
+    if current == 0:
+        return {**base, "status": "not_applicable", "reason": "user_already_fainted"}
+    damage = maximum // _MAX_HP_SELF_DAMAGE_DIVISORS[move]
+    damage = max(1, damage)
+    resulting = max(0, current - damage)
+    return {**base, "effect": "maximum-hp-proportional-self-damage", "rule": "maximum-hp-half-floor-minimum-one", "self_current_hp": current, "self_maximum_hp": maximum, "self_damage": damage, "self_resulting_hp": resulting, "self_faint_status": "guaranteed_self_faint" if resulting == 0 else "no_self_faint", "status": "resolved"}
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -1144,11 +1177,13 @@ def build_deterministic_calculation_context(
         fixed = build_fixed_damage_assessment(selected_move, current_hp_context, pokemon, attacker_level_context)
         special = build_hp_based_special_damage_assessment(selected_move, current_hp_context, pokemon)
         reactive = build_observed_damage_counter_assessment(selected_move, observed_previous_damage_context, current_hp_context, pokemon)
+        self_consequence = build_self_consequence_assessment(selected_move, current_hp_context)
         result = {}
         if healing is not None: result["direct_healing_assessment"] = healing
         if fixed is not None: result["fixed_damage_assessment"] = fixed
         if special is not None: result["hp_based_special_damage_assessment"] = special
         if reactive is not None: result["observed_damage_counter_assessment"] = reactive
+        if self_consequence is not None: result["self_consequence_assessment"] = self_consequence
         return result or None
     estimate = build_limited_damage_estimate(context["effective_stats"], selected_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
@@ -1186,6 +1221,7 @@ def build_deterministic_calculation_context(
     fixed = build_fixed_damage_assessment(selected_move, current_hp_context, pokemon, attacker_level_context)
     special = build_hp_based_special_damage_assessment(selected_move, current_hp_context, pokemon)
     reactive = build_observed_damage_counter_assessment(selected_move, observed_previous_damage_context, current_hp_context, pokemon)
+    self_consequence = build_self_consequence_assessment(selected_move, current_hp_context)
     if fixed is not None:
         result["fixed_damage_assessment"] = fixed
         result["damage_estimates"] = []
@@ -1198,6 +1234,8 @@ def build_deterministic_calculation_context(
         result["fixed_damage_assessment"] = None
         result["hp_based_special_damage_assessment"] = None
         result["damage_estimates"] = []
+    if self_consequence is not None:
+        result["self_consequence_assessment"] = self_consequence
     return result
 
 

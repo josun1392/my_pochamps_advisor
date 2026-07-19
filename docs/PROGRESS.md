@@ -18066,3 +18066,10 @@ Maintained boundaries:
   Dark immunity, HP capping/KO, missing-HP partial output, and prevention of
   normal/fixed/HP-special fallback. Unsupported timing and related mechanics
   remain excluded.
+
+## v13.17 Deterministic Self Consequences
+
+- Added allowlisted self-sacrifice and explicit maximum-HP cost assessments,
+  exact acknowledgement validation, and distinct semantic boundaries.
+- Post-faint switching, delayed recovery, Memento stat changes, generic
+  exceptional recoil, and ability overrides remain unsupported.

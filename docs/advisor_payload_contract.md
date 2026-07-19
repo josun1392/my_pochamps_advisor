@@ -2755,3 +2755,10 @@ off it is omitted but retained by the UI session. It solely enables the
 Counter/Mirror Coat/Metal Burst reactive assessment with exact trusted and
 deterministic acknowledgement validation; it does not establish turn timing,
 priority, indirect damage, survival effects, or ability overrides.
+
+## v13.17 Self Consequence
+
+Limited context uses existing trusted self current/max HP only for explicit
+maximum-HP costs. `self_consequence_assessment` is separate from recoil and
+Final Gambit; it does not simulate replacement, delayed healing, stat changes,
+or ability overrides.

@@ -2136,6 +2136,18 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
                 entries.append(("reactive_ko", "self", "opponent", move, reactive["ko_status"].replace("_", "-")))
         elif status in {"no_effect", "unavailable", "not_applicable"} and isinstance(reactive.get("reason"), str):
             entries.append(("reactive_damage", "self", "opponent", move, status.replace("_", "-"), reactive["reason"].replace("_", "-")))
+    self_consequence = context.get("self_consequence_assessment")
+    if isinstance(self_consequence, dict) and isinstance(self_consequence.get("move"), str):
+        move, status, scope = self_consequence["move"].lower(), self_consequence.get("status"), self_consequence.get("scope")
+        if status == "resolved" and isinstance(scope, str):
+            if self_consequence.get("effect") == "guaranteed_self_faint" and self_consequence.get("self_resulting_hp") == 0:
+                entries.append(("self_consequence", "self", move, "guaranteed-self-faint", "0 HP", scope.replace("_", "-")))
+            elif self_consequence.get("effect") == "maximum-hp-proportional-self-damage" and isinstance(self_consequence.get("self_damage"), int) and isinstance(self_consequence.get("self_resulting_hp"), int):
+                entries.append(("self_damage", "self", move, f"{self_consequence['self_damage']} HP", "maximum-hp-proportional", scope.replace("_", "-")))
+                entries.append(("self_resulting_hp", "self", move, f"{self_consequence['self_resulting_hp']} HP"))
+                if isinstance(self_consequence.get("self_faint_status"), str): entries.append(("self_faint", "self", move, self_consequence["self_faint_status"].replace("_", "-")))
+        elif status in {"unavailable", "not_applicable"} and isinstance(self_consequence.get("reason"), str):
+            entries.append(("self_consequence", "self", move, status.replace("_", "-"), self_consequence["reason"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")
@@ -2278,6 +2290,15 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
                 _, attacker, defender, move, damage = entry; lines.append(f"- Reactive actual damage | {attacker} | {defender} | {move} | {damage}")
             elif category == "reactive_ko":
                 _, attacker, defender, move, status = entry; lines.append(f"- Reactive KO assessment | {attacker} | {defender} | {move} | {status}")
+            elif category == "self_consequence":
+                if len(entry) == 6:
+                    _, side, move, effect, hp, scope = entry; lines.append(f"- Self consequence | {side} | {move} | {effect} | {hp} | {scope}")
+                else:
+                    _, side, move, status, reason = entry; lines.append(f"- Self consequence | {side} | {move} | {status} | {reason}")
+            elif category == "self_damage":
+                _, side, move, damage, rule, scope = entry; lines.append(f"- Self damage | {side} | {move} | {damage} | {rule} | {scope}")
+            elif category == "self_resulting_hp":
+                _, side, move, hp = entry; lines.append(f"- Self resulting HP | {side} | {move} | {hp}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry
@@ -2472,6 +2493,18 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             entry = ("fixed_damage_ko", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower())
         elif category == "target resulting hp" and len(parts) == 4 and parts[1].lower() == "opponent" and re.fullmatch(r"\d+ HP", parts[3]):
             entry = ("target_resulting_hp", "opponent", _normalize_trusted_context_identity(parts[2]), parts[3])
+        elif category == "self-faint consequence" and len(parts) == 4 and parts[1].lower() == "self" and parts[3].lower() in {"guaranteed-self-faint", "no-self-faint"}:
+            entry = ("self_faint", "self", _normalize_trusted_context_identity(parts[2]), parts[3].lower())
+        elif category == "self consequence" and len(parts) >= 4 and parts[1].lower() == "self":
+            if len(parts) == 6 and parts[3].lower() == "guaranteed-self-faint" and parts[4] == "0 HP" and parts[5].lower() == "explicit-self-sacrifice-and-hp-cost-only":
+                entry = ("self_consequence", "self", _normalize_trusted_context_identity(parts[2]), "guaranteed-self-faint", "0 HP", parts[5].lower())
+            elif len(parts) == 5 and parts[3].lower() in {"unavailable", "not-applicable"} and parts[4].lower() in {"unsupported-self-damage-rule", "missing-self-current-hp", "missing-self-maximum-hp", "invalid-self-hp-context", "user-already-fainted"}:
+                entry = ("self_consequence", "self", _normalize_trusted_context_identity(parts[2]), parts[3].lower(), parts[4].lower())
+            else: raise ValueError("deterministic-results malformed entry")
+        elif category == "self damage" and len(parts) == 6 and parts[1].lower() == "self" and re.fullmatch(r"\d+ HP", parts[3]) and parts[4].lower() == "maximum-hp-proportional" and parts[5].lower() == "explicit-self-sacrifice-and-hp-cost-only":
+            entry = ("self_damage", "self", _normalize_trusted_context_identity(parts[2]), parts[3], "maximum-hp-proportional", parts[5].lower())
+        elif category == "self resulting hp" and len(parts) == 4 and parts[1].lower() == "self" and re.fullmatch(r"\d+ HP", parts[3]):
+            entry = ("self_resulting_hp", "self", _normalize_trusted_context_identity(parts[2]), parts[3])
         elif category == "reactive damage" and len(parts) >= 4 and parts[1].lower() == "self" and parts[2].lower() == "opponent":
             if len(parts) == 7 and parts[4].lower() in {"double-observed-physical-damage", "double-observed-special-damage", "floor-three-halves-observed-damage"} and re.fullmatch(r"\d+ HP", parts[5]) and parts[6].lower() == "trusted-observed-direct-damage-counter-only":
                 entry = ("reactive_damage", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower(), parts[5], parts[6].lower())
@@ -2557,6 +2590,11 @@ def evaluate_deterministic_result_response(
         r"\b(?:bide|shell trap|focus punch|substitute|focus sash|sturdy)\b",
         r"\b(?:indirect|status|recoil).*(?:counter|mirror coat|metal burst|previous damage)\b",
         r"\b(?:ability immunity|ability.*immunity).*(?:override|bypass|ignore)\b",
+        r"\b(?:next pokemon|next pok.mon|automatically switch\w*|replacement).*(?:switch\w*|heal\w*|recover\w*)\b",
+        r"\b(?:healing wish|lunar dance).*(?:next|full heal|restore)\b",
+        r"\bmemento.*(?:stat|drop|next turn|subsequent)\b",
+        r"\b(?:magic guard|rock head)\b.*\b(?:applied|included|prevent|negate)\b",
+        r"\b(?:self.faint|self sacrifice|self damage).*(?:recoil)\b|\brecoil.*(?:self.faint|self sacrifice)\b",
     )
     if any(re.search(pattern, advice, re.IGNORECASE) for pattern in forbidden):
         return "deterministic-results semantic boundary violation"
