@@ -316,6 +316,9 @@ _SPEED_POWER_MOVES = frozenset({"electro-ball", "gyro-ball"})
 WEIGHT_POWER_SCOPE = "explicit-weight-based-move-power-only"
 _WEIGHT_RATIO_MOVES = frozenset({"heavy-slam", "heat-crash"})
 _WEIGHT_ABSOLUTE_MOVES = frozenset({"grass-knot", "low-kick"})
+STAT_STAGE_POWER_SCOPE = "explicit-stat-stage-based-move-power-only"
+_STAT_STAGE_SELF_POWER_MOVES = frozenset({"stored-power", "power-trip"})
+_STAT_STAGE_OPPONENT_POWER_MOVES = frozenset({"punishment"})
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1219,6 +1222,20 @@ def build_weight_based_power_assessment(selected_move: Mapping[str, Any] | None,
         return {**base,"rule":"self-to-opponent-weight-ratio","self_weight":self_weight,"opponent_weight":opponent,"weight_unit":"hectogram","effective_power":power,"status":"resolved"}
     power = 120 if opponent >= 2000 else 100 if opponent >= 1000 else 80 if opponent >= 500 else 60 if opponent >= 250 else 40 if opponent >= 100 else 20
     return {**base,"rule":"opponent-absolute-weight-bracket","opponent_weight":opponent,"weight_unit":"hectogram","effective_power":power,"status":"resolved"}
+
+
+def build_stat_stage_based_power_assessment(selected_move: Mapping[str, Any] | None, stat_stage_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in _STAT_STAGE_SELF_POWER_MOVES | _STAT_STAGE_OPPONENT_POWER_MOVES: return None
+    move = selected_move["move_id"]; side = "self" if move in _STAT_STAGE_SELF_POWER_MOVES else "opponent"; base={"move":move,"scope":STAT_STAGE_POWER_SCOPE}
+    entries = (stat_stage_context or {}).get("current_stages", []) if isinstance(stat_stage_context, Mapping) else []
+    relevant = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
+    if not relevant: return {**base,"status":"unavailable","reason":f"missing_{side}_stat_stages"}
+    values = [entry.get("stage") for entry in relevant]
+    if any(isinstance(value,bool) or not isinstance(value,int) or not -6 <= value <= 6 for value in values): return {**base,"status":"unavailable","reason":"invalid_stat_stage_context"}
+    total=sum(max(0,value) for value in values)
+    if side == "self": power, rule=20+20*total,"positive-self-stat-stage-sum"
+    else: power, rule=min(200,60+20*total),"positive-opponent-stat-stage-sum"
+    return {**base,"rule":rule,"positive_stage_sum":total,"effective_power":power,"status":"resolved"}
 
 
 def build_deterministic_calculation_context(
