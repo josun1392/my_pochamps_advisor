@@ -2744,3 +2744,14 @@ special and OHKO rules remain unavailable and never use normal formula fallback.
 `explicit-hp-based-special-damage-only`. It accepts exact self/opponent HP for
 Endeavor and Final Gambit only; it does not use normal damage, recoil, or
 post-faint switching mechanics.
+
+## v13.16 Observed Previous Damage
+
+When limited context is enabled, one user-confirmed direct-damage snapshot
+normalizes to `observed_previous_damage_context`; raw UI confirmation is not
+serialized. It requires positive integer damage, physical/special category,
+`direct_move_damage`, and opponent-to-self direction. With limited context
+off it is omitted but retained by the UI session. It solely enables the
+Counter/Mirror Coat/Metal Burst reactive assessment with exact trusted and
+deterministic acknowledgement validation; it does not establish turn timing,
+priority, indirect damage, survival effects, or ability overrides.

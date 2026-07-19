@@ -1,5 +1,16 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v13.16 Closure
+
+Observed direct damage is sourced from the Previous Damage panel dialog and
+kept as a defensive per-session snapshot. Its limited-context payload is
+normalized, acknowledged exactly, and deterministically consumed only by
+Counter, Mirror Coat, and Metal Burst. Counter/Mirror Coat use x2 matching
+category, Metal Burst uses floor(3/2), and confirmed opponent HP caps actual
+damage/KO. Immunity and unavailable/no-effect paths are explicit; no normal,
+fixed, or HP-special fallback is allowed. Keep unsupported timing, indirect,
+survival, and ability-override mechanics out of this contract.
+
 ## v13.13 Direct Healing
 
 - Implementation commit: `8dcef1d feat: add deterministic direct healing`.

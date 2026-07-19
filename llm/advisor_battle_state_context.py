@@ -303,6 +303,7 @@ FIXED_DAMAGE_SCOPE = "explicit-fixed-damage-rules-only"
 _SUPPORTED_FIXED_DAMAGE_RULES = {"seismic-toss": "attacker-level", "night-shade": "attacker-level", "dragon-rage": "literal-40", "sonic-boom": "literal-20", "super-fang": "defender-current-hp-half", "natures-madness": "defender-current-hp-half", "ruination": "defender-current-hp-half"}
 _UNSUPPORTED_FIXED_DAMAGE_MOVES = frozenset({"psywave", "counter", "mirror-coat", "metal-burst", "bide", "comeuppance", "fissure", "guillotine", "horn-drill", "sheer-cold"})
 HP_BASED_SPECIAL_DAMAGE_SCOPE = "explicit-hp-based-special-damage-only"
+OBSERVED_DAMAGE_COUNTER_SCOPE = "trusted-observed-direct-damage-counter-only"
 _OHKO_MOVE_IDS = frozenset({"fissure", "guillotine", "horn-drill", "sheer-cold"})
 _MULTI_HIT_MOVE_IDS = frozenset({"arm-thrust", "bullet-seed", "double-slap", "fury-attack", "fury-swipes", "icicle-spear", "pin-missile", "rock-blast", "tail-slap", "water-shuriken"})
 USER_CONFIRMED_CURRENT_FIELD_STATE_FORBIDDEN_FIELDS = frozenset({
@@ -1098,6 +1099,31 @@ def build_hp_based_special_damage_assessment(selected_move: Mapping[str, Any] | 
     return {**base, "rule": "user-current-hp-damage-and-self-faint", "self_current_hp": self_hp, "opponent_current_hp": opponent_hp, "damage": self_hp, "actual_damage": actual, "opponent_resulting_hp": remaining, "opponent_ko_status": "guaranteed_ko" if remaining == 0 else "no_ko", "self_resulting_hp": 0, "self_faint_status": "guaranteed_self_faint", "status": "resolved", **({"reason": "type_immunity"} if immune else {})}
 
 
+def build_observed_damage_counter_assessment(selected_move: Mapping[str, Any] | None, observed: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None, pokemon: Mapping[str, Any] | None = None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in {"counter", "mirror-coat", "metal-burst"}: return None
+    move=selected_move["move_id"]; base={"move":move,"scope":OBSERVED_DAMAGE_COUNTER_SCOPE}
+    if not isinstance(observed, Mapping): return {**base,"status":"unavailable","reason":"missing_observed_previous_damage"}
+    if observed.get("source_side")!="opponent" or observed.get("target_side")!="self" or observed.get("source")!="user_confirmed_previous_damage" or observed.get("confidence")!="known" or observed.get("damage_kind")!="direct_move_damage": return {**base,"status":"unavailable","reason":"invalid_observed_previous_damage"}
+    damage,category=observed.get("damage"),observed.get("damage_category")
+    if isinstance(damage,bool) or not isinstance(damage,int) or damage<=0: return {**base,"status":"unavailable","reason":"invalid_observed_previous_damage"}
+    if move in {"counter","mirror-coat"} and category not in {"physical","special"}: return {**base,"status":"unavailable","reason":"missing_previous_damage_category"}
+    needed="physical" if move=="counter" else "special"
+    if move in {"counter","mirror-coat"} and category!=needed: return {**base,"observed_damage":damage,"observed_damage_category":category,"status":"no_effect","reason":f"previous_damage_not_{needed}"}
+    returned=damage*2 if move!="metal-burst" else damage*3//2
+    result={**base,"rule":("double-observed-"+needed+"-damage") if move!="metal-burst" else "floor-three-halves-observed-damage","observed_damage":damage,"observed_damage_category":category,"returned_damage":returned,"status":"resolved"}
+    move_type = "fighting" if move == "counter" else "psychic" if move == "mirror-coat" else None
+    defender_types = _selected_types(pokemon, "opponent_active") if move_type else None
+    if move_type and defender_types is not None and any(load_type_chart()[move_type][target_type] == 0 for target_type in defender_types):
+        return {**result, "status": "no_effect", "reason": "type_immunity"}
+    entries=(current_hp_context or {}).get("current_hp",[]) if isinstance(current_hp_context,Mapping) else []
+    target=next((e for e in entries if isinstance(e,Mapping) and e.get("side")=="opponent"),None)
+    if not isinstance(target,Mapping) or "current_hp" not in target:return result
+    hp=target.get("current_hp")
+    if isinstance(hp,bool) or not isinstance(hp,int) or hp<0:return {**base,"status":"unavailable","reason":"invalid_opponent_current_hp"}
+    if hp==0:return {**base,"status":"not_applicable","reason":"target_already_fainted"}
+    actual=min(returned,hp); return {**result,"actual_damage":actual,"opponent_current_hp":hp,"opponent_resulting_hp":hp-actual,"ko_status":"guaranteed_ko" if actual==hp else "no_ko"}
+
+
 def build_deterministic_calculation_context(
     final_stat_context: Mapping[str, Any] | None,
     stat_stage_context: Mapping[str, Any] | None = None,
@@ -1109,6 +1135,7 @@ def build_deterministic_calculation_context(
     battle_format_context: Mapping[str, Any] | None = None,
     opponent_selected_move: Mapping[str, Any] | None = None,
     attacker_level_context: Mapping[str, Any] | None = None,
+    observed_previous_damage_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Combine trusted stats with separately-scoped base and type-aware results."""
     context = build_effective_stat_inputs(final_stat_context, stat_stage_context)
@@ -1116,10 +1143,12 @@ def build_deterministic_calculation_context(
         healing = build_direct_healing_assessment(selected_move, current_hp_context)
         fixed = build_fixed_damage_assessment(selected_move, current_hp_context, pokemon, attacker_level_context)
         special = build_hp_based_special_damage_assessment(selected_move, current_hp_context, pokemon)
+        reactive = build_observed_damage_counter_assessment(selected_move, observed_previous_damage_context, current_hp_context, pokemon)
         result = {}
         if healing is not None: result["direct_healing_assessment"] = healing
         if fixed is not None: result["fixed_damage_assessment"] = fixed
         if special is not None: result["hp_based_special_damage_assessment"] = special
+        if reactive is not None: result["observed_damage_counter_assessment"] = reactive
         return result or None
     estimate = build_limited_damage_estimate(context["effective_stats"], selected_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
@@ -1156,12 +1185,18 @@ def build_deterministic_calculation_context(
     if healing is not None: result["direct_healing_assessment"] = healing
     fixed = build_fixed_damage_assessment(selected_move, current_hp_context, pokemon, attacker_level_context)
     special = build_hp_based_special_damage_assessment(selected_move, current_hp_context, pokemon)
+    reactive = build_observed_damage_counter_assessment(selected_move, observed_previous_damage_context, current_hp_context, pokemon)
     if fixed is not None:
         result["fixed_damage_assessment"] = fixed
         result["damage_estimates"] = []
     if special is not None:
         result["hp_based_special_damage_assessment"] = special
         result["fixed_damage_assessment"] = None
+        result["damage_estimates"] = []
+    if reactive is not None:
+        result["observed_damage_counter_assessment"] = reactive
+        result["fixed_damage_assessment"] = None
+        result["hp_based_special_damage_assessment"] = None
         result["damage_estimates"] = []
     return result
 

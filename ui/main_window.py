@@ -59,6 +59,7 @@ from ui.widgets.current_field_state_dialog import CurrentFieldStateDialog
 from ui.widgets.current_final_stat_dialog import CurrentFinalStatDialog
 from ui.widgets.current_hp_dialog import CurrentHPDialog
 from ui.widgets.current_battle_format_dialog import CurrentBattleFormatDialog
+from ui.widgets.current_observed_damage_dialog import CurrentObservedDamageDialog
 from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
@@ -305,6 +306,7 @@ class MainWindow(QMainWindow):
         self._current_final_stat_confirmations: dict[tuple[str, str], dict] = {}
         self._current_hp_confirmations: dict[str, dict] = {}
         self._current_battle_format_confirmation: dict | None = None
+        self._current_observed_damage_confirmation: dict[str, object] | None = None
 
         central_widget = QWidget()
         central_widget.setStyleSheet("background-color: #EEF2F6;")
@@ -372,6 +374,8 @@ class MainWindow(QMainWindow):
         self.center_column.llm_advice_panel.current_hp_session_reset_requested.connect(self._clear_current_hp_confirmations)
         self.center_column.llm_advice_panel.current_battle_format_requested.connect(self._open_current_battle_format_dialog)
         self.center_column.llm_advice_panel.current_battle_format_session_reset_requested.connect(self._clear_current_battle_format_confirmation)
+        self.center_column.llm_advice_panel.current_observed_damage_requested.connect(self._open_current_observed_damage_dialog)
+        self.center_column.llm_advice_panel.current_observed_damage_reset_requested.connect(self._clear_current_observed_damage_confirmation)
         self._update_item_event_summary()
         self._update_current_condition_summary()
         self._update_current_ability_summary()
@@ -380,6 +384,7 @@ class MainWindow(QMainWindow):
         self._update_current_final_stat_summary()
         self._update_current_hp_summary()
         self._update_current_battle_format_summary()
+        self._update_current_observed_damage_summary()
         self.shortcuts = GlobalShortcuts(self, self)
         self.set_active_column(self._active_column_name)
 
@@ -626,6 +631,18 @@ class MainWindow(QMainWindow):
         self._current_battle_format_confirmation = None
         self._update_current_battle_format_summary()
 
+    def _open_current_observed_damage_dialog(self) -> None:
+        dialog = CurrentObservedDamageDialog(observed_damage=self._current_observed_damage_confirmation, parent=self)
+        if dialog.exec():
+            snapshot = dialog.observed_damage_confirmation
+            if isinstance(snapshot, dict):
+                self._current_observed_damage_confirmation = dict(snapshot)
+                self._update_current_observed_damage_summary()
+
+    def _clear_current_observed_damage_confirmation(self) -> None:
+        self._current_observed_damage_confirmation = None
+        self._update_current_observed_damage_summary()
+
     def _update_item_event_summary(self) -> None:
         try:
             panel = self.center_column.llm_advice_panel
@@ -684,6 +701,15 @@ class MainWindow(QMainWindow):
         except (AttributeError, RuntimeError):
             pass
 
+    def _update_current_observed_damage_summary(self) -> None:
+        try:
+            panel = getattr(self.center_column, "llm_advice_panel", None)
+            if panel is not None:
+                snapshot = self._current_observed_damage_confirmation
+                panel.set_current_observed_damage(snapshot.get("damage") if isinstance(snapshot, dict) else None)
+        except (AttributeError, RuntimeError):
+            pass
+
     @Slot()
     def _start_llm_advice(self) -> None:
         if self._llm_thread is not None:
@@ -704,6 +730,7 @@ class MainWindow(QMainWindow):
                 include_current_final_stat_confirmations=enable_battle_state_context,
                 include_current_hp_confirmations=enable_battle_state_context,
                 include_current_battle_format_confirmation=enable_battle_state_context,
+                include_observed_previous_damage_confirmation=enable_battle_state_context,
             )
         except ValueError as exc:
             message = str(exc)
@@ -800,6 +827,7 @@ class MainWindow(QMainWindow):
         include_current_final_stat_confirmations: bool = False,
         include_current_hp_confirmations: bool = False,
         include_current_battle_format_confirmation: bool = False,
+        include_observed_previous_damage_confirmation: bool = False,
     ) -> dict:
         my_slot_index = self.selected_slots.get("team_my")
         opponent_slot_index = self.selected_slots.get("team_enemy")
@@ -907,6 +935,10 @@ class MainWindow(QMainWindow):
                     battle_input["current_battle_format_confirmation"] = normalize_user_confirmed_battle_format(snapshot)
                 except ValueError:
                     pass
+        if include_observed_previous_damage_confirmation:
+            snapshot = getattr(self, "_current_observed_damage_confirmation", None)
+            if isinstance(snapshot, dict):
+                battle_input["observed_previous_damage_confirmation"] = dict(snapshot)
         if include_current_final_stat_confirmations:
             entries = []
             for entry in getattr(self, "_current_final_stat_confirmations", {}).values():

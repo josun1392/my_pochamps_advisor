@@ -18056,3 +18056,13 @@ Maintained boundaries:
   screen helper; no UI/team-size inference is permitted.
 - Reflect/Light Screen take precedence over Aurora Veil and apply once with Q12
   singles 1/2 or doubles 2/3 rounding.
+
+## v13.16 Deterministic Observed-Damage Counters
+
+- Added user-confirmed Previous Damage UI/session input, limited-context-only
+  payload mapping, exact acknowledgement/parser/evaluator contracts, and
+  deterministic Counter, Mirror Coat, and Metal Burst results.
+- Rules include Metal Burst floor(3/2) rounding, Counter Ghost and Mirror Coat
+  Dark immunity, HP capping/KO, missing-HP partial output, and prevention of
+  normal/fixed/HP-special fallback. Unsupported timing and related mechanics
+  remain excluded.

@@ -11,7 +11,7 @@ import json
 import re
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from core.turn_event import TurnPipelineResult, normalize_turn_pipeline_result
 from core.turn_state import TurnSnapshot, normalize_turn_snapshot
@@ -164,6 +164,9 @@ def build_ui_advice_payload(
     """Return the Gemini default-advice payload without debug-only item context."""
     payload = deepcopy(battle_input)
     filtered_payload = filter_context_for_default_advice(payload)
+    _add_observed_previous_damage_context_to_advice_payload(
+        filtered_payload, enable_observed_previous_damage_context=enable_battle_state_context
+    )
     _add_turn_snapshot_to_advice_payload(filtered_payload, turn_snapshot)
     _add_turn_pipeline_to_advice_payload(filtered_payload, turn_pipeline)
     _add_turn_order_context_to_advice_payload(
@@ -354,6 +357,12 @@ def _build_ui_selected_prompt(
     enable_opponent_move_context: bool = False,
     enable_battle_state_context: bool = False,
 ) -> str:
+    observed_previous_damage_context = None
+    if enable_battle_state_context and isinstance(battle_input.get("observed_previous_damage_confirmation"), dict):
+        try:
+            observed_previous_damage_context = normalize_observed_previous_damage_confirmation(battle_input["observed_previous_damage_confirmation"])
+        except ValueError:
+            observed_previous_damage_context = None
     if turn_pipeline is None and enable_turn_pipeline:
         base_payload = build_ui_advice_payload(
             battle_input,
@@ -444,6 +453,7 @@ def _build_ui_selected_prompt(
             battle_format_context,
             _selected_opponent_move_payload_from_advice_payload(battle_input),
             battle_input.get("attacker_level_confirmation") if isinstance(battle_input.get("attacker_level_confirmation"), dict) else None,
+            observed_previous_damage_context,
         )
 
     advice_payload = build_ui_advice_payload(
@@ -831,6 +841,32 @@ def _selected_move_payload_from_advice_payload(payload: dict[str, Any]) -> dict[
     if not isinstance(selected_move, dict):
         return None
     return selected_move
+
+
+def normalize_observed_previous_damage_confirmation(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize one explicit user-confirmed prior direct-damage snapshot."""
+    required = {"damage", "damage_category", "damage_kind", "source_side", "target_side"}
+    if set(value) != required:
+        raise ValueError("observed previous damage fields are invalid")
+    damage = value.get("damage")
+    if isinstance(damage, bool) or not isinstance(damage, int) or damage <= 0:
+        raise ValueError("observed previous damage must be positive integer")
+    if value.get("damage_category") not in {"physical", "special"} or value.get("damage_kind") != "direct_move_damage" or value.get("source_side") != "opponent" or value.get("target_side") != "self":
+        raise ValueError("observed previous damage context is invalid")
+    return {**dict(value), "source": "user_confirmed_previous_damage", "confidence": "known"}
+
+
+def _add_observed_previous_damage_context_to_advice_payload(
+    payload: dict[str, Any], *, enable_observed_previous_damage_context: bool
+) -> None:
+    """Attach one validated user-confirmed direct-damage snapshot, if enabled."""
+    raw = payload.pop("observed_previous_damage_confirmation", None)
+    if not enable_observed_previous_damage_context or not isinstance(raw, Mapping):
+        return
+    try:
+        payload["observed_previous_damage_context"] = normalize_observed_previous_damage_confirmation(raw)
+    except ValueError:
+        return
 
 
 def _selected_opponent_move_payload_from_advice_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -1270,6 +1306,7 @@ def _add_deterministic_calculation_context_to_advice_payload(
         payload.get("field_state_context"),
         payload.get("battle_format_context"),
         _selected_opponent_move_payload_from_advice_payload(payload),
+        observed_previous_damage_context=payload.get("observed_previous_damage_context"),
     )
     if expected is None or context != expected:
         raise ValueError("deterministic_calculation_context must match trusted stage-only inputs")
@@ -1992,6 +2029,12 @@ def build_trusted_context_acknowledgement_entries(payload: dict[str, Any]) -> tu
         current = battle_format_context.get("current_battle_format")
         if isinstance(current, dict) and current.get("battle_format") in {"singles", "doubles"}:
             entries.append(("battle_format", "", current["battle_format"], None))
+    observed = payload.get("observed_previous_damage_context")
+    if isinstance(observed, dict) and all(
+        observed.get(key) == value
+        for key, value in (("source_side", "opponent"), ("target_side", "self"), ("damage_kind", "direct_move_damage"), ("source", "user_confirmed_previous_damage"), ("confidence", "known"))
+    ) and isinstance(observed.get("damage"), int) and not isinstance(observed.get("damage"), bool) and observed.get("damage") > 0 and observed.get("damage_category") in {"physical", "special"}:
+        entries.append(("observed_previous_damage", "opponent", "self", f"{observed['damage']}:{observed['damage_category']}"))
     opponent_move = _selected_opponent_move_payload_from_advice_payload(payload)
     if isinstance(opponent_move, dict) and isinstance(opponent_move.get("move_id"), str) and isinstance(opponent_move.get("priority"), int) and not isinstance(opponent_move.get("priority"), bool):
         entries.append(("opponent_move", "", opponent_move["move_id"].lower(), str(opponent_move["priority"])))
@@ -2080,6 +2123,19 @@ def build_deterministic_result_acknowledgement_entries(payload: dict[str, Any]) 
             if move == "final-gambit": entries.append(("self_faint", "self", move, "guaranteed-self-faint"))
         elif status in {"no_effect", "unavailable", "not_applicable"} and isinstance(special.get("reason"), str):
             entries.append(("hp_special_damage", "self", "opponent", move, status.replace("_", "-"), special["reason"].replace("_", "-")))
+    reactive = context.get("observed_damage_counter_assessment")
+    if isinstance(reactive, dict) and isinstance(reactive.get("move"), str):
+        move, status, scope = reactive["move"].lower(), reactive.get("status"), reactive.get("scope")
+        if status == "resolved" and isinstance(reactive.get("rule"), str) and isinstance(reactive.get("returned_damage"), int) and isinstance(scope, str):
+            entries.append(("reactive_damage", "self", "opponent", move, reactive["rule"].replace("_", "-"), f"{reactive['returned_damage']} HP", scope.replace("_", "-")))
+            if isinstance(reactive.get("actual_damage"), int):
+                entries.append(("reactive_actual_damage", "self", "opponent", move, f"{reactive['actual_damage']} HP"))
+            if isinstance(reactive.get("opponent_resulting_hp"), int):
+                entries.append(("target_resulting_hp", "opponent", move, f"{reactive['opponent_resulting_hp']} HP"))
+            if isinstance(reactive.get("ko_status"), str):
+                entries.append(("reactive_ko", "self", "opponent", move, reactive["ko_status"].replace("_", "-")))
+        elif status in {"no_effect", "unavailable", "not_applicable"} and isinstance(reactive.get("reason"), str):
+            entries.append(("reactive_damage", "self", "opponent", move, status.replace("_", "-"), reactive["reason"].replace("_", "-")))
     for estimate in context.get("damage_estimates", []):
         if isinstance(estimate, dict) and estimate.get("calculation_status") == "resolved":
             attacker, defender, move = estimate.get("attacker_side"), estimate.get("defender_side"), estimate.get("move")
@@ -2140,6 +2196,9 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
             lines.append(f"- Current side field effect | {side} | {identity}")
         elif category == "battle_format":
             lines.append(f"- Battle format | {identity}")
+        elif category == "observed_previous_damage":
+            damage, damage_category = event_type.split(":", 1)
+            lines.append(f"- Previous direct damage | {side} | {identity} | {damage} HP | {damage_category} | user-confirmed")
         elif category == "opponent_move":
             lines.append(f"- Opponent move | {identity} | priority {event_type}")
         else:
@@ -2210,6 +2269,15 @@ def _build_structured_trusted_context_acknowledgement_prompt_guard(payload: dict
                 _, side, move, hp = entry; lines.append(f"- Target resulting HP | {side} | {move} | {hp}")
             elif category == "self_faint":
                 _, side, move, status = entry; lines.append(f"- Self-faint consequence | {side} | {move} | {status}")
+            elif category == "reactive_damage":
+                if len(entry) == 7:
+                    _, attacker, defender, move, rule, damage, scope = entry; lines.append(f"- Reactive damage | {attacker} | {defender} | {move} | {rule} | {damage} | {scope}")
+                else:
+                    _, attacker, defender, move, status, reason = entry; lines.append(f"- Reactive damage | {attacker} | {defender} | {move} | {status} | {reason}")
+            elif category == "reactive_actual_damage":
+                _, attacker, defender, move, damage = entry; lines.append(f"- Reactive actual damage | {attacker} | {defender} | {move} | {damage}")
+            elif category == "reactive_ko":
+                _, attacker, defender, move, status = entry; lines.append(f"- Reactive KO assessment | {attacker} | {defender} | {move} | {status}")
             else:
                 if category == "damage_estimate":
                     _, attacker, defender, move, damage_range, scope = entry
@@ -2299,6 +2367,8 @@ def parse_trusted_context_acknowledgement(response: str) -> tuple[tuple[tuple[st
             entry = ("current_side_field_effect", parts[1].lower(), _normalize_trusted_context_identity(parts[2]), None)
         elif category == "battle format" and len(parts) == 2 and parts[1].lower() in {"singles", "doubles"}:
             entry = ("battle_format", "", parts[1].lower(), None)
+        elif category == "previous direct damage" and len(parts) == 6 and parts[1].lower() == "opponent" and parts[2].lower() == "self" and re.fullmatch(r"[1-9]\d* HP", parts[3]) and parts[4].lower() in {"physical", "special"} and parts[5].lower() == "user-confirmed":
+            entry = ("observed_previous_damage", "opponent", "self", f"{int(parts[3].split()[0])}:{parts[4].lower()}")
         elif category == "opponent move" and len(parts) == 3 and re.fullmatch(r"priority -?\d+", parts[2].lower()):
             entry = ("opponent_move", "", _normalize_trusted_context_identity(parts[1]), parts[2].lower().removeprefix("priority "))
         elif category == "observed item event" and len(parts) == 4:
@@ -2400,6 +2470,18 @@ def parse_deterministic_result_acknowledgement(response: str) -> tuple[tuple[tup
             else: raise ValueError("deterministic-results malformed entry")
         elif category == "fixed-damage ko assessment" and len(parts) == 5 and parts[1].lower() == "self" and parts[2].lower() == "opponent" and parts[4].lower() in {"guaranteed-ko", "no-ko"}:
             entry = ("fixed_damage_ko", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower())
+        elif category == "target resulting hp" and len(parts) == 4 and parts[1].lower() == "opponent" and re.fullmatch(r"\d+ HP", parts[3]):
+            entry = ("target_resulting_hp", "opponent", _normalize_trusted_context_identity(parts[2]), parts[3])
+        elif category == "reactive damage" and len(parts) >= 4 and parts[1].lower() == "self" and parts[2].lower() == "opponent":
+            if len(parts) == 7 and parts[4].lower() in {"double-observed-physical-damage", "double-observed-special-damage", "floor-three-halves-observed-damage"} and re.fullmatch(r"\d+ HP", parts[5]) and parts[6].lower() == "trusted-observed-direct-damage-counter-only":
+                entry = ("reactive_damage", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower(), parts[5], parts[6].lower())
+            elif len(parts) == 6 and parts[4].lower() in {"no-effect", "unavailable", "not-applicable"} and parts[5].lower() in {"previous-damage-not-physical", "previous-damage-not-special", "missing-observed-previous-damage", "invalid-observed-previous-damage", "missing-previous-damage-category", "invalid-opponent-current-hp", "target-already-fainted", "type-immunity"}:
+                entry = ("reactive_damage", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower(), parts[5].lower())
+            else: raise ValueError("deterministic-results malformed entry")
+        elif category == "reactive actual damage" and len(parts) == 5 and parts[1].lower() == "self" and parts[2].lower() == "opponent" and re.fullmatch(r"\d+ HP", parts[4]):
+            entry = ("reactive_actual_damage", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4])
+        elif category == "reactive ko assessment" and len(parts) == 5 and parts[1].lower() == "self" and parts[2].lower() == "opponent" and parts[4].lower() in {"guaranteed-ko", "no-ko"}:
+            entry = ("reactive_ko", "self", "opponent", _normalize_trusted_context_identity(parts[3]), parts[4].lower())
         elif category == "damage estimate" and len(parts) == 6:
             range_match = re.fullmatch(r"(\d+)-(\d+)", parts[4])
             if range_match is None or parts[5].lower() not in {"base-damage-stage-only", "base-damage-stage-stab-type", "base-damage-stage-stab-type-context"}:
@@ -2469,6 +2551,12 @@ def evaluate_deterministic_result_response(
         r"\b(?:no guard|compound eyes|hustle|victory star|wide lens|zoom lens|bright powder|lax incense|gravity|lock-on|mind reader|thunder.*rain|hurricane.*rain|blizzard.*snow|ohko).*\b(?:hit|accuracy|applied|guaranteed)\b",
         r"\b100%.*(?:damage|bypass.*immunity|ignore.*immunity)\b",
         r"\b(?:leftovers|big root|synthesis.*(?:rain|sun|weather)|rest.*sleep|wish.*next turn|strength sap.*attack|expected healing|healing.*(?:accuracy|hit chance))\b",
+        r"\b(?:previous damage|damage taken).*(?:infer|estimated|was|must have been)\b",
+        r"\b(?:move category|physical|special).*(?:infer|estimated|must have been)\b",
+        r"\b(?:same.turn|priority).*(?:counter|mirror coat|metal burst).*(?:success|works|activate)\b",
+        r"\b(?:bide|shell trap|focus punch|substitute|focus sash|sturdy)\b",
+        r"\b(?:indirect|status|recoil).*(?:counter|mirror coat|metal burst|previous damage)\b",
+        r"\b(?:ability immunity|ability.*immunity).*(?:override|bypass|ignore)\b",
     )
     if any(re.search(pattern, advice, re.IGNORECASE) for pattern in forbidden):
         return "deterministic-results semantic boundary violation"
