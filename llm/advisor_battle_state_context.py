@@ -282,6 +282,7 @@ MOVE_ORDER_CALCULATION_SCOPE = "priority-stage-speed-tailwind-trick-room-only"
 HIT_CHANCE_CALCULATION_SCOPE = "move-accuracy-and-stages-only"
 DRAIN_RECOIL_CALCULATION_SCOPE = "damage-dealt-proportional-drain-recoil-only"
 MULTI_HIT_CALCULATION_SCOPE = "generic-multi-hit-damage-only"
+MULTI_HIT_DRAIN_RECOIL_SCOPE = "generic-multi-hit-damage-proportional-drain-recoil-only"
 _UNSUPPORTED_MULTI_HIT_MOVES = frozenset({"population-bomb", "triple-axel", "triple-kick", "beat-up", "dragon-darts", "surging-strikes", "tachyon-cutter"})
 _UNSUPPORTED_PROPORTIONAL_RECOIL_MOVES = frozenset({"struggle", "mind-blown", "steel-beam", "chloroblast", "high-jump-kick", "jump-kick"})
 EFFECTIVE_STAT_EXCLUDED_MODIFIERS = (
@@ -880,6 +881,8 @@ def build_drain_recoil_assessment(
     """Apply only ordinary metadata drain/recoil to actual capped damage rolls."""
     if not isinstance(selected_move, Mapping) or not isinstance(selected_move.get("move_id"), str):
         return None
+    if isinstance(selected_move.get("min_hits"), int) and selected_move.get("min_hits", 1) >= 2:
+        return None
     drain = selected_move.get("drain")
     if drain is None or drain == 0:
         return None
@@ -947,6 +950,38 @@ def build_multi_hit_assessment(damage_estimate: Mapping[str, Any] | None, select
     return result
 
 
+def build_multi_hit_drain_recoil_assessment(damage_estimate: Mapping[str, Any] | None, selected_move: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or not isinstance(selected_move.get("move_id"), str): return None
+    drain, minimum, maximum = selected_move.get("drain"), selected_move.get("min_hits"), selected_move.get("max_hits")
+    if drain in {None, 0} or not isinstance(minimum, int) or not isinstance(maximum, int) or minimum < 2: return None
+    base = {"move": selected_move["move_id"], "scope": MULTI_HIT_DRAIN_RECOIL_SCOPE}
+    if isinstance(drain, bool) or not isinstance(drain, int) or selected_move["move_id"] in _UNSUPPORTED_MULTI_HIT_MOVES | _UNSUPPORTED_PROPORTIONAL_RECOIL_MOVES:
+        return {**base, "calculation_status": "unavailable", "reason": "unsupported_multi_hit_drain_recoil_rule"}
+    rolls = _damage_rolls_from_estimate(damage_estimate) if isinstance(damage_estimate, Mapping) and damage_estimate.get("calculation_status") == "resolved" else None
+    hp_entries = (current_hp_context or {}).get("current_hp", []) if isinstance(current_hp_context, Mapping) else []
+    hp_by_side = {entry.get("side"): entry for entry in hp_entries if isinstance(entry, Mapping)}
+    defender = hp_by_side.get("opponent")
+    if not isinstance(defender, Mapping) or not isinstance(defender.get("current_hp"), int): return {**base, "calculation_status": "unavailable", "reason": "missing_defender_current_hp_for_effect_amount"}
+    if defender["current_hp"] == 0: return {**base, "calculation_status": "not_applicable", "reason": "target_already_fainted"}
+    if rolls is None: return {**base, "calculation_status": "unavailable", "reason": "missing_damage_rolls"}
+    outcomes: Counter[int] = Counter()
+    weights = {2:3,3:3,4:1,5:1} if (minimum, maximum)==(2,5) else {minimum:1}
+    for hits in range(minimum, maximum+1):
+        if hits not in weights: continue
+        dist = Counter({0:1})
+        for _ in range(hits): dist = _convolve(dist, rolls)
+        for total,count in dist.items(): outcomes[min(total, defender["current_hp"])] += count * weights[hits]
+    amounts = Counter({actual * abs(drain)//100: 0 for actual in outcomes})
+    for actual,count in outcomes.items(): amounts[actual * abs(drain)//100] += count
+    result: dict[str, Any] = {**base,"calculation_status":"resolved","hit_count_type":"fixed" if minimum==maximum else "variable","effect":"drain" if drain>0 else "recoil","percent":abs(drain),"actual_damage_range":{"minimum":min(outcomes),"maximum":max(outcomes)},"effect_amount_range":{"minimum":min(amounts),"maximum":max(amounts)}}
+    attacker=hp_by_side.get("self")
+    if drain>0 and isinstance(attacker,Mapping) and isinstance(attacker.get("current_hp"),int) and isinstance(attacker.get("maximum_hp"),int):
+        cap=attacker["maximum_hp"]-attacker["current_hp"]; healed=[min(amount,cap) for amount in amounts]; result["actual_healing_range"]={"minimum":min(healed),"maximum":max(healed)}
+    if drain<0 and isinstance(attacker,Mapping) and isinstance(attacker.get("current_hp"),int):
+        ko=sum(count for amount,count in amounts.items() if amount>=attacker["current_hp"]); total=sum(amounts.values()); result.update({"recoil_ko_numerator":ko,"recoil_ko_denominator":total,"recoil_ko_status":"guaranteed_recoil_ko" if ko==total else "possible_recoil_ko" if ko else "no_recoil_ko"})
+    return result
+
+
 def _convolve(values: Counter[int], rolls: Sequence[int]) -> Counter[int]:
     result: Counter[int] = Counter()
     for total, count in values.items():
@@ -998,6 +1033,8 @@ def build_deterministic_calculation_context(
         result["drain_recoil_assessment"] = drain_recoil
     multi_hit = build_multi_hit_assessment(primary_estimate, selected_move, current_hp_context)
     if multi_hit is not None: result["multi_hit_assessment"] = multi_hit
+    combined = build_multi_hit_drain_recoil_assessment(primary_estimate, selected_move, current_hp_context)
+    if combined is not None: result["multi_hit_drain_recoil_assessment"] = combined
     return result
 
 

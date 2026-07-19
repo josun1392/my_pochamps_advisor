@@ -1,5 +1,13 @@
 # Master Ball Advisor — Progress
 
+## v13.12 - Multi-Hit Drain And Recoil
+
+Result:
+- Added capped multi-hit actual damage, proportional drain/recoil, healing cap,
+  and recoil KO outcomes with fixed/variable weighted distributions.
+
+---
+
 ## v13.11 - Deterministic Multi-Hit Damage And KO
 
 Result:
