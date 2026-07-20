@@ -1,5 +1,12 @@
 # Advisor Payload Contract
 
+## v14.13 semantic completion diagnosis
+
+A resolved candidate cannot claim missing/unavailable/incomplete partial
+context. That contradiction is retained as sanitized
+`claim_evidence_contradiction`; exact-set, slot, and alternative validation
+remain unchanged.
+
 ## v14.12 single-call smoke result
 
 The one-call structured smoke completed as sanitized

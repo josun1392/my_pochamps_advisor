@@ -1,5 +1,14 @@
 # Master Ball Advisor — Progress
 
+## v14.13 - Semantic Completion Diagnosis
+
+- Diagnosed v14.12 as `claim_evidence_contradiction`: a resolved candidate
+  carried a partial-context missing-evidence claim. This is a legitimate
+  semantic failure, not a local decoder or schema defect.
+- Retained production validation and added precise sanitized offline diagnosis.
+  Provider calls in v14.13: 0. Next: v14.14 structured prompt/schema semantic
+  guidance stabilization; legacy replacement remains unauthorized.
+
 ## v14.12 - Single-Call Structured Gemini Smoke
 
 - Runtime dotenv loading made the credential available to the application and

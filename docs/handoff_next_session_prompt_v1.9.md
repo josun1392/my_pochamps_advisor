@@ -1,5 +1,12 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.13 closure
+
+The v14.12 failure was a legitimate `claim_evidence_contradiction` for a
+resolved candidate, not a local decoder defect. Production behavior remains
+strict; v14.13 made zero provider calls. Next: v14.14 prompt/schema semantic
+guidance stabilization. Legacy replacement remains unauthorized.
+
 ## v14.12 closure
 
 Runtime dotenv loading enabled one authorized structured Gemini call. It ended
