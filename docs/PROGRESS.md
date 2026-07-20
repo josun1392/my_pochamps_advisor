@@ -1,5 +1,23 @@
 # Master Ball Advisor — Progress
 
+## v14.8 - Offline Provider Cycle and Presentation Model
+
+- Added a pure offline recommendation-cycle composition of UI preparation, an
+  injected fake-provider adapter, and offline response completion. Non-ready
+  preparation blocks provider execution; provider and semantic failures retain
+  deterministic evidence with sanitized errors and no raw response.
+- Added a UI-neutral presentation mapper for validated completed-cycle results.
+  It preserves ordered candidate summaries but excludes provider, repository,
+  UI, raw-response, secret, traceback, network, and token-log objects.
+- The legacy selected-move provider/UI path is unchanged. No actual Gemini,
+  provider/network integration, or recommendation UI rendering is wired.
+- Validation: 17 v14.8 tests; 27 v14.6/v14.7, 53 v14.3/v14.4/v14.5, 28
+  candidate, 52 registry, and 1283 related regression tests; full suite 2576
+  passed, 2 deselected.
+- Next: v14.9: actual-provider and validated-UI integration readiness review
+  with explicit T1 decision gate. No actual provider or UI wiring is authorized
+  automatically.
+
 ## v14.7 - Offline Provider Adapters
 
 - Added pure seven-field provider payload construction, structured decoded

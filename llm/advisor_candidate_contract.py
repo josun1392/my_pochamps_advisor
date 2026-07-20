@@ -605,3 +605,103 @@ def run_offline_recommendation_provider_adapter(*, prepared_cycle: Mapping[str, 
     if "status" in adapted and "errors" in adapted:
         return {"status": "provider_response_validation_failed", "prepared_cycle": deepcopy(dict(prepared_cycle)), "response_payload": None, "errors": ["provider_response_validation_failed"]}
     return {"status": "provider_response_ready", "prepared_cycle": deepcopy(dict(prepared_cycle)), "response_payload": deepcopy(adapted), "errors": []}
+
+
+def run_offline_recommendation_cycle(*, selected_moves: Sequence[Any], battle_input: Mapping[str, Any], move_repository: Any, fake_provider: Any) -> dict[str, Any]:
+    """Compose the existing pure UI, fake-provider, and response boundaries."""
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=selected_moves,
+        battle_input=battle_input,
+        move_repository=move_repository,
+    )
+    if prepared.get("status") != "ready":
+        return {
+            "status": "preparation_not_ready",
+            "prepared_cycle": deepcopy(prepared),
+            "provider_stage": None,
+            "completed_cycle": None,
+            "errors": ["preparation_not_ready"],
+        }
+    provider_stage = run_offline_recommendation_provider_adapter(
+        prepared_cycle=prepared,
+        fake_provider=fake_provider,
+    )
+    if provider_stage.get("status") != "provider_response_ready":
+        return {
+            "status": provider_stage.get("status", "provider_response_validation_failed"),
+            "prepared_cycle": deepcopy(prepared),
+            "provider_stage": deepcopy(provider_stage),
+            "completed_cycle": None,
+            "errors": list(provider_stage.get("errors", ["provider_response_validation_failed"])),
+        }
+    completed = complete_recommendation_cycle(
+        prepared_cycle=prepared,
+        response_payload=provider_stage["response_payload"],
+    )
+    return {
+        "status": completed["status"],
+        "prepared_cycle": deepcopy(prepared),
+        "provider_stage": deepcopy(provider_stage),
+        "completed_cycle": deepcopy(completed),
+        "errors": list(completed.get("errors", ())),
+    }
+
+
+def build_recommendation_presentation_model(*, completed_cycle: Mapping[str, Any]) -> dict[str, Any]:
+    """Build a copied UI-neutral model from a validated completion only."""
+    empty = {
+        "status": "validation_failed",
+        "recommended_move": None,
+        "recommended_slot_index": None,
+        "primary_reasons": [],
+        "risks": [],
+        "alternatives": [],
+        "candidate_summaries": [],
+        "errors": ["invalid_completed_cycle"],
+    }
+    if not isinstance(completed_cycle, Mapping):
+        return empty
+    try:
+        candidates = serialize_recommendation_request(deepcopy(list(completed_cycle.get("candidates", ()))))
+    except (TypeError, ValueError):
+        return empty
+    errors = completed_cycle.get("errors", ())
+    sanitized_errors = [error for error in errors if isinstance(error, str)] if isinstance(errors, Sequence) and not isinstance(errors, (str, bytes)) else []
+    result = completed_cycle.get("recommendation_result")
+    if completed_cycle.get("status") not in {"resolved", "insufficient_context", "no_usable_candidate"} or not isinstance(result, Mapping):
+        return {
+            **empty,
+            "candidate_summaries": deepcopy(candidates),
+            "errors": sanitized_errors or ["response_validation_failed"],
+        }
+    required = {"status", "recommended_move", "recommended_slot_index", "primary_reasons", "risks", "alternatives", "errors"}
+    if not required <= set(result) or result.get("status") != completed_cycle.get("status"):
+        return {
+            **empty,
+            "candidate_summaries": deepcopy(candidates),
+            "errors": sanitized_errors or ["response_validation_failed"],
+        }
+    try:
+        approved = serialize_recommendation_request({key: deepcopy(result[key]) for key in required})
+    except (TypeError, ValueError):
+        return {
+            **empty,
+            "candidate_summaries": deepcopy(candidates),
+            "errors": ["response_validation_failed"],
+        }
+    if not all(isinstance(approved[key], list) for key in ("primary_reasons", "risks", "alternatives", "errors")):
+        return {
+            **empty,
+            "candidate_summaries": deepcopy(candidates),
+            "errors": ["response_validation_failed"],
+        }
+    return {
+        "status": approved["status"],
+        "recommended_move": approved["recommended_move"],
+        "recommended_slot_index": approved["recommended_slot_index"],
+        "primary_reasons": deepcopy(approved["primary_reasons"]),
+        "risks": deepcopy(approved["risks"]),
+        "alternatives": deepcopy(approved["alternatives"]),
+        "candidate_summaries": deepcopy(candidates),
+        "errors": deepcopy(approved["errors"]),
+    }

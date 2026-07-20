@@ -1,5 +1,21 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.8 closure
+
+The pure offline recommendation cycle now composes UI preparation, the
+injected fake-provider boundary, and offline completion. Preparation failure
+blocks provider execution; provider and response-validation failures preserve
+sanitized deterministic evidence and retain no raw response. The pure
+presentation model accepts only completed-cycle mappings and exposes no
+provider, repository, UI, or secret-bearing object. The legacy selected-move
+provider/UI path remains unchanged; no actual Gemini/provider/network
+integration or recommendation UI rendering exists. Validation: 2576 passed,
+2 deselected.
+
+Next: v14.9: actual-provider and validated-UI integration readiness review
+with explicit T1 decision gate. No actual provider or UI wiring is authorized
+automatically.
+
 ## v14.7 closure
 
 Pure seven-field provider payload, decoded structured response, and injected

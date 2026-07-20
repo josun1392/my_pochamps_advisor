@@ -1,5 +1,20 @@
 # Advisor Payload Contract
 
+## v14.8 offline provider cycle and presentation model
+
+`run_offline_recommendation_cycle` composes the existing UI preparation,
+injected fake-provider adapter, and offline completion contracts without
+network access. A non-ready preparation never invokes the provider. Provider
+failures preserve prepared deterministic evidence; parser/semantic failures
+preserve a sanitized completed failure and never retain raw provider output.
+
+`build_recommendation_presentation_model` accepts only completed-cycle
+mappings. It copies validated fields for `resolved`, `insufficient_context`,
+and `no_usable_candidate`; failure maps omit the recommended pair while
+retaining ordered candidate summaries and sanitized errors. Presentation output
+contains no provider, repository, UI, secret, raw-response, traceback, network,
+or token-log object. No actual provider/UI integration is wired.
+
 ## v14.7 offline provider adapters
 
 Ready prepared cycles produce only the seven approved serialized request fields.
