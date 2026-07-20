@@ -135,6 +135,19 @@ def _structured_provider_schema() -> dict[str, Any]:
     }
 
 
+def _normalized_structured_usage(*, usage_data: Any, model: str) -> dict[str, int | str | bool | None]:
+    counters = {}
+    invalid = not isinstance(usage_data, Mapping)
+    for target, source in (("input_tokens", "promptTokenCount"), ("output_tokens", "candidatesTokenCount"), ("cached_tokens", "cachedContentTokenCount")):
+        value = usage_data.get(source) if isinstance(usage_data, Mapping) else None
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            counters[target] = value
+        else:
+            counters[target] = 0
+            invalid = True
+    return {**counters, "model": model, "tool": "structured_recommendation", "success": True, "failure_code": "provider_usage_unavailable" if invalid else None}
+
+
 def call_structured_recommendation_provider(*, provider_payload: Mapping[str, Any], model: str) -> tuple[dict[str, Any], dict[str, int | str]]:
     """Make one structured REST request and return only decoded provider-neutral data."""
     if not isinstance(provider_payload, Mapping) or set(provider_payload) != set(_STRUCTURED_PROVIDER_PAYLOAD_KEYS):
@@ -184,16 +197,9 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         decoded = json.loads(text)
     except (TypeError, ValueError):
         raise StructuredProviderError("provider_structured_decode_failed") from None
-    if not isinstance(decoded, dict):
+    if not isinstance(decoded, dict) or set(decoded) != set(_STRUCTURED_RESPONSE_KEYS):
         raise StructuredProviderError("provider_response_malformed")
-    usage_data = body.get("usageMetadata")
-    usage = {
-        "input_tokens": int(usage_data.get("promptTokenCount", 0)) if isinstance(usage_data, Mapping) else 0,
-        "output_tokens": int(usage_data.get("candidatesTokenCount", 0)) if isinstance(usage_data, Mapping) else 0,
-        "cached_tokens": int(usage_data.get("cachedContentTokenCount", 0)) if isinstance(usage_data, Mapping) else 0,
-        "model": model,
-        "usage_status": "available" if isinstance(usage_data, Mapping) else "provider_usage_unavailable",
-    }
+    usage = _normalized_structured_usage(usage_data=body.get("usageMetadata"), model=model)
     return deepcopy(decoded), usage
 
 
@@ -202,6 +208,8 @@ def format_recommendation_presentation_text(*, presentation_model: Mapping[str, 
     if not isinstance(presentation_model, Mapping):
         return "추천 응답 검증에 실패했습니다."
     status = presentation_model.get("status")
+    if status == "preparation_not_ready":
+        return "추천을 확정할 정보가 부족합니다."
     if status == "resolved":
         lines = [f"추천 기술: {presentation_model.get('recommended_move')}", f"슬롯: {presentation_model.get('recommended_slot_index')}"]
         for label, key in (("주요 이유", "primary_reasons"), ("위험 요소", "risks"), ("대안", "alternatives"), ("후보 요약", "candidate_summaries")):

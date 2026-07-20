@@ -926,8 +926,9 @@ class MainWindow(QMainWindow):
         if not isinstance(result, dict):
             panel.set_error("추천 응답 검증에 실패했습니다.")
             return
-        panel.set_advice_text(format_recommendation_presentation_text(presentation_model=result.get("presentation_model", {})))
-        self.statusBar().showMessage(f"Structured recommendation | {result.get('status', 'validation_failed')}")
+        text = format_recommendation_presentation_text(presentation_model=result.get("presentation_model", {}))
+        panel.set_advice_text(text)
+        self.statusBar().showMessage("Structured recommendation complete")
 
     @Slot(str)
     def _on_structured_recommendation_failed(self, message: str) -> None:

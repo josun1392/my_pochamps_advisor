@@ -1,5 +1,13 @@
 # Advisor Payload Contract
 
+## v14.10 structured stabilization
+
+Structured response decoding accepts only a valid decoded six-field mapping.
+Missing candidates/content, invalid/fenced/array JSON, unknown fields, safety,
+HTTP, timeout, and network outcomes are sanitized without retaining raw body.
+Usage is separate and allowlisted; logging stays disabled by default. One call
+maximum and no retry/fallback/repair/legacy fallback remain mandatory.
+
 ## v14.9 structured recommendation coexistence
 
 The separate structured path accepts only the seven approved request fields,

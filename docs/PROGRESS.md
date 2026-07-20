@@ -1,5 +1,18 @@
 # Master Ball Advisor — Progress
 
+## v14.10 - Structured Recommendation Stabilization
+
+- Hardened structured decoding and usage normalization with sanitized handling
+  for missing/malformed/safety/network/timeout outcomes and strict six-field
+  response allowlisting.
+- Stabilized structured worker/button lifecycle, validated formatting, single
+  call/no-retry security boundaries, and legacy/structured separation.
+- Validation: 39 structured tests, 30 v14.6-v14.8 regressions, 1355 related
+  tests, and 2615 passed with 2 deselected. Credential availability was
+  unavailable; smoke call count was 0.
+- Next: v14.11: user-facing structured recommendation validation and
+  coexistence UX review. Legacy replacement remains unauthorized.
+
 ## v14.9 - Structured Recommendation Coexistence
 
 - T1 selected coexistence: the legacy selected-move freeform action remains

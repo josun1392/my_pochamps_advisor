@@ -1,5 +1,15 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.10 closure
+
+Structured decoding, usage normalization, worker lifecycle, UI coexistence,
+validated formatting, and single-call security boundaries are stabilized.
+Offline validation passed 2615 tests with 2 deselected. Credentials were
+unavailable at the smoke gate, so actual call count was 0; no protected log,
+raw response, request, or secret was exposed. Next: v14.11 user-facing
+structured recommendation validation and coexistence UX review. Legacy
+replacement remains unauthorized.
+
 ## v14.9 closure
 
 T1-approved coexistence now provides a separate structured recommendation
