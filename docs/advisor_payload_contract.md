@@ -1,5 +1,15 @@
 # Advisor Payload Contract
 
+## v14.16 fixed-fixture evaluation
+
+The pure fixed-fixture runner reuses UI preparation, six-field response
+adaptation, semantic completion, and presentation mapping. It records only
+sanitized statuses, exact pair outcomes, failure codes, and aggregate counts.
+Blocked preparation never invokes the adapter. Claim guidance now makes the
+exact supported `kind`/`claim` object shape and non-empty claim requirement
+explicit; the seven-field payload, six-field response, and validator are not
+broadened.
+
 ## v14.15 three-fixture validation
 
 The resolved fixture admitted an exact selectable `hyper-beam` / slot 1 pair.

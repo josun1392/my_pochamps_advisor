@@ -1,5 +1,16 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.16 closure
+
+A pure ten-fixture catalog and reusable evaluator now exercise preparation,
+decoded response shape, completion, presentation, exact pair validation, claim
+grounding, evidence preservation, provider blocking, and aggregate metrics.
+It makes no provider calls and does not claim reliability. Claim guidance now
+states the exact supported `kind`/`claim` structure; validation is unchanged.
+
+Next: v14.17 T1-authorized broader provider evaluation using the fixed-fixture
+catalog. Actual provider call count and fixture subset require explicit approval.
+
 ## v14.15 closure
 
 Two of three authorized structured calls were made. The resolved fixture

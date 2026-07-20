@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v14.16 - Fixed-Fixture Evaluation Framework
+
+- Added a pure, versioned ten-fixture catalog and evaluator that reuse existing
+  preparation, response-adaptation, completion, and presentation boundaries.
+- Provider-blocked fixtures stop before response adaptation. Aggregate metrics
+  cover preparation, decode, semantic, expected-status, exact-pair, and
+  sanitized-failure outcomes without a reliability claim.
+- Guidance now explicitly requires each claim/risk to use the supported exact
+  `kind`/`claim` shape with non-empty text; validation remains unchanged.
+- Next: v14.17 T1-authorized broader provider evaluation using the fixed-fixture
+  catalog. Actual provider count and fixture subset require explicit approval.
+
 ## v14.15 - Three-Fixture Structured Gemini Validation
 
 - T1 authorized at most three calls. Two were made: the resolved fixture

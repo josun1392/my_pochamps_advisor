@@ -114,7 +114,7 @@ _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Return only the declared JSON shape. A resolved recommendation must use a selectable exact move and slot pair. "
     "Ground reasons and risks in candidate comparisons, warnings, unavailable reasons, and known limitations. "
     "Never use partial_context for evidence already resolved; do not turn global limitations into candidate-specific missing evidence. "
-    "Use partial_context only for an actually unavailable or incomplete field. Alternatives require selectable exact move+slot pairs and reasons. "
+    "Use partial_context only for an actually unavailable or incomplete field. Each reason or risk must be exactly a kind/claim object: use only the supported claim kinds and a non-empty claim string. Alternatives require selectable exact move+slot pairs and reasons. "
     "Do not invent EVs, IVs, nature, items, abilities, opponent moves, or final stats. Use insufficient_context when evidence is insufficient and no_usable_candidate when none is selectable."
 )
 
