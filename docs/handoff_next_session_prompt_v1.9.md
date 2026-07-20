@@ -1,5 +1,17 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.15 closure
+
+Two of three authorized structured calls were made. The resolved fixture
+validated `hyper-beam` / slot 1. The insufficient-context fixture reached
+completion but failed with sanitized `invalid_claim` and no recommendation
+pair. The no-usable fixture was correctly blocked by
+`no_selectable_candidates`, so no third call was made. The validator, payload
+shapes, and legacy path remain unchanged; raw provider data was not retained.
+
+Next: v14.16 structured claim-guidance refinement and fixed-fixture evaluation
+design. Further actual provider calls require explicit T1 authorization.
+
 ## v14.14 closure
 
 Structured provider guidance and schema descriptions now reinforce grounded

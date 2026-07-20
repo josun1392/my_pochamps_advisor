@@ -1,5 +1,15 @@
 # Advisor Payload Contract
 
+## v14.15 three-fixture validation
+
+The resolved fixture admitted an exact selectable `hyper-beam` / slot 1 pair.
+The insufficient-context fixture produced sanitized `invalid_claim` at the
+first claim-structure allowlist rule; it admitted no pair. A no-usable fixture
+with zero selectable candidates was blocked before provider use. These outcomes
+do not alter the seven-field payload, six-field response, exact-set checks, or
+claim validator. Across the sample there were two calls, no retry/fallback/
+repair, and no raw request/response persistence or display.
+
 ## v14.14 semantic guidance
 
 Provider guidance forbids partial-context claims for resolved evidence and

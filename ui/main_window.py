@@ -787,7 +787,7 @@ class MainWindow(QMainWindow):
             return
 
         panel = self.center_column.llm_advice_panel
-        self._advice_request_sequence += 1
+        self._advice_request_sequence = getattr(self, "_advice_request_sequence", 0) + 1
         self._active_advice_owner = "legacy"
         enable_turn_pipeline = panel.turn_pipeline_enabled()
         enable_turn_order_context = enable_turn_pipeline

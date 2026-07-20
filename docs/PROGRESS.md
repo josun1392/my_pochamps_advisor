@@ -1,5 +1,19 @@
 # Master Ball Advisor — Progress
 
+## v14.15 - Three-Fixture Structured Gemini Validation
+
+- T1 authorized at most three calls. Two were made: the resolved fixture
+  validated `hyper-beam` / slot 1; the insufficient-context fixture reached
+  semantic validation but failed as sanitized `invalid_claim` without a pair.
+- The no-usable fixture had two non-selectable candidates and was correctly
+  blocked by pure preparation, so no third call was made or substituted.
+- Aggregate sanitized usage: 1,183 input, 134 output, 0 cached; no retry,
+  fallback, repair, or legacy fallback. The strict validator and legacy flow
+  remain unchanged. Offline regression coverage was added; this is a small
+  diagnostic sample, not a reliability claim.
+- Next: v14.16 structured claim-guidance refinement and fixed-fixture evaluation
+  design. Further actual provider calls require explicit T1 authorization.
+
 ## v14.14 - Semantic Guidance Stabilization
 
 - Strengthened provider-only instructions and schema descriptions for grounded
