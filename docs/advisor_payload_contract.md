@@ -1,5 +1,13 @@
 # Advisor Payload Contract
 
+## v14.7 offline provider adapters
+
+Ready prepared cycles produce only the seven approved serialized request fields.
+Decoded structured responses accept only the three provider-neutral statuses;
+`validation_failed` remains local-only. Fake-provider failures preserve copied
+evidence and never retain raw response data. No actual provider/network/UI
+integration is wired.
+
 ## v14.6 offline UI preparation
 
 The pure UI preparation adapter retains all ordered move slots, copies only

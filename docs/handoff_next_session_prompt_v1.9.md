@@ -1,5 +1,14 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.7 closure
+
+Pure seven-field provider payload, decoded structured response, and injected
+fake-provider adapters now preserve deterministic prepared evidence on
+sanitized failures without raw response retention, retries, or fallback. The
+legacy selected-move provider/UI path remains unchanged. Next: v14.8: offline
+provider-cycle completion integration design and contract audit. Actual provider
+invocation and recommendation UI rendering remain unauthorized.
+
 ## v14.6 closure
 
 Pure ordered UI move-slot and trusted snapshot adapters now prepare offline

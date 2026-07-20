@@ -538,3 +538,70 @@ def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_inp
         moves=moves, battle_snapshot=snapshot, repositories=move_repository,
         battle_snapshot_summary=summary, known_limitations=_ui_known_limitations(battle_input),
     )
+
+
+_PROVIDER_OUTBOUND_KEYS = (
+    "request_version", "battle_snapshot_summary", "candidate_exact_set", "selectable_candidate_exact_set",
+    "candidate_comparisons", "known_limitations", "guardrails",
+)
+_PROVIDER_RESPONSE_KEYS = (
+    "recommendation_status", "recommended_move", "recommended_slot_index", "primary_reasons", "risks", "alternatives",
+)
+_PROVIDER_RESPONSE_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate"})
+_PREPARED_CYCLE_KEYS = frozenset({"status", "candidates", "evidence_bundle", "recommendation_request", "recommendation_result", "errors"})
+
+
+def _provider_adapter_failure(status: str, code: str) -> dict[str, Any]:
+    return {"status": status, "errors": [code]}
+
+
+def build_provider_recommendation_payload(*, prepared_cycle: Mapping[str, Any]) -> dict[str, Any]:
+    """Build a serialized provider-neutral payload from a ready prepared cycle."""
+    if not isinstance(prepared_cycle, Mapping) or prepared_cycle.get("status") != "ready":
+        return _provider_adapter_failure("prepared_cycle_not_ready", "prepared_cycle_not_ready")
+    if not set(prepared_cycle) <= _PREPARED_CYCLE_KEYS:
+        return _provider_adapter_failure("provider_payload_validation_failed", "provider_payload_validation_failed")
+    request = prepared_cycle.get("recommendation_request")
+    if not isinstance(request, Mapping):
+        return _provider_adapter_failure("provider_payload_validation_failed", "provider_payload_validation_failed")
+    try:
+        if not set(_PROVIDER_OUTBOUND_KEYS) <= set(request):
+            raise ValueError("missing approved request field")
+        serialize_recommendation_request(deepcopy(dict(request)))
+        payload = {key: deepcopy(request[key]) for key in _PROVIDER_OUTBOUND_KEYS}
+        return serialize_recommendation_request(payload)
+    except (TypeError, ValueError):
+        return _provider_adapter_failure("provider_payload_validation_failed", "provider_payload_validation_failed")
+
+
+def adapt_provider_recommendation_response(*, provider_response: Mapping[str, Any]) -> dict[str, Any]:
+    """Copy a provider-independent structured response without semantic evaluation."""
+    if type(provider_response) is not dict:
+        return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
+    if set(provider_response) != set(_PROVIDER_RESPONSE_KEYS):
+        return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
+    if provider_response.get("recommendation_status") not in _PROVIDER_RESPONSE_STATUSES:
+        return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
+    try:
+        return serialize_recommendation_request(deepcopy(provider_response))
+    except (TypeError, ValueError):
+        return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
+
+
+def run_offline_recommendation_provider_adapter(*, prepared_cycle: Mapping[str, Any], fake_provider: Any) -> dict[str, Any]:
+    """Exercise a supplied in-memory provider boundary without network or retry behavior."""
+    payload = build_provider_recommendation_payload(prepared_cycle=prepared_cycle)
+    if "status" in payload and "errors" in payload:
+        return {"status": payload["status"], "prepared_cycle": deepcopy(dict(prepared_cycle)) if isinstance(prepared_cycle, Mapping) else {}, "response_payload": None, "errors": list(payload["errors"])}
+    if not callable(fake_provider):
+        return {"status": "provider_unavailable", "prepared_cycle": deepcopy(dict(prepared_cycle)), "response_payload": None, "errors": ["provider_unavailable"]}
+    try:
+        raw_response = fake_provider(deepcopy(payload))
+    except Exception:
+        return {"status": "provider_unavailable", "prepared_cycle": deepcopy(dict(prepared_cycle)), "response_payload": None, "errors": ["provider_unavailable"]}
+    if type(raw_response) is not dict:
+        return {"status": "provider_response_malformed", "prepared_cycle": deepcopy(dict(prepared_cycle)), "response_payload": None, "errors": ["provider_response_malformed"]}
+    adapted = adapt_provider_recommendation_response(provider_response=raw_response)
+    if "status" in adapted and "errors" in adapted:
+        return {"status": "provider_response_validation_failed", "prepared_cycle": deepcopy(dict(prepared_cycle)), "response_payload": None, "errors": ["provider_response_validation_failed"]}
+    return {"status": "provider_response_ready", "prepared_cycle": deepcopy(dict(prepared_cycle)), "response_payload": deepcopy(adapted), "errors": []}

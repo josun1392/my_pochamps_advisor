@@ -1,5 +1,16 @@
 # Master Ball Advisor — Progress
 
+## v14.7 - Offline Provider Adapters
+
+- Added pure seven-field provider payload construction, structured decoded
+  response adaptation, and an injected fake-provider boundary. Failures retain
+  deterministic prepared evidence and expose sanitized status only.
+- Raw responses, retries/fallback, provider/network calls, and UI wiring remain
+  excluded; the legacy selected-move provider/UI flow is unchanged.
+- Next: v14.8: offline provider-cycle completion integration design and contract
+  audit. Actual provider invocation and recommendation UI rendering remain
+  unauthorized.
+
 ## v14.6 - Offline UI Preparation
 
 - Added pure ordered move-slot and trusted battle-snapshot adapters plus offline
