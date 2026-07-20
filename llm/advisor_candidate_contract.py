@@ -401,3 +401,60 @@ def parse_recommendation_response(*, request: Mapping[str, Any], response_payloa
     return {"status": status, "recommended_move": move, "recommended_slot_index": slot,
             "primary_reasons": deepcopy(reasons), "risks": deepcopy(risks),
             "alternatives": deepcopy(alternatives), "errors": []}
+
+
+def _cycle_result(*, status: str, candidates: Sequence[Mapping[str, Any]] = (), evidence_bundle: Mapping[str, Any] | None = None, recommendation_request: Mapping[str, Any] | None = None, recommendation_result: Mapping[str, Any] | None = None, errors: Sequence[str] = ()) -> dict[str, Any]:
+    return {
+        "status": status,
+        "candidates": deepcopy(list(candidates)),
+        "evidence_bundle": deepcopy(dict(evidence_bundle)) if isinstance(evidence_bundle, Mapping) else None,
+        "recommendation_request": deepcopy(dict(recommendation_request)) if isinstance(recommendation_request, Mapping) else None,
+        "recommendation_result": deepcopy(dict(recommendation_result)) if isinstance(recommendation_result, Mapping) else None,
+        "errors": list(errors),
+    }
+
+
+def prepare_recommendation_cycle(*, moves: Sequence[Any], battle_snapshot: Mapping[str, Any], repositories: Any, battle_snapshot_summary: Mapping[str, Any] | None = None, known_limitations: Sequence[str] = ()) -> dict[str, Any]:
+    """Prepare a provider-neutral recommendation cycle from deterministic evidence."""
+    if isinstance(moves, (str, bytes)) or not isinstance(moves, Sequence):
+        return _cycle_result(status="invalid_snapshot", errors=["invalid_move_slots"])
+    if not isinstance(battle_snapshot, Mapping) or (battle_snapshot_summary is not None and not isinstance(battle_snapshot_summary, Mapping)):
+        return _cycle_result(status="invalid_snapshot", errors=["invalid_battle_snapshot"])
+    if isinstance(known_limitations, (str, bytes)) or not isinstance(known_limitations, Sequence) or not all(isinstance(item, str) for item in known_limitations):
+        return _cycle_result(status="invalid_snapshot", errors=["invalid_battle_snapshot"])
+    try:
+        candidates = evaluate_move_slots(moves=moves, battle_snapshot=battle_snapshot, repositories=repositories)
+    except (TypeError, ValueError):
+        return _cycle_result(status="invalid_snapshot", errors=["invalid_move_slots"])
+    except Exception:
+        return _cycle_result(status="candidate_evaluation_failed", errors=["candidate_evaluation_failed"])
+    summary = battle_snapshot if battle_snapshot_summary is None else battle_snapshot_summary
+    try:
+        evidence = build_evidence_bundle(summary, candidates, known_limitations)
+    except (TypeError, ValueError):
+        return _cycle_result(status="request_validation_failed", candidates=candidates, errors=["request_validation_failed"])
+    if not candidates:
+        return _cycle_result(status="no_candidates", candidates=candidates, evidence_bundle=evidence, errors=["no_candidates"])
+    request = build_recommendation_request(evidence_bundle=evidence)
+    readiness = request.get("readiness", {}).get("status") if isinstance(request, Mapping) else None
+    if readiness == "invalid_evidence_bundle":
+        return _cycle_result(status="request_validation_failed", candidates=candidates, evidence_bundle=evidence, errors=["request_validation_failed"])
+    if readiness == "no_selectable_candidates":
+        return _cycle_result(status="no_selectable_candidates", candidates=candidates, evidence_bundle=evidence, errors=["no_selectable_candidates"])
+    if readiness != "ready":
+        return _cycle_result(status="request_validation_failed", candidates=candidates, evidence_bundle=evidence, errors=["request_validation_failed"])
+    return _cycle_result(status="ready", candidates=candidates, evidence_bundle=evidence, recommendation_request=request)
+
+
+def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response_payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Complete a ready provider-neutral cycle through the offline parser only."""
+    if not isinstance(prepared_cycle, Mapping) or prepared_cycle.get("status") != "ready" or not isinstance(prepared_cycle.get("recommendation_request"), Mapping):
+        source = prepared_cycle if isinstance(prepared_cycle, Mapping) else {}
+        return _cycle_result(status="cycle_not_ready", candidates=source.get("candidates", ()), evidence_bundle=source.get("evidence_bundle"), errors=["cycle_not_ready"])
+    candidates = prepared_cycle.get("candidates", ())
+    evidence = prepared_cycle.get("evidence_bundle")
+    request = prepared_cycle["recommendation_request"]
+    result = parse_recommendation_response(request=request, response_payload=response_payload)
+    if result["status"] == "validation_failed":
+        return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=result.get("errors", ["response_validation_failed"]))
+    return _cycle_result(status=result["status"], candidates=candidates, evidence_bundle=evidence, recommendation_request=request, recommendation_result=result)

@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v14.5 - Pure Recommendation Cycle Orchestration
+
+- Added separate provider-neutral prepare and complete boundaries. Preparation
+  composes candidate slots, evidence bundles, and requests; completion reuses
+  the offline response parser.
+- Non-ready cycles block requests; parser failures retain deterministic evidence
+  and return sanitized errors without raw responses or repository objects.
+  The current selected-move provider/UI path remains unchanged.
+- No provider or UI orchestration is implemented. Next: v14.6: provider/UI
+  integration readiness audit and migration design. No actual provider or UI
+  wiring is authorized.
+
 ## v14.4 - Offline Recommendation Response Parser
 
 - Added provider-neutral parsing for structured offline responses, local-only

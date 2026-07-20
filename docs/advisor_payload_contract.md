@@ -1,5 +1,14 @@
 # Advisor Payload Contract
 
+## v14.5 pure recommendation cycle
+
+`prepare_recommendation_cycle` is a provider-neutral composition of candidate
+slots, evidence, and request contracts. `complete_recommendation_cycle` reuses
+the offline response parser. Non-ready cycles have no recommendation request;
+parser failures preserve deterministic evidence and expose only sanitized
+errors. Repository objects and raw responses are not output. The selected-move
+provider/UI path remains unchanged and no provider/UI orchestration is wired.
+
 ## v14.4 offline response parser
 
 Already-decoded offline response mappings are validated against the v14.3

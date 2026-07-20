@@ -1,5 +1,14 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.5 closure
+
+Pure provider-neutral recommendation-cycle preparation and completion now
+compose existing deterministic contracts, block non-ready request use, preserve
+evidence across parser failures, and retain no raw response or repository
+object. The selected-move provider/UI path remains unchanged. Next: v14.6:
+provider/UI integration readiness audit and migration design. No actual provider
+or UI wiring is authorized.
+
 ## v14.4 closure
 
 Offline structured recommendation responses now have exact move-plus-slot and
