@@ -1,5 +1,17 @@
 # Advisor Payload Contract
 
+## v14.3 offline recommendation request
+
+The provider-neutral request retains every candidate's exact move-plus-slot
+identity in `candidate_exact_set` and only eligible/eligible-with-warnings
+pairs in `selectable_candidate_exact_set`. It preserves deterministic
+comparison summaries and known limitations through deep-copy boundaries.
+Readiness is `ready`, `no_candidates`, `no_selectable_candidates`, or
+`invalid_evidence_bundle`; only `ready` may be used as an offline request.
+Serialization is JSON-safe and rejects nested secret-like keys. Provider/UI
+integration, ranking, model/network fields, and raw prompt/response data are
+excluded.
+
 ## v14.2.1 deterministic candidate adapter
 
 Candidate summaries adapt only deterministic production-context outputs. They

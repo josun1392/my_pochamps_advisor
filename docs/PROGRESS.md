@@ -1,5 +1,19 @@
 # Master Ball Advisor — Progress
 
+## v14.3 - Offline Recommendation Request Contract
+
+- Completed provider-neutral request construction over deterministic candidate
+  comparisons: exact move-plus-slot identity, eligibility/readiness, full and
+  selectable exact sets, and known-limitations propagation.
+- Comparison rows preserve deterministic evidence without fabrication;
+  deep-copy boundaries protect snapshots, summaries, effects, warnings,
+  reasons, guardrails, and limitations. JSON-safe serialization rejects nested
+  secret-like keys and unsupported values.
+- Provider/UI invocation, raw prompts/responses, models, network settings,
+  ranking, and automatic winners remain excluded. Next: v14.4: offline
+  recommendation response parser and semantic guardrail contract. No actual
+  provider or UI orchestration is authorized.
+
 ## v14.2.1 - Deterministic Candidate Adapter Repair
 
 - Repository audit found v14.2 candidate evaluation was metadata-only.

@@ -1,5 +1,15 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.3 closure
+
+Offline, provider-neutral recommendation requests now preserve candidate and
+selectable exact move-plus-slot sets, eligibility/readiness, deterministic
+comparison evidence, known limitations, guardrails, immutable copy boundaries,
+and JSON-safe serialization with nested secret-key rejection. No provider or
+UI orchestration is allowed. Next: v14.4: offline recommendation response
+parser and semantic guardrail contract. No actual provider or UI orchestration
+is authorized.
+
 ## v14.2.1 closure
 
 Candidate evaluation now adapts deterministic production results rather than

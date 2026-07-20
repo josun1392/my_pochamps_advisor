@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 from copy import deepcopy
+import math
+
 from llm.advisor_battle_state_context import build_deterministic_calculation_context
 
 CANDIDATE_STATUSES = frozenset({"resolved", "partial", "unavailable"})
@@ -140,3 +142,149 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
 def evaluate_move_slots(*, moves: Sequence[Any], battle_snapshot: Mapping[str, Any], repositories: Any, maximum_slots: int = 4) -> list[dict[str, Any]]:
     if isinstance(moves, (str, bytes)) or not isinstance(moves, Sequence) or len(moves) > maximum_slots: raise ValueError("invalid move slots")
     return [evaluate_move_candidate(slot_index=index, move=move, battle_snapshot=deepcopy(dict(battle_snapshot)), repositories=repositories) for index, move in enumerate(moves) if move is not None]
+
+_RECOMMENDATION_GUARDRAILS = {
+    "select_only_from_selectable_exact_set": True,
+    "do_not_modify_deterministic_evidence": True,
+    "do_not_infer_opponent_moves": True,
+    "do_not_infer_items_abilities_or_stats": True,
+    "do_not_claim_unsupported_mechanics": True,
+}
+_REQUEST_READINESS = frozenset({"ready", "no_candidates", "no_selectable_candidates", "invalid_evidence_bundle"})
+
+
+def _candidate_eligibility(candidate: Mapping[str, Any]) -> str:
+    status, availability = candidate.get("status"), candidate.get("availability")
+    if status == "resolved" and availability == "usable":
+        return "eligible"
+    if status == "partial" and availability in {"usable", "partially_evaluable"}:
+        return "eligible_with_warnings"
+    if status == "unavailable" and availability == "unavailable":
+        return "not_selectable"
+    raise ValueError("invalid candidate eligibility")
+
+
+def _exact_pair(value: Any, *, exact: bool = True) -> dict[str, Any]:
+    if not isinstance(value, Mapping) or not {"slot_index", "move"} <= set(value) or (exact and set(value) != {"slot_index", "move"}):
+        raise ValueError("invalid exact-set entry")
+    if not isinstance(value["slot_index"], int) or isinstance(value["slot_index"], bool) or not 0 <= value["slot_index"] < 4:
+        raise ValueError("invalid exact-set entry")
+    if not isinstance(value["move"], str) or not value["move"]:
+        raise ValueError("invalid exact-set entry")
+    return {"slot_index": value["slot_index"], "move": value["move"]}
+
+
+def _invalid_request() -> dict[str, Any]:
+    return {
+        "request_version": "v14.3",
+        "readiness": {"status": "invalid_evidence_bundle", "selectable_candidate_count": 0},
+        "battle_snapshot_summary": {}, "candidate_exact_set": [],
+        "selectable_candidate_exact_set": [], "candidate_comparisons": [],
+        "known_limitations": [], "guardrails": deepcopy(_RECOMMENDATION_GUARDRAILS),
+    }
+
+
+def _validate_request_contract(request: Mapping[str, Any]) -> None:
+    if not isinstance(request, Mapping) or request.get("request_version") != "v14.3":
+        raise ValueError("invalid recommendation request")
+    readiness = request.get("readiness")
+    if not isinstance(readiness, Mapping) or readiness.get("status") not in _REQUEST_READINESS:
+        raise ValueError("invalid recommendation request")
+    if request.get("guardrails") != _RECOMMENDATION_GUARDRAILS:
+        raise ValueError("invalid recommendation request")
+    candidate_set, selectable_set, comparisons = request.get("candidate_exact_set"), request.get("selectable_candidate_exact_set"), request.get("candidate_comparisons")
+    if not isinstance(candidate_set, list) or not isinstance(selectable_set, list) or not isinstance(comparisons, list):
+        raise ValueError("invalid recommendation request")
+    pairs = [_exact_pair(value) for value in candidate_set]
+    if len({pair["slot_index"] for pair in pairs}) != len(pairs):
+        raise ValueError("invalid recommendation request")
+    selectable = [_exact_pair(value) for value in selectable_set]
+    if any(pair not in pairs for pair in selectable) or len({pair["slot_index"] for pair in selectable}) != len(selectable):
+        raise ValueError("invalid recommendation request")
+    if len(comparisons) != len(pairs):
+        raise ValueError("invalid recommendation request")
+    expected_selectable = []
+    for pair, row in zip(pairs, comparisons, strict=True):
+        if not isinstance(row, Mapping) or _exact_pair(row, exact=False) != pair:
+            raise ValueError("invalid recommendation request")
+        eligibility = _candidate_eligibility(row)
+        if row.get("eligibility") != eligibility:
+            raise ValueError("invalid recommendation request")
+        if eligibility != "not_selectable":
+            expected_selectable.append(pair)
+    if selectable != expected_selectable:
+        raise ValueError("invalid recommendation request")
+    expected_status = "no_candidates" if not pairs else "ready" if selectable else "no_selectable_candidates"
+    if readiness.get("status") != expected_status or readiness.get("selectable_candidate_count") != len(selectable):
+        raise ValueError("invalid recommendation request")
+
+
+def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(evidence_bundle, Mapping):
+        return _invalid_request()
+    candidates = evidence_bundle.get("candidates")
+    limitations = evidence_bundle.get("known_limitations")
+    snapshot = evidence_bundle.get("battle_snapshot_summary")
+    if not isinstance(candidates, list) or not isinstance(limitations, list) or not isinstance(snapshot, Mapping):
+        return _invalid_request()
+    try:
+        comparisons = []
+        pairs = []
+        for candidate in candidates:
+            normalized = validate_candidate(candidate)
+            pair = _exact_pair(normalized, exact=False)
+            if pair["slot_index"] in {existing["slot_index"] for existing in pairs}:
+                raise ValueError("duplicate slot index")
+            eligibility = _candidate_eligibility(normalized)
+            comparisons.append({**deepcopy(normalized), "eligibility": eligibility})
+            pairs.append(pair)
+        if not all(isinstance(item, str) for item in limitations):
+            raise ValueError("invalid known limitations")
+    except (TypeError, ValueError):
+        return _invalid_request()
+    selectable = [deepcopy(pair) for pair, row in zip(pairs, comparisons, strict=True) if row["eligibility"] != "not_selectable"]
+    readiness = "no_candidates" if not pairs else "ready" if selectable else "no_selectable_candidates"
+    return {
+        "request_version": "v14.3",
+        "readiness": {"status": readiness, "selectable_candidate_count": len(selectable)},
+        "battle_snapshot_summary": deepcopy(dict(snapshot)),
+        "candidate_exact_set": deepcopy(pairs),
+        "selectable_candidate_exact_set": selectable,
+        "candidate_comparisons": comparisons,
+        "known_limitations": deepcopy(limitations),
+        "guardrails": deepcopy(_RECOMMENDATION_GUARDRAILS),
+    }
+
+
+def validate_recommendation_selection(*, request: Mapping[str, Any], recommended_move: str, recommended_slot_index: int) -> dict[str, Any]:
+    _validate_request_contract(request)
+    if request["readiness"]["status"] != "ready":
+        raise ValueError("request not ready")
+    pair = {"move": recommended_move, "slot_index": recommended_slot_index}
+    if pair not in request["selectable_candidate_exact_set"]:
+        raise ValueError("selection outside selectable exact-set")
+    return deepcopy(pair)
+
+
+def serialize_recommendation_request(request: Mapping[str, Any]) -> dict[str, Any]:
+    banned = {"apikey", "token", "accesstoken", "refreshtoken", "authorization", "credential", "credentials", "providersecret", "clientsecret", "rawresponse", "rawproviderresponse", "traceback", "stacktrace"}
+
+    def clean(value: Any) -> Any:
+        if type(value) is dict:
+            result = {}
+            for key, item in value.items():
+                if type(key) is not str or key.lower().replace("_", "").replace("-", "") in banned:
+                    raise ValueError("unsafe request field")
+                result[key] = clean(item)
+            return result
+        if type(value) is list:
+            return [clean(item) for item in value]
+        if type(value) is float:
+            if not math.isfinite(value):
+                raise ValueError("non-json-safe value")
+            return value
+        if value is None or type(value) in {str, int, bool}:
+            return value
+        raise ValueError("non-json-safe value")
+
+    return clean(request)
