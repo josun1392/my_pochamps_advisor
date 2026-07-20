@@ -1,5 +1,16 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.2.1 closure
+
+Candidate evaluation now adapts deterministic production results rather than
+metadata-only fabricated damage. All ten dynamic families are covered;
+environment alone may expose type, and registered missing context has no
+metadata fallback. Status moves retain `damage.status=not_applicable`; slot
+aggregation and evidence/candidate summaries preserve deep-copy boundaries.
+No provider or UI orchestration is allowed. Next: v14.3: resume and complete
+the preserved offline recommendation request contract. No actual provider or UI
+orchestration is authorized.
+
 ## v13.31 closure
 
 The dynamic registry inventory remains ten families and 30 canonical moves.

@@ -1,5 +1,22 @@
 # Master Ball Advisor — Progress
 
+## v14.2.1 - Deterministic Candidate Adapter Repair
+
+- Repository audit found v14.2 candidate evaluation was metadata-only.
+  v14.2.1 removes fabricated zero damage defaults by adapting existing
+  deterministic production results; it adds no damage, hit-chance, move-order,
+  healing, recoil, or self-consequence calculators.
+- All ten dynamic families use repaired registry dispatch; ordinary moves retain
+  metadata mechanics through the production context; only environment may emit
+  effective type. Missing registered context has no metadata power/type fallback.
+- Non-damaging moves retain `damage.status=not_applicable`. Slot aggregation
+  preserves order, original indexes, duplicates, empty-slot omission, and
+  failure isolation. Candidate summaries and evidence bundles deep-copy inputs
+  and include only fields emitted by the deterministic production context.
+- Provider/UI orchestration remains excluded. Next: v14.3: resume and complete
+  the preserved offline recommendation request contract. No actual provider or
+  UI orchestration is authorized.
+
 ## v13.31 - Registry Production Dispatch Repair
 
 - A repository audit found that the complete dynamic-move registry was not yet

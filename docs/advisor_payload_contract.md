@@ -1,5 +1,19 @@
 # Advisor Payload Contract
 
+## v14.2.1 deterministic candidate adapter
+
+Candidate summaries adapt only deterministic production-context outputs. They
+do not fabricate zero damage; absent deterministic damage is unavailable and
+status moves remain not applicable. Registered moves use registry dispatch,
+with no missing-context metadata fallback; environment alone may emit effective
+type. Ordinary moves retain metadata mechanics only through the production
+context, and only fields emitted by that context are summarized. All ten
+dynamic families are exercised through candidate evaluation. Slot aggregation
+preserves order, original indexes, duplicates, empty-slot omission, and failure
+isolation; evidence bundles and summaries deep-copy their boundaries. No new
+damage, hit-chance, move-order, healing, recoil, or self-consequence calculator
+is introduced. Provider/UI integration is excluded.
+
 ## v13.31 production registry dispatch
 
 The deterministic production context routes a registered canonical dynamic move
