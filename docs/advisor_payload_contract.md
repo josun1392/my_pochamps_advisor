@@ -1,5 +1,11 @@
 # Advisor Payload Contract
 
+## v14.14 semantic guidance
+
+Provider guidance forbids partial-context claims for resolved evidence and
+requires exact selectable alternative move+slot pairs. It does not alter the
+seven-field payload, six-field response, or validator.
+
 ## v14.13 semantic completion diagnosis
 
 A resolved candidate cannot claim missing/unavailable/incomplete partial

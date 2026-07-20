@@ -1,5 +1,12 @@
 # Master Ball Advisor — Progress
 
+## v14.14 - Semantic Guidance Stabilization
+
+- Strengthened provider-only instructions and schema descriptions for grounded
+  claims, partial-context boundaries, status rules, and exact alternatives.
+- Validator and payload/response shapes remain unchanged; provider calls: 0.
+- Next: v14.15 single-call semantic revalidation readiness review.
+
 ## v14.13 - Semantic Completion Diagnosis
 
 - Diagnosed v14.12 as `claim_evidence_contradiction`: a resolved candidate

@@ -110,6 +110,13 @@ _STRUCTURED_RESPONSE_KEYS = (
     "recommendation_status", "recommended_move", "recommended_slot_index",
     "primary_reasons", "risks", "alternatives",
 )
+_STRUCTURED_SEMANTIC_GUIDANCE = (
+    "Return only the declared JSON shape. A resolved recommendation must use a selectable exact move and slot pair. "
+    "Ground reasons and risks in candidate comparisons, warnings, unavailable reasons, and known limitations. "
+    "Never use partial_context for evidence already resolved; do not turn global limitations into candidate-specific missing evidence. "
+    "Use partial_context only for an actually unavailable or incomplete field. Alternatives require selectable exact move+slot pairs and reasons. "
+    "Do not invent EVs, IVs, nature, items, abilities, opponent moves, or final stats. Use insufficient_context when evidence is insufficient and no_usable_candidate when none is selectable."
+)
 
 
 class StructuredProviderError(RuntimeError):
@@ -124,12 +131,12 @@ def _structured_provider_schema() -> dict[str, Any]:
     return {
         "type": "OBJECT",
         "properties": {
-            "recommendation_status": {"type": "STRING", "enum": ["resolved", "insufficient_context", "no_usable_candidate"]},
-            "recommended_move": {"type": "STRING", "nullable": True},
-            "recommended_slot_index": {"type": "INTEGER", "nullable": True},
-            "primary_reasons": {"type": "ARRAY", "items": {"type": "OBJECT"}},
-            "risks": {"type": "ARRAY", "items": {"type": "OBJECT"}},
-            "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT"}},
+            "recommendation_status": {"type": "STRING", "enum": ["resolved", "insufficient_context", "no_usable_candidate"], "description": "resolved needs an exact selectable pair; other statuses have no pair."},
+            "recommended_move": {"type": "STRING", "nullable": True, "description": "Exact selectable move identity for resolved only."},
+            "recommended_slot_index": {"type": "INTEGER", "nullable": True, "description": "Matching exact selectable slot for resolved only."},
+            "primary_reasons": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Grounded kind/claim mappings only; no contradictory partial_context."},
+            "risks": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Grounded warnings, unavailable reasons, or known limitations only."},
+            "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Each alternative is an exact selectable move+slot mapping with a grounded reason."},
         },
         "required": list(_STRUCTURED_RESPONSE_KEYS),
     }
@@ -156,7 +163,7 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
     if not api_key:
         raise StructuredProviderError("provider_unavailable")
     request_body = {
-        "contents": [{"role": "user", "parts": [{"text": json.dumps(dict(provider_payload), ensure_ascii=False)}]}],
+        "contents": [{"role": "user", "parts": [{"text": _STRUCTURED_SEMANTIC_GUIDANCE + "\n\nDeterministic evidence:\n" + json.dumps(dict(provider_payload), ensure_ascii=False)}]}],
         "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema()},
     }
     try:

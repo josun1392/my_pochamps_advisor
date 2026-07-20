@@ -1,5 +1,11 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.14 closure
+
+Structured provider guidance and schema descriptions now reinforce grounded
+claims, partial-context restrictions, status rules, and exact alternatives.
+No provider call occurred. Next: v14.15 semantic revalidation readiness review.
+
 ## v14.13 closure
 
 The v14.12 failure was a legitimate `claim_evidence_contradiction` for a
