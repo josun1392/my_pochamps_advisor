@@ -54,8 +54,13 @@ class LLMAdvicePanel(QFrame):
 
         self.request_button = QPushButton("이번 턴 추천 받기")
         self.request_button.clicked.connect(self.advice_requested.emit)
+        self.request_button.setText("기존 선택 기술 조언")
+        self.request_button.setToolTip("현재 선택한 기술을 중심으로 자유 형식 조언을 받습니다.")
+        self.request_button.setAccessibleName("기존 선택 기술 조언")
         self.structured_request_button = QPushButton("구조화 추천 받기")
         self.structured_request_button.clicked.connect(self.structured_advice_requested.emit)
+        self.structured_request_button.setToolTip("후보 기술 전체를 비교하고 검증된 구조화 추천을 받습니다.")
+        self.structured_request_button.setAccessibleName("구조화 추천 받기")
 
         self.field_profile_button = QPushButton("Field state")
         self.field_profile_button.setObjectName("fieldProfileButton")
@@ -248,6 +253,10 @@ class LLMAdvicePanel(QFrame):
 
     def set_advice_text(self, text: str) -> None:
         self.output_edit.setPlainText(text)
+
+    def set_mode_advice_text(self, mode: str, text: str) -> None:
+        heading = "[구조화 추천]" if mode == "structured" else "[기존 조언]"
+        self.output_edit.setPlainText(f"{heading}\n{text}")
 
     def set_cost_text(self, text: str) -> None:
         self.cost_label.setText(text)

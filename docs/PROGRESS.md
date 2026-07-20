@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v14.11 - Structured Recommendation UX Validation
+
+- Clarified separate legacy and structured actions with Korean labels, tooltips,
+  accessible names, mode headings, and sanitized formatted output.
+- Added shared-panel ownership suppression and lifecycle cleanup so a stale
+  cross-mode result cannot overwrite active panel content.
+- Validation: 10 UX tests, 14 structured regressions, and 2625 passed with 2
+  deselected. Provider smoke remains unverified because credentials were
+  unavailable.
+- Next: v14.12 credential-enabled single-call structured provider smoke and
+  post-smoke stabilization; explicit T1 availability confirmation is required.
+
 ## v14.10 - Structured Recommendation Stabilization
 
 - Hardened structured decoding and usage normalization with sanitized handling

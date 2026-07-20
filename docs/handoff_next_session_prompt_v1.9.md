@@ -1,5 +1,14 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.11 closure
+
+Legacy and structured recommendations now have visible separate labels,
+tooltips, accessible names, mode headings, shared-panel ownership, and
+sanitized formatted results. Offline UX validation passed 2625 tests with 2
+deselected. Actual provider smoke remains unverified because credentials were
+unavailable. Next: v14.12 credential-enabled single-call structured provider
+smoke and post-smoke stabilization, requiring explicit T1 confirmation.
+
 ## v14.10 closure
 
 Structured decoding, usage normalization, worker lifecycle, UI coexistence,

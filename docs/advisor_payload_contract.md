@@ -1,5 +1,12 @@
 # Advisor Payload Contract
 
+## v14.11 coexistence UX boundary
+
+The shared advice panel receives an owner-tagged legacy freeform result or a
+validated structured presentation, never raw provider data. The active owner
+suppresses stale cross-mode completion; both actions are disabled while active.
+Structured failure text is sanitized and legacy parsing remains unchanged.
+
 ## v14.10 structured stabilization
 
 Structured response decoding accepts only a valid decoded six-field mapping.

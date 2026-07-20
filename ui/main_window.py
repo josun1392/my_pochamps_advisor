@@ -328,6 +328,8 @@ class MainWindow(QMainWindow):
         self._llm_worker: LLMAdviceWorker | None = None
         self._structured_thread: QThread | None = None
         self._structured_worker: StructuredRecommendationWorker | None = None
+        self._advice_request_sequence = 0
+        self._active_advice_owner: str | None = None
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
@@ -785,6 +787,8 @@ class MainWindow(QMainWindow):
             return
 
         panel = self.center_column.llm_advice_panel
+        self._advice_request_sequence += 1
+        self._active_advice_owner = "legacy"
         enable_turn_pipeline = panel.turn_pipeline_enabled()
         enable_turn_order_context = enable_turn_pipeline
         enable_opponent_move_context = enable_turn_pipeline
@@ -837,8 +841,10 @@ class MainWindow(QMainWindow):
     @Slot(str, dict)
     def _on_llm_advice_finished(self, recommendation: str, payload: dict) -> None:
         panel = self.center_column.llm_advice_panel
+        if self._active_advice_owner != "legacy":
+            return
         panel.set_running(False)
-        panel.set_advice_text(recommendation)
+        panel.set_mode_advice_text("legacy", recommendation)
 
         usage = payload.get("usage", {})
         summary = payload.get("summary", {})
@@ -878,6 +884,8 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def _on_llm_advice_failed(self, message: str) -> None:
         panel = self.center_column.llm_advice_panel
+        if self._active_advice_owner != "legacy":
+            return
         panel.set_running(False)
         panel.set_error(message)
         self.statusBar().showMessage(f"Failed | {message}")
@@ -888,12 +896,16 @@ class MainWindow(QMainWindow):
             self._llm_thread.deleteLater()
         self._llm_thread = None
         self._llm_worker = None
+        if self._active_advice_owner == "legacy":
+            self._active_advice_owner = None
 
     @Slot()
     def _start_structured_recommendation(self) -> None:
         if self._structured_thread is not None:
             return
         panel = self.center_column.llm_advice_panel
+        self._advice_request_sequence += 1
+        self._active_advice_owner = "structured"
         try:
             battle_input = self._build_llm_battle_input()
             my_slot_index = self.selected_slots.get("team_my")
@@ -921,18 +933,22 @@ class MainWindow(QMainWindow):
     @Slot(object)
     def _on_structured_recommendation_finished(self, result: object) -> None:
         panel = self.center_column.llm_advice_panel
+        if self._active_advice_owner != "structured":
+            return
         panel.set_running(False)
         panel.structured_request_button.setDisabled(False)
         if not isinstance(result, dict):
             panel.set_error("추천 응답 검증에 실패했습니다.")
             return
         text = format_recommendation_presentation_text(presentation_model=result.get("presentation_model", {}))
-        panel.set_advice_text(text)
+        panel.set_mode_advice_text("structured", text)
         self.statusBar().showMessage("Structured recommendation complete")
 
     @Slot(str)
     def _on_structured_recommendation_failed(self, message: str) -> None:
         panel = self.center_column.llm_advice_panel
+        if self._active_advice_owner != "structured":
+            return
         panel.set_running(False)
         panel.structured_request_button.setDisabled(False)
         panel.set_error(message)
@@ -944,6 +960,8 @@ class MainWindow(QMainWindow):
             self._structured_thread.deleteLater()
         self._structured_thread = None
         self._structured_worker = None
+        if self._active_advice_owner == "structured":
+            self._active_advice_owner = None
 
     def _build_llm_battle_input(
         self,

@@ -214,7 +214,7 @@ def format_recommendation_presentation_text(*, presentation_model: Mapping[str, 
         lines = [f"추천 기술: {presentation_model.get('recommended_move')}", f"슬롯: {presentation_model.get('recommended_slot_index')}"]
         for label, key in (("주요 이유", "primary_reasons"), ("위험 요소", "risks"), ("대안", "alternatives"), ("후보 요약", "candidate_summaries")):
             values = presentation_model.get(key, [])
-            lines.append(f"{label}: {len(values) if isinstance(values, list) else 0}")
+            lines.append(f"{label}: {len(values)}" if isinstance(values, list) and values else f"{label}: 없음")
         return "\n".join(lines)
     if status == "insufficient_context":
         return "추천을 확정할 정보가 부족합니다."
