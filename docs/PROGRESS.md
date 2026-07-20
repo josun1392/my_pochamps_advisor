@@ -1,5 +1,20 @@
 # Master Ball Advisor — Progress
 
+## v13.31 - Registry Production Dispatch Repair
+
+- A repository audit found that the complete dynamic-move registry was not yet
+  the production dispatch path: deterministic context construction used direct
+  multi-family helper fan-out.
+- Registered canonical moves now route through one registry-selected resolver.
+  Ordinary unregistered moves retain metadata power/type; missing registered
+  context fails closed without metadata fallback.
+- Environment is the only dynamic family permitted to override effective type;
+  every other family is power-only. Formulas and the ten-family/30-move
+  inventory are unchanged.
+- Added actual production-path dispatch tests for all ten representative
+  families and an independent 30-move limited-context matrix. Registry-derived
+  coverage alone was insufficient to prove production routing.
+
 ## v13.28 - Dynamic Move Registry Consolidation
 
 Result:

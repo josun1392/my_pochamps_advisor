@@ -1,5 +1,16 @@
 # Advisor Payload Contract
 
+## v13.31 production registry dispatch
+
+The deterministic production context routes a registered canonical dynamic move
+through exactly one registry-selected resolver. Ordinary unregistered moves
+retain their metadata power/type path. Registered moves with missing required
+trusted context emit only their selected unavailable assessment and never use
+metadata as a dynamic-power or dynamic-type fallback. Environment is the only
+family allowed to override effective type; all other dynamic families are
+power-only. This corrects dispatch only: formulas and the ten-family/30-move
+inventory are unchanged.
+
 ## v13.28 dynamic move registry
 
 The registry maps each dynamic move identity to one assessment family. A

@@ -1293,7 +1293,10 @@ def build_target_hp_based_power_assessment(selected_move: Mapping[str, Any] | No
 
 def build_environment_based_move_assessment(selected_move: Mapping[str, Any] | None, field_state_context: Mapping[str, Any] | None, grounded: bool | None = None) -> dict[str, Any] | None:
     if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in {"weather-ball", "terrain-pulse"}: return None
-    move=selected_move["move_id"]; base={"move":move,"scope":ENVIRONMENT_MOVE_SCOPE}; field=(field_state_context or {}).get("current_field",{}) if isinstance(field_state_context,Mapping) else {}
+    move=selected_move["move_id"]; base={"move":move,"scope":ENVIRONMENT_MOVE_SCOPE}
+    if not isinstance(field_state_context, Mapping) or not isinstance(field_state_context.get("current_field"), Mapping):
+        return {**base, "status":"unavailable", "reason":"missing_current_field_state"}
+    field = field_state_context["current_field"]
     if move=="weather-ball":
         weather=field.get("weather","none"); mapping={"sun":"fire","rain":"water","sandstorm":"rock","snow":"ice"}
         if weather not in {"none",*mapping}: return {**base,"status":"unavailable","reason":"invalid_weather"}
@@ -1497,63 +1500,49 @@ def build_deterministic_calculation_context(
     observed_previous_damage_context: Mapping[str, Any] | None = None,
     battle_counter_context: Mapping[str, Any] | None = None,
     consecutive_use_context: Mapping[str, Any] | None = None,
+    weight_context: Mapping[str, Any] | None = None,
+    turn_event_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Combine trusted stats with separately-scoped base and type-aware results."""
     context = build_effective_stat_inputs(final_stat_context, stat_stage_context)
+    dynamic_resolution = resolve_registered_dynamic_move(
+        selected_move,
+        limited_context_enabled=True,
+        current_hp_context=current_hp_context,
+        final_stat_context=final_stat_context,
+        stat_stage_context=stat_stage_context,
+        field_state_context=field_state_context,
+        condition_context=condition_context,
+        weight_context=weight_context,
+        turn_event_context=turn_event_context,
+        battle_counter_context=battle_counter_context,
+        consecutive_use_context=consecutive_use_context,
+    )
     if context is None:
         healing = build_direct_healing_assessment(selected_move, current_hp_context)
         fixed = build_fixed_damage_assessment(selected_move, current_hp_context, pokemon, attacker_level_context)
         special = build_hp_based_special_damage_assessment(selected_move, current_hp_context, pokemon)
         reactive = build_observed_damage_counter_assessment(selected_move, observed_previous_damage_context, current_hp_context, pokemon)
         self_consequence = build_self_consequence_assessment(selected_move, current_hp_context)
-        power_assessment = build_current_hp_based_power_assessment(selected_move, current_hp_context)
-        speed_power_assessment = build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context)
-        stat_power_assessment = build_stat_stage_based_power_assessment(selected_move, stat_stage_context)
-        target_power_assessment = build_target_hp_based_power_assessment(selected_move, current_hp_context)
-        counter_power_assessment = build_battle_counter_power_assessment(selected_move, battle_counter_context)
-        consecutive_power_assessment = build_consecutive_use_power_assessment(selected_move, consecutive_use_context)
         result = {}
         if healing is not None: result["direct_healing_assessment"] = healing
         if fixed is not None: result["fixed_damage_assessment"] = fixed
         if special is not None: result["hp_based_special_damage_assessment"] = special
         if reactive is not None: result["observed_damage_counter_assessment"] = reactive
         if self_consequence is not None: result["self_consequence_assessment"] = self_consequence
-        if power_assessment is not None: result["current_hp_based_power_assessment"] = power_assessment
-        if speed_power_assessment is not None: result["speed_based_power_assessment"] = speed_power_assessment
-        if stat_power_assessment is not None: result["stat_stage_based_power_assessment"] = stat_power_assessment
-        if target_power_assessment is not None: result["target_hp_based_power_assessment"] = target_power_assessment
-        if counter_power_assessment is not None: result["battle_counter_power_assessment"] = counter_power_assessment
-        if consecutive_power_assessment is not None: result["consecutive_use_power_assessment"] = consecutive_power_assessment
+        if dynamic_resolution is not None and "assessment_key" in dynamic_resolution:
+            result[dynamic_resolution["assessment_key"]] = dynamic_resolution["assessment_payload"]
         return result or None
-    power_assessment = build_current_hp_based_power_assessment(selected_move, current_hp_context)
-    speed_power_assessment = build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context)
-    stat_power_assessment = build_stat_stage_based_power_assessment(selected_move, stat_stage_context)
-    target_power_assessment = build_target_hp_based_power_assessment(selected_move, current_hp_context)
-    counter_power_assessment = build_battle_counter_power_assessment(selected_move, battle_counter_context)
-    consecutive_power_assessment = build_consecutive_use_power_assessment(selected_move, consecutive_use_context)
-    environment_assessment = build_environment_based_move_assessment(selected_move, field_state_context)
     effective_move = dict(selected_move) if isinstance(selected_move, Mapping) else selected_move
-    if power_assessment is not None and power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
-        effective_move["power"] = power_assessment["effective_power"]
-        effective_move.pop("power_status", None)
-    if speed_power_assessment is not None and speed_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
-        effective_move["power"] = speed_power_assessment["effective_power"]
-        effective_move.pop("power_status", None)
-    if stat_power_assessment is not None and stat_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
-        effective_move["power"] = stat_power_assessment["effective_power"]
-        effective_move.pop("power_status", None)
-    if target_power_assessment is not None and target_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
-        effective_move["power"] = target_power_assessment["effective_power"]
-        effective_move.pop("power_status", None)
-    if environment_assessment is not None and environment_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
-        effective_move["power"] = environment_assessment["effective_power"]
-        effective_move["type"] = environment_assessment["effective_type"]
-    if counter_power_assessment is not None and counter_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
-        effective_move["power"] = counter_power_assessment["effective_power"]
-        effective_move.pop("power_status", None)
-    if consecutive_power_assessment is not None and consecutive_power_assessment.get("status") == "resolved" and isinstance(effective_move, dict):
-        effective_move["power"] = consecutive_power_assessment["effective_power"]
-        effective_move.pop("power_status", None)
+    if dynamic_resolution is not None:
+        assessment = dynamic_resolution.get("assessment_payload")
+        if not isinstance(assessment, Mapping) or assessment.get("status") != "resolved":
+            effective_move = None
+        elif isinstance(effective_move, dict):
+            effective_move["power"] = dynamic_resolution["effective_power_override"]
+            effective_move.pop("power_status", None)
+            if "effective_type_override" in dynamic_resolution:
+                effective_move["type"] = dynamic_resolution["effective_type_override"]
     estimate = build_limited_damage_estimate(context["effective_stats"], effective_move)
     type_estimate = build_type_aware_damage_estimate(estimate, pokemon)
     context_estimate = build_context_modified_damage_estimate(type_estimate, condition_context, field_state_context, battle_format_context)
@@ -1605,43 +1594,8 @@ def build_deterministic_calculation_context(
         result["damage_estimates"] = []
     if self_consequence is not None:
         result["self_consequence_assessment"] = self_consequence
-    if power_assessment is not None:
-        result["current_hp_based_power_assessment"] = power_assessment
-        if power_assessment.get("status") != "resolved":
-            result["damage_estimates"] = []
-            result["base_damage_estimates"] = []
-            result["type_aware_damage_estimates"] = []
-            result["context_modified_damage_estimates"] = []
-            result["hp_assessments"] = []
-    if speed_power_assessment is not None:
-        result["speed_based_power_assessment"] = speed_power_assessment
-        if speed_power_assessment.get("status") != "resolved":
-            result["damage_estimates"] = []
-    if stat_power_assessment is not None:
-        result["stat_stage_based_power_assessment"] = stat_power_assessment
-        if stat_power_assessment.get("status") != "resolved": result["damage_estimates"] = []
-    if target_power_assessment is not None:
-        result["target_hp_based_power_assessment"] = target_power_assessment
-        if target_power_assessment.get("status") != "resolved": result["damage_estimates"] = []
-    if environment_assessment is not None:
-        result["environment_based_move_assessment"] = environment_assessment
-        if environment_assessment.get("status") != "resolved": result["damage_estimates"] = []
-    if counter_power_assessment is not None:
-        result["battle_counter_power_assessment"] = counter_power_assessment
-        if counter_power_assessment.get("status") != "resolved":
-            result["damage_estimates"] = []
-            result["base_damage_estimates"] = []
-            result["type_aware_damage_estimates"] = []
-            result["context_modified_damage_estimates"] = []
-            result["hp_assessments"] = []
-    if consecutive_power_assessment is not None:
-        result["consecutive_use_power_assessment"] = consecutive_power_assessment
-        if consecutive_power_assessment.get("status") != "resolved":
-            result["damage_estimates"] = []
-            result["base_damage_estimates"] = []
-            result["type_aware_damage_estimates"] = []
-            result["context_modified_damage_estimates"] = []
-            result["hp_assessments"] = []
+    if dynamic_resolution is not None and "assessment_key" in dynamic_resolution:
+        result[dynamic_resolution["assessment_key"]] = dynamic_resolution["assessment_payload"]
     return result
 
 

@@ -1,6 +1,15 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
-## v13.30 closure
+## v13.31 closure
+
+The dynamic registry inventory remains ten families and 30 canonical moves.
+A repository audit corrected production dispatch: registered moves now route
+through one registry-selected resolver instead of direct multi-family helper
+fan-out. Ordinary unregistered moves retain metadata power/type. Missing
+registered context fails closed without metadata fallback. Environment alone
+may override effective type; all other dynamic families are power-only.
+Production-path tests cover all ten representative families and an independent
+30-move limited-context matrix. Do not change formulas or the inventory.
 
 v14 candidate: battle-advisor integration planning using the completed
 deterministic mechanic inventory. No v14 implementation is authorized here.

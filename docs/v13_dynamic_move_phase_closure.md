@@ -1,5 +1,22 @@
 # v13 dynamic move phase closure
 
+## v13.31 production registry dispatch repair
+
+A repository audit found that prior production construction still used direct
+multi-family helper fan-out even though the registry and its self-derived
+coverage were complete. v13.31 routes every registered canonical move through
+one registry-selected resolver before deterministic context construction.
+Ordinary unregistered moves retain metadata power and type. A registered move
+without its required trusted context fails closed without metadata power or
+type fallback. Only the environment family may override effective type; every
+other dynamic family is power-only.
+
+Production-path dispatch tests now spy on actual deterministic context
+construction for one representative of every family, and an independent
+30-move limited-context matrix verifies the complete canonical inventory.
+These additions do not change mechanic formulas or the ten-family/30-move
+inventory.
+
 The v13.18–v13.29 sequence closes deterministic dynamic move assessment. The
 canonical source is `DYNAMIC_MOVE_ASSESSMENT_REGISTRY`: ten families and 30
 moves, with coverage manifest exact-set validation. Environment is the only
