@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v14.4 - Offline Recommendation Response Parser
+
+- Added provider-neutral parsing for structured offline responses, local-only
+  validation failures, exact move-plus-slot validation reuse, structured claim
+  evidence checks, and exact-pair alternatives.
+- Recursive forbidden-content rejection and sanitized error codes protect raw,
+  credential, provider/model, network, and inference boundaries. Request and
+  response data remain immutable, with all ten dynamic families compatible.
+- Provider/UI integration remains excluded. Next: v14.5: offline recommendation
+  orchestration design and contract audit. No actual provider or UI
+  orchestration is authorized.
+
 ## v14.3 - Offline Recommendation Request Contract
 
 - Completed provider-neutral request construction over deterministic candidate

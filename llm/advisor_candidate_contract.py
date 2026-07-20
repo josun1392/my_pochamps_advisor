@@ -288,3 +288,116 @@ def serialize_recommendation_request(request: Mapping[str, Any]) -> dict[str, An
         raise ValueError("non-json-safe value")
 
     return clean(request)
+
+
+_RESPONSE_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate", "validation_failed"})
+_CLAIM_KINDS = frozenset({"damage", "ko", "hit_chance", "move_order", "self_effect", "dynamic_mechanic", "partial_context"})
+_FORBIDDEN_RESPONSE_KEYS = frozenset({
+    "rawresponse", "rawproviderresponse", "traceback", "stacktrace", "apikey", "token", "authorization",
+    "credential", "credentials", "providersecret", "clientsecret", "accesstoken", "refreshtoken", "rawprompt",
+    "providermodel", "modeloverride", "network", "networkconfiguration", "deterministicevidence", "damagerange",
+    "candidatecomparisons", "unknownmove", "opponentmove", "item", "ability", "ev", "iv",
+})
+
+
+def _response_failure(code: str) -> dict[str, Any]:
+    return {"status": "validation_failed", "recommended_move": None, "recommended_slot_index": None,
+            "primary_reasons": [], "risks": [], "alternatives": [], "errors": [code]}
+
+
+def _has_forbidden_response_content(value: Any) -> bool:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            normalized = str(key).lower().replace("_", "").replace("-", "")
+            if normalized in _FORBIDDEN_RESPONSE_KEYS or _has_forbidden_response_content(item):
+                return True
+    elif isinstance(value, list):
+        return any(_has_forbidden_response_content(item) for item in value)
+    return False
+
+
+def _comparison_for_pair(request: Mapping[str, Any], pair: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    for comparison in request.get("candidate_comparisons", []):
+        if isinstance(comparison, Mapping) and comparison.get("move") == pair["move"] and comparison.get("slot_index") == pair["slot_index"]:
+            return comparison
+    return None
+
+
+def _validate_claim(reason: Any, candidate: Mapping[str, Any]) -> None:
+    if not isinstance(reason, Mapping) or set(reason) != {"kind", "claim"} or reason.get("kind") not in _CLAIM_KINDS or not isinstance(reason.get("claim"), str) or not reason["claim"]:
+        raise ValueError("invalid_claim")
+    kind = reason["kind"]
+    damage = candidate.get("damage")
+    if kind == "damage" and (not isinstance(damage, Mapping) or damage.get("status") != "resolved"):
+        raise ValueError("claim_evidence_unavailable")
+    if kind == "ko" and (not isinstance(damage, Mapping) or "ko" not in damage or damage["ko"] is None):
+        raise ValueError("claim_evidence_unavailable")
+    if kind == "hit_chance" and not isinstance(candidate.get("hit_chance"), Mapping):
+        raise ValueError("claim_evidence_unavailable")
+    if kind == "move_order" and not isinstance(candidate.get("move_order"), Mapping):
+        raise ValueError("claim_evidence_unavailable")
+    if kind == "dynamic_mechanic" and not isinstance(candidate.get("dynamic_move"), Mapping):
+        raise ValueError("claim_evidence_unavailable")
+    if kind == "self_effect" and (not isinstance(candidate.get("self_effects"), list) or not candidate["self_effects"]):
+        raise ValueError("claim_evidence_unavailable")
+    if kind == "partial_context" and candidate.get("status") == "resolved" and any(word in reason["claim"].lower() for word in ("missing", "unavailable", "incomplete")):
+        raise ValueError("claim_evidence_contradiction")
+
+
+def parse_recommendation_response(*, request: Mapping[str, Any], response_payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate an already-decoded, offline recommendation response without provider access."""
+    if not isinstance(response_payload, Mapping):
+        return _response_failure("invalid_response_payload")
+    if _has_forbidden_response_content(response_payload):
+        return _response_failure("forbidden_response_content")
+    status = response_payload.get("recommendation_status")
+    if status not in _RESPONSE_STATUSES or status == "validation_failed":
+        return _response_failure("unsupported_recommendation_status")
+    reasons, risks, alternatives = response_payload.get("primary_reasons"), response_payload.get("risks"), response_payload.get("alternatives")
+    if not isinstance(reasons, list) or not isinstance(risks, list) or not isinstance(alternatives, list):
+        return _response_failure("invalid_response_collections")
+    move, slot = response_payload.get("recommended_move"), response_payload.get("recommended_slot_index")
+    if status == "resolved":
+        if not isinstance(move, str) or not isinstance(slot, int) or isinstance(slot, bool):
+            return _response_failure("missing_recommended_candidate")
+        try:
+            validate_recommendation_selection(request=request, recommended_move=move, recommended_slot_index=slot)
+        except ValueError:
+            return _response_failure("recommended_candidate_not_selectable")
+        primary = {"move": move, "slot_index": slot}
+        candidate = _comparison_for_pair(request, primary)
+        if candidate is None:
+            return _response_failure("request_candidate_evidence_missing")
+    else:
+        if move is not None or slot is not None:
+            return _response_failure("unexpected_recommended_candidate")
+        readiness = request.get("readiness", {}).get("status") if isinstance(request, Mapping) else None
+        if status == "no_usable_candidate" and readiness not in {"no_selectable_candidates", "no_candidates"}:
+            return _response_failure("request_not_no_usable_candidate")
+        if status == "insufficient_context":
+            candidate = {}
+        else:
+            candidate = {}
+        primary = None
+    try:
+        for reason in [*reasons, *risks]:
+            _validate_claim(reason, candidate)
+        seen_alternatives = set()
+        for alternative in alternatives:
+            if not isinstance(alternative, Mapping) or set(alternative) != {"move", "slot_index", "reason"}:
+                raise ValueError("invalid_alternative")
+            pair = {"move": alternative.get("move"), "slot_index": alternative.get("slot_index")}
+            validate_recommendation_selection(request=request, recommended_move=pair["move"], recommended_slot_index=pair["slot_index"])
+            key = (pair["move"], pair["slot_index"])
+            if key in seen_alternatives or pair == primary:
+                raise ValueError("invalid_alternative")
+            alternative_candidate = _comparison_for_pair(request, pair)
+            if alternative_candidate is None:
+                raise ValueError("invalid_alternative")
+            _validate_claim(alternative["reason"], alternative_candidate)
+            seen_alternatives.add(key)
+    except ValueError as error:
+        return _response_failure(str(error))
+    return {"status": status, "recommended_move": move, "recommended_slot_index": slot,
+            "primary_reasons": deepcopy(reasons), "risks": deepcopy(risks),
+            "alternatives": deepcopy(alternatives), "errors": []}

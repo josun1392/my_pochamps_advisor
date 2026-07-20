@@ -1,5 +1,14 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.4 closure
+
+Offline structured recommendation responses now have exact move-plus-slot and
+alternative validation, structured deterministic claim guardrails, recursive
+forbidden-content rejection, sanitized failures, immutable boundaries, and
+ten-family compatibility. Provider/UI integration remains excluded. Next:
+v14.5: offline recommendation orchestration design and contract audit. No
+actual provider or UI orchestration is authorized.
+
 ## v14.3 closure
 
 Offline, provider-neutral recommendation requests now preserve candidate and

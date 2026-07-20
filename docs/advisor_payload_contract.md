@@ -1,5 +1,14 @@
 # Advisor Payload Contract
 
+## v14.4 offline response parser
+
+Already-decoded offline response mappings are validated against the v14.3
+request contract. Resolved and alternative recommendations require exact
+selectable move-plus-slot pairs. Structured deterministic claims require
+emitted compatible evidence; recursive forbidden-content checks and sanitized
+failure codes protect credentials, raw data, provider/model/network fields,
+and unsupported inference. Provider/UI integration is excluded.
+
 ## v14.3 offline recommendation request
 
 The provider-neutral request retains every candidate's exact move-plus-slot
