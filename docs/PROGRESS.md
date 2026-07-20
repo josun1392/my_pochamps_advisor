@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v14.6 - Offline UI Preparation
+
+- Added pure ordered move-slot and trusted battle-snapshot adapters plus offline
+  prepare-cycle composition. Slot selection never reduces the candidate list;
+  missing data is neither inferred nor fabricated.
+- Provider/UI fields are excluded, repositories stay input-only, and the
+  selected-move provider/UI flow remains unchanged. Provider adapter and
+  validated UI presentation are not implemented.
+- Next: v14.7: offline provider-adapter design and structured request/response
+  boundary audit. No actual provider call or UI recommendation rendering is
+  authorized.
+
 ## v14.5 - Pure Recommendation Cycle Orchestration
 
 - Added separate provider-neutral prepare and complete boundaries. Preparation

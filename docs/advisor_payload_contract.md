@@ -1,5 +1,13 @@
 # Advisor Payload Contract
 
+## v14.6 offline UI preparation
+
+The pure UI preparation adapter retains all ordered move slots, copies only
+trusted deterministic snapshot fields, and composes the existing prepare-cycle
+contract. `selected_move_index` does not reduce candidates; unsupported,
+provider, and UI fields are excluded; repositories are input-only. No provider
+adapter or validated UI result presentation is wired.
+
 ## v14.5 pure recommendation cycle
 
 `prepare_recommendation_cycle` is a provider-neutral composition of candidate

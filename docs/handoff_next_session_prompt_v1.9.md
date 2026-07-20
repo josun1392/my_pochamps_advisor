@@ -1,5 +1,14 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.6 closure
+
+Pure ordered UI move-slot and trusted snapshot adapters now prepare offline
+recommendation cycles without reducing slots by `selected_move_index`, without
+repository retention, and without provider/UI fields or inferred data. The
+current selected-move provider/UI path remains unchanged. Next: v14.7: offline
+provider-adapter design and structured request/response boundary audit. No
+actual provider call or UI recommendation rendering is authorized.
+
 ## v14.5 closure
 
 Pure provider-neutral recommendation-cycle preparation and completion now

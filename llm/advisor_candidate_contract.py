@@ -458,3 +458,83 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
     if result["status"] == "validation_failed":
         return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=result.get("errors", ["response_validation_failed"]))
     return _cycle_result(status=result["status"], candidates=candidates, evidence_bundle=evidence, recommendation_request=request, recommendation_result=result)
+
+
+_UI_SNAPSHOT_CONTEXT_KEYS = (
+    "final_stat_context", "stat_stage_context", "current_hp_context", "condition_context", "field_state_context",
+    "battle_format_context", "attacker_level_context", "observed_previous_damage_context", "battle_counter_context",
+    "consecutive_use_context", "weight_context", "turn_event_context",
+)
+_UI_RECOMMENDATION_LIMITATION_GUARDRAILS = (
+    "Unknown opponent moves remain untrusted.", "Unknown item, ability, EV, IV, nature, and final stats remain untrusted unless confirmed.",
+    "No multi-turn planning, switch recommendation, Turn Engine, or untrusted inference.",
+)
+
+
+def adapt_ui_move_slots(*, selected_moves: Sequence[Any]) -> tuple[str | None, ...]:
+    """Normalize current UI move slots without reducing them to the selected index."""
+    if isinstance(selected_moves, (str, bytes)) or not isinstance(selected_moves, Sequence) or len(selected_moves) > 4:
+        raise ValueError("invalid_move_slots")
+    result = []
+    for value in selected_moves:
+        if value is None:
+            result.append(None)
+            continue
+        move_id = value.get("move_id") if isinstance(value, Mapping) else getattr(value, "move_id", None)
+        if not isinstance(move_id, str) or not move_id:
+            raise ValueError("unsupported_move_slot_shape")
+        result.append(move_id)
+    return tuple(result)
+
+
+def adapt_ui_battle_snapshot(*, battle_input: Mapping[str, Any]) -> dict[str, Any]:
+    """Copy only trusted deterministic contexts from normalized UI battle input."""
+    if not isinstance(battle_input, Mapping):
+        raise ValueError("invalid_battle_snapshot")
+    pokemon = battle_input.get("pokemon")
+    if not isinstance(pokemon, Mapping) or not isinstance(pokemon.get("my_active"), Mapping) or not isinstance(pokemon.get("opponent_active"), Mapping):
+        raise ValueError("missing_selected_pokemon")
+    snapshot = {"pokemon": deepcopy(dict(pokemon))}
+    for key in _UI_SNAPSHOT_CONTEXT_KEYS:
+        if isinstance(battle_input.get(key), Mapping):
+            snapshot[key] = deepcopy(dict(battle_input[key]))
+    moves = battle_input.get("moves")
+    if isinstance(moves, Mapping) and isinstance(moves.get("opponent_selected_move"), Mapping):
+        snapshot["opponent_selected_move"] = deepcopy(dict(moves["opponent_selected_move"]))
+    elif isinstance(battle_input.get("opponent_selected_move"), Mapping):
+        snapshot["opponent_selected_move"] = deepcopy(dict(battle_input["opponent_selected_move"]))
+    return snapshot
+
+
+def build_ui_recommendation_snapshot_summary(*, battle_input: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(battle_input, Mapping):
+        raise ValueError("invalid_battle_snapshot")
+    scenario = battle_input.get("scenario")
+    summary = {}
+    if isinstance(scenario, Mapping):
+        summary["scenario"] = {key: deepcopy(scenario[key]) for key in ("mode", "format_note") if key in scenario}
+    pokemon = battle_input.get("pokemon")
+    if isinstance(pokemon, Mapping):
+        summary["pokemon"] = deepcopy(dict(pokemon))
+    return summary
+
+
+def _ui_known_limitations(battle_input: Mapping[str, Any]) -> list[str]:
+    scenario = battle_input.get("scenario") if isinstance(battle_input, Mapping) else None
+    existing = scenario.get("known_limitations") if isinstance(scenario, Mapping) else None
+    values = [item for item in existing if isinstance(item, str)] if isinstance(existing, list) else []
+    return list(dict.fromkeys([*values, *_UI_RECOMMENDATION_LIMITATION_GUARDRAILS]))
+
+
+def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_input: Mapping[str, Any], move_repository: Any) -> dict[str, Any]:
+    """Prepare an offline recommendation cycle from UI-shaped, trusted inputs."""
+    try:
+        moves = adapt_ui_move_slots(selected_moves=selected_moves)
+        snapshot = adapt_ui_battle_snapshot(battle_input=battle_input)
+        summary = build_ui_recommendation_snapshot_summary(battle_input=battle_input)
+    except ValueError as error:
+        return _cycle_result(status="invalid_snapshot", errors=[str(error)])
+    return prepare_recommendation_cycle(
+        moves=moves, battle_snapshot=snapshot, repositories=move_repository,
+        battle_snapshot_summary=summary, known_limitations=_ui_known_limitations(battle_input),
+    )
