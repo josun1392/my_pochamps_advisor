@@ -1,5 +1,18 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.9 closure
+
+T1-approved coexistence now provides a separate structured recommendation
+action, `StructuredRecommendationWorker`, one-call schema-requested provider
+boundary, and validated formatted text in the existing advice panel. The legacy
+selected-move freeform action is unchanged. Raw responses never reach logs or
+UI, and retry/fallback is absent. Offline validation passed 2599 tests with 2
+deselected. The authorized smoke made 0 calls because credential presence was
+unavailable; no secret, raw response, or protected log content was exposed.
+
+Next: v14.10: structured recommendation stabilization and user-facing
+validation based on the v14.9 smoke result.
+
 ## v14.8 closure
 
 The pure offline recommendation cycle now composes UI preparation, the

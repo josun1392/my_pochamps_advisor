@@ -1,5 +1,17 @@
 # Advisor Payload Contract
 
+## v14.9 structured recommendation coexistence
+
+The separate structured path accepts only the seven approved request fields,
+performs at most one schema-requested provider call, and admits only decoded
+provider-neutral mappings through the response adapter and offline completion.
+Validated presentation is formatted for the existing text panel; raw request or
+response data, provider/repository/UI objects, credentials, tracebacks, and
+network details are excluded. The legacy selected-move freeform path remains
+unchanged. No retry or fallback exists; usage metadata is returned separately.
+The sanitized structured usage logger is disabled by default, and protected
+token logs are not read or written by this closure.
+
 ## v14.8 offline provider cycle and presentation model
 
 `run_offline_recommendation_cycle` composes the existing UI preparation,

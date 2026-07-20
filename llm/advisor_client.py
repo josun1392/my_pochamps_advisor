@@ -8,10 +8,13 @@ for the v0.5 spike.
 from __future__ import annotations
 
 import json
+import os
 import re
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
+
+import requests
 
 from core.turn_event import TurnPipelineResult, normalize_turn_pipeline_result
 from core.turn_state import TurnSnapshot, normalize_turn_snapshot
@@ -73,6 +76,13 @@ from llm.advisor_payload_contract import (
 from llm.advisor_turn_snapshot import try_build_turn_snapshot_from_battle_input
 from llm.advisor_turn_events import build_optional_turn_pipeline_for_advice_payload
 from llm.token_logger import UNKNOWN_MODEL_OR_UNKNOWN_PRICING, TokenLogger
+from llm.advisor_candidate_contract import (
+    adapt_provider_recommendation_response,
+    build_provider_recommendation_payload,
+    build_recommendation_presentation_model,
+    complete_recommendation_cycle,
+    prepare_ui_recommendation_cycle,
+)
 from scripts.spike_advisor import (
     DEFAULT_MODEL,
     build_prompt,
@@ -90,6 +100,161 @@ class SanitizedSmokeResponseCapture:
     sanitized_summary: str
     response_status: str = "available"
     error_category: str | None = None
+
+
+_STRUCTURED_PROVIDER_PAYLOAD_KEYS = (
+    "request_version", "battle_snapshot_summary", "candidate_exact_set",
+    "selectable_candidate_exact_set", "candidate_comparisons", "known_limitations", "guardrails",
+)
+_STRUCTURED_RESPONSE_KEYS = (
+    "recommendation_status", "recommended_move", "recommended_slot_index",
+    "primary_reasons", "risks", "alternatives",
+)
+
+
+class StructuredProviderError(RuntimeError):
+    """Sanitized structured-provider failure that never carries provider detail."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+def _structured_provider_schema() -> dict[str, Any]:
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "recommendation_status": {"type": "STRING", "enum": ["resolved", "insufficient_context", "no_usable_candidate"]},
+            "recommended_move": {"type": "STRING", "nullable": True},
+            "recommended_slot_index": {"type": "INTEGER", "nullable": True},
+            "primary_reasons": {"type": "ARRAY", "items": {"type": "OBJECT"}},
+            "risks": {"type": "ARRAY", "items": {"type": "OBJECT"}},
+            "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT"}},
+        },
+        "required": list(_STRUCTURED_RESPONSE_KEYS),
+    }
+
+
+def call_structured_recommendation_provider(*, provider_payload: Mapping[str, Any], model: str) -> tuple[dict[str, Any], dict[str, int | str]]:
+    """Make one structured REST request and return only decoded provider-neutral data."""
+    if not isinstance(provider_payload, Mapping) or set(provider_payload) != set(_STRUCTURED_PROVIDER_PAYLOAD_KEYS):
+        raise StructuredProviderError("provider_response_validation_failed")
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        raise StructuredProviderError("provider_unavailable")
+    request_body = {
+        "contents": [{"role": "user", "parts": [{"text": json.dumps(dict(provider_payload), ensure_ascii=False)}]}],
+        "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema()},
+    }
+    try:
+        response = requests.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+            params={"key": api_key}, json=request_body, timeout=60,
+        )
+    except requests.Timeout as exc:
+        raise StructuredProviderError("provider_timeout") from None
+    except requests.RequestException as exc:
+        raise StructuredProviderError("provider_unavailable") from None
+    if not response.ok:
+        raise StructuredProviderError("provider_unavailable")
+    try:
+        body = response.json()
+    except (TypeError, ValueError):
+        raise StructuredProviderError("provider_structured_decode_failed") from None
+    if not isinstance(body, Mapping):
+        raise StructuredProviderError("provider_structured_decode_failed")
+    candidates = body.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        if isinstance(body.get("promptFeedback"), Mapping):
+            raise StructuredProviderError("provider_safety_blocked")
+        raise StructuredProviderError("provider_response_missing")
+    candidate = candidates[0]
+    if not isinstance(candidate, Mapping):
+        raise StructuredProviderError("provider_response_malformed")
+    if candidate.get("finishReason") == "SAFETY":
+        raise StructuredProviderError("provider_safety_blocked")
+    content = candidate.get("content")
+    parts = content.get("parts") if isinstance(content, Mapping) else None
+    text = parts[0].get("text") if isinstance(parts, list) and parts and isinstance(parts[0], Mapping) else None
+    if not isinstance(text, str) or not text.strip():
+        raise StructuredProviderError("provider_response_missing")
+    if text.lstrip().startswith("```"):
+        raise StructuredProviderError("provider_response_malformed")
+    try:
+        decoded = json.loads(text)
+    except (TypeError, ValueError):
+        raise StructuredProviderError("provider_structured_decode_failed") from None
+    if not isinstance(decoded, dict):
+        raise StructuredProviderError("provider_response_malformed")
+    usage_data = body.get("usageMetadata")
+    usage = {
+        "input_tokens": int(usage_data.get("promptTokenCount", 0)) if isinstance(usage_data, Mapping) else 0,
+        "output_tokens": int(usage_data.get("candidatesTokenCount", 0)) if isinstance(usage_data, Mapping) else 0,
+        "cached_tokens": int(usage_data.get("cachedContentTokenCount", 0)) if isinstance(usage_data, Mapping) else 0,
+        "model": model,
+        "usage_status": "available" if isinstance(usage_data, Mapping) else "provider_usage_unavailable",
+    }
+    return deepcopy(decoded), usage
+
+
+def format_recommendation_presentation_text(*, presentation_model: Mapping[str, Any]) -> str:
+    """Format only validated presentation fields for the existing text panel."""
+    if not isinstance(presentation_model, Mapping):
+        return "추천 응답 검증에 실패했습니다."
+    status = presentation_model.get("status")
+    if status == "resolved":
+        lines = [f"추천 기술: {presentation_model.get('recommended_move')}", f"슬롯: {presentation_model.get('recommended_slot_index')}"]
+        for label, key in (("주요 이유", "primary_reasons"), ("위험 요소", "risks"), ("대안", "alternatives"), ("후보 요약", "candidate_summaries")):
+            values = presentation_model.get(key, [])
+            lines.append(f"{label}: {len(values) if isinstance(values, list) else 0}")
+        return "\n".join(lines)
+    if status == "insufficient_context":
+        return "추천을 확정할 정보가 부족합니다."
+    if status == "no_usable_candidate":
+        return "사용 가능한 후보 기술이 없습니다."
+    if status in {"provider_unavailable", "provider_timeout", "provider_safety_blocked", "provider_response_missing", "provider_response_malformed", "provider_structured_decode_failed", "provider_response_validation_failed"}:
+        return "제공자 호출에 실패했습니다."
+    return "추천 응답 검증에 실패했습니다."
+
+
+def _log_structured_recommendation_usage(*, model: str, usage: Mapping[str, Any], status: str) -> dict[str, Any]:
+    """Log approved usage metadata only; logging failure is sanitized and non-fatal."""
+    try:
+        logger = TokenLogger()
+        logger.log_call(
+            model=model,
+            input_tokens=int(usage.get("input_tokens", 0)),
+            output_tokens=int(usage.get("output_tokens", 0)),
+            cached_tokens=int(usage.get("cached_tokens", 0)),
+            tool_name="structured_recommendation",
+            turn_number=1,
+            game_id="ui_structured_recommendation_v14_9",
+        )
+        return {"logging_status": "recorded", "recommendation_status": status}
+    except Exception:
+        return {"logging_status": "failed", "recommendation_status": status}
+
+
+def run_structured_ui_recommendation(*, selected_moves: Any, battle_input: Mapping[str, Any], move_repository: Any, model: str | None = None, usage_logging_enabled: bool = False) -> dict[str, Any]:
+    """Separate structured coexistence flow; it never falls back to legacy advice."""
+    prepared = prepare_ui_recommendation_cycle(selected_moves=selected_moves, battle_input=battle_input, move_repository=move_repository)
+    if prepared.get("status") != "ready":
+        presentation = build_recommendation_presentation_model(completed_cycle={"status": "response_validation_failed", "candidates": prepared.get("candidates", []), "errors": ["preparation_not_ready"]})
+        return {"status": "preparation_not_ready", "prepared_cycle": deepcopy(prepared), "completed_cycle": None, "presentation_model": presentation, "usage": {}, "errors": ["preparation_not_ready"]}
+    payload = build_provider_recommendation_payload(prepared_cycle=prepared)
+    if payload.get("status"):
+        return {"status": "provider_response_validation_failed", "prepared_cycle": deepcopy(prepared), "completed_cycle": None, "presentation_model": build_recommendation_presentation_model(completed_cycle={"status": "response_validation_failed", "candidates": prepared.get("candidates", []), "errors": ["provider_response_validation_failed"]}), "usage": {}, "errors": ["provider_response_validation_failed"]}
+    try:
+        decoded, usage = call_structured_recommendation_provider(provider_payload=payload, model=model or DEFAULT_MODEL)
+    except StructuredProviderError as error:
+        return {"status": error.code, "prepared_cycle": deepcopy(prepared), "completed_cycle": None, "presentation_model": build_recommendation_presentation_model(completed_cycle={"status": "response_validation_failed", "candidates": prepared.get("candidates", []), "errors": [error.code]}), "usage": {}, "errors": [error.code]}
+    adapted = adapt_provider_recommendation_response(provider_response=decoded)
+    if adapted.get("status") == "provider_response_validation_failed":
+        return {"status": "provider_response_validation_failed", "prepared_cycle": deepcopy(prepared), "completed_cycle": None, "presentation_model": build_recommendation_presentation_model(completed_cycle={"status": "response_validation_failed", "candidates": prepared.get("candidates", []), "errors": ["provider_response_validation_failed"]}), "usage": deepcopy(usage), "errors": ["provider_response_validation_failed"]}
+    completed = complete_recommendation_cycle(prepared_cycle=prepared, response_payload=adapted)
+    presentation = build_recommendation_presentation_model(completed_cycle=completed)
+    logging_summary = _log_structured_recommendation_usage(model=model or DEFAULT_MODEL, usage=usage, status=completed["status"]) if usage_logging_enabled else {"logging_status": "not_recorded", "recommendation_status": completed["status"]}
+    return {"status": completed["status"], "prepared_cycle": deepcopy(prepared), "completed_cycle": deepcopy(completed), "presentation_model": presentation, "usage": deepcopy(usage), "logging_summary": logging_summary, "errors": list(completed.get("errors", []))}
 
 
 def run_spike_advice(model: str | None = None) -> tuple[str, dict[str, int], dict[str, Any]]:

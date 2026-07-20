@@ -21,6 +21,7 @@ TURN_PIPELINE_STATUS_TEXT = (
 
 class LLMAdvicePanel(QFrame):
     advice_requested = Signal()
+    structured_advice_requested = Signal()
     field_profile_requested = Signal()
     item_event_requested = Signal()
     item_event_session_reset_requested = Signal()
@@ -53,6 +54,8 @@ class LLMAdvicePanel(QFrame):
 
         self.request_button = QPushButton("이번 턴 추천 받기")
         self.request_button.clicked.connect(self.advice_requested.emit)
+        self.structured_request_button = QPushButton("구조화 추천 받기")
+        self.structured_request_button.clicked.connect(self.structured_advice_requested.emit)
 
         self.field_profile_button = QPushButton("Field state")
         self.field_profile_button.setObjectName("fieldProfileButton")
@@ -149,6 +152,7 @@ class LLMAdvicePanel(QFrame):
         self.turn_pipeline_status_label.setVisible(False)
 
         layout.addWidget(self.request_button)
+        layout.addWidget(self.structured_request_button)
         layout.addWidget(self.field_profile_button)
         layout.addWidget(self.item_event_button)
         layout.addWidget(self.clear_item_events_button)
@@ -215,6 +219,7 @@ class LLMAdvicePanel(QFrame):
 
     def set_running(self, is_running: bool) -> None:
         self.request_button.setDisabled(is_running)
+        self.structured_request_button.setDisabled(is_running)
         self.field_profile_button.setDisabled(is_running)
         self.item_event_button.setDisabled(is_running)
         self.clear_item_events_button.setDisabled(is_running)

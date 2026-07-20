@@ -41,7 +41,7 @@ from llm.advisor_battle_state_context import (
 )
 from llm.opponent_assumptions import build_opponent_assumptions_payload
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
-from llm.advisor_client import run_ui_selected_advice
+from llm.advisor_client import format_recommendation_presentation_text, run_structured_ui_recommendation, run_ui_selected_advice
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
@@ -221,6 +221,34 @@ class LLMAdviceWorker(QObject):
         return message
 
 
+class StructuredRecommendationWorker(QObject):
+    """Separate worker for the structured coexistence recommendation action."""
+
+    finished = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, selected_moves: list, battle_input: dict, move_repository, model: str | None = None) -> None:
+        super().__init__()
+        self._selected_moves = deepcopy(selected_moves)
+        self._battle_input = deepcopy(battle_input)
+        self._move_repository = move_repository
+        self._model = model
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            result = run_structured_ui_recommendation(
+                selected_moves=self._selected_moves,
+                battle_input=self._battle_input,
+                move_repository=self._move_repository,
+                model=self._model,
+            )
+        except Exception:
+            self.failed.emit("구조화 추천을 검증하지 못했습니다.")
+            return
+        self.finished.emit(deepcopy(result))
+
+
 class AnalysisColumn(QFrame):
     def __init__(
         self,
@@ -298,6 +326,8 @@ class MainWindow(QMainWindow):
         self._active_column_name = "team_my"
         self._llm_thread: QThread | None = None
         self._llm_worker: LLMAdviceWorker | None = None
+        self._structured_thread: QThread | None = None
+        self._structured_worker: StructuredRecommendationWorker | None = None
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
@@ -346,6 +376,7 @@ class MainWindow(QMainWindow):
         self.center_column.search_box.pokemon_selected.connect(self._on_pokemon_selected)
         self.center_column.move_search_box.move_selected.connect(self._on_move_selected)
         self.center_column.llm_advice_panel.advice_requested.connect(self._start_llm_advice)
+        self.center_column.llm_advice_panel.structured_advice_requested.connect(self._start_structured_recommendation)
         self.center_column.llm_advice_panel.field_profile_requested.connect(self._open_field_profile_dialog)
         self.center_column.llm_advice_panel.item_event_requested.connect(self._open_item_event_dialog)
         self.center_column.llm_advice_panel.item_event_session_reset_requested.connect(
@@ -857,6 +888,61 @@ class MainWindow(QMainWindow):
             self._llm_thread.deleteLater()
         self._llm_thread = None
         self._llm_worker = None
+
+    @Slot()
+    def _start_structured_recommendation(self) -> None:
+        if self._structured_thread is not None:
+            return
+        panel = self.center_column.llm_advice_panel
+        try:
+            battle_input = self._build_llm_battle_input()
+            my_slot_index = self.selected_slots.get("team_my")
+            if my_slot_index is None:
+                raise ValueError("missing selected Pokemon")
+            selected_moves = list(self._slot_panel("team_my", my_slot_index).selected_moves)
+        except ValueError:
+            panel.set_error("구조화 추천 입력을 준비하지 못했습니다.")
+            return
+        panel.structured_request_button.setDisabled(True)
+        panel.set_running(True)
+        self.statusBar().showMessage("Structured recommendation analyzing...")
+        self._structured_thread = QThread(self)
+        self._structured_worker = StructuredRecommendationWorker(selected_moves, battle_input, self.move_repo)
+        self._structured_worker.moveToThread(self._structured_thread)
+        self._structured_thread.started.connect(self._structured_worker.run)
+        self._structured_worker.finished.connect(self._on_structured_recommendation_finished)
+        self._structured_worker.failed.connect(self._on_structured_recommendation_failed)
+        self._structured_worker.finished.connect(self._structured_thread.quit)
+        self._structured_worker.failed.connect(self._structured_thread.quit)
+        self._structured_thread.finished.connect(self._structured_worker.deleteLater)
+        self._structured_thread.finished.connect(self._cleanup_structured_worker)
+        self._structured_thread.start()
+
+    @Slot(object)
+    def _on_structured_recommendation_finished(self, result: object) -> None:
+        panel = self.center_column.llm_advice_panel
+        panel.set_running(False)
+        panel.structured_request_button.setDisabled(False)
+        if not isinstance(result, dict):
+            panel.set_error("추천 응답 검증에 실패했습니다.")
+            return
+        panel.set_advice_text(format_recommendation_presentation_text(presentation_model=result.get("presentation_model", {})))
+        self.statusBar().showMessage(f"Structured recommendation | {result.get('status', 'validation_failed')}")
+
+    @Slot(str)
+    def _on_structured_recommendation_failed(self, message: str) -> None:
+        panel = self.center_column.llm_advice_panel
+        panel.set_running(False)
+        panel.structured_request_button.setDisabled(False)
+        panel.set_error(message)
+        self.statusBar().showMessage("Structured recommendation failed")
+
+    @Slot()
+    def _cleanup_structured_worker(self) -> None:
+        if self._structured_thread is not None:
+            self._structured_thread.deleteLater()
+        self._structured_thread = None
+        self._structured_worker = None
 
     def _build_llm_battle_input(
         self,

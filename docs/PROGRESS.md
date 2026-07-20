@@ -1,5 +1,21 @@
 # Master Ball Advisor — Progress
 
+## v14.9 - Structured Recommendation Coexistence
+
+- T1 selected coexistence: the legacy selected-move freeform action remains
+  unchanged and a separate structured action uses `StructuredRecommendationWorker`.
+- The structured path prepares deterministic evidence, sends only the approved
+  seven-field payload in one schema-requested provider call, then validates and
+  formats the result through the offline completion and presentation contracts.
+- Provider failures are sanitized; raw responses never reach logs or UI; no
+  retry/fallback exists. Offline validation passed 23 targeted, 30 regression,
+  1339 related tests, and 2599 passed with 2 deselected in the full suite.
+- The authorized smoke made 0 calls because credential presence was unavailable.
+  The sanitized usage-logging helper remains disabled by default, so no
+  protected token-log write occurred.
+- Next: v14.10: structured recommendation stabilization and user-facing
+  validation based on the v14.9 smoke result.
+
 ## v14.8 - Offline Provider Cycle and Presentation Model
 
 - Added a pure offline recommendation-cycle composition of UI preparation, an
