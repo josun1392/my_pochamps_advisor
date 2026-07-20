@@ -1,5 +1,11 @@
 # Advisor Payload Contract
 
+## v14.12 single-call smoke result
+
+The one-call structured smoke completed as sanitized
+`response_validation_failed`; no move/slot was admitted. Raw provider data is
+not retained, and retry/fallback remains absent.
+
 ## v14.11 coexistence UX boundary
 
 The shared advice panel receives an owner-tagged legacy freeform result or a

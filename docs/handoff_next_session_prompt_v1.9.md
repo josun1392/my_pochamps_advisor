@@ -1,5 +1,12 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.12 closure
+
+Runtime dotenv loading enabled one authorized structured Gemini call. It ended
+as sanitized `response_validation_failed`; no recommendation was displayed and
+no raw data was exposed. Next: v14.13 provider-boundary stabilization based on
+the observed failure category. Legacy replacement remains unauthorized.
+
 ## v14.11 closure
 
 Legacy and structured recommendations now have visible separate labels,

@@ -1,5 +1,14 @@
 # Master Ball Advisor — Progress
 
+## v14.12 - Single-Call Structured Gemini Smoke
+
+- Runtime dotenv loading made the credential available to the application and
+  fresh subprocess. One structured provider call was made after the offline gate.
+- The result was sanitized `response_validation_failed`; no move was displayed.
+  Usage was 452 input, 41 output, 0 cached, with no retry/fallback.
+- Added a sanitized offline semantic-failure regression. Next: v14.13
+  provider-boundary stabilization based on the observed failure category.
+
 ## v14.11 - Structured Recommendation UX Validation
 
 - Clarified separate legacy and structured actions with Korean labels, tooltips,
