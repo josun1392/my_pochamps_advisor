@@ -18,10 +18,9 @@ AUTHORIZED_ACTUAL_FIXTURE_IDS = ("clear_resolved", "insufficient_context", "no_s
 ORIGINAL_AUTHORIZED_CALL_BUDGET = 3
 UNCERTAIN_TIMEOUT_CALLS_CONSUMED = 1
 CLEAR_RESOLVED_CALLS_CONSUMED = 1
-# The earlier uncertain timeout and the completed clear-resolved evaluation
-# are both conservatively consumed.  This module never accepts a CLI budget
-# override; a T1-scoped one-shot caller may only consume this final call.
-REMAINING_AUTHORIZED_CALL_BUDGET = 1
+# The earlier uncertain timeout and both T1-approved v14.17 calls are
+# conservatively consumed.  Offline evaluation never reopens this ledger.
+REMAINING_AUTHORIZED_CALL_BUDGET = 0
 PROVIDER_EVALUATION_STATE = "SUSPENDED"
 _FIXTURE_PREDECESSORS = {
     "clear_resolved": (),
@@ -98,6 +97,47 @@ def get_fixed_fixture_catalog() -> tuple[dict[str, Any], ...]:
         {"fixture_id": "no_usable_candidate", "selected_moves": [], "battle_input": _battle(resolved=False), "move_repository": {}, "provider_response": None, "expected_preparation_status": "no_candidates", "expected_selectable_count": 0, "expected_recommendation_status": "no_usable_candidate", "expected_semantic_result": "provider_blocked", "expected_failure_code": "no_candidates", "expected_pair": None, "provider_invocation_allowed": False},
     )
     return deepcopy(catalog)
+
+
+def get_fixture_coverage_inventory() -> tuple[dict[str, Any], ...]:
+    """Return sanitized, provider-independent coverage and evidence metadata."""
+    evidence = {
+        "clear_resolved": {"provider_evidence": "actual_provider_passed", "actual_invocation_count": 1},
+        "insufficient_context": {
+            "provider_evidence": "actual_provider_passed",
+            "actual_invocation_count": 1,
+            "historical_sanitized_failure_categories": ("invalid_claim",),
+        },
+        "no_selectable_candidates": {"provider_evidence": "preparation_blocked", "actual_invocation_count": 0},
+    }
+    inventory = []
+    for fixture in get_fixed_fixture_catalog():
+        fixture_id = fixture["fixture_id"]
+        recommendation_status = fixture["expected_recommendation_status"]
+        provider_allowed = bool(fixture["provider_invocation_allowed"])
+        inventory.append({
+            "fixture_id": fixture_id,
+            "expected_terminal_category": recommendation_status,
+            "selectable_candidates_expected": fixture["expected_selectable_count"] > 0,
+            "recommendation_expected": fixture["expected_pair"] is not None,
+            "schema_contract": "six_field_response" if provider_allowed else "preparation_blocked",
+            "semantic_contract": fixture["expected_semantic_result"],
+            "acknowledgement_contract": (
+                "exact_selectable_pair" if recommendation_status == "resolved" else "no_recommendation_pair"
+            ),
+            "invalid_claim_boundary": fixture_id in {"unsupported_claim", "partial_context_contradiction"},
+            "preparation_possible": fixture["expected_preparation_status"] == "ready",
+            "provider_independent": True,
+            "provider_evidence": evidence.get(
+                fixture_id,
+                {"provider_evidence": "offline_only", "actual_invocation_count": 0},
+            )["provider_evidence"],
+            "actual_invocation_count": evidence.get(fixture_id, {"actual_invocation_count": 0})["actual_invocation_count"],
+            "historical_sanitized_failure_categories": evidence.get(fixture_id, {}).get(
+                "historical_sanitized_failure_categories", (),
+            ),
+        })
+    return tuple(deepcopy(inventory))
 
 
 def evaluate_structured_fixture(*, fixture: Mapping[str, Any], provider_response: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -222,6 +262,14 @@ def execute_single_authorized_fixture(
         raise ValueError("predecessor_not_authorized")
     if not actual_provider_approved or provider_evaluation_state != "ACTIVE":
         return suspended_fixture_report(fixture_id=fixture_id)
+    if REMAINING_AUTHORIZED_CALL_BUDGET <= 0:
+        return {
+            "fixture_id": fixture_id,
+            "status": "provider_budget_exhausted",
+            "provider_invoked": False,
+            "actual_call_count": 0,
+            "remaining_call_budget": 0,
+        }
     if not callable(provider_factory) or not isinstance(model, str) or not model:
         raise ValueError("invalid_authorized_runner_configuration")
     prepared = prepare_ui_recommendation_cycle(

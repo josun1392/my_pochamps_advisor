@@ -1,5 +1,17 @@
 # Advisor Payload Contract
 
+## v14.18 offline evidence closure
+
+The ten-fixture inventory is pure and sanitized. It records fixture identity,
+expected terminal/acknowledgement/semantic boundaries, selectable and pair
+expectations, provider-independent evaluability, and evidence category only.
+`clear_resolved` and `insufficient_context` have v14.17 actual-provider pass
+evidence; `no_selectable_candidates` is preparation-blocked; all other fixture
+records are offline-only. The earlier v14.15 `invalid_claim` is retained as a
+sanitized historical category, not provider text. The actual-provider budget is
+zero, default runner execution remains suspended, and no payload or response
+shape is changed.
+
 ## v14.16 fixed-fixture evaluation
 
 The pure fixed-fixture runner reuses UI preparation, six-field response

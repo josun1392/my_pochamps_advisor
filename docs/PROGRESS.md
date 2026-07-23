@@ -1,5 +1,17 @@
 # Master Ball Advisor — Progress
 
+## v14.18 - Offline Evaluation Closure and Evidence Inventory
+
+- Closed the ten-fixture structured-evaluation inventory without a provider
+  call. Records distinguish actual-provider passed, preparation-blocked, and
+  offline-only evidence without treating absent evidence as a pass.
+- Preserved the v14.15 sanitized `invalid_claim` history and the v14.17
+  clear-resolved and insufficient-context passes. The v14.17 actual-provider
+  budget is fixed at zero; default and one-shot runner entry points cannot
+  reopen it, and CLI budget overrides remain rejected.
+- Next: offline contract expansion only, or a separately T1-authorized provider
+  evaluation with a new explicit call budget and fixture subset.
+
 ## v14.16 - Fixed-Fixture Evaluation Framework
 
 - Added a pure, versioned ten-fixture catalog and evaluator that reuse existing

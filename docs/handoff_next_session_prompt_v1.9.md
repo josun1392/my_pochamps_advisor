@@ -1,5 +1,19 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.18 closure
+
+The provider-independent ten-fixture evidence inventory now distinguishes two
+v14.17 actual-provider passes (`clear_resolved`, `insufficient_context`), a
+preparation-blocked no-selectable case, and offline-only coverage. It preserves
+the v14.15 sanitized `invalid_claim` history without storing raw provider data.
+The v14.17 three-call budget is exhausted; default/one-shot runner paths remain
+non-executing and CLI budget overrides are rejected. This is not a reliability
+claim across models, repeated calls, UI sessions, battle states, latency, or
+cost.
+
+Next: offline contract expansion only, or a separate T1-approved provider
+evaluation with an explicit new call budget and fixture subset.
+
 ## v14.16 closure
 
 A pure ten-fixture catalog and reusable evaluator now exercise preparation,

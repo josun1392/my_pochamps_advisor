@@ -38,7 +38,7 @@ def test_default_cli_and_actual_flag_are_suspended_without_provider_import_or_ca
     assert cli.main(["--actual-provider-approved", "--fixture", "clear_resolved"]) == 2
     assert json_status(capsys.readouterr().out) == "provider_evaluation_suspended"
     source = Path("scripts/run_v14_17_fixture_evaluation.py").read_text(encoding="utf-8")
-    assert source.index("from llm.advisor_client") > source.index("if not preflight[\"provider_eligible\"]")
+    assert "from llm.advisor_client" not in source
 
 
 def json_status(output):
@@ -54,7 +54,7 @@ def test_missing_unknown_multiple_and_budget_override_requests_cannot_create_pro
     assert cli.main(["--budget", "3"]) == 2
     assert PROVIDER_EVALUATION_STATE == "SUSPENDED"
     assert UNCERTAIN_TIMEOUT_CALLS_CONSUMED == 1 and CLEAR_RESOLVED_CALLS_CONSUMED == 1
-    assert REMAINING_AUTHORIZED_CALL_BUDGET == 1
+    assert REMAINING_AUTHORIZED_CALL_BUDGET == 0
 
 
 def test_suspended_and_order_rejections_happen_before_provider_factory_creation():
@@ -84,7 +84,7 @@ def test_insufficient_context_requires_completed_sanitized_predecessor_before_fa
     assert created == []
 
 
-def test_clear_resolved_one_shot_uses_fake_provider_once_only_after_no_provider_preflight():
+def test_clear_resolved_one_shot_is_closed_after_its_consumed_budget():
     cli = _load_cli_module()
     preflight = prepare_single_authorized_fixture(fixture_id="clear_resolved", completed_fixture_ids=())
     created, calls = [], []
@@ -93,10 +93,11 @@ def test_clear_resolved_one_shot_uses_fake_provider_once_only_after_no_provider_
         return _resolved_response(), _usage()
     result = cli.run_t1_clear_resolved_once(provider_factory=lambda: created.append("created") or provider, model="sanitized")
     assert preflight["provider_eligible"] is True
-    assert created == ["created"] and calls == ["called"] and result["actual_call_count"] == 1
+    assert created == [] and calls == []
+    assert result["status"] == "provider_budget_exhausted" and result["actual_call_count"] == 0
 
 
-def test_insufficient_context_one_shot_uses_fake_provider_once_after_predecessor_and_preflight():
+def test_insufficient_context_one_shot_is_closed_after_its_consumed_budget():
     cli = _load_cli_module()
     created, calls = [], []
     def provider(**_):
@@ -105,9 +106,8 @@ def test_insufficient_context_one_shot_uses_fake_provider_once_after_predecessor
     result = cli.run_t1_insufficient_context_once(
         provider_factory=lambda: created.append("created") or provider, model="sanitized",
     )
-    assert created == ["created"] and calls == ["called"]
-    assert result["actual_call_count"] == 1 and result["completion_status"] == "insufficient_context"
-    assert result["remaining_call_budget"] == 0 and result["recommended_move"] is None
+    assert created == [] and calls == []
+    assert result["status"] == "provider_budget_exhausted" and result["actual_call_count"] == 0
 
 
 def test_blocked_fixture_never_creates_or_calls_provider_after_all_single_fixture_guards():
@@ -117,7 +117,7 @@ def test_blocked_fixture_never_creates_or_calls_provider_after_all_single_fixtur
         actual_provider_approved=True, provider_evaluation_state="ACTIVE",
         provider_factory=lambda: created.append("created"), model="sanitized",
     )
-    assert result["completion_status"] == "blocked" and result["provider_invoked"] is False and created == []
+    assert result["status"] == "provider_budget_exhausted" and result["provider_invoked"] is False and created == []
 
 
 def test_preparation_failure_never_creates_or_calls_provider(monkeypatch):
@@ -128,11 +128,11 @@ def test_preparation_failure_never_creates_or_calls_provider(monkeypatch):
         fixture_id="clear_resolved", completed_fixture_ids=(), actual_provider_approved=True,
         provider_evaluation_state="ACTIVE", provider_factory=lambda: created.append("created"), model="sanitized",
     )
-    assert result["completion_status"] == "blocked" and result["provider_invoked"] is False and created == []
+    assert result["status"] == "provider_budget_exhausted" and result["provider_invoked"] is False and created == []
 
 
 @pytest.mark.parametrize("mode", ["resolved", "timeout", "exception", "invalid"])
-def test_single_fixture_terminal_outcomes_have_one_call_no_retry_or_fallback(mode):
+def test_closed_budget_prevents_terminal_outcome_provider_creation(mode):
     calls = []
     class Failure(Exception):
         code = "provider_timeout"
@@ -149,8 +149,8 @@ def test_single_fixture_terminal_outcomes_have_one_call_no_retry_or_fallback(mod
         fixture_id="clear_resolved", completed_fixture_ids=(), actual_provider_approved=True,
         provider_evaluation_state="ACTIVE", provider_factory=lambda: provider, model="sanitized",
     )
-    assert calls == ["called"] and result["actual_call_count"] == 1
-    assert result["completion_status"] in {"resolved", "timeout_uncertain", "provider_unavailable", "provider_response_validation_failed"}
+    assert calls == [] and result["actual_call_count"] == 0
+    assert result["status"] == "provider_budget_exhausted"
     assert "secret-like-message" not in str(result) and "provider_factory" not in result
 
 

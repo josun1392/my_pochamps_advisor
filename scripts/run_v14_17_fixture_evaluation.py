@@ -73,23 +73,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"status": "fixture_already_consumed", "actual_call_count": 0}, ensure_ascii=True))
         return 2
     if args.execute_t1_insufficient_context_once:
-        if args.fixture is not None or args.actual_provider_approved:
-            print(json.dumps({"status": "one_shot_argument_rejected", "actual_call_count": 0}, ensure_ascii=True))
-            return 2
-        preflight = prepare_single_authorized_fixture(
-            fixture_id="insufficient_context", completed_fixture_ids=("clear_resolved",),
-            predecessor_evidence=_CLEAR_RESOLVED_PREDECESSOR,
-        )
-        if not preflight["provider_eligible"]:
-            print(json.dumps({**preflight, "status": "preparation_blocked", "actual_call_count": 0}, ensure_ascii=True, sort_keys=True))
-            return 0
-        from llm.advisor_client import call_structured_recommendation_provider
-        from scripts.spike_advisor import DEFAULT_MODEL
-        result = run_t1_insufficient_context_once(
-            provider_factory=lambda: call_structured_recommendation_provider, model=DEFAULT_MODEL,
-        )
-        print(json.dumps(_terminal_report(result), ensure_ascii=True, sort_keys=True))
-        return 0
+        print(json.dumps({"status": "provider_budget_exhausted", "actual_call_count": 0}, ensure_ascii=True))
+        return 2
     if args.actual_provider_approved:
         print(json.dumps({"status": "provider_evaluation_suspended", "actual_call_count": 0}, ensure_ascii=True))
         return 2
