@@ -3031,3 +3031,10 @@ observed item events, and supported deterministic inputs. Explicit side and
 slot labels must match the active Pokémon; a supplied session label must match
 the request session label. Request tokens, internal fingerprints, widgets,
 provider objects, raw responses, and inferred facts remain excluded.
+
+## v15.2 context provenance
+
+Pokémon-scoped current-state entries require canonical provenance matching the
+active side, slot, Pokémon identity, and session. Missing or mismatched legacy
+provenance is excluded from both candidate input and provider summary; it is
+not repaired or inferred. Field-scoped state remains separately allowed.

@@ -9,7 +9,7 @@ REPOSITORY = {"facade": {"category": "physical", "power": 70, "type": "normal"}}
 
 
 def _battle():
-    return {
+    battle = {
         "scenario": {"mode": "advisor", "known_limitations": []}, "current_state_session_id": "session-a",
         "pokemon": {"my_active": {"name_en": "pikachu", "slot_index": 0, "hp_percent": 62}, "opponent_active": {"name_en": "eevee", "slot_index": 1, "hp_percent": 44}},
         "moves": {"my_available_moves": [{"slot_index": 0, "move_id": "facade"}]},
@@ -19,6 +19,11 @@ def _battle():
         "field_state_context": {"current_field": {"weather": "rain", "terrain": "unknown"}},
         "item_event_context": {"observed_item_events": [{"side": "opponent", "slot_index": 1, "session_id": "session-a", "item": "focus-sash", "event_type": "item_activation_observed", "status": "user_confirmed", "source": "explicit_user_event_confirmation"}]},
     }
+    for key, entries_key in (("current_hp_context", "current_hp"), ("condition_context", "current_conditions"), ("ability_context", "current_abilities"), ("item_event_context", "observed_item_events")):
+        for entry in battle[key][entries_key]:
+            side = entry["side"]
+            entry["provenance"] = {"side": side, "slot_index": entry["slot_index"], "pokemon_id": "pikachu" if side == "self" else "eevee", "session_id": "session-a", "source": entry.get("source", "user_confirmed_current_hp"), "trust": "user_confirmed_current"}
+    return battle
 
 
 def _cycle(battle):
@@ -40,18 +45,15 @@ def test_rich_current_state_is_frozen_for_candidate_and_provider_summary():
     assert "request_token" not in cycle["recommendation_request"] and "fingerprint" not in cycle["recommendation_request"]
 
 
-def test_side_slot_and_session_mismatches_block_before_candidate_or_provider_work(monkeypatch):
-    evaluated = []
-    monkeypatch.setattr(contract, "evaluate_move_slots", lambda **_: evaluated.append(True))
+def test_side_slot_and_session_mismatches_are_excluded_before_provider_work():
     for mutate in (
-        lambda battle: battle["current_hp_context"]["current_hp"][0].update(slot_index=9),
-        lambda battle: battle["ability_context"]["current_abilities"][0].update(side="bench"),
-        lambda battle: battle["item_event_context"]["observed_item_events"][0].update(session_id="old-session"),
+        lambda battle: battle["current_hp_context"]["current_hp"][0]["provenance"].update(slot_index=9),
+        lambda battle: battle["ability_context"]["current_abilities"][0]["provenance"].update(side="bench"),
+        lambda battle: battle["item_event_context"]["observed_item_events"][0]["provenance"].update(session_id="old-session"),
     ):
         battle = _battle(); mutate(battle); cycle = _cycle(battle)
-        assert cycle["status"] == "invalid_snapshot"
-        assert cycle["errors"] == ["invalid_current_state_ownership"]
-    assert evaluated == []
+        state = cycle["recommendation_request"]["battle_snapshot_summary"]["turn_snapshot"].get("current_state", {})
+        assert not state.get("current_hp_context", {}).get("current_hp", []) or not state.get("ability_context", {}).get("current_abilities", []) or not state.get("item_event_context", {}).get("observed_item_events", [])
 
 
 def test_unknown_is_preserved_without_inference_and_snapshot_context_drives_candidate_input(monkeypatch):

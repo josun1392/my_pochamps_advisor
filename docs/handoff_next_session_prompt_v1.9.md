@@ -1299,3 +1299,6 @@ Documentation expectations:
   and routes candidate evaluation through that captured copy. Preserve side,
   slot, and optional session ownership validation; do not treat missing session
   metadata as inferred ownership.
+- v15.2 requires canonical provenance for Pokémon-scoped legacy contexts.
+  Never auto-attach provenance-free HP/item/condition/ability data to current
+  active Pokémon; field state remains slot-independent.

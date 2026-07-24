@@ -18401,3 +18401,10 @@ Maintained boundaries:
   contexts. Candidate evaluation receives the same snapshot-derived contexts.
 - Explicit side, active-slot, and optional session labels must match the active
   request state before candidate evaluation. Unknown values remain unmodified.
+
+## v15.2 Legacy Context Provenance
+
+- Pokémon-scoped legacy context now requires matching side, slot, Pokémon,
+  session, source, and trust provenance before snapshot inclusion.
+- Provenance-free entries are excluded rather than auto-promoted to current
+  active state; field-scoped weather/terrain remains slot-independent.

@@ -12,6 +12,8 @@ RICH_CURRENT_STATE_KEYS = (
     "battle_format_context", "observed_previous_damage_context", "battle_counter_context",
     "consecutive_use_context", "weight_context", "turn_event_context",
 )
+FIELD_SCOPED_CONTEXT_KEYS = frozenset({"field_state_context", "battle_format_context"})
+PROVENANCE_REQUIRED_KEYS = frozenset({"side", "slot_index", "pokemon_id", "session_id", "source", "trust"})
 
 
 def build_turn_snapshot_from_battle_input(battle_input: Mapping[str, Any]) -> TurnSnapshot:
@@ -176,8 +178,11 @@ def _extract_current_state(battle_input: Mapping[str, Any]) -> dict[str, Any]:
     for key in RICH_CURRENT_STATE_KEYS:
         value = battle_input.get(key)
         if isinstance(value, Mapping):
-            _validate_current_state_ownership(value, active_slots=active_slots, session_id=session_id)
-            current_state[key] = dict(value)
+            normalized = _normalize_context_provenance(
+                key, value, active_slots=active_slots, pokemon=pokemon, session_id=session_id
+            )
+            if normalized is not None:
+                current_state[key] = normalized
     return current_state
 
 
@@ -199,3 +204,56 @@ def _validate_current_state_ownership(
             for entry in item:
                 if isinstance(entry, Mapping):
                     _validate_current_state_ownership(entry, active_slots=active_slots, session_id=session_id)
+
+
+def _normalize_context_provenance(
+    context_key: str, value: Mapping[str, Any], *, active_slots: Mapping[str, int | None],
+    pokemon: Mapping[str, Any], session_id: str | None,
+) -> dict[str, Any] | None:
+    """Keep field state directly; never auto-attach unproven scoped legacy facts."""
+    if context_key in FIELD_SCOPED_CONTEXT_KEYS:
+        _validate_current_state_ownership(value, active_slots=active_slots, session_id=session_id)
+        return dict(value)
+    normalized = _filter_provenanced_entries(
+        value, active_slots=active_slots, pokemon=pokemon, session_id=session_id
+    )
+    return normalized if _contains_provenanced_entry(normalized) else None
+
+
+def _filter_provenanced_entries(
+    value: Mapping[str, Any], *, active_slots: Mapping[str, int | None], pokemon: Mapping[str, Any], session_id: str | None,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, item in value.items():
+        if isinstance(item, list):
+            entries = []
+            for entry in item:
+                if isinstance(entry, Mapping) and _entry_has_valid_provenance(entry, active_slots=active_slots, pokemon=pokemon, session_id=session_id):
+                    entries.append(dict(entry))
+            result[key] = entries
+        else:
+            result[key] = item
+    return result
+
+
+def _contains_provenanced_entry(value: Mapping[str, Any]) -> bool:
+    return any(isinstance(item, list) and bool(item) for item in value.values())
+
+
+def _entry_has_valid_provenance(
+    entry: Mapping[str, Any], *, active_slots: Mapping[str, int | None], pokemon: Mapping[str, Any], session_id: str | None,
+) -> bool:
+    provenance = entry.get("provenance")
+    if not isinstance(provenance, Mapping) or not PROVENANCE_REQUIRED_KEYS <= set(provenance):
+        return False
+    side = provenance.get("side")
+    if side not in {"self", "opponent"} or provenance.get("slot_index") != active_slots[side]:
+        return False
+    active_key = "my_active" if side == "self" else "opponent_active"
+    if provenance.get("pokemon_id") != _optional_str(_mapping_or_empty(pokemon.get(active_key)).get("name_en")):
+        return False
+    if session_id is None or provenance.get("session_id") != session_id:
+        return False
+    if not isinstance(provenance.get("source"), str) or not isinstance(provenance.get("trust"), str):
+        return False
+    return True
