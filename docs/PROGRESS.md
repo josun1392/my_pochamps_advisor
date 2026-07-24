@@ -18413,3 +18413,8 @@ Maintained boundaries:
 
 - UI battle-input capture binds side-labelled current contexts to active slot,
   Pokémon identity, and local session before snapshot validation.
+
+## v15.4 Battle Session Lifecycle
+
+- Added explicit monotonic internal battle-session rollover with battle-local
+  current-state reset; slot switches and advice requests do not roll sessions.

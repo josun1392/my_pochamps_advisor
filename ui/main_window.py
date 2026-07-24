@@ -357,7 +357,9 @@ class MainWindow(QMainWindow):
         self._active_advice_request_token: int | None = None
         self._active_advice_terminal_token: int | None = None
         self._is_closing = False
-        self._current_state_session_id = "ui-session-0"
+        self._battle_session_sequence = 0
+        self._current_battle_session_id = "ui-session-0"
+        self._current_state_session_id = self._current_battle_session_id
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
@@ -687,6 +689,21 @@ class MainWindow(QMainWindow):
     def _clear_current_hp_confirmations(self) -> None:
         self._current_hp_confirmations = {}
         self._update_current_hp_summary()
+
+    def _begin_new_battle_session(self) -> str:
+        """Explicit internal rollover; slot changes and requests do not call this."""
+        self._battle_session_sequence += 1
+        self._current_battle_session_id = f"ui-session-{self._battle_session_sequence}"
+        self._current_state_session_id = self._current_battle_session_id
+        self._current_condition_confirmations = {}
+        self._current_ability_confirmations = {}
+        self._current_stat_stage_confirmations = {}
+        self._current_hp_confirmations = {}
+        self._item_event_confirmations = []
+        self._current_field_state_confirmation = None
+        self._battle_counter_confirmation = None
+        self._consecutive_use_confirmation = None
+        return self._current_battle_session_id
 
     def _open_current_battle_format_dialog(self) -> None:
         dialog = CurrentBattleFormatDialog(battle_format=self._current_battle_format_confirmation, parent=self)
