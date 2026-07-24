@@ -705,6 +705,10 @@ class MainWindow(QMainWindow):
         self._consecutive_use_confirmation = None
         return self._current_battle_session_id
 
+    def begin_new_battle(self) -> str:
+        """Application lifecycle entry point for one explicit new battle."""
+        return self._begin_new_battle_session()
+
     def _open_current_battle_format_dialog(self) -> None:
         dialog = CurrentBattleFormatDialog(battle_format=self._current_battle_format_confirmation, parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted and dialog.battle_format_confirmation is not None:

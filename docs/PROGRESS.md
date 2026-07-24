@@ -18418,3 +18418,8 @@ Maintained boundaries:
 
 - Added explicit monotonic internal battle-session rollover with battle-local
   current-state reset; slot switches and advice requests do not roll sessions.
+
+## v15.5 New-Battle Lifecycle Hook
+
+- Added `begin_new_battle()` as the explicit application lifecycle entry point
+  for exactly-one session rollover per new battle.
