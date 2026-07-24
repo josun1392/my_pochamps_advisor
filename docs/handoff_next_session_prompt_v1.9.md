@@ -1307,3 +1307,6 @@ Documentation expectations:
 - v15.8 normalizes only explicit trusted observations on the structured copied
   input boundary. Keep observed events separate from known current state; do
   not infer item, ability, condition, damage, or session ownership.
+- v15.9 validates a detached snapshot-derived candidate damage-input signature
+  before existing deterministic context. Do not route the legacy Q12 formula
+  through it until type/base-stat/final-stat provenance has a separate contract.

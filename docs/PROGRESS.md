@@ -18440,3 +18440,10 @@ Maintained boundaries:
   observations into detached canonical events with active ownership and session
   provenance. Events remain distinct from known current item/ability/condition
   state; stale or mismatched events are excluded without retagging.
+
+## v15.9 Deterministic Damage-Input Signature
+
+- Candidate evaluation now validates a detached snapshot-derived attacker,
+  defender, exact move/slot, current-state, and copied metadata signature before
+  entering existing deterministic context logic. Q12 formula behavior remains
+  unchanged; missing final stats and unsupported modifiers remain explicit.

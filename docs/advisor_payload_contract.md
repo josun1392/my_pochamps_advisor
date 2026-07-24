@@ -3054,3 +3054,12 @@ side/slot/Pokemon/session provenance, `trust=observed_event`, and explicit
 observed/confirmed flags. Wrong-owner or stale-session events are omitted rather
 than repaired. Legacy battle input, legacy prompts, and public confirmation
 payloads do not gain this internal schema.
+
+## v15.9 deterministic damage-input signature
+
+Structured candidate evaluation creates a detached, snapshot-derived calculation
+input before existing deterministic context logic. It binds active attacker and
+defender identity plus exact candidate move/slot, and carries copied supported
+current-state evidence. This internal signature is not provider-visible. It does
+not alter Q12 formulas, fabricate final stats, or turn observed events into
+damage modifiers or known item/ability facts.

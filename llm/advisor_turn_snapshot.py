@@ -180,6 +180,91 @@ def build_snapshot_deterministic_input(turn_snapshot: TurnSnapshot) -> dict[str,
     }
 
 
+def build_snapshot_damage_input(
+    turn_snapshot: TurnSnapshot, *, candidate_slot_index: int,
+    candidate_move_id: str, selectable_moves: Sequence[str | None],
+    move_metadata: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build the detached input signature used at the candidate/damage boundary.
+
+    This adapter deliberately does not calculate damage or invent final stats.
+    It binds the candidate identity and metadata to the frozen request snapshot,
+    then preserves supported current-state evidence for existing calculators.
+    """
+    if not isinstance(turn_snapshot, TurnSnapshot):
+        raise ValueError("invalid_turn_snapshot")
+    if isinstance(candidate_slot_index, bool) or not isinstance(candidate_slot_index, int):
+        raise ValueError("invalid_candidate_slot")
+    if not isinstance(candidate_move_id, str) or not candidate_move_id:
+        raise ValueError("invalid_candidate_move")
+    if candidate_slot_index < 0 or candidate_slot_index >= len(selectable_moves):
+        raise ValueError("candidate_not_owned_by_snapshot")
+    if selectable_moves[candidate_slot_index] != candidate_move_id:
+        raise ValueError("candidate_not_owned_by_snapshot")
+    if not isinstance(move_metadata, Mapping):
+        raise ValueError("invalid_move_metadata")
+    metadata_move_id = _optional_str(move_metadata.get("move_id"))
+    if metadata_move_id not in {None, candidate_move_id}:
+        raise ValueError("move_metadata_identity_mismatch")
+
+    serialized = turn_snapshot.to_dict()
+    battle_state = serialized["battle_state"]
+    attacker = battle_state.get("active_player")
+    defender = battle_state.get("active_opponent")
+    if not isinstance(attacker, Mapping) or not isinstance(defender, Mapping):
+        raise ValueError("missing_selected_pokemon")
+    if not _optional_str(attacker.get("species_id")) or not _optional_str(defender.get("species_id")):
+        raise ValueError("missing_selected_pokemon")
+    current_state = deepcopy(serialized.get("current_state", {}))
+    session_id = _current_state_session_id(current_state)
+    move = deepcopy(dict(move_metadata))
+    move["move_id"] = candidate_move_id
+    move["slot_index"] = candidate_slot_index
+    move["owner_species_id"] = attacker["species_id"]
+    observed_events = _observed_event_evidence(current_state)
+    limits = [
+        "Exact final stats are unavailable unless explicitly user-confirmed.",
+        "EV, IV, nature, and hidden ability/item values are not inferred.",
+        "Observed events are evidence only and are not automatic damage modifiers.",
+    ]
+    if not current_state.get("final_stat_context"):
+        limits.append("Exact damage guarantee unavailable without trusted final-stat context.")
+    return {
+        "attacker": {**deepcopy(dict(attacker)), "session_id": session_id},
+        "defender": {**deepcopy(dict(defender)), "session_id": session_id},
+        "move": move,
+        "battle_context": {
+            "current_state": current_state,
+            "observed_event_evidence": observed_events,
+        },
+        "calculation_limits": limits,
+    }
+
+
+def _current_state_session_id(current_state: Mapping[str, Any]) -> str | None:
+    for context in current_state.values():
+        if not isinstance(context, Mapping):
+            continue
+        for entries in context.values():
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if not isinstance(entry, Mapping):
+                    continue
+                provenance = entry.get("provenance")
+                if isinstance(provenance, Mapping):
+                    session_id = _optional_str(provenance.get("session_id"))
+                    if session_id is not None:
+                        return session_id
+    return None
+
+
+def _observed_event_evidence(current_state: Mapping[str, Any]) -> list[dict[str, Any]]:
+    context = current_state.get("item_event_context")
+    events = context.get("observed_events") if isinstance(context, Mapping) else None
+    return deepcopy([dict(event) for event in events if isinstance(event, Mapping)]) if isinstance(events, list) else []
+
+
 def capture_ui_current_state_provenance(
     battle_input: Mapping[str, Any], *, session_id: str,
     observed_events: Sequence[Mapping[str, Any]] | None = None,
