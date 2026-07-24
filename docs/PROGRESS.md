@@ -18428,3 +18428,8 @@ Maintained boundaries:
 
 - Added a detached deterministic-input adapter derived only from frozen request
   snapshots; unknown values remain unknown.
+
+## v15.7 Mutable Input Boundary Inventory
+
+- Recorded structured deterministic call boundaries and verified detached
+  request/candidate input against later battle-input and repository mutations.
