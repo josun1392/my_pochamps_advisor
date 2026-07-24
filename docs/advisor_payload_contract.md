@@ -3012,3 +3012,13 @@ thread identity, request tokens, raw provider output, or raw exceptions into
 the advisor payload or UI. A synchronous provider call is not cancellable by
 this contract; after it returns, an interrupted worker exits through its
 internal cancellation signal without publishing a result.
+
+## v15.0 request-start turn snapshot
+
+Structured recommendation preparation captures a frozen `turn_snapshot` from
+the selected UI battle input before candidate evaluation. It contains active
+player/opponent identity, confirmed HP and item status where present, and
+explicit unknown values otherwise. When `my_available_moves` is present, every
+candidate slot must match that active player's move at capture time. Request
+tokens, widgets, repositories, provider objects, and inferred item/ability or
+field state are never serialized.

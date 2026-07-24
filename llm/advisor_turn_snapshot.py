@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any, Mapping
 
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
@@ -57,6 +58,24 @@ def try_build_turn_snapshot_from_battle_input(battle_input: Mapping[str, Any]) -
         return None
 
 
+def build_request_start_recommendation_snapshot(
+    battle_input: Mapping[str, Any], *, selectable_moves: Sequence[str | None]
+) -> TurnSnapshot:
+    """Freeze and validate the trusted UI state used by one structured request.
+
+    The result deliberately contains no request token, widget, repository, or
+    provider object.  If the UI exposes its active selectable slots, every
+    non-empty candidate must still belong to that active player at capture time.
+    """
+    snapshot = build_turn_snapshot_from_battle_input(battle_input)
+    player = snapshot.battle_state.active_player
+    opponent = snapshot.battle_state.active_opponent
+    if player is None or not player.species_id or opponent is None or not opponent.species_id:
+        raise ValueError("missing_selected_pokemon")
+    _validate_selectable_move_ownership(battle_input, selectable_moves)
+    return snapshot
+
+
 def _battle_slot_from_payload(
     *,
     side: str,
@@ -106,3 +125,25 @@ def _optional_int(value: Any) -> int | None:
     if isinstance(value, bool):
         return None
     return value if isinstance(value, int) else None
+
+
+def _validate_selectable_move_ownership(
+    battle_input: Mapping[str, Any], selectable_moves: Sequence[str | None]
+) -> None:
+    moves = _mapping_or_empty(battle_input.get("moves"))
+    available = moves.get("my_available_moves")
+    if available is None:
+        return
+    if not isinstance(available, list):
+        raise ValueError("invalid_active_selectable_moves")
+    active_slots: dict[int, str] = {}
+    for entry in available:
+        if not isinstance(entry, Mapping):
+            raise ValueError("invalid_active_selectable_moves")
+        index, move_id = entry.get("slot_index"), _optional_str(entry.get("move_id"))
+        if isinstance(index, bool) or not isinstance(index, int) or move_id is None or index in active_slots:
+            raise ValueError("invalid_active_selectable_moves")
+        active_slots[index] = move_id
+    for index, move_id in enumerate(selectable_moves):
+        if move_id is not None and active_slots.get(index) != move_id:
+            raise ValueError("selected_move_not_owned_by_active_pokemon")

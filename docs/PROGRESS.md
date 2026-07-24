@@ -18384,3 +18384,12 @@ Maintained boundaries:
   application and finish naturally; no force termination or wait is used.
 - Provider cancellation remains intentionally deferred because the synchronous
   provider call has no cancellation boundary. Offline provider/network calls: 0.
+
+## v15.0 Turn-State Integration Baseline
+
+- Structured preparation now freezes a validated `TurnSnapshot` at request
+  start and includes it in the provider-neutral snapshot summary.
+- Active selectable move slots, when supplied by the UI, must match the
+  request's candidate slot and move ID before deterministic evaluation begins.
+- Unknown HP/item/state values remain explicit unknowns; no request token is
+  serialized. Provider/network calls remain 0.

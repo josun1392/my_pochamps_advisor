@@ -6,6 +6,7 @@ from copy import deepcopy
 import math
 
 from llm.advisor_battle_state_context import build_deterministic_calculation_context
+from llm.advisor_turn_snapshot import build_request_start_recommendation_snapshot
 
 CANDIDATE_STATUSES = frozenset({"resolved", "partial", "unavailable"})
 RECOMMENDATION_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate", "validation_failed"})
@@ -506,7 +507,7 @@ def adapt_ui_battle_snapshot(*, battle_input: Mapping[str, Any]) -> dict[str, An
     return snapshot
 
 
-def build_ui_recommendation_snapshot_summary(*, battle_input: Mapping[str, Any]) -> dict[str, Any]:
+def build_ui_recommendation_snapshot_summary(*, battle_input: Mapping[str, Any], turn_snapshot: Any = None) -> dict[str, Any]:
     if not isinstance(battle_input, Mapping):
         raise ValueError("invalid_battle_snapshot")
     scenario = battle_input.get("scenario")
@@ -516,6 +517,8 @@ def build_ui_recommendation_snapshot_summary(*, battle_input: Mapping[str, Any])
     pokemon = battle_input.get("pokemon")
     if isinstance(pokemon, Mapping):
         summary["pokemon"] = deepcopy(dict(pokemon))
+    if turn_snapshot is not None:
+        summary["turn_snapshot"] = deepcopy(turn_snapshot.to_dict())
     return summary
 
 
@@ -530,8 +533,13 @@ def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_inp
     """Prepare an offline recommendation cycle from UI-shaped, trusted inputs."""
     try:
         moves = adapt_ui_move_slots(selected_moves=selected_moves)
+        request_turn_snapshot = build_request_start_recommendation_snapshot(
+            battle_input, selectable_moves=moves
+        )
         snapshot = adapt_ui_battle_snapshot(battle_input=battle_input)
-        summary = build_ui_recommendation_snapshot_summary(battle_input=battle_input)
+        summary = build_ui_recommendation_snapshot_summary(
+            battle_input=battle_input, turn_snapshot=request_turn_snapshot
+        )
     except ValueError as error:
         return _cycle_result(status="invalid_snapshot", errors=[str(error)])
     return prepare_recommendation_cycle(

@@ -1291,3 +1291,7 @@ Documentation expectations:
   callbacks and reparents active threads to QApplication. Do not add
   `terminate()`, unbounded waits, or provider calls. Provider cancellation and
   application-shutdown handling remain separate gaps.
+- v15.0 freezes `TurnSnapshot` at structured-request preparation. Preserve the
+  active selectable move ownership check and do not infer unknown opponent
+  state. Multi-turn transitions and full deterministic-input unification remain
+  deferred.
