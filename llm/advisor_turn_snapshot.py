@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from copy import deepcopy
 from typing import Any, Mapping
 
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
@@ -179,9 +180,18 @@ def build_snapshot_deterministic_input(turn_snapshot: TurnSnapshot) -> dict[str,
     }
 
 
-def capture_ui_current_state_provenance(battle_input: Mapping[str, Any], *, session_id: str) -> dict[str, Any]:
-    """Attach canonical provenance at the UI capture boundary, never in snapshot validation."""
-    captured = dict(battle_input)
+def capture_ui_current_state_provenance(
+    battle_input: Mapping[str, Any], *, session_id: str,
+    observed_events: Sequence[Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Capture structured-only provenance and explicitly observed UI events.
+
+    The caller may pass a legacy-compatible base input, but this function always
+    returns a detached copy.  It is intentionally invoked only after the
+    structured request boundary, so neither legacy prompts nor the UI session
+    dictionaries acquire internal provenance or event metadata.
+    """
+    captured = deepcopy(dict(battle_input))
     provenance_added = False
     pokemon = _mapping_or_empty(captured.get("pokemon"))
     for key in RICH_CURRENT_STATE_KEYS:
@@ -202,9 +212,106 @@ def capture_ui_current_state_provenance(battle_input: Mapping[str, Any], *, sess
                 entry["provenance"] = {"side": side, "slot_index": entry["slot_index"], "pokemon_id": active["name_en"], "session_id": session_id, "source": entry.get("source", "ui_current_state"), "trust": "user_confirmed_current"}
                 provenance_added = True
         captured[key] = copied
+    canonical_events = normalize_observed_events(
+        observed_events, pokemon=pokemon, session_id=session_id
+    )
+    if canonical_events:
+        event_context = captured.get("item_event_context")
+        event_context = dict(event_context) if isinstance(event_context, Mapping) else {}
+        event_context["observed_events"] = canonical_events
+        captured["item_event_context"] = event_context
+        provenance_added = True
     if provenance_added:
         captured["current_state_session_id"] = session_id
     return captured
+
+
+def normalize_observed_events(
+    events: Sequence[Mapping[str, Any]] | None, *, pokemon: Mapping[str, Any],
+    session_id: str,
+) -> list[dict[str, Any]]:
+    """Return detached, canonical events that explicitly belong to this request.
+
+    This is a capture boundary, not an inference engine. Missing or mismatched
+    ownership/session metadata is excluded, and an observed event never creates
+    a known item, ability, or current-condition fact.
+    """
+    if not isinstance(events, Sequence) or isinstance(events, (str, bytes)):
+        return []
+    normalized: list[dict[str, Any]] = []
+    seen: set[tuple[Any, ...]] = set()
+    for event in events:
+        if not isinstance(event, Mapping):
+            continue
+        event_kind = _optional_str(event.get("event_kind")) or _optional_str(event.get("event_type"))
+        side = _optional_str(event.get("side"))
+        if event_kind is None or side not in {"self", "opponent"}:
+            continue
+        active_key = "my_active" if side == "self" else "opponent_active"
+        active = _mapping_or_empty(pokemon.get(active_key))
+        slot_index = _optional_int(active.get("slot_index"))
+        pokemon_id = _optional_str(active.get("name_en"))
+        if slot_index is None or pokemon_id is None:
+            continue
+        if event.get("slot_index") not in {None, slot_index}:
+            continue
+        if event.get("pokemon_id") not in {None, pokemon_id}:
+            continue
+        if event.get("session_id") not in {None, session_id}:
+            continue
+        if event.get("observed") is False or not (
+            event.get("status") == "user_confirmed" or event.get("confirmed") is True
+        ):
+            continue
+        source = _optional_str(event.get("source")) or "explicit_user_event_confirmation"
+        payload = {
+            key: deepcopy(value)
+            for key, value in event.items()
+            if key not in {
+                "event_kind", "event_type", "side", "slot_index", "pokemon_id", "session_id",
+                "source", "trust", "observed", "confirmed", "status", "provenance",
+            }
+        }
+        dedup_key = (event_kind, side, slot_index, pokemon_id, session_id, _freeze_event_payload(payload))
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
+        provenance = {
+            "side": side,
+            "slot_index": slot_index,
+            "pokemon_id": pokemon_id,
+            "session_id": session_id,
+            "source": source,
+            "trust": "observed_event",
+        }
+        normalized.append({
+            "event_kind": event_kind,
+            "side": side,
+            "slot_index": slot_index,
+            "pokemon_id": pokemon_id,
+            "session_id": session_id,
+            "source": source,
+            "trust": "observed_event",
+            "observed": True,
+            "confirmed": True,
+            "payload": payload,
+            "provenance": provenance,
+        })
+    return normalized
+
+
+def _freeze_event_payload(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return tuple(sorted((str(key), _freeze_event_payload(item)) for key, item in value.items()))
+    if isinstance(value, list):
+        return tuple(_freeze_event_payload(item) for item in value)
+    if isinstance(value, tuple):
+        return tuple(_freeze_event_payload(item) for item in value)
+    try:
+        hash(value)
+    except TypeError:
+        return repr(value)
+    return value
 
 
 def _extract_current_state(battle_input: Mapping[str, Any]) -> dict[str, Any]:

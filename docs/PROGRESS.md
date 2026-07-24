@@ -18433,3 +18433,10 @@ Maintained boundaries:
 
 - Recorded structured deterministic call boundaries and verified detached
   request/candidate input against later battle-input and repository mutations.
+
+## v15.8 Observed-Event Ingestion Baseline
+
+- Structured request capture now normalizes explicit, user-confirmed item event
+  observations into detached canonical events with active ownership and session
+  provenance. Events remain distinct from known current item/ability/condition
+  state; stale or mismatched events are excluded without retagging.

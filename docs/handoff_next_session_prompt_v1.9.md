@@ -1304,3 +1304,6 @@ Documentation expectations:
   active Pokémon; field state remains slot-independent.
 - v15.3 produces that provenance at MainWindow capture for side-labelled
   current contexts. Do not add provenance in snapshot validation itself.
+- v15.8 normalizes only explicit trusted observations on the structured copied
+  input boundary. Keep observed events separate from known current state; do
+  not infer item, ability, condition, damage, or session ownership.

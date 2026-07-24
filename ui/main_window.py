@@ -966,7 +966,9 @@ class MainWindow(QMainWindow):
                 raise ValueError("missing selected Pokemon")
             selected_moves = list(self._slot_panel("team_my", my_slot_index).selected_moves)
             battle_input = capture_ui_current_state_provenance(
-                deepcopy(battle_input), session_id=self._current_state_session_id
+                deepcopy(battle_input),
+                session_id=self._current_state_session_id,
+                observed_events=deepcopy(getattr(self, "_item_event_confirmations", [])),
             )
         except ValueError:
             panel.set_error("구조화 추천 입력을 준비하지 못했습니다.")

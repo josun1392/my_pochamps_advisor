@@ -3044,3 +3044,13 @@ not repaired or inferred. Field-scoped state remains separately allowed.
 UI-captured side-labelled contexts receive canonical active slot, Pokémon, and
 session provenance before request-start snapshot creation. Missing active
 identity remains unprovenanced and is excluded by the v15.2 boundary.
+
+## v15.8 observed-event capture
+
+Only the structured copied-input boundary may normalize an explicit trusted UI
+event into `turn_snapshot.current_state.item_event_context.observed_events`.
+Each event remains separate from known current state and carries matching
+side/slot/Pokemon/session provenance, `trust=observed_event`, and explicit
+observed/confirmed flags. Wrong-owner or stale-session events are omitted rather
+than repaired. Legacy battle input, legacy prompts, and public confirmation
+payloads do not gain this internal schema.
