@@ -3003,3 +3003,12 @@ Environment transformations use trusted field state; Terrain Pulse requires expl
 ## v13.25 Turn-Event Move Power
 
 Turn-event power consumes explicit current-turn confirmations only.
+
+## v14.23 Advice worker shutdown boundary
+
+Advice shutdown is UI-lifecycle-only: close suppresses callback presentation,
+requests cooperative QThread interruption, and never serializes cancellation,
+thread identity, request tokens, raw provider output, or raw exceptions into
+the advisor payload or UI. A synchronous provider call is not cancellable by
+this contract; after it returns, an interrupted worker exits through its
+internal cancellation signal without publishing a result.

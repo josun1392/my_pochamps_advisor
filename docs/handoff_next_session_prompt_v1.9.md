@@ -1286,3 +1286,8 @@ Documentation expectations:
 - v13.6 deliberately blocks screen resolution pending a trusted battle-format
   source; do not infer singles/doubles from the selected UI state.
 - v13.7 screen reduction requires an explicit normalized singles/doubles value.
+- v14.23 advice shutdown is non-blocking and cooperative only: workers check
+  QThread interruption before and after local runners, while close suppresses
+  callbacks and reparents active threads to QApplication. Do not add
+  `terminate()`, unbounded waits, or provider calls. Provider cancellation and
+  application-shutdown handling remain separate gaps.

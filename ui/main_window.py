@@ -7,6 +7,7 @@ from copy import deepcopy
 import requests
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 from PySide6.QtWidgets import (
+    QApplication,
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -164,6 +165,7 @@ def _normalize_current_stat_stage_session(stages: object) -> dict[tuple[str, str
 class LLMAdviceWorker(QObject):
     finished = Signal(str, dict)
     failed = Signal(str)
+    cancelled = Signal()
 
     def __init__(
         self,
@@ -183,6 +185,9 @@ class LLMAdviceWorker(QObject):
 
     @Slot()
     def run(self) -> None:
+        if self._is_interruption_requested():
+            self.cancelled.emit()
+            return
         try:
             recommendation, usage, summary = run_ui_selected_advice(
                 self._battle_input,
@@ -204,7 +209,14 @@ class LLMAdviceWorker(QObject):
             self.failed.emit(f"LLM \uCD94\uCC9C \uC0DD\uC131\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4: {exc}")
             return
 
+        if self._is_interruption_requested():
+            self.cancelled.emit()
+            return
         self.finished.emit(recommendation, {"usage": usage, "summary": summary})
+
+    @staticmethod
+    def _is_interruption_requested() -> bool:
+        return QThread.currentThread().isInterruptionRequested()
 
     @staticmethod
     def _friendly_runtime_error(message: str) -> str:
@@ -226,6 +238,7 @@ class StructuredRecommendationWorker(QObject):
 
     finished = Signal(object)
     failed = Signal(str)
+    cancelled = Signal()
 
     def __init__(self, selected_moves: list, battle_input: dict, move_repository, model: str | None = None) -> None:
         super().__init__()
@@ -236,6 +249,9 @@ class StructuredRecommendationWorker(QObject):
 
     @Slot()
     def run(self) -> None:
+        if self._is_interruption_requested():
+            self.cancelled.emit()
+            return
         try:
             result = run_structured_ui_recommendation(
                 selected_moves=self._selected_moves,
@@ -246,7 +262,14 @@ class StructuredRecommendationWorker(QObject):
         except Exception:
             self.failed.emit("구조화 추천을 검증하지 못했습니다.")
             return
+        if self._is_interruption_requested():
+            self.cancelled.emit()
+            return
         self.finished.emit(deepcopy(result))
+
+    @staticmethod
+    def _is_interruption_requested() -> bool:
+        return QThread.currentThread().isInterruptionRequested()
 
 
 class AnalysisColumn(QFrame):
@@ -840,6 +863,7 @@ class MainWindow(QMainWindow):
         llm_worker.failed.connect(lambda message: self._on_llm_advice_failed(request_token, message))
         llm_worker.finished.connect(llm_thread.quit)
         llm_worker.failed.connect(llm_thread.quit)
+        llm_worker.cancelled.connect(llm_thread.quit)
         llm_thread.finished.connect(llm_worker.deleteLater)
         llm_thread.finished.connect(lambda: self._cleanup_llm_worker(request_token, llm_thread, llm_worker))
         llm_thread.start()
@@ -935,6 +959,7 @@ class MainWindow(QMainWindow):
         structured_worker.failed.connect(lambda message: self._on_structured_recommendation_failed(request_token, message))
         structured_worker.finished.connect(structured_thread.quit)
         structured_worker.failed.connect(structured_thread.quit)
+        structured_worker.cancelled.connect(structured_thread.quit)
         structured_thread.finished.connect(structured_worker.deleteLater)
         structured_thread.finished.connect(lambda: self._cleanup_structured_worker(request_token, structured_thread, structured_worker))
         structured_thread.start()
@@ -1006,12 +1031,23 @@ class MainWindow(QMainWindow):
         thread.deleteLater()
 
     def closeEvent(self, event) -> None:
-        """Invalidate advice callbacks; running workers may finish naturally."""
+        """Suppress callbacks and request cooperative shutdown without blocking close."""
         self._is_closing = True
         self._active_advice_owner = None
         self._active_advice_request_token = None
         self._active_advice_terminal_token = None
+        for thread in self._advice_threads_for_shutdown():
+            if thread.isRunning():
+                thread.requestInterruption()
+            app = QApplication.instance()
+            if app is not None:
+                thread.setParent(app)
         event.accept()
+
+    def _advice_threads_for_shutdown(self) -> tuple[QThread, ...]:
+        """Return each live advice thread once; one field exists for each mode."""
+        threads = (self._llm_thread, self._structured_thread)
+        return tuple(thread for index, thread in enumerate(threads) if thread is not None and thread not in threads[:index])
 
     def _build_llm_battle_input(
         self,

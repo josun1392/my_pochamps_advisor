@@ -4,8 +4,11 @@ from ui.main_window import MainWindow
 
 
 class _Thread:
-    def __init__(self): self.deleted = 0
+    def __init__(self): self.deleted = 0; self.running = True; self.interruptions = 0; self.parent = None
     def deleteLater(self): self.deleted += 1
+    def isRunning(self): return self.running
+    def requestInterruption(self): self.interruptions += 1
+    def setParent(self, parent): self.parent = parent
 
 
 class _Panel:
@@ -24,6 +27,7 @@ class _Harness:
     _claim_current_advice_terminal = MainWindow._claim_current_advice_terminal
     _clear_current_advice_request = MainWindow._clear_current_advice_request
     _delete_advice_thread_once = staticmethod(MainWindow._delete_advice_thread_once)
+    _advice_threads_for_shutdown = MainWindow._advice_threads_for_shutdown
     _cleanup_structured_worker = MainWindow._cleanup_structured_worker
     _on_structured_recommendation_finished = MainWindow._on_structured_recommendation_finished
     _on_structured_recommendation_failed = MainWindow._on_structured_recommendation_failed
@@ -32,6 +36,7 @@ class _Harness:
         self._is_closing = False; self._advice_request_sequence = 0
         self._active_advice_owner = self._active_advice_request_token = self._active_advice_terminal_token = None
         self.panel = _Panel(); self.center_column = SimpleNamespace(llm_advice_panel=self.panel)
+        self._llm_thread = self._llm_worker = None
         self._structured_thread = self._structured_worker = None
     def statusBar(self): return SimpleNamespace(showMessage=lambda _: None)
 
@@ -50,3 +55,4 @@ def test_close_invalidates_request_and_late_success_failure_do_not_touch_ui_but_
     window._cleanup_structured_worker(token, thread, worker)
     assert accepted == [True] and window.panel.events == [] and thread.deleted == 1
     assert window._active_advice_owner is None and window._begin_advice_request("structured") is None
+    assert thread.interruptions == 1

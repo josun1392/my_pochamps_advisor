@@ -18375,3 +18375,12 @@ Maintained boundaries:
 ## v13.25 Turn-Event Move Power
 
 - Added explicit current-turn event power contracts without prediction.
+
+## v14.23 Advice Worker Bounded Shutdown
+
+- Added cooperative QThread interruption checks before and after each advice
+  runner, with an internal cancellation-to-quit path.
+- Close remains non-blocking: active advice threads are reparented to the Qt
+  application and finish naturally; no force termination or wait is used.
+- Provider cancellation remains intentionally deferred because the synchronous
+  provider call has no cancellation boundary. Offline provider/network calls: 0.
