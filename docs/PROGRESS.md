@@ -1,5 +1,16 @@
 # Master Ball Advisor — Progress
 
+## v14.19 - Structured Recommendation Runtime Boundary Inventory
+
+- Mapped the production structured path from UI action through worker,
+  preparation, provider boundary, response adaptation, semantic completion,
+  presentation model, formatter, and shared advice panel.
+- Confirmed no structured legacy/freeform fallback and no resolved pair for
+  non-resolved validated outcomes. Cross-mode owner suppression exists; a
+  same-owner request-generation token remains a documented gap.
+- Provider budget remains zero. Next: design a narrow stale-result token
+  implementation only if T1 authorizes runtime lifecycle work.
+
 ## v14.18 - Offline Evaluation Closure and Evidence Inventory
 
 - Closed the ten-fixture structured-evaluation inventory without a provider

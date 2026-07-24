@@ -1,5 +1,18 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.19 runtime boundary inventory
+
+The structured runtime is connected from its separate UI action through a
+dedicated worker, deterministic preparation, structured provider boundary,
+adapter, semantic completion, validated presentation, and formatted shared
+panel text. It does not fall back to the legacy freeform path. Non-resolved
+outcomes carry no pair, and worker failures are sanitized. Cross-mode panel
+ownership is guarded; same-owner request-generation suppression remains a gap.
+The provider budget remains zero.
+
+Next: a separately authorized, narrow stale-result request-token design or
+implementation task; do not reopen provider evaluation automatically.
+
 ## v14.18 closure
 
 The provider-independent ten-fixture evidence inventory now distinguishes two

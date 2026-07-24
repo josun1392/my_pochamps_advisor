@@ -1,5 +1,16 @@
 # Advisor Payload Contract
 
+## v14.19 runtime boundary inventory
+
+The production structured path consumes a seven-field payload only at the
+provider boundary, adapts the exact six-field response before semantic
+completion, and formats only the validated presentation model for the shared
+panel. `resolved` alone may expose a validated exact pair; insufficient-context,
+no-usable-candidate, schema, semantic, preparation, and provider failures do
+not. The structured runtime does not fall back to legacy/freeform advice. Panel
+owner checks suppress cross-mode stale results, while same-owner request-token
+suppression remains a documented implementation gap. Provider budget is zero.
+
 ## v14.18 offline evidence closure
 
 The ten-fixture inventory is pure and sanitized. It records fixture identity,
