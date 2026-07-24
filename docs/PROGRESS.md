@@ -18408,3 +18408,8 @@ Maintained boundaries:
   session, source, and trust provenance before snapshot inclusion.
 - Provenance-free entries are excluded rather than auto-promoted to current
   active state; field-scoped weather/terrain remains slot-independent.
+
+## v15.3 UI/Session Provenance Capture
+
+- UI battle-input capture binds side-labelled current contexts to active slot,
+  Pokémon identity, and local session before snapshot validation.

@@ -1302,3 +1302,5 @@ Documentation expectations:
 - v15.2 requires canonical provenance for Pokémon-scoped legacy contexts.
   Never auto-attach provenance-free HP/item/condition/ability data to current
   active Pokémon; field state remains slot-independent.
+- v15.3 produces that provenance at MainWindow capture for side-labelled
+  current contexts. Do not add provenance in snapshot validation itself.

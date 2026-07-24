@@ -3038,3 +3038,9 @@ Pokémon-scoped current-state entries require canonical provenance matching the
 active side, slot, Pokémon identity, and session. Missing or mismatched legacy
 provenance is excluded from both candidate input and provider summary; it is
 not repaired or inferred. Field-scoped state remains separately allowed.
+
+## v15.3 UI provenance capture
+
+UI-captured side-labelled contexts receive canonical active slot, Pokémon, and
+session provenance before request-start snapshot creation. Missing active
+identity remains unprovenanced and is excluded by the v15.2 boundary.

@@ -43,6 +43,7 @@ from llm.advisor_battle_state_context import (
 from llm.opponent_assumptions import build_opponent_assumptions_payload
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import format_recommendation_presentation_text, run_structured_ui_recommendation, run_ui_selected_advice
+from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
@@ -356,6 +357,7 @@ class MainWindow(QMainWindow):
         self._active_advice_request_token: int | None = None
         self._active_advice_terminal_token: int | None = None
         self._is_closing = False
+        self._current_state_session_id = "ui-session-0"
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
@@ -942,6 +944,9 @@ class MainWindow(QMainWindow):
             if my_slot_index is None:
                 raise ValueError("missing selected Pokemon")
             selected_moves = list(self._slot_panel("team_my", my_slot_index).selected_moves)
+            battle_input = capture_ui_current_state_provenance(
+                deepcopy(battle_input), session_id=self._current_state_session_id
+            )
         except ValueError:
             panel.set_error("구조화 추천 입력을 준비하지 못했습니다.")
             return
@@ -1190,9 +1195,7 @@ class MainWindow(QMainWindow):
                     continue
             if entries:
                 battle_input["current_hp_confirmations"] = entries
-        return attach_opponent_known_move_damage_estimates(
-            attach_selected_move_damage_estimate(battle_input)
-        )
+        return attach_opponent_known_move_damage_estimates(attach_selected_move_damage_estimate(battle_input))
 
     @staticmethod
     def _panel_moves_payload(panel) -> list[dict]:

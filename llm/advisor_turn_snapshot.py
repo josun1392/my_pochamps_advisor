@@ -167,6 +167,34 @@ def snapshot_deterministic_context(turn_snapshot: TurnSnapshot) -> dict[str, Any
     return turn_snapshot.to_dict().get("current_state", {})
 
 
+def capture_ui_current_state_provenance(battle_input: Mapping[str, Any], *, session_id: str) -> dict[str, Any]:
+    """Attach canonical provenance at the UI capture boundary, never in snapshot validation."""
+    captured = dict(battle_input)
+    provenance_added = False
+    pokemon = _mapping_or_empty(captured.get("pokemon"))
+    for key in RICH_CURRENT_STATE_KEYS:
+        context = captured.get(key)
+        if not isinstance(context, Mapping):
+            continue
+        copied = dict(context)
+        for entries in copied.values():
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if not isinstance(entry, dict) or entry.get("side") not in {"self", "opponent"}:
+                    continue
+                side = entry["side"]; active = _mapping_or_empty(pokemon.get("my_active" if side == "self" else "opponent_active"))
+                if not _optional_str(active.get("name_en")) or _optional_int(active.get("slot_index")) is None:
+                    continue
+                entry["slot_index"] = _optional_int(active.get("slot_index"))
+                entry["provenance"] = {"side": side, "slot_index": entry["slot_index"], "pokemon_id": active["name_en"], "session_id": session_id, "source": entry.get("source", "ui_current_state"), "trust": "user_confirmed_current"}
+                provenance_added = True
+        captured[key] = copied
+    if provenance_added:
+        captured["current_state_session_id"] = session_id
+    return captured
+
+
 def _extract_current_state(battle_input: Mapping[str, Any]) -> dict[str, Any]:
     current_state: dict[str, Any] = {}
     pokemon = _mapping_or_empty(battle_input.get("pokemon"))
