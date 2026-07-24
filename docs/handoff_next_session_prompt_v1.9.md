@@ -1,5 +1,15 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.20 request-token lifecycle
+
+`MainWindow` now uses a monotonic internal owner/token identity for both advice
+paths. Only matching callbacks may update panel/status state or clear active
+worker references; stale same-owner, cross-mode, failure, and cleanup callbacks
+are suppressed. Tokens never enter provider payloads, prompts, panel text, or
+logs. This is not thread cancellation, and provider evaluation remains closed.
+
+Next: review narrow lifecycle hardening before any broader UI runtime work.
+
 ## v14.19 runtime boundary inventory
 
 The structured runtime is connected from its separate UI action through a

@@ -7,14 +7,14 @@ from ui.main_window import MainWindow, StructuredRecommendationWorker
 
 
 RUNTIME_BOUNDARY_INVENTORY = (
-    {"stage_id": "ui_start", "symbol": "MainWindow._start_structured_recommendation", "trust": "ui_input", "production_connected": True, "offline_coverage": True, "gap": "same_owner_request_sequence_not_consumed"},
+    {"stage_id": "ui_start", "symbol": "MainWindow._start_structured_recommendation", "trust": "ui_input", "production_connected": True, "offline_coverage": True, "gap": None},
     {"stage_id": "worker", "symbol": "StructuredRecommendationWorker.run", "trust": "copied_ui_input", "production_connected": True, "offline_coverage": True, "gap": None},
     {"stage_id": "prepare", "symbol": "prepare_ui_recommendation_cycle", "trust": "deterministic", "production_connected": True, "offline_coverage": True, "gap": None},
     {"stage_id": "provider", "symbol": "call_structured_recommendation_provider", "trust": "unvalidated_provider_mapping", "production_connected": True, "offline_coverage": True, "gap": "actual_provider_budget_closed"},
     {"stage_id": "adapter", "symbol": "adapt_provider_recommendation_response", "trust": "six_field_schema", "production_connected": True, "offline_coverage": True, "gap": None},
     {"stage_id": "completion", "symbol": "complete_recommendation_cycle", "trust": "semantic_validated", "production_connected": True, "offline_coverage": True, "gap": None},
     {"stage_id": "presentation", "symbol": "build_recommendation_presentation_model", "trust": "ui_neutral_validated", "production_connected": True, "offline_coverage": True, "gap": None},
-    {"stage_id": "panel", "symbol": "MainWindow._on_structured_recommendation_finished", "trust": "formatted_sanitized_text", "production_connected": True, "offline_coverage": True, "gap": "same_owner_request_sequence_not_consumed"},
+    {"stage_id": "panel", "symbol": "MainWindow._on_structured_recommendation_finished", "trust": "formatted_sanitized_text", "production_connected": True, "offline_coverage": True, "gap": None},
 )
 
 
@@ -40,9 +40,7 @@ def test_runtime_inventory_covers_production_stages_and_explicitly_records_remai
         "ui_start", "worker", "prepare", "provider", "adapter", "completion", "presentation", "panel",
     ]
     assert all(entry["production_connected"] and entry["offline_coverage"] for entry in RUNTIME_BOUNDARY_INVENTORY)
-    assert {entry["gap"] for entry in RUNTIME_BOUNDARY_INVENTORY if entry["gap"]} == {
-        "same_owner_request_sequence_not_consumed", "actual_provider_budget_closed",
-    }
+    assert {entry["gap"] for entry in RUNTIME_BOUNDARY_INVENTORY if entry["gap"]} == {"actual_provider_budget_closed"}
 
 
 def test_structured_runtime_orders_validation_before_presentation_and_has_no_legacy_fallback():
@@ -75,7 +73,7 @@ def test_structured_worker_sanitizes_exceptions_and_panel_callback_requires_stru
     callback_source = inspect.getsource(MainWindow._on_structured_recommendation_finished)
     assert "self.failed.emit(" in worker_source and "except Exception" in worker_source
     assert "str(exc)" not in worker_source and "traceback" not in worker_source
-    assert 'self._active_advice_owner != "structured"' in callback_source
+    assert 'self._is_current_advice_request("structured", request_token)' in callback_source
     assert "format_recommendation_presentation_text" in callback_source
 
 

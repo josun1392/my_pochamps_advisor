@@ -1,5 +1,15 @@
 # Master Ball Advisor — Progress
 
+## v14.20 - Structured Same-Owner Request Token Lifecycle
+
+- Added a monotonic internal request token to legacy and structured advice
+  lifecycles. Success, failure, and cleanup now require matching owner/token.
+- Stale callbacks cannot alter current panel/status/busy state or clear a newer
+  worker reference. Tokens remain outside provider payloads, prompts, UI text,
+  and logs; provider budget remains zero.
+- Next: review this narrow lifecycle hardening before any broader UI runtime
+  work. Provider evaluation remains closed.
+
 ## v14.19 - Structured Recommendation Runtime Boundary Inventory
 
 - Mapped the production structured path from UI action through worker,

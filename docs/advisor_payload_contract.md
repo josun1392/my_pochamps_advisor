@@ -1,5 +1,13 @@
 # Advisor Payload Contract
 
+## v14.20 request-token lifecycle
+
+Advice request tokens are MainWindow-only lifecycle identifiers. They are
+captured by worker callbacks to suppress stale same-owner and cross-mode UI
+updates; they are absent from the seven-field provider payload, six-field
+response, prompts, presentation text, and usage logging. This does not alter
+provider call policy or validation contracts.
+
 ## v14.19 runtime boundary inventory
 
 The production structured path consumes a seven-field payload only at the

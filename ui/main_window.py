@@ -330,6 +330,7 @@ class MainWindow(QMainWindow):
         self._structured_worker: StructuredRecommendationWorker | None = None
         self._advice_request_sequence = 0
         self._active_advice_owner: str | None = None
+        self._active_advice_request_token: int | None = None
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
@@ -787,8 +788,6 @@ class MainWindow(QMainWindow):
             return
 
         panel = self.center_column.llm_advice_panel
-        self._advice_request_sequence = getattr(self, "_advice_request_sequence", 0) + 1
-        self._active_advice_owner = "legacy"
         enable_turn_pipeline = panel.turn_pipeline_enabled()
         enable_turn_order_context = enable_turn_pipeline
         enable_opponent_move_context = enable_turn_pipeline
@@ -815,33 +814,35 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Failed | {message}")
             return
 
+        request_token = self._begin_advice_request("legacy")
         panel.set_running(True)
         panel.set_turn_pipeline_status_enabled(enable_turn_pipeline)
         self.statusBar().showMessage("Analyzing...")
 
-        self._llm_thread = QThread(self)
-        self._llm_worker = LLMAdviceWorker(
+        llm_thread = QThread(self)
+        llm_worker = LLMAdviceWorker(
             battle_input,
             enable_turn_pipeline=enable_turn_pipeline,
             enable_turn_order_context=enable_turn_order_context,
             enable_opponent_move_context=enable_opponent_move_context,
             enable_battle_state_context=enable_battle_state_context,
         )
-        self._llm_worker.moveToThread(self._llm_thread)
+        self._llm_thread = llm_thread
+        self._llm_worker = llm_worker
+        llm_worker.moveToThread(llm_thread)
 
-        self._llm_thread.started.connect(self._llm_worker.run)
-        self._llm_worker.finished.connect(self._on_llm_advice_finished)
-        self._llm_worker.failed.connect(self._on_llm_advice_failed)
-        self._llm_worker.finished.connect(self._llm_thread.quit)
-        self._llm_worker.failed.connect(self._llm_thread.quit)
-        self._llm_thread.finished.connect(self._llm_worker.deleteLater)
-        self._llm_thread.finished.connect(self._cleanup_llm_worker)
-        self._llm_thread.start()
+        llm_thread.started.connect(llm_worker.run)
+        llm_worker.finished.connect(lambda recommendation, payload: self._on_llm_advice_finished(request_token, recommendation, payload))
+        llm_worker.failed.connect(lambda message: self._on_llm_advice_failed(request_token, message))
+        llm_worker.finished.connect(llm_thread.quit)
+        llm_worker.failed.connect(llm_thread.quit)
+        llm_thread.finished.connect(llm_worker.deleteLater)
+        llm_thread.finished.connect(lambda: self._cleanup_llm_worker(request_token, llm_thread, llm_worker))
+        llm_thread.start()
 
-    @Slot(str, dict)
-    def _on_llm_advice_finished(self, recommendation: str, payload: dict) -> None:
+    def _on_llm_advice_finished(self, request_token: int, recommendation: str, payload: dict) -> None:
         panel = self.center_column.llm_advice_panel
-        if self._active_advice_owner != "legacy":
+        if not self._is_current_advice_request("legacy", request_token):
             return
         panel.set_running(False)
         panel.set_mode_advice_text("legacy", recommendation)
@@ -881,31 +882,30 @@ class MainWindow(QMainWindow):
             return f"Pricing unknown | {usage_text}"
         return f"{usage_text} | ${cost:.7f}"
 
-    @Slot(str)
-    def _on_llm_advice_failed(self, message: str) -> None:
+    def _on_llm_advice_failed(self, request_token: int, message: str) -> None:
         panel = self.center_column.llm_advice_panel
-        if self._active_advice_owner != "legacy":
+        if not self._is_current_advice_request("legacy", request_token):
             return
         panel.set_running(False)
         panel.set_error(message)
         self.statusBar().showMessage(f"Failed | {message}")
 
-    @Slot()
-    def _cleanup_llm_worker(self) -> None:
-        if self._llm_thread is not None:
-            self._llm_thread.deleteLater()
-        self._llm_thread = None
-        self._llm_worker = None
-        if self._active_advice_owner == "legacy":
-            self._active_advice_owner = None
+    def _cleanup_llm_worker(self, request_token: int, thread: QThread, worker: LLMAdviceWorker) -> None:
+        """Release this thread without letting an older request clear a newer one."""
+        thread.deleteLater()
+        if not self._is_current_advice_request("legacy", request_token):
+            return
+        if self._llm_thread is thread:
+            self._llm_thread = None
+        if self._llm_worker is worker:
+            self._llm_worker = None
+        self._clear_current_advice_request("legacy", request_token)
 
     @Slot()
     def _start_structured_recommendation(self) -> None:
         if self._structured_thread is not None:
             return
         panel = self.center_column.llm_advice_panel
-        self._advice_request_sequence += 1
-        self._active_advice_owner = "structured"
         try:
             battle_input = self._build_llm_battle_input()
             my_slot_index = self.selected_slots.get("team_my")
@@ -915,25 +915,27 @@ class MainWindow(QMainWindow):
         except ValueError:
             panel.set_error("구조화 추천 입력을 준비하지 못했습니다.")
             return
+        request_token = self._begin_advice_request("structured")
         panel.structured_request_button.setDisabled(True)
         panel.set_running(True)
         self.statusBar().showMessage("Structured recommendation analyzing...")
-        self._structured_thread = QThread(self)
-        self._structured_worker = StructuredRecommendationWorker(selected_moves, battle_input, self.move_repo)
-        self._structured_worker.moveToThread(self._structured_thread)
-        self._structured_thread.started.connect(self._structured_worker.run)
-        self._structured_worker.finished.connect(self._on_structured_recommendation_finished)
-        self._structured_worker.failed.connect(self._on_structured_recommendation_failed)
-        self._structured_worker.finished.connect(self._structured_thread.quit)
-        self._structured_worker.failed.connect(self._structured_thread.quit)
-        self._structured_thread.finished.connect(self._structured_worker.deleteLater)
-        self._structured_thread.finished.connect(self._cleanup_structured_worker)
-        self._structured_thread.start()
+        structured_thread = QThread(self)
+        structured_worker = StructuredRecommendationWorker(selected_moves, battle_input, self.move_repo)
+        self._structured_thread = structured_thread
+        self._structured_worker = structured_worker
+        structured_worker.moveToThread(structured_thread)
+        structured_thread.started.connect(structured_worker.run)
+        structured_worker.finished.connect(lambda result: self._on_structured_recommendation_finished(request_token, result))
+        structured_worker.failed.connect(lambda message: self._on_structured_recommendation_failed(request_token, message))
+        structured_worker.finished.connect(structured_thread.quit)
+        structured_worker.failed.connect(structured_thread.quit)
+        structured_thread.finished.connect(structured_worker.deleteLater)
+        structured_thread.finished.connect(lambda: self._cleanup_structured_worker(request_token, structured_thread, structured_worker))
+        structured_thread.start()
 
-    @Slot(object)
-    def _on_structured_recommendation_finished(self, result: object) -> None:
+    def _on_structured_recommendation_finished(self, request_token: int, result: object) -> None:
         panel = self.center_column.llm_advice_panel
-        if self._active_advice_owner != "structured":
+        if not self._is_current_advice_request("structured", request_token):
             return
         panel.set_running(False)
         panel.structured_request_button.setDisabled(False)
@@ -944,24 +946,39 @@ class MainWindow(QMainWindow):
         panel.set_mode_advice_text("structured", text)
         self.statusBar().showMessage("Structured recommendation complete")
 
-    @Slot(str)
-    def _on_structured_recommendation_failed(self, message: str) -> None:
+    def _on_structured_recommendation_failed(self, request_token: int, message: str) -> None:
         panel = self.center_column.llm_advice_panel
-        if self._active_advice_owner != "structured":
+        if not self._is_current_advice_request("structured", request_token):
             return
         panel.set_running(False)
         panel.structured_request_button.setDisabled(False)
         panel.set_error(message)
         self.statusBar().showMessage("Structured recommendation failed")
 
-    @Slot()
-    def _cleanup_structured_worker(self) -> None:
-        if self._structured_thread is not None:
-            self._structured_thread.deleteLater()
-        self._structured_thread = None
-        self._structured_worker = None
-        if self._active_advice_owner == "structured":
+    def _cleanup_structured_worker(self, request_token: int, thread: QThread, worker: StructuredRecommendationWorker) -> None:
+        """Release this thread without letting an older request clear a newer one."""
+        thread.deleteLater()
+        if not self._is_current_advice_request("structured", request_token):
+            return
+        if self._structured_thread is thread:
+            self._structured_thread = None
+        if self._structured_worker is worker:
+            self._structured_worker = None
+        self._clear_current_advice_request("structured", request_token)
+
+    def _begin_advice_request(self, owner: str) -> int:
+        self._advice_request_sequence += 1
+        self._active_advice_owner = owner
+        self._active_advice_request_token = self._advice_request_sequence
+        return self._active_advice_request_token
+
+    def _is_current_advice_request(self, owner: str, request_token: int) -> bool:
+        return self._active_advice_owner == owner and self._active_advice_request_token == request_token
+
+    def _clear_current_advice_request(self, owner: str, request_token: int) -> None:
+        if self._is_current_advice_request(owner, request_token):
             self._active_advice_owner = None
+            self._active_advice_request_token = None
 
     def _build_llm_battle_input(
         self,
