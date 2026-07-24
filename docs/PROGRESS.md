@@ -18423,3 +18423,8 @@ Maintained boundaries:
 
 - Added `begin_new_battle()` as the explicit application lifecycle entry point
   for exactly-one session rollover per new battle.
+
+## v15.6 Deterministic Input Integration Baseline
+
+- Added a detached deterministic-input adapter derived only from frozen request
+  snapshots; unknown values remain unknown.

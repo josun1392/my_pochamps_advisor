@@ -167,6 +167,18 @@ def snapshot_deterministic_context(turn_snapshot: TurnSnapshot) -> dict[str, Any
     return turn_snapshot.to_dict().get("current_state", {})
 
 
+def build_snapshot_deterministic_input(turn_snapshot: TurnSnapshot) -> dict[str, Any]:
+    """Detached deterministic input keyed only by the frozen request snapshot."""
+    if not isinstance(turn_snapshot, TurnSnapshot):
+        raise ValueError("invalid_turn_snapshot")
+    serialized = turn_snapshot.to_dict()
+    return {
+        "pokemon": serialized["battle_state"],
+        "selected_move_id": serialized["turn_input"]["selected_move_id"],
+        "current_state": serialized.get("current_state", {}),
+    }
+
+
 def capture_ui_current_state_provenance(battle_input: Mapping[str, Any], *, session_id: str) -> dict[str, Any]:
     """Attach canonical provenance at the UI capture boundary, never in snapshot validation."""
     captured = dict(battle_input)
