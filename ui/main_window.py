@@ -331,6 +331,7 @@ class MainWindow(QMainWindow):
         self._advice_request_sequence = 0
         self._active_advice_owner: str | None = None
         self._active_advice_request_token: int | None = None
+        self._active_advice_terminal_token: int | None = None
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
@@ -842,7 +843,7 @@ class MainWindow(QMainWindow):
 
     def _on_llm_advice_finished(self, request_token: int, recommendation: str, payload: dict) -> None:
         panel = self.center_column.llm_advice_panel
-        if not self._is_current_advice_request("legacy", request_token):
+        if not self._claim_current_advice_terminal("legacy", request_token):
             return
         panel.set_running(False)
         panel.set_mode_advice_text("legacy", recommendation)
@@ -884,7 +885,7 @@ class MainWindow(QMainWindow):
 
     def _on_llm_advice_failed(self, request_token: int, message: str) -> None:
         panel = self.center_column.llm_advice_panel
-        if not self._is_current_advice_request("legacy", request_token):
+        if not self._claim_current_advice_terminal("legacy", request_token):
             return
         panel.set_running(False)
         panel.set_error(message)
@@ -892,7 +893,7 @@ class MainWindow(QMainWindow):
 
     def _cleanup_llm_worker(self, request_token: int, thread: QThread, worker: LLMAdviceWorker) -> None:
         """Release this thread without letting an older request clear a newer one."""
-        thread.deleteLater()
+        self._delete_advice_thread_once(thread)
         if not self._is_current_advice_request("legacy", request_token):
             return
         if self._llm_thread is thread:
@@ -935,7 +936,7 @@ class MainWindow(QMainWindow):
 
     def _on_structured_recommendation_finished(self, request_token: int, result: object) -> None:
         panel = self.center_column.llm_advice_panel
-        if not self._is_current_advice_request("structured", request_token):
+        if not self._claim_current_advice_terminal("structured", request_token):
             return
         panel.set_running(False)
         panel.structured_request_button.setDisabled(False)
@@ -948,7 +949,7 @@ class MainWindow(QMainWindow):
 
     def _on_structured_recommendation_failed(self, request_token: int, message: str) -> None:
         panel = self.center_column.llm_advice_panel
-        if not self._is_current_advice_request("structured", request_token):
+        if not self._claim_current_advice_terminal("structured", request_token):
             return
         panel.set_running(False)
         panel.structured_request_button.setDisabled(False)
@@ -957,7 +958,7 @@ class MainWindow(QMainWindow):
 
     def _cleanup_structured_worker(self, request_token: int, thread: QThread, worker: StructuredRecommendationWorker) -> None:
         """Release this thread without letting an older request clear a newer one."""
-        thread.deleteLater()
+        self._delete_advice_thread_once(thread)
         if not self._is_current_advice_request("structured", request_token):
             return
         if self._structured_thread is thread:
@@ -970,15 +971,32 @@ class MainWindow(QMainWindow):
         self._advice_request_sequence += 1
         self._active_advice_owner = owner
         self._active_advice_request_token = self._advice_request_sequence
+        self._active_advice_terminal_token = None
         return self._active_advice_request_token
 
     def _is_current_advice_request(self, owner: str, request_token: int) -> bool:
         return self._active_advice_owner == owner and self._active_advice_request_token == request_token
 
+    def _claim_current_advice_terminal(self, owner: str, request_token: int) -> bool:
+        if not self._is_current_advice_request(owner, request_token):
+            return False
+        if self._active_advice_terminal_token == request_token:
+            return False
+        self._active_advice_terminal_token = request_token
+        return True
+
     def _clear_current_advice_request(self, owner: str, request_token: int) -> None:
         if self._is_current_advice_request(owner, request_token):
             self._active_advice_owner = None
             self._active_advice_request_token = None
+            self._active_advice_terminal_token = None
+
+    @staticmethod
+    def _delete_advice_thread_once(thread: QThread) -> None:
+        if getattr(thread, "_advice_cleanup_scheduled", False):
+            return
+        setattr(thread, "_advice_cleanup_scheduled", True)
+        thread.deleteLater()
 
     def _build_llm_battle_input(
         self,

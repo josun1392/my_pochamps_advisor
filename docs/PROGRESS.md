@@ -1,5 +1,13 @@
 # Master Ball Advisor — Progress
 
+## v14.21 - Adversarial Advice Lifecycle Contract
+
+- Added idempotent terminal claims and one-time thread cleanup for advice
+  callbacks. Adversarial offline ordering keeps stale/duplicate callbacks from
+  changing the active request.
+- Provider budget remains zero; close/teardown and cancellation remain separate
+  gaps.
+
 ## v14.20 - Structured Same-Owner Request Token Lifecycle
 
 - Added a monotonic internal request token to legacy and structured advice

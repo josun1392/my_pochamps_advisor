@@ -73,7 +73,7 @@ def test_structured_worker_sanitizes_exceptions_and_panel_callback_requires_stru
     callback_source = inspect.getsource(MainWindow._on_structured_recommendation_finished)
     assert "self.failed.emit(" in worker_source and "except Exception" in worker_source
     assert "str(exc)" not in worker_source and "traceback" not in worker_source
-    assert 'self._is_current_advice_request("structured", request_token)' in callback_source
+    assert 'self._claim_current_advice_terminal("structured", request_token)' in callback_source
     assert "format_recommendation_presentation_text" in callback_source
 
 

@@ -28,7 +28,9 @@ class _Thread:
 class _Harness:
     _begin_advice_request = MainWindow._begin_advice_request
     _is_current_advice_request = MainWindow._is_current_advice_request
+    _claim_current_advice_terminal = MainWindow._claim_current_advice_terminal
     _clear_current_advice_request = MainWindow._clear_current_advice_request
+    _delete_advice_thread_once = staticmethod(MainWindow._delete_advice_thread_once)
     _on_structured_recommendation_finished = MainWindow._on_structured_recommendation_finished
     _on_structured_recommendation_failed = MainWindow._on_structured_recommendation_failed
     _cleanup_structured_worker = MainWindow._cleanup_structured_worker
@@ -40,6 +42,7 @@ class _Harness:
         self._advice_request_sequence = 0
         self._active_advice_owner = None
         self._active_advice_request_token = None
+        self._active_advice_terminal_token = None
         self.panel = _Panel()
         self.status = _Status()
         self.center_column = SimpleNamespace(llm_advice_panel=self.panel)

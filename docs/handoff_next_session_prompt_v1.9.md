@@ -1,5 +1,12 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.21 adversarial lifecycle
+
+Advice callbacks now claim a terminal transition once and cleanup is idempotent
+per thread. Offline adversarial ordering covers stale, duplicate, and triple
+cross-mode callbacks. Provider evaluation remains closed; teardown/cancellation
+need a separate task.
+
 ## v14.20 request-token lifecycle
 
 `MainWindow` now uses a monotonic internal owner/token identity for both advice

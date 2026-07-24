@@ -1,5 +1,11 @@
 # Advisor Payload Contract
 
+## v14.21 adversarial lifecycle
+
+Terminal claims and cleanup markers are MainWindow-only. They are not provider
+payload, response, prompt, UI text, or logging fields. Duplicate/stale callback
+ordering cannot bypass structured validation or expose provider content.
+
 ## v14.20 request-token lifecycle
 
 Advice request tokens are MainWindow-only lifecycle identifiers. They are
