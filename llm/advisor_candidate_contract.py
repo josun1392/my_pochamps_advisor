@@ -6,7 +6,10 @@ from copy import deepcopy
 import math
 
 from llm.advisor_battle_state_context import build_deterministic_calculation_context
-from llm.advisor_turn_snapshot import build_request_start_recommendation_snapshot
+from llm.advisor_turn_snapshot import (
+    build_request_start_recommendation_snapshot,
+    snapshot_deterministic_context,
+)
 
 CANDIDATE_STATUSES = frozenset({"resolved", "partial", "unavailable"})
 RECOMMENDATION_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate", "validation_failed"})
@@ -537,6 +540,7 @@ def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_inp
             battle_input, selectable_moves=moves
         )
         snapshot = adapt_ui_battle_snapshot(battle_input=battle_input)
+        snapshot.update(snapshot_deterministic_context(request_turn_snapshot))
         summary = build_ui_recommendation_snapshot_summary(
             battle_input=battle_input, turn_snapshot=request_turn_snapshot
         )

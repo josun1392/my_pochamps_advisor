@@ -18393,3 +18393,11 @@ Maintained boundaries:
   request's candidate slot and move ID before deterministic evaluation begins.
 - Unknown HP/item/state values remain explicit unknowns; no request token is
   serialized. Provider/network calls remain 0.
+
+## v15.1 Unified Current-State Snapshot
+
+- Frozen request-start snapshots now retain deep-copied normalized HP,
+  condition, ability, stage, field, item-event, and related deterministic
+  contexts. Candidate evaluation receives the same snapshot-derived contexts.
+- Explicit side, active-slot, and optional session labels must match the active
+  request state before candidate evaluation. Unknown values remain unmodified.

@@ -1295,3 +1295,7 @@ Documentation expectations:
   active selectable move ownership check and do not infer unknown opponent
   state. Multi-turn transitions and full deterministic-input unification remain
   deferred.
+- v15.1 places normalized richer current-state contexts in the frozen snapshot
+  and routes candidate evaluation through that captured copy. Preserve side,
+  slot, and optional session ownership validation; do not treat missing session
+  metadata as inferred ownership.

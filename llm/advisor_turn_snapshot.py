@@ -6,6 +6,14 @@ from typing import Any, Mapping
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
 
 
+RICH_CURRENT_STATE_KEYS = (
+    "current_hp_context", "condition_context", "ability_context", "stat_stage_context",
+    "field_state_context", "item_event_context", "final_stat_context",
+    "battle_format_context", "observed_previous_damage_context", "battle_counter_context",
+    "consecutive_use_context", "weight_context", "turn_event_context",
+)
+
+
 def build_turn_snapshot_from_battle_input(battle_input: Mapping[str, Any]) -> TurnSnapshot:
     if not isinstance(battle_input, Mapping):
         raise ValueError("battle_input must be a mapping")
@@ -48,6 +56,7 @@ def build_turn_snapshot_from_battle_input(battle_input: Mapping[str, Any]) -> Tu
             "No post-damage HP update.",
             "No speed/order simulation.",
         ),
+        current_state=_extract_current_state(battle_input),
     )
 
 
@@ -147,3 +156,46 @@ def _validate_selectable_move_ownership(
     for index, move_id in enumerate(selectable_moves):
         if move_id is not None and active_slots.get(index) != move_id:
             raise ValueError("selected_move_not_owned_by_active_pokemon")
+
+
+def snapshot_deterministic_context(turn_snapshot: TurnSnapshot) -> dict[str, Any]:
+    """Return a detached deterministic-input mapping from one frozen snapshot."""
+    if not isinstance(turn_snapshot, TurnSnapshot):
+        raise ValueError("invalid_turn_snapshot")
+    return turn_snapshot.to_dict().get("current_state", {})
+
+
+def _extract_current_state(battle_input: Mapping[str, Any]) -> dict[str, Any]:
+    current_state: dict[str, Any] = {}
+    pokemon = _mapping_or_empty(battle_input.get("pokemon"))
+    active_slots = {
+        "self": _optional_int(_mapping_or_empty(pokemon.get("my_active")).get("slot_index")),
+        "opponent": _optional_int(_mapping_or_empty(pokemon.get("opponent_active")).get("slot_index")),
+    }
+    session_id = _optional_str(battle_input.get("current_state_session_id"))
+    for key in RICH_CURRENT_STATE_KEYS:
+        value = battle_input.get(key)
+        if isinstance(value, Mapping):
+            _validate_current_state_ownership(value, active_slots=active_slots, session_id=session_id)
+            current_state[key] = dict(value)
+    return current_state
+
+
+def _validate_current_state_ownership(
+    value: Mapping[str, Any], *, active_slots: Mapping[str, int | None], session_id: str | None
+) -> None:
+    """Reject explicit side, active-slot, or session labels that do not match capture."""
+    side = value.get("side")
+    if side is not None and side not in {"self", "opponent"}:
+        raise ValueError("invalid_current_state_ownership")
+    if side in active_slots and "slot_index" in value and value.get("slot_index") != active_slots[side]:
+        raise ValueError("invalid_current_state_ownership")
+    if "session_id" in value and (session_id is None or value.get("session_id") != session_id):
+        raise ValueError("invalid_current_state_ownership")
+    for key, item in value.items():
+        if isinstance(item, Mapping):
+            _validate_current_state_ownership(item, active_slots=active_slots, session_id=session_id)
+        elif isinstance(item, list):
+            for entry in item:
+                if isinstance(entry, Mapping):
+                    _validate_current_state_ownership(entry, active_slots=active_slots, session_id=session_id)

@@ -62,6 +62,34 @@ def _normalize_mapping(value: Mapping[str, Any] | None, *, field_name: str) -> M
     return MappingProxyType(dict(value))
 
 
+def _freeze_value(value: Any, *, field_name: str) -> Any:
+    if isinstance(value, Mapping):
+        return _freeze_mapping(value, field_name=field_name)
+    if isinstance(value, list | tuple):
+        return tuple(_freeze_value(item, field_name=field_name) for item in value)
+    return value
+
+
+def _freeze_mapping(value: Mapping[str, Any], *, field_name: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{field_name} must be a mapping")
+    return MappingProxyType({key: _freeze_value(item, field_name=field_name) for key, item in value.items()})
+
+
+def _normalize_frozen_mapping(value: Mapping[str, Any] | None, *, field_name: str) -> Mapping[str, Any]:
+    if value is None:
+        return MappingProxyType({})
+    return _freeze_mapping(value, field_name=field_name)
+
+
+def _thaw_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _thaw_value(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw_value(item) for item in value]
+    return value
+
+
 def _normalize_string_tuple(value: list[str] | tuple[str, ...] | None, *, field_name: str) -> tuple[str, ...]:
     if value is None:
         return ()
@@ -198,18 +226,23 @@ class TurnSnapshot:
     turn_input: TurnInput = field(default_factory=TurnInput)
     notes: tuple[str, ...] = field(default_factory=tuple)
     limitations: tuple[str, ...] = field(default_factory=tuple)
+    current_state: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "notes", _normalize_string_tuple(self.notes, field_name="notes"))
         object.__setattr__(self, "limitations", _normalize_string_tuple(self.limitations, field_name="limitations"))
+        object.__setattr__(self, "current_state", _normalize_frozen_mapping(self.current_state, field_name="current_state"))
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "battle_state": self.battle_state.to_dict(),
             "turn_input": self.turn_input.to_dict(),
             "notes": list(self.notes),
             "limitations": list(self.limitations),
         }
+        if self.current_state:
+            value["current_state"] = _thaw_value(self.current_state)
+        return value
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "TurnSnapshot":
@@ -218,6 +251,7 @@ class TurnSnapshot:
             turn_input=TurnInput.from_dict(value.get("turn_input") or {}),
             notes=tuple(value.get("notes") or ()),
             limitations=tuple(value.get("limitations") or ()),
+            current_state=value.get("current_state") or {},
         )
 
 

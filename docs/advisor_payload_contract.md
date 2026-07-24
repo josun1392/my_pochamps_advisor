@@ -3022,3 +3022,12 @@ explicit unknown values otherwise. When `my_available_moves` is present, every
 candidate slot must match that active player's move at capture time. Request
 tokens, widgets, repositories, provider objects, and inferred item/ability or
 field state are never serialized.
+
+## v15.1 unified current-state snapshot
+
+The request-start `turn_snapshot.current_state` contains detached normalized
+current-state contexts only: HP, conditions, abilities, stages, field state,
+observed item events, and supported deterministic inputs. Explicit side and
+slot labels must match the active Pokémon; a supplied session label must match
+the request session label. Request tokens, internal fingerprints, widgets,
+provider objects, raw responses, and inferred facts remain excluded.
