@@ -1,5 +1,10 @@
 # Master Ball Advisor — Progress
 
+## v14.22 - Advice Window Teardown
+
+- Added close-time advice invalidation and late-callback suppression without
+  thread termination or provider calls.
+
 ## v14.21 - Adversarial Advice Lifecycle Contract
 
 - Added idempotent terminal claims and one-time thread cleanup for advice

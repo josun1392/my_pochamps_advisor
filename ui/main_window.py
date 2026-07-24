@@ -332,6 +332,7 @@ class MainWindow(QMainWindow):
         self._active_advice_owner: str | None = None
         self._active_advice_request_token: int | None = None
         self._active_advice_terminal_token: int | None = None
+        self._is_closing = False
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
@@ -785,6 +786,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _start_llm_advice(self) -> None:
+        if getattr(self, "_is_closing", False):
+            return
         if self._llm_thread is not None:
             return
 
@@ -904,6 +907,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _start_structured_recommendation(self) -> None:
+        if getattr(self, "_is_closing", False):
+            return
         if self._structured_thread is not None:
             return
         panel = self.center_column.llm_advice_panel
@@ -967,7 +972,9 @@ class MainWindow(QMainWindow):
             self._structured_worker = None
         self._clear_current_advice_request("structured", request_token)
 
-    def _begin_advice_request(self, owner: str) -> int:
+    def _begin_advice_request(self, owner: str) -> int | None:
+        if getattr(self, "_is_closing", False):
+            return None
         self._advice_request_sequence += 1
         self._active_advice_owner = owner
         self._active_advice_request_token = self._advice_request_sequence
@@ -975,7 +982,7 @@ class MainWindow(QMainWindow):
         return self._active_advice_request_token
 
     def _is_current_advice_request(self, owner: str, request_token: int) -> bool:
-        return self._active_advice_owner == owner and self._active_advice_request_token == request_token
+        return not getattr(self, "_is_closing", False) and self._active_advice_owner == owner and self._active_advice_request_token == request_token
 
     def _claim_current_advice_terminal(self, owner: str, request_token: int) -> bool:
         if not self._is_current_advice_request(owner, request_token):
@@ -997,6 +1004,14 @@ class MainWindow(QMainWindow):
             return
         setattr(thread, "_advice_cleanup_scheduled", True)
         thread.deleteLater()
+
+    def closeEvent(self, event) -> None:
+        """Invalidate advice callbacks; running workers may finish naturally."""
+        self._is_closing = True
+        self._active_advice_owner = None
+        self._active_advice_request_token = None
+        self._active_advice_terminal_token = None
+        event.accept()
 
     def _build_llm_battle_input(
         self,

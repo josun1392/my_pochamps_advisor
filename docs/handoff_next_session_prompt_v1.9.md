@@ -1,5 +1,10 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v14.22 teardown lifecycle
+
+Window close invalidates active advice identity and suppresses late callbacks;
+threads are not force-cancelled. Provider evaluation remains closed.
+
 ## v14.21 adversarial lifecycle
 
 Advice callbacks now claim a terminal transition once and cleanup is idempotent

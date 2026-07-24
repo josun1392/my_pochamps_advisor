@@ -1,5 +1,10 @@
 # Advisor Payload Contract
 
+## v14.22 teardown lifecycle
+
+Closing state and advice tokens remain window-local and never enter payloads,
+responses, prompts, UI text, or logs.
+
 ## v14.21 adversarial lifecycle
 
 Terminal claims and cleanup markers are MainWindow-only. They are not provider
