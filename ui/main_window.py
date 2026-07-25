@@ -374,6 +374,7 @@ class MainWindow(QMainWindow):
         self._current_hp_confirmations: dict[str, dict] = {}
         self._current_battle_format_confirmation: dict | None = None
         self._current_observed_damage_confirmation: dict[str, object] | None = None
+        self._structured_observed_damage_confirmations: list[dict] = []
         self._battle_counter_confirmation: dict[str, int] | None = None
         self._consecutive_use_confirmation: dict[str, int | bool] | None = None
 
@@ -769,6 +770,8 @@ class MainWindow(QMainWindow):
         self._current_final_stat_confirmations = {}
         self._structured_final_stat_confirmations = {}
         self._current_hp_confirmations = {}
+        self._current_observed_damage_confirmation = None
+        self._structured_observed_damage_confirmations = []
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
         self._battle_counter_confirmation = None
@@ -795,11 +798,34 @@ class MainWindow(QMainWindow):
             snapshot = dialog.observed_damage_confirmation
             if isinstance(snapshot, dict):
                 self._current_observed_damage_confirmation = dict(snapshot)
+                structured = self._capture_structured_observed_damage_confirmation(snapshot)
+                self._structured_observed_damage_confirmations = [structured] if structured is not None else []
                 self._update_current_observed_damage_summary()
 
     def _clear_current_observed_damage_confirmation(self) -> None:
         self._current_observed_damage_confirmation = None
+        self._structured_observed_damage_confirmations = []
         self._update_current_observed_damage_summary()
+
+    def _capture_structured_observed_damage_confirmation(self, entry: dict) -> dict | None:
+        """Bind the legacy amount-only confirmation to current owners privately."""
+        damage = entry.get("damage")
+        if isinstance(damage, bool) or not isinstance(damage, int) or damage < 0:
+            return None
+        owners: dict[str, dict] = {}
+        for side, column in (("opponent", "team_enemy"), ("self", "team_my")):
+            slot_index = self.selected_slots.get(column)
+            if not isinstance(slot_index, int):
+                return None
+            try:
+                panel = self._slot_panel(column, slot_index)
+            except ValueError:
+                return None
+            pokemon_id = getattr(getattr(panel, "pokemon_view", None), "en", None)
+            if not isinstance(pokemon_id, str) or not pokemon_id:
+                return None
+            owners[side] = {"side": side, "slot_index": slot_index, "pokemon_id": pokemon_id, "session_id": self._current_state_session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation"}
+        return {"event_kind": "direct_move_damage_observed", "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True}
 
     def _update_item_event_summary(self) -> None:
         try:
@@ -1044,6 +1070,9 @@ class MainWindow(QMainWindow):
                 ),
                 ability_confirmations=deepcopy(
                     list(getattr(self, "_structured_ability_confirmations", {}).values())
+                ),
+                observed_damage_confirmations=deepcopy(
+                    getattr(self, "_structured_observed_damage_confirmations", [])
                 ),
             )
         except ValueError:

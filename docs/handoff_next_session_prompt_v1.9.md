@@ -1325,3 +1325,6 @@ Documentation expectations:
 - v15.14 captures current ability only from explicit UI confirmation into a
   private structured record. Keep activation events separate, do not choose a
   species ability automatically, and do not apply ability modifiers yet.
+- v15.15 adds an exact amount-only observed-damage event to structured snapshots.
+  It has current attacker/defender/session provenance but no trusted used move
+  or HP transition. Do not map selected candidates or Q12 rolls into it.

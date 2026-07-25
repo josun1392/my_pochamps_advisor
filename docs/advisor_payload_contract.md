@@ -3102,3 +3102,11 @@ Known current ability is structured-only copied-input evidence captured from an
 explicit confirmation with matching owner/session provenance. Species ability
 lists and observed activation events do not create that fact. The provider and
 legacy payloads receive neither private provenance nor a new Q12 modifier.
+
+## v15.15 observed damage provenance
+
+`current_state.observed_damage_context.observed_damage_events` is structured-only
+private evidence. The initial producer supplies a user-confirmed exact HP damage
+amount, both active owners, and session provenance; no used move is implied.
+Observed evidence is separate from deterministic Q12 output and cannot infer
+stats, items, abilities, or modifiers. Legacy/public/provider payloads omit it.

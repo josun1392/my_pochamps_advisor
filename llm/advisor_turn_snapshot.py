@@ -16,6 +16,7 @@ RICH_CURRENT_STATE_KEYS = (
     "field_state_context", "item_event_context", "final_stat_context",
     "battle_format_context", "observed_previous_damage_context", "battle_counter_context",
     "consecutive_use_context", "weight_context", "turn_event_context", "trusted_level_context",
+    "observed_damage_context",
 )
 FIELD_SCOPED_CONTEXT_KEYS = frozenset({"field_state_context", "battle_format_context"})
 PROVENANCE_REQUIRED_KEYS = frozenset({"side", "slot_index", "pokemon_id", "session_id", "source", "trust"})
@@ -506,6 +507,7 @@ def capture_ui_current_state_provenance(
     observed_events: Sequence[Mapping[str, Any]] | None = None,
     final_stat_confirmations: Sequence[Mapping[str, Any]] | None = None,
     ability_confirmations: Sequence[Mapping[str, Any]] | None = None,
+    observed_damage_confirmations: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Capture structured-only provenance and explicitly observed UI events.
 
@@ -558,6 +560,12 @@ def capture_ui_current_state_provenance(
     if abilities:
         captured["ability_context"] = {"current_abilities": abilities}
         provenance_added = True
+    observed_damage = normalize_structured_observed_damage_confirmations(
+        observed_damage_confirmations, pokemon=pokemon, session_id=session_id,
+    )
+    if observed_damage:
+        captured["observed_damage_context"] = {"observed_damage_events": observed_damage}
+        provenance_added = True
     trusted_levels = normalize_structured_trusted_levels(
         _mapping_or_empty(battle_input.get("trusted_level_context")).get("current_levels"),
         pokemon=pokemon, session_id=session_id,
@@ -568,6 +576,47 @@ def capture_ui_current_state_provenance(
     if provenance_added:
         captured["current_state_session_id"] = session_id
     return captured
+
+
+def normalize_structured_observed_damage_confirmations(
+    confirmations: Sequence[Mapping[str, Any]] | None, *, pokemon: Mapping[str, Any], session_id: str,
+) -> list[dict[str, Any]]:
+    """Copy direct exact-HP observations without associating an unconfirmed move."""
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, (str, bytes)):
+        return []
+    active = {"self": _mapping_or_empty(pokemon.get("my_active")), "opponent": _mapping_or_empty(pokemon.get("opponent_active"))}
+    result: list[dict[str, Any]] = []
+    seen: set[tuple[Any, ...]] = set()
+    for item in confirmations:
+        if not isinstance(item, Mapping):
+            continue
+        attacker, defender, amount = item.get("attacker"), item.get("defender"), item.get("damage_amount")
+        if (item.get("event_kind"), item.get("hp_unit"), item.get("source"), item.get("trust"), item.get("observed"), item.get("confirmed")) != ("direct_move_damage_observed", "exact", "ui_observed_damage_confirmation", "user_confirmed_observation", True, True):
+            continue
+        if isinstance(amount, bool) or not isinstance(amount, int) or amount < 0 or item.get("move_id") is not None or item.get("move_slot") is not None or "hp_before" in item or "hp_after" in item:
+            continue
+        if not _observed_damage_owner_matches(attacker, active, session_id) or not _observed_damage_owner_matches(defender, active, session_id) or attacker.get("side") == defender.get("side"):
+            continue
+        key = (attacker["side"], attacker["slot_index"], attacker["pokemon_id"], defender["side"], defender["slot_index"], defender["pokemon_id"], amount)
+        if key in seen:  # no sequence producer: only exact duplicate captures collapse
+            continue
+        seen.add(key)
+        result.append({
+            "event_kind": "direct_move_damage_observed", "attacker_side": attacker["side"], "attacker_slot_index": attacker["slot_index"], "attacker_pokemon_id": attacker["pokemon_id"],
+            "defender_side": defender["side"], "defender_slot_index": defender["slot_index"], "defender_pokemon_id": defender["pokemon_id"],
+            "move_id": None, "move_slot": None, "session_id": session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation",
+            "observed": True, "confirmed": True, "damage_amount": amount, "hp_unit": "exact", "payload": {"damage_amount": amount, "hp_unit": "exact", "mode": "amount_only"},
+            "attacker": deepcopy(attacker), "defender": deepcopy(defender),
+            "attacker_provenance": deepcopy(attacker), "defender_provenance": deepcopy(defender),
+        })
+    return result
+
+
+def _observed_damage_owner_matches(owner: Any, active: Mapping[str, Mapping[str, Any]], session_id: str) -> bool:
+    if not isinstance(owner, Mapping) or owner.get("side") not in {"self", "opponent"} or owner.get("session_id") != session_id:
+        return False
+    expected = active[owner["side"]]
+    return owner.get("slot_index") == _optional_int(expected.get("slot_index")) and owner.get("pokemon_id") == _optional_str(expected.get("name_en")) and isinstance(owner.get("source"), str) and isinstance(owner.get("trust"), str)
 
 
 def normalize_structured_final_stat_confirmations(
@@ -808,6 +857,10 @@ def _normalize_context_provenance(
     if context_key in FIELD_SCOPED_CONTEXT_KEYS:
         _validate_current_state_ownership(value, active_slots=active_slots, session_id=session_id)
         return dict(value)
+    if context_key == "observed_damage_context":
+        events = value.get("observed_damage_events")
+        normalized = normalize_structured_observed_damage_confirmations(events, pokemon=pokemon, session_id=session_id or "") if isinstance(events, list) else []
+        return {"observed_damage_events": normalized} if normalized else None
     normalized = _filter_provenanced_entries(
         value, active_slots=active_slots, pokemon=pokemon, session_id=session_id
     )

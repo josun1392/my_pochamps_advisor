@@ -18477,3 +18477,9 @@ Maintained boundaries:
 - Existing explicit ability confirmation now records private owner/session
   provenance for structured snapshots only. Ability identity is evidence, not a
   Q12 modifier, and activation events remain separate observations.
+
+## v15.15 Observed Damage Provenance Baseline
+
+- The existing amount-only previous-damage confirmation is privately bound to
+  current attacker/defender/session ownership and copied as a separate canonical
+  observed-damage snapshot event. It is not a Q12 result and has no inferred move.
