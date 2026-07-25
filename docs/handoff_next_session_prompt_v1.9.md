@@ -1328,3 +1328,6 @@ Documentation expectations:
 - v15.15 adds an exact amount-only observed-damage event to structured snapshots.
   It has current attacker/defender/session provenance but no trusted used move
   or HP transition. Do not map selected candidates or Q12 rolls into it.
+- v15.16 accepts only explicit observation-ID-linked used-move and exact
+  transition records. There is no production UI producer yet; preserve the
+  amount-only fallback and do not use same-session state as a link.

@@ -18483,3 +18483,9 @@ Maintained boundaries:
 - The existing amount-only previous-damage confirmation is privately bound to
   current attacker/defender/session ownership and copied as a separate canonical
   observed-damage snapshot event. It is not a Q12 result and has no inferred move.
+
+## v15.16 Used Move and HP Transition Contract
+
+- Structured observed-damage records may be enriched only by explicitly linked,
+  provenanced used-move and exact HP-transition records. Selected candidates and
+  percent HP remain non-evidence; conflicting amounts are not corrected.

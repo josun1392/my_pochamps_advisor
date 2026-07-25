@@ -3110,3 +3110,11 @@ private evidence. The initial producer supplies a user-confirmed exact HP damage
 amount, both active owners, and session provenance; no used move is implied.
 Observed evidence is separate from deterministic Q12 output and cannot infer
 stats, items, abilities, or modifiers. Legacy/public/provider payloads omit it.
+
+## v15.16 used move and HP transition
+
+Private structured evidence may enrich an observed-damage event only with a
+matching explicit `observation_id`. Used-move slot ownership and exact HP
+transition validation are required; selected moves and percentage HP are never
+promoted. Mismatched amount/transition values preserve the amount and record a
+conflict rather than inferring a correction.

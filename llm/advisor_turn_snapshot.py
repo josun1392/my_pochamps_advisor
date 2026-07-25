@@ -508,6 +508,8 @@ def capture_ui_current_state_provenance(
     final_stat_confirmations: Sequence[Mapping[str, Any]] | None = None,
     ability_confirmations: Sequence[Mapping[str, Any]] | None = None,
     observed_damage_confirmations: Sequence[Mapping[str, Any]] | None = None,
+    used_move_confirmations: Sequence[Mapping[str, Any]] | None = None,
+    hp_transition_confirmations: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Capture structured-only provenance and explicitly observed UI events.
 
@@ -562,6 +564,9 @@ def capture_ui_current_state_provenance(
         provenance_added = True
     observed_damage = normalize_structured_observed_damage_confirmations(
         observed_damage_confirmations, pokemon=pokemon, session_id=session_id,
+        moves=_mapping_or_empty(captured.get("moves")),
+        used_move_confirmations=used_move_confirmations,
+        hp_transition_confirmations=hp_transition_confirmations,
     )
     if observed_damage:
         captured["observed_damage_context"] = {"observed_damage_events": observed_damage}
@@ -580,6 +585,9 @@ def capture_ui_current_state_provenance(
 
 def normalize_structured_observed_damage_confirmations(
     confirmations: Sequence[Mapping[str, Any]] | None, *, pokemon: Mapping[str, Any], session_id: str,
+    moves: Mapping[str, Any] | None = None,
+    used_move_confirmations: Sequence[Mapping[str, Any]] | None = None,
+    hp_transition_confirmations: Sequence[Mapping[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Copy direct exact-HP observations without associating an unconfirmed move."""
     if not isinstance(confirmations, Sequence) or isinstance(confirmations, (str, bytes)):
@@ -601,15 +609,89 @@ def normalize_structured_observed_damage_confirmations(
         if key in seen:  # no sequence producer: only exact duplicate captures collapse
             continue
         seen.add(key)
-        result.append({
+        observation_id = _optional_str(item.get("observation_id"))
+        event = {
             "event_kind": "direct_move_damage_observed", "attacker_side": attacker["side"], "attacker_slot_index": attacker["slot_index"], "attacker_pokemon_id": attacker["pokemon_id"],
             "defender_side": defender["side"], "defender_slot_index": defender["slot_index"], "defender_pokemon_id": defender["pokemon_id"],
             "move_id": None, "move_slot": None, "session_id": session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation",
             "observed": True, "confirmed": True, "damage_amount": amount, "hp_unit": "exact", "payload": {"damage_amount": amount, "hp_unit": "exact", "mode": "amount_only"},
             "attacker": deepcopy(attacker), "defender": deepcopy(defender),
             "attacker_provenance": deepcopy(attacker), "defender_provenance": deepcopy(defender),
-        })
+        }
+        if observation_id is not None:
+            event["observation_id"] = observation_id
+        result.append(event)
+    return _enrich_observed_damage_events(
+        result, active=active, session_id=session_id, moves=moves or {},
+        used_move_confirmations=used_move_confirmations,
+        hp_transition_confirmations=hp_transition_confirmations,
+    )
+
+
+def _enrich_observed_damage_events(
+    events: list[dict[str, Any]], *, active: Mapping[str, Mapping[str, Any]], session_id: str,
+    moves: Mapping[str, Any], used_move_confirmations: Sequence[Mapping[str, Any]] | None,
+    hp_transition_confirmations: Sequence[Mapping[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Link only confirmations bearing the same explicit observation id."""
+    used_by_id = _normalize_used_move_confirmations(used_move_confirmations, active, session_id, moves)
+    hp_by_id = _normalize_hp_transition_confirmations(hp_transition_confirmations, active, session_id)
+    for event in events:
+        observation_id = event.get("observation_id")
+        if not isinstance(observation_id, str):
+            continue
+        used, transition = used_by_id.get(observation_id), hp_by_id.get(observation_id)
+        if used is not None and _same_owner(used["attacker"], event["attacker"]):
+            event.update(move_id=used["move_id"], move_slot=used["move_slot"], used_move_provenance=deepcopy(used))
+            event["payload"]["mode"] = "amount_with_used_move"
+        if transition is not None and _same_owner(transition["defender"], event["defender"]):
+            derived = transition["hp_before"] - transition["hp_after"]
+            if derived == event["damage_amount"]:
+                event["hp_transition_provenance"] = deepcopy(transition)
+                event["payload"].update(hp_before=transition["hp_before"], hp_after=transition["hp_after"], derived_damage=derived)
+                event["payload"]["mode"] = "complete" if event["move_id"] is not None else "amount_with_hp_transition"
+            else:
+                event["enrichment_status"] = "conflicting_damage_amount"
+    return events
+
+
+def _normalize_used_move_confirmations(values: Sequence[Mapping[str, Any]] | None, active: Mapping[str, Mapping[str, Any]], session_id: str, moves: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
+    if not isinstance(values, Sequence) or isinstance(values, (str, bytes)):
+        return result
+    available = moves.get("my_available_moves")
+    for value in values:
+        if not isinstance(value, Mapping):
+            continue
+        observation_id, attacker, move_id, slot = _optional_str(value.get("observation_id")), value.get("attacker"), _optional_str(value.get("move_id")), _optional_int(value.get("move_slot"))
+        if observation_id is None or move_id is None or slot is None or value.get("source") != "ui_used_move_confirmation" or value.get("trust") != "user_confirmed_observation" or value.get("confirmed") is not True:
+            continue
+        if not _observed_damage_owner_matches(attacker, active, session_id) or attacker.get("side") != "self":
+            continue
+        if not isinstance(available, list) or not any(isinstance(entry, Mapping) and entry.get("slot_index") == slot and entry.get("move_id") == move_id for entry in available):
+            continue
+        result.setdefault(observation_id, {"move_id": move_id, "move_slot": slot, "attacker": deepcopy(attacker), "source": "ui_used_move_confirmation", "trust": "user_confirmed_observation", "confirmed": True})
     return result
+
+
+def _normalize_hp_transition_confirmations(values: Sequence[Mapping[str, Any]] | None, active: Mapping[str, Mapping[str, Any]], session_id: str) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
+    if not isinstance(values, Sequence) or isinstance(values, (str, bytes)):
+        return result
+    for value in values:
+        if not isinstance(value, Mapping):
+            continue
+        observation_id, defender, before, after = _optional_str(value.get("observation_id")), value.get("defender"), value.get("hp_before"), value.get("hp_after")
+        if observation_id is None or value.get("hp_unit") != "exact" or value.get("source") != "ui_exact_hp_transition_confirmation" or value.get("trust") != "user_confirmed_observation" or value.get("confirmed") is not True:
+            continue
+        if any(isinstance(x, bool) or not isinstance(x, int) or x < 0 for x in (before, after)) or after > before or not _observed_damage_owner_matches(defender, active, session_id):
+            continue
+        result.setdefault(observation_id, {"defender": deepcopy(defender), "hp_before": before, "hp_after": after, "hp_unit": "exact", "source": "ui_exact_hp_transition_confirmation", "trust": "user_confirmed_observation", "confirmed": True})
+    return result
+
+
+def _same_owner(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:
+    return all(left.get(key) == right.get(key) for key in ("side", "slot_index", "pokemon_id", "session_id"))
 
 
 def _observed_damage_owner_matches(owner: Any, active: Mapping[str, Mapping[str, Any]], session_id: str) -> bool:
@@ -859,7 +941,8 @@ def _normalize_context_provenance(
         return dict(value)
     if context_key == "observed_damage_context":
         events = value.get("observed_damage_events")
-        normalized = normalize_structured_observed_damage_confirmations(events, pokemon=pokemon, session_id=session_id or "") if isinstance(events, list) else []
+        active = {"self": _mapping_or_empty(pokemon.get("my_active")), "opponent": _mapping_or_empty(pokemon.get("opponent_active"))}
+        normalized = [deepcopy(event) for event in events if isinstance(event, Mapping) and event.get("event_kind") == "direct_move_damage_observed" and event.get("session_id") == session_id and _observed_damage_owner_matches(event.get("attacker"), active, session_id or "") and _observed_damage_owner_matches(event.get("defender"), active, session_id or "")] if isinstance(events, list) else []
         return {"observed_damage_events": normalized} if normalized else None
     normalized = _filter_provenanced_entries(
         value, active_slots=active_slots, pokemon=pokemon, session_id=session_id
