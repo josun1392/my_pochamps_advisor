@@ -18535,3 +18535,8 @@ Maintained boundaries:
 
 - Added private confirmed-observation normalization with explicit production and
   fixture-only source/trust boundaries, deduplication, and session sequencing.
+
+## v15.26 Used-Move and HP-Transition Producers
+
+- Added explicit production-ready canonical used-move and exact HP-transition
+  confirmations without selected-state promotion or state application.

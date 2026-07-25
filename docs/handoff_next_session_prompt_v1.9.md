@@ -1351,3 +1351,5 @@ Documentation expectations:
   persistence. Preserve external plan/execute work outside the store lock.
 - v15.25 separates production damage confirmation from fixture-only lifecycle
   records. Do not promote current state, selection, Q12, or fixtures to events.
+- v15.26 adds only explicit used-move and exact HP-transition evidence; do not
+  infer ownership or automatically connect it to runtime reducer execution.

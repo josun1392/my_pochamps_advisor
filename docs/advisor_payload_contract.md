@@ -3168,3 +3168,8 @@ cause UI, persistence, provider, modifier, or Q12 behavior.
 
 Canonical lifecycle observations are private structured-only records. They are
 not legacy, public-confirmation, or provider schema fields and do not apply state.
+
+## v15.26 used move and HP transition
+
+Explicit private confirmations are structured-only evidence; no public payload,
+provider schema, Q12 result, or current UI state is changed.
