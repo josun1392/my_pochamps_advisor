@@ -18,6 +18,7 @@ RICH_CURRENT_STATE_KEYS = (
     "consecutive_use_context", "weight_context", "turn_event_context", "trusted_level_context",
     "observed_damage_context",
     "switch_faint_observation_context",
+    "lifecycle_observation_context",
 )
 FIELD_SCOPED_CONTEXT_KEYS = frozenset({"field_state_context", "battle_format_context"})
 PROVENANCE_REQUIRED_KEYS = frozenset({"side", "slot_index", "pokemon_id", "session_id", "source", "trust"})
@@ -512,6 +513,7 @@ def capture_ui_current_state_provenance(
     used_move_confirmations: Sequence[Mapping[str, Any]] | None = None,
     hp_transition_confirmations: Sequence[Mapping[str, Any]] | None = None,
     switch_faint_confirmations: Sequence[Mapping[str, Any]] | None = None,
+    lifecycle_confirmations: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Capture structured-only provenance and explicitly observed UI events.
 
@@ -576,6 +578,10 @@ def capture_ui_current_state_provenance(
     switch_faint = normalize_switch_faint_observations(switch_faint_confirmations, pokemon=pokemon, session_id=session_id)
     if switch_faint:
         captured["switch_faint_observation_context"] = {"observations": switch_faint}
+        provenance_added = True
+    lifecycle = normalize_lifecycle_observations(lifecycle_confirmations, pokemon=pokemon, session_id=session_id)
+    if lifecycle:
+        captured["lifecycle_observation_context"] = {"observations": lifecycle}
         provenance_added = True
     trusted_levels = normalize_structured_trusted_levels(
         _mapping_or_empty(battle_input.get("trusted_level_context")).get("current_levels"),
@@ -734,6 +740,23 @@ def normalize_switch_faint_observations(values: Sequence[Mapping[str, Any]] | No
         if key in seen: continue
         seen.add(key); result.append(deepcopy(dict(value)))
     return sorted(result,key=lambda event:(event["observation_sequence"],event["observation_id"]))
+
+
+def normalize_lifecycle_observations(values: Sequence[Mapping[str, Any]] | None, *, pokemon: Mapping[str, Any], session_id: str) -> list[dict[str, Any]]:
+    kinds={"condition_applied_observed":"candidate","condition_removed_observed":"candidate","item_activation_observed":"evidence_only","item_consumption_observed":"candidate","item_removed_observed":"candidate","ability_revealed_observed":"evidence_only","ability_activation_observed":"evidence_only","weather_started_observed":"candidate","weather_ended_observed":"candidate","terrain_started_observed":"candidate","terrain_ended_observed":"candidate","field_effect_started_observed":"unsupported","field_effect_ended_observed":"unsupported","side_condition_started_observed":"candidate","side_condition_ended_observed":"candidate"}
+    if not isinstance(values,Sequence) or isinstance(values,(str,bytes)): return []
+    result=[]; seen=set()
+    for value in values:
+        if not isinstance(value,Mapping): continue
+        kind,scope,oid,seq=value.get("event_kind"),value.get("scope"),_optional_str(value.get("observation_id")),_optional_int(value.get("observation_sequence"))
+        if kind not in kinds or scope not in {"pokemon","side","field"} or oid is None or seq is None or seq<1 or value.get("session_id")!=session_id or value.get("source")!="ui_lifecycle_confirmation" or value.get("trust")!="user_confirmed_observation" or value.get("confirmed") is not True or value.get("observed") is not True: continue
+        if scope=="pokemon":
+            side=value.get("side"); active=_mapping_or_empty(pokemon.get("my_active" if side=="self" else "opponent_active" if side=="opponent" else ""))
+            if value.get("slot_index")!=_optional_int(active.get("slot_index")) or value.get("pokemon_id")!=_optional_str(active.get("name_en")): continue
+        if scope=="side" and value.get("side") not in {"self","opponent"}: continue
+        if oid in seen: continue
+        seen.add(oid); copied=deepcopy(dict(value)); copied["reducer_eligibility"]=kinds[kind]; result.append(copied)
+    return sorted(result,key=lambda e:(e["observation_sequence"],e["observation_id"]))
 
 
 def _observed_damage_owner_matches(owner: Any, active: Mapping[str, Mapping[str, Any]], session_id: str) -> bool:
@@ -989,6 +1012,10 @@ def _normalize_context_provenance(
     if context_key == "switch_faint_observation_context":
         observations = value.get("observations")
         normalized = normalize_switch_faint_observations(observations, pokemon=pokemon, session_id=session_id or "") if isinstance(observations, list) else []
+        return {"observations": normalized} if normalized else None
+    if context_key == "lifecycle_observation_context":
+        observations = value.get("observations")
+        normalized = normalize_lifecycle_observations(observations, pokemon=pokemon, session_id=session_id or "") if isinstance(observations, list) else []
         return {"observations": normalized} if normalized else None
     normalized = _filter_provenanced_entries(
         value, active_slots=active_slots, pokemon=pokemon, session_id=session_id

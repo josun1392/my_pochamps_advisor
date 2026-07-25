@@ -3129,3 +3129,8 @@ provider-facing payload gains these private fields.
 
 Structured-only switch/faint observations require explicit confirmed ownership,
 session, and sequence provenance. They do not alter public payloads or state.
+
+## v15.19 lifecycle evidence
+
+Lifecycle observations are structured-only ordered evidence with explicit scope
+and reducer eligibility. They never derive current state or provider modifiers.

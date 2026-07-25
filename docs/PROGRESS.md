@@ -18499,3 +18499,8 @@ Maintained boundaries:
 
 - Explicit private switch/faint confirmations are ordered snapshot evidence only;
   UI selection, HP zero, and Q12 KO never create battle transitions.
+
+## v15.19 Lifecycle Eligibility Inventory
+
+- Structured lifecycle events are classified as reducer candidates, evidence-only,
+  or unsupported without applying any state change or Q12 modifier.

@@ -1335,3 +1335,5 @@ Documentation expectations:
   request token, Q12 order, or a trigger for state mutation.
 - v15.18 switch/faint records are explicit evidence only. Do not promote slot
   selection, HP zero, damage, or Q12 KO into switch/faint events.
+- v15.19 classifies lifecycle evidence but does not run a reducer or apply a
+  Q12 modifier. Add real producers before extending replay/state transitions.
