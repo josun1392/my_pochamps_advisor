@@ -3157,3 +3157,9 @@ modifiers, or runtime state.
 Executor fingerprints, replay-batch identity, commit receipts, and detached
 committed state are private reducer contracts. They are excluded from legacy,
 public-confirmation, and provider schemas and do not trigger Q12 recomputation.
+
+## v15.24 runtime state store
+
+The process-local store's state snapshots, CAS fingerprints, and session
+namespace are private runtime contracts. They do not alter payload schemas or
+cause UI, persistence, provider, modifier, or Q12 behavior.

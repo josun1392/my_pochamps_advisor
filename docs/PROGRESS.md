@@ -18525,3 +18525,8 @@ Maintained boundaries:
 
 - Added a pure optimistic-concurrency executor that revalidates projection and
   returns detached committed state only for a complete, non-stale replay batch.
+
+## v15.24 Runtime State Ownership Contract
+
+- Added a runtime-neutral, session-scoped in-memory owner with detached reads
+  and fingerprint-based compare-and-swap replacement.

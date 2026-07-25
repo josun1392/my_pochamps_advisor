@@ -1347,3 +1347,5 @@ Documentation expectations:
 - v15.23 provides that contract as a pure detached executor only. Runtime state
   replacement and persistence still require separate ownership, transaction,
   and rollback designs.
+- v15.24 defines a detached CAS store but does not attach it to MainWindow or
+  persistence. Preserve external plan/execute work outside the store lock.
