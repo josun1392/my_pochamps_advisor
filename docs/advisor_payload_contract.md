@@ -3151,3 +3151,9 @@ They do not mutate snapshots, UI state, provider payloads, or Q12 inputs.
 `battle-state-v1` state. Its projected state and provenance do not enter legacy,
 public-confirmation, or provider payload schemas, and it never applies Q12,
 modifiers, or runtime state.
+
+## v15.23 atomic executor
+
+Executor fingerprints, replay-batch identity, commit receipts, and detached
+committed state are private reducer contracts. They are excluded from legacy,
+public-confirmation, and provider schemas and do not trigger Q12 recomputation.

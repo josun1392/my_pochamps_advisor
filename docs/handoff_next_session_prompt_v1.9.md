@@ -1344,3 +1344,6 @@ Documentation expectations:
 - v15.22 adds those checks only as detached dry-run projection. Do not connect
   it to runtime/UI state, persistence, rollback, Q12, modifiers, or providers
   until each boundary has its own atomic execution contract.
+- v15.23 provides that contract as a pure detached executor only. Runtime state
+  replacement and persistence still require separate ownership, transaction,
+  and rollback designs.

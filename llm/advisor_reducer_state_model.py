@@ -1,5 +1,7 @@
 """Pure validation and dry-run projection for the private battle-state-v1 model."""
 from copy import deepcopy
+from hashlib import sha256
+import json
 
 STATE_MODEL_VERSION = "battle-state-v1"
 _TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted"}
@@ -66,6 +68,62 @@ def project_atomic_transition(base_state, replay_plan, expected_session_id=None,
     sequences = [item["observation_sequence"] for item in normalized]
     projected["last_applied_observation_sequence"] = max(sequences)
     return {"status": "ready_with_projected_state", "base_state": deepcopy(base), "projected_state": deepcopy(projected), "applied_step_ids": applied, "rejected_step_ids": [], "conflicts": [], "limitations": ["dry_run_only", "no_runtime_state_mutation", "no_ui_state_mutation", "no_persistence", "no_q12_or_modifier_application", "provider_budget_0"]}
+
+
+def state_fingerprint(state):
+    """Stable private digest of battle-state semantics; never a public schema field."""
+    if not isinstance(state, dict): return None
+    return sha256(_canonical_json(_fingerprint_state(state)).encode("utf-8")).hexdigest()
+
+
+def replay_batch_fingerprint(replay_plan):
+    """Stable identity for a replay occurrence, independent of runtime object identity."""
+    if not isinstance(replay_plan, dict): return None
+    steps = replay_plan.get("ordered_steps")
+    if not isinstance(steps, list): return None
+    batch = {"session_id": replay_plan.get("session_id"), "replay_policy_version": replay_plan.get("replay_policy_version"), "ordered_steps": deepcopy(steps)}
+    return sha256(_canonical_json(batch).encode("utf-8")).hexdigest()
+
+
+def execute_atomic_transition(base_state, replay_plan, *, expected_session_id=None, expected_state_version=STATE_MODEL_VERSION, expected_base_fingerprint=None):
+    """Pure optimistic-concurrency executor built on the canonical v15.22 projection."""
+    base = deepcopy(base_state) if isinstance(base_state, dict) else None
+    plan = deepcopy(replay_plan) if isinstance(replay_plan, dict) else None
+    if expected_state_version != STATE_MODEL_VERSION or not isinstance(base, dict) or base.get("state_version") != STATE_MODEL_VERSION:
+        return _execution_result("unsupported_state_version", None, None, None, plan)
+    session = base.get("session_id")
+    if not isinstance(session, str) or not session:
+        return _execution_result("invalid_base_state", None, None, None, plan)
+    if expected_session_id is not None and session != expected_session_id:
+        return _execution_result("session_mismatch", None, None, None, plan)
+    if not isinstance(plan, dict): return _execution_result("invalid_replay_plan", None, None, None, plan)
+    if plan.get("session_id") != session: return _execution_result("session_mismatch", None, None, None, plan)
+    base_digest, batch_digest = state_fingerprint(base), replay_batch_fingerprint(plan)
+    if expected_base_fingerprint is not None and expected_base_fingerprint != base_digest:
+        return _execution_result("stale_base_state", base_digest, None, batch_digest, plan)
+    steps = plan.get("ordered_steps")
+    if not isinstance(steps, list): return _execution_result("invalid_replay_plan", base_digest, None, batch_digest, plan)
+    if not steps: return _execution_result("no_reducer_steps", base_digest, None, batch_digest, plan)
+    sequences = [item.get("observation_sequence") for item in steps if isinstance(item, dict)]
+    if len(sequences) != len(steps) or any(not isinstance(value, int) or isinstance(value, bool) or value < 1 for value in sequences):
+        return _execution_result("invalid_replay_plan", base_digest, None, batch_digest, plan)
+    last = base.get("last_applied_observation_sequence")
+    if isinstance(last, int) and not isinstance(last, bool):
+        if all(sequence <= last for sequence in sequences):
+            status = "already_applied" if base.get("last_applied_batch_fingerprint") == batch_digest else "blocked_by_semantic_conflict"
+            conflict = [] if status == "already_applied" else [{"reason": "duplicate_or_overlapping_batch"}]
+            return _execution_result(status, base_digest, None, batch_digest, plan, conflicts=conflict)
+        if any(sequence <= last for sequence in sequences):
+            return _execution_result("blocked_by_semantic_conflict", base_digest, None, batch_digest, plan, conflicts=[{"reason": "partial_sequence_overlap"}])
+    projection = project_atomic_transition(base, plan, expected_session_id=session, state_model_version=expected_state_version)
+    if projection["status"] != "ready_with_projected_state":
+        return _execution_result(projection["status"], base_digest, None, batch_digest, plan, rejected=projection.get("rejected_step_ids"), conflicts=projection.get("conflicts"))
+    committed = deepcopy(projection["projected_state"])
+    committed["last_applied_batch_fingerprint"] = batch_digest
+    committed["source_replay_policy_version"] = plan.get("replay_policy_version")
+    committed["last_commit_provenance"] = {"base_state_fingerprint": base_digest, "replay_batch_fingerprint": batch_digest, "applied_step_ids": deepcopy(projection["applied_step_ids"])}
+    committed_digest = state_fingerprint(committed)
+    return {"status": "committed", "committed_state": deepcopy(committed), "base_state_fingerprint": base_digest, "committed_state_fingerprint": committed_digest, "replay_batch_fingerprint": batch_digest, "applied_step_ids": deepcopy(projection["applied_step_ids"]), "rejected_step_ids": [], "conflicts": [], "limitations": ["pure_detached_execution", "no_runtime_state_mutation", "no_ui_state_mutation", "no_persistence", "no_q12_or_modifier_application", "provider_budget_0"]}
 
 
 def _normalize_steps(steps, plan):
@@ -227,8 +285,19 @@ def _explicitly_related(left, right):
     return left.get("depends_on_observation_id") == right["observation_id"] or right.get("depends_on_observation_id") == left["observation_id"]
 
 
+def _fingerprint_state(state):
+    """Exclude executor receipts so a committed replay remains identifiable."""
+    excluded = {"last_applied_batch_fingerprint", "source_replay_policy_version", "last_commit_provenance"}
+    return {key: _fingerprint_state(value) if isinstance(value, dict) else [_fingerprint_state(item) if isinstance(item, dict) else item for item in value] if isinstance(value, list) else value for key, value in state.items() if key not in excluded}
+
+
+def _canonical_json(value):
+    return json.dumps(value, ensure_ascii=True, sort_keys=True, separators=(",", ":"), default=lambda item: {"__type__": type(item).__name__, "value": str(item)})
+
+
 def _exact(value): return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 def _conflict(event, reason): return {"observation_id": event["observation_id"], "reason": reason}
 def _step_ids(steps): return [x.get("observation_id") for x in steps if isinstance(x, dict)]
 def _projection_result(status, base, plan, rejected=None, conflicts=None): return {"status": status, "base_state": deepcopy(base) if isinstance(base, dict) else None, "projected_state": None, "applied_step_ids": [], "rejected_step_ids": rejected or [], "conflicts": deepcopy(conflicts or []), "limitations": ["dry_run_only", "no_runtime_state_mutation", "provider_budget_0"]}
+def _execution_result(status, base_digest, committed_digest, batch_digest, plan, rejected=None, conflicts=None): return {"status": status, "committed_state": None, "base_state_fingerprint": base_digest, "committed_state_fingerprint": committed_digest, "replay_batch_fingerprint": batch_digest, "applied_step_ids": [], "rejected_step_ids": deepcopy(rejected if rejected is not None else _step_ids(plan.get("ordered_steps", []) if isinstance(plan, dict) else [])), "conflicts": deepcopy(conflicts or []), "limitations": ["pure_detached_execution", "no_runtime_state_mutation", "no_ui_state_mutation", "no_persistence", "provider_budget_0"]}
 def _legacy_result(status, base, plan): return {"status": status, "base_state": base, "planned_next_state_schema": [], "accepted_step_ids": [], "rejected_step_ids": [x.get("observation_id") for x in plan.get("ordered_steps", []) if isinstance(x, dict)], "conflicts": deepcopy(plan.get("conflicts", [])), "limitations": ["dry_run_only", "no_state_mutation"]}

@@ -18520,3 +18520,8 @@ Maintained boundaries:
 - Added a detached, atomic semantic projection over `battle-state-v1`.
   It validates ordered reducer candidates without runtime mutation and exposes
   a projected state only after the complete batch succeeds.
+
+## v15.23 Atomic Reducer Execution Contract
+
+- Added a pure optimistic-concurrency executor that revalidates projection and
+  returns detached committed state only for a complete, non-stale replay batch.
