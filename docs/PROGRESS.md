@@ -18540,3 +18540,8 @@ Maintained boundaries:
 
 - Added explicit production-ready canonical used-move and exact HP-transition
   confirmations without selected-state promotion or state application.
+
+## v15.27 Switch and Faint Producers
+
+- Added explicit canonical switch/faint confirmations without automatic active,
+  HP, fainted, reducer, or store state application.
