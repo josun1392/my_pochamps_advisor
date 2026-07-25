@@ -1331,3 +1331,5 @@ Documentation expectations:
 - v15.16 accepts only explicit observation-ID-linked used-move and exact
   transition records. There is no production UI producer yet; preserve the
   amount-only fallback and do not use same-session state as a link.
+- v15.17 sequence is UI confirmation order only. Never use it as turn number,
+  request token, Q12 order, or a trigger for state mutation.

@@ -605,11 +605,17 @@ def normalize_structured_observed_damage_confirmations(
             continue
         if not _observed_damage_owner_matches(attacker, active, session_id) or not _observed_damage_owner_matches(defender, active, session_id) or attacker.get("side") == defender.get("side"):
             continue
-        key = (attacker["side"], attacker["slot_index"], attacker["pokemon_id"], defender["side"], defender["slot_index"], defender["pokemon_id"], amount)
+        observation_id = _optional_str(item.get("observation_id"))
+        key = (attacker["side"], attacker["slot_index"], attacker["pokemon_id"], defender["side"], defender["slot_index"], defender["pokemon_id"], amount, observation_id)
         if key in seen:  # no sequence producer: only exact duplicate captures collapse
             continue
         seen.add(key)
-        observation_id = _optional_str(item.get("observation_id"))
+        sequence = _optional_int(item.get("observation_sequence"))
+        turn_number = _optional_int(item.get("turn_number"))
+        if sequence is not None and sequence < 1:
+            continue
+        if turn_number is not None and (turn_number < 1 or item.get("turn_source") != "ui_turn_number_confirmation" or item.get("turn_trust") != "user_confirmed_observation"):
+            continue
         event = {
             "event_kind": "direct_move_damage_observed", "attacker_side": attacker["side"], "attacker_slot_index": attacker["slot_index"], "attacker_pokemon_id": attacker["pokemon_id"],
             "defender_side": defender["side"], "defender_slot_index": defender["slot_index"], "defender_pokemon_id": defender["pokemon_id"],
@@ -620,12 +626,15 @@ def normalize_structured_observed_damage_confirmations(
         }
         if observation_id is not None:
             event["observation_id"] = observation_id
+        event["observation_sequence"] = sequence
+        event["turn_number"] = turn_number
         result.append(event)
-    return _enrich_observed_damage_events(
+    enriched = _enrich_observed_damage_events(
         result, active=active, session_id=session_id, moves=moves or {},
         used_move_confirmations=used_move_confirmations,
         hp_transition_confirmations=hp_transition_confirmations,
     )
+    return sorted(enriched, key=lambda event: (event["observation_sequence"] is None, event["observation_sequence"] or 0, event.get("observation_id") or ""))
 
 
 def _enrich_observed_damage_events(

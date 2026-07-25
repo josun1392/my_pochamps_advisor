@@ -3118,3 +3118,9 @@ matching explicit `observation_id`. Used-move slot ownership and exact HP
 transition validation are required; selected moves and percentage HP are never
 promoted. Mismatched amount/transition values preserve the amount and record a
 conflict rather than inferring a correction.
+
+## v15.17 observation ordering
+
+Structured observed evidence may carry an explicit observation ID and session-local
+sequence. Turn number remains null unless separately user-confirmed; no legacy or
+provider-facing payload gains these private fields.

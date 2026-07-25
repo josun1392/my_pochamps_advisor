@@ -375,6 +375,7 @@ class MainWindow(QMainWindow):
         self._current_battle_format_confirmation: dict | None = None
         self._current_observed_damage_confirmation: dict[str, object] | None = None
         self._structured_observed_damage_confirmations: list[dict] = []
+        self._observation_sequence = 0
         self._battle_counter_confirmation: dict[str, int] | None = None
         self._consecutive_use_confirmation: dict[str, int | bool] | None = None
 
@@ -772,6 +773,7 @@ class MainWindow(QMainWindow):
         self._current_hp_confirmations = {}
         self._current_observed_damage_confirmation = None
         self._structured_observed_damage_confirmations = []
+        self._observation_sequence = 0
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
         self._battle_counter_confirmation = None
@@ -812,6 +814,8 @@ class MainWindow(QMainWindow):
         damage = entry.get("damage")
         if isinstance(damage, bool) or not isinstance(damage, int) or damage < 0:
             return None
+        self._observation_sequence = getattr(self, "_observation_sequence", 0) + 1
+        observation_id = f"{self._current_state_session_id}:observation-{self._observation_sequence}"
         owners: dict[str, dict] = {}
         for side, column in (("opponent", "team_enemy"), ("self", "team_my")):
             slot_index = self.selected_slots.get(column)
@@ -825,7 +829,7 @@ class MainWindow(QMainWindow):
             if not isinstance(pokemon_id, str) or not pokemon_id:
                 return None
             owners[side] = {"side": side, "slot_index": slot_index, "pokemon_id": pokemon_id, "session_id": self._current_state_session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation"}
-        return {"event_kind": "direct_move_damage_observed", "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True}
+        return {"event_kind": "direct_move_damage_observed", "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True, "observation_id": observation_id, "observation_sequence": self._observation_sequence, "turn_number": None}
 
     def _update_item_event_summary(self) -> None:
         try:

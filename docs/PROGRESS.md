@@ -18489,3 +18489,8 @@ Maintained boundaries:
 - Structured observed-damage records may be enriched only by explicitly linked,
   provenanced used-move and exact HP-transition records. Selected candidates and
   percent HP remain non-evidence; conflicting amounts are not corrected.
+
+## v15.17 Observation Sequence Baseline
+
+- Previous Damage confirmations receive a session-local confirmation sequence and
+  observation ID. Sequence is ordered evidence only, never a battle turn or state reducer.
