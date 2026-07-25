@@ -1360,3 +1360,5 @@ Documentation expectations:
   workers, and leaves reducer/store/UI current state/Q12 unchanged.
 - v15.30 adds only explicit private turn grouping: no inferred turn 1, no
   request/sequence/counter coupling, and no reducer/store/provider integration.
+- v15.31 adds only an explicit private coordinator seam; do not auto-apply from
+  UI confirmation, advice requests, worker completion, or provider responses.

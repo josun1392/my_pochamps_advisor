@@ -18566,3 +18566,8 @@ Maintained boundaries:
   initial/reset state; requests and observations never infer or advance it.
 - Observed-damage and contract-only lifecycle producers preserve validated turn
   identity, while TurnSnapshot receives only a detached private context.
+
+## v15.31 Runtime Reducer/Store Integration Gate
+
+- Added a private explicit preview/apply coordinator with detached replay,
+  process-local applied-observation ledger, and CAS-only commit authority.

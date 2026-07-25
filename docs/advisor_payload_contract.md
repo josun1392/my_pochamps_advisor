@@ -3192,3 +3192,9 @@ legacy behavior, reducer/store state, and Q12 are unchanged.
 evidence supplied only from explicit application turn state. It is unavailable
 until explicitly set, remains separate from observation ordering and request
 tokens, and is not automatically exposed to legacy/provider payloads.
+
+## v15.31 private replay coordinator
+
+Canonical collection evidence remains separate from committed store state until
+an explicit private apply call succeeds through CAS; preview is detached and
+does not expose a provider payload.
