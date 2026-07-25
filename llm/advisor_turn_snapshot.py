@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
+from llm.advisor_battle_state_context import normalize_user_confirmed_final_battle_stat
 
 
 RICH_CURRENT_STATE_KEYS = (
@@ -425,6 +426,7 @@ def _observed_event_evidence(current_state: Mapping[str, Any]) -> list[dict[str,
 def capture_ui_current_state_provenance(
     battle_input: Mapping[str, Any], *, session_id: str,
     observed_events: Sequence[Mapping[str, Any]] | None = None,
+    final_stat_confirmations: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Capture structured-only provenance and explicitly observed UI events.
 
@@ -463,9 +465,52 @@ def capture_ui_current_state_provenance(
         event_context["observed_events"] = canonical_events
         captured["item_event_context"] = event_context
         provenance_added = True
+    final_stats = normalize_structured_final_stat_confirmations(
+        final_stat_confirmations, pokemon=pokemon, session_id=session_id
+    )
+    if final_stats:
+        captured["final_stat_context"] = {"current_final_stats": final_stats}
+        provenance_added = True
     if provenance_added:
         captured["current_state_session_id"] = session_id
     return captured
+
+
+def normalize_structured_final_stat_confirmations(
+    confirmations: Sequence[Mapping[str, Any]] | None, *, pokemon: Mapping[str, Any],
+    session_id: str,
+) -> list[dict[str, Any]]:
+    """Keep only pre-captured final stats that still match this structured request.
+
+    Provenance is captured at the confirmation boundary by MainWindow. This
+    helper deliberately does not attach missing slot, Pokemon, or session facts
+    at request time, preventing a stat set from following a side after a switch.
+    """
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, (str, bytes)):
+        return []
+    active_slots = {
+        "self": _optional_int(_mapping_or_empty(pokemon.get("my_active")).get("slot_index")),
+        "opponent": _optional_int(_mapping_or_empty(pokemon.get("opponent_active")).get("slot_index")),
+    }
+    result: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for confirmation in confirmations:
+        if not isinstance(confirmation, Mapping):
+            continue
+        raw = {key: value for key, value in confirmation.items() if key != "provenance"}
+        try:
+            normalized = normalize_user_confirmed_final_battle_stat(raw)
+        except ValueError:
+            continue
+        provenance = confirmation.get("provenance")
+        entry = {**normalized, "provenance": deepcopy(provenance)}
+        if not _entry_has_valid_provenance(entry, active_slots=active_slots, pokemon=pokemon, session_id=session_id):
+            continue
+        key = (normalized["side"], normalized["stat"])
+        if key not in seen:
+            seen.add(key)
+            result.append(entry)
+    return result
 
 
 def normalize_observed_events(

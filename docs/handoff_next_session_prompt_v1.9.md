@@ -1313,3 +1313,6 @@ Documentation expectations:
 - v15.10 adds that detached type/base-stat/final-stat validation bridge. Base
   stats are never final stats; do not replace the legacy Q12 invocation until a
   complete trusted final-stat producer is connected to structured capture.
+- v15.11 connects existing exact-stat confirmation to structured-only capture.
+  Preserve confirmation-time side/slot/Pokemon/session provenance; never let
+  final stats follow a switched slot or reappear after session rollover.

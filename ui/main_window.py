@@ -367,6 +367,7 @@ class MainWindow(QMainWindow):
         self._current_stat_stage_confirmations: dict[tuple[str, str], dict] = {}
         self._current_field_state_confirmation: dict | None = None
         self._current_final_stat_confirmations: dict[tuple[str, str], dict] = {}
+        self._structured_final_stat_confirmations: dict[tuple[str, str], dict] = {}
         self._current_hp_confirmations: dict[str, dict] = {}
         self._current_battle_format_confirmation: dict | None = None
         self._current_observed_damage_confirmation: dict[str, object] | None = None
@@ -666,12 +667,43 @@ class MainWindow(QMainWindow):
         except ValueError:
             return
         self._current_final_stat_confirmations[(entry["side"], entry["stat"])] = entry
+        structured_entry = self._capture_structured_final_stat_confirmation(entry)
+        if structured_entry is not None:
+            self._structured_final_stat_confirmations[(entry["side"], entry["stat"])] = structured_entry
         self._update_current_final_stat_summary()
 
     @Slot()
     def _clear_current_final_stat_confirmations(self) -> None:
         self._current_final_stat_confirmations = {}
+        self._structured_final_stat_confirmations = {}
         self._update_current_final_stat_summary()
+
+    def _capture_structured_final_stat_confirmation(self, entry: dict) -> dict | None:
+        """Bind an exact stat to the active owner at confirmation time only."""
+        side = entry.get("side")
+        column = "team_my" if side == "self" else "team_enemy" if side == "opponent" else None
+        slot_index = self.selected_slots.get(column) if column is not None else None
+        if not isinstance(slot_index, int):
+            return None
+        try:
+            panel = self._slot_panel(column, slot_index)
+        except ValueError:
+            return None
+        view = getattr(panel, "pokemon_view", None)
+        pokemon_id = getattr(view, "en", None)
+        if not isinstance(pokemon_id, str) or not pokemon_id:
+            return None
+        return {
+            **dict(entry),
+            "provenance": {
+                "side": side,
+                "slot_index": slot_index,
+                "pokemon_id": pokemon_id,
+                "session_id": self._current_state_session_id,
+                "source": entry.get("source", "user_confirmed_final_battle_stat"),
+                "trust": "user_confirmed_current",
+            },
+        }
 
     @Slot()
     def _open_current_hp_dialog(self) -> None:
@@ -698,6 +730,8 @@ class MainWindow(QMainWindow):
         self._current_condition_confirmations = {}
         self._current_ability_confirmations = {}
         self._current_stat_stage_confirmations = {}
+        self._current_final_stat_confirmations = {}
+        self._structured_final_stat_confirmations = {}
         self._current_hp_confirmations = {}
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
@@ -969,6 +1003,9 @@ class MainWindow(QMainWindow):
                 deepcopy(battle_input),
                 session_id=self._current_state_session_id,
                 observed_events=deepcopy(getattr(self, "_item_event_confirmations", [])),
+                final_stat_confirmations=deepcopy(
+                    list(getattr(self, "_structured_final_stat_confirmations", {}).values())
+                ),
             )
         except ValueError:
             panel.set_error("구조화 추천 입력을 준비하지 못했습니다.")

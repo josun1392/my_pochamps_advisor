@@ -18453,3 +18453,9 @@ Maintained boundaries:
 - Added detached snapshot-keyed repository type/base-stat provenance and a
   Q12-ready validation adapter. Repository base stats remain reference metadata;
   only complete provenanced user-confirmed stats make final stats available.
+
+## v15.11 Structured Final-Stat Capture Provenance
+
+- Exact final-stat confirmations now receive active side/slot/Pokemon/session
+  provenance at confirmation time and are copied only into structured requests.
+  Partial, stale, switched, and provenance-free sets remain unavailable.

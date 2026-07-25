@@ -3071,3 +3071,10 @@ the frozen snapshot identity. These blocks are repository metadata, not final
 stats. Complete user-confirmed final stats remain separately provenanced; absent
 values and unsupported ability/item modifiers remain unavailable. The Q12 formula
 and provider-visible payload schema are unchanged.
+
+## v15.11 structured final-stat capture
+
+Exact final-stat confirmations are captured with owner/session provenance only
+on the structured copied-input boundary. A complete matching six-stat set may
+be exposed to the internal provenance bridge; partial or stale values are
+excluded. Legacy payloads do not receive provenance fields or final-stat copies.
