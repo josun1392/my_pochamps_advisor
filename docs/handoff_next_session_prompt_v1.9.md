@@ -1337,3 +1337,5 @@ Documentation expectations:
   selection, HP zero, damage, or Q12 KO into switch/faint events.
 - v15.19 classifies lifecycle evidence but does not run a reducer or apply a
   Q12 modifier. Add real producers before extending replay/state transitions.
+- v15.20 only plans replay. Keep full atomic validation as the execution default;
+  do not add mutation, rollback, request retry coupling, or Q12 recomputation.

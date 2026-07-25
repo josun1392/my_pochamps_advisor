@@ -18504,3 +18504,8 @@ Maintained boundaries:
 
 - Structured lifecycle events are classified as reducer candidates, evidence-only,
   or unsupported without applying any state change or Q12 modifier.
+
+## v15.20 Deterministic Replay Planning
+
+- Pure replay planning now partitions ordered evidence and describes future effects
+  without mutating battle state. Conflicts block atomic future execution.

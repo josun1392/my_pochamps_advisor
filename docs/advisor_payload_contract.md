@@ -3134,3 +3134,8 @@ session, and sequence provenance. They do not alter public payloads or state.
 
 Lifecycle observations are structured-only ordered evidence with explicit scope
 and reducer eligibility. They never derive current state or provider modifiers.
+
+## v15.20 replay plan
+
+Replay plans are internal, detached, non-mutating policy output. They are not a
+provider payload and never generate Q12 inputs, state transitions, or public fields.
