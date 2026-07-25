@@ -3078,3 +3078,12 @@ Exact final-stat confirmations are captured with owner/session provenance only
 on the structured copied-input boundary. A complete matching six-stat set may
 be exposed to the internal provenance bridge; partial or stale values are
 excluded. Legacy payloads do not receive provenance fields or final-stat copies.
+
+## v15.12 Q12 snapshot invocation adapter
+
+The internal Q12 invocation adapter accepts only a Q12-ready detached snapshot
+input, provenanced final-stat blocks, and a separately trusted level. Its result
+is not a provider payload: status moves and incomplete, invalid, or unsupported
+inputs remain sanitized local unavailable outcomes. It applies no observed-event,
+ability/item, stage, weather, terrain, or field modifier unless a later explicit
+adapter contract supports that modifier.

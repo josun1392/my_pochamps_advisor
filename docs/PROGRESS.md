@@ -18459,3 +18459,9 @@ Maintained boundaries:
 - Exact final-stat confirmations now receive active side/slot/Pokemon/session
   provenance at confirmation time and are copied only into structured requests.
   Partial, stale, switched, and provenance-free sets remain unavailable.
+
+## v15.12 Q12 Snapshot Invocation Adapter
+
+- Added a validated pure adapter that invokes existing Q12 rolls only with
+  complete snapshot provenance and a trusted level; unsupported modifiers and
+  production candidate wiring remain deferred.

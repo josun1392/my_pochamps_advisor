@@ -1316,3 +1316,6 @@ Documentation expectations:
 - v15.11 connects existing exact-stat confirmation to structured-only capture.
   Preserve confirmation-time side/slot/Pokemon/session provenance; never let
   final stats follow a switched slot or reappear after session rollover.
+- v15.12 adds a pure snapshot-to-Q12 invocation adapter. It requires complete
+  provenanced final stats plus an explicitly trusted level; production candidate
+  wiring remains deferred until those dependencies are injected at its boundary.
