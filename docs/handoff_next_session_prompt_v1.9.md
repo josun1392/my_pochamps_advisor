@@ -1310,3 +1310,6 @@ Documentation expectations:
 - v15.9 validates a detached snapshot-derived candidate damage-input signature
   before existing deterministic context. Do not route the legacy Q12 formula
   through it until type/base-stat/final-stat provenance has a separate contract.
+- v15.10 adds that detached type/base-stat/final-stat validation bridge. Base
+  stats are never final stats; do not replace the legacy Q12 invocation until a
+  complete trusted final-stat producer is connected to structured capture.

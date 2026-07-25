@@ -3063,3 +3063,11 @@ defender identity plus exact candidate move/slot, and carries copied supported
 current-state evidence. This internal signature is not provider-visible. It does
 not alter Q12 formulas, fabricate final stats, or turn observed events into
 damage modifiers or known item/ability facts.
+
+## v15.10 type and stat provenance bridge
+
+Internal deterministic adapters may look up species types and base stats only by
+the frozen snapshot identity. These blocks are repository metadata, not final
+stats. Complete user-confirmed final stats remain separately provenanced; absent
+values and unsupported ability/item modifiers remain unavailable. The Q12 formula
+and provider-visible payload schema are unchanged.

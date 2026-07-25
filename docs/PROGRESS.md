@@ -18447,3 +18447,9 @@ Maintained boundaries:
   defender, exact move/slot, current-state, and copied metadata signature before
   entering existing deterministic context logic. Q12 formula behavior remains
   unchanged; missing final stats and unsupported modifiers remain explicit.
+
+## v15.10 Type/Base-Stat/Final-Stat Provenance Bridge
+
+- Added detached snapshot-keyed repository type/base-stat provenance and a
+  Q12-ready validation adapter. Repository base stats remain reference metadata;
+  only complete provenanced user-confirmed stats make final stats available.

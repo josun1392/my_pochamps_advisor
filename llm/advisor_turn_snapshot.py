@@ -15,6 +15,7 @@ RICH_CURRENT_STATE_KEYS = (
 )
 FIELD_SCOPED_CONTEXT_KEYS = frozenset({"field_state_context", "battle_format_context"})
 PROVENANCE_REQUIRED_KEYS = frozenset({"side", "slot_index", "pokemon_id", "session_id", "source", "trust"})
+BASE_STAT_KEYS = ("hp", "attack", "defense", "special-attack", "special-defense", "speed")
 
 
 def build_turn_snapshot_from_battle_input(battle_input: Mapping[str, Any]) -> TurnSnapshot:
@@ -183,7 +184,7 @@ def build_snapshot_deterministic_input(turn_snapshot: TurnSnapshot) -> dict[str,
 def build_snapshot_damage_input(
     turn_snapshot: TurnSnapshot, *, candidate_slot_index: int,
     candidate_move_id: str, selectable_moves: Sequence[str | None],
-    move_metadata: Mapping[str, Any],
+    move_metadata: Mapping[str, Any], species_repository: Any = None,
 ) -> dict[str, Any]:
     """Build the detached input signature used at the candidate/damage boundary.
 
@@ -229,7 +230,7 @@ def build_snapshot_damage_input(
     ]
     if not current_state.get("final_stat_context"):
         limits.append("Exact damage guarantee unavailable without trusted final-stat context.")
-    return {
+    result = {
         "attacker": {**deepcopy(dict(attacker)), "session_id": session_id},
         "defender": {**deepcopy(dict(defender)), "session_id": session_id},
         "move": move,
@@ -239,6 +240,162 @@ def build_snapshot_damage_input(
         },
         "calculation_limits": limits,
     }
+    if species_repository is not None:
+        result["battle_context"]["stat_provenance"] = build_snapshot_stat_provenance(
+            turn_snapshot, species_repository=species_repository
+        )
+    return result
+
+
+def build_snapshot_stat_provenance(
+    turn_snapshot: TurnSnapshot, *, species_repository: Any,
+) -> dict[str, Any]:
+    """Detach repository species facts without promoting them to final stats."""
+    if not isinstance(turn_snapshot, TurnSnapshot):
+        raise ValueError("invalid_turn_snapshot")
+    serialized = turn_snapshot.to_dict()
+    current_state = serialized.get("current_state", {})
+    session_id = _current_state_session_id(current_state)
+    result = {
+        "attacker": _snapshot_side_stat_provenance(
+            serialized["battle_state"].get("active_player"), "self", current_state,
+            session_id, species_repository,
+        ),
+        "defender": _snapshot_side_stat_provenance(
+            serialized["battle_state"].get("active_opponent"), "opponent", current_state,
+            session_id, species_repository,
+        ),
+        "limits": [
+            "Repository base stats are not exact final stats.",
+            "EV, IV, nature, level, and hidden modifiers are not inferred.",
+            "Stat stages are separate from final-stat availability.",
+        ],
+    }
+    return result
+
+
+def build_q12_input_adapter(
+    damage_input: Mapping[str, Any], *, stat_provenance: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Validate a detached Q12-ready signature without invoking its formula."""
+    if not isinstance(damage_input, Mapping) or not isinstance(stat_provenance, Mapping):
+        raise ValueError("invalid_damage_input")
+    attacker = stat_provenance.get("attacker")
+    defender = stat_provenance.get("defender")
+    if not isinstance(attacker, Mapping) or not isinstance(defender, Mapping):
+        raise ValueError("invalid_stat_provenance")
+    required = (attacker, defender)
+    if any(not _available_block(side.get("types")) for side in required):
+        return {"status": "unavailable", "reason": "missing_type_metadata"}
+    if any(not _available_block(side.get("base_stats")) for side in required):
+        return {"status": "unavailable", "reason": "missing_base_stat_metadata"}
+    if any(not _available_block(side.get("final_stats")) for side in required):
+        return {"status": "unavailable", "reason": "final_stats_unavailable"}
+    return {
+        "status": "ready_for_existing_q12_boundary",
+        "attacker": deepcopy(dict(attacker)),
+        "defender": deepcopy(dict(defender)),
+        "move": deepcopy(dict(damage_input.get("move", {}))),
+        "limits": deepcopy(list(stat_provenance.get("limits", []))),
+    }
+
+
+def _snapshot_side_stat_provenance(
+    slot: Any, side: str, current_state: Mapping[str, Any], session_id: str | None,
+    species_repository: Any,
+) -> dict[str, Any]:
+    if not isinstance(slot, Mapping) or not _optional_str(slot.get("species_id")):
+        raise ValueError("missing_selected_pokemon")
+    species_id = slot["species_id"]
+    metadata = _lookup_species_metadata(species_repository, species_id)
+    types = _metadata_sequence(metadata, "types_en", "types")
+    base_stats = _metadata_base_stats(metadata)
+    if _metadata_identity(metadata) not in {None, species_id}:
+        raise ValueError("species_metadata_identity_mismatch")
+    final_values = _provenanced_stats(current_state.get("final_stat_context"), "current_final_stats", side)
+    stage_values = _provenanced_stats(current_state.get("stat_stage_context"), "current_stages", side, value_key="stage")
+    item_id = _optional_str(slot.get("known_item_id")) if slot.get("item_status") == "user_confirmed" else None
+    return {
+        "pokemon_identity": species_id,
+        "side": side,
+        "slot_index": slot.get("slot_index"),
+        "session_id": session_id,
+        "types": _provenance_block(types, source="repository_metadata", trust="deterministic_metadata", reason="missing_type_metadata"),
+        "base_stats": _provenance_block(base_stats, source="repository_metadata", trust="deterministic_metadata", reason="missing_base_stat_metadata"),
+        "final_stats": _provenance_block(final_values if len(final_values) == len(BASE_STAT_KEYS) else None, source="user_confirmed_final_stat", trust="user_confirmed_current", reason="final_stats_unavailable"),
+        "stat_stages": _provenance_block(stage_values or None, source="user_confirmed_current_stat_stage", trust="user_confirmed_current", reason="stat_stages_unavailable"),
+        "known_ability": _provenance_block(None, source="unknown", trust="unknown", reason="ability_unknown"),
+        "known_item": _provenance_block(item_id, source="user_confirmed_current" if item_id else "unknown", trust="user_confirmed_current" if item_id else "unknown", reason="item_unknown"),
+    }
+
+
+def _lookup_species_metadata(repository: Any, species_id: str) -> Any:
+    try:
+        return repository.get(species_id) if hasattr(repository, "get") else repository[species_id]
+    except Exception:
+        return None
+
+
+def _metadata_value(metadata: Any, *names: str) -> Any:
+    for name in names:
+        value = metadata.get(name) if isinstance(metadata, Mapping) else getattr(metadata, name, None)
+        if value is not None:
+            return value
+    return None
+
+
+def _metadata_identity(metadata: Any) -> str | None:
+    return _optional_str(_metadata_value(metadata, "en", "name_en", "species_id"))
+
+
+def _metadata_sequence(metadata: Any, *names: str) -> list[str] | None:
+    value = _metadata_value(metadata, *names)
+    if not isinstance(value, (list, tuple)):
+        return None
+    values = [item for item in value if isinstance(item, str) and item]
+    return values or None
+
+
+def _metadata_base_stats(metadata: Any) -> dict[str, int] | None:
+    value = _metadata_value(metadata, "base_stats")
+    if not isinstance(value, Mapping):
+        return None
+    result = {key: value.get(key) for key in BASE_STAT_KEYS}
+    if any(isinstance(item, bool) or not isinstance(item, int) or item < 1 for item in result.values()):
+        return None
+    return deepcopy(result)
+
+
+def _provenanced_stats(context: Any, entry_key: str, side: str, *, value_key: str = "value") -> dict[str, int]:
+    entries = context.get(entry_key) if isinstance(context, Mapping) else None
+    result: dict[str, int] = {}
+    if not isinstance(entries, list):
+        return result
+    for entry in entries:
+        if not isinstance(entry, Mapping) or entry.get("side") != side:
+            continue
+        provenance = entry.get("provenance")
+        if not isinstance(provenance, Mapping) or provenance.get("side") != side:
+            continue
+        stat = _optional_str(entry.get("stat"))
+        value = entry.get(value_key)
+        if stat in BASE_STAT_KEYS and isinstance(value, int) and not isinstance(value, bool):
+            result[stat] = value
+    return result
+
+
+def _provenance_block(value: Any, *, source: str, trust: str, reason: str) -> dict[str, Any]:
+    return {
+        "available": value is not None,
+        "value": deepcopy(value) if value is not None else None,
+        "source": source,
+        "trust": trust,
+        "reason": None if value is not None else reason,
+    }
+
+
+def _available_block(value: Any) -> bool:
+    return isinstance(value, Mapping) and value.get("available") is True
 
 
 def _current_state_session_id(current_state: Mapping[str, Any]) -> str | None:
