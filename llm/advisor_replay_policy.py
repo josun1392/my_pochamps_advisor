@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 REPLAY_POLICY_VERSION = "v1"
-_EFFECTS = {"condition_applied_observed":"set_condition","condition_removed_observed":"clear_condition","item_consumption_observed":"consume_item","item_removed_observed":"remove_item","weather_started_observed":"start_weather","weather_ended_observed":"end_weather","terrain_started_observed":"start_terrain","terrain_ended_observed":"end_terrain","side_condition_started_observed":"start_side_condition","side_condition_ended_observed":"end_side_condition","pokemon_switch_observed":"switch_active","pokemon_faint_observed":"mark_fainted"}
+_EFFECTS = {"exact_hp_transition_observed":"apply_exact_hp_transition","condition_applied_observed":"set_condition","condition_removed_observed":"clear_condition","item_consumption_observed":"consume_item","item_removed_observed":"remove_item","weather_started_observed":"start_weather","weather_ended_observed":"end_weather","terrain_started_observed":"start_terrain","terrain_ended_observed":"end_terrain","side_condition_started_observed":"start_side_condition","side_condition_ended_observed":"end_side_condition","pokemon_switch_observed":"switch_active","pokemon_faint_observed":"mark_fainted"}
 
 def build_replay_plan(base_state, ordered_observations):
     """Pure, non-mutating future-reducer planning only."""

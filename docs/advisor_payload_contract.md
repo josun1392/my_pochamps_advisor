@@ -3144,3 +3144,10 @@ provider payload and never generate Q12 inputs, state transitions, or public fie
 
 Reducer base state and transition readiness are internal detached contracts only.
 They do not mutate snapshots, UI state, provider payloads, or Q12 inputs.
+
+## v15.22 semantic projection
+
+`project_atomic_transition` is private dry-run reducer validation over a copied
+`battle-state-v1` state. Its projected state and provenance do not enter legacy,
+public-confirmation, or provider payload schemas, and it never applies Q12,
+modifiers, or runtime state.

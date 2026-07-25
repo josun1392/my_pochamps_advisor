@@ -18514,3 +18514,9 @@ Maintained boundaries:
 
 - Added detached battle-state-v1 dry-run readiness validation; it maps effects
   to future fields but never applies observations.
+
+## v15.22 Reducer-Time Semantic Projection
+
+- Added a detached, atomic semantic projection over `battle-state-v1`.
+  It validates ordered reducer candidates without runtime mutation and exposes
+  a projected state only after the complete batch succeeds.

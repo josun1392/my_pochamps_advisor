@@ -1341,3 +1341,6 @@ Documentation expectations:
   do not add mutation, rollback, request retry coupling, or Q12 recomputation.
 - v15.21 validates a frozen reducer state model but does not execute it. Add
   semantic owner/HP/item/field checks before considering actual reducer code.
+- v15.22 adds those checks only as detached dry-run projection. Do not connect
+  it to runtime/UI state, persistence, rollback, Q12, modifiers, or providers
+  until each boundary has its own atomic execution contract.
