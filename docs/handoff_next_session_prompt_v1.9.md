@@ -1353,3 +1353,5 @@ Documentation expectations:
   records. Do not promote current state, selection, Q12, or fixtures to events.
 - v15.26 adds only explicit used-move and exact HP-transition evidence; do not
   infer ownership or automatically connect it to runtime reducer execution.
+- v15.28 buffers canonical observations privately; connect it to TurnSnapshot
+  only with explicit UI ownership and preserve detached session boundaries.

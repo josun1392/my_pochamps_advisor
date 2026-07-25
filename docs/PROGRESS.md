@@ -18545,3 +18545,8 @@ Maintained boundaries:
 
 - Added explicit canonical switch/faint confirmations without automatic active,
   HP, fainted, reducer, or store state application.
+
+## v15.28 Observation Collection Bridge
+
+- Added session-scoped detached canonical evidence collection with defensive
+  duplicate/conflict checks and stable sequence ordering; UI snapshot wiring is deferred.

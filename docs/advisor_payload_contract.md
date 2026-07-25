@@ -3173,3 +3173,8 @@ not legacy, public-confirmation, or provider schema fields and do not apply stat
 
 Explicit private confirmations are structured-only evidence; no public payload,
 provider schema, Q12 result, or current UI state is changed.
+
+## v15.28 observation collection
+
+Collected canonical observations remain private session evidence. Snapshot handoff
+is not yet wired to production UI or provider-visible payloads.
