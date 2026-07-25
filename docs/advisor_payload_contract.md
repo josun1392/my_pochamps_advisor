@@ -3124,3 +3124,8 @@ conflict rather than inferring a correction.
 Structured observed evidence may carry an explicit observation ID and session-local
 sequence. Turn number remains null unless separately user-confirmed; no legacy or
 provider-facing payload gains these private fields.
+
+## v15.18 switch/faint evidence
+
+Structured-only switch/faint observations require explicit confirmed ownership,
+session, and sequence provenance. They do not alter public payloads or state.

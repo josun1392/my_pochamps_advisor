@@ -18494,3 +18494,8 @@ Maintained boundaries:
 
 - Previous Damage confirmations receive a session-local confirmation sequence and
   observation ID. Sequence is ordered evidence only, never a battle turn or state reducer.
+
+## v15.18 Switch/Faint Evidence Baseline
+
+- Explicit private switch/faint confirmations are ordered snapshot evidence only;
+  UI selection, HP zero, and Q12 KO never create battle transitions.

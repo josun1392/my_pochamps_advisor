@@ -1333,3 +1333,5 @@ Documentation expectations:
   amount-only fallback and do not use same-session state as a link.
 - v15.17 sequence is UI confirmation order only. Never use it as turn number,
   request token, Q12 order, or a trigger for state mutation.
+- v15.18 switch/faint records are explicit evidence only. Do not promote slot
+  selection, HP zero, damage, or Q12 KO into switch/faint events.

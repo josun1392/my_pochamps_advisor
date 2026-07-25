@@ -17,6 +17,7 @@ RICH_CURRENT_STATE_KEYS = (
     "battle_format_context", "observed_previous_damage_context", "battle_counter_context",
     "consecutive_use_context", "weight_context", "turn_event_context", "trusted_level_context",
     "observed_damage_context",
+    "switch_faint_observation_context",
 )
 FIELD_SCOPED_CONTEXT_KEYS = frozenset({"field_state_context", "battle_format_context"})
 PROVENANCE_REQUIRED_KEYS = frozenset({"side", "slot_index", "pokemon_id", "session_id", "source", "trust"})
@@ -510,6 +511,7 @@ def capture_ui_current_state_provenance(
     observed_damage_confirmations: Sequence[Mapping[str, Any]] | None = None,
     used_move_confirmations: Sequence[Mapping[str, Any]] | None = None,
     hp_transition_confirmations: Sequence[Mapping[str, Any]] | None = None,
+    switch_faint_confirmations: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Capture structured-only provenance and explicitly observed UI events.
 
@@ -570,6 +572,10 @@ def capture_ui_current_state_provenance(
     )
     if observed_damage:
         captured["observed_damage_context"] = {"observed_damage_events": observed_damage}
+        provenance_added = True
+    switch_faint = normalize_switch_faint_observations(switch_faint_confirmations, pokemon=pokemon, session_id=session_id)
+    if switch_faint:
+        captured["switch_faint_observation_context"] = {"observations": switch_faint}
         provenance_added = True
     trusted_levels = normalize_structured_trusted_levels(
         _mapping_or_empty(battle_input.get("trusted_level_context")).get("current_levels"),
@@ -701,6 +707,33 @@ def _normalize_hp_transition_confirmations(values: Sequence[Mapping[str, Any]] |
 
 def _same_owner(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:
     return all(left.get(key) == right.get(key) for key in ("side", "slot_index", "pokemon_id", "session_id"))
+
+
+def normalize_switch_faint_observations(values: Sequence[Mapping[str, Any]] | None, *, pokemon: Mapping[str, Any], session_id: str) -> list[dict[str, Any]]:
+    """Accept only explicit battle observations; UI selection and HP values are not events."""
+    if not isinstance(values, Sequence) or isinstance(values, (str, bytes)):
+        return []
+    active = {"self": _mapping_or_empty(pokemon.get("my_active")), "opponent": _mapping_or_empty(pokemon.get("opponent_active"))}
+    result, seen = [], set()
+    for value in values:
+        if not isinstance(value, Mapping): continue
+        kind, oid, sequence = value.get("event_kind"), _optional_str(value.get("observation_id")), _optional_int(value.get("observation_sequence"))
+        if kind not in {"pokemon_switch_observed", "pokemon_faint_observed"} or oid is None or sequence is None or sequence < 1: continue
+        if value.get("session_id") != session_id or value.get("source") not in {"ui_switch_confirmation", "ui_faint_confirmation"} or value.get("trust") != "user_confirmed_observation" or value.get("observed") is not True or value.get("confirmed") is not True: continue
+        turn = _optional_int(value.get("turn_number"))
+        if turn is not None and (turn < 1 or value.get("turn_source") != "ui_turn_number_confirmation"): continue
+        if kind == "pokemon_faint_observed":
+            owner = {key: value.get(key) for key in ("side", "slot_index", "pokemon_id", "session_id")}
+            owner.update(source="ui_faint_confirmation", trust="user_confirmed_observation")
+            if not _observed_damage_owner_matches(owner, active, session_id): continue
+        else:
+            side = value.get("side"); out_id, in_id = _optional_str(value.get("switch_out_pokemon_id")), _optional_str(value.get("switch_in_pokemon_id")); out_slot, in_slot = _optional_int(value.get("switch_out_slot_index")), _optional_int(value.get("switch_in_slot_index"))
+            expected = active.get(side) if side in active else {}
+            if not out_id or not in_id or out_id == in_id or out_slot is None or in_slot is None or (out_slot == in_slot and out_id == in_id) or in_id != _optional_str(expected.get("name_en")) or in_slot != _optional_int(expected.get("slot_index")): continue
+        key=(oid, kind)
+        if key in seen: continue
+        seen.add(key); result.append(deepcopy(dict(value)))
+    return sorted(result,key=lambda event:(event["observation_sequence"],event["observation_id"]))
 
 
 def _observed_damage_owner_matches(owner: Any, active: Mapping[str, Mapping[str, Any]], session_id: str) -> bool:
@@ -953,6 +986,10 @@ def _normalize_context_provenance(
         active = {"self": _mapping_or_empty(pokemon.get("my_active")), "opponent": _mapping_or_empty(pokemon.get("opponent_active"))}
         normalized = [deepcopy(event) for event in events if isinstance(event, Mapping) and event.get("event_kind") == "direct_move_damage_observed" and event.get("session_id") == session_id and _observed_damage_owner_matches(event.get("attacker"), active, session_id or "") and _observed_damage_owner_matches(event.get("defender"), active, session_id or "")] if isinstance(events, list) else []
         return {"observed_damage_events": normalized} if normalized else None
+    if context_key == "switch_faint_observation_context":
+        observations = value.get("observations")
+        normalized = normalize_switch_faint_observations(observations, pokemon=pokemon, session_id=session_id or "") if isinstance(observations, list) else []
+        return {"observations": normalized} if normalized else None
     normalized = _filter_provenanced_entries(
         value, active_slots=active_slots, pokemon=pokemon, session_id=session_id
     )
