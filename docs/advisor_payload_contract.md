@@ -3163,3 +3163,8 @@ public-confirmation, and provider schemas and do not trigger Q12 recomputation.
 The process-local store's state snapshots, CAS fingerprints, and session
 namespace are private runtime contracts. They do not alter payload schemas or
 cause UI, persistence, provider, modifier, or Q12 behavior.
+
+## v15.25 lifecycle confirmation
+
+Canonical lifecycle observations are private structured-only records. They are
+not legacy, public-confirmation, or provider schema fields and do not apply state.

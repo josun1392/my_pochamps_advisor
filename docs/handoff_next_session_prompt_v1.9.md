@@ -1349,3 +1349,5 @@ Documentation expectations:
   and rollback designs.
 - v15.24 defines a detached CAS store but does not attach it to MainWindow or
   persistence. Preserve external plan/execute work outside the store lock.
+- v15.25 separates production damage confirmation from fixture-only lifecycle
+  records. Do not promote current state, selection, Q12, or fixtures to events.

@@ -18530,3 +18530,8 @@ Maintained boundaries:
 
 - Added a runtime-neutral, session-scoped in-memory owner with detached reads
   and fingerprint-based compare-and-swap replacement.
+
+## v15.25 Lifecycle Confirmation Boundary
+
+- Added private confirmed-observation normalization with explicit production and
+  fixture-only source/trust boundaries, deduplication, and session sequencing.

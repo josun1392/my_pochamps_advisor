@@ -1,0 +1,24 @@
+from copy import deepcopy
+from llm.advisor_lifecycle_confirmation import LifecycleConfirmationBoundary, FIXTURE_SOURCE, FIXTURE_TRUST, PRODUCTION_SOURCE, USER_TRUST
+
+def boundary(session="s"): return LifecycleConfirmationBoundary(session, {"self":{"slot_index":0,"pokemon_id":"pikachu"}, "opponent":{"slot_index":1,"pokemon_id":"eevee"}})
+def damage(**x): return {"damage_amount":10,"hp_unit":"exact",**x}
+
+def test_production_damage_explicit_sequence_and_immutability():
+ b=boundary(); payload=damage(); before=deepcopy(payload); r=b.confirm(event_kind="direct_move_damage_observed",payload=payload,session_id="s",source=PRODUCTION_SOURCE,trust=USER_TRUST,confirmed=True)
+ assert r["status"]=="confirmed" and r["observation"]["observation_sequence"]==1 and payload==before
+ assert b.confirm(event_kind="direct_move_damage_observed",payload=damage(),session_id="s",source=PRODUCTION_SOURCE,trust=USER_TRUST,confirmed=False)["status"]=="not_confirmed"
+
+def test_fixture_nonpromotion_owner_session_and_payload_rejections():
+ b=boundary()
+ assert b.confirm(event_kind="used_move_observed",payload={"move_id":"tackle"},session_id="s",source=FIXTURE_SOURCE,trust=FIXTURE_TRUST,confirmed=True,side="self",slot_index=0,pokemon_id="pikachu")["status"]=="fixture_only_source"
+ assert b.confirm(event_kind="used_move_observed",payload={"move_id":"tackle"},session_id="s",source=FIXTURE_SOURCE,trust=FIXTURE_TRUST,confirmed=True,side="self",slot_index=0,pokemon_id="pikachu",production=False)["status"]=="confirmed"
+ assert b.confirm(event_kind="pokemon_faint_observed",payload={"q12":True},session_id="old",source=FIXTURE_SOURCE,trust=FIXTURE_TRUST,confirmed=True,side="self",slot_index=0,pokemon_id="pikachu",production=False)["status"]=="stale_session"
+ assert b.confirm(event_kind="pokemon_switch_observed",payload={"selected":True},session_id="s",source=FIXTURE_SOURCE,trust=FIXTURE_TRUST,confirmed=True,side="self",slot_index=1,pokemon_id="pikachu",production=False)["status"]=="invalid_provenance"
+
+def test_duplicate_conflict_and_repeated_occurrence_do_not_misallocate():
+ b=boundary(); args=dict(event_kind="direct_move_damage_observed",payload=damage(),session_id="s",source=PRODUCTION_SOURCE,trust=USER_TRUST,confirmed=True,observation_id="x")
+ assert b.confirm(**args)["status"]=="confirmed"
+ assert b.confirm(**args)["status"]=="duplicate"
+ changed={**args,"payload":damage(damage_amount=11)}; assert b.confirm(**changed)["status"]=="conflicting_confirmation"
+ assert b.confirm(**{**args,"observation_id":"y"})["observation"]["observation_sequence"]==2
