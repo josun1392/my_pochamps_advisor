@@ -3178,3 +3178,10 @@ provider schema, Q12 result, or current UI state is changed.
 
 Collected canonical observations remain private session evidence. Snapshot handoff
 is not yet wired to production UI or provider-visible payloads.
+
+## v15.29 snapshot handoff
+
+Collection evidence may enter only private `TurnSnapshot.current_state` on an
+explicit session-matched detached input. `MainWindow` captures that input at
+structured-request start and the worker receives only the frozen mapping;
+legacy behavior, reducer/store state, and Q12 are unchanged.

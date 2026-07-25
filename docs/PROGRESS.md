@@ -18550,3 +18550,12 @@ Maintained boundaries:
 
 - Added session-scoped detached canonical evidence collection with defensive
   duplicate/conflict checks and stable sequence ordering; UI snapshot wiring is deferred.
+
+## v15.29 TurnSnapshot Observation Handoff
+
+- Added optional detached, session-matched collection evidence to the internal
+  frozen TurnSnapshot state.
+- `MainWindow` now owns and resets the private collection at the battle-session
+  boundary; accepted observed-damage confirmations are bridged into it.
+- Structured requests capture a detached collection snapshot before worker
+  start and propagate that snapshot without sharing the live collection.

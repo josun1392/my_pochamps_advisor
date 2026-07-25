@@ -43,6 +43,7 @@ from llm.advisor_battle_state_context import (
 from llm.opponent_assumptions import build_opponent_assumptions_payload
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import format_recommendation_presentation_text, run_structured_ui_recommendation, run_ui_selected_advice
+from llm.advisor_observation_collection import ObservationCollection
 from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
@@ -241,13 +242,22 @@ class StructuredRecommendationWorker(QObject):
     failed = Signal(str)
     cancelled = Signal()
 
-    def __init__(self, selected_moves: list, battle_input: dict, move_repository, species_repository=None, model: str | None = None) -> None:
+    def __init__(
+        self,
+        selected_moves: list,
+        battle_input: dict,
+        move_repository,
+        species_repository=None,
+        model: str | None = None,
+        observation_snapshot: dict | None = None,
+    ) -> None:
         super().__init__()
         self._selected_moves = deepcopy(selected_moves)
         self._battle_input = deepcopy(battle_input)
         self._move_repository = move_repository
         self._species_repository = species_repository
         self._model = model
+        self._observation_snapshot = deepcopy(observation_snapshot)
 
     @Slot()
     def run(self) -> None:
@@ -261,6 +271,7 @@ class StructuredRecommendationWorker(QObject):
                 move_repository=self._move_repository,
                 species_repository=self._species_repository,
                 model=self._model,
+                observation_snapshot=self._observation_snapshot,
             )
         except Exception:
             self.failed.emit("구조화 추천을 검증하지 못했습니다.")
@@ -362,6 +373,7 @@ class MainWindow(QMainWindow):
         self._battle_session_sequence = 0
         self._current_battle_session_id = "ui-session-0"
         self._current_state_session_id = self._current_battle_session_id
+        self._observation_collection = ObservationCollection(self._current_battle_session_id)
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
@@ -764,6 +776,11 @@ class MainWindow(QMainWindow):
         self._battle_session_sequence += 1
         self._current_battle_session_id = f"ui-session-{self._battle_session_sequence}"
         self._current_state_session_id = self._current_battle_session_id
+        collection = getattr(self, "_observation_collection", None)
+        if isinstance(collection, ObservationCollection):
+            collection.start_new_session(self._current_battle_session_id)
+        else:
+            self._observation_collection = ObservationCollection(self._current_battle_session_id)
         self._current_condition_confirmations = {}
         self._current_ability_confirmations = {}
         self._structured_ability_confirmations = {}
@@ -802,6 +819,10 @@ class MainWindow(QMainWindow):
                 self._current_observed_damage_confirmation = dict(snapshot)
                 structured = self._capture_structured_observed_damage_confirmation(snapshot)
                 self._structured_observed_damage_confirmations = [structured] if structured is not None else []
+                if structured is not None:
+                    self._observation_collection.add_confirmation_result(
+                        {"status": "confirmed", "observation": structured}
+                    )
                 self._update_current_observed_damage_summary()
 
     def _clear_current_observed_damage_confirmation(self) -> None:
@@ -829,7 +850,7 @@ class MainWindow(QMainWindow):
             if not isinstance(pokemon_id, str) or not pokemon_id:
                 return None
             owners[side] = {"side": side, "slot_index": slot_index, "pokemon_id": pokemon_id, "session_id": self._current_state_session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation"}
-        return {"event_kind": "direct_move_damage_observed", "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True, "observation_id": observation_id, "observation_sequence": self._observation_sequence, "turn_number": None}
+        return {"event_kind": "direct_move_damage_observed", "session_id": self._current_battle_session_id, "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True, "observation_id": observation_id, "observation_sequence": self._observation_sequence, "turn_number": None}
 
     def _update_item_event_summary(self) -> None:
         try:
@@ -1079,6 +1100,9 @@ class MainWindow(QMainWindow):
                     getattr(self, "_structured_observed_damage_confirmations", [])
                 ),
             )
+            observation_snapshot = self._observation_collection.snapshot(
+                session_id=self._current_battle_session_id
+            )
         except ValueError:
             panel.set_error("구조화 추천 입력을 준비하지 못했습니다.")
             return
@@ -1087,7 +1111,13 @@ class MainWindow(QMainWindow):
         panel.set_running(True)
         self.statusBar().showMessage("Structured recommendation analyzing...")
         structured_thread = QThread(self)
-        structured_worker = StructuredRecommendationWorker(selected_moves, battle_input, self.move_repo, self.repo)
+        structured_worker = StructuredRecommendationWorker(
+            selected_moves,
+            battle_input,
+            self.move_repo,
+            self.repo,
+            observation_snapshot=observation_snapshot,
+        )
         self._structured_thread = structured_thread
         self._structured_worker = structured_worker
         structured_worker.moveToThread(structured_thread)

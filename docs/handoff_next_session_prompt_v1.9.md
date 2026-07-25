@@ -1355,3 +1355,6 @@ Documentation expectations:
   infer ownership or automatically connect it to runtime reducer execution.
 - v15.28 buffers canonical observations privately; connect it to TurnSnapshot
   only with explicit UI ownership and preserve detached session boundaries.
+- v15.29 attaches a private MainWindow collection only to the existing battle
+  session, passes frozen snapshots rather than live collections to structured
+  workers, and leaves reducer/store/UI current state/Q12 unchanged.
