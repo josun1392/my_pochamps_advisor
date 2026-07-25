@@ -1319,3 +1319,6 @@ Documentation expectations:
 - v15.12 adds a pure snapshot-to-Q12 invocation adapter. It requires complete
   provenanced final stats plus an explicitly trusted level; production candidate
   wiring remains deferred until those dependencies are injected at its boundary.
+- v15.13 wires the adapter per structured candidate only when a provenanced
+  trusted level is supplied. Do not treat the UI stat-profile level 50 as that
+  source; absent level remains a sanitized internal Q12-unavailable result.

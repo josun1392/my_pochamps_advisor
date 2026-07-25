@@ -3087,3 +3087,11 @@ is not a provider payload: status moves and incomplete, invalid, or unsupported
 inputs remain sanitized local unavailable outcomes. It applies no observed-event,
 ability/item, stage, weather, terrain, or field modifier unless a later explicit
 adapter contract supports that modifier.
+
+## v15.13 trusted level and candidate Q12 result
+
+`trusted_level_context` is structured-only current-state evidence and accepts
+only already-provenanced trusted levels. The prepared internal candidate may
+hold a sanitized `q12_damage` result, but provider candidate comparisons and
+legacy/public payloads exclude it. Missing trusted level is unavailable, not a
+default level or zero damage.

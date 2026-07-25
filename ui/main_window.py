@@ -241,11 +241,12 @@ class StructuredRecommendationWorker(QObject):
     failed = Signal(str)
     cancelled = Signal()
 
-    def __init__(self, selected_moves: list, battle_input: dict, move_repository, model: str | None = None) -> None:
+    def __init__(self, selected_moves: list, battle_input: dict, move_repository, species_repository=None, model: str | None = None) -> None:
         super().__init__()
         self._selected_moves = deepcopy(selected_moves)
         self._battle_input = deepcopy(battle_input)
         self._move_repository = move_repository
+        self._species_repository = species_repository
         self._model = model
 
     @Slot()
@@ -258,6 +259,7 @@ class StructuredRecommendationWorker(QObject):
                 selected_moves=self._selected_moves,
                 battle_input=self._battle_input,
                 move_repository=self._move_repository,
+                species_repository=self._species_repository,
                 model=self._model,
             )
         except Exception:
@@ -1015,7 +1017,7 @@ class MainWindow(QMainWindow):
         panel.set_running(True)
         self.statusBar().showMessage("Structured recommendation analyzing...")
         structured_thread = QThread(self)
-        structured_worker = StructuredRecommendationWorker(selected_moves, battle_input, self.move_repo)
+        structured_worker = StructuredRecommendationWorker(selected_moves, battle_input, self.move_repo, self.repo)
         self._structured_thread = structured_thread
         self._structured_worker = structured_worker
         structured_worker.moveToThread(structured_thread)

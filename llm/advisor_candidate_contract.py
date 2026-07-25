@@ -8,9 +8,12 @@ import math
 from llm.advisor_battle_state_context import build_deterministic_calculation_context
 from llm.advisor_turn_snapshot import (
     build_snapshot_damage_input,
+    build_snapshot_stat_provenance,
+    build_snapshot_trusted_level_provenance,
     build_request_start_recommendation_snapshot,
     snapshot_deterministic_context,
 )
+from llm.advisor_q12_snapshot_adapter import invoke_existing_q12_from_snapshot
 
 CANDIDATE_STATUSES = frozenset({"resolved", "partial", "unavailable"})
 RECOMMENDATION_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate", "validation_failed"})
@@ -105,17 +108,31 @@ def _optional_outputs(context: Mapping[str, Any] | None) -> tuple[dict[str, Any]
 
 
 def _production_context(snapshot: Mapping[str, Any], selected_move: Mapping[str, Any]) -> dict[str, Any] | None:
+    # Legacy deterministic helpers predate canonical provenance fields.  Feed
+    # them a detached value-only view while Q12 continues to consume the frozen
+    # provenance-aware snapshot separately.
+    context = _without_internal_provenance(snapshot)
     return build_deterministic_calculation_context(
-        snapshot.get("final_stat_context"), snapshot.get("stat_stage_context"), selected_move,
-        snapshot.get("current_hp_context"), snapshot.get("pokemon"), snapshot.get("condition_context"),
-        snapshot.get("field_state_context"), snapshot.get("battle_format_context"), snapshot.get("opponent_selected_move"),
-        snapshot.get("attacker_level_context"), snapshot.get("observed_previous_damage_context"),
-        snapshot.get("battle_counter_context"), snapshot.get("consecutive_use_context"),
-        snapshot.get("weight_context"), snapshot.get("turn_event_context"),
+        context.get("final_stat_context"), context.get("stat_stage_context"), selected_move,
+        context.get("current_hp_context"), context.get("pokemon"), context.get("condition_context"),
+        context.get("field_state_context"), context.get("battle_format_context"), context.get("opponent_selected_move"),
+        context.get("attacker_level_context"), context.get("observed_previous_damage_context"),
+        context.get("battle_counter_context"), context.get("consecutive_use_context"),
+        context.get("weight_context"), context.get("turn_event_context"),
     )
 
 
-def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapping[str, Any], repositories: Any, turn_snapshot: Any = None, selectable_moves: Sequence[str | None] | None = None) -> dict[str, Any]:
+def _without_internal_provenance(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _without_internal_provenance(item) for key, item in value.items() if key != "provenance"}
+    if isinstance(value, list):
+        return [_without_internal_provenance(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_without_internal_provenance(item) for item in value)
+    return deepcopy(value)
+
+
+def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapping[str, Any], repositories: Any, turn_snapshot: Any = None, selectable_moves: Sequence[str | None] | None = None, species_repository: Any = None) -> dict[str, Any]:
     """Pure v14.2 slot evaluator; isolates metadata failures per candidate."""
     if not isinstance(slot_index, int) or not 0 <= slot_index < 4: raise ValueError("invalid slot index")
     if not isinstance(move, str) or not move:
@@ -127,7 +144,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     if not isinstance(metadata, Mapping) and not hasattr(metadata, "category"):
         return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","self_effects":[],"dynamic_move":None,"warnings":[],"unavailable_reasons":["move_metadata_unavailable"]}
     if _metadata_value(metadata, "category") == "status":
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
     snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
     selected_move = _selected_move_from_metadata(move, metadata)
     if turn_snapshot is not None:
@@ -142,6 +159,12 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
         except ValueError:
             return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","self_effects":[],"dynamic_move":None,"warnings":[],"unavailable_reasons":["invalid_snapshot"]}
         selected_move = deepcopy(damage_input["move"])
+        q12_damage = _snapshot_q12_damage(
+            turn_snapshot=turn_snapshot, damage_input=damage_input,
+            species_repository=species_repository,
+        )
+    else:
+        q12_damage = {"status": "unavailable", "limitations": ["snapshot_q12_unavailable"]}
     context = _production_context(snapshot, selected_move)
     dynamic_move = _dynamic_summary(context)
     damage = _damage_summary(context)
@@ -150,16 +173,31 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
         reasons = ["required_dynamic_context_unavailable"]
         assessment = context.get(dynamic_move["assessment_key"]) if isinstance(context, Mapping) else None
         if isinstance(assessment, Mapping) and isinstance(assessment.get("reason"), str): reasons.append(assessment["reason"])
-        return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","damage":damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":reasons,**optional_outputs}
+        return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","damage":damage,"q12_damage":q12_damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":reasons,**optional_outputs}
     if damage["status"] != "resolved":
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":[damage["reason"], *optional_reasons],**optional_outputs}
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":damage,"q12_damage":q12_damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":[damage["reason"], *optional_reasons],**optional_outputs}
     if optional_reasons:
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":optional_reasons,**optional_outputs}
-    return {"slot_index":slot_index,"move":move,"status":"resolved","availability":"usable","damage":damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":[],**optional_outputs}
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":damage,"q12_damage":q12_damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":optional_reasons,**optional_outputs}
+    return {"slot_index":slot_index,"move":move,"status":"resolved","availability":"usable","damage":damage,"q12_damage":q12_damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":[],**optional_outputs}
 
-def evaluate_move_slots(*, moves: Sequence[Any], battle_snapshot: Mapping[str, Any], repositories: Any, maximum_slots: int = 4, turn_snapshot: Any = None) -> list[dict[str, Any]]:
+def _snapshot_q12_damage(*, turn_snapshot: Any, damage_input: Mapping[str, Any], species_repository: Any) -> dict[str, Any]:
+    if species_repository is None:
+        return {"status": "unavailable", "limitations": ["species_repository_unavailable"]}
+    try:
+        provenance = build_snapshot_stat_provenance(turn_snapshot, species_repository=species_repository)
+        level = build_snapshot_trusted_level_provenance(turn_snapshot)
+        if level.get("available") is not True:
+            return {"status": "unavailable", "limitations": [str(level.get("reason", "trusted_level_unavailable"))]}
+        return invoke_existing_q12_from_snapshot(
+            damage_input, stat_provenance=provenance, trusted_level=level.get("value"),
+        )
+    except (TypeError, ValueError):
+        return {"status": "unavailable", "limitations": ["invalid_snapshot"]}
+
+
+def evaluate_move_slots(*, moves: Sequence[Any], battle_snapshot: Mapping[str, Any], repositories: Any, maximum_slots: int = 4, turn_snapshot: Any = None, species_repository: Any = None) -> list[dict[str, Any]]:
     if isinstance(moves, (str, bytes)) or not isinstance(moves, Sequence) or len(moves) > maximum_slots: raise ValueError("invalid move slots")
-    return [evaluate_move_candidate(slot_index=index, move=move, battle_snapshot=deepcopy(dict(battle_snapshot)), repositories=repositories, turn_snapshot=turn_snapshot, selectable_moves=moves) for index, move in enumerate(moves) if move is not None]
+    return [evaluate_move_candidate(slot_index=index, move=move, battle_snapshot=deepcopy(dict(battle_snapshot)), repositories=repositories, turn_snapshot=turn_snapshot, selectable_moves=moves, species_repository=species_repository) for index, move in enumerate(moves) if move is not None]
 
 _RECOMMENDATION_GUARDRAILS = {
     "select_only_from_selectable_exact_set": True,
@@ -254,7 +292,11 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
             if pair["slot_index"] in {existing["slot_index"] for existing in pairs}:
                 raise ValueError("duplicate slot index")
             eligibility = _candidate_eligibility(normalized)
-            comparisons.append({**deepcopy(normalized), "eligibility": eligibility})
+            # Q12 is internal deterministic evidence.  Keep its compact result
+            # on the prepared candidate while preserving the provider comparison
+            # contract and never serializing a calculation input/provenance block.
+            provider_candidate = {key: value for key, value in normalized.items() if key != "q12_damage"}
+            comparisons.append({**deepcopy(provider_candidate), "eligibility": eligibility})
             pairs.append(pair)
         if not all(isinstance(item, str) for item in limitations):
             raise ValueError("invalid known limitations")
@@ -432,7 +474,7 @@ def _cycle_result(*, status: str, candidates: Sequence[Mapping[str, Any]] = (), 
     }
 
 
-def prepare_recommendation_cycle(*, moves: Sequence[Any], battle_snapshot: Mapping[str, Any], repositories: Any, battle_snapshot_summary: Mapping[str, Any] | None = None, known_limitations: Sequence[str] = (), turn_snapshot: Any = None) -> dict[str, Any]:
+def prepare_recommendation_cycle(*, moves: Sequence[Any], battle_snapshot: Mapping[str, Any], repositories: Any, battle_snapshot_summary: Mapping[str, Any] | None = None, known_limitations: Sequence[str] = (), turn_snapshot: Any = None, species_repository: Any = None) -> dict[str, Any]:
     """Prepare a provider-neutral recommendation cycle from deterministic evidence."""
     if isinstance(moves, (str, bytes)) or not isinstance(moves, Sequence):
         return _cycle_result(status="invalid_snapshot", errors=["invalid_move_slots"])
@@ -441,7 +483,7 @@ def prepare_recommendation_cycle(*, moves: Sequence[Any], battle_snapshot: Mappi
     if isinstance(known_limitations, (str, bytes)) or not isinstance(known_limitations, Sequence) or not all(isinstance(item, str) for item in known_limitations):
         return _cycle_result(status="invalid_snapshot", errors=["invalid_battle_snapshot"])
     try:
-        candidates = evaluate_move_slots(moves=moves, battle_snapshot=battle_snapshot, repositories=repositories, turn_snapshot=turn_snapshot)
+        candidates = evaluate_move_slots(moves=moves, battle_snapshot=battle_snapshot, repositories=repositories, turn_snapshot=turn_snapshot, species_repository=species_repository)
     except (TypeError, ValueError):
         return _cycle_result(status="invalid_snapshot", errors=["invalid_move_slots"])
     except Exception:
@@ -546,7 +588,7 @@ def _ui_known_limitations(battle_input: Mapping[str, Any]) -> list[str]:
     return list(dict.fromkeys([*values, *_UI_RECOMMENDATION_LIMITATION_GUARDRAILS]))
 
 
-def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_input: Mapping[str, Any], move_repository: Any) -> dict[str, Any]:
+def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_input: Mapping[str, Any], move_repository: Any, species_repository: Any = None) -> dict[str, Any]:
     """Prepare an offline recommendation cycle from UI-shaped, trusted inputs."""
     try:
         moves = adapt_ui_move_slots(selected_moves=selected_moves)
@@ -563,7 +605,7 @@ def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_inp
     return prepare_recommendation_cycle(
         moves=moves, battle_snapshot=snapshot, repositories=move_repository,
         battle_snapshot_summary=summary, known_limitations=_ui_known_limitations(battle_input),
-        turn_snapshot=request_turn_snapshot,
+        turn_snapshot=request_turn_snapshot, species_repository=species_repository,
     )
 
 

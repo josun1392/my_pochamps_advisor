@@ -12,7 +12,7 @@ RICH_CURRENT_STATE_KEYS = (
     "current_hp_context", "condition_context", "ability_context", "stat_stage_context",
     "field_state_context", "item_event_context", "final_stat_context",
     "battle_format_context", "observed_previous_damage_context", "battle_counter_context",
-    "consecutive_use_context", "weight_context", "turn_event_context",
+    "consecutive_use_context", "weight_context", "turn_event_context", "trusted_level_context",
 )
 FIELD_SCOPED_CONTEXT_KEYS = frozenset({"field_state_context", "battle_format_context"})
 PROVENANCE_REQUIRED_KEYS = frozenset({"side", "slot_index", "pokemon_id", "session_id", "source", "trust"})
@@ -301,6 +301,61 @@ def build_q12_input_adapter(
     }
 
 
+def build_snapshot_trusted_level_provenance(turn_snapshot: TurnSnapshot) -> dict[str, Any]:
+    """Return only an already-captured, active-self trusted level.
+
+    Level has no UI producer in v15.13.  This boundary therefore never derives
+    one from stat profiles, species metadata, or a conventional default.
+    """
+    if not isinstance(turn_snapshot, TurnSnapshot):
+        raise ValueError("invalid_turn_snapshot")
+    serialized = turn_snapshot.to_dict()
+    current_state = serialized.get("current_state", {})
+    context = current_state.get("trusted_level_context") if isinstance(current_state, Mapping) else None
+    entries = context.get("current_levels") if isinstance(context, Mapping) else None
+    attacker = serialized["battle_state"].get("active_player")
+    if not isinstance(attacker, Mapping):
+        return _unavailable_level("missing_selected_pokemon")
+    if not isinstance(entries, list):
+        return _unavailable_level("trusted_level_unavailable")
+    for entry in entries:
+        if not isinstance(entry, Mapping) or entry.get("side") != "self":
+            continue
+        provenance = entry.get("provenance")
+        if not isinstance(provenance, Mapping):
+            continue
+        source, trust = provenance.get("source"), provenance.get("trust")
+        if (source, trust) not in {
+            ("user_confirmed_current_level", "user_confirmed_current"),
+            ("deterministic_rules_metadata", "deterministic_rules_metadata"),
+        }:
+            continue
+        value = entry.get("value")
+        if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 100:
+            continue
+        if (
+            provenance.get("slot_index") != attacker.get("slot_index")
+            or provenance.get("pokemon_id") != attacker.get("species_id")
+            or provenance.get("side") != "self"
+        ):
+            continue
+        return {
+            "available": True, "value": value, "side": "self",
+            "slot_index": attacker.get("slot_index"), "pokemon_id": attacker.get("species_id"),
+            "session_id": provenance.get("session_id"), "source": source, "trust": trust,
+            "reason": None,
+        }
+    return _unavailable_level("trusted_level_unavailable")
+
+
+def _unavailable_level(reason: str) -> dict[str, Any]:
+    return {
+        "available": False, "value": None, "side": "self", "slot_index": None,
+        "pokemon_id": None, "session_id": None, "source": "unknown", "trust": "unknown",
+        "reason": reason,
+    }
+
+
 def _snapshot_side_stat_provenance(
     slot: Any, side: str, current_state: Mapping[str, Any], session_id: str | None,
     species_repository: Any,
@@ -439,6 +494,8 @@ def capture_ui_current_state_provenance(
     provenance_added = False
     pokemon = _mapping_or_empty(captured.get("pokemon"))
     for key in RICH_CURRENT_STATE_KEYS:
+        if key == "trusted_level_context":
+            continue
         context = captured.get(key)
         if not isinstance(context, Mapping):
             continue
@@ -470,6 +527,13 @@ def capture_ui_current_state_provenance(
     )
     if final_stats:
         captured["final_stat_context"] = {"current_final_stats": final_stats}
+        provenance_added = True
+    trusted_levels = normalize_structured_trusted_levels(
+        _mapping_or_empty(battle_input.get("trusted_level_context")).get("current_levels"),
+        pokemon=pokemon, session_id=session_id,
+    )
+    if trusted_levels:
+        captured["trusted_level_context"] = {"current_levels": trusted_levels}
         provenance_added = True
     if provenance_added:
         captured["current_state_session_id"] = session_id
@@ -510,6 +574,37 @@ def normalize_structured_final_stat_confirmations(
         if key not in seen:
             seen.add(key)
             result.append(entry)
+    return result
+
+
+def normalize_structured_trusted_levels(
+    confirmations: Sequence[Mapping[str, Any]] | None, *, pokemon: Mapping[str, Any], session_id: str,
+) -> list[dict[str, Any]]:
+    """Copy only pre-provenanced trusted levels; do not manufacture ownership."""
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, (str, bytes)):
+        return []
+    active_slots = {
+        "self": _optional_int(_mapping_or_empty(pokemon.get("my_active")).get("slot_index")),
+        "opponent": _optional_int(_mapping_or_empty(pokemon.get("opponent_active")).get("slot_index")),
+    }
+    result: list[dict[str, Any]] = []
+    for entry in confirmations:
+        if not isinstance(entry, Mapping) or entry.get("side") not in {"self", "opponent"}:
+            continue
+        value = entry.get("value")
+        provenance = entry.get("provenance")
+        if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 100:
+            continue
+        copied = {"side": entry["side"], "value": value, "provenance": deepcopy(provenance)}
+        if not _entry_has_valid_provenance(copied, active_slots=active_slots, pokemon=pokemon, session_id=session_id):
+            continue
+        source, trust = provenance.get("source"), provenance.get("trust")
+        if (source, trust) not in {
+            ("user_confirmed_current_level", "user_confirmed_current"),
+            ("deterministic_rules_metadata", "deterministic_rules_metadata"),
+        }:
+            continue
+        result.append(copied)
     return result
 
 

@@ -250,9 +250,9 @@ def _log_structured_recommendation_usage(*, model: str, usage: Mapping[str, Any]
         return {"logging_status": "failed", "recommendation_status": status}
 
 
-def run_structured_ui_recommendation(*, selected_moves: Any, battle_input: Mapping[str, Any], move_repository: Any, model: str | None = None, usage_logging_enabled: bool = False) -> dict[str, Any]:
+def run_structured_ui_recommendation(*, selected_moves: Any, battle_input: Mapping[str, Any], move_repository: Any, species_repository: Any = None, model: str | None = None, usage_logging_enabled: bool = False) -> dict[str, Any]:
     """Separate structured coexistence flow; it never falls back to legacy advice."""
-    prepared = prepare_ui_recommendation_cycle(selected_moves=selected_moves, battle_input=battle_input, move_repository=move_repository)
+    prepared = prepare_ui_recommendation_cycle(selected_moves=selected_moves, battle_input=battle_input, move_repository=move_repository, species_repository=species_repository)
     if prepared.get("status") != "ready":
         presentation = build_recommendation_presentation_model(completed_cycle={"status": "response_validation_failed", "candidates": prepared.get("candidates", []), "errors": ["preparation_not_ready"]})
         return {"status": "preparation_not_ready", "prepared_cycle": deepcopy(prepared), "completed_cycle": None, "presentation_model": presentation, "usage": {}, "errors": ["preparation_not_ready"]}

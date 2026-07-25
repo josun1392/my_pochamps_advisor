@@ -18465,3 +18465,9 @@ Maintained boundaries:
 - Added a validated pure adapter that invokes existing Q12 rolls only with
   complete snapshot provenance and a trusted level; unsupported modifiers and
   production candidate wiring remain deferred.
+
+## v15.13 Trusted Level and Candidate Q12 Wiring
+
+- Added provenance-only trusted-level capture plus per-candidate snapshot Q12
+  wiring. The current UI has no trusted level producer, so normal production
+  candidates remain available with a sanitized Q12-unavailable result.
