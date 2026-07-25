@@ -3139,3 +3139,8 @@ and reducer eligibility. They never derive current state or provider modifiers.
 
 Replay plans are internal, detached, non-mutating policy output. They are not a
 provider payload and never generate Q12 inputs, state transitions, or public fields.
+
+## v15.21 reducer state model
+
+Reducer base state and transition readiness are internal detached contracts only.
+They do not mutate snapshots, UI state, provider payloads, or Q12 inputs.

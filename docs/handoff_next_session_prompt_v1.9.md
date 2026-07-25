@@ -1339,3 +1339,5 @@ Documentation expectations:
   Q12 modifier. Add real producers before extending replay/state transitions.
 - v15.20 only plans replay. Keep full atomic validation as the execution default;
   do not add mutation, rollback, request retry coupling, or Q12 recomputation.
+- v15.21 validates a frozen reducer state model but does not execute it. Add
+  semantic owner/HP/item/field checks before considering actual reducer code.

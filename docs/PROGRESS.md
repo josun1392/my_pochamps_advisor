@@ -18509,3 +18509,8 @@ Maintained boundaries:
 
 - Pure replay planning now partitions ordered evidence and describes future effects
   without mutating battle state. Conflicts block atomic future execution.
+
+## v15.21 Reducer State-Model Contract
+
+- Added detached battle-state-v1 dry-run readiness validation; it maps effects
+  to future fields but never applies observations.
