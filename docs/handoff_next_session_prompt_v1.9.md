@@ -1358,3 +1358,5 @@ Documentation expectations:
 - v15.29 attaches a private MainWindow collection only to the existing battle
   session, passes frozen snapshots rather than live collections to structured
   workers, and leaves reducer/store/UI current state/Q12 unchanged.
+- v15.30 adds only explicit private turn grouping: no inferred turn 1, no
+  request/sequence/counter coupling, and no reducer/store/provider integration.

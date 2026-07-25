@@ -588,12 +588,12 @@ def _ui_known_limitations(battle_input: Mapping[str, Any]) -> list[str]:
     return list(dict.fromkeys([*values, *_UI_RECOMMENDATION_LIMITATION_GUARDRAILS]))
 
 
-def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_input: Mapping[str, Any], move_repository: Any, species_repository: Any = None, observation_snapshot: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_input: Mapping[str, Any], move_repository: Any, species_repository: Any = None, observation_snapshot: Mapping[str, Any] | None = None, trusted_turn_context: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Prepare an offline recommendation cycle from UI-shaped, trusted inputs."""
     try:
         moves = adapt_ui_move_slots(selected_moves=selected_moves)
         request_turn_snapshot = build_request_start_recommendation_snapshot(
-            battle_input, selectable_moves=moves, observation_snapshot=observation_snapshot
+            battle_input, selectable_moves=moves, observation_snapshot=observation_snapshot, trusted_turn_context=trusted_turn_context
         )
         snapshot = adapt_ui_battle_snapshot(battle_input=battle_input)
         snapshot.update(snapshot_deterministic_context(request_turn_snapshot))

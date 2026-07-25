@@ -20,7 +20,7 @@ class LifecycleConfirmationBoundary:
         self._next_sequence = 1
         self._records = {}
 
-    def confirm(self, *, event_kind, payload, session_id, source, trust, confirmed, side=None, slot_index=None, pokemon_id=None, observation_id=None, related_observation_id=None, production=True):
+    def confirm(self, *, event_kind, payload, session_id, source, trust, confirmed, side=None, slot_index=None, pokemon_id=None, observation_id=None, related_observation_id=None, turn_number=None, production=True):
         if not confirmed: return _result("not_confirmed", "not_confirmed")
         readiness = _KINDS.get(event_kind)
         if readiness is None: return _result("unsupported_event_kind", "unsupported_event_kind")
@@ -29,9 +29,10 @@ class LifecycleConfirmationBoundary:
             return _result("fixture_only_source" if source == FIXTURE_SOURCE or readiness == "fixture_only" else "invalid_provenance", "source_or_trust_not_production_allowed", readiness)
         if not production and (source != FIXTURE_SOURCE or trust != FIXTURE_TRUST): return _result("invalid_provenance", "fixture_source_or_trust_required", readiness)
         if not isinstance(payload, dict) or not _valid_payload(event_kind, payload): return _result("invalid_provenance", "invalid_payload", readiness)
+        if not _valid_turn_number(turn_number): return _result("invalid_provenance", "invalid_turn_number", readiness)
         if event_kind != "direct_move_damage_observed" and not _owner_matches(self._owners, side, slot_index, pokemon_id): return _result("invalid_provenance", "owner_mismatch", readiness)
         oid = observation_id or f"{self._session_id}:obs:{self._next_sequence}"
-        record = {"event_kind": event_kind, "observation_id": oid, "session_id": self._session_id, "source": source, "trust": trust, "confirmed": True, "observed": True, "payload": deepcopy(payload), "reducer_eligibility": "candidate" if event_kind != "direct_move_damage_observed" else "evidence_only"}
+        record = {"event_kind": event_kind, "observation_id": oid, "session_id": self._session_id, "turn_number": turn_number, "source": source, "trust": trust, "confirmed": True, "observed": True, "payload": deepcopy(payload), "reducer_eligibility": "candidate" if event_kind != "direct_move_damage_observed" else "evidence_only"}
         if side is not None: record.update(side=side, slot_index=slot_index, pokemon_id=pokemon_id)
         if event_kind == "pokemon_switch_observed": record.update(**{key: payload[key] for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id")}, switch_kind="unknown")
         if event_kind == "used_move_observed": record.update(move_id=payload["move_id"], move_slot=payload.get("move_slot"))
@@ -49,6 +50,7 @@ def _owner_matches(owners, side, slot, pokemon):
     value = owners.get(side) if isinstance(owners, dict) else None
     return isinstance(value, dict) and value.get("slot_index") == slot and value.get("pokemon_id") == pokemon
 def _production_source_matches(kind, source): return {"direct_move_damage_observed": PRODUCTION_SOURCE, "used_move_observed": USED_MOVE_SOURCE, "exact_hp_transition_observed": HP_TRANSITION_SOURCE, "pokemon_switch_observed": SWITCH_SOURCE, "pokemon_faint_observed": FAINT_SOURCE}.get(kind) == source
+def _valid_turn_number(value): return value is None or (isinstance(value, int) and not isinstance(value, bool) and value > 0)
 def _same_record(prior, candidate):
     left, right = deepcopy(prior), deepcopy(candidate); left.pop("observation_sequence", None); return left == right
 

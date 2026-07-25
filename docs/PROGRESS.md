@@ -18559,3 +18559,10 @@ Maintained boundaries:
   boundary; accepted observed-damage confirmations are bridged into it.
 - Structured requests capture a detached collection snapshot before worker
   start and propagate that snapshot without sharing the live collection.
+
+## v15.30 Trusted Turn-Number Producer
+
+- Added a private, explicit, session-local trusted turn owner with unavailable
+  initial/reset state; requests and observations never infer or advance it.
+- Observed-damage and contract-only lifecycle producers preserve validated turn
+  identity, while TurnSnapshot receives only a detached private context.

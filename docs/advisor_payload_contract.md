@@ -3185,3 +3185,10 @@ Collection evidence may enter only private `TurnSnapshot.current_state` on an
 explicit session-matched detached input. `MainWindow` captures that input at
 structured-request start and the worker receives only the frozen mapping;
 legacy behavior, reducer/store state, and Q12 are unchanged.
+
+## v15.30 trusted turn context
+
+`TurnSnapshot.current_state.trusted_turn_context` is private session-matched
+evidence supplied only from explicit application turn state. It is unavailable
+until explicitly set, remains separate from observation ordering and request
+tokens, and is not automatically exposed to legacy/provider payloads.

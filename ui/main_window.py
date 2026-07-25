@@ -250,6 +250,7 @@ class StructuredRecommendationWorker(QObject):
         species_repository=None,
         model: str | None = None,
         observation_snapshot: dict | None = None,
+        trusted_turn_context: dict | None = None,
     ) -> None:
         super().__init__()
         self._selected_moves = deepcopy(selected_moves)
@@ -258,6 +259,7 @@ class StructuredRecommendationWorker(QObject):
         self._species_repository = species_repository
         self._model = model
         self._observation_snapshot = deepcopy(observation_snapshot)
+        self._trusted_turn_context = deepcopy(trusted_turn_context)
 
     @Slot()
     def run(self) -> None:
@@ -272,6 +274,7 @@ class StructuredRecommendationWorker(QObject):
                 species_repository=self._species_repository,
                 model=self._model,
                 observation_snapshot=self._observation_snapshot,
+                trusted_turn_context=self._trusted_turn_context,
             )
         except Exception:
             self.failed.emit("구조화 추천을 검증하지 못했습니다.")
@@ -373,6 +376,7 @@ class MainWindow(QMainWindow):
         self._battle_session_sequence = 0
         self._current_battle_session_id = "ui-session-0"
         self._current_state_session_id = self._current_battle_session_id
+        self._current_trusted_turn_number: int | None = None
         self._observation_collection = ObservationCollection(self._current_battle_session_id)
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
@@ -776,6 +780,7 @@ class MainWindow(QMainWindow):
         self._battle_session_sequence += 1
         self._current_battle_session_id = f"ui-session-{self._battle_session_sequence}"
         self._current_state_session_id = self._current_battle_session_id
+        self._current_trusted_turn_number = None
         collection = getattr(self, "_observation_collection", None)
         if isinstance(collection, ObservationCollection):
             collection.start_new_session(self._current_battle_session_id)
@@ -800,6 +805,36 @@ class MainWindow(QMainWindow):
     def begin_new_battle(self) -> str:
         """Application lifecycle entry point for one explicit new battle."""
         return self._begin_new_battle_session()
+
+    def set_current_turn_number(self, turn_number: int | None) -> None:
+        """Set session-local turn identity; no request or observation infers it."""
+        if turn_number is not None and (
+            isinstance(turn_number, bool) or not isinstance(turn_number, int) or turn_number < 1
+        ):
+            raise ValueError("turn_number must be a positive integer or None")
+        self._current_trusted_turn_number = turn_number
+
+    def advance_turn(self) -> int:
+        """Advance only an already explicit turn; unavailable state never becomes one implicitly."""
+        current = getattr(self, "_current_trusted_turn_number", None)
+        if current is None:
+            raise ValueError("current trusted turn number is unavailable")
+        self.set_current_turn_number(current + 1)
+        return self._current_trusted_turn_number
+
+    def _trusted_turn_context_snapshot(self) -> dict[str, object]:
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        context: dict[str, object] = {
+            "status": "available" if turn_number is not None else "unavailable",
+            "session_id": self._current_battle_session_id,
+            "turn_number": turn_number,
+        }
+        if turn_number is not None:
+            context.update(
+                source="explicit_application_turn_state",
+                trust="user_or_application_confirmed",
+            )
+        return context
 
     def _open_current_battle_format_dialog(self) -> None:
         dialog = CurrentBattleFormatDialog(battle_format=self._current_battle_format_confirmation, parent=self)
@@ -850,7 +885,7 @@ class MainWindow(QMainWindow):
             if not isinstance(pokemon_id, str) or not pokemon_id:
                 return None
             owners[side] = {"side": side, "slot_index": slot_index, "pokemon_id": pokemon_id, "session_id": self._current_state_session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation"}
-        return {"event_kind": "direct_move_damage_observed", "session_id": self._current_battle_session_id, "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True, "observation_id": observation_id, "observation_sequence": self._observation_sequence, "turn_number": None}
+        return {"event_kind": "direct_move_damage_observed", "session_id": self._current_battle_session_id, "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True, "observation_id": observation_id, "observation_sequence": self._observation_sequence, "turn_number": getattr(self, "_current_trusted_turn_number", None)}
 
     def _update_item_event_summary(self) -> None:
         try:
@@ -1103,6 +1138,7 @@ class MainWindow(QMainWindow):
             observation_snapshot = self._observation_collection.snapshot(
                 session_id=self._current_battle_session_id
             )
+            trusted_turn_context = self._trusted_turn_context_snapshot()
         except ValueError:
             panel.set_error("구조화 추천 입력을 준비하지 못했습니다.")
             return
@@ -1117,6 +1153,7 @@ class MainWindow(QMainWindow):
             self.move_repo,
             self.repo,
             observation_snapshot=observation_snapshot,
+            trusted_turn_context=trusted_turn_context,
         )
         self._structured_thread = structured_thread
         self._structured_worker = structured_worker

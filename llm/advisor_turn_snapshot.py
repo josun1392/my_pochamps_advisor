@@ -25,7 +25,7 @@ PROVENANCE_REQUIRED_KEYS = frozenset({"side", "slot_index", "pokemon_id", "sessi
 BASE_STAT_KEYS = ("hp", "attack", "defense", "special-attack", "special-defense", "speed")
 
 
-def build_turn_snapshot_from_battle_input(battle_input: Mapping[str, Any], *, observation_snapshot: Mapping[str, Any] | None = None) -> TurnSnapshot:
+def build_turn_snapshot_from_battle_input(battle_input: Mapping[str, Any], *, observation_snapshot: Mapping[str, Any] | None = None, trusted_turn_context: Mapping[str, Any] | None = None) -> TurnSnapshot:
     if not isinstance(battle_input, Mapping):
         raise ValueError("battle_input must be a mapping")
 
@@ -67,7 +67,7 @@ def build_turn_snapshot_from_battle_input(battle_input: Mapping[str, Any], *, ob
             "No post-damage HP update.",
             "No speed/order simulation.",
         ),
-        current_state=_extract_current_state_with_observations(battle_input, observation_snapshot),
+        current_state=_extract_current_state_with_private_handoffs(battle_input, observation_snapshot, trusted_turn_context),
     )
 
 
@@ -79,7 +79,7 @@ def try_build_turn_snapshot_from_battle_input(battle_input: Mapping[str, Any]) -
 
 
 def build_request_start_recommendation_snapshot(
-    battle_input: Mapping[str, Any], *, selectable_moves: Sequence[str | None], observation_snapshot: Mapping[str, Any] | None = None
+    battle_input: Mapping[str, Any], *, selectable_moves: Sequence[str | None], observation_snapshot: Mapping[str, Any] | None = None, trusted_turn_context: Mapping[str, Any] | None = None
 ) -> TurnSnapshot:
     """Freeze and validate the trusted UI state used by one structured request.
 
@@ -87,7 +87,7 @@ def build_request_start_recommendation_snapshot(
     provider object.  If the UI exposes its active selectable slots, every
     non-empty candidate must still belong to that active player at capture time.
     """
-    snapshot = build_turn_snapshot_from_battle_input(battle_input, observation_snapshot=observation_snapshot)
+    snapshot = build_turn_snapshot_from_battle_input(battle_input, observation_snapshot=observation_snapshot, trusted_turn_context=trusted_turn_context)
     player = snapshot.battle_state.active_player
     opponent = snapshot.battle_state.active_opponent
     if player is None or not player.species_id or opponent is None or not opponent.species_id:
@@ -957,13 +957,28 @@ def _freeze_event_payload(value: Any) -> Any:
     return value
 
 
-def _extract_current_state_with_observations(battle_input: Mapping[str, Any], observation_snapshot: Mapping[str, Any] | None) -> dict[str, Any]:
+def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any], observation_snapshot: Mapping[str, Any] | None, trusted_turn_context: Mapping[str, Any] | None) -> dict[str, Any]:
     state = _extract_current_state(battle_input)
-    if not isinstance(observation_snapshot, Mapping) or observation_snapshot.get("status") != "ready": return state
-    session = observation_snapshot.get("session_id")
-    if isinstance(session, str) and session and _optional_str(battle_input.get("current_state_session_id")) == session:
-        state["canonical_observation_collection"] = {"session_id": session, "ordered_observations": deepcopy(observation_snapshot.get("ordered_observations", []))}
+    session_id = _optional_str(battle_input.get("current_state_session_id"))
+    if isinstance(observation_snapshot, Mapping) and observation_snapshot.get("status") == "ready":
+        session = observation_snapshot.get("session_id")
+        if isinstance(session, str) and session and session_id == session:
+            state["canonical_observation_collection"] = {"session_id": session, "ordered_observations": deepcopy(observation_snapshot.get("ordered_observations", []))}
+    context = _normalize_trusted_turn_context(trusted_turn_context, session_id)
+    if context is not None:
+        state["trusted_turn_context"] = context
     return state
+
+
+def _normalize_trusted_turn_context(value: Mapping[str, Any] | None, session_id: str | None) -> dict[str, Any] | None:
+    if not isinstance(value, Mapping) or value.get("session_id") != session_id or not session_id:
+        return None
+    status, turn_number = value.get("status"), value.get("turn_number")
+    if status == "unavailable" and turn_number is None:
+        return {"status": "unavailable", "session_id": session_id, "turn_number": None}
+    if status == "available" and isinstance(turn_number, int) and not isinstance(turn_number, bool) and turn_number > 0 and value.get("source") == "explicit_application_turn_state" and value.get("trust") == "user_or_application_confirmed":
+        return {"status": "available", "session_id": session_id, "turn_number": turn_number, "source": "explicit_application_turn_state", "trust": "user_or_application_confirmed"}
+    return None
 
 
 def _extract_current_state(battle_input: Mapping[str, Any]) -> dict[str, Any]:
