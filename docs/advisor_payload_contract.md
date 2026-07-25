@@ -3095,3 +3095,10 @@ only already-provenanced trusted levels. The prepared internal candidate may
 hold a sanitized `q12_damage` result, but provider candidate comparisons and
 legacy/public payloads exclude it. Missing trusted level is unavailable, not a
 default level or zero damage.
+
+## v15.14 structured known ability
+
+Known current ability is structured-only copied-input evidence captured from an
+explicit confirmation with matching owner/session provenance. Species ability
+lists and observed activation events do not create that fact. The provider and
+legacy payloads receive neither private provenance nor a new Q12 modifier.

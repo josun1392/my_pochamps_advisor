@@ -1322,3 +1322,6 @@ Documentation expectations:
 - v15.13 wires the adapter per structured candidate only when a provenanced
   trusted level is supplied. Do not treat the UI stat-profile level 50 as that
   source; absent level remains a sanitized internal Q12-unavailable result.
+- v15.14 captures current ability only from explicit UI confirmation into a
+  private structured record. Keep activation events separate, do not choose a
+  species ability automatically, and do not apply ability modifiers yet.

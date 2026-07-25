@@ -366,6 +366,7 @@ class MainWindow(QMainWindow):
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
         self._current_ability_confirmations: dict[str, dict] = {}
+        self._structured_ability_confirmations: dict[str, dict] = {}
         self._current_stat_stage_confirmations: dict[tuple[str, str], dict] = {}
         self._current_field_state_confirmation: dict | None = None
         self._current_final_stat_confirmations: dict[tuple[str, str], dict] = {}
@@ -608,12 +609,44 @@ class MainWindow(QMainWindow):
             **_normalize_current_ability_session(current_abilities),
             normalized["side"]: normalized,
         }
+        structured_entry = self._capture_structured_ability_confirmation(normalized)
+        if structured_entry is not None:
+            structured = dict(getattr(self, "_structured_ability_confirmations", {}))
+            structured[normalized["side"]] = structured_entry
+            self._structured_ability_confirmations = structured
         self._update_current_ability_summary()
 
     @Slot()
     def _clear_current_ability_confirmations(self) -> None:
         self._current_ability_confirmations = {}
+        self._structured_ability_confirmations = {}
         self._update_current_ability_summary()
+
+    def _capture_structured_ability_confirmation(self, entry: dict) -> dict | None:
+        """Bind a confirmed ability to its active owner without changing public UI data."""
+        side = entry.get("side")
+        column = "team_my" if side == "self" else "team_enemy" if side == "opponent" else None
+        selected_slots = getattr(self, "selected_slots", {})
+        slot_index = selected_slots.get(column) if isinstance(selected_slots, dict) and column is not None else None
+        if not isinstance(slot_index, int):
+            return None
+        try:
+            panel = self._slot_panel(column, slot_index)
+        except ValueError:
+            return None
+        view = getattr(panel, "pokemon_view", None)
+        pokemon_id = getattr(view, "en", None)
+        if not isinstance(pokemon_id, str) or not pokemon_id:
+            return None
+        return {
+            **dict(entry),
+            "provenance": {
+                "side": side, "slot_index": slot_index, "pokemon_id": pokemon_id,
+                "session_id": self._current_state_session_id,
+                "source": entry.get("source", "user_confirmed_current_ability"),
+                "trust": "user_confirmed_current",
+            },
+        }
 
     @Slot()
     def _open_current_stat_stage_dialog(self) -> None:
@@ -731,6 +764,7 @@ class MainWindow(QMainWindow):
         self._current_state_session_id = self._current_battle_session_id
         self._current_condition_confirmations = {}
         self._current_ability_confirmations = {}
+        self._structured_ability_confirmations = {}
         self._current_stat_stage_confirmations = {}
         self._current_final_stat_confirmations = {}
         self._structured_final_stat_confirmations = {}
@@ -1007,6 +1041,9 @@ class MainWindow(QMainWindow):
                 observed_events=deepcopy(getattr(self, "_item_event_confirmations", [])),
                 final_stat_confirmations=deepcopy(
                     list(getattr(self, "_structured_final_stat_confirmations", {}).values())
+                ),
+                ability_confirmations=deepcopy(
+                    list(getattr(self, "_structured_ability_confirmations", {}).values())
                 ),
             )
         except ValueError:

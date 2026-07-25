@@ -18471,3 +18471,9 @@ Maintained boundaries:
 - Added provenance-only trusted-level capture plus per-candidate snapshot Q12
   wiring. The current UI has no trusted level producer, so normal production
   candidates remain available with a sanitized Q12-unavailable result.
+
+## v15.14 Structured Ability Provenance Producer
+
+- Existing explicit ability confirmation now records private owner/session
+  provenance for structured snapshots only. Ability identity is evidence, not a
+  Q12 modifier, and activation events remain separate observations.

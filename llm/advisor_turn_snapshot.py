@@ -5,7 +5,10 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
-from llm.advisor_battle_state_context import normalize_user_confirmed_final_battle_stat
+from llm.advisor_battle_state_context import (
+    normalize_user_confirmed_current_ability,
+    normalize_user_confirmed_final_battle_stat,
+)
 
 
 RICH_CURRENT_STATE_KEYS = (
@@ -371,6 +374,7 @@ def _snapshot_side_stat_provenance(
     final_values = _provenanced_stats(current_state.get("final_stat_context"), "current_final_stats", side)
     stage_values = _provenanced_stats(current_state.get("stat_stage_context"), "current_stages", side, value_key="stage")
     item_id = _optional_str(slot.get("known_item_id")) if slot.get("item_status") == "user_confirmed" else None
+    ability_id = _provenanced_ability(current_state.get("ability_context"), side)
     return {
         "pokemon_identity": species_id,
         "side": side,
@@ -380,7 +384,7 @@ def _snapshot_side_stat_provenance(
         "base_stats": _provenance_block(base_stats, source="repository_metadata", trust="deterministic_metadata", reason="missing_base_stat_metadata"),
         "final_stats": _provenance_block(final_values if len(final_values) == len(BASE_STAT_KEYS) else None, source="user_confirmed_final_stat", trust="user_confirmed_current", reason="final_stats_unavailable"),
         "stat_stages": _provenance_block(stage_values or None, source="user_confirmed_current_stat_stage", trust="user_confirmed_current", reason="stat_stages_unavailable"),
-        "known_ability": _provenance_block(None, source="unknown", trust="unknown", reason="ability_unknown"),
+        "known_ability": _provenance_block(ability_id, source="user_confirmed_current_ability" if ability_id else "unknown", trust="user_confirmed_current" if ability_id else "unknown", reason="ability_unknown"),
         "known_item": _provenance_block(item_id, source="user_confirmed_current" if item_id else "unknown", trust="user_confirmed_current" if item_id else "unknown", reason="item_unknown"),
     }
 
@@ -440,6 +444,25 @@ def _provenanced_stats(context: Any, entry_key: str, side: str, *, value_key: st
     return result
 
 
+def _provenanced_ability(context: Any, side: str) -> str | None:
+    entries = context.get("current_abilities") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        return None
+    for entry in entries:
+        if not isinstance(entry, Mapping) or entry.get("side") != side:
+            continue
+        try:
+            normalized = normalize_user_confirmed_current_ability(
+                {key: value for key, value in entry.items() if key not in {"confidence", "provenance"}}
+            )
+        except ValueError:
+            continue
+        if normalized["ability"] == "unknown":
+            continue
+        return normalized["ability"]
+    return None
+
+
 def _provenance_block(value: Any, *, source: str, trust: str, reason: str) -> dict[str, Any]:
     return {
         "available": value is not None,
@@ -482,6 +505,7 @@ def capture_ui_current_state_provenance(
     battle_input: Mapping[str, Any], *, session_id: str,
     observed_events: Sequence[Mapping[str, Any]] | None = None,
     final_stat_confirmations: Sequence[Mapping[str, Any]] | None = None,
+    ability_confirmations: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Capture structured-only provenance and explicitly observed UI events.
 
@@ -527,6 +551,12 @@ def capture_ui_current_state_provenance(
     )
     if final_stats:
         captured["final_stat_context"] = {"current_final_stats": final_stats}
+        provenance_added = True
+    abilities = normalize_structured_ability_confirmations(
+        ability_confirmations, pokemon=pokemon, session_id=session_id,
+    )
+    if abilities:
+        captured["ability_context"] = {"current_abilities": abilities}
         provenance_added = True
     trusted_levels = normalize_structured_trusted_levels(
         _mapping_or_empty(battle_input.get("trusted_level_context")).get("current_levels"),
@@ -574,6 +604,41 @@ def normalize_structured_final_stat_confirmations(
         if key not in seen:
             seen.add(key)
             result.append(entry)
+    return result
+
+
+def normalize_structured_ability_confirmations(
+    confirmations: Sequence[Mapping[str, Any]] | None, *, pokemon: Mapping[str, Any], session_id: str,
+) -> list[dict[str, Any]]:
+    """Accept only explicit, pre-bound current abilities for this request."""
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, (str, bytes)):
+        return []
+    active_slots = {
+        "self": _optional_int(_mapping_or_empty(pokemon.get("my_active")).get("slot_index")),
+        "opponent": _optional_int(_mapping_or_empty(pokemon.get("opponent_active")).get("slot_index")),
+    }
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for confirmation in confirmations:
+        if not isinstance(confirmation, Mapping):
+            continue
+        raw = {key: value for key, value in confirmation.items() if key != "provenance"}
+        try:
+            normalized = normalize_user_confirmed_current_ability(raw)
+        except ValueError:
+            continue
+        if normalized["ability"] == "unknown":
+            continue
+        entry = {**normalized, "provenance": deepcopy(confirmation.get("provenance"))}
+        if normalized["side"] in seen:
+            continue
+        if not _entry_has_valid_provenance(entry, active_slots=active_slots, pokemon=pokemon, session_id=session_id):
+            continue
+        provenance = entry["provenance"]
+        if provenance.get("source") != "user_confirmed_current_ability" or provenance.get("trust") != "user_confirmed_current":
+            continue
+        seen.add(normalized["side"])
+        result.append(entry)
     return result
 
 
