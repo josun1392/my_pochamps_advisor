@@ -6,14 +6,17 @@ from copy import deepcopy
 
 import requests
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
+    QFileDialog,
     QFrame,
     QHBoxLayout,
     QInputDialog,
     QLabel,
     QMainWindow,
+    QMessageBox,
     QVBoxLayout,
     QWidget,
 )
@@ -475,6 +478,7 @@ class MainWindow(QMainWindow):
         self._update_current_observed_damage_summary()
         self._update_battle_counter_summary()
         self.shortcuts = GlobalShortcuts(self, self)
+        self._setup_persistence_actions()
         self.set_active_column(self._active_column_name)
 
     def select_my_pokemon(self, slot_index: int) -> None:
@@ -777,6 +781,154 @@ class MainWindow(QMainWindow):
         manager = getattr(self, "_observation_runtime_session_manager", None)
         return manager.session_id if isinstance(manager, BattleObservationRuntimeSessionManager) else None
 
+    def _setup_persistence_actions(self) -> None:
+        """Install the two explicit persistence entry points; no action runs implicitly."""
+        file_menu = self.menuBar().addMenu("File")
+        self._save_battle_state_action = QAction("Save Battle State", self)
+        self._load_battle_state_action = QAction("Load Battle State", self)
+        self._save_battle_state_action.triggered.connect(self._save_battle_state)
+        self._load_battle_state_action.triggered.connect(self._load_battle_state)
+        file_menu.addAction(self._save_battle_state_action)
+        file_menu.addAction(self._load_battle_state_action)
+        self._update_persistence_action_state()
+
+    def _update_persistence_action_state(self) -> None:
+        """The bounded manager is the only persistence authority exposed to this window."""
+        active = MainWindow._active_session_id(self) is not None
+        for name in ("_save_battle_state_action", "_load_battle_state_action"):
+            action = getattr(self, name, None)
+            if action is not None:
+                action.setEnabled(active)
+
+    def _active_persistence_manager(self) -> BattleObservationRuntimeSessionManager | None:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager):
+            return None
+        return manager if MainWindow._active_session_id(self) is not None else None
+
+    def _present_persistence_status(self, message: str) -> None:
+        """Keep persistence feedback sanitized and independent of advice text."""
+        try:
+            self.statusBar().showMessage(message)
+        except (AttributeError, RuntimeError):
+            pass
+
+    @Slot()
+    def _save_battle_state(self) -> None:
+        manager = MainWindow._active_persistence_manager(self)
+        session_id = MainWindow._active_session_id(self)
+        if manager is None or session_id is None:
+            MainWindow._present_persistence_status(self, "Battle-state save unavailable: start a battle first.")
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Save Battle State", "", "Battle State (*.json)")
+        if not path:
+            MainWindow._present_persistence_status(self, "Battle-state save cancelled.")
+            return
+        if Path(path).exists() and QMessageBox.question(
+            self,
+            "Overwrite Battle State",
+            "A battle-state file already exists. Replace it?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            MainWindow._present_persistence_status(self, "Battle-state save cancelled.")
+            return
+        result = manager.save(session_id, path)
+        if result.get("status") == "save_complete":
+            MainWindow._present_persistence_status(self, "Battle state saved.")
+        else:
+            MainWindow._present_persistence_status(self, "Battle-state save failed.")
+
+    @Slot()
+    def _load_battle_state(self) -> None:
+        manager = MainWindow._active_persistence_manager(self)
+        session_id = MainWindow._active_session_id(self)
+        if manager is None or session_id is None:
+            MainWindow._present_persistence_status(self, "Battle-state load unavailable: start a battle first.")
+            return
+        path, _ = QFileDialog.getOpenFileName(self, "Load Battle State", "", "Battle State (*.json)")
+        if not path:
+            MainWindow._present_persistence_status(self, "Battle-state load cancelled.")
+            return
+        expected_fingerprint = manager.read_state().get("state_fingerprint")
+        result = manager.load(session_id, path)
+        if result.get("status") != "load_ready" or not isinstance(result.get("envelope"), dict):
+            MainWindow._present_persistence_status(self, "Battle-state load failed.")
+            return
+        candidate = deepcopy(result["envelope"])
+        if candidate.get("session_id") != session_id:
+            MainWindow._present_persistence_status(self, "Loaded state belongs to a different battle session.")
+            return
+        self._present_loaded_candidate(
+            manager,
+            candidate,
+            loaded_for_session_id=session_id,
+            expected_runtime_fingerprint=expected_fingerprint,
+        )
+
+    def _present_loaded_candidate(
+        self,
+        manager: BattleObservationRuntimeSessionManager,
+        candidate: dict,
+        *,
+        loaded_for_session_id: str,
+        expected_runtime_fingerprint: object,
+    ) -> None:
+        """Keep a defensive candidate only for this explicit confirmation call stack."""
+        if QMessageBox.question(
+            self,
+            "Restore Battle State",
+            "Loaded battle state is ready. Restore it into the current battle session?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            MainWindow._present_persistence_status(self, "Battle-state restore cancelled.")
+            return
+        MainWindow._restore_loaded_candidate(
+            self,
+            manager,
+            deepcopy(candidate),
+            loaded_for_session_id=loaded_for_session_id,
+            expected_runtime_fingerprint=expected_runtime_fingerprint,
+        )
+
+    def _restore_loaded_candidate(
+        self,
+        manager: BattleObservationRuntimeSessionManager,
+        candidate: dict,
+        *,
+        loaded_for_session_id: str,
+        expected_runtime_fingerprint: object,
+    ) -> None:
+        """Restore only the state observed at load time; never recapture the expected fingerprint."""
+        if manager is not MainWindow._active_persistence_manager(self):
+            MainWindow._present_persistence_status(self, "Battle-state restore unavailable.")
+            return
+        current_session_id = MainWindow._active_session_id(self)
+        if current_session_id != loaded_for_session_id or candidate.get("session_id") != current_session_id:
+            MainWindow._present_persistence_status(self, "Loaded state is no longer valid for this battle session.")
+            return
+        if manager.read_state().get("state_fingerprint") != expected_runtime_fingerprint:
+            MainWindow._present_persistence_status(self, "Battle state changed after loading; restore was not applied.")
+            return
+        result = manager.restore(current_session_id, deepcopy(candidate), expected_runtime_fingerprint)
+        if result.get("status") != "restore_complete":
+            MainWindow._present_persistence_status(self, "Battle-state restore failed.")
+            return
+        self._retire_advice_presentation_authority()
+        self._reset_restored_battle_presentation()
+        MainWindow._present_persistence_status(self, "Battle state restored.")
+
+    def _reset_restored_battle_presentation(self) -> None:
+        """Core commit precedes this reset; workers are not cancelled."""
+        try:
+            panel = self.center_column.llm_advice_panel
+            panel.set_running(False)
+            panel.structured_request_button.setDisabled(False)
+            panel.set_mode_advice_text("structured", "Battle state restored. Request a new recommendation when ready.")
+        except (AttributeError, RuntimeError):
+            pass
+
     def _selected_identity(self, column_name: str) -> dict[str, str] | None:
         slot_index = self.selected_slots.get(column_name)
         if not isinstance(slot_index, int):
@@ -811,6 +963,9 @@ class MainWindow(QMainWindow):
                 return None
         self._battle_session_sequence = candidate_sequence
         self._retire_advice_presentation_authority()
+        update_persistence_actions = getattr(self, "_update_persistence_action_state", None)
+        if callable(update_persistence_actions):
+            update_persistence_actions()
         self._current_trusted_turn_number = None
         self._current_condition_confirmations = {}
         self._current_ability_confirmations = {}

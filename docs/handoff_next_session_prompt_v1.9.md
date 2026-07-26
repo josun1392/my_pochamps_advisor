@@ -1435,3 +1435,24 @@ Documentation expectations:
   as rollover/import. Do not add a long-lived raw candidate cache, autosave,
   startup recovery, automatic restore, file picker implementation, import,
   history/undo, cloud, provider call, or raw runtime/persistence getter.
+
+## v15.37 explicit persistence UI implementation
+
+- MainWindow now has explicit `File` menu actions for save and load. They use
+  only `BattleObservationRuntimeSessionManager.save/load/restore`; no raw
+  persistence/runtime/store/commands getter was added.
+- Load keeps a detached envelope only in the confirmation call chain. Restore
+  requires user confirmation, the original load-time session ID, and the
+  original load-time fingerprint. Do not replace that expected fingerprint just
+  before restore.
+- A successful same-session restore retires request authority only after core
+  commit, then clears derived advice presentation. Failed or stale restore must
+  preserve existing core, UI, and request authority. Do not cancel worker
+  threads; their existing cleanup must still run.
+- Save/load chooser cancellation is sanitized and invokes no command. Never put
+  path, raw state, fingerprint, exception, secret, or token-log values in UI
+  status text. Do not add autosave, startup recovery, automatic restore,
+  cross-session import, history, undo/redo, cloud, provider cancellation, or a
+  long-lived raw candidate field.
+- Validate the new focused persistence UI suite plus lifecycle/persistence
+  regressions and the full offline suite before the next exact-stage gate.

@@ -256,9 +256,10 @@ def test_stale_error_still_cleans_up_worker_and_thread():
     assert thread.deleted == 1
 
 
-def test_wiring_has_no_autosave_startup_file_picker_or_import_hooks():
+def test_lifecycle_wiring_has_no_autosave_startup_or_import_hooks():
     source = inspect.getsource(main_window_module)
-    assert not any(token in source for token in ("QFileDialog", "autosave", "startup recovery", "cross_session_import"))
+    assert not any(token in source for token in ("autosave", "startup recovery", "cross_session_import"))
+    assert "QFileDialog" not in inspect.getsource(MainWindow._begin_new_battle_session)
 
 
 def test_rollover_wiring_never_calls_provider_or_persistence():

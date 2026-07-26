@@ -158,3 +158,47 @@ this file plus `docs/PROGRESS.md` and `docs/handoff_next_session_prompt_v1.9.md`
 Validation of the existing boundary contracts: focused persistence/session/UI
 set `120 passed`; full offline suite `2945 passed, 2 deselected`. This is a
 documentation-only design step, so compile is intentionally not run.
+
+## Implemented v15.37 boundary
+
+`ui/main_window.py` now adds a minimal `File` menu with explicit `Save Battle
+State` and `Load Battle State` actions. Both actions are disabled until the
+optional session manager has an active bundle and call only the existing bounded
+manager `save/load/restore` methods; no raw runtime, commands, store, or
+persistence getter was introduced.
+
+Save opens an explicit `.json` chooser and, when a target already exists, an
+explicit overwrite confirmation. A chooser or overwrite cancellation is a
+sanitized non-error status and calls no command. A save neither changes runtime
+state/fingerprint, collection, store sequence, allocator, ledger, nor active
+request authority.
+
+Load opens an explicit `.json` chooser and remains load-only. It captures the
+active session ID and runtime fingerprint *before* command load, deep-copies the
+validated `load_ready` envelope, rejects a foreign session before confirmation,
+and gives the defensive copy only to `_present_loaded_candidate(...)`. The
+candidate lives in that confirmation/restore call chain only; MainWindow has no
+long-lived raw candidate field. Dialog cancellation, session rollover, stale
+runtime detection, and completion retire it by returning from that call chain.
+
+`_restore_loaded_candidate(...)` rechecks the manager identity, active session,
+candidate session, and the **load-time** fingerprint before calling bounded
+restore. It deliberately never substitutes a newly read fingerprint. Only
+`restore_complete` retires existing advice request authority and resets derived
+advice presentation; it does not cancel the worker/thread. A late pre-restore
+success or error is therefore rejected by the pre-existing token guard while
+normal cleanup remains eligible. Restore failure changes neither core state nor
+request authority or advice presentation. Restore remains same-session only,
+does not roll over, and does not restore collection or allocator state.
+
+All persistence UI messages are generic and do not include raw JSON, state,
+fingerprint, path, exception, secret, or token-log content. Autosave, startup
+recovery, automatic restore, import, history/recent files, cloud sync, and
+undo/redo remain excluded.
+
+Implemented contract coverage is in
+`tests/test_v37_explicit_persistence_ui_boundary.py`, including active-session
+and cancel gates, command-call count/non-mutation, detached load candidate,
+foreign-session rejection, confirmation, load-time CAS, success-only request
+retirement, failure preservation, rollover rejection, and source-level excluded
+feature checks.

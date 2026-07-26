@@ -18715,3 +18715,22 @@ Maintained boundaries:
   refreshes only after core commit. Failure preserves core/UI/request authority.
 - File picker, buttons, autosave, startup recovery, import, undo/redo, cloud,
   and production/test Python changes remain deferred.
+
+## v15.37 Explicit Battle-State Persistence UI Boundary
+
+- Added explicit `Save Battle State` and `Load Battle State` actions to
+  MainWindow's `File` menu. The actions are disabled without an active session
+  and call only the existing manager's bounded persistence delegation.
+- Save uses an explicit `.json` chooser and UI overwrite confirmation. Cancel
+  is non-error and invokes no command; save leaves core state, collection,
+  sequence/allocator, ledger, and request authority unchanged.
+- Load is detached-only. Its copied envelope is held only while the explicit
+  restore confirmation is active, with load-time session identity and runtime
+  fingerprint captured for revalidation. Foreign candidates are rejected before
+  restore and never cause import or rollover.
+- Restore uses the load-time fingerprint, not a refreshed value. Only a core
+  `restore_complete` retires pre-restore request authority and clears derived
+  advice presentation; failure preserves core, UI, and request authority.
+- Added `tests/test_v37_explicit_persistence_ui_boundary.py`. Autosave, startup
+  recovery, automatic restore, import/history, undo/redo, cloud sync, provider
+  cancellation, and raw persistence component exposure remain excluded.
