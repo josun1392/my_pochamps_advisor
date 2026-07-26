@@ -41,18 +41,20 @@ apply, export, or future explicit persistence commands refer to one matching
 session-scoped recovery unit. Connecting any one of them directly to
 `MainWindow`, a request worker, or startup would skip that authority boundary.
 
-### In scope
+### Implemented scope
 
-Define and implement one private, runtime-neutral owner (proposed name
-`ObservationReplayRuntime`) that is constructed from one valid initial
+Implemented one private, runtime-neutral `ObservationReplayRuntime` in
+`llm/advisor_observation_replay_runtime.py`. It is constructed through
+`ObservationReplayRuntime.create(initial_state)` from one valid initial
 `battle-state-v1` mapping and owns exactly:
 
 - one `BattleStateStore`;
 - one `ObservationReplayCoordinator` bound to that store; and
 - one stateless `ObservationReplayPersistence` helper.
 
-It exposes detached, explicit delegation for store read, coordinator preview,
-coordinator apply, and persistence envelope export/validate only. It records
+It exposes detached, explicit delegation for store read, applied-ledger read,
+coordinator preview, coordinator apply, and persistence envelope export/validate
+only. It records
 the session from the initialized store; callers may not supply a different
 session to retag the runtime. The owner does not create an initial reducer state
 from UI data and does not execute save/load/restore commands.
@@ -76,10 +78,11 @@ observation-commit authority. The coordinator remains the only ledger mutation
 authority. Sequence monotonicity and state fingerprints remain store-owned;
 canonical observation fingerprints remain persistence-owned.
 
-The proposed constructor rejects invalid initial state with a sanitized
-`invalid_initial_state` result or a documented constructor exception boundary
-(choose one consistently in implementation; the preferred contract is a
-`create(initial_state) -> {status, runtime}` factory to avoid raw exceptions).
+The implemented factory rejects invalid initial state with the sanitized
+`invalid_initial_state` result and returns no runtime. It accepts the existing
+store-valid state shape plus known optional committed-state fields, rejects
+unknown top-level fields, and constructs all three components only after that
+validation. Runtime session identity is a read-only property.
 All public owner results and returned snapshots/envelopes are detached.
 
 `preview(observation_snapshot)` is read-only and delegates only after exact
@@ -94,24 +97,26 @@ owner snapshot therefore receives the coordinator's `cas_conflict`; lower
 sequence stays `sequence_regression` inside normal CAS. v15.32 rollback-only
 CAS remains exclusively persistence recovery and is not exposed as owner undo.
 
-### Expected files for implementation
+### Implemented files
 
-- Production: `llm/advisor_observation_replay_runtime.py` (new); no UI or
-  worker production files.
-- Tests: `tests/test_v33_session_bound_replay_runtime_owner.py` (new).
+- Production: `llm/advisor_observation_replay_runtime.py`; no UI or worker
+  production files.
+- Tests: `tests/test_v33_session_bound_replay_runtime_owner.py`.
 - Documentation: this spike plus `docs/PROGRESS.md` and
   `docs/handoff_next_session_prompt_v1.9.md`.
 
 No `advisor_payload_contract.md` change is expected: this owner changes no
 provider-visible payload or request schema.
 
-### Completion criteria
+### Implemented verification
 
-One owner has one immutable session identity, detached construction/read/
-preview/export/validate boundaries, explicit apply-only mutation, no ledger or
-state partial mutation on failures, and inherited CAS/idempotency/session
-semantics. Tests must prove no UI, worker, provider, network, save/load/restore,
-autosave, or startup invocation exists.
+The focused runtime suite contains 17 tests: factory/detach, preview
+non-mutation, apply idempotency, foreign-session rejection, stale-CAS
+concurrent-writer preservation, conflicting duplicate rejection, output alias
+protection, eight invalid factory shapes, export/validate non-mutation, and
+prohibited public API surface. The owner exposes neither raw components nor
+save/load/restore/rollback/reset/undo methods. It imports no UI, worker,
+provider, or client module.
 
 ### Deferred follow-up
 

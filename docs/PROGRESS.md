@@ -18588,11 +18588,13 @@ Maintained boundaries:
 - No MainWindow/UI/autosave/startup wiring, cross-session import, user undo,
   provider, or network behavior was added.
 
-## v15.33 Session-Bound Replay Runtime Owner (Design)
+## v15.33 Session-Bound Replay Runtime Owner
 
-- Selected the next boundary as a private runtime-neutral owner for one store,
-  coordinator, and persistence helper; no implementation or runtime wiring is
-  included in this design-only version.
-- The owner must precede persistence commands, UI connections, worker handoff,
-  autosave, startup recovery, and session rollover so those paths cannot bypass
-  a same-session mutation authority.
+- Added `ObservationReplayRuntime`, a private runtime-neutral owner for one
+  store, coordinator, and persistence helper with immutable constructor session
+  authority and detached factory/read/ledger/preview/apply/export/validate
+  results.
+- Normal mutation remains explicit coordinator apply only; persistence is
+  limited to deterministic envelope export/validation. No command save/load/
+  restore, rollback exposure, UI, worker, provider, autosave, startup, or
+  session rollover wiring was added.
