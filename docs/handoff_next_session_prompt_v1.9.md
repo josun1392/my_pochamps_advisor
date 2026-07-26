@@ -1456,3 +1456,26 @@ Documentation expectations:
   long-lived raw candidate field.
 - Validate the new focused persistence UI suite plus lifecycle/persistence
   regressions and the full offline suite before the next exact-stage gate.
+
+## v15.38 runtime-state advice projection design
+
+- Structured recommendation currently freezes UI battle input, collection
+  evidence, and trusted-turn context but does not include active runtime state.
+  Before implementation, preserve the distinction: runtime state is applied
+  authoritative fact; collection is not-yet-necessarily-applied evidence; UI
+  confirmations are separately provenanced user context.
+- Implement a pure detached runtime projection module, not a MainWindow mapper
+  or provider-coupled runtime owner. Map reducer `{"knowledge":"unknown"}`
+  to request semantic `{"status":"unknown"}` and represent confirmed absence
+  distinctly. Never infer HP, fainted, item, condition, field, or side effects.
+- Integrate the projection as validated `runtime_advice_state` through the turn
+  snapshot; exclude raw runtime/store/commands/ledger/persistence/CAS data and
+  full fingerprint from provider payloads. A fingerprint belongs only to worker
+  provenance.
+- Capture session/state/fingerprint at request start and add a completion
+  fingerprint gate after existing token/session guards. Same-session mismatch
+  must suppress presentation without consuming terminal authority; worker cleanup
+  remains unconditional. Missing or invalid runtime rejects without fallback or
+  provider call.
+- Do not implement provider prompt changes, autosave/startup/import/history,
+  cancellation, or generic concurrency machinery in this bounded follow-up.

@@ -18734,3 +18734,25 @@ Maintained boundaries:
 - Added `tests/test_v37_explicit_persistence_ui_boundary.py`. Autosave, startup
   recovery, automatic restore, import/history, undo/redo, cloud sync, provider
   cancellation, and raw persistence component exposure remain excluded.
+
+## v15.38 Runtime Battle-State Projection into Structured Advice Input Design
+
+- Current structured requests capture detached UI battle input, collection
+  evidence, and trusted-turn context, but do not read active runtime state.
+  Existing token/session completion gates also leave a same-session stale-state
+  result gap after an authoritative runtime mutation.
+- Recommended a pure `advisor_runtime_state_projection` module that maps a
+  detached runtime snapshot to provider-safe facts. It maps reducer unknown to
+  request-level `{"status": "unknown"}`, and distinguishes it from known and
+  known-absent values without HP/alive/absence inference.
+- Keep runtime projection in a validated top-level `runtime_advice_state`
+  internal request section, then explicitly hand it into turn-snapshot current
+  state. Do not replace legacy UI fields or expose raw store/runtime/ledger,
+  persistence/CAS data, fingerprint, token, or thread identity to the provider.
+- Future request launch should capture session plus runtime fingerprint with the
+  projection. Completion should add a fingerprint gate after token/session and
+  before terminal claim; mismatch is `stale_runtime_state_result`, while cleanup
+  remains unconditional. Missing runtime/projection rejects the structured
+  request with no UI-only fallback or provider call.
+- This design adds no production/test Python and makes no provider call. Exact
+  stage/commit/push remains required before implementation.
