@@ -1501,3 +1501,29 @@ Documentation expectations:
 - Provider prompt wording/evaluation, damage behavior, persistence schema,
   autosave/startup/import/history/undo, and cancellation remain out of scope.
   Run exact-stage review before any next work.
+
+## v15.39 runtime advice-state prompt semantics and offline evaluation design
+
+- `TurnSnapshot.current_state.runtime_advice_state` is valid v15.38 internal
+  handoff data, but the current structured provider payload still has only its
+  existing seven keys. Future work must forward only the validated projection;
+  never raw snapshot/runtime/store/commands, ledger, persistence/CAS data, or
+  worker-only fingerprint.
+- The prompt must distinguish `unknown` (unobserved), `known_absent`
+  (confirmed absence), and `known(value)` (applied current fact). Runtime facts
+  outrank UI/unapplied evidence; unknown remains unknown; conflicts are not
+  silently merged. Never infer battle state from species metadata or damage.
+- Add a small versioned `grounding` response section with canonical runtime
+  known/unknown, evidence-only, and conflict paths, and validate it against
+  separated inputs. Do not rely on prose regex alone or use a second LLM
+  evaluator. Keep legacy six-field fixtures an explicit bounded lane.
+- Add ten sanitized offline fake-provider fixtures covering unknown bootstrap,
+  stale UI, evidence-only, known absence, partial HP, applied/unapplied
+  observation, field/side distinctions, conflicts, missing runtime, and
+  metadata exclusion. Actual-provider evaluation remains suspended: zero calls.
+- Expected scope: `llm/advisor_client.py`, `llm/advisor_candidate_contract.py`,
+  `llm/structured_fixture_evaluation.py`,
+  `tests/test_v39_runtime_advice_state_prompt_semantics.py`, and payload/progress
+  documents. Exclude MainWindow/worker/runtime-session/persistence lifecycle,
+  damage, autosave/startup/import/history/undo, cancellation, and actual
+  provider work. Exact-stage/commit/push review precedes implementation.

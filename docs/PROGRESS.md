@@ -18775,3 +18775,25 @@ Maintained boundaries:
 - Added `tests/test_v38_runtime_state_advice_projection.py`. Prompt wording,
   provider evaluation, damage behavior, persistence schema, autosave/startup,
   import/history/undo, and cancellation remain excluded.
+
+## v15.39 Runtime Advice-State Prompt Semantics and Offline Evaluation Design
+
+- v15.38 validates `runtime_advice_state` inside `TurnSnapshot.current_state`,
+  but the existing seven-key structured provider payload does not yet forward
+  it. The future payload boundary must contain only that provider-safe
+  projection and must exclude raw runtime/store/ledger/persistence/CAS data and
+  the worker-only fingerprint.
+- Designed explicit `unknown`, `known_absent`, and `known(value)` semantics
+  with authority order: applied runtime facts, user-confirmed evidence,
+  unapplied observation evidence, UI identity provenance, then explicit
+  unknown. Evidence never silently resolves runtime unknown facts; conflicts
+  remain conditional or insufficient context.
+- Recommend a versioned bounded `grounding` response object (runtime known,
+  runtime unknown, evidence-only, conflicts) and deterministic validation over
+  a prompt-only prose check or a second LLM evaluator. Legacy six-field
+  responses remain an explicit compatibility lane, never silently migrated.
+- Defined ten sanitized fake-provider fixtures for unknown/default inference,
+  known absence, stale UI, unapplied/conflicting evidence, partial HP,
+  field/side distinctions, missing runtime, and internal metadata exclusion.
+  Prompt edits, fixture data, production/test Python, and provider calls remain
+  deferred until the next exact-stage gate.
