@@ -3221,3 +3221,20 @@ target fingerprint. Concurrent writer conflict produces sanitized
 `critical_restore_inconsistency` and preserves that writer. This is persistence
 recovery, not user-facing undo/redo. No UI/autosave/startup restore or provider
 payload wiring is present.
+
+## v15.38 runtime advice-state projection
+
+Structured-only `battle_input` may contain a validated
+`runtime_advice_state` section captured from one matching active runtime
+snapshot. `TurnSnapshot.current_state.runtime_advice_state` carries only the
+provider-safe `runtime-advice-state-v1` projection: session ID, active Pokémon
+identity, HP/max HP, fainted, condition, item, weather, terrain, and both side
+conditions. Each fact is explicitly `unknown`, `known_absent`, or `known` with
+a value. It is not a raw `battle-state-v1` copy.
+
+The runtime fingerprint is worker-only provenance and is excluded from
+`runtime_advice_state`, provider payload, prompt, UI status, and logs. Raw
+runtime/store/commands/coordinator/persistence, applied ledger, persistence
+envelope/path, CAS/rollback data, request token, and thread metadata are also
+excluded. Existing UI-derived fields and collection evidence remain separate;
+they do not silently resolve or overwrite runtime projection facts.

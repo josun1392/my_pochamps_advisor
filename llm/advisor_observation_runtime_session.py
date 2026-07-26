@@ -48,6 +48,17 @@ class BattleObservationRuntimeSession:
 
     def read_collection_snapshot(self): return deepcopy(self._collection.snapshot(self._session_id))
     def read_state(self): return deepcopy(self._runtime.read_state())
+    def capture_runtime_state_snapshot(self, captured_session_id):
+        if captured_session_id != self._session_id: return _session_result("stale_session", self._session_id)
+        read = self._runtime.read_state()
+        if read.get("status") != "ready" or read.get("session_id") != self._session_id:
+            return _runtime_snapshot_result("invalid_runtime_state", self._session_id)
+        return {
+            "status": "runtime_snapshot_ready",
+            "session_id": self._session_id,
+            "state": deepcopy(read.get("state")),
+            "state_fingerprint": read.get("state_fingerprint"),
+        }
     def read_applied_ledger(self): return deepcopy(self._runtime.read_applied_ledger())
 
     def validate_session(self, captured_session_id):
@@ -111,6 +122,7 @@ class BattleObservationRuntimeSessionManager:
     def allocate_observation_sequence(self): return deepcopy(self._active_session.allocate_observation_sequence())
     def read_collection_snapshot(self): return self._active_session.read_collection_snapshot()
     def read_state(self): return self._active_session.read_state()
+    def capture_runtime_state_snapshot(self, captured_session_id): return self._active_session.capture_runtime_state_snapshot(captured_session_id)
     def read_applied_ledger(self): return self._active_session.read_applied_ledger()
     def admit_confirmation(self, captured_session_id, confirmation_result): return self._active_session.admit_confirmation(captured_session_id, confirmation_result)
     def preview(self, captured_session_id, observation_snapshot): return self._active_session.preview(captured_session_id, observation_snapshot)
@@ -130,3 +142,4 @@ def _matching_components(session_id, collection, runtime, commands):
 
 def _creation_result(status): return {"status": status, "session": None, "session_id": None}
 def _session_result(status, session_id): return {"status": status, "session_id": session_id}
+def _runtime_snapshot_result(status, session_id): return {"status": status, "session_id": session_id, "state": None, "state_fingerprint": None}

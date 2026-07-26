@@ -1479,3 +1479,25 @@ Documentation expectations:
   provider call.
 - Do not implement provider prompt changes, autosave/startup/import/history,
   cancellation, or generic concurrency machinery in this bounded follow-up.
+
+## v15.38 runtime-state advice projection implementation
+
+- `build_runtime_advice_state_projection()` is the only reducer-to-advice mapper.
+  Feed it detached state only; do not pass widgets, runtime/store/commands,
+  ledger, persistence objects, or UI mirrors. Preserve explicit unknown,
+  known-absent, and known-value unions exactly.
+- MainWindow now captures a matching active state/session/fingerprint snapshot,
+  checks projected and selected active identities, puts only
+  `runtime_advice_state` into structured input, and keeps fingerprint in worker
+  callback provenance. Do not expose the fingerprint in provider data, prompt,
+  UI, status, or logs.
+- `TurnSnapshot.current_state.runtime_advice_state` is validated projection, not
+  evidence or a raw reducer copy. Collection observations remain separate until
+  reducer apply; UI confirmations never silently resolve runtime unknown facts.
+- Structured completion requires token, session, then fingerprint before terminal
+  claim. Same-session stale state suppresses success/error presentation without
+  consuming authority, while worker cleanup remains unconditional. Do not remove
+  the v15.37 restore-token retirement; the fingerprint check complements it.
+- Provider prompt wording/evaluation, damage behavior, persistence schema,
+  autosave/startup/import/history/undo, and cancellation remain out of scope.
+  Run exact-stage review before any next work.

@@ -274,3 +274,45 @@ frameworks.
 This is documentation-only. Planned focused regression includes trusted-turn,
 runtime reducer/store, unknown-bootstrap, MainWindow lifecycle, persistence UI,
 and existing structured request/payload contracts; compile is not required.
+
+## Implemented v15.38 projection boundary
+
+Implemented `llm/advisor_runtime_state_projection.py` with
+`build_runtime_advice_state_projection(runtime_state)`. It accepts only a
+detached validated `battle-state-v1` mapping and returns
+`runtime_projection_ready` with detached `runtime_advice_state`, matching
+session ID, and worker-only runtime fingerprint. The projection uses
+`runtime-advice-state-v1` and includes only active identities and the approved
+HP/max-HP, fainted, condition, item, weather, terrain, and side-condition
+facts. It maps reducer unknown to `{"status": "unknown"}`, explicit absence to
+`{"status": "known_absent"}`, and concrete facts to
+`{"status": "known", "value": ...}`.
+
+`BattleObservationRuntimeSessionManager.capture_runtime_state_snapshot()` now
+returns a matching detached state/session/fingerprint only for the captured
+active session. It exposes no raw component. MainWindow captures this snapshot
+before preparing a structured worker, projects it, checks active runtime identity
+against the selected UI identity, and inserts only `runtime_advice_state` into
+the structured battle input. It supplies the fingerprint only as worker/callback
+provenance. Runtime missing, invalid snapshot/projection, or identity mismatch
+rejects before worker/provider launch; there is no UI-only fallback.
+
+`advisor_turn_snapshot.py` validates and copies the new section to
+`TurnSnapshot.current_state.runtime_advice_state`. The fingerprint is excluded
+from this handoff, provider payload, prompt, UI messages, and logs. Existing UI
+fields and collection evidence stay separate and cannot silently resolve runtime
+unknown facts.
+
+Structured success and error callbacks now require request token, session, and
+captured runtime fingerprint eligibility before terminal claim. A same-session
+fingerprint mismatch is suppressed without presentation/core mutation or
+terminal-authority consumption; existing cleanup remains independent. The
+legacy direct callback compatibility path has no captured fingerprint only for
+pre-v15.38 test callers; actual v15.38 worker launches always supply one.
+
+Added `tests/test_v38_runtime_state_advice_projection.py`: projection mapping,
+detachment, known-absence distinction, snapshot seam, TurnSnapshot handoff,
+fingerprint exclusion, and same-session stale success/error suppression. Prompt
+wording, semantic/provider evaluation, damage behavior, persistence schema,
+autosave/startup/import/history/undo, and provider cancellation remain out of
+scope.

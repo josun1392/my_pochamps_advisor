@@ -9,6 +9,7 @@ from llm.advisor_battle_state_context import (
     normalize_user_confirmed_current_ability,
     normalize_user_confirmed_final_battle_stat,
 )
+from llm.advisor_runtime_state_projection import normalize_runtime_advice_state_projection
 
 
 RICH_CURRENT_STATE_KEYS = (
@@ -960,6 +961,11 @@ def _freeze_event_payload(value: Any) -> Any:
 def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any], observation_snapshot: Mapping[str, Any] | None, trusted_turn_context: Mapping[str, Any] | None) -> dict[str, Any]:
     state = _extract_current_state(battle_input)
     session_id = _optional_str(battle_input.get("current_state_session_id"))
+    runtime_advice_state = battle_input.get("runtime_advice_state")
+    if runtime_advice_state is not None:
+        if session_id is None:
+            raise ValueError("invalid_runtime_advice_state")
+        state["runtime_advice_state"] = normalize_runtime_advice_state_projection(runtime_advice_state, session_id)
     if isinstance(observation_snapshot, Mapping) and observation_snapshot.get("status") == "ready":
         session = observation_snapshot.get("session_id")
         if isinstance(session, str) and session and session_id == session:

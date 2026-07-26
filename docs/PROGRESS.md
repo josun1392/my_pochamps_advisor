@@ -18756,3 +18756,22 @@ Maintained boundaries:
   request with no UI-only fallback or provider call.
 - This design adds no production/test Python and makes no provider call. Exact
   stage/commit/push remains required before implementation.
+
+## v15.38 Runtime Battle-State Projection into Structured Advice Input
+
+- Added pure `llm/advisor_runtime_state_projection.py`. It maps detached active
+  `battle-state-v1` facts into provider-safe `runtime-advice-state-v1` without
+  raw runtime/store/ledger/persistence/CAS exposure or state inference.
+- Unknown is `{"status": "unknown"}`, known absence is
+  `{"status": "known_absent"}`, and concrete facts are
+  `{"status": "known", "value": ...}`. Fainted `False` remains a known
+  value, not absence; unknown HP is never converted to full/zero HP.
+- Added a bounded matching-session state/session/fingerprint capture seam and
+  structured request projection insertion. `TurnSnapshot.current_state` gets
+  only the validated projection; full fingerprint is worker-only provenance.
+- Structured success/error presentation now additionally rejects a same-session
+  runtime fingerprint mismatch before terminal claim. Stale callbacks leave UI
+  and terminal authority unchanged while cleanup stays independent.
+- Added `tests/test_v38_runtime_state_advice_projection.py`. Prompt wording,
+  provider evaluation, damage behavior, persistence schema, autosave/startup,
+  import/history/undo, and cancellation remain excluded.

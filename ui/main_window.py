@@ -48,6 +48,7 @@ from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYL
 from llm.advisor_client import format_recommendation_presentation_text, run_structured_ui_recommendation, run_ui_selected_advice
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
+from llm.advisor_runtime_state_projection import build_runtime_advice_state_projection
 from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
@@ -255,6 +256,7 @@ class StructuredRecommendationWorker(QObject):
         model: str | None = None,
         observation_snapshot: dict | None = None,
         trusted_turn_context: dict | None = None,
+        runtime_fingerprint: str | None = None,
     ) -> None:
         super().__init__()
         self._selected_moves = deepcopy(selected_moves)
@@ -264,6 +266,7 @@ class StructuredRecommendationWorker(QObject):
         self._model = model
         self._observation_snapshot = deepcopy(observation_snapshot)
         self._trusted_turn_context = deepcopy(trusted_turn_context)
+        self._runtime_fingerprint = runtime_fingerprint
 
     @Slot()
     def run(self) -> None:
@@ -1327,7 +1330,23 @@ class MainWindow(QMainWindow):
             panel.set_error("Start a battle after selecting both Pokemon.")
             return
         try:
+            runtime_snapshot = manager.capture_runtime_state_snapshot(captured_session_id)
+            if runtime_snapshot.get("status") != "runtime_snapshot_ready":
+                raise ValueError("runtime snapshot unavailable")
+            runtime_projection = build_runtime_advice_state_projection(runtime_snapshot.get("state"))
+            if (
+                runtime_projection.get("status") != "runtime_projection_ready"
+                or runtime_projection.get("session_id") != captured_session_id
+                or runtime_projection.get("runtime_fingerprint") != runtime_snapshot.get("state_fingerprint")
+            ):
+                raise ValueError("runtime projection unavailable")
             battle_input = self._build_llm_battle_input()
+            if not MainWindow._runtime_projection_matches_battle_input(
+                runtime_projection["runtime_advice_state"],
+                battle_input,
+            ):
+                raise ValueError("runtime identity mismatch")
+            battle_input["runtime_advice_state"] = deepcopy(runtime_projection["runtime_advice_state"])
             my_slot_index = self.selected_slots.get("team_my")
             if my_slot_index is None:
                 raise ValueError("missing selected Pokemon")
@@ -1346,6 +1365,7 @@ class MainWindow(QMainWindow):
                     getattr(self, "_structured_observed_damage_confirmations", [])
                 ),
             )
+            battle_input["current_state_session_id"] = captured_session_id
             observation_snapshot = manager.read_collection_snapshot()
             trusted_turn_context = self._trusted_turn_context_snapshot()
         except ValueError:
@@ -1363,13 +1383,14 @@ class MainWindow(QMainWindow):
             self.repo,
             observation_snapshot=observation_snapshot,
             trusted_turn_context=trusted_turn_context,
+            runtime_fingerprint=runtime_projection["runtime_fingerprint"],
         )
         self._structured_thread = structured_thread
         self._structured_worker = structured_worker
         structured_worker.moveToThread(structured_thread)
         structured_thread.started.connect(structured_worker.run)
-        structured_worker.finished.connect(lambda result: self._on_structured_recommendation_finished(request_token, captured_session_id, result))
-        structured_worker.failed.connect(lambda message: self._on_structured_recommendation_failed(request_token, captured_session_id, message))
+        structured_worker.finished.connect(lambda result: self._on_structured_recommendation_finished(request_token, captured_session_id, runtime_projection["runtime_fingerprint"], result))
+        structured_worker.failed.connect(lambda message: self._on_structured_recommendation_failed(request_token, captured_session_id, runtime_projection["runtime_fingerprint"], message))
         structured_worker.finished.connect(structured_thread.quit)
         structured_worker.failed.connect(structured_thread.quit)
         structured_worker.cancelled.connect(structured_thread.quit)
@@ -1377,13 +1398,18 @@ class MainWindow(QMainWindow):
         structured_thread.finished.connect(lambda: self._cleanup_structured_worker(request_token, structured_thread, structured_worker))
         structured_thread.start()
 
-    def _on_structured_recommendation_finished(self, request_token: int, captured_session_id: str | None | object, result: object | None = None) -> None:
+    def _on_structured_recommendation_finished(self, request_token: int, captured_session_id: str | None | object, captured_runtime_fingerprint: str | object | None = None, result: object | None = None) -> None:
         if result is None:
-            result, captured_session_id = captured_session_id, None
+            if captured_runtime_fingerprint is None:
+                result, captured_session_id = captured_session_id, None
+            else:
+                result, captured_runtime_fingerprint = captured_runtime_fingerprint, None
         panel = self.center_column.llm_advice_panel
         if not self._is_current_advice_request("structured", request_token):
             return
         if not MainWindow._is_current_structured_session(self, captured_session_id):
+            return
+        if not MainWindow._is_current_structured_runtime_fingerprint(self, captured_session_id, captured_runtime_fingerprint):
             return
         if not self._claim_current_advice_terminal("structured", request_token):
             return
@@ -1396,13 +1422,18 @@ class MainWindow(QMainWindow):
         panel.set_mode_advice_text("structured", text)
         self.statusBar().showMessage("Structured recommendation complete")
 
-    def _on_structured_recommendation_failed(self, request_token: int, captured_session_id: str | None, message: str | None = None) -> None:
+    def _on_structured_recommendation_failed(self, request_token: int, captured_session_id: str | None, captured_runtime_fingerprint: str | None = None, message: str | None = None) -> None:
         if message is None:
-            message, captured_session_id = str(captured_session_id), None
+            if captured_runtime_fingerprint is None:
+                message, captured_session_id = str(captured_session_id), None
+            else:
+                message, captured_runtime_fingerprint = str(captured_runtime_fingerprint), None
         panel = self.center_column.llm_advice_panel
         if not self._is_current_advice_request("structured", request_token):
             return
         if not MainWindow._is_current_structured_session(self, captured_session_id):
+            return
+        if not MainWindow._is_current_structured_runtime_fingerprint(self, captured_session_id, captured_runtime_fingerprint):
             return
         if not self._claim_current_advice_terminal("structured", request_token):
             return
@@ -1427,6 +1458,32 @@ class MainWindow(QMainWindow):
         if not isinstance(manager, BattleObservationRuntimeSessionManager):
             return captured_session_id is None
         return manager.validate_worker_result_session(captured_session_id).get("status") == "current_session"
+
+    @staticmethod
+    def _is_current_structured_runtime_fingerprint(self, captured_session_id: str | None, captured_runtime_fingerprint: str | None) -> bool:
+        """Reject same-session results built from an older authoritative runtime revision."""
+        if captured_runtime_fingerprint is None:
+            return True  # Compatibility only for pre-v15.38 direct callback tests.
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager):
+            return False
+        snapshot = manager.capture_runtime_state_snapshot(captured_session_id)
+        return (
+            snapshot.get("status") == "runtime_snapshot_ready"
+            and snapshot.get("state_fingerprint") == captured_runtime_fingerprint
+        )
+
+    @staticmethod
+    def _runtime_projection_matches_battle_input(runtime_advice_state: dict, battle_input: dict) -> bool:
+        """Do not silently merge a selected UI identity with another runtime session identity."""
+        try:
+            runtime_self = runtime_advice_state["self"]["active_pokemon"]["pokemon_id"]
+            runtime_opponent = runtime_advice_state["opponent"]["active_pokemon"]["pokemon_id"]
+            ui_self = battle_input["pokemon"]["my_active"]["name_en"]
+            ui_opponent = battle_input["pokemon"]["opponent_active"]["name_en"]
+        except (KeyError, TypeError):
+            return False
+        return runtime_self == ui_self and runtime_opponent == ui_opponent
 
     def _begin_advice_request(self, owner: str) -> int | None:
         if getattr(self, "_is_closing", False):
