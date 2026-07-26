@@ -1367,3 +1367,7 @@ Documentation expectations:
   same-session, target-fingerprint guarded recovery for ledger-swap failure.
 - v15.32 evidence additionally fixes JSON state slot-key round-trip and locks
   detached load/validate, restore duplicate/conflict, and corruption cases.
+- v15.33 is design-only: define a private session-bound owner for the store,
+  coordinator, and persistence helper before any persistence command, UI,
+  worker, autosave, startup, or reset wiring. Keep owner construction detached
+  from UI state conversion and expose apply as the only normal mutation seam.

@@ -18587,3 +18587,12 @@ Maintained boundaries:
   canonical entry-ID validation, and JSON slot-key round-trip preservation.
 - No MainWindow/UI/autosave/startup wiring, cross-session import, user undo,
   provider, or network behavior was added.
+
+## v15.33 Session-Bound Replay Runtime Owner (Design)
+
+- Selected the next boundary as a private runtime-neutral owner for one store,
+  coordinator, and persistence helper; no implementation or runtime wiring is
+  included in this design-only version.
+- The owner must precede persistence commands, UI connections, worker handoff,
+  autosave, startup recovery, and session rollover so those paths cannot bypass
+  a same-session mutation authority.
