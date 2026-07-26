@@ -1426,3 +1426,12 @@ Documentation expectations:
   presentation, while cleanup always releases its own thread/worker. Keep
   persistence UI, autosave/startup, file picker, import, undo, provider
   cancellation, and raw component exposure out of follow-up work.
+- v15.37 design defines the later explicit persistence UI boundary: use manager
+  `save/load/restore` only on a user action; save is non-mutating, load is
+  detached-only, and restore requires a confirmation-closure candidate with the
+  active session ID plus **load-time** expected fingerprint. On successful
+  restore retire pre-restore request authority and clear derived presentation
+  only after core commit; preserve collection/allocator and never treat restore
+  as rollover/import. Do not add a long-lived raw candidate cache, autosave,
+  startup recovery, automatic restore, file picker implementation, import,
+  history/undo, cloud, provider call, or raw runtime/persistence getter.

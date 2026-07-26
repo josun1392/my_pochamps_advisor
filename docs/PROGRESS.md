@@ -18699,3 +18699,19 @@ Maintained boundaries:
   `2945 passed, 2 deselected`; compile passed. MainWindow
   persistence UI, startup/autosave, import, undo/redo, and provider
   cancellation remain deferred.
+
+## v15.37 Explicit Battle-State Persistence UI Boundary Design
+
+- Designed explicit-only Save/Load UI actions around the active session
+  manager's bounded `save/load/restore` delegation. Save is command-start
+  snapshot, non-mutating, and does not retire an active worker request.
+- Load remains detached and non-mutating. The recommended candidate ownership
+  is a defensive-copy confirmation closure, not a long-lived MainWindow raw
+  candidate field. Candidate session/fingerprint are captured at load time and
+  expire on close, rollover, restore completion, or stale revalidation.
+- Restore is same-session only and reuses the load-time expected fingerprint;
+  it cannot become arbitrary historical restore after runtime mutation. Success
+  preserves collection/allocator, retires pre-restore request authority, and
+  refreshes only after core commit. Failure preserves core/UI/request authority.
+- File picker, buttons, autosave, startup recovery, import, undo/redo, cloud,
+  and production/test Python changes remain deferred.
