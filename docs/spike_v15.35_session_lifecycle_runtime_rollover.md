@@ -163,6 +163,33 @@ recovery unit만 바꾸며 active session identity를 바꾸지 않는다. start
 file picker, UI buttons, worker wiring, cancellation, cross-session import, migration,
 history/undo/redo, cloud/database는 범위 밖이다.
 
+## Implemented core owner
+
+`llm/advisor_observation_runtime_session.py` implements
+`BattleObservationRuntimeSession` and `BattleObservationRuntimeSessionManager`.
+The bundle factory accepts only a caller-supplied nonempty session ID plus a
+matching valid initial state, defensively copies it, creates collection/runtime/
+commands privately, and returns no partial bundle. It exposes detached
+collection/state/ledger reads, explicit session-gated delegation, and a
+monotonic allocator with initial last value 0 and first allocated value 1.
+Allocation never mutates state, fingerprint, applied sequence, or ledger.
+
+The manager has exactly one private active bundle. Different-ID `rollover()`
+first constructs a complete replacement, then changes one active reference;
+failure retains the old object and same-ID rollover returns `session_unchanged`.
+It never resets, retags, or rebinds runtime/commands. Active-session admission
+returns `stale_session` for an old ID; the worker completion gate returns
+`stale_worker_result` without mutation. This is a core gate only, not worker
+callback wiring.
+
+Save/load/restore remain explicit, session-gated command delegation. Rollover
+does not invoke them; foreign load cannot replace the bundle and restore cannot
+change active session identity. The focused v15.35 suite has 31 passing cases
+covering factory shape/detach, rollover preservation, allocator scope, stale
+worker gates, command identity, implicit-persistence exclusion, and surface
+restrictions. MainWindow, workers, UI, startup, autosave, provider cancellation,
+file picker, import, history, and undo remain deferred.
+
 ## Proposed executable contract tests
 
 - `test_session_factory_creates_matching_collection_runtime_and_commands`

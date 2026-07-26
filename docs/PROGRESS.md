@@ -18623,3 +18623,19 @@ Maintained boundaries:
   rejection, and a future captured-session worker-result gate. UI wiring,
   worker callback wiring, startup recovery, autosave, and file commands remain
   deferred.
+
+## v15.35 Core Session Lifecycle Owner and Runtime Rollover
+
+- Added core-only `BattleObservationRuntimeSession` and
+  `BattleObservationRuntimeSessionManager` in
+  `llm/advisor_observation_runtime_session.py`. They compose matching private
+  collection/runtime/commands instances from caller-supplied detached initial
+  state; no MainWindow, worker, provider, startup, or filesystem lifecycle
+  wiring was added.
+- Different-ID rollover publishes a fully-created replacement in one reference
+  assignment. Creation failure preserves the old bundle; same-ID rollover is
+  non-mutating. Runtime and command identity/session bindings are never reset,
+  retagged, or rebound.
+- The owner allocates session-local sequences from 1, separates allocation from
+  store applied sequence, and supplies non-mutating active-session and stale
+  worker-result gates. Persistence calls remain explicit delegation only.

@@ -1388,3 +1388,10 @@ Documentation expectations:
   provider cancellation. A worker completion needs its captured session ID
   checked by a later UI/handoff boundary; the current request token alone does
   not model battle-session rollover.
+- v15.35 implements that core-only authority in
+  `llm/advisor_observation_runtime_session.py`. A bundle privately owns matching
+  collection/runtime/commands plus a monotonic allocator; its manager replaces
+  only fully-created different-ID bundles and returns stale session/worker
+  gates without mutation. Do not wire MainWindow, workers, persistence commands,
+  startup, autosave, file picker, provider cancellation, reset/rebind, history,
+  or cross-session import in this boundary.
