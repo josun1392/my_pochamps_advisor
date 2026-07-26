@@ -1373,3 +1373,8 @@ Documentation expectations:
   export/validate are detached, and apply is the only normal mutation seam.
   Do not add persistence commands, UI/worker/provider wiring, autosave,
   startup, or reset/rollover to this boundary.
+- v15.34 is design-only: use a runtime-bound separate command service for
+  explicit save/load-only/restore rather than expanding runtime core methods.
+  Require an expected current runtime fingerprint for restore; retain v15.32
+  rollback semantics only after that stale gate. Do not connect commands to UI,
+  startup, autosave, worker, or provider paths.
