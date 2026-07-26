@@ -3,7 +3,9 @@ from types import SimpleNamespace
 import pytest
 
 from llm.advisor_lifecycle_confirmation import LifecycleConfirmationBoundary, USED_MOVE_SOURCE, USER_TRUST
+from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_observation_collection import ObservationCollection
+from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from llm.advisor_turn_snapshot import build_turn_snapshot_from_battle_input
 from ui.main_window import MainWindow
 
@@ -19,13 +21,17 @@ class _Harness:
     _capture_structured_observed_damage_confirmation = MainWindow._capture_structured_observed_damage_confirmation
     _begin_new_battle_session = MainWindow._begin_new_battle_session
     _begin_advice_request = MainWindow._begin_advice_request
+    _selected_identity = MainWindow._selected_identity
+    _active_session_id = MainWindow._active_session_id
+    _retire_advice_presentation_authority = MainWindow._retire_advice_presentation_authority
+    _reset_battle_presentation = MainWindow._reset_battle_presentation
 
     def __init__(self):
         self._battle_session_sequence = 0
-        self._current_battle_session_id = self._current_state_session_id = "ui-session-0"
+        initial = create_unknown_bootstrap_battle_state("ui-session-0", "pikachu", "eevee")["state"]
+        self._observation_runtime_session_manager = BattleObservationRuntimeSessionManager.create("ui-session-0", initial)["manager"]
         self._current_trusted_turn_number = None
-        self._observation_collection = ObservationCollection("ui-session-0")
-        self._observation_sequence = self._advice_request_sequence = 0
+        self._advice_request_sequence = 0
         self._active_advice_owner = self._active_advice_request_token = self._active_advice_terminal_token = None
         self._is_closing = False
         self.selected_slots = {"team_my": 0, "team_enemy": 1}

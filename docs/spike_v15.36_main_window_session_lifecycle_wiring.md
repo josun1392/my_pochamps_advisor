@@ -255,3 +255,41 @@ callback closure can carry captured session metadata. Expected tests:
 `tests/test_v36_main_window_session_lifecycle_wiring.py` and, if needed,
 `tests/test_v36_initial_battle_state_factory.py`. Payload contract remains
 unchanged.
+
+## Implemented v15.36 wiring
+
+`MainWindow` now has one optional
+`_observation_runtime_session_manager`; it no longer stores
+`_current_battle_session_id`, `_current_state_session_id`,
+`_observation_sequence`, or a raw `ObservationCollection`. The manager is
+intentionally absent at construction because selected identities do not yet
+exist; no fabricated Pokemon or `ui-session-0` bundle is created. A valid,
+explicit `begin_new_battle()` captures both selected `pokemon_id` values, builds
+the v15.36A unknown bootstrap state, then creates or rolls over the manager.
+
+The publish succeeds before any confirmation/presentation reset. Invalid
+identity leaves the old bundle and UI confirmation state unchanged. On success,
+the retained `_battle_session_sequence` allocates a new unique ID, old request
+presentation authority is retired, and UI reset follows. Rollover invokes no
+persistence command and never resets, retags, or rebinds runtime/commands.
+
+Observed-damage confirmation captures the manager's active session ID and uses
+its allocator. It creates an observation only after allocation and delegates
+admission through the matching manager session. A missing active manager or a
+stale admission performs no core mutation; allocation gaps remain valid.
+Snapshots are detached.
+
+Structured-worker launch now captures `captured_session_id` in the signal
+closure beside the request token, detached collection snapshot, battle input,
+and trusted turn context. Success and error callbacks first check token, then
+the manager's worker-session gate, then claim terminal authority. Thus a stale
+callback cannot consume terminal authority or update advice, error/status,
+running/button state, collection, runtime, store, ledger, or cost display.
+Thread cleanup remains token/object-identity based and always schedules
+`deleteLater`, independent of session presentation eligibility.
+
+Focused implementation tests: `30 passed`; required lifecycle/runtime related
+regression: `116 passed`; full offline: `2945 passed, 2 deselected`; compile
+passed for `ui/main_window.py` and the v15.36 test. No persistence UI, startup/autosave, file picker,
+provider cancellation, import, undo/redo, MainWindow raw component getter, or
+worker-file change was added.

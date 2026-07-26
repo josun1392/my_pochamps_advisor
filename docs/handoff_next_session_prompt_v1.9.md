@@ -1418,3 +1418,11 @@ Documentation expectations:
   not wire MainWindow, workers, startup/autosave, persistence UI, imports, or
   any generic inference. Complete validation and exact stage/commit/push review
   before beginning the separately bounded v15.36 UI lifecycle wiring.
+- v15.36 now wires MainWindow to one optional core session manager. Do not add
+  fake identities at construction: create/roll over only after explicit self
+  and opponent selections yield the v15.36A unknown-bootstrap state. Publish
+  core before resetting UI. Structured callbacks carry both request token and
+  captured session ID; token and session checks precede terminal claim and
+  presentation, while cleanup always releases its own thread/worker. Keep
+  persistence UI, autosave/startup, file picker, import, undo, provider
+  cancellation, and raw component exposure out of follow-up work.

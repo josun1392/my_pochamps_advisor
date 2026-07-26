@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
-from llm.advisor_observation_collection import ObservationCollection
+from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from llm.advisor_turn_snapshot import build_turn_snapshot_from_battle_input
 from ui import main_window
 from ui.main_window import MainWindow, StructuredRecommendationWorker
@@ -24,14 +25,18 @@ class _Harness:
     _capture_structured_observed_damage_confirmation = MainWindow._capture_structured_observed_damage_confirmation
     _begin_new_battle_session = MainWindow._begin_new_battle_session
     _update_current_observed_damage_summary = MainWindow._update_current_observed_damage_summary
+    _selected_identity = MainWindow._selected_identity
+    _active_session_id = MainWindow._active_session_id
+    _retire_advice_presentation_authority = MainWindow._retire_advice_presentation_authority
+    _reset_battle_presentation = MainWindow._reset_battle_presentation
 
     def __init__(self):
         self._battle_session_sequence = 0
-        self._current_battle_session_id = self._current_state_session_id = "ui-session-0"
-        self._observation_collection = ObservationCollection("ui-session-0")
+        initial = create_unknown_bootstrap_battle_state("ui-session-0", "pikachu", "eevee")["state"]
+        self._observation_runtime_session_manager = BattleObservationRuntimeSessionManager.create("ui-session-0", initial)["manager"]
         self._current_observed_damage_confirmation = None
         self._structured_observed_damage_confirmations = []
-        self._observation_sequence = 0
+        self._active_advice_owner = self._active_advice_request_token = self._active_advice_terminal_token = None
         self.selected_slots = {"team_my": 0, "team_enemy": 1}
         self._panels = {("team_my", 0): _Panel("pikachu"), ("team_enemy", 1): _Panel("eevee")}
         self._current_condition_confirmations = {}
@@ -60,7 +65,7 @@ def test_observed_damage_dialog_bridges_to_private_session_collection(monkeypatc
 
     window._open_current_observed_damage_dialog()
 
-    frozen = window._observation_collection.snapshot(session_id="ui-session-0")
+    frozen = window._observation_runtime_session_manager.read_collection_snapshot()
     assert frozen["status"] == "ready"
     assert frozen["ordered_observations"][0]["session_id"] == "ui-session-0"
     assert frozen["ordered_observations"][0]["damage_amount"] == 31
@@ -70,11 +75,11 @@ def test_observed_damage_dialog_bridges_to_private_session_collection(monkeypatc
 
 def test_new_battle_resets_collection_without_reusing_old_evidence():
     window = _Harness()
-    window._observation_collection.add_confirmation_result({"status": "confirmed", "observation": {"observation_id": "old", "observation_sequence": 1, "event_kind": "used_move_observed", "session_id": "ui-session-0", "payload": {}}})
+    window._observation_runtime_session_manager.admit_confirmation("ui-session-0", {"status": "confirmed", "observation": {"observation_id": "old", "observation_sequence": 1, "event_kind": "used_move_observed", "session_id": "ui-session-0", "payload": {}}})
 
     assert window._begin_new_battle_session() == "ui-session-1"
-    assert window._observation_collection.snapshot()["session_id"] == "ui-session-1"
-    assert window._observation_collection.snapshot()["ordered_observations"] == []
+    assert window._observation_runtime_session_manager.read_collection_snapshot()["session_id"] == "ui-session-1"
+    assert window._observation_runtime_session_manager.read_collection_snapshot()["ordered_observations"] == []
 
 
 def test_structured_worker_copies_detached_snapshot_not_live_collection():

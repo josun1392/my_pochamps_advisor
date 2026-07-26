@@ -43,7 +43,8 @@ from llm.advisor_battle_state_context import (
 from llm.opponent_assumptions import build_opponent_assumptions_payload
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import format_recommendation_presentation_text, run_structured_ui_recommendation, run_ui_selected_advice
-from llm.advisor_observation_collection import ObservationCollection
+from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
@@ -374,10 +375,8 @@ class MainWindow(QMainWindow):
         self._active_advice_terminal_token: int | None = None
         self._is_closing = False
         self._battle_session_sequence = 0
-        self._current_battle_session_id = "ui-session-0"
-        self._current_state_session_id = self._current_battle_session_id
+        self._observation_runtime_session_manager: BattleObservationRuntimeSessionManager | None = None
         self._current_trusted_turn_number: int | None = None
-        self._observation_collection = ObservationCollection(self._current_battle_session_id)
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
@@ -391,7 +390,6 @@ class MainWindow(QMainWindow):
         self._current_battle_format_confirmation: dict | None = None
         self._current_observed_damage_confirmation: dict[str, object] | None = None
         self._structured_observed_damage_confirmations: list[dict] = []
-        self._observation_sequence = 0
         self._battle_counter_confirmation: dict[str, int] | None = None
         self._consecutive_use_confirmation: dict[str, int | bool] | None = None
 
@@ -660,7 +658,7 @@ class MainWindow(QMainWindow):
             **dict(entry),
             "provenance": {
                 "side": side, "slot_index": slot_index, "pokemon_id": pokemon_id,
-                "session_id": self._current_state_session_id,
+                "session_id": self._active_session_id(),
                 "source": entry.get("source", "user_confirmed_current_ability"),
                 "trust": "user_confirmed_current",
             },
@@ -752,7 +750,7 @@ class MainWindow(QMainWindow):
                 "side": side,
                 "slot_index": slot_index,
                 "pokemon_id": pokemon_id,
-                "session_id": self._current_state_session_id,
+                "session_id": self._active_session_id(),
                 "source": entry.get("source", "user_confirmed_final_battle_stat"),
                 "trust": "user_confirmed_current",
             },
@@ -775,17 +773,45 @@ class MainWindow(QMainWindow):
         self._current_hp_confirmations = {}
         self._update_current_hp_summary()
 
-    def _begin_new_battle_session(self) -> str:
-        """Explicit internal rollover; slot changes and requests do not call this."""
-        self._battle_session_sequence += 1
-        self._current_battle_session_id = f"ui-session-{self._battle_session_sequence}"
-        self._current_state_session_id = self._current_battle_session_id
-        self._current_trusted_turn_number = None
-        collection = getattr(self, "_observation_collection", None)
-        if isinstance(collection, ObservationCollection):
-            collection.start_new_session(self._current_battle_session_id)
+    def _active_session_id(self) -> str | None:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        return manager.session_id if isinstance(manager, BattleObservationRuntimeSessionManager) else None
+
+    def _selected_identity(self, column_name: str) -> dict[str, str] | None:
+        slot_index = self.selected_slots.get(column_name)
+        if not isinstance(slot_index, int):
+            return None
+        try:
+            panel = self._slot_panel(column_name, slot_index)
+        except ValueError:
+            return None
+        pokemon_id = getattr(getattr(panel, "pokemon_view", None), "en", None)
+        return {"pokemon_id": pokemon_id} if isinstance(pokemon_id, str) and pokemon_id else None
+
+    def _begin_new_battle_session(self) -> str | None:
+        """Publish a validated core bundle before clearing battle-local UI state."""
+        candidate_sequence = getattr(self, "_battle_session_sequence", 0) + 1
+        candidate_session_id = f"ui-session-{candidate_sequence}"
+        initial = create_unknown_bootstrap_battle_state(
+            candidate_session_id,
+            MainWindow._selected_identity(self, "team_my"),
+            MainWindow._selected_identity(self, "team_enemy"),
+        )
+        if initial.get("status") != "initial_state_ready":
+            return None
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        if manager is None:
+            created = BattleObservationRuntimeSessionManager.create(candidate_session_id, initial["state"])
+            if created.get("status") != "session_ready":
+                return None
+            self._observation_runtime_session_manager = created["manager"]
         else:
-            self._observation_collection = ObservationCollection(self._current_battle_session_id)
+            rolled = manager.rollover(candidate_session_id, initial["state"])
+            if rolled.get("status") != "session_replaced":
+                return None
+        self._battle_session_sequence = candidate_sequence
+        self._retire_advice_presentation_authority()
+        self._current_trusted_turn_number = None
         self._current_condition_confirmations = {}
         self._current_ability_confirmations = {}
         self._structured_ability_confirmations = {}
@@ -795,16 +821,30 @@ class MainWindow(QMainWindow):
         self._current_hp_confirmations = {}
         self._current_observed_damage_confirmation = None
         self._structured_observed_damage_confirmations = []
-        self._observation_sequence = 0
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
         self._battle_counter_confirmation = None
         self._consecutive_use_confirmation = None
-        return self._current_battle_session_id
+        self._reset_battle_presentation()
+        return self._active_session_id()
 
-    def begin_new_battle(self) -> str:
+    def begin_new_battle(self) -> str | None:
         """Application lifecycle entry point for one explicit new battle."""
         return self._begin_new_battle_session()
+
+    def _retire_advice_presentation_authority(self) -> None:
+        self._active_advice_owner = None
+        self._active_advice_request_token = None
+        self._active_advice_terminal_token = None
+
+    def _reset_battle_presentation(self) -> None:
+        try:
+            panel = self.center_column.llm_advice_panel
+            panel.set_running(False)
+            panel.structured_request_button.setDisabled(False)
+            self.statusBar().showMessage("New battle session ready")
+        except (AttributeError, RuntimeError):
+            pass
 
     def set_current_turn_number(self, turn_number: int | None) -> None:
         """Set session-local turn identity; no request or observation infers it."""
@@ -826,7 +866,7 @@ class MainWindow(QMainWindow):
         turn_number = getattr(self, "_current_trusted_turn_number", None)
         context: dict[str, object] = {
             "status": "available" if turn_number is not None else "unavailable",
-            "session_id": self._current_battle_session_id,
+            "session_id": MainWindow._active_session_id(self),
             "turn_number": turn_number,
         }
         if turn_number is not None:
@@ -855,9 +895,13 @@ class MainWindow(QMainWindow):
                 structured = self._capture_structured_observed_damage_confirmation(snapshot)
                 self._structured_observed_damage_confirmations = [structured] if structured is not None else []
                 if structured is not None:
-                    self._observation_collection.add_confirmation_result(
-                        {"status": "confirmed", "observation": structured}
-                    )
+                    manager = getattr(self, "_observation_runtime_session_manager", None)
+                    captured_session_id = structured["session_id"]
+                    if isinstance(manager, BattleObservationRuntimeSessionManager):
+                        manager.admit_confirmation(
+                            captured_session_id,
+                            {"status": "confirmed", "observation": structured},
+                        )
                 self._update_current_observed_damage_summary()
 
     def _clear_current_observed_damage_confirmation(self) -> None:
@@ -870,8 +914,15 @@ class MainWindow(QMainWindow):
         damage = entry.get("damage")
         if isinstance(damage, bool) or not isinstance(damage, int) or damage < 0:
             return None
-        self._observation_sequence = getattr(self, "_observation_sequence", 0) + 1
-        observation_id = f"{self._current_state_session_id}:observation-{self._observation_sequence}"
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        captured_session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or captured_session_id is None:
+            return None
+        allocated = manager.allocate_observation_sequence()
+        if allocated.get("status") != "allocated" or allocated.get("session_id") != captured_session_id:
+            return None
+        observation_sequence = allocated["observation_sequence"]
+        observation_id = f"{captured_session_id}:observation-{observation_sequence}"
         owners: dict[str, dict] = {}
         for side, column in (("opponent", "team_enemy"), ("self", "team_my")):
             slot_index = self.selected_slots.get(column)
@@ -884,8 +935,8 @@ class MainWindow(QMainWindow):
             pokemon_id = getattr(getattr(panel, "pokemon_view", None), "en", None)
             if not isinstance(pokemon_id, str) or not pokemon_id:
                 return None
-            owners[side] = {"side": side, "slot_index": slot_index, "pokemon_id": pokemon_id, "session_id": self._current_state_session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation"}
-        return {"event_kind": "direct_move_damage_observed", "session_id": self._current_battle_session_id, "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True, "observation_id": observation_id, "observation_sequence": self._observation_sequence, "turn_number": getattr(self, "_current_trusted_turn_number", None)}
+            owners[side] = {"side": side, "slot_index": slot_index, "pokemon_id": pokemon_id, "session_id": captured_session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation"}
+        return {"event_kind": "direct_move_damage_observed", "session_id": captured_session_id, "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True, "observation_id": observation_id, "observation_sequence": observation_sequence, "turn_number": getattr(self, "_current_trusted_turn_number", None)}
 
     def _update_item_event_summary(self) -> None:
         try:
@@ -1115,6 +1166,11 @@ class MainWindow(QMainWindow):
         if self._structured_thread is not None:
             return
         panel = self.center_column.llm_advice_panel
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        captured_session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or captured_session_id is None:
+            panel.set_error("Start a battle after selecting both Pokemon.")
+            return
         try:
             battle_input = self._build_llm_battle_input()
             my_slot_index = self.selected_slots.get("team_my")
@@ -1123,7 +1179,7 @@ class MainWindow(QMainWindow):
             selected_moves = list(self._slot_panel("team_my", my_slot_index).selected_moves)
             battle_input = capture_ui_current_state_provenance(
                 deepcopy(battle_input),
-                session_id=self._current_state_session_id,
+                session_id=captured_session_id,
                 observed_events=deepcopy(getattr(self, "_item_event_confirmations", [])),
                 final_stat_confirmations=deepcopy(
                     list(getattr(self, "_structured_final_stat_confirmations", {}).values())
@@ -1135,9 +1191,7 @@ class MainWindow(QMainWindow):
                     getattr(self, "_structured_observed_damage_confirmations", [])
                 ),
             )
-            observation_snapshot = self._observation_collection.snapshot(
-                session_id=self._current_battle_session_id
-            )
+            observation_snapshot = manager.read_collection_snapshot()
             trusted_turn_context = self._trusted_turn_context_snapshot()
         except ValueError:
             panel.set_error("구조화 추천 입력을 준비하지 못했습니다.")
@@ -1159,8 +1213,8 @@ class MainWindow(QMainWindow):
         self._structured_worker = structured_worker
         structured_worker.moveToThread(structured_thread)
         structured_thread.started.connect(structured_worker.run)
-        structured_worker.finished.connect(lambda result: self._on_structured_recommendation_finished(request_token, result))
-        structured_worker.failed.connect(lambda message: self._on_structured_recommendation_failed(request_token, message))
+        structured_worker.finished.connect(lambda result: self._on_structured_recommendation_finished(request_token, captured_session_id, result))
+        structured_worker.failed.connect(lambda message: self._on_structured_recommendation_failed(request_token, captured_session_id, message))
         structured_worker.finished.connect(structured_thread.quit)
         structured_worker.failed.connect(structured_thread.quit)
         structured_worker.cancelled.connect(structured_thread.quit)
@@ -1168,8 +1222,14 @@ class MainWindow(QMainWindow):
         structured_thread.finished.connect(lambda: self._cleanup_structured_worker(request_token, structured_thread, structured_worker))
         structured_thread.start()
 
-    def _on_structured_recommendation_finished(self, request_token: int, result: object) -> None:
+    def _on_structured_recommendation_finished(self, request_token: int, captured_session_id: str | None | object, result: object | None = None) -> None:
+        if result is None:
+            result, captured_session_id = captured_session_id, None
         panel = self.center_column.llm_advice_panel
+        if not self._is_current_advice_request("structured", request_token):
+            return
+        if not MainWindow._is_current_structured_session(self, captured_session_id):
+            return
         if not self._claim_current_advice_terminal("structured", request_token):
             return
         panel.set_running(False)
@@ -1181,8 +1241,14 @@ class MainWindow(QMainWindow):
         panel.set_mode_advice_text("structured", text)
         self.statusBar().showMessage("Structured recommendation complete")
 
-    def _on_structured_recommendation_failed(self, request_token: int, message: str) -> None:
+    def _on_structured_recommendation_failed(self, request_token: int, captured_session_id: str | None, message: str | None = None) -> None:
+        if message is None:
+            message, captured_session_id = str(captured_session_id), None
         panel = self.center_column.llm_advice_panel
+        if not self._is_current_advice_request("structured", request_token):
+            return
+        if not MainWindow._is_current_structured_session(self, captured_session_id):
+            return
         if not self._claim_current_advice_terminal("structured", request_token):
             return
         panel.set_running(False)
@@ -1200,6 +1266,12 @@ class MainWindow(QMainWindow):
         if self._structured_worker is worker:
             self._structured_worker = None
         self._clear_current_advice_request("structured", request_token)
+
+    def _is_current_structured_session(self, captured_session_id: str | None) -> bool:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager):
+            return captured_session_id is None
+        return manager.validate_worker_result_session(captured_session_id).get("status") == "current_session"
 
     def _begin_advice_request(self, owner: str) -> int | None:
         if getattr(self, "_is_closing", False):

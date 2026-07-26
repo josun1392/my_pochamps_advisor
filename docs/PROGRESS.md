@@ -18680,3 +18680,22 @@ Maintained boundaries:
   passed`; required runtime/persistence/session regression `146 passed`; full
   offline `2915 passed, 2 deselected`; compile passed. MainWindow
   and worker lifecycle wiring remain deferred.
+
+## v15.36 MainWindow Session Lifecycle and Stale Worker Completion Wiring
+
+- MainWindow now composes one optional `BattleObservationRuntimeSessionManager`
+  instead of independent active-session ID, observation sequence, or raw
+  collection fields. It remains empty before explicit selected self/opponent
+  identities are available, preventing fabricated bootstrap identities.
+- Valid new battle flow creates/rolls over the unknown-bootstrap core bundle
+  before clearing UI confirmations or presentation. Failure preserves old core
+  and UI state; rollover performs no save/load/restore.
+- Structured worker callbacks capture a session ID beside request token and
+  require token then session eligibility before terminal claim/presentation.
+  Stale success/error callbacks are suppressed while cleanup remains
+  unconditional and object-identity safe.
+- Added `tests/test_v36_main_window_session_lifecycle_wiring.py`: focused `30
+  passed`; related lifecycle/runtime regression `116 passed`; full offline
+  `2945 passed, 2 deselected`; compile passed. MainWindow
+  persistence UI, startup/autosave, import, undo/redo, and provider
+  cancellation remain deferred.
