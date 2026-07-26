@@ -18662,3 +18662,21 @@ Maintained boundaries:
   reducer/store compatibility, serialization/fingerprint determinism, and a
   bounded identity-only initial-state factory. No Python changed in this design
   completion; UI/session/worker wiring remains deferred.
+
+## v15.36A Unknown Bootstrap State Contract
+
+- Added canonical detached `{"knowledge": "unknown"}` battle-fact markers and
+  validator support for identity-only bootstrap state. Unknown is distinct from
+  known absent (`None`, trusted `False`, or trusted empty list), and malformed
+  marker mappings are rejected without changing `battle-state-v1` version.
+- Added `create_unknown_bootstrap_battle_state()` for explicit selected self and
+  opponent identities only. It creates no runtime, performs no I/O, and never
+  infers HP, fainted, item, condition, field, or side-condition facts.
+- Reducer compatibility keeps existing concrete state valid, accepts partially
+  resolved unknown state, permits trusted exact HP resolution, and preserves
+  unrelated unknown facts. The existing canonical JSON fingerprint and envelope
+  path preserve unknown-state fingerprints without persistence changes.
+- Added `tests/test_v36a_unknown_bootstrap_state_contract.py`: focused `36
+  passed`; required runtime/persistence/session regression `146 passed`; full
+  offline `2915 passed, 2 deselected`; compile passed. MainWindow
+  and worker lifecycle wiring remain deferred.

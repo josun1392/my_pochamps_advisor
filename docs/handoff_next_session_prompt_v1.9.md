@@ -1409,3 +1409,12 @@ Documentation expectations:
   session completion gates. Keep cleanup unconditional and leave persistence UI,
   startup/autosave, import, undo, provider cancellation, and any Python wiring
   out of this documentation-only step.
+- v15.36A now implements that prerequisite. Use the exact canonical detached
+  marker `{"knowledge": "unknown"}` for unconfirmed battle facts, not `None`,
+  `False`, `[]`, `{}`, full HP, metadata, damage, or provider output. The
+  identity-only `create_unknown_bootstrap_battle_state()` factory emits valid
+  mixed-union `battle-state-v1`; validator/reducer/fingerprint/persistence
+  compatibility is covered by the v15.36A contract suite. It deliberately does
+  not wire MainWindow, workers, startup/autosave, persistence UI, imports, or
+  any generic inference. Complete validation and exact stage/commit/push review
+  before beginning the separately bounded v15.36 UI lifecycle wiring.

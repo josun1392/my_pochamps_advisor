@@ -2,9 +2,67 @@
 from copy import deepcopy
 from hashlib import sha256
 import json
+from types import MappingProxyType
 
 STATE_MODEL_VERSION = "battle-state-v1"
+UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
 _TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted"}
+
+
+def make_unknown_battle_fact():
+    """Return the detached canonical marker for an unconfirmed battle fact."""
+    return {"knowledge": "unknown"}
+
+
+def is_unknown_battle_fact(value):
+    return isinstance(value, dict) and value == UNKNOWN_BATTLE_FACT
+
+
+def validate_battle_state_unknown_markers(state):
+    """Reject malformed canonical markers while preserving legacy concrete states."""
+    if not isinstance(state, dict):
+        return False
+    for side_name in ("self_side", "opponent_side"):
+        side = state.get(side_name)
+        if not isinstance(side, dict):
+            return False
+        if not _valid_fact_marker(side.get("side_conditions")):
+            return False
+        roster = side.get("pokemon")
+        if not isinstance(roster, dict):
+            return False
+        if any(_contains_marker(value) for key, value in side.items() if key not in {"pokemon", "side_conditions"}):
+            return False
+        for pokemon in roster.values():
+            if not isinstance(pokemon, dict):
+                return False
+            if any(not _valid_fact_marker(pokemon.get(field)) for field in ("current_hp", "max_hp", "fainted", "condition", "known_item")):
+                return False
+            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_hp", "max_hp", "fainted", "condition", "known_item"}):
+                return False
+    field = state.get("field")
+    if not isinstance(field, dict) or not all(_valid_fact_marker(field.get(name)) for name in ("weather", "terrain")):
+        return False
+    if any(_contains_marker(value) for key, value in field.items() if key not in {"weather", "terrain"}):
+        return False
+    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field"})
+
+
+def _valid_fact_marker(value):
+    return not (isinstance(value, dict) and "knowledge" in value) or is_unknown_battle_fact(value)
+
+
+def _contains_marker(value):
+    if isinstance(value, dict):
+        return "knowledge" in value or any(_contains_marker(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_marker(item) for item in value)
+    return False
+
+
+def _unknown(value):
+    """Accept legacy string unknown while new bootstrap state uses the marker."""
+    return value == "unknown" or is_unknown_battle_fact(value)
 
 
 def validate_atomic_transition(base_state, replay_plan, expected_session_id):
@@ -190,8 +248,8 @@ def _apply(state, event):
         pokemon = _pokemon(state, event); before, after = _value(event, "hp_before"), _value(event, "hp_after")
         if pokemon is None or not _exact(before) or not _exact(after) or before < after: return _conflict(event, "invalid_exact_hp_transition")
         current, maximum = pokemon.get("current_hp", "unknown"), pokemon.get("max_hp", "unknown")
-        if current not in (None, "unknown") and current != before: return _conflict(event, "current_hp_mismatch")
-        if _exact(maximum) and after > maximum: return _conflict(event, "hp_after_exceeds_max")
+        if current is not None and not _unknown(current) and current != before: return _conflict(event, "current_hp_mismatch")
+        if not _unknown(maximum) and _exact(maximum) and after > maximum: return _conflict(event, "hp_after_exceeds_max")
         pokemon["current_hp"] = after; _mark(pokemon, "current_hp", event); return None
     if effect == "switch_active": return _switch(state, event)
     if effect == "mark_fainted":
@@ -213,7 +271,7 @@ def _pokemon_effect(state, event):
     if not isinstance(expected, str) or not expected: return _conflict(event, "missing_effect_identity")
     if effect in {"set_condition", "consume_item", "remove_item"}:
         if current == expected and effect == "set_condition": return None
-        if current in (None, "unknown") and effect == "set_condition": pokemon[field] = expected; _mark(pokemon, field, event); return None
+        if (current is None or _unknown(current)) and effect == "set_condition": pokemon[field] = expected; _mark(pokemon, field, event); return None
         if effect != "set_condition" and current == expected: pokemon[field] = None; _mark(pokemon, field, event); return None
         return _conflict(event, "known_value_mismatch_or_unknown")
     if current == expected: pokemon[field] = None; _mark(pokemon, field, event); return None
@@ -225,7 +283,7 @@ def _field_effect(state, event):
     if not isinstance(current_field, dict) or not isinstance(desired, str) or not desired: return _conflict(event, "missing_field_effect_identity")
     current, start = current_field.get(field, "unknown"), event["planned_effect"].startswith("start_")
     if start and current == desired: return None
-    if start and current in (None, "unknown"): current_field[field] = desired; _mark(current_field, field, event); return None
+    if start and (current is None or _unknown(current)): current_field[field] = desired; _mark(current_field, field, event); return None
     if not start and current == desired: current_field[field] = None; _mark(current_field, field, event); return None
     return _conflict(event, "field_effect_requires_compatible_known_state")
 
@@ -234,6 +292,7 @@ def _side_condition(state, event):
     side = _side(state, _value(event, "side")); effect = _value(event, "side_condition") or _value(event, "effect")
     if side is None or not isinstance(effect, str) or not effect: return _conflict(event, "missing_side_condition_identity")
     conditions = side.get("side_conditions")
+    if is_unknown_battle_fact(conditions): return _conflict(event, "side_condition_set_unknown")
     if not isinstance(conditions, list): return _conflict(event, "unsupported_side_condition_state")
     start = event["planned_effect"] == "start_side_condition"
     if start and effect in conditions: return None

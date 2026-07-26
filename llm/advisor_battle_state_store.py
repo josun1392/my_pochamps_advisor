@@ -2,7 +2,7 @@
 from copy import deepcopy
 from threading import RLock
 
-from llm.advisor_reducer_state_model import STATE_MODEL_VERSION, state_fingerprint
+from llm.advisor_reducer_state_model import STATE_MODEL_VERSION, state_fingerprint, validate_battle_state_unknown_markers
 
 
 class BattleStateStore:
@@ -77,7 +77,10 @@ def _valid_state(value):
     if not isinstance(value, dict) or value.get("state_version") != STATE_MODEL_VERSION or not isinstance(value.get("session_id"), str) or not value["session_id"]: return False
     if not all(isinstance(value.get(key), dict) for key in ("self_side", "opponent_side", "field")): return False
     sequence = value.get("last_applied_observation_sequence")
-    return sequence is None or (isinstance(sequence, int) and not isinstance(sequence, bool) and sequence >= 0)
+    return (
+        (sequence is None or (isinstance(sequence, int) and not isinstance(sequence, bool) and sequence >= 0))
+        and validate_battle_state_unknown_markers(value)
+    )
 
 
 def _forward_sequence(current, candidate):
