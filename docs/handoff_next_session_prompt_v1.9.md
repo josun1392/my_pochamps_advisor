@@ -1373,8 +1373,9 @@ Documentation expectations:
   export/validate are detached, and apply is the only normal mutation seam.
   Do not add persistence commands, UI/worker/provider wiring, autosave,
   startup, or reset/rollover to this boundary.
-- v15.34 is design-only: use a runtime-bound separate command service for
-  explicit save/load-only/restore rather than expanding runtime core methods.
-  Require an expected current runtime fingerprint for restore; retain v15.32
-  rollback semantics only after that stale gate. Do not connect commands to UI,
-  startup, autosave, worker, or provider paths.
+- v15.34 implements the runtime-bound command service in
+  `llm/advisor_observation_replay_persistence_commands.py`. It accepts no raw
+  components, captures one envelope at explicit save start, load-validates
+  detached foreign or same-session candidates without mutation, and requires an
+  expected current fingerprint before same-session restore. Keep commands out
+  of UI, startup, autosave, worker, provider, reset, and history paths.

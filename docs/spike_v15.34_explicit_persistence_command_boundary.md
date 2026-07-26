@@ -48,16 +48,16 @@ not callers.
 
 ## Recommended v15.34 contract
 
-### Title and owner
+### Implemented command owner
 
 `v15.34 Runtime-Bound Explicit Persistence Commands`
 
-Implement one new `ObservationReplayPersistenceCommands` in
+`ObservationReplayPersistenceCommands` is implemented in
 `llm/advisor_observation_replay_persistence_commands.py`. Its factory accepts
 exactly one `ObservationReplayRuntime`, records that runtime object identity and
 immutable session ID, and may not be rebound to another runtime. It accepts no
 raw store, coordinator, or persistence helper. A minimal runtime-private
-delegation seam is expected so this service can invoke its matching helper
+`_persistence_command_context()` seam lets this service invoke its matching helper
 without making raw components public. The command service must not outlive its
 runtime in a usable state: every command verifies the captured runtime identity
 and session before acting and returns sanitized `stale_runtime` if that binding
@@ -72,7 +72,7 @@ or retry runtime apply. Therefore an apply that completes after export may
 change the runtime but not the file: save has explicit snapshot-at-command-start
 semantics.
 
-The command maps primitive success to `save_complete` and preserves a sanitized
+The command maps primitive `saved` success to `save_complete` and preserves a sanitized
 primitive failure (`invalid_envelope` or `io_error`) without raw OS text or raw
 path. It rejects empty/non-path input, directory targets, and missing parent
 directories as `invalid_path` before save. It never creates parents, rotates
@@ -118,19 +118,24 @@ preview, apply, export, and validation do not invoke commands. There is no UI,
 file picker, worker, provider, network, timer, autosave, startup hook, session
 rollover, cross-session import, or user undo/redo connection.
 
-### Expected implementation inventory
+### Actual implementation inventory
 
 - New production: `llm/advisor_observation_replay_persistence_commands.py`.
-- New tests: `tests/test_v34_explicit_persistence_command_boundary.py`.
-- Likely minimal existing change: runtime-private bounded command delegation
-  seam; no public raw component accessor.
-- Possible persistence change: only if required to provide path prevalidation
-  or a sanitized permission distinction. Preserve v15.32 primitive statuses
-  whenever sufficient.
+- New tests: `tests/test_v34_explicit_persistence_command_boundary.py` (30
+  focused cases including parameterized path and corruption matrices).
+- Existing runtime change: private `_persistence_command_context()` only; no
+  public raw-component accessor.
+- Persistence change: none. Permission and other OS failures retain existing
+  sanitized `io_error`; no separate permission status was added.
 - Documentation: this spike, `docs/PROGRESS.md`, and
   `docs/handoff_next_session_prompt_v1.9.md`.
 
 ## Proposed executable contract tests
+
+This inventory is implemented by the focused v15.34 suite. It also proves
+constructor I/O/restore count zero, detached/sanitized results, and exclusion of
+UI, workers, provider clients, autosave, startup, rollback, history, undo,
+reset, and rollover surface.
 
 - `test_explicit_save_writes_deterministic_snapshot_without_runtime_mutation`
   - initial runtime: same-session state and ledger.

@@ -18599,12 +18599,13 @@ Maintained boundaries:
   restore, rollback exposure, UI, worker, provider, autosave, startup, or
   session rollover wiring was added.
 
-## v15.34 Explicit Persistence Command Boundary (Design)
+## v15.34 Explicit Persistence Command Boundary
 
-- Selected a separate runtime-bound persistence command service rather than
-  adding filesystem commands to `ObservationReplayRuntime` or using free
-  functions with caller-supplied raw components.
-- The next command contract is explicit save with command-start envelope
-  capture, detached load-only, and same-session restore guarded by a caller
-  supplied current runtime fingerprint. UI, startup, autosave, and restore
-  automation remain excluded.
+- Added runtime-bound `ObservationReplayPersistenceCommands` for explicit
+  command-start snapshot save, detached load-only, and same-session restore.
+- Restore requires a current runtime fingerprint and returns `stale_runtime`
+  before invoking persistence recovery when it no longer matches. Existing
+  atomic save, full-map ledger replacement, rollback, and concurrent-writer
+  behavior are delegated unchanged.
+- No runtime save/load/restore methods, public raw component getter, UI, worker,
+  autosave, startup, provider, reset, history, or undo integration was added.

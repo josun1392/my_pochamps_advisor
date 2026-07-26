@@ -62,6 +62,16 @@ class ObservationReplayRuntime:
     def validate_envelope(self, envelope):
         return deepcopy(self._persistence.validate(deepcopy(envelope)))
 
+    def _persistence_command_context(self):
+        """Private bounded seam for the matching persistence command owner."""
+        return {
+            "runtime_identity": id(self),
+            "session_id": self._session_id,
+            "store": self._store,
+            "coordinator": self._coordinator,
+            "persistence": self._persistence,
+        }
+
 
 def _valid_initial_state(value):
     return (
