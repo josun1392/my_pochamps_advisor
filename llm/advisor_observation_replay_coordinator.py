@@ -50,6 +50,15 @@ class ObservationReplayCoordinator:
         ledger.update(accepted)
         return _result("applied", read=read, plan=preview["replay_plan"], execution=execution, applied=execution["applied_step_ids"], state=replaced["state_snapshot"])
 
+    def export_applied_ledger(self, session_id):
+        return deepcopy(self._applied.get(session_id, {}))
+
+    def replace_applied_ledger(self, session_id, ledger):
+        if not isinstance(session_id, str) or not session_id or not isinstance(ledger, dict) or not all(isinstance(key, str) and isinstance(value, dict) for key, value in ledger.items()):
+            return False
+        self._applied[session_id] = deepcopy(ledger)
+        return True
+
 
 def _result(status, *, read=None, plan=None, execution=None, conflicts=None, already=None, applied=None, state=None):
     return {"status": status, "store_snapshot": deepcopy(read) if read else None, "replay_plan": deepcopy(plan) if plan else None, "execution": deepcopy(execution) if execution else None, "projected_state": deepcopy(execution.get("committed_state")) if isinstance(execution, dict) else None, "eligible_observations": deepcopy(plan.get("accepted_events", [])) if isinstance(plan, dict) else [], "ineligible_observations": deepcopy((plan.get("evidence_only_events", []) + plan.get("unsupported_events", []) + plan.get("excluded_events", []))) if isinstance(plan, dict) else [], "already_applied_observation_ids": list(already or []), "applied_observation_ids": list(applied or []), "state_snapshot": deepcopy(state), "conflicts": deepcopy(conflicts or []), "limitations": ["explicit_apply_only", "process_local_applied_ledger", "no_ui_integration", "no_persistence", "no_provider_calls"]}

@@ -18571,3 +18571,19 @@ Maintained boundaries:
 
 - Added a private explicit preview/apply coordinator with detached replay,
   process-local applied-observation ledger, and CAS-only commit authority.
+
+## v15.32 Persistence Rollback Boundary
+
+- Added private deterministic envelope export/save/load/validation and explicit
+  same-session restore for detached store state plus applied canonical ledger.
+- Normal CAS preserves observation-sequence monotonicity. Private rollback-only
+  CAS accepts regression only for a captured pre-restore snapshot when the
+  expected fingerprint is the just-applied restore target.
+- Ledger replacement is a detached full-map swap. Pre-swap failure leaves the
+  old map exact, then uses target-fingerprint rollback; concurrent writers yield
+  `critical_restore_inconsistency` without overwrite or retry.
+- Evidence completion adds load-only alias/non-mutation checks, restore-time
+  same-ID duplicate/conflict checks, individually identified corruption cases,
+  canonical entry-ID validation, and JSON slot-key round-trip preservation.
+- No MainWindow/UI/autosave/startup wiring, cross-session import, user undo,
+  provider, or network behavior was added.

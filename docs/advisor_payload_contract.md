@@ -3198,3 +3198,26 @@ tokens, and is not automatically exposed to legacy/provider payloads.
 Canonical collection evidence remains separate from committed store state until
 an explicit private apply call succeeds through CAS; preview is detached and
 does not expose a provider payload.
+
+## v15.32 persistence envelope
+
+Durable recovery uses one private schema-versioned envelope for session-matched
+detached store state/fingerprint and sorted applied canonical-observation
+copies/fingerprints. Its canonical fingerprints exclude wall-clock and request
+values. Exact-shape validation, schema rejection without migration, corruption
+rejection, and load are non-mutating; saving uses sibling temporary output plus
+`os.replace()`.
+
+On JSON load, numeric state slot-map keys are restored before validation, so a
+persisted store state remains equal to the detached runtime state. Ledger entry
+IDs must agree with their canonical observation IDs; malformed canonical
+identity/sequence/session shape is rejected without runtime mutation.
+
+Restore is explicit and same-session only, with no retagging. It first uses
+normal store CAS, which retains normal sequence monotonicity, then performs a
+single full-map ledger replacement. A replacement failure uses private
+rollback-only CAS with a captured pre-restore snapshot and the just-applied
+target fingerprint. Concurrent writer conflict produces sanitized
+`critical_restore_inconsistency` and preserves that writer. This is persistence
+recovery, not user-facing undo/redo. No UI/autosave/startup restore or provider
+payload wiring is present.

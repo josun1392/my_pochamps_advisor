@@ -1362,3 +1362,8 @@ Documentation expectations:
   request/sequence/counter coupling, and no reducer/store/provider integration.
 - v15.31 adds only an explicit private coordinator seam; do not auto-apply from
   UI confirmation, advice requests, worker completion, or provider responses.
+- v15.32 adds no autosave or UI restore; durability rollback is not user undo.
+  Normal CAS retains sequence monotonicity; rollback-only CAS is private,
+  same-session, target-fingerprint guarded recovery for ledger-swap failure.
+- v15.32 evidence additionally fixes JSON state slot-key round-trip and locks
+  detached load/validate, restore duplicate/conflict, and corruption cases.

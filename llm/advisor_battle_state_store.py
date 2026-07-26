@@ -41,6 +41,25 @@ class BattleStateStore:
             self._state = candidate
             return _replace_result("replaced", session, previous, current_digest=candidate_digest, snapshot=candidate)
 
+    def capture_rollback_snapshot(self, session_id=None):
+        """Private process-local recovery snapshot; never serialized or UI-exposed."""
+        read = self.read_snapshot(session_id)
+        if read["status"] != "ready": return read
+        return {"status": "ready", "session_id": read["session_id"], "state": read["state"], "state_fingerprint": read["state_fingerprint"], "limitations": _LIMITATIONS}
+
+    def compare_and_restore_snapshot(self, *, expected_current_fingerprint, rollback_snapshot):
+        """Rollback-only CAS: permits a validated previous sequence after target CAS."""
+        if not isinstance(rollback_snapshot, dict) or rollback_snapshot.get("status") != "ready": return _replace_result("invalid_rollback_snapshot")
+        state = rollback_snapshot.get("state"); session = rollback_snapshot.get("session_id")
+        if not _valid_state(state) or state_fingerprint(state) != rollback_snapshot.get("state_fingerprint"): return _replace_result("invalid_rollback_snapshot")
+        with self._lock:
+            if self._state is None: return _replace_result("uninitialized")
+            current = deepcopy(self._state); current_fp = state_fingerprint(current)
+            if current_fp != expected_current_fingerprint: return _replace_result("rollback_cas_conflict", current.get("session_id"), current_fp)
+            if current.get("session_id") != session or state.get("session_id") != session: return _replace_result("rollback_session_mismatch", current.get("session_id"), current_fp)
+            self._state = deepcopy(state)
+            return _replace_result("rollback_restored", session, current_fp, current_digest=state_fingerprint(state), snapshot=state)
+
     def start_new_session(self, initial_state, new_session_id):
         """Explicitly replace the current namespace; no history or implicit IDs."""
         with self._lock:
