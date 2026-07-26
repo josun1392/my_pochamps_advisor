@@ -18639,3 +18639,26 @@ Maintained boundaries:
 - The owner allocates session-local sequences from 1, separates allocation from
   store applied sequence, and supplies non-mutating active-session and stale
   worker-result gates. Persistence calls remain explicit delegation only.
+
+## v15.36 MainWindow Lifecycle Wiring Design and T1 Bootstrap Integration
+
+- Recorded that MainWindow still owns independent session ID, collection, and
+  observation sequence fields, while v15.35 manager has no production caller.
+  Structured worker snapshots are detached but completion callbacks capture only
+  request token, not explicit session metadata.
+- Recommended direct MainWindow manager ownership after removal of duplicate
+  mutable authority. Core rollover must succeed before UI reset; success/error
+  presentation needs separate request-token and captured-session guards while
+  thread cleanup remains independent.
+- T1 authorizes only explicit UI-selected Pokemon identity for bootstrap.
+  HP/max HP, fainted, condition, item, field, and side conditions must remain
+  explicit unknown, never inferred as full HP, alive, absent, or empty from
+  selection, provider output, species metadata, or damage estimates.
+- Current schema support is insufficient: top-level validation has no canonical
+  fact-level unknown contract; reducer clear operations use `None` where set
+  also accepts unknown, and side conditions require a concrete list. Therefore
+  v15.36A Unknown Bootstrap State Contract must precede MainWindow wiring.
+  It will define distinct stable unknown/known-absent values, exact validation,
+  reducer/store compatibility, serialization/fingerprint determinism, and a
+  bounded identity-only initial-state factory. No Python changed in this design
+  completion; UI/session/worker wiring remains deferred.

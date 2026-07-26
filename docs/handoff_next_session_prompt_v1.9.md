@@ -1395,3 +1395,17 @@ Documentation expectations:
   gates without mutation. Do not wire MainWindow, workers, persistence commands,
   startup, autosave, file picker, provider cancellation, reset/rebind, history,
   or cross-session import in this boundary.
+- v15.36 T1 decision is now explicit: only UI-selected Pokemon identity is
+  trusted bootstrap input. Unconfirmed HP/max HP/fainted/condition/item/field/
+  side-condition values must be canonical unknown, distinct from known absent;
+  do not infer concrete values from UI selection, provider output, metadata, or
+  damage estimates. Current `battle-state-v1` lacks this complete distinction
+  (`None` is used by reducer clear paths and side conditions require a list), so
+  implement **v15.36A Unknown Bootstrap State Contract** first: exact markers,
+  validator, reducer/store compatibility, deterministic serialization/
+  fingerprint, backward compatibility, and a detached identity-only
+  initial-state factory. Then return to v15.36 MainWindow manager ownership,
+  rollover, allocator/collection migration, and request-token plus captured-
+  session completion gates. Keep cleanup unconditional and leave persistence UI,
+  startup/autosave, import, undo, provider cancellation, and any Python wiring
+  out of this documentation-only step.
