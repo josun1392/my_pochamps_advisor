@@ -1379,3 +1379,12 @@ Documentation expectations:
   detached foreign or same-session candidates without mutation, and requires an
   expected current fingerprint before same-session restore. Keep commands out
   of UI, startup, autosave, worker, provider, reset, and history paths.
+- v15.35 design identifies the missing lifecycle authority between MainWindow's
+  `ui-session-N`/collection reset and the unconnected immutable replay
+  runtime/command pair. Implement a core-only session bundle owner first:
+  caller-supplied exact initial state and session ID, all-or-nothing publish,
+  session-scoped sequence allocation, and old-session stale rejection. Do not
+  add runtime reset, command rebind, UI wiring, startup recovery, autosave, or
+  provider cancellation. A worker completion needs its captured session ID
+  checked by a later UI/handoff boundary; the current request token alone does
+  not model battle-session rollover.

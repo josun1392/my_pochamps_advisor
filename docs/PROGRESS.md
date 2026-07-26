@@ -18609,3 +18609,17 @@ Maintained boundaries:
   behavior are delegated unchanged.
 - No runtime save/load/restore methods, public raw component getter, UI, worker,
   autosave, startup, provider, reset, history, or undo integration was added.
+
+## v15.35 Session Lifecycle and Runtime Rollover Boundary Design
+
+- Recorded that MainWindow currently owns only its `ui-session-N` collection
+  rollover and UI confirmation reset; no production caller creates a replay
+  runtime, persistence commands, or their required initial battle state.
+- Recommended a core-only active session lifecycle owner that constructs a
+  matching collection/runtime/commands bundle privately and publishes it only
+  after complete validation. Existing immutable runtime and command bindings
+  are preserved; rollover is neither restore nor undo.
+- Defined session-scoped sequence allocation, old-session command/preview
+  rejection, and a future captured-session worker-result gate. UI wiring,
+  worker callback wiring, startup recovery, autosave, and file commands remain
+  deferred.
