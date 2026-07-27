@@ -1550,6 +1550,12 @@ Documentation expectations:
 
 ## v15.40 offline smoke runner implementation
 
+- v15.41 aligned runtime structured response schema with the existing
+  grounding-v1 validator: runtime payloads require a seven-field grounded
+  response, while legacy non-runtime payloads remain six-field compatible.
+  Structural diagnostics are bounded and value-free; tests are offline only.
+  Do not rerun actual smoke without new T1 approval.
+
 - Direct script execution now bootstraps the repository root using the existing
   scripts convention before importing `llm`; invoke with `uv run python
   scripts/run_sanitized_runtime_grounding_smoke.py`. Offline subprocess tests

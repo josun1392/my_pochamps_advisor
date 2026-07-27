@@ -46,7 +46,16 @@ def test_smoke_runner_maps_parse_failure_to_exit_5():
 
 def test_smoke_runner_maps_grounding_structure_failure_to_exit_6():
     result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=REQUIRED_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=lambda _: {"grounding": {"schema_version": "wrong"}})
-    assert result["exit_code"] == EXIT["structural"] and result["provider_calls"] == 1
+    assert result["exit_code"] == EXIT["structural"] and result["provider_calls"] == 1 and result["diagnostic_code"] == "grounding_version_invalid"
+
+
+def test_runtime_unknown_bootstrap_fake_provider_reaches_semantic_validation_after_structural_pass():
+    calls = []
+    def fake(fixture_id):
+        calls.append(fixture_id)
+        return {"grounding": {"schema_version": "grounding-v1", "confirmed_facts": [], "unknown_facts": [{"path": "field.weather"}], "evidence_only": [], "conflicts": [], "conditional_dependencies": []}}
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=REQUIRED_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=fake)
+    assert result["exit_code"] == EXIT["ok"] and calls == list(REQUIRED_FIXTURES)
 
 
 def test_direct_script_subprocess_imports_project_and_stops_at_unavailable_credential():

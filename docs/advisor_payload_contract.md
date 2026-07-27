@@ -3251,3 +3251,18 @@ paths use the provider-safe projection shape such as
 Legacy six-field responses are an explicit compatibility lane only and cannot
 bypass grounding for runtime requests. Actual provider semantic smoke remains
 outside this offline contract.
+
+## v15.41 runtime grounding response alignment
+
+For a request containing `runtime_advice_state`, the provider response schema
+requires the legacy recommendation fields plus `grounding`. Its
+`schema_version` is `grounding-v1`, and its five exact lists are
+`confirmed_facts`, `unknown_facts`, `evidence_only`, `conflicts`, and
+`conditional_dependencies`. The decoded boundary preserves that seven-field
+shape for the existing adapter and validator. Non-runtime requests retain the
+legacy six-field response contract.
+
+Structural diagnostics are bounded categories only; they never carry response
+values, fragments, or a complete provider key inventory. Structural errors map
+to the existing smoke exit 6, semantic errors to exit 7, and internal metadata
+exposure to exit 8.

@@ -1,5 +1,7 @@
-from llm.advisor_candidate_contract import adapt_provider_recommendation_response, validate_runtime_grounding
-from llm.advisor_client import _STRUCTURED_SEMANTIC_GUIDANCE
+import pytest
+
+from llm.advisor_candidate_contract import adapt_provider_recommendation_response, grounding_structure_diagnostic, validate_runtime_grounding
+from llm.advisor_client import _STRUCTURED_SEMANTIC_GUIDANCE, _structured_provider_schema
 
 
 def _response(*, grounding=None):
@@ -24,6 +26,7 @@ def test_prompt_defines_runtime_state_unknown_and_known_absent_semantics():
     assert "unknown is unobserved" in text
     assert "known_absent is confirmed absence" in text
     assert "cannot override runtime known facts" in text
+    assert "grounding-v1" in text
 
 
 def test_grounding_v1_requires_exact_fields():
@@ -51,3 +54,32 @@ def test_validator_accepts_known_absent_and_unknown():
     runtime = {"field": {"weather": {"status": "known_absent"}, "terrain": {"status": "unknown"}}}
     grounding = _grounding(); grounding["confirmed_facts"] = [{"path": "field.weather", "status": "known_absent"}]; grounding["unknown_facts"] = [{"path": "field.terrain"}]
     assert validate_runtime_grounding(runtime_advice_state=runtime, grounding=grounding) == []
+
+
+@pytest.mark.parametrize(
+    ("grounding", "diagnostic"),
+    [
+        (None, "grounding_missing"),
+        ([], "grounding_not_mapping"),
+        ({}, "grounding_version_missing"),
+        ({"schema_version": "wrong"}, "grounding_version_invalid"),
+        ({"schema_version": "grounding-v1"}, "grounding_entries_missing"),
+        ({**_grounding(), "unknown_facts": {}}, "grounding_entries_not_list"),
+        ({**_grounding(), "unknown_facts": ["not-a-mapping"]}, "grounding_entry_not_mapping"),
+        ({**_grounding(), "unknown_facts": [{}]}, "grounding_entry_field_missing"),
+        ({**_grounding(), "unknown_facts": [{"path": ""}]}, "grounding_entry_field_invalid"),
+        ({**_grounding(), "extra": []}, "grounding_unknown_field"),
+    ],
+)
+def test_grounding_structure_diagnostics_are_bounded_and_value_free(grounding, diagnostic):
+    assert grounding_structure_diagnostic(grounding) == diagnostic
+    assert validate_runtime_grounding(runtime_advice_state={"field": {}}, grounding=grounding) == [diagnostic]
+    assert "Focus Sash" not in diagnostic
+
+
+def test_runtime_provider_schema_requires_and_adapter_preserves_grounding_v1():
+    schema = _structured_provider_schema(runtime_grounding_required=True)
+    assert "grounding" in schema["required"]
+    assert set(schema["properties"]["grounding"]["required"]) == {"schema_version", "confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies"}
+    response = _response(grounding=_grounding())
+    assert adapt_provider_recommendation_response(provider_response=response)["grounding"] == _grounding()

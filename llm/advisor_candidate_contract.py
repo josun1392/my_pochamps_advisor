@@ -682,17 +682,44 @@ def adapt_provider_recommendation_response(*, provider_response: Mapping[str, An
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
 
 
+_GROUNDING_V1_ENTRY_KEYS = ("confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies")
+
+
+def grounding_structure_diagnostic(grounding: Any) -> str | None:
+    """Return one bounded structural code without exposing response values."""
+    if grounding is None:
+        return "grounding_missing"
+    if not isinstance(grounding, Mapping):
+        return "grounding_not_mapping"
+    allowed = {"schema_version", *_GROUNDING_V1_ENTRY_KEYS}
+    if any(key not in allowed for key in grounding):
+        return "grounding_unknown_field"
+    if "schema_version" not in grounding:
+        return "grounding_version_missing"
+    if grounding.get("schema_version") != "grounding-v1":
+        return "grounding_version_invalid"
+    for key in _GROUNDING_V1_ENTRY_KEYS:
+        if key not in grounding:
+            return "grounding_entries_missing"
+        if not isinstance(grounding[key], list):
+            return "grounding_entries_not_list"
+        for entry in grounding[key]:
+            if not isinstance(entry, Mapping):
+                return "grounding_entry_not_mapping"
+            if "path" not in entry:
+                return "grounding_entry_field_missing"
+            if not isinstance(entry["path"], str) or not entry["path"]:
+                return "grounding_entry_field_invalid"
+    return None
+
+
 def validate_runtime_grounding(*, runtime_advice_state: Mapping[str, Any], grounding: Mapping[str, Any], legacy_compatible: bool = False, user_answer: str = "") -> list[str]:
     """Return deterministic grounding errors without reading raw runtime state."""
     if not isinstance(runtime_advice_state, Mapping):
         return ["missing_runtime_projection"]
-    if not isinstance(grounding, Mapping):
-        return [] if legacy_compatible else ["grounding_required"]
-    required = {"schema_version", "confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies"}
-    if set(grounding) != required or grounding.get("schema_version") != "grounding-v1":
-        return ["invalid_grounding"]
-    if any(not isinstance(grounding[key], list) for key in required - {"schema_version"}):
-        return ["invalid_grounding"]
+    diagnostic = grounding_structure_diagnostic(grounding)
+    if diagnostic:
+        return [] if legacy_compatible and diagnostic == "grounding_missing" else [diagnostic]
     facts: dict[str, Mapping[str, Any]] = {}
     def collect(value: Any, prefix: str = "") -> None:
         if isinstance(value, Mapping) and value.get("status") in {"known", "known_absent", "unknown"}:
@@ -703,11 +730,11 @@ def validate_runtime_grounding(*, runtime_advice_state: Mapping[str, Any], groun
                     collect(item, f"{prefix}.{key}" if prefix else str(key))
     collect(runtime_advice_state)
     seen: set[str] = set(); errors: list[str] = []
-    categories = {"confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies"}
+    categories = set(_GROUNDING_V1_ENTRY_KEYS)
     for category in categories:
         for entry in grounding[category]:
             if not isinstance(entry, Mapping) or not isinstance(entry.get("path"), str) or not entry["path"]:
-                errors.append("invalid_grounding_entry"); continue
+                errors.append("grounding_entry_field_invalid"); continue
             path = entry["path"]
             if any(token in path.lower() for token in ("fingerprint", "cas", "ledger", "token", "thread", "reducer", "persistence")):
                 errors.append("internal_metadata_grounding"); continue

@@ -110,13 +110,15 @@ _STRUCTURED_RESPONSE_KEYS = (
     "recommendation_status", "recommended_move", "recommended_slot_index",
     "primary_reasons", "risks", "alternatives",
 )
+_GROUNDED_STRUCTURED_RESPONSE_KEYS = (*_STRUCTURED_RESPONSE_KEYS, "grounding")
+_GROUNDING_V1_ENTRY_KEYS = ("confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies")
 _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Return only the declared JSON shape. A resolved recommendation must use a selectable exact move and slot pair. "
     "Ground reasons and risks in candidate comparisons, warnings, unavailable reasons, and known limitations. "
     "Never use partial_context for evidence already resolved; do not turn global limitations into candidate-specific missing evidence. "
     "Use partial_context only for an actually unavailable or incomplete field. Each reason or risk must be exactly a kind/claim object: use only the supported claim kinds and a non-empty claim string. Alternatives require selectable exact move+slot pairs and reasons. "
     "Do not invent EVs, IVs, nature, items, abilities, opponent moves, or final stats. Use insufficient_context when evidence is insufficient and no_usable_candidate when none is selectable. "
-    "When runtime_advice_state is present it is authoritative current state: unknown is unobserved, not absent, false, zero, full HP, healthy, inactive, or empty; known_absent is confirmed absence; known with value is trusted current state. UI and unapplied observation evidence cannot override runtime known facts or resolve runtime unknown facts. Never infer current battle facts from species metadata. State uncertainty or conditional dependence when needed, and never expose runtime_advice_state, fingerprint, CAS, reducer, ledger, session authority, request token, or thread identity."
+    "When runtime_advice_state is present it is authoritative current state: unknown is unobserved, not absent, false, zero, full HP, healthy, inactive, or empty; known_absent is confirmed absence; known with value is trusted current state. In that case include required grounding-v1 with schema_version plus confirmed_facts, unknown_facts, evidence_only, conflicts, and conditional_dependencies lists. UI and unapplied observation evidence cannot override runtime known facts or resolve runtime unknown facts. Never infer current battle facts from species metadata. State uncertainty or conditional dependence when needed, and never expose runtime_advice_state, fingerprint, CAS, reducer, ledger, session authority, request token, or thread identity."
 )
 
 
@@ -128,18 +130,29 @@ class StructuredProviderError(RuntimeError):
         self.code = code
 
 
-def _structured_provider_schema() -> dict[str, Any]:
+def _structured_provider_schema(*, runtime_grounding_required: bool = False) -> dict[str, Any]:
+    properties = {
+        "recommendation_status": {"type": "STRING", "enum": ["resolved", "insufficient_context", "no_usable_candidate"], "description": "resolved needs an exact selectable pair; other statuses have no pair."},
+        "recommended_move": {"type": "STRING", "nullable": True, "description": "Exact selectable move identity for resolved only."},
+        "recommended_slot_index": {"type": "INTEGER", "nullable": True, "description": "Matching exact selectable slot for resolved only."},
+        "primary_reasons": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Grounded kind/claim mappings only; no contradictory partial_context."},
+        "risks": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Grounded warnings, unavailable reasons, or known limitations only."},
+        "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Each alternative is an exact selectable move+slot mapping with a grounded reason."},
+    }
+    if runtime_grounding_required:
+        properties["grounding"] = {
+            "type": "OBJECT",
+            "properties": {
+                "schema_version": {"type": "STRING", "enum": ["grounding-v1"]},
+                **{key: {"type": "ARRAY", "items": {"type": "OBJECT"}} for key in _GROUNDING_V1_ENTRY_KEYS},
+            },
+            "required": ["schema_version", *_GROUNDING_V1_ENTRY_KEYS],
+            "description": "Required grounding-v1 authority mapping for runtime_advice_state; entries use only canonical provider-safe paths.",
+        }
     return {
         "type": "OBJECT",
-        "properties": {
-            "recommendation_status": {"type": "STRING", "enum": ["resolved", "insufficient_context", "no_usable_candidate"], "description": "resolved needs an exact selectable pair; other statuses have no pair."},
-            "recommended_move": {"type": "STRING", "nullable": True, "description": "Exact selectable move identity for resolved only."},
-            "recommended_slot_index": {"type": "INTEGER", "nullable": True, "description": "Matching exact selectable slot for resolved only."},
-            "primary_reasons": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Grounded kind/claim mappings only; no contradictory partial_context."},
-            "risks": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Grounded warnings, unavailable reasons, or known limitations only."},
-            "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Each alternative is an exact selectable move+slot mapping with a grounded reason."},
-        },
-        "required": list(_STRUCTURED_RESPONSE_KEYS),
+        "properties": properties,
+        "required": list(_GROUNDED_STRUCTURED_RESPONSE_KEYS if runtime_grounding_required else _STRUCTURED_RESPONSE_KEYS),
     }
 
 
@@ -166,7 +179,7 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         raise StructuredProviderError("provider_unavailable")
     request_body = {
         "contents": [{"role": "user", "parts": [{"text": _STRUCTURED_SEMANTIC_GUIDANCE + "\n\nDeterministic evidence:\n" + json.dumps(dict(provider_payload), ensure_ascii=False)}]}],
-        "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema()},
+        "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema(runtime_grounding_required="runtime_advice_state" in provider_payload)},
     }
     try:
         response = requests.post(
@@ -206,7 +219,8 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         decoded = json.loads(text)
     except (TypeError, ValueError):
         raise StructuredProviderError("provider_structured_decode_failed") from None
-    if not isinstance(decoded, dict) or set(decoded) != set(_STRUCTURED_RESPONSE_KEYS):
+    expected_response_keys = _GROUNDED_STRUCTURED_RESPONSE_KEYS if "runtime_advice_state" in provider_payload else _STRUCTURED_RESPONSE_KEYS
+    if not isinstance(decoded, dict) or set(decoded) != set(expected_response_keys):
         raise StructuredProviderError("provider_response_malformed")
     usage = _normalized_structured_usage(usage_data=body.get("usageMetadata"), model=model)
     return deepcopy(decoded), usage

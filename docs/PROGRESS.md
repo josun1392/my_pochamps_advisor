@@ -18817,6 +18817,13 @@ Maintained boundaries:
 
 ## v15.40 Runtime-Grounding Smoke Runner Offline Contract
 
+- v15.41 diagnosed the actual smoke's exit-6 boundary offline: runtime
+  completion required `grounding-v1`, but the production response schema and
+  decoded key check allowed only the legacy six fields. Runtime requests now
+  require the grounded seven-field response shape while non-runtime legacy
+  requests retain six-field compatibility. Structural failures report bounded
+  value-free diagnostic codes; no actual provider retry was performed.
+
 - Fixed the direct-script import baseline using the repository's established
   one-root bootstrap before `llm` imports. Official invocation is `uv run
   python scripts/run_sanitized_runtime_grounding_smoke.py`; subprocess tests
