@@ -18803,3 +18803,14 @@ Maintained boundaries:
 - Added bounded `runtime_advice_state` provider payload forwarding and concise
   runtime authority/unknown semantics. Grounding-v1 validation is additive;
   the existing six-field response remains a legacy compatibility path.
+
+## v15.40 Actual Provider Runtime-Grounding Smoke Boundary Design
+
+- Designed a later, approval-gated smoke boundary only: two required sanitized
+  fixtures, optional third partial-HP fixture, retry zero, first-failure stop,
+  and two-call default budget. It verifies grounding contract adherence, not
+  recommendation quality or damage semantics.
+- Actual execution requires explicit T1 model/fixture/call-budget/cost approval.
+  Reports are sanitized, persist nothing by default, and exclude raw prompt,
+  payload, response, credentials, fingerprints, and token logs. No provider or
+  credential check occurred in this documentation step.

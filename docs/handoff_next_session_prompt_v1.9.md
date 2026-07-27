@@ -1535,3 +1535,15 @@ Documentation expectations:
   runtime authority, unknown/known-absent semantics, evidence non-promotion,
   conditional uncertainty, and internal terminology exclusion. Grounding-v1 is
   additive and legacy six-field response compatibility remains explicit.
+
+## v15.40 actual provider runtime-grounding smoke design
+
+- Do not call a provider without explicit T1 approval naming model, fixture IDs,
+  maximum calls, retry zero, and single-run/cost authority. Smoke is limited to
+  unknown bootstrap plus known-runtime/stale-evidence fixtures, with optional
+  partial HP; default budget is two and it stops at first failure.
+- Use existing provider payload/response/grounding boundaries. Report only
+  sanitized categories and safe aggregates; never print or persist raw prompt,
+  payload, response, credential, fingerprint, session/CAS/ledger/token data, or
+  token log. Actual smoke remains unimplemented and provider/network checks are
+  zero in this design step.
