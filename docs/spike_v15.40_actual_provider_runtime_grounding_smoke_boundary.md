@@ -2,6 +2,15 @@
 
 ## Actual-only wiring
 
+Direct execution of the runner originally omitted the repository root from
+`sys.path`, so its first `llm` import failed before credential or provider
+activity. The runner now uses the repository's existing one-root bootstrap
+(`Path(__file__).resolve().parents[1]`) before project imports. The official
+invocation is `uv run python scripts/run_sanitized_runtime_grounding_smoke.py`.
+Offline subprocess regression covers this direct invocation through credential
+preflight and an injected fake production callable; no provider/network call is
+made in either check.
+
 `build_actual_adapters(model=...)` constructs a boolean credential seam and a
 provider callable only after valid `--actual` arguments pass local allowlist and
 retry checks. It lazily reuses `call_structured_recommendation_provider`; default

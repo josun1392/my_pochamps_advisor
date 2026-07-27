@@ -18817,6 +18817,12 @@ Maintained boundaries:
 
 ## v15.40 Runtime-Grounding Smoke Runner Offline Contract
 
+- Fixed the direct-script import baseline using the repository's established
+  one-root bootstrap before `llm` imports. Official invocation is `uv run
+  python scripts/run_sanitized_runtime_grounding_smoke.py`; subprocess tests
+  cover credential-unavailable and injected fake-provider paths with zero
+  provider/network calls. Actual smoke remains deferred until commit/push.
+
 - Actual-mode wiring now uses `build_actual_adapters()` only after local actual
   argument validation. It lazily reuses
   `call_structured_recommendation_provider`; default/offline execution constructs

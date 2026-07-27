@@ -1550,6 +1550,12 @@ Documentation expectations:
 
 ## v15.40 offline smoke runner implementation
 
+- Direct script execution now bootstraps the repository root using the existing
+  scripts convention before importing `llm`; invoke with `uv run python
+  scripts/run_sanitized_runtime_grounding_smoke.py`. Offline subprocess tests
+  verify credential preflight and fake-provider grounding validation without a
+  provider/network call. Actual smoke remains commit/push-gated.
+
 - `build_actual_adapters()` is actual-mode-only and lazily reuses the production
   structured provider entry. Default/offline paths construct neither adapter and
   have zero credential/provider/network activity. Validation is focused 7,
