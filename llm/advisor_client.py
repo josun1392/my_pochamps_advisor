@@ -115,7 +115,8 @@ _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Ground reasons and risks in candidate comparisons, warnings, unavailable reasons, and known limitations. "
     "Never use partial_context for evidence already resolved; do not turn global limitations into candidate-specific missing evidence. "
     "Use partial_context only for an actually unavailable or incomplete field. Each reason or risk must be exactly a kind/claim object: use only the supported claim kinds and a non-empty claim string. Alternatives require selectable exact move+slot pairs and reasons. "
-    "Do not invent EVs, IVs, nature, items, abilities, opponent moves, or final stats. Use insufficient_context when evidence is insufficient and no_usable_candidate when none is selectable."
+    "Do not invent EVs, IVs, nature, items, abilities, opponent moves, or final stats. Use insufficient_context when evidence is insufficient and no_usable_candidate when none is selectable. "
+    "When runtime_advice_state is present it is authoritative current state: unknown is unobserved, not absent, false, zero, full HP, healthy, inactive, or empty; known_absent is confirmed absence; known with value is trusted current state. UI and unapplied observation evidence cannot override runtime known facts or resolve runtime unknown facts. Never infer current battle facts from species metadata. State uncertainty or conditional dependence when needed, and never expose runtime_advice_state, fingerprint, CAS, reducer, ledger, session authority, request token, or thread identity."
 )
 
 
@@ -157,7 +158,8 @@ def _normalized_structured_usage(*, usage_data: Any, model: str) -> dict[str, in
 
 def call_structured_recommendation_provider(*, provider_payload: Mapping[str, Any], model: str) -> tuple[dict[str, Any], dict[str, int | str]]:
     """Make one structured REST request and return only decoded provider-neutral data."""
-    if not isinstance(provider_payload, Mapping) or set(provider_payload) != set(_STRUCTURED_PROVIDER_PAYLOAD_KEYS):
+    allowed = (set(_STRUCTURED_PROVIDER_PAYLOAD_KEYS), {*_STRUCTURED_PROVIDER_PAYLOAD_KEYS, "runtime_advice_state"})
+    if not isinstance(provider_payload, Mapping) or set(provider_payload) not in allowed:
         raise StructuredProviderError("provider_response_validation_failed")
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:

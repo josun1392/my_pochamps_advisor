@@ -231,13 +231,14 @@ def _exact_pair(value: Any, *, exact: bool = True) -> dict[str, Any]:
 
 
 def _invalid_request() -> dict[str, Any]:
-    return {
+    request = {
         "request_version": "v14.3",
         "readiness": {"status": "invalid_evidence_bundle", "selectable_candidate_count": 0},
         "battle_snapshot_summary": {}, "candidate_exact_set": [],
         "selectable_candidate_exact_set": [], "candidate_comparisons": [],
         "known_limitations": [], "guardrails": deepcopy(_RECOMMENDATION_GUARDRAILS),
     }
+    return request
 
 
 def _validate_request_contract(request: Mapping[str, Any]) -> None:
@@ -304,7 +305,7 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
         return _invalid_request()
     selectable = [deepcopy(pair) for pair, row in zip(pairs, comparisons, strict=True) if row["eligibility"] != "not_selectable"]
     readiness = "no_candidates" if not pairs else "ready" if selectable else "no_selectable_candidates"
-    return {
+    request = {
         "request_version": "v14.3",
         "readiness": {"status": readiness, "selectable_candidate_count": len(selectable)},
         "battle_snapshot_summary": deepcopy(dict(snapshot)),
@@ -314,6 +315,12 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
         "known_limitations": deepcopy(limitations),
         "guardrails": deepcopy(_RECOMMENDATION_GUARDRAILS),
     }
+    turn_snapshot = snapshot.get("turn_snapshot") if isinstance(snapshot, Mapping) else None
+    current_state = turn_snapshot.get("current_state") if isinstance(turn_snapshot, Mapping) else None
+    runtime = current_state.get("runtime_advice_state") if isinstance(current_state, Mapping) else None
+    if isinstance(runtime, Mapping):
+        request["runtime_advice_state"] = deepcopy(dict(runtime))
+    return request
 
 
 def validate_recommendation_selection(*, request: Mapping[str, Any], recommended_move: str, recommended_slot_index: int) -> dict[str, Any]:
@@ -514,6 +521,12 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
     candidates = prepared_cycle.get("candidates", ())
     evidence = prepared_cycle.get("evidence_bundle")
     request = prepared_cycle["recommendation_request"]
+    if _RUNTIME_PROVIDER_KEY in request and "grounding" not in response_payload:
+        return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["grounding_required"])
+    if _RUNTIME_PROVIDER_KEY in request:
+        errors = validate_runtime_grounding(runtime_advice_state=request[_RUNTIME_PROVIDER_KEY], grounding=response_payload.get("grounding"), legacy_compatible=False)
+        if errors:
+            return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=errors)
     result = parse_recommendation_response(request=request, response_payload=response_payload)
     if result["status"] == "validation_failed":
         return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=result.get("errors", ["response_validation_failed"]))
@@ -613,9 +626,11 @@ _PROVIDER_OUTBOUND_KEYS = (
     "request_version", "battle_snapshot_summary", "candidate_exact_set", "selectable_candidate_exact_set",
     "candidate_comparisons", "known_limitations", "guardrails",
 )
+_RUNTIME_PROVIDER_KEY = "runtime_advice_state"
 _PROVIDER_RESPONSE_KEYS = (
     "recommendation_status", "recommended_move", "recommended_slot_index", "primary_reasons", "risks", "alternatives",
 )
+_GROUNDED_PROVIDER_RESPONSE_KEYS = (*_PROVIDER_RESPONSE_KEYS, "grounding")
 _PROVIDER_RESPONSE_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate"})
 _PREPARED_CYCLE_KEYS = frozenset({"status", "candidates", "evidence_bundle", "recommendation_request", "recommendation_result", "errors"})
 
@@ -638,6 +653,11 @@ def build_provider_recommendation_payload(*, prepared_cycle: Mapping[str, Any]) 
             raise ValueError("missing approved request field")
         serialize_recommendation_request(deepcopy(dict(request)))
         payload = {key: deepcopy(request[key]) for key in _PROVIDER_OUTBOUND_KEYS}
+        if _RUNTIME_PROVIDER_KEY in request:
+            runtime = request[_RUNTIME_PROVIDER_KEY]
+            if not isinstance(runtime, Mapping):
+                raise ValueError("invalid runtime projection")
+            payload[_RUNTIME_PROVIDER_KEY] = deepcopy(dict(runtime))
         return serialize_recommendation_request(payload)
     except (TypeError, ValueError):
         return _provider_adapter_failure("provider_payload_validation_failed", "provider_payload_validation_failed")
@@ -647,14 +667,62 @@ def adapt_provider_recommendation_response(*, provider_response: Mapping[str, An
     """Copy a provider-independent structured response without semantic evaluation."""
     if type(provider_response) is not dict:
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
-    if set(provider_response) != set(_PROVIDER_RESPONSE_KEYS):
+    if set(provider_response) not in (set(_PROVIDER_RESPONSE_KEYS), set(_GROUNDED_PROVIDER_RESPONSE_KEYS)):
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
     if provider_response.get("recommendation_status") not in _PROVIDER_RESPONSE_STATUSES:
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
     try:
+        if "grounding" in provider_response:
+            grounding = provider_response["grounding"]
+            required = {"schema_version", "confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies"}
+            if not isinstance(grounding, Mapping) or set(grounding) != required or grounding.get("schema_version") != "grounding-v1" or not all(isinstance(grounding[key], list) for key in required - {"schema_version"}):
+                raise ValueError("invalid grounding")
         return serialize_recommendation_request(deepcopy(provider_response))
     except (TypeError, ValueError):
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
+
+
+def validate_runtime_grounding(*, runtime_advice_state: Mapping[str, Any], grounding: Mapping[str, Any], legacy_compatible: bool = False, user_answer: str = "") -> list[str]:
+    """Return deterministic grounding errors without reading raw runtime state."""
+    if not isinstance(runtime_advice_state, Mapping):
+        return ["missing_runtime_projection"]
+    if not isinstance(grounding, Mapping):
+        return [] if legacy_compatible else ["grounding_required"]
+    required = {"schema_version", "confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies"}
+    if set(grounding) != required or grounding.get("schema_version") != "grounding-v1":
+        return ["invalid_grounding"]
+    if any(not isinstance(grounding[key], list) for key in required - {"schema_version"}):
+        return ["invalid_grounding"]
+    facts: dict[str, Mapping[str, Any]] = {}
+    def collect(value: Any, prefix: str = "") -> None:
+        if isinstance(value, Mapping) and value.get("status") in {"known", "known_absent", "unknown"}:
+            facts[prefix] = value; return
+        if isinstance(value, Mapping):
+            for key, item in value.items():
+                if key not in {"schema_version", "session_id"}:
+                    collect(item, f"{prefix}.{key}" if prefix else str(key))
+    collect(runtime_advice_state)
+    seen: set[str] = set(); errors: list[str] = []
+    categories = {"confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies"}
+    for category in categories:
+        for entry in grounding[category]:
+            if not isinstance(entry, Mapping) or not isinstance(entry.get("path"), str) or not entry["path"]:
+                errors.append("invalid_grounding_entry"); continue
+            path = entry["path"]
+            if any(token in path.lower() for token in ("fingerprint", "cas", "ledger", "token", "thread", "reducer", "persistence")):
+                errors.append("internal_metadata_grounding"); continue
+            if category in {"confirmed_facts", "unknown_facts"}:
+                if path not in facts or path in seen:
+                    errors.append("grounding_fact_missing_or_duplicate"); continue
+                seen.add(path)
+                status = facts[path].get("status")
+                if category == "unknown_facts" and status != "unknown": errors.append("unknown_misclassification")
+                if category == "confirmed_facts" and status == "unknown": errors.append("unknown_promoted")
+                if category == "confirmed_facts" and entry.get("status") != status: errors.append("runtime_fact_contradiction")
+                if status == "known" and entry.get("value") != facts[path].get("value"): errors.append("runtime_fact_contradiction")
+    forbidden = ("fingerprint", "cas", "reducer", "ledger", "request token", "thread identity", "runtime_advice_state")
+    if any(term in user_answer.lower() for term in forbidden): errors.append("internal_metadata_in_answer")
+    return sorted(set(errors))
 
 
 def run_offline_recommendation_provider_adapter(*, prepared_cycle: Mapping[str, Any], fake_provider: Any) -> dict[str, Any]:

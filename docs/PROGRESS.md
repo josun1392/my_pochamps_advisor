@@ -18797,3 +18797,9 @@ Maintained boundaries:
   field/side distinctions, missing runtime, and internal metadata exclusion.
   Prompt edits, fixture data, production/test Python, and provider calls remain
   deferred until the next exact-stage gate.
+
+## v15.39 Runtime Advice-State Prompt Semantics and Offline Evaluation
+
+- Added bounded `runtime_advice_state` provider payload forwarding and concise
+  runtime authority/unknown semantics. Grounding-v1 validation is additive;
+  the existing six-field response remains a legacy compatibility path.

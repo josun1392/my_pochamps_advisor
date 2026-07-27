@@ -1527,3 +1527,11 @@ Documentation expectations:
   documents. Exclude MainWindow/worker/runtime-session/persistence lifecycle,
   damage, autosave/startup/import/history/undo, cancellation, and actual
   provider work. Exact-stage/commit/push review precedes implementation.
+
+## v15.39 implementation
+
+- The bounded provider payload now includes only validated `runtime_advice_state`;
+  fingerprint and raw runtime internals remain excluded. Prompt guidance defines
+  runtime authority, unknown/known-absent semantics, evidence non-promotion,
+  conditional uncertainty, and internal terminology exclusion. Grounding-v1 is
+  additive and legacy six-field response compatibility remains explicit.

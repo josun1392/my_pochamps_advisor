@@ -219,3 +219,14 @@ Run `tests/test_v38_runtime_state_advice_projection.py`,
 `tests/test_structured_fixture_evaluation.py`, direct candidate-contract and
 turn-snapshot tests, and the new v15.39 suite after implementation. This design
 stage requires no Python compile because it changes documentation only.
+
+## Implemented v15.39 boundary
+
+`build_recommendation_request()` now carries the validated runtime projection
+from the turn snapshot into the bounded provider payload as
+`runtime_advice_state`; no fingerprint or raw runtime component is added.
+`_STRUCTURED_SEMANTIC_GUIDANCE` now defines runtime authority, unknown,
+known-absent, evidence separation, conditional uncertainty, and internal-term
+exclusion. Grounded responses may use exact `grounding-v1`; its six required
+lists are validated while the legacy six-field response remains explicit
+compatibility. Provider calls remain unperformed.

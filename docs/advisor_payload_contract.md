@@ -3238,3 +3238,16 @@ runtime/store/commands/coordinator/persistence, applied ledger, persistence
 envelope/path, CAS/rollback data, request token, and thread metadata are also
 excluded. Existing UI-derived fields and collection evidence remain separate;
 they do not silently resolve or overwrite runtime projection facts.
+
+## v15.39 grounded structured response
+
+The structured provider payload may additionally contain only validated
+`runtime_advice_state`. Fingerprint, request token, thread, ledger, CAS,
+reducer, and persistence metadata remain excluded. Runtime-bearing responses
+require `grounding-v1` with exact `confirmed_facts`, `unknown_facts`,
+`evidence_only`, `conflicts`, and `conditional_dependencies` lists. Canonical
+paths use the provider-safe projection shape such as
+`opponent.active_pokemon.item` and `field.weather`; unknown is never absence.
+Legacy six-field responses are an explicit compatibility lane only and cannot
+bypass grounding for runtime requests. Actual provider semantic smoke remains
+outside this offline contract.
