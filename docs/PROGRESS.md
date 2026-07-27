@@ -18814,3 +18814,11 @@ Maintained boundaries:
   Reports are sanitized, persist nothing by default, and exclude raw prompt,
   payload, response, credentials, fingerprints, and token logs. No provider or
   credential check occurred in this documentation step.
+
+## v15.40 Runtime-Grounding Smoke Runner Offline Contract
+
+- Added an approval-gated smoke runner with offline default, injected
+  credential/provider seams, allowlisted sanitized fixtures/models, 2/3-call
+  budget validation, retry zero, first-failure stop, sanitized result shape,
+  and deterministic exit codes. It does not initialize or call a provider by
+  default. Actual smoke remains T1-gated.

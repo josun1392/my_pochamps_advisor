@@ -1,5 +1,16 @@
 # v15.40 Actual Provider Runtime-Grounding Smoke Boundary Design
 
+## Offline implementation closure
+
+The runner defaults to offline/no-network execution. Exit codes are `0` success,
+`2` usage, `3` credential unavailable, `4` provider failure, `5` structured
+response parse failure, `6` grounding structural failure, `7` grounding semantic
+failure, `8` internal metadata exposure, and `9` safety blocked. Retry is zero;
+first failure stops remaining fixtures; raw prompt/payload/response, credentials,
+fingerprints, and request metadata are not printed. Final offline validation:
+`2994 passed, 2 deselected`; actual credential/provider/network activity was zero.
+Actual smoke was not run and requires explicit T1 approval.
+
 ## Boundary
 
 This is documentation-only. No credential check, provider call, network call,
@@ -86,3 +97,15 @@ and exclusion from the offline suite.
 
 Actual smoke remains deferred pending explicit T1 approval and a subsequent
 exact-stage/commit/push gate.
+
+## Implemented offline safety contract
+
+`scripts/run_sanitized_runtime_grounding_smoke.py::run_smoke` is a new bounded
+runner; an existing runner was not reused because none carried the v15.39
+grounding contract. Its default is offline with zero provider/network/credential
+activity. Actual mode requires `--actual`-equivalent inputs, one approved model,
+allowlisted fixtures, cap two (or explicit cap three for partial HP), retry zero,
+and injected credential/provider seams. It reuses `validate_runtime_grounding`,
+reports only fixture/status/call-count data, and maps deterministic exit codes
+0, 2--9. The actual callable is never supplied by offline tests; actual smoke
+still requires explicit T1 authorization.

@@ -1547,3 +1547,13 @@ Documentation expectations:
   payload, response, credential, fingerprint, session/CAS/ledger/token data, or
   token log. Actual smoke remains unimplemented and provider/network checks are
   zero in this design step.
+
+## v15.40 offline smoke runner implementation
+
+- Use `scripts/run_sanitized_runtime_grounding_smoke.py::run_smoke` only with
+  injected seams in offline tests. Its default mode makes zero credential,
+  provider, and network calls; actual mode validates allowlisted model/fixtures,
+  2/3 call caps, retry zero, and first-failure stop before any injectable call.
+  The runner reuses the production grounding validator and emits only sanitized
+  status/call-count results. Actual smoke remains prohibited without explicit
+  T1 approval and a future execution gate.
