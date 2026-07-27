@@ -1,5 +1,14 @@
 # v15.40 Actual Provider Runtime-Grounding Smoke Boundary Design
 
+## Actual-only wiring
+
+`build_actual_adapters(model=...)` constructs a boolean credential seam and a
+provider callable only after valid `--actual` arguments pass local allowlist and
+retry checks. It lazily reuses `call_structured_recommendation_provider`; default
+imports/offline execution construct neither adapter. Offline tests inject both
+seams, so no credential, provider, or network activity occurred and actual smoke
+remains unexecuted.
+
 ## Offline implementation closure
 
 The runner defaults to offline/no-network execution. Exit codes are `0` success,

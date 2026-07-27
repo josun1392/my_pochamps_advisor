@@ -1,4 +1,4 @@
-from scripts.run_sanitized_runtime_grounding_smoke import DEFAULT_MODEL, EXIT, REQUIRED_FIXTURES, run_smoke
+from scripts.run_sanitized_runtime_grounding_smoke import DEFAULT_MODEL, EXIT, REQUIRED_FIXTURES, main, run_smoke
 
 
 def test_smoke_runner_defaults_to_offline_no_network():
@@ -19,6 +19,16 @@ def test_fake_provider_is_budgeted_and_stops_after_failure():
 
 def test_credential_is_injected_boolean_only():
     assert run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=REQUIRED_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: False)["exit_code"] == EXIT["credential"]
+
+
+def test_cli_actual_constructs_adapters_only_after_valid_arguments():
+    calls = []
+    def factory(*, model):
+        calls.append(model)
+        return (lambda: False), (lambda _: {})
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *REQUIRED_FIXTURES, "--max-calls", "2", "--no-retry"], actual_adapter_factory=factory) == EXIT["credential"]
+    assert calls == [DEFAULT_MODEL]
+    assert main([], actual_adapter_factory=factory) == EXIT["ok"]
 
 
 def test_smoke_runner_maps_parse_failure_to_exit_5():

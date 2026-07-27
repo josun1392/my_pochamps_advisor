@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from typing import Any, Callable, Sequence
 
 from llm.advisor_candidate_contract import validate_runtime_grounding
@@ -19,6 +20,18 @@ def _runtime() -> dict[str, Any]:
 
 def _grounding() -> dict[str, Any]:
     return {"schema_version": "grounding-v1", "confirmed_facts": [], "unknown_facts": [{"path": "field.weather"}], "evidence_only": [], "conflicts": [], "conditional_dependencies": []}
+
+
+def build_actual_adapters(*, model: str) -> tuple[Callable[[], bool], Callable[[str], dict[str, Any]]]:
+    """Create actual-only seams after CLI validation; never call them here."""
+    def credential_available() -> bool:
+        return bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    def provider_call(fixture_id: str) -> dict[str, Any]:
+        from llm.advisor_client import call_structured_recommendation_provider
+        payload = {"request_version": "v14.3", "battle_snapshot_summary": {"fixture_id": fixture_id}, "candidate_exact_set": [], "selectable_candidate_exact_set": [], "candidate_comparisons": [], "known_limitations": ["sanitized smoke"], "guardrails": {"no_untrusted_inference": True}, "runtime_advice_state": _runtime()}
+        response, _usage = call_structured_recommendation_provider(provider_payload=payload, model=model)
+        return response
+    return credential_available, provider_call
 
 
 def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Sequence[str] = REQUIRED_FIXTURES, max_calls: int = 2, no_retry: bool = True, provider_call: Callable[[str], dict[str, Any]] | None = None, credential_available: Callable[[], bool] | None = None) -> dict[str, Any]:
@@ -47,10 +60,14 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
     return {"exit_code": EXIT["ok"], "provider_calls": len(results), "network_calls": 0, "results": results}
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: Sequence[str] | None = None, *, actual_adapter_factory: Callable[..., tuple[Callable[[], bool], Callable[[str], dict[str, Any]]]] = build_actual_adapters) -> int:
     parser = argparse.ArgumentParser(add_help=False); parser.add_argument("--actual", action="store_true"); parser.add_argument("--model"); parser.add_argument("--fixtures", nargs="*"); parser.add_argument("--max-calls", type=int); parser.add_argument("--no-retry", action="store_true")
     args, _ = parser.parse_known_args(argv)
-    result = run_smoke(actual=args.actual, model=args.model, fixtures=tuple(args.fixtures or REQUIRED_FIXTURES), max_calls=args.max_calls or 2, no_retry=args.no_retry)
+    kwargs = {"actual": args.actual, "model": args.model, "fixtures": tuple(args.fixtures or REQUIRED_FIXTURES), "max_calls": args.max_calls or 2, "no_retry": args.no_retry}
+    if args.actual and args.model in APPROVED_MODELS and args.no_retry:
+        credential_available, provider_call = actual_adapter_factory(model=args.model)
+        kwargs.update(credential_available=credential_available, provider_call=provider_call)
+    result = run_smoke(**kwargs)
     return int(result["exit_code"])
 
 

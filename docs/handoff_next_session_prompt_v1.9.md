@@ -1550,6 +1550,12 @@ Documentation expectations:
 
 ## v15.40 offline smoke runner implementation
 
+- `build_actual_adapters()` is actual-mode-only and lazily reuses the production
+  structured provider entry. Default/offline paths construct neither adapter and
+  have zero credential/provider/network activity. Validation is focused 7,
+  related 25, and full offline `2995 passed, 2 deselected`; actual two-call
+  smoke remains T1-approved-but-unexecuted.
+
 - Use `scripts/run_sanitized_runtime_grounding_smoke.py::run_smoke` only with
   injected seams in offline tests. Its default mode makes zero credential,
   provider, and network calls; actual mode validates allowlisted model/fixtures,

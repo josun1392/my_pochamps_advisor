@@ -18817,6 +18817,13 @@ Maintained boundaries:
 
 ## v15.40 Runtime-Grounding Smoke Runner Offline Contract
 
+- Actual-mode wiring now uses `build_actual_adapters()` only after local actual
+  argument validation. It lazily reuses
+  `call_structured_recommendation_provider`; default/offline execution constructs
+  no adapters and performs zero credential/provider/network activity. Focused
+  7 passed, related 25 passed, full offline `2995 passed, 2 deselected`, and
+  compile passed. Actual two-call smoke remains unexecuted pending T1 execution.
+
 - Added an approval-gated smoke runner with offline default, injected
   credential/provider seams, allowlisted sanitized fixtures/models, 2/3-call
   budget validation, retry zero, first-failure stop, sanitized result shape,
