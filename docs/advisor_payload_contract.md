@@ -3309,3 +3309,8 @@ candidate/action, canonical path, status, and incomplete dependency; omitted
 or mismatched links are semantic failures. The list must not repeat damage,
 percent, KO, roll, or other mechanics values, and replaces the duplicate
 mechanics path previously required in grounding `evidence_only`.
+
+For one direct-mechanics candidate, the production response schema also pins
+its slot, move, canonical path, and status with enum constraints before the
+provider responds. Multiple candidates retain the same parser-side exact-link
+validation rather than introducing a new response format.

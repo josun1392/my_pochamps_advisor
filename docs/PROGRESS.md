@@ -18938,3 +18938,6 @@ Maintained boundaries:
   Known, insufficient, unsupported, omitted, wrong-path, and wrong-dependency
   cases stay bounded in the offline contract; legacy no-direct-context requests
   retain their earlier response shape. Actual smoke remains approval-gated.
+- For the single-candidate smoke shape, the production response schema further
+  constrains acknowledgement slot, move, canonical path, and status by enum;
+  parser validation remains the authority for multi-candidate exact links.

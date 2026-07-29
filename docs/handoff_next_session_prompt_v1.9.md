@@ -1659,6 +1659,9 @@ Documentation expectations:
   path, exact status, and an incomplete-only missing-input path). Validate this
   machine link before advice semantics; do not ask generic grounding evidence to
   duplicate it.
+- For the single-candidate provider shape, response-schema enums pin the slot,
+  move, canonical path, and status. Keep parser-side exact validation for any
+  multi-candidate request; do not introduce a second response format.
 - The native result remains authoritative: never put damage, percent, KO, roll,
   Q12 input, or provenance into the acknowledgement, and do not alter unknown/
   insufficient/unsupported policy. Run actual smoke only after offline green,

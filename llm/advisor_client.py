@@ -141,7 +141,31 @@ class StructuredProviderError(RuntimeError):
         self.code = code
 
 
-def _structured_provider_schema(*, runtime_grounding_required: bool = False, mechanics_grounding_required: bool = False) -> dict[str, Any]:
+def _mechanics_acknowledgement_item_schema(*, provider_payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Constrain a single direct-mechanics acknowledgement without values."""
+    schema = deepcopy(_MECHANICS_ACK_SCHEMA)
+    comparisons = provider_payload.get("candidate_comparisons")
+    expected = []
+    if isinstance(comparisons, list):
+        for index, candidate in enumerate(comparisons):
+            mechanics = candidate.get("mechanics_result") if isinstance(candidate, Mapping) else None
+            move = candidate.get("move") if isinstance(candidate, Mapping) else None
+            status = mechanics.get("status") if isinstance(mechanics, Mapping) else None
+            if isinstance(move, str) and status in {"known", "insufficient_context", "unsupported_mechanic"}:
+                expected.append((index, move, f"candidate_comparisons.{index}.mechanics_result", status))
+    if len(expected) == 1:
+        slot_index, move, path, status = expected[0]
+        properties = schema["properties"]
+        properties["slot_index"]["enum"] = [slot_index]
+        properties["move"]["enum"] = [move]
+        properties["mechanics_path"]["enum"] = [path]
+        properties["status"]["enum"] = [status]
+        if status == "insufficient_context":
+            properties["missing_inputs_path"]["enum"] = [f"{path}.missing_inputs"]
+    return schema
+
+
+def _structured_provider_schema(*, runtime_grounding_required: bool = False, mechanics_grounding_required: bool = False, provider_payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
     properties = {
         "recommendation_status": {"type": "STRING", "enum": ["resolved", "insufficient_context", "no_usable_candidate"], "description": "resolved needs an exact selectable pair; other statuses have no pair."},
         "recommended_move": {"type": "STRING", "nullable": True, "description": "Exact selectable move identity for resolved only."},
@@ -161,7 +185,8 @@ def _structured_provider_schema(*, runtime_grounding_required: bool = False, mec
             "description": "Required grounding-v1 authority mapping for runtime_advice_state; entries use only canonical provider-safe paths.",
         }
     if mechanics_grounding_required:
-        properties["mechanics_acknowledgements"] = {"type": "ARRAY", "items": _MECHANICS_ACK_SCHEMA, "description": "Required value-free acknowledgement for every direct mechanics candidate; copy only slot, move, canonical mechanics path, status, and missing-input path when incomplete."}
+        mechanics_schema = _mechanics_acknowledgement_item_schema(provider_payload=provider_payload) if isinstance(provider_payload, Mapping) else _MECHANICS_ACK_SCHEMA
+        properties["mechanics_acknowledgements"] = {"type": "ARRAY", "items": mechanics_schema, "description": "Required value-free acknowledgement for every direct mechanics candidate; copy only slot, move, canonical mechanics path, status, and missing-input path when incomplete."}
     return {
         "type": "OBJECT",
         "properties": properties,
@@ -202,7 +227,7 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         raise StructuredProviderError("provider_unavailable")
     request_body = {
         "contents": [{"role": "user", "parts": [{"text": _STRUCTURED_SEMANTIC_GUIDANCE + "\n\nDeterministic evidence:\n" + json.dumps(dict(provider_payload), ensure_ascii=False)}]}],
-        "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema(runtime_grounding_required="runtime_advice_state" in provider_payload, mechanics_grounding_required=_payload_has_mechanics_result(provider_payload))},
+        "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema(runtime_grounding_required="runtime_advice_state" in provider_payload, mechanics_grounding_required=_payload_has_mechanics_result(provider_payload), provider_payload=provider_payload)},
     }
     try:
         response = requests.post(

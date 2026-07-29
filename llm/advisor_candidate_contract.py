@@ -804,8 +804,10 @@ def validate_mechanics_acknowledgements(*, request: Mapping[str, Any], acknowled
             return ["mechanics_acknowledgement_candidate_invalid"]
         seen.add(key)
         expected_path, expected_status, expected_dependency = expected[key]
-        if acknowledgement.get("mechanics_path") != expected_path or acknowledgement.get("status") != expected_status:
+        if acknowledgement.get("mechanics_path") != expected_path:
             return ["mechanics_acknowledgement_path_invalid"]
+        if acknowledgement.get("status") != expected_status:
+            return ["mechanics_acknowledgement_status_invalid"]
         if acknowledgement.get("missing_inputs_path") != expected_dependency:
             return ["mechanics_acknowledgement_dependency_invalid"]
     return [] if seen == set(expected) else ["mechanics_acknowledgement_missing"]
