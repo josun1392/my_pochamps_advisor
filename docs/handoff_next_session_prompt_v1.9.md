@@ -1645,3 +1645,6 @@ Documentation expectations:
   context.
 - The runner reports allowlisted provider diagnostics such as
   `provider_timeout` only; do not print raw exceptions or provider output.
+- Direct known mechanics advice uses only non-numeric `mechanics` claims.
+  Incomplete mechanics uses `partial_context` only; never repair a missing
+  mechanics result into damage, percent, KO, or an invented numeric claim.

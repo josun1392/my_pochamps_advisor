@@ -382,7 +382,7 @@ def serialize_recommendation_request(request: Mapping[str, Any]) -> dict[str, An
 
 
 _RESPONSE_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate", "validation_failed"})
-_CLAIM_KINDS = frozenset({"damage", "ko", "hit_chance", "move_order", "self_effect", "dynamic_mechanic", "partial_context"})
+_CLAIM_KINDS = frozenset({"damage", "ko", "hit_chance", "move_order", "self_effect", "dynamic_mechanic", "partial_context", "mechanics"})
 _FORBIDDEN_RESPONSE_KEYS = frozenset({
     "rawresponse", "rawproviderresponse", "traceback", "stacktrace", "apikey", "token", "authorization",
     "credential", "credentials", "providersecret", "clientsecret", "accesstoken", "refreshtoken", "rawprompt",
@@ -415,15 +415,19 @@ def _comparison_for_pair(request: Mapping[str, Any], pair: Mapping[str, Any]) ->
 
 
 def _validate_claim(reason: Any, candidate: Mapping[str, Any]) -> None:
-    if not isinstance(reason, Mapping) or set(reason) != {"kind", "claim"} or reason.get("kind") not in _CLAIM_KINDS or not isinstance(reason.get("claim"), str) or not reason["claim"]:
+    if not isinstance(reason, Mapping) or set(reason) != {"kind", "claim"} or not isinstance(reason.get("claim"), str) or not reason["claim"]:
         raise ValueError("invalid_claim")
     kind = reason["kind"]
     damage = candidate.get("damage")
     mechanics = candidate.get("mechanics_result")
     mechanics_known = isinstance(mechanics, Mapping) and mechanics.get("status") == "known" and isinstance(mechanics.get("damage_range"), Mapping)
     mechanics_insufficient = isinstance(mechanics, Mapping) and mechanics.get("status") == "insufficient_context"
-    if mechanics_insufficient and kind in {"damage", "ko"}:
-        raise ValueError("claim_evidence_unavailable")
+    if kind not in _CLAIM_KINDS:
+        raise ValueError("mechanics_claim_scope_invalid" if isinstance(mechanics, Mapping) and mechanics.get("status") != "not_requested" else "invalid_claim")
+    if mechanics_insufficient and kind in {"damage", "ko", "mechanics"}:
+        raise ValueError("mechanics_claim_on_insufficient_context")
+    if mechanics_known and kind in {"damage", "ko", "mechanics"} and any(character.isdigit() for character in reason["claim"]):
+        raise ValueError("mechanics_numeric_claim_without_evidence")
     if kind == "damage" and (not isinstance(damage, Mapping) or damage.get("status") != "resolved") and not mechanics_known:
         raise ValueError("claim_evidence_unavailable")
     if kind == "ko" and (not isinstance(damage, Mapping) or "ko" not in damage or damage["ko"] is None) and not (mechanics_known and isinstance(mechanics.get("ko_result"), Mapping)):
@@ -436,6 +440,8 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any]) -> None:
         raise ValueError("claim_evidence_unavailable")
     if kind == "self_effect" and (not isinstance(candidate.get("self_effects"), list) or not candidate["self_effects"]):
         raise ValueError("claim_evidence_unavailable")
+    if kind == "mechanics" and not mechanics_known:
+        raise ValueError("mechanics_claim_path_missing")
     if kind == "partial_context" and candidate.get("status") == "resolved" and any(word in reason["claim"].lower() for word in ("missing", "unavailable", "incomplete")):
         raise ValueError("claim_evidence_contradiction")
 

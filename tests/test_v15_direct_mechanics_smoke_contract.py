@@ -13,7 +13,7 @@ def _response(payload):
     }
     if mechanics["status"] == "insufficient_context":
         return {"recommendation_status": "insufficient_context", "recommended_move": None, "recommended_slot_index": None, "primary_reasons": [{"kind": "partial_context", "claim": "deterministic mechanics is incomplete"}], "risks": [], "alternatives": [], "grounding": grounding}
-    return {"recommendation_status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0, "primary_reasons": [{"kind": "damage", "claim": "deterministic mechanics evidence"}], "risks": [], "alternatives": [], "grounding": grounding}
+    return {"recommendation_status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0, "primary_reasons": [{"kind": "mechanics", "claim": "deterministic mechanics evidence"}], "risks": [], "alternatives": [], "grounding": grounding}
 
 
 def test_fixture_preparation_produces_known_and_insufficient_mechanics_evidence():
@@ -46,3 +46,20 @@ def test_provider_failure_exposes_only_allowlisted_sanitized_code():
     result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=lambda _: (_ for _ in ()).throw(Timeout()))
     assert result["exit_code"] == EXIT["provider"]
     assert result["diagnostic"] == "provider_timeout"
+
+
+def test_known_mechanics_claim_is_allowed_but_numeric_or_insufficient_mechanics_claims_are_rejected():
+    import pytest
+    from llm.advisor_candidate_contract import _validate_claim, complete_recommendation_cycle
+
+    complete = _prepared(FIXTURES[0])
+    accepted = complete_recommendation_cycle(prepared_cycle=complete, response_payload=_response(complete["recommendation_request"]))
+    assert accepted["status"] == "resolved"
+
+    numeric = _response(complete["recommendation_request"])
+    numeric["primary_reasons"] = [{"kind": "mechanics", "claim": "50 damage"}]
+    assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=numeric)["errors"] == ["mechanics_numeric_claim_without_evidence"]
+
+    incomplete = _prepared(FIXTURES[1])
+    with pytest.raises(ValueError, match="mechanics_claim_on_insufficient_context"):
+        _validate_claim({"kind": "mechanics", "claim": "deterministic mechanics"}, incomplete["candidates"][0])

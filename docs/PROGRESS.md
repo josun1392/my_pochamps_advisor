@@ -18915,5 +18915,11 @@ Maintained boundaries:
   fixture, diagnostic, and call count.
 - Provider transport/structured failures expose only an allowlisted sanitized
   code (including `provider_timeout`), never an exception or response detail.
+
+- Direct known mechanics now permits only the bounded non-numeric `mechanics`
+  claim kind; numeric mechanics claims receive
+  `mechanics_numeric_claim_without_evidence`. Incomplete mechanics permits
+  only `partial_context`; damage/KO/mechanics claims receive a bounded semantic
+  diagnostic instead of being treated as deterministic evidence.
 - `mechanics_result` is preserved in provider candidate comparisons without raw
   rolls, engine context/provenance, bridge output, or internal metadata.
