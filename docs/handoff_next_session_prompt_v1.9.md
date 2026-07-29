@@ -1711,3 +1711,17 @@ midpoint, round, mix candidates, or infer a new KO category.
   scope. Explicitly forbid added HKO labels, midpoint/rounded values, and mixed
   candidate numbers; choose a non-numeric summary if exact copying is not
   possible.
+
+## v15.48 state-aware incomplete-mechanics claim contract
+
+- If every direct-mechanics candidate is `insufficient_context`, generate a
+  provider-facing claim schema with `partial_context` as its only kind and only
+  `kind`/`claim` fields. Do not expose `mechanics_path` or `numeric_scope` in
+  that request's claim shape.
+- Keep the exact missing-input acknowledgement requirement and strict parser
+  validation. Known mechanics keeps the existing numeric path/scope contract;
+  mixed candidate statuses use the provider-compatible general schema with the
+  strict internal validator as authority.
+- The implementation and regressions are offline only. Do not perform an
+  actual rerun until the change is committed, pushed, and `HEAD` equals
+  `origin/master`.

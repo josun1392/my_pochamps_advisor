@@ -3361,3 +3361,20 @@ Numeric claim guidance is explicit: all numeric literals must be the selected
 native scope values, with no added HKO label, midpoint, rounded derivative, or
 cross-candidate number. A non-numeric mechanics summary has no numeric scope
 reference and remains valid for known mechanics.
+
+## v15.48 state-aware incomplete-mechanics claim surface
+
+When every direct-mechanics candidate in a provider request has
+`insufficient_context`, the provider-facing claim schema is narrowed to the
+bounded `{kind, claim}` shape with `kind: partial_context` only. It omits
+`mechanics_path` and `numeric_scope`, so a provider cannot select a structured
+damage, percent, KO, or numeric mechanics claim for that request. The required
+value-free mechanics acknowledgement still carries the canonical
+`.missing_inputs` dependency path, and the parser verifies it exactly.
+
+Known direct-mechanics requests retain the existing claim surface: a numeric
+claim remains valid only with the exact candidate path, allowed scope, and
+native values. For mixed candidate statuses, the provider-compatible bounded
+schema remains general and the existing strict parser is the state-aware
+authority. No fixture, native mechanics result, unknown handling, calculator
+authority, retry, fallback, or repair policy changes.

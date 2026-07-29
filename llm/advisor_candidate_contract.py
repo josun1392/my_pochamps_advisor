@@ -452,13 +452,17 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path
     kind = reason["kind"]
     damage = candidate.get("damage")
     mechanics = candidate.get("mechanics_result")
-    mechanics_known = isinstance(mechanics, Mapping) and mechanics.get("status") == "known" and isinstance(mechanics.get("damage_range"), Mapping)
-    mechanics_insufficient = isinstance(mechanics, Mapping) and mechanics.get("status") == "insufficient_context"
+    direct_mechanics = isinstance(mechanics, Mapping) and mechanics.get("mechanics_source") == "native_q12_direct_damage"
+    mechanics_known = direct_mechanics and mechanics.get("status") == "known" and isinstance(mechanics.get("damage_range"), Mapping)
+    mechanics_insufficient = direct_mechanics and mechanics.get("status") == "insufficient_context"
     if kind not in _CLAIM_KINDS:
         raise ValueError("mechanics_claim_scope_invalid" if isinstance(mechanics, Mapping) and mechanics.get("status") != "not_requested" else "invalid_claim")
     numeric_claim = bool(_numeric_literals(reason["claim"]))
-    if mechanics_insufficient and (kind in {"damage", "ko", "mechanics"} or numeric_claim and ("mechanics_path" in reason or "numeric_scope" in reason)):
-        raise ValueError("mechanics_numeric_claim_on_insufficient_context" if numeric_claim else "mechanics_claim_on_insufficient_context")
+    if mechanics_insufficient:
+        if kind != "partial_context":
+            raise ValueError("mechanics_numeric_claim_on_insufficient_context" if numeric_claim else "mechanics_claim_on_insufficient_context")
+        if numeric_claim or "mechanics_path" in reason or "numeric_scope" in reason:
+            raise ValueError("mechanics_numeric_claim_on_insufficient_context")
     if mechanics_known and kind in {"damage", "ko", "mechanics"} and numeric_claim:
         path = reason.get("mechanics_path")
         scope = reason.get("numeric_scope")

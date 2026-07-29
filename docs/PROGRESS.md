@@ -18993,3 +18993,16 @@ Maintained boundaries:
   require that a numeric claim contain only the selected native scope literals;
   prompt guidance explicitly forbids extra digits such as HKO labels and permits
   a non-numeric summary when exact copying is not possible.
+
+## v15.48 state-aware incomplete-mechanics claim restriction
+
+- For a provider request whose direct-mechanics candidates are all
+  `insufficient_context`, the response schema now permits only
+  `partial_context` claims and exposes only `kind` plus `claim`; numeric scope
+  and mechanics path fields are absent. This is a provider-compatible static
+  restriction for the incomplete fixture, while the parser independently
+  rejects any numeric or mechanics-reference claim in that state.
+- Known direct-mechanics requests retain the full bounded numeric-claim shape
+  and exact native value validation. The missing-input acknowledgement remains
+  mandatory and parser-validated; no provider, credential, or network call was
+  made during the offline change.

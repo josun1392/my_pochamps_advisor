@@ -291,14 +291,34 @@ def _mechanics_acknowledgement_item_schema(*, provider_payload: Mapping[str, Any
     return schema
 
 
+def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Bound the provider claim shape when every direct-mechanics result is incomplete."""
+    schema = deepcopy(_STRUCTURED_CLAIM_SCHEMA)
+    comparisons = provider_payload.get("candidate_comparisons") if isinstance(provider_payload, Mapping) else None
+    statuses = [
+        candidate["mechanics_result"].get("status")
+        for candidate in comparisons
+        if isinstance(candidate, Mapping)
+        and isinstance(candidate.get("mechanics_result"), Mapping)
+        and candidate["mechanics_result"].get("mechanics_source") == "native_q12_direct_damage"
+    ] if isinstance(comparisons, list) else []
+    if statuses and all(status == "insufficient_context" for status in statuses):
+        schema["properties"] = {
+            "kind": {"type": "STRING", "enum": ["partial_context"]},
+            "claim": {"type": "STRING", "description": "State only missing deterministic context. Do not include damage, percent, KO, or other mechanics numbers."},
+        }
+    return schema
+
+
 def _structured_provider_schema(*, runtime_grounding_required: bool = False, mechanics_grounding_required: bool = False, provider_payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    claim_schema = _claim_schema_for_provider_payload(provider_payload=provider_payload)
     properties = {
         "recommendation_status": {"type": "STRING", "enum": ["resolved", "insufficient_context", "no_usable_candidate"], "description": "resolved needs an exact selectable pair; other statuses have no pair."},
         "recommended_move": {"type": "STRING", "nullable": True, "description": "Exact selectable move identity for resolved only."},
         "recommended_slot_index": {"type": "INTEGER", "nullable": True, "description": "Matching exact selectable slot for resolved only."},
-        "primary_reasons": {"type": "ARRAY", "items": _STRUCTURED_CLAIM_SCHEMA, "description": "Grounded kind/claim mappings only; no contradictory partial_context."},
-        "risks": {"type": "ARRAY", "items": _STRUCTURED_CLAIM_SCHEMA, "description": "Grounded warnings, unavailable reasons, or known limitations only."},
-        "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {"move": {"type": "STRING"}, "slot_index": {"type": "INTEGER"}, "reason": _STRUCTURED_CLAIM_SCHEMA}, "required": ["move", "slot_index", "reason"]}, "description": "Each alternative is an exact selectable move+slot mapping with a grounded reason."},
+        "primary_reasons": {"type": "ARRAY", "items": claim_schema, "description": "Grounded kind/claim mappings only; no contradictory partial_context."},
+        "risks": {"type": "ARRAY", "items": claim_schema, "description": "Grounded warnings, unavailable reasons, or known limitations only."},
+        "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {"move": {"type": "STRING"}, "slot_index": {"type": "INTEGER"}, "reason": claim_schema}, "required": ["move", "slot_index", "reason"]}, "description": "Each alternative is an exact selectable move+slot mapping with a grounded reason."},
     }
     if runtime_grounding_required or mechanics_grounding_required:
         properties["grounding"] = {
