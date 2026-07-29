@@ -3378,3 +3378,14 @@ native values. For mixed candidate statuses, the provider-compatible bounded
 schema remains general and the existing strict parser is the state-aware
 authority. No fixture, native mechanics result, unknown handling, calculator
 authority, retry, fallback, or repair policy changes.
+
+## v15.49 state-aware known-mechanics claim surface
+
+When every direct-mechanics candidate is `known`, the provider-facing claim
+schema requires `kind: mechanics`, `mechanics_path`, and `numeric_scope` for
+every claim position. This prevents a numeric known-mechanics response from
+omitting the value-free evidence link. The parser permits a non-numeric
+mechanics summary with that exact reference, and validates numeric literals
+against the selected native scope when numbers are present. Dynamic-mechanic
+results without `native_q12_direct_damage` provenance do not enter this direct
+mechanics restriction.

@@ -463,15 +463,17 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path
             raise ValueError("mechanics_numeric_claim_on_insufficient_context" if numeric_claim else "mechanics_claim_on_insufficient_context")
         if numeric_claim or "mechanics_path" in reason or "numeric_scope" in reason:
             raise ValueError("mechanics_numeric_claim_on_insufficient_context")
-    if mechanics_known and kind in {"damage", "ko", "mechanics"} and numeric_claim:
+    has_mechanics_reference = "mechanics_path" in reason or "numeric_scope" in reason
+    if mechanics_known and kind in {"damage", "ko", "mechanics"} and (numeric_claim or kind == "mechanics" and has_mechanics_reference):
         path = reason.get("mechanics_path")
         scope = reason.get("numeric_scope")
         if path != mechanics_path or not isinstance(scope, str) or scope not in _NUMERIC_SCOPE_VALUES:
             raise ValueError("mechanics_numeric_scope_invalid")
-        expected = _mechanics_scope_values(mechanics, scope)
-        if expected is None or _numeric_literals(reason["claim"]) != expected:
-            raise ValueError("mechanics_numeric_value_mismatch")
-    elif "mechanics_path" in reason or "numeric_scope" in reason:
+        if numeric_claim:
+            expected = _mechanics_scope_values(mechanics, scope)
+            if expected is None or _numeric_literals(reason["claim"]) != expected:
+                raise ValueError("mechanics_numeric_value_mismatch")
+    elif has_mechanics_reference:
         raise ValueError("mechanics_numeric_scope_invalid")
     if kind == "damage" and (not isinstance(damage, Mapping) or damage.get("status") != "resolved") and not mechanics_known:
         raise ValueError("claim_evidence_unavailable")

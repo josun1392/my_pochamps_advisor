@@ -19006,3 +19006,14 @@ Maintained boundaries:
   and exact native value validation. The missing-input acknowledgement remains
   mandatory and parser-validated; no provider, credential, or network call was
   made during the offline change.
+
+## v15.49 state-aware known-mechanics claim restriction
+
+- For an all-`known` native direct-mechanics request, provider claims are now
+  structurally limited to `mechanics` and must include value-free
+  `mechanics_path` plus `numeric_scope`. Numeric literals remain parser-checked
+  against the selected native scope, while a non-numeric mechanics summary may
+  carry the same exact reference.
+- This applies only to `native_q12_direct_damage` results; ordinary dynamic
+  mechanics keep their existing response path. No provider call was made while
+  implementing this follow-up to the bounded actual diagnostic.

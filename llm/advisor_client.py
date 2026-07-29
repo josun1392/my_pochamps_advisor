@@ -302,6 +302,10 @@ def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | 
         and isinstance(candidate.get("mechanics_result"), Mapping)
         and candidate["mechanics_result"].get("mechanics_source") == "native_q12_direct_damage"
     ] if isinstance(comparisons, list) else []
+    if statuses and all(status == "known" for status in statuses):
+        schema["properties"]["kind"] = {"type": "STRING", "enum": ["mechanics"]}
+        schema["properties"]["claim"] = {"type": "STRING", "description": "Known direct-mechanics summary. If numeric, use only exact native scope values and no other digit."}
+        schema["required"] = ["kind", "claim", "mechanics_path", "numeric_scope"]
     if statuses and all(status == "insufficient_context" for status in statuses):
         schema["properties"] = {
             "kind": {"type": "STRING", "enum": ["partial_context"]},

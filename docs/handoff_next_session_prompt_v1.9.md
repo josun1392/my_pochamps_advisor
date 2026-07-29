@@ -1725,3 +1725,13 @@ midpoint, round, mix candidates, or infer a new KO category.
 - The implementation and regressions are offline only. Do not perform an
   actual rerun until the change is committed, pushed, and `HEAD` equals
   `origin/master`.
+
+## v15.49 state-aware known-mechanics claim contract
+
+- If every native direct-mechanics candidate is `known`, require the provider
+  schema's claims to use `kind: mechanics` and include `mechanics_path` plus
+  `numeric_scope`. This removes the optional-link path that produced
+  `mechanics_numeric_scope_invalid` in the complete fixture.
+- Parser validation still allows a non-numeric summary with the exact
+  value-free reference and requires exact native values for every numeric
+  literal. Do not apply this restriction to non-direct dynamic mechanics.
