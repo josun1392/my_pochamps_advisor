@@ -20,6 +20,7 @@ RICH_CURRENT_STATE_KEYS = (
     "observed_damage_context",
     "switch_faint_observation_context",
     "lifecycle_observation_context",
+    "direct_mechanics_context",
 )
 FIELD_SCOPED_CONTEXT_KEYS = frozenset({"field_state_context", "battle_format_context"})
 PROVENANCE_REQUIRED_KEYS = frozenset({"side", "slot_index", "pokemon_id", "session_id", "source", "trust"})
@@ -1034,6 +1035,9 @@ def _normalize_context_provenance(
     if context_key in FIELD_SCOPED_CONTEXT_KEYS:
         _validate_current_state_ownership(value, active_slots=active_slots, session_id=session_id)
         return dict(value)
+    if context_key == "direct_mechanics_context":
+        _validate_current_state_ownership(value, active_slots=active_slots, session_id=session_id)
+        return deepcopy(dict(value))
     if context_key == "observed_damage_context":
         events = value.get("observed_damage_events")
         active = {"self": _mapping_or_empty(pokemon.get("my_active")), "opponent": _mapping_or_empty(pokemon.get("opponent_active"))}

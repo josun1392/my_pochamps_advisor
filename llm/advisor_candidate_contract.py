@@ -14,6 +14,7 @@ from llm.advisor_turn_snapshot import (
     snapshot_deterministic_context,
 )
 from llm.advisor_q12_snapshot_adapter import invoke_existing_q12_from_snapshot
+from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 
 CANDIDATE_STATUSES = frozenset({"resolved", "partial", "unavailable"})
 RECOMMENDATION_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate", "validation_failed"})
@@ -144,7 +145,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     if not isinstance(metadata, Mapping) and not hasattr(metadata, "category"):
         return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","self_effects":[],"dynamic_move":None,"warnings":[],"unavailable_reasons":["move_metadata_unavailable"]}
     if _metadata_value(metadata, "category") == "status":
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
     snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
     selected_move = _selected_move_from_metadata(move, metadata)
     if turn_snapshot is not None:
@@ -163,8 +164,13 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
             turn_snapshot=turn_snapshot, damage_input=damage_input,
             species_repository=species_repository,
         )
+        mechanics_result = _snapshot_direct_mechanics(
+            turn_snapshot=turn_snapshot, damage_input=damage_input,
+            species_repository=species_repository,
+        )
     else:
         q12_damage = {"status": "unavailable", "limitations": ["snapshot_q12_unavailable"]}
+        mechanics_result = {"status": "insufficient_context", "missing_inputs": ["turn_snapshot"]}
     context = _production_context(snapshot, selected_move)
     dynamic_move = _dynamic_summary(context)
     damage = _damage_summary(context)
@@ -173,12 +179,12 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
         reasons = ["required_dynamic_context_unavailable"]
         assessment = context.get(dynamic_move["assessment_key"]) if isinstance(context, Mapping) else None
         if isinstance(assessment, Mapping) and isinstance(assessment.get("reason"), str): reasons.append(assessment["reason"])
-        return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","damage":damage,"q12_damage":q12_damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":reasons,**optional_outputs}
+        return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","damage":damage,"q12_damage":q12_damage,"mechanics_result":mechanics_result,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":reasons,**optional_outputs}
     if damage["status"] != "resolved":
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":damage,"q12_damage":q12_damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":[damage["reason"], *optional_reasons],**optional_outputs}
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":damage,"q12_damage":q12_damage,"mechanics_result":mechanics_result,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":[damage["reason"], *optional_reasons],**optional_outputs}
     if optional_reasons:
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":damage,"q12_damage":q12_damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":optional_reasons,**optional_outputs}
-    return {"slot_index":slot_index,"move":move,"status":"resolved","availability":"usable","damage":damage,"q12_damage":q12_damage,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":[],**optional_outputs}
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":damage,"q12_damage":q12_damage,"mechanics_result":mechanics_result,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":optional_reasons,**optional_outputs}
+    return {"slot_index":slot_index,"move":move,"status":"resolved","availability":"usable","damage":damage,"q12_damage":q12_damage,"mechanics_result":mechanics_result,"self_effects":self_effects,"dynamic_move":dynamic_move,"warnings":[],"unavailable_reasons":[],**optional_outputs}
 
 def _snapshot_q12_damage(*, turn_snapshot: Any, damage_input: Mapping[str, Any], species_repository: Any) -> dict[str, Any]:
     if species_repository is None:
@@ -193,6 +199,20 @@ def _snapshot_q12_damage(*, turn_snapshot: Any, damage_input: Mapping[str, Any],
         )
     except (TypeError, ValueError):
         return {"status": "unavailable", "limitations": ["invalid_snapshot"]}
+
+
+def _snapshot_direct_mechanics(*, turn_snapshot: Any, damage_input: Mapping[str, Any], species_repository: Any) -> dict[str, Any]:
+    if species_repository is None:
+        return {"status": "insufficient_context", "missing_inputs": ["species_repository"]}
+    try:
+        provenance = build_snapshot_stat_provenance(turn_snapshot, species_repository=species_repository)
+        level = build_snapshot_trusted_level_provenance(turn_snapshot)
+        return evaluate_direct_damage_mechanics(
+            damage_input, stat_provenance=provenance,
+            trusted_level=level.get("value") if level.get("available") is True else None,
+        )
+    except (TypeError, ValueError):
+        return {"status": "insufficient_context", "missing_inputs": ["snapshot"]}
 
 
 def evaluate_move_slots(*, moves: Sequence[Any], battle_snapshot: Mapping[str, Any], repositories: Any, maximum_slots: int = 4, turn_snapshot: Any = None, species_repository: Any = None) -> list[dict[str, Any]]:
@@ -395,9 +415,11 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any]) -> None:
         raise ValueError("invalid_claim")
     kind = reason["kind"]
     damage = candidate.get("damage")
-    if kind == "damage" and (not isinstance(damage, Mapping) or damage.get("status") != "resolved"):
+    mechanics = candidate.get("mechanics_result")
+    mechanics_known = isinstance(mechanics, Mapping) and mechanics.get("status") == "known" and isinstance(mechanics.get("damage_range"), Mapping)
+    if kind == "damage" and (not isinstance(damage, Mapping) or damage.get("status") != "resolved") and not mechanics_known:
         raise ValueError("claim_evidence_unavailable")
-    if kind == "ko" and (not isinstance(damage, Mapping) or "ko" not in damage or damage["ko"] is None):
+    if kind == "ko" and (not isinstance(damage, Mapping) or "ko" not in damage or damage["ko"] is None) and not (mechanics_known and isinstance(mechanics.get("ko_result"), Mapping)):
         raise ValueError("claim_evidence_unavailable")
     if kind == "hit_chance" and not isinstance(candidate.get("hit_chance"), Mapping):
         raise ValueError("claim_evidence_unavailable")

@@ -1620,3 +1620,14 @@ Documentation expectations:
   ability/boost/HP must result in `insufficient_context` or a declared
   conditional branch, never a hidden default. Actual-provider work needs new
   T1 approval.
+
+## v15.42 direct mechanics implementation
+
+- Production authority is native Python Q12 direct damage. The local pinned
+  Smogon bridge remains offline reference-only and cannot enter provider data.
+  `mechanics_result` is attached to candidates and copied to comparisons without
+  raw rolls, contexts, or provenance.
+- `direct_mechanics_context` explicitly supplies gen9, ability/item/status,
+  zero boosts, current/max HP, and absent weather/terrain; trusted final stats
+  and level finish the input. Omission is `insufficient_context`, never a
+  default. Status, dynamic-power, and multi-hit moves are unsupported.

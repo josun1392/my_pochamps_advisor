@@ -3277,3 +3277,13 @@ adapter classifies authoritative snapshot facts. Its status is `known`,
 `known`. Missing EVs, IVs, nature, item, ability, boosts, or HP remain unknown,
 not calculator defaults. Package/version provenance, raw subprocess output,
 raw descriptions, and raw state data are excluded from provider payloads.
+
+## v15.42 implemented direct mechanics evidence
+
+`candidate_comparisons` may contain `mechanics_result`: `status`, `move`,
+`type_effectiveness`, `damage_range`, `damage_percent_range`, `ko_result`,
+`missing_inputs`, `unsupported_reason`, `mechanics_source`, and `generation`.
+For `insufficient_context`, numeric damage/percent/KO fields are `null` and
+only allowlisted logical missing-input names remain. Raw roll arrays,
+`DamageContext`, final-stat provenance, bridge output, cache paths, and engine
+debug material are forbidden.

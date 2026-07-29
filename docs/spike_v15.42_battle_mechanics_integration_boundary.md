@@ -132,3 +132,26 @@ credential lookup, provider call, or mechanics network call occurred. The next
 milestone needs adapter/result contract tests, complete/unknown fixtures, a
 source-pin test, and a narrow parity matrix. Any actual-provider smoke requires
 separate T1 approval.
+
+## v15.42 implementation: first direct-damage slice
+
+The implemented route is `TurnSnapshot -> direct_mechanics_context ->
+evaluate_direct_damage_mechanics -> candidate.mechanics_result ->
+candidate_comparisons[].mechanics_result`. The context must explicitly provide
+`generation: "gen9"`, ability/item/status state, zero boosts, current/max HP,
+and absent weather/terrain; existing trusted final-stat and level boundaries
+provide the explicit calculation-stat basis. Nature, EVs, and IVs are not
+inferred separately when exact final stats are supplied.
+
+Only non-critical, single-hit physical/special direct moves are supported.
+Missing facts produce `insufficient_context` with logical paths; status,
+dynamic-power, and multi-hit moves return `unsupported_mechanic`. A `known`
+result contains move, type multiplier, damage/percent range, verified one-hit
+KO probability, source, and generation. Raw rolls, engine objects, provenance,
+and bridge output are excluded from provider comparisons. Native Python Q12 is
+production authority; the pinned local Smogon bridge remains reference-only.
+
+Known non-absent ability, item, major-status, non-zero-stage, weather, or
+terrain modifiers are also `unsupported_mechanic` in this first capability.
+They are never accepted and then ignored. Explicit known absence/zero is the
+only standard-direct modifier state this slice evaluates.

@@ -18889,3 +18889,17 @@ Maintained boundaries:
   `conditional`, `insufficient_context`, and `unsupported_mechanic`. Missing
   EVs/IVs/nature/item/ability/boosts/HP must never gain hidden defaults. This
   design performed no credential, provider, or mechanics network call.
+
+## v15.42 first direct mechanics slice
+
+- Added native-Q12 `evaluate_direct_damage_mechanics` to the production
+  candidate route. Complete explicit gen9 direct input yields type multiplier,
+  damage/percent range, and verified single-hit KO probability.
+- The gate requires identities/types, final stats, trusted level, explicit
+  ability/item/status, zero boosts, HP, generation, and clear weather/terrain.
+  Missing facts remain bounded `insufficient_context`; no defaults are applied.
+  Status, dynamic-power, and multi-hit moves are `unsupported_mechanic`.
+- Explicit non-absent ability/item/status, non-zero boosts, or weather/terrain
+  are likewise blocked as unsupported rather than silently ignored.
+- `mechanics_result` is preserved in provider candidate comparisons without raw
+  rolls, engine context/provenance, bridge output, or internal metadata.
