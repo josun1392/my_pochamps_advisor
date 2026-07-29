@@ -18901,5 +18901,17 @@ Maintained boundaries:
   Status, dynamic-power, and multi-hit moves are `unsupported_mechanic`.
 - Explicit non-absent ability/item/status, non-zero boosts, or weather/terrain
   are likewise blocked as unsupported rather than silently ignored.
+
+## v15.43 direct mechanics provider grounding
+
+- Direct-mechanics requests now require grounding-v1 acknowledgement of each
+  `candidate_comparisons.<index>.mechanics_result` as deterministic evidence.
+  Incomplete mechanics additionally require a value-free missing-input
+  dependency. Legacy requests without an opted-in direct context retain their
+  prior response contract.
+- Added an approval-gated two-fixture runner for complete and insufficient
+  direct mechanics. It uses the production preparation, payload, structured
+  response parser, and grounding validator; output is bounded to status,
+  fixture, diagnostic, and call count.
 - `mechanics_result` is preserved in provider candidate comparisons without raw
   rolls, engine context/provenance, bridge output, or internal metadata.

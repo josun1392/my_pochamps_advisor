@@ -202,6 +202,10 @@ def _snapshot_q12_damage(*, turn_snapshot: Any, damage_input: Mapping[str, Any],
 
 
 def _snapshot_direct_mechanics(*, turn_snapshot: Any, damage_input: Mapping[str, Any], species_repository: Any) -> dict[str, Any]:
+    battle_context = damage_input.get("battle_context")
+    current_state = battle_context.get("current_state") if isinstance(battle_context, Mapping) else None
+    if not isinstance(current_state, Mapping) or not isinstance(current_state.get("direct_mechanics_context"), Mapping):
+        return {"status": "not_requested"}
     if species_repository is None:
         return {"status": "insufficient_context", "missing_inputs": ["species_repository"]}
     try:
@@ -417,6 +421,9 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any]) -> None:
     damage = candidate.get("damage")
     mechanics = candidate.get("mechanics_result")
     mechanics_known = isinstance(mechanics, Mapping) and mechanics.get("status") == "known" and isinstance(mechanics.get("damage_range"), Mapping)
+    mechanics_insufficient = isinstance(mechanics, Mapping) and mechanics.get("status") == "insufficient_context"
+    if mechanics_insufficient and kind in {"damage", "ko"}:
+        raise ValueError("claim_evidence_unavailable")
     if kind == "damage" and (not isinstance(damage, Mapping) or damage.get("status") != "resolved") and not mechanics_known:
         raise ValueError("claim_evidence_unavailable")
     if kind == "ko" and (not isinstance(damage, Mapping) or "ko" not in damage or damage["ko"] is None) and not (mechanics_known and isinstance(mechanics.get("ko_result"), Mapping)):
@@ -543,10 +550,15 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
     candidates = prepared_cycle.get("candidates", ())
     evidence = prepared_cycle.get("evidence_bundle")
     request = prepared_cycle["recommendation_request"]
-    if _RUNTIME_PROVIDER_KEY in request and "grounding" not in response_payload:
+    mechanics_required = _request_has_mechanics_result(request)
+    if (_RUNTIME_PROVIDER_KEY in request or mechanics_required) and "grounding" not in response_payload:
         return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["grounding_required"])
     if _RUNTIME_PROVIDER_KEY in request:
         errors = validate_runtime_grounding(runtime_advice_state=request[_RUNTIME_PROVIDER_KEY], grounding=response_payload.get("grounding"), legacy_compatible=False)
+        if errors:
+            return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=errors)
+    if mechanics_required:
+        errors = validate_mechanics_grounding(request=request, grounding=response_payload.get("grounding"))
         if errors:
             return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=errors)
     result = parse_recommendation_response(request=request, response_payload=response_payload)
@@ -733,6 +745,49 @@ def grounding_structure_diagnostic(grounding: Any) -> str | None:
             if not isinstance(entry["path"], str) or not entry["path"]:
                 return "grounding_entry_field_invalid"
     return None
+
+
+def _request_has_mechanics_result(request: Mapping[str, Any]) -> bool:
+    comparisons = request.get("candidate_comparisons")
+    return isinstance(comparisons, list) and any(
+        isinstance(candidate, Mapping)
+        and isinstance(candidate.get("mechanics_result"), Mapping)
+        and candidate["mechanics_result"].get("status") != "not_requested"
+        for candidate in comparisons
+    )
+
+
+def validate_mechanics_grounding(*, request: Mapping[str, Any], grounding: Any) -> list[str]:
+    """Require value-free acknowledgement of every deterministic mechanics row."""
+    diagnostic = grounding_structure_diagnostic(grounding)
+    if diagnostic:
+        return [diagnostic]
+    comparisons = request.get("candidate_comparisons")
+    if not isinstance(comparisons, list):
+        return ["mechanics_grounding_request_invalid"]
+    expected: set[str] = set()
+    insufficient: set[str] = set()
+    for index, candidate in enumerate(comparisons):
+        mechanics = candidate.get("mechanics_result") if isinstance(candidate, Mapping) else None
+        if not isinstance(mechanics, Mapping):
+            continue
+        path = f"candidate_comparisons.{index}.mechanics_result"
+        expected.add(path)
+        if mechanics.get("status") == "insufficient_context":
+            insufficient.add(f"{path}.missing_inputs")
+    evidence = grounding.get("evidence_only")
+    conditional = grounding.get("conditional_dependencies")
+    evidence_paths = {
+        entry.get("path") for entry in evidence
+        if isinstance(entry, Mapping) and entry.get("authority") == "evidence" and entry.get("source") == "deterministic"
+    } if isinstance(evidence, list) else set()
+    conditional_paths = {entry.get("path") for entry in conditional if isinstance(entry, Mapping)} if isinstance(conditional, list) else set()
+    errors: list[str] = []
+    if not expected <= evidence_paths:
+        errors.append("mechanics_result_unacknowledged")
+    if not insufficient <= conditional_paths:
+        errors.append("mechanics_insufficient_unacknowledged")
+    return errors
 
 
 def validate_runtime_grounding(*, runtime_advice_state: Mapping[str, Any], grounding: Mapping[str, Any], legacy_compatible: bool = False, user_answer: str = "") -> list[str]:

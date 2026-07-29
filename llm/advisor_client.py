@@ -115,7 +115,7 @@ _GROUNDING_V1_ENTRY_KEYS = ("confirmed_facts", "unknown_facts", "evidence_only",
 _GROUNDING_V1_ENTRY_SCHEMAS = {
     "confirmed_facts": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}, "status": {"type": "STRING", "enum": ["known", "known_absent"]}, "authority": {"type": "STRING", "enum": ["runtime"]}, "value": {}}, "required": ["path", "status", "authority"]},
     "unknown_facts": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}, "authority": {"type": "STRING", "enum": ["runtime"]}}, "required": ["path", "authority"]},
-    "evidence_only": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}, "authority": {"type": "STRING", "enum": ["evidence", "stale"]}, "source": {"type": "STRING", "enum": ["ui", "user", "observation"]}}, "required": ["path", "authority", "source"]},
+    "evidence_only": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}, "authority": {"type": "STRING", "enum": ["evidence", "stale"]}, "source": {"type": "STRING", "enum": ["ui", "user", "observation", "deterministic"]}}, "required": ["path", "authority", "source"]},
     "conflicts": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}, "authority": {"type": "STRING", "enum": ["conflict"]}, "source": {"type": "STRING", "enum": ["ui", "user", "observation"]}}, "required": ["path", "authority", "source"]},
     "conditional_dependencies": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}}, "required": ["path"]},
 }
@@ -126,6 +126,7 @@ _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Use partial_context only for an actually unavailable or incomplete field. Each reason or risk must be exactly a kind/claim object: use only the supported claim kinds and a non-empty claim string. Alternatives require selectable exact move+slot pairs and reasons. "
     "Do not invent EVs, IVs, nature, items, abilities, opponent moves, or final stats. Use insufficient_context when evidence is insufficient and no_usable_candidate when none is selectable. "
     "When runtime_advice_state is present it is authoritative current state: unknown is unobserved, not absent, false, zero, full HP, healthy, inactive, or empty; known_absent is confirmed absence; known with value is trusted current state. In that case include required grounding-v1 with schema_version plus confirmed_facts, unknown_facts, evidence_only, conflicts, and conditional_dependencies lists; every list entry requires a non-empty canonical provider-safe path. confirmed_facts and unknown_facts use authority runtime; evidence_only uses authority evidence or stale plus an allowed source; conflicts uses authority conflict plus an allowed source. A confirmed grounding entry must reproduce its runtime fact status and, for known facts, its exact runtime value. UI and unapplied observation evidence cannot override runtime known facts or resolve runtime unknown facts; conflicting stale UI evidence belongs only in evidence_only or conflicts, never in confirmed_facts. Never infer current battle facts from species metadata. State uncertainty or conditional dependence when needed, and never expose runtime_advice_state, fingerprint, CAS, reducer, ledger, session authority, request token, or thread identity."
+    "When candidate_comparisons contains mechanics_result, treat it as authoritative deterministic evidence: do not recompute, change, or invent damage, percent, or KO values. Include an evidence_only grounding entry for each mechanics_result path with authority evidence and source deterministic. For insufficient_context mechanics, use conditional_dependencies for its missing_inputs path and do not make a damage or KO claim."
 )
 
 
@@ -137,7 +138,7 @@ class StructuredProviderError(RuntimeError):
         self.code = code
 
 
-def _structured_provider_schema(*, runtime_grounding_required: bool = False) -> dict[str, Any]:
+def _structured_provider_schema(*, runtime_grounding_required: bool = False, mechanics_grounding_required: bool = False) -> dict[str, Any]:
     properties = {
         "recommendation_status": {"type": "STRING", "enum": ["resolved", "insufficient_context", "no_usable_candidate"], "description": "resolved needs an exact selectable pair; other statuses have no pair."},
         "recommended_move": {"type": "STRING", "nullable": True, "description": "Exact selectable move identity for resolved only."},
@@ -146,7 +147,7 @@ def _structured_provider_schema(*, runtime_grounding_required: bool = False) -> 
         "risks": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Grounded warnings, unavailable reasons, or known limitations only."},
         "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Each alternative is an exact selectable move+slot mapping with a grounded reason."},
     }
-    if runtime_grounding_required:
+    if runtime_grounding_required or mechanics_grounding_required:
         properties["grounding"] = {
             "type": "OBJECT",
             "properties": {
@@ -159,8 +160,18 @@ def _structured_provider_schema(*, runtime_grounding_required: bool = False) -> 
     return {
         "type": "OBJECT",
         "properties": properties,
-        "required": list(_GROUNDED_STRUCTURED_RESPONSE_KEYS if runtime_grounding_required else _STRUCTURED_RESPONSE_KEYS),
+        "required": list(_GROUNDED_STRUCTURED_RESPONSE_KEYS if runtime_grounding_required or mechanics_grounding_required else _STRUCTURED_RESPONSE_KEYS),
     }
+
+
+def _payload_has_mechanics_result(payload: Mapping[str, Any]) -> bool:
+    comparisons = payload.get("candidate_comparisons")
+    return isinstance(comparisons, list) and any(
+        isinstance(candidate, Mapping)
+        and isinstance(candidate.get("mechanics_result"), Mapping)
+        and candidate["mechanics_result"].get("status") != "not_requested"
+        for candidate in comparisons
+    )
 
 
 def _normalized_structured_usage(*, usage_data: Any, model: str) -> dict[str, int | str | bool | None]:
@@ -186,7 +197,7 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         raise StructuredProviderError("provider_unavailable")
     request_body = {
         "contents": [{"role": "user", "parts": [{"text": _STRUCTURED_SEMANTIC_GUIDANCE + "\n\nDeterministic evidence:\n" + json.dumps(dict(provider_payload), ensure_ascii=False)}]}],
-        "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema(runtime_grounding_required="runtime_advice_state" in provider_payload)},
+        "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema(runtime_grounding_required="runtime_advice_state" in provider_payload, mechanics_grounding_required=_payload_has_mechanics_result(provider_payload))},
     }
     try:
         response = requests.post(
@@ -226,7 +237,7 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         decoded = json.loads(text)
     except (TypeError, ValueError):
         raise StructuredProviderError("provider_structured_decode_failed") from None
-    expected_response_keys = _GROUNDED_STRUCTURED_RESPONSE_KEYS if "runtime_advice_state" in provider_payload else _STRUCTURED_RESPONSE_KEYS
+    expected_response_keys = _GROUNDED_STRUCTURED_RESPONSE_KEYS if "runtime_advice_state" in provider_payload or _payload_has_mechanics_result(provider_payload) else _STRUCTURED_RESPONSE_KEYS
     if not isinstance(decoded, dict) or set(decoded) != set(expected_response_keys):
         raise StructuredProviderError("provider_response_malformed")
     usage = _normalized_structured_usage(usage_data=body.get("usageMetadata"), model=model)

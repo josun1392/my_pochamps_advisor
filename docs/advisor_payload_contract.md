@@ -3287,3 +3287,13 @@ For `insufficient_context`, numeric damage/percent/KO fields are `null` and
 only allowlisted logical missing-input names remain. Raw roll arrays,
 `DamageContext`, final-stat provenance, bridge output, cache paths, and engine
 debug material are forbidden.
+
+## v15.43 mechanics grounding acknowledgement
+
+When a candidate has opted-in `mechanics_result` evidence, the structured
+response requires grounding-v1. Each mechanics result is acknowledged only by
+its canonical `candidate_comparisons.<index>.mechanics_result` path in
+`evidence_only` with `authority: evidence` and `source: deterministic`.
+`insufficient_context` additionally uses the value-free `.missing_inputs` path
+as a conditional dependency. This is acknowledgement, not a provider-supplied
+calculation or raw result echo.

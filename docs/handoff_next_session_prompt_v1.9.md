@@ -1631,3 +1631,15 @@ Documentation expectations:
   zero boosts, current/max HP, and absent weather/terrain; trusted final stats
   and level finish the input. Omission is `insufficient_context`, never a
   default. Status, dynamic-power, and multi-hit moves are unsupported.
+
+## v15.43 mechanics provider smoke
+
+- Actual direct-mechanics validation uses
+  `scripts/run_sanitized_direct_mechanics_smoke.py` with only
+  `complete-direct-mechanics` and `insufficient-direct-mechanics`. Run it only
+  under explicit T1 approval, after HEAD equals origin/master, with retry,
+  fallback, and repair at zero.
+- Direct mechanics requests require value-free grounding acknowledgement of the
+  candidate mechanics path; insufficient mechanics also ground the missing-input
+  dependency. Do not apply this requirement to legacy candidates with no direct
+  context.
