@@ -3314,3 +3314,13 @@ For one direct-mechanics candidate, the production response schema also pins
 its slot, move, canonical path, and status with enum constraints before the
 provider responds. Multiple candidates retain the same parser-side exact-link
 validation rather than introducing a new response format.
+
+## v15.45 provider diagnostic boundary
+
+The structured Gemini provider boundary is an existing `requests` REST call.
+Before provider response parsing, it maps only safe HTTP or requests exception
+families to bounded diagnostics: client initialization, model not found,
+authentication, permission, quota/rate-limit, timeout, network, service
+unavailable, invalid request, response failure, or unknown failure. The direct
+smoke prints the allowlisted code only. It never emits a response body, request,
+prompt, credential, headers, endpoint detail, exception message, or traceback.

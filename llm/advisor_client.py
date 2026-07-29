@@ -112,6 +112,24 @@ _STRUCTURED_RESPONSE_KEYS = (
 )
 _GROUNDED_STRUCTURED_RESPONSE_KEYS = (*_STRUCTURED_RESPONSE_KEYS, "grounding")
 _MECHANICS_ACK_RESPONSE_KEYS = (*_GROUNDED_STRUCTURED_RESPONSE_KEYS, "mechanics_acknowledgements")
+SAFE_PROVIDER_DIAGNOSTIC_CODES = frozenset({
+    "provider_client_initialization_failure",
+    "provider_model_not_found",
+    "provider_authentication_failure",
+    "provider_permission_failure",
+    "provider_quota_or_rate_limit",
+    "provider_timeout",
+    "provider_network_failure",
+    "provider_service_unavailable",
+    "provider_invalid_request",
+    "provider_response_failure",
+    "provider_unknown_failure",
+    "provider_safety_blocked",
+    "provider_response_missing",
+    "provider_response_malformed",
+    "provider_structured_decode_failed",
+    "provider_response_validation_failed",
+})
 _GROUNDING_V1_ENTRY_KEYS = ("confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies")
 _GROUNDING_V1_ENTRY_SCHEMAS = {
     "confirmed_facts": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}, "status": {"type": "STRING", "enum": ["known", "known_absent"]}, "authority": {"type": "STRING", "enum": ["runtime"]}, "value": {}}, "required": ["path", "status", "authority"]},
@@ -139,6 +157,42 @@ class StructuredProviderError(RuntimeError):
     def __init__(self, code: str) -> None:
         super().__init__(code)
         self.code = code
+
+
+def _provider_http_diagnostic(status_code: Any) -> str:
+    """Classify an HTTP boundary without retaining response content."""
+    if not isinstance(status_code, int) or isinstance(status_code, bool):
+        return "provider_response_failure"
+    if status_code == 400:
+        return "provider_invalid_request"
+    if status_code == 401:
+        return "provider_authentication_failure"
+    if status_code == 403:
+        return "provider_permission_failure"
+    if status_code == 404:
+        return "provider_model_not_found"
+    if status_code in {402, 429}:
+        return "provider_quota_or_rate_limit"
+    if status_code in {408, 504}:
+        return "provider_timeout"
+    if 500 <= status_code <= 599:
+        return "provider_service_unavailable"
+    if 400 <= status_code <= 499:
+        return "provider_invalid_request"
+    return "provider_response_failure"
+
+
+def _provider_exception_diagnostic(error: Exception) -> str:
+    """Classify client-side requests errors by safe exception family only."""
+    if isinstance(error, requests.Timeout):
+        return "provider_timeout"
+    if isinstance(error, (requests.exceptions.InvalidURL, requests.exceptions.InvalidSchema, requests.exceptions.MissingSchema)):
+        return "provider_invalid_request"
+    if isinstance(error, requests.RequestException):
+        return "provider_network_failure"
+    if isinstance(error, (TypeError, ValueError)):
+        return "provider_client_initialization_failure"
+    return "provider_unknown_failure"
 
 
 def _mechanics_acknowledgement_item_schema(*, provider_payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -224,7 +278,7 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         raise StructuredProviderError("provider_response_validation_failed")
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
-        raise StructuredProviderError("provider_unavailable")
+        raise StructuredProviderError("provider_authentication_failure")
     request_body = {
         "contents": [{"role": "user", "parts": [{"text": _STRUCTURED_SEMANTIC_GUIDANCE + "\n\nDeterministic evidence:\n" + json.dumps(dict(provider_payload), ensure_ascii=False)}]}],
         "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema(runtime_grounding_required="runtime_advice_state" in provider_payload, mechanics_grounding_required=_payload_has_mechanics_result(provider_payload), provider_payload=provider_payload)},
@@ -234,12 +288,10 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
             f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
             params={"key": api_key}, json=request_body, timeout=60,
         )
-    except requests.Timeout as exc:
-        raise StructuredProviderError("provider_timeout") from None
-    except requests.RequestException as exc:
-        raise StructuredProviderError("provider_unavailable") from None
+    except (requests.RequestException, TypeError, ValueError) as exc:
+        raise StructuredProviderError(_provider_exception_diagnostic(exc)) from None
     if not response.ok:
-        raise StructuredProviderError("provider_unavailable")
+        raise StructuredProviderError(_provider_http_diagnostic(getattr(response, "status_code", None)))
     try:
         body = response.json()
     except (TypeError, ValueError):
@@ -291,7 +343,7 @@ def format_recommendation_presentation_text(*, presentation_model: Mapping[str, 
         return "추천을 확정할 정보가 부족합니다."
     if status == "no_usable_candidate":
         return "사용 가능한 후보 기술이 없습니다."
-    if status in {"provider_unavailable", "provider_timeout", "provider_safety_blocked", "provider_response_missing", "provider_response_malformed", "provider_structured_decode_failed", "provider_response_validation_failed"}:
+    if status in SAFE_PROVIDER_DIAGNOSTIC_CODES:
         return "제공자 호출에 실패했습니다."
     return "추천 응답 검증에 실패했습니다."
 

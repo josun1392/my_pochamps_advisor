@@ -18941,3 +18941,15 @@ Maintained boundaries:
 - For the single-candidate smoke shape, the production response schema further
   constrains acknowledgement slot, move, canonical path, and status by enum;
   parser validation remains the authority for multi-candidate exact links.
+
+## v15.45 provider failure diagnostic boundary
+
+- The production structured provider uses the existing `requests` REST path,
+  not a Gemini SDK. Previously every HTTP non-success and most request errors
+  collapsed into `provider_unavailable` before response parsing.
+- The adapter now emits only bounded categories for HTTP authentication,
+  permission, model-not-found, quota/rate-limit, invalid-request, timeout, and
+  service failures, plus client-initialization, network, response, and unknown
+  failures. No response body, exception message, request data, credential, or
+  endpoint detail is retained or surfaced. The direct smoke reuses the same
+  allowlist; mechanics schema and validation are unchanged.

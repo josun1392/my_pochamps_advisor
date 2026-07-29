@@ -1666,3 +1666,14 @@ Documentation expectations:
   Q12 input, or provenance into the acknowledgement, and do not alter unknown/
   insufficient/unsupported policy. Run actual smoke only after offline green,
   exact commit/push, and explicit T1 approval.
+
+## v15.45 provider failure diagnostics
+
+- The production path calls Gemini through existing `requests` REST, not an SDK.
+  Preserve the bounded diagnostic mapper: HTTP auth/permission/model/quota/
+  invalid-request/service statuses and requests timeout/network/configuration
+  failures are distinct without retaining raw provider data.
+- The direct smoke must surface only an allowlisted provider diagnostic. Do not
+  treat a provider boundary failure as a mechanics, grounding, or fixture
+  failure, and do not expose a response body, exception message, credential, or
+  endpoint detail.

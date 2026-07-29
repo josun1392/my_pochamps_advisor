@@ -17,6 +17,7 @@ from llm.advisor_candidate_contract import (
     complete_recommendation_cycle,
     prepare_ui_recommendation_cycle,
 )
+from llm.advisor_client import SAFE_PROVIDER_DIAGNOSTIC_CODES
 from scripts.spike_advisor import DEFAULT_MODEL
 
 FIXTURES = ("complete-direct-mechanics", "insufficient-direct-mechanics")
@@ -90,7 +91,7 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
             response = provider_call(payload)
         except Exception as error:
             code = getattr(error, "code", "provider_failure")
-            diagnostic = code if isinstance(code, str) and code in {"provider_timeout", "provider_unavailable", "provider_safety_blocked", "provider_response_missing", "provider_response_malformed", "provider_structured_decode_failed", "provider_response_validation_failed"} else "provider_failure"
+            diagnostic = code if isinstance(code, str) and code in SAFE_PROVIDER_DIAGNOSTIC_CODES else "provider_unknown_failure"
             return {"exit_code": EXIT["provider"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "provider_failure", "diagnostic": diagnostic, "results": results}
         if not isinstance(response, dict):
             return {"exit_code": EXIT["parse"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "structured_response_parse_failure", "results": results}

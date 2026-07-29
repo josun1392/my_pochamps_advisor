@@ -74,6 +74,13 @@ def test_provider_failure_exposes_only_allowlisted_sanitized_code():
     assert result["exit_code"] == EXIT["provider"]
     assert result["diagnostic"] == "provider_timeout"
 
+    class RateLimit(Exception):
+        code = "provider_quota_or_rate_limit"
+
+    rate_limited = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=lambda _: (_ for _ in ()).throw(RateLimit()))
+    assert rate_limited["exit_code"] == EXIT["provider"]
+    assert rate_limited["diagnostic"] == "provider_quota_or_rate_limit"
+
 
 def test_known_mechanics_claim_is_allowed_but_numeric_or_insufficient_mechanics_claims_are_rejected():
     import pytest
