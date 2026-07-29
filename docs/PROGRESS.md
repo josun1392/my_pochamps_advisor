@@ -18983,3 +18983,8 @@ Maintained boundaries:
   and numeric equality. Incomplete mechanics keeps `partial_context` and
   rejects referenced damage/percent/KO numbers. No calculator, default,
   fixture, or mechanics authority changed.
+- A two-call actual round passed the complete fixture through numeric validation
+  and reached the insufficient fixture, which returned the bounded
+  `mechanics_acknowledgement_dependency_invalid`. The provider-compatible
+  incomplete acknowledgement schema now describes the exact missing-input path
+  without reintroducing dynamic enums; parser authority is unchanged.

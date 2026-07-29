@@ -3352,3 +3352,7 @@ numeric claim is valid only if its exact candidate path/scope is present and
 its numeric literals equal the selected native range or probability. For
 `insufficient_context`, referenced numeric mechanics claims are rejected and
 only conditional/insufficient advice remains valid.
+
+For a single insufficient direct candidate, the provider schema description
+states the exact canonical `.missing_inputs` dependency path. It is guidance,
+not a dynamic enum; the strict parser still rejects any different dependency.

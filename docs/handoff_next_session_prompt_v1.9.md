@@ -1702,4 +1702,8 @@ Documentation expectations:
   dynamic provider enum.
 - For insufficient mechanics, keep conditional/partial advice and reject any
   referenced damage, percent, or KO numeric claim. Do not recalculate,
-  midpoint, round, mix candidates, or infer a new KO category.
+midpoint, round, mix candidates, or infer a new KO category.
+
+- For a single insufficient direct candidate, describe the exact canonical
+  missing-input dependency path in the provider schema without dynamic enums.
+  Keep parser-side exact dependency validation unchanged.

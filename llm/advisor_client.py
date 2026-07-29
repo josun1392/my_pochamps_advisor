@@ -277,6 +277,17 @@ def _mechanics_acknowledgement_item_schema(*, provider_payload: Mapping[str, Any
     """Keep provider schema representable; parser owns exact dynamic linkage."""
     schema = deepcopy(_MECHANICS_ACK_SCHEMA)
     schema["description"] = "Provider-compatible value-free acknowledgement shape; the strict parser validates exact candidate, path, status, and dependency against deterministic evidence."
+    comparisons = provider_payload.get("candidate_comparisons")
+    expected = []
+    if isinstance(comparisons, list):
+        for index, candidate in enumerate(comparisons):
+            mechanics = candidate.get("mechanics_result") if isinstance(candidate, Mapping) else None
+            status = mechanics.get("status") if isinstance(mechanics, Mapping) else None
+            if status in {"known", "insufficient_context", "unsupported_mechanic"}:
+                expected.append((f"candidate_comparisons.{index}.mechanics_result", status))
+    if len(expected) == 1 and expected[0][1] == "insufficient_context":
+        path = expected[0][0]
+        schema["properties"]["missing_inputs_path"]["description"] = f"For insufficient_context, use exactly {path}.missing_inputs; otherwise use null."
     return schema
 
 

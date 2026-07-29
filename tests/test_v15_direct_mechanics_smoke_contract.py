@@ -155,3 +155,7 @@ def test_single_direct_mechanics_schema_keeps_dynamic_linkage_out_of_provider_en
     assert "enum" not in properties["move"]
     assert "enum" not in properties["mechanics_path"]
     assert properties["status"]["enum"] == ["known", "insufficient_context", "unsupported_mechanic"]
+
+    incomplete_schema = _structured_provider_schema(mechanics_grounding_required=True, provider_payload=_prepared(FIXTURES[1])["recommendation_request"])
+    dependency_description = incomplete_schema["properties"]["mechanics_acknowledgements"]["items"]["properties"]["missing_inputs_path"]["description"]
+    assert dependency_description.endswith(".mechanics_result.missing_inputs; otherwise use null.")
