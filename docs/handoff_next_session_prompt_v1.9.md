@@ -1550,6 +1550,11 @@ Documentation expectations:
 
 ## v15.40 offline smoke runner implementation
 
+- The first newly approved v15.41 actual call returned the safe diagnostic
+  `grounding_entry_field_missing`. The schema and guidance now require `path`
+  on every grounding-v1 entry, matching the existing validator. This used one
+  call; do not execute another actual smoke without separate T1 approval.
+
 - The v15.41 smoke CLI now prints one sanitized JSON result line. Structural
   failures retain the validator's existing allowlisted diagnostic together with
   fixture ID, category, exit code, and call count only. Do not print raw

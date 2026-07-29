@@ -81,5 +81,6 @@ def test_runtime_provider_schema_requires_and_adapter_preserves_grounding_v1():
     schema = _structured_provider_schema(runtime_grounding_required=True)
     assert "grounding" in schema["required"]
     assert set(schema["properties"]["grounding"]["required"]) == {"schema_version", "confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies"}
+    assert all(value["items"]["required"] == ["path"] for key, value in schema["properties"]["grounding"]["properties"].items() if key != "schema_version")
     response = _response(grounding=_grounding())
     assert adapt_provider_recommendation_response(provider_response=response)["grounding"] == _grounding()

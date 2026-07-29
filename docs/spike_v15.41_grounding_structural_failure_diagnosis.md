@@ -59,3 +59,13 @@ contains a grounding value, provider material, prompt, payload, credential, or
 internal metadata. Non-structural outcomes omit the structural diagnostic;
 existing exit 6/7/8 meanings are unchanged. This is offline-tested only and
 does not authorize an actual rerun.
+
+## Entry-path requiredness follow-up
+
+One newly approved actual call stopped at `runtime-unknown-bootstrap` with the
+bounded code `grounding_entry_field_missing` (exit 6, one call). The response
+schema previously described each grounding list item only as an object, while
+the validator required its canonical `path` field. The minimal offline fix adds
+that field as required to every grounding-v1 entry schema and states the same
+requirement in the structured guidance. No grounding semantics, authority rule,
+or fixture was changed. The next actual smoke requires separate T1 approval.

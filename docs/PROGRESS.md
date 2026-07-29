@@ -18817,6 +18817,11 @@ Maintained boundaries:
 
 ## v15.40 Runtime-Grounding Smoke Runner Offline Contract
 
+- A newly approved v15.41 diagnostic smoke identified
+  `grounding_entry_field_missing` at the first fixture. Offline alignment now
+  requires a canonical `path` in every grounding-v1 schema entry, matching the
+  validator and prompt. One actual call was used; no automatic retry occurs.
+
 - v15.41 now surfaces an existing bounded structural diagnostic from validator
   through the smoke result to one sanitized CLI JSON line. The line permits
   only fixture ID, failure category, diagnostic code, exit code, and call count;
