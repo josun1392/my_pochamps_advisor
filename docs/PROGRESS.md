@@ -18921,5 +18921,9 @@ Maintained boundaries:
   `mechanics_numeric_claim_without_evidence`. Incomplete mechanics permits
   only `partial_context`; damage/KO/mechanics claims receive a bounded semantic
   diagnostic instead of being treated as deterministic evidence.
+- The provider response schema now also requires parser-compatible
+  `{kind, claim}` reason/risk/alternative-reason objects, including the bounded
+  `mechanics` kind. This prevents a free-form reason object from reaching the
+  semantic parser as generic `invalid_claim`.
 - `mechanics_result` is preserved in provider candidate comparisons without raw
   rolls, engine context/provenance, bridge output, or internal metadata.

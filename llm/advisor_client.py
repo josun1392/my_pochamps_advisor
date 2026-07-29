@@ -119,6 +119,7 @@ _GROUNDING_V1_ENTRY_SCHEMAS = {
     "conflicts": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}, "authority": {"type": "STRING", "enum": ["conflict"]}, "source": {"type": "STRING", "enum": ["ui", "user", "observation"]}}, "required": ["path", "authority", "source"]},
     "conditional_dependencies": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}}, "required": ["path"]},
 }
+_STRUCTURED_CLAIM_SCHEMA = {"type": "OBJECT", "properties": {"kind": {"type": "STRING", "enum": ["damage", "ko", "hit_chance", "move_order", "self_effect", "dynamic_mechanic", "partial_context", "mechanics"]}, "claim": {"type": "STRING"}}, "required": ["kind", "claim"]}
 _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Return only the declared JSON shape. A resolved recommendation must use a selectable exact move and slot pair. "
     "Ground reasons and risks in candidate comparisons, warnings, unavailable reasons, and known limitations. "
@@ -143,9 +144,9 @@ def _structured_provider_schema(*, runtime_grounding_required: bool = False, mec
         "recommendation_status": {"type": "STRING", "enum": ["resolved", "insufficient_context", "no_usable_candidate"], "description": "resolved needs an exact selectable pair; other statuses have no pair."},
         "recommended_move": {"type": "STRING", "nullable": True, "description": "Exact selectable move identity for resolved only."},
         "recommended_slot_index": {"type": "INTEGER", "nullable": True, "description": "Matching exact selectable slot for resolved only."},
-        "primary_reasons": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Grounded kind/claim mappings only; no contradictory partial_context."},
-        "risks": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Grounded warnings, unavailable reasons, or known limitations only."},
-        "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT"}, "description": "Each alternative is an exact selectable move+slot mapping with a grounded reason."},
+        "primary_reasons": {"type": "ARRAY", "items": _STRUCTURED_CLAIM_SCHEMA, "description": "Grounded kind/claim mappings only; no contradictory partial_context."},
+        "risks": {"type": "ARRAY", "items": _STRUCTURED_CLAIM_SCHEMA, "description": "Grounded warnings, unavailable reasons, or known limitations only."},
+        "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {"move": {"type": "STRING"}, "slot_index": {"type": "INTEGER"}, "reason": _STRUCTURED_CLAIM_SCHEMA}, "required": ["move", "slot_index", "reason"]}, "description": "Each alternative is an exact selectable move+slot mapping with a grounded reason."},
     }
     if runtime_grounding_required or mechanics_grounding_required:
         properties["grounding"] = {

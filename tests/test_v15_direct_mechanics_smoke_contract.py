@@ -63,3 +63,13 @@ def test_known_mechanics_claim_is_allowed_but_numeric_or_insufficient_mechanics_
     incomplete = _prepared(FIXTURES[1])
     with pytest.raises(ValueError, match="mechanics_claim_on_insufficient_context"):
         _validate_claim({"kind": "mechanics", "claim": "deterministic mechanics"}, incomplete["candidates"][0])
+
+
+def test_structured_provider_schema_requires_parser_claim_shape_and_mechanics_kind():
+    from llm.advisor_client import _structured_provider_schema
+
+    schema = _structured_provider_schema(mechanics_grounding_required=True)
+    claim = schema["properties"]["primary_reasons"]["items"]
+    assert claim["required"] == ["kind", "claim"]
+    assert "mechanics" in claim["properties"]["kind"]["enum"]
+    assert schema["properties"]["alternatives"]["items"]["properties"]["reason"] == claim

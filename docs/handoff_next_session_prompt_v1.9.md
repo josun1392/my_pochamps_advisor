@@ -1648,3 +1648,6 @@ Documentation expectations:
 - Direct known mechanics advice uses only non-numeric `mechanics` claims.
   Incomplete mechanics uses `partial_context` only; never repair a missing
   mechanics result into damage, percent, KO, or an invented numeric claim.
+- Provider schema reason/risk/alternative-reason items require `{kind, claim}`
+  and use the bounded claim-kind enum, including `mechanics`; do not relax the
+  parser to accept arbitrary reason objects.
