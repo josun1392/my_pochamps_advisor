@@ -56,6 +56,24 @@ def test_structured_provider_classifies_http_and_request_failures_without_raw_de
         assert error.code == "provider_network_failure" and "raw" not in str(error)
 
 
+def test_structured_provider_surfaces_only_allowlisted_schema_error_context(monkeypatch):
+    monkeypatch.setattr(client.os, "environ", {"GEMINI_API_KEY": "present"})
+
+    class Failure:
+        ok = False
+        status_code = 400
+        def json(self):
+            return {"error": {"status": "INVALID_ARGUMENT", "message": "raw secret", "details": [{"fieldViolations": [{"field": "generation_config.response_schema.properties.mechanics_acknowledgements", "description": "raw nullable schema detail"}]}]}}
+
+    monkeypatch.setattr(client.requests, "post", lambda *args, **kwargs: Failure())
+    try:
+        client.call_structured_recommendation_provider(provider_payload=PAYLOAD, model="m")
+    except client.StructuredProviderError as error:
+        assert error.code == "provider_invalid_request"
+        assert error.safe_context == {"http_status": 400, "api_status": "INVALID_ARGUMENT", "stage": "http_response", "component": "response_schema", "logical_field": "mechanics_acknowledgements", "reason": "schema_keyword_nullable"}
+        assert "raw" not in str(error.safe_context)
+
+
 def test_structured_provider_reports_missing_credential_as_authentication_failure(monkeypatch):
     monkeypatch.setattr(client.os, "environ", {})
     try:

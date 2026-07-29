@@ -18956,3 +18956,14 @@ Maintained boundaries:
 - The same runner also accepts only the approved `complete-direct-mechanics`
   one-fixture prefix with `--max-calls 1`, so a provider-boundary diagnostic
   invocation cannot continue to a second call.
+
+## v15.46 request-schema compatibility diagnostics
+
+- HTTP failure handling now keeps only bounded request-schema context: HTTP/API
+  status, failure stage, allowlisted component, logical field, and schema
+  keyword category. Provider error bodies/messages are inspected transiently
+  only to classify those fixed values; they are never retained or surfaced.
+- Repository inspection uses the existing REST path. The current official API
+  documents `responseSchema` as deprecated and `responseJsonSchema` as the JSON
+  Schema surface, so compatibility work must keep the strict internal contract
+  separate from a provider-compatible schema representation.

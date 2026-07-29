@@ -17,7 +17,7 @@ from llm.advisor_candidate_contract import (
     complete_recommendation_cycle,
     prepare_ui_recommendation_cycle,
 )
-from llm.advisor_client import SAFE_PROVIDER_DIAGNOSTIC_CODES
+from llm.advisor_client import SAFE_PROVIDER_DIAGNOSTIC_CODES, sanitize_provider_failure_context
 from scripts.spike_advisor import DEFAULT_MODEL
 
 FIXTURES = ("complete-direct-mechanics", "insufficient-direct-mechanics")
@@ -92,7 +92,11 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
         except Exception as error:
             code = getattr(error, "code", "provider_failure")
             diagnostic = code if isinstance(code, str) and code in SAFE_PROVIDER_DIAGNOSTIC_CODES else "provider_unknown_failure"
-            return {"exit_code": EXIT["provider"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "provider_failure", "diagnostic": diagnostic, "results": results}
+            safe_context = sanitize_provider_failure_context(getattr(error, "safe_context", None))
+            result = {"exit_code": EXIT["provider"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "provider_failure", "diagnostic": diagnostic, "results": results}
+            if safe_context:
+                result["provider_diagnostic"] = safe_context
+            return result
         if not isinstance(response, dict):
             return {"exit_code": EXIT["parse"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "structured_response_parse_failure", "results": results}
         completed = complete_recommendation_cycle(prepared_cycle=prepared, response_payload=response)
@@ -107,7 +111,7 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
 
 
 def _surface(result: Mapping[str, Any]) -> dict[str, Any]:
-    return {key: result[key] for key in ("fixture_id", "failure_category", "diagnostic", "exit_code", "provider_calls") if key in result}
+    return {key: result[key] for key in ("fixture_id", "failure_category", "diagnostic", "provider_diagnostic", "exit_code", "provider_calls") if key in result}
 
 
 def main(argv: Sequence[str] | None = None, *, adapter_factory: Callable[..., tuple[Callable[[], bool], Callable[[Mapping[str, Any]], dict[str, Any]]]] = _actual_adapters) -> int:

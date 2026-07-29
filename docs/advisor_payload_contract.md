@@ -3327,3 +3327,12 @@ prompt, credential, headers, endpoint detail, exception message, or traceback.
 For an explicitly one-call provider diagnostic, the direct runner accepts only
 the `complete-direct-mechanics` fixture prefix and requires `max_calls` to
 equal the selected fixture count.
+
+## v15.46 request-schema compatibility diagnostics
+
+Non-success provider responses may yield only `http_status`, allowlisted API
+status, stage, component, logical field, and schema-keyword category. The raw
+error body is parsed transiently for classification and then discarded. The
+strict internal response contract remains separate from the provider schema;
+the current REST API documents the older `responseSchema` field as deprecated
+in favor of `responseJsonSchema`.

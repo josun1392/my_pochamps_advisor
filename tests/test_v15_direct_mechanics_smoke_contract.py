@@ -81,6 +81,15 @@ def test_provider_failure_exposes_only_allowlisted_sanitized_code():
     assert rate_limited["exit_code"] == EXIT["provider"]
     assert rate_limited["diagnostic"] == "provider_quota_or_rate_limit"
 
+    class InvalidRequest(Exception):
+        code = "provider_invalid_request"
+        safe_context = {"http_status": 400, "api_status": "INVALID_ARGUMENT", "stage": "http_response", "component": "response_schema", "logical_field": "mechanics_acknowledgements", "reason": "schema_keyword_enum", "raw": "must-not-surface"}
+
+    invalid_request = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=(FIXTURES[0],), max_calls=1, no_retry=True, credential_available=lambda: True, provider_call=lambda _: (_ for _ in ()).throw(InvalidRequest()))
+    assert invalid_request["exit_code"] == EXIT["provider"]
+    assert invalid_request["provider_diagnostic"] == {"http_status": 400, "api_status": "INVALID_ARGUMENT", "stage": "http_response", "component": "response_schema", "logical_field": "mechanics_acknowledgements", "reason": "schema_keyword_enum"}
+    assert "raw" not in str(invalid_request["provider_diagnostic"])
+
 
 def test_one_fixture_diagnostic_run_has_a_hard_one_call_limit():
     result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=(FIXTURES[0],), max_calls=1, no_retry=True, credential_available=lambda: True, provider_call=_response)

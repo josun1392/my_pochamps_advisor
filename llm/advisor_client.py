@@ -130,6 +130,11 @@ SAFE_PROVIDER_DIAGNOSTIC_CODES = frozenset({
     "provider_structured_decode_failed",
     "provider_response_validation_failed",
 })
+_SAFE_API_ERROR_STATUSES = frozenset({"INVALID_ARGUMENT", "UNAUTHENTICATED", "PERMISSION_DENIED", "NOT_FOUND", "RESOURCE_EXHAUSTED", "DEADLINE_EXCEEDED", "UNAVAILABLE", "INTERNAL", "UNKNOWN"})
+_SAFE_PROVIDER_FAILURE_STAGES = frozenset({"client_initialization", "request_transport", "http_response", "response_parsing"})
+_SAFE_PROVIDER_COMPONENTS = frozenset({"generation_config", "response_schema"})
+_SAFE_PROVIDER_LOGICAL_FIELDS = frozenset({"mechanics_acknowledgements", "grounding", "response_schema"})
+_SAFE_SCHEMA_REASONS = frozenset({"schema_keyword_nullable", "schema_keyword_enum", "schema_keyword_required", "schema_keyword_additional_properties", "schema_keyword_composition", "schema_keyword_collection_bound", "schema_keyword_type", "schema_request_rejected", "diagnostic_insufficient"})
 _GROUNDING_V1_ENTRY_KEYS = ("confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies")
 _GROUNDING_V1_ENTRY_SCHEMAS = {
     "confirmed_facts": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}, "status": {"type": "STRING", "enum": ["known", "known_absent"]}, "authority": {"type": "STRING", "enum": ["runtime"]}, "value": {}}, "required": ["path", "status", "authority"]},
@@ -154,9 +159,82 @@ _STRUCTURED_SEMANTIC_GUIDANCE = (
 class StructuredProviderError(RuntimeError):
     """Sanitized structured-provider failure that never carries provider detail."""
 
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, *, safe_context: Mapping[str, Any] | None = None) -> None:
         super().__init__(code)
         self.code = code
+        self.safe_context = sanitize_provider_failure_context(safe_context)
+
+
+def sanitize_provider_failure_context(context: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Retain only fixed provider-failure fields; never retain provider text."""
+    if not isinstance(context, Mapping):
+        return {}
+    result: dict[str, Any] = {}
+    status_code = context.get("http_status")
+    if isinstance(status_code, int) and not isinstance(status_code, bool) and 100 <= status_code <= 599:
+        result["http_status"] = status_code
+    for key, allowed in (("api_status", _SAFE_API_ERROR_STATUSES), ("stage", _SAFE_PROVIDER_FAILURE_STAGES), ("component", _SAFE_PROVIDER_COMPONENTS), ("logical_field", _SAFE_PROVIDER_LOGICAL_FIELDS), ("reason", _SAFE_SCHEMA_REASONS)):
+        value = context.get(key)
+        if isinstance(value, str) and value in allowed:
+            result[key] = value
+    return result
+
+
+def _safe_http_error_context(response: Any) -> dict[str, Any]:
+    """Extract allowlisted API failure metadata without exposing the error body."""
+    context: dict[str, Any] = {"stage": "http_response"}
+    status_code = getattr(response, "status_code", None)
+    if isinstance(status_code, int) and not isinstance(status_code, bool):
+        context["http_status"] = status_code
+    try:
+        body = response.json()
+    except (TypeError, ValueError, AttributeError):
+        return sanitize_provider_failure_context(context)
+    error = body.get("error") if isinstance(body, Mapping) else None
+    if not isinstance(error, Mapping):
+        return sanitize_provider_failure_context(context)
+    api_status = error.get("status")
+    if isinstance(api_status, str) and api_status in _SAFE_API_ERROR_STATUSES:
+        context["api_status"] = api_status
+    fragments: list[str] = []
+    message = error.get("message")
+    if isinstance(message, str):
+        fragments.append(message.lower())
+    details = error.get("details")
+    if isinstance(details, list):
+        for detail in details:
+            if not isinstance(detail, Mapping):
+                continue
+            violations = detail.get("fieldViolations")
+            if not isinstance(violations, list):
+                continue
+            for violation in violations:
+                if isinstance(violation, Mapping):
+                    for key in ("field", "description"):
+                        value = violation.get(key)
+                        if isinstance(value, str):
+                            fragments.append(value.lower())
+    joined = " ".join(fragments)
+    if "generationconfig" in joined or "generation_config" in joined:
+        context["component"] = "generation_config"
+    if "responseschema" in joined or "response_schema" in joined:
+        context["component"] = "response_schema"
+    if "mechanics_acknowledgements" in joined:
+        context["logical_field"] = "mechanics_acknowledgements"
+    elif "grounding" in joined:
+        context["logical_field"] = "grounding"
+    elif context.get("component") == "response_schema":
+        context["logical_field"] = "response_schema"
+    keyword_map = (("nullable", "schema_keyword_nullable"), ("enum", "schema_keyword_enum"), ("additionalproperties", "schema_keyword_additional_properties"), ("required", "schema_keyword_required"), ("oneof", "schema_keyword_composition"), ("anyof", "schema_keyword_composition"), ("allof", "schema_keyword_composition"), ("minitems", "schema_keyword_collection_bound"), ("maxitems", "schema_keyword_collection_bound"), ("type", "schema_keyword_type"))
+    for token, reason in keyword_map:
+        if token in joined:
+            context["reason"] = reason
+            break
+    if context.get("component") == "response_schema" and "reason" not in context:
+        context["reason"] = "schema_request_rejected"
+    if context.get("http_status") == 400 and "reason" not in context:
+        context["reason"] = "diagnostic_insufficient"
+    return sanitize_provider_failure_context(context)
 
 
 def _provider_http_diagnostic(status_code: Any) -> str:
@@ -289,9 +367,11 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
             params={"key": api_key}, json=request_body, timeout=60,
         )
     except (requests.RequestException, TypeError, ValueError) as exc:
-        raise StructuredProviderError(_provider_exception_diagnostic(exc)) from None
+        stage = "request_transport" if isinstance(exc, requests.RequestException) else "client_initialization"
+        raise StructuredProviderError(_provider_exception_diagnostic(exc), safe_context={"stage": stage}) from None
     if not response.ok:
-        raise StructuredProviderError(_provider_http_diagnostic(getattr(response, "status_code", None)))
+        context = _safe_http_error_context(response)
+        raise StructuredProviderError(_provider_http_diagnostic(context.get("http_status")), safe_context=context)
     try:
         body = response.json()
     except (TypeError, ValueError):

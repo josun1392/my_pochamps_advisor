@@ -1680,3 +1680,12 @@ Documentation expectations:
 - A one-call diagnostic invocation may select only the complete fixture prefix
   and must set `--max-calls 1`; this prevents a successful diagnostic response
   from using an unapproved second call.
+
+## v15.46 request-schema compatibility diagnostics
+
+- For a HTTP request rejection, surface only bounded HTTP/API status, stage,
+  component, logical field, and schema-keyword category. Never log or print the
+  body/message from which those values were transiently classified.
+- Preserve an internal strict response contract and use a separately adapted
+  provider schema when current Gemini REST schema compatibility requires it;
+  do not weaken mechanics, grounding, fixture, or semantic validation.
