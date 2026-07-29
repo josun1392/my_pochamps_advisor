@@ -20,6 +20,7 @@ OPTIONAL_FIXTURE = "runtime-partial-known-hp"
 APPROVED_MODELS = frozenset({DEFAULT_MODEL})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 STRUCTURAL_GROUNDING_CODES = frozenset({"grounding_missing", "grounding_not_mapping", "grounding_version_missing", "grounding_version_invalid", "grounding_entries_missing", "grounding_entries_not_list", "grounding_entry_not_mapping", "grounding_entry_field_missing", "grounding_entry_field_invalid", "grounding_unknown_field"})
+SEMANTIC_GROUNDING_CODES = frozenset({"grounding_fact_missing_or_duplicate", "unknown_misclassification", "unknown_promoted", "runtime_fact_contradiction"})
 
 
 def _runtime() -> dict[str, Any]:
@@ -64,15 +65,16 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
             elif any(error in STRUCTURAL_GROUNDING_CODES for error in errors): code = EXIT["structural"]
             else: code = EXIT["semantic"]
             diagnostic = next((error for error in errors if error in STRUCTURAL_GROUNDING_CODES), None)
+            semantic_diagnostic = next((error for error in errors if error in SEMANTIC_GROUNDING_CODES), None)
             category = "internal_metadata_exposure" if code == EXIT["redaction"] else "grounding_structural_failure" if code == EXIT["structural"] else "grounding_semantic_failure"
-            return {"exit_code": code, "provider_calls": len(results) + 1, "network_calls": 0, "results": results, "fixture_id": fixture_id, "failure_category": category, "structural_diagnostic": diagnostic}
+            return {"exit_code": code, "provider_calls": len(results) + 1, "network_calls": 0, "results": results, "fixture_id": fixture_id, "failure_category": category, "structural_diagnostic": diagnostic, "semantic_diagnostic": semantic_diagnostic}
         results.append({"fixture_id": fixture_id, "status": "passed"})
     return {"exit_code": EXIT["ok"], "provider_calls": len(results), "network_calls": 0, "results": results}
 
 
 def _cli_surface(result: dict[str, Any]) -> dict[str, Any]:
     """Expose only bounded smoke status, never provider material or exceptions."""
-    allowed = ("fixture_id", "failure_category", "structural_diagnostic", "exit_code", "provider_calls")
+    allowed = ("fixture_id", "failure_category", "structural_diagnostic", "semantic_diagnostic", "exit_code", "provider_calls")
     return {key: result[key] for key in allowed if key in result and result[key] is not None}
 
 

@@ -3,7 +3,7 @@ import json
 import subprocess
 import sys
 
-from scripts.run_sanitized_runtime_grounding_smoke import DEFAULT_MODEL, EXIT, REQUIRED_FIXTURES, STRUCTURAL_GROUNDING_CODES, _cli_surface, main, run_smoke
+from scripts.run_sanitized_runtime_grounding_smoke import DEFAULT_MODEL, EXIT, REQUIRED_FIXTURES, SEMANTIC_GROUNDING_CODES, STRUCTURAL_GROUNDING_CODES, _cli_surface, main, run_smoke
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -60,7 +60,9 @@ def test_cli_surface_exposes_only_allowlisted_structural_diagnostic_without_raw_
 
 def test_nonstructural_failures_do_not_expose_structural_diagnostic():
     semantic = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=REQUIRED_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=lambda _: {"grounding": {"schema_version": "grounding-v1", "confirmed_facts": [{"path": "field.weather", "status": "known", "value": "sun"}], "unknown_facts": [], "evidence_only": [], "conflicts": [], "conditional_dependencies": []}})
-    assert semantic["exit_code"] == EXIT["semantic"] and _cli_surface(semantic).get("structural_diagnostic") is None
+    surface = _cli_surface(semantic)
+    assert semantic["exit_code"] == EXIT["semantic"] and surface.get("structural_diagnostic") is None
+    assert surface["semantic_diagnostic"] in SEMANTIC_GROUNDING_CODES
 
 
 def test_runtime_unknown_bootstrap_fake_provider_reaches_semantic_validation_after_structural_pass():

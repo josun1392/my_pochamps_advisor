@@ -1550,6 +1550,10 @@ Documentation expectations:
 
 ## v15.40 offline smoke runner implementation
 
+- A later approved v15.41 smoke reached semantic exit 7 after structural pass.
+  The CLI now carries only existing bounded semantic validator codes alongside
+  structural diagnostics; a new T1 approval is required for another actual run.
+
 - The first newly approved v15.41 actual call returned the safe diagnostic
   `grounding_entry_field_missing`. The schema and guidance now require `path`
   on every grounding-v1 entry, matching the existing validator. This used one

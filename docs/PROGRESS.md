@@ -18817,6 +18817,11 @@ Maintained boundaries:
 
 ## v15.40 Runtime-Grounding Smoke Runner Offline Contract
 
+- The next approved v15.41 smoke reached semantic exit 7 after structural
+  success. The runner now surfaces existing bounded semantic validator codes in
+  the same sanitized CLI result; no raw grounding/provider data is emitted and
+  no automatic actual rerun occurs.
+
 - A newly approved v15.41 diagnostic smoke identified
   `grounding_entry_field_missing` at the first fixture. Offline alignment now
   requires a canonical `path` in every grounding-v1 schema entry, matching the

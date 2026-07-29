@@ -69,3 +69,12 @@ the validator required its canonical `path` field. The minimal offline fix adds
 that field as required to every grounding-v1 entry schema and states the same
 requirement in the structured guidance. No grounding semantics, authority rule,
 or fixture was changed. The next actual smoke requires separate T1 approval.
+
+## Semantic diagnostic follow-up
+
+The next approved actual call reached semantic exit 7 at the same first
+fixture. Structural validation had passed, but the existing CLI exposed no
+bounded semantic validator code. The smoke result and CLI now also preserve
+only the existing allowlisted semantic validator codes; they still exclude raw
+grounding values and provider data. No additional actual call is made by this
+change; a separate T1 approval is required to identify the exact semantic code.
