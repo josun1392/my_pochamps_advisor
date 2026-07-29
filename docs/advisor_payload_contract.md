@@ -3266,3 +3266,14 @@ Structural diagnostics are bounded categories only; they never carry response
 values, fragments, or a complete provider key inventory. Structural errors map
 to the existing smoke exit 6, semantic errors to exit 7, and internal metadata
 exposure to exit 8.
+
+## v15.42 future mechanics-result boundary
+
+No provider payload changes in this design-only milestone. A future candidate
+may carry detached `mechanics-result-v1` evidence only after a project-owned
+adapter classifies authoritative snapshot facts. Its status is `known`,
+`bounded_range`, `conditional`, `insufficient_context`, or
+`unsupported_mechanic`; numeric damage/KO facts are unconditional only for
+`known`. Missing EVs, IVs, nature, item, ability, boosts, or HP remain unknown,
+not calculator defaults. Package/version provenance, raw subprocess output,
+raw descriptions, and raw state data are excluded from provider payloads.

@@ -18874,3 +18874,18 @@ Maintained boundaries:
   budget validation, retry zero, first-failure stop, sanitized result shape,
   and deterministic exit codes. It does not initialize or call a provider by
   default. Actual smoke remains T1-gated.
+
+## v15.42 battle-mechanics integration boundary
+
+- Designed a future `TurnSnapshot -> MechanicsInputAdapter -> MechanicsEngine
+  -> MechanicsResult -> CandidateEvaluator` route. The engine is pure and never
+  calls an LLM, UI, session, provider, or network service.
+- The project remains authoritative for observation, authority/evidence,
+  unknown semantics, candidates, ranking, grounding, and UI/session behavior.
+  The already pinned local `@smogon/calc` bridge is recommended as the
+  generation-aware calculation reference for fully specified inputs; the native
+  Python Q12 engine remains unchanged as a current/parallel path.
+- A future result contract distinguishes `known`, `bounded_range`,
+  `conditional`, `insufficient_context`, and `unsupported_mechanic`. Missing
+  EVs/IVs/nature/item/ability/boosts/HP must never gain hidden defaults. This
+  design performed no credential, provider, or mechanics network call.

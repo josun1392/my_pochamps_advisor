@@ -1604,3 +1604,19 @@ Documentation expectations:
   The runner reuses the production grounding validator and emits only sanitized
   status/call-count results. Actual smoke remains prohibited without explicit
   T1 approval and a future execution gate.
+
+## v15.42 battle mechanics boundary design
+
+- Do not replace the native Q12 engine or alter current default-assumption
+  estimates without a separately approved implementation milestone. The future
+  route is frozen snapshot -> pure mechanics input adapter -> pure engine ->
+  unknown-aware result -> existing candidate evaluator -> structured payload.
+- The project owns observation, evidence, unknowns, and ranking. The existing
+  local pinned `@smogon/calc` bridge is the recommended generation-aware
+  reference only for fully specified inputs. Do not expose raw bridge output or
+  engine provenance to the provider or UI.
+- The first implementation is one direct selected damaging-move slice with an
+  explicit generation and complete-input gate. Unknown EV/IV/nature/item/
+  ability/boost/HP must result in `insufficient_context` or a declared
+  conditional branch, never a hidden default. Actual-provider work needs new
+  T1 approval.
