@@ -1677,3 +1677,6 @@ Documentation expectations:
   treat a provider boundary failure as a mechanics, grounding, or fixture
   failure, and do not expose a response body, exception message, credential, or
   endpoint detail.
+- A one-call diagnostic invocation may select only the complete fixture prefix
+  and must set `--max-calls 1`; this prevents a successful diagnostic response
+  from using an unapproved second call.

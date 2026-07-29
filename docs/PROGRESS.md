@@ -18953,3 +18953,6 @@ Maintained boundaries:
   failures. No response body, exception message, request data, credential, or
   endpoint detail is retained or surfaced. The direct smoke reuses the same
   allowlist; mechanics schema and validation are unchanged.
+- The same runner also accepts only the approved `complete-direct-mechanics`
+  one-fixture prefix with `--max-calls 1`, so a provider-boundary diagnostic
+  invocation cannot continue to a second call.

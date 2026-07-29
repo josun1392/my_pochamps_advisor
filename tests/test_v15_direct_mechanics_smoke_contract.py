@@ -82,6 +82,12 @@ def test_provider_failure_exposes_only_allowlisted_sanitized_code():
     assert rate_limited["diagnostic"] == "provider_quota_or_rate_limit"
 
 
+def test_one_fixture_diagnostic_run_has_a_hard_one_call_limit():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=(FIXTURES[0],), max_calls=1, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"]
+    assert result["provider_calls"] == 1
+
+
 def test_known_mechanics_claim_is_allowed_but_numeric_or_insufficient_mechanics_claims_are_rejected():
     import pytest
     from llm.advisor_candidate_contract import _validate_claim, complete_recommendation_cycle

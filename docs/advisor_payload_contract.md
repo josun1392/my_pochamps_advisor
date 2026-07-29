@@ -3324,3 +3324,6 @@ authentication, permission, quota/rate-limit, timeout, network, service
 unavailable, invalid request, response failure, or unknown failure. The direct
 smoke prints the allowlisted code only. It never emits a response body, request,
 prompt, credential, headers, endpoint detail, exception message, or traceback.
+For an explicitly one-call provider diagnostic, the direct runner accepts only
+the `complete-direct-mechanics` fixture prefix and requires `max_calls` to
+equal the selected fixture count.

@@ -70,7 +70,7 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
     selected = tuple(fixtures)
     if not actual:
         return {"exit_code": EXIT["ok"], "provider_calls": 0, "results": []}
-    if model != DEFAULT_MODEL or not no_retry or selected != FIXTURES or max_calls != 2:
+    if model != DEFAULT_MODEL or not no_retry or selected not in (FIXTURES[:1], FIXTURES) or max_calls != len(selected):
         return {"exit_code": EXIT["usage"], "provider_calls": 0, "results": []}
     if credential_available is None or not credential_available():
         return {"exit_code": EXIT["credential"], "provider_calls": 0, "results": []}
