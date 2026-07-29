@@ -90,3 +90,14 @@ now builds the existing fixture-specific provider-safe projection, including
 the authoritative Focus Sash fact and stale Choice Scarf evidence, and validates
 against that same projection. This preserves unknowns and authority semantics;
 the next actual call needs separate T1 approval.
+
+## Runtime-authority contradiction follow-up
+
+The next approved round passed the unknown fixture and stopped at the known
+item fixture with `runtime_fact_contradiction` (semantic exit 7, two calls).
+For that fixture the runtime's known Focus Sash item is the only known fact, so
+the bounded code identifies a confirmed grounding status or value that did not
+reproduce that authority. The prompt and smoke payload now explicitly require
+confirmed entries to reproduce known runtime facts exactly and restrict stale UI
+evidence to `evidence_only` or `conflicts`. No runtime authority policy or
+validator meaning changed; a further actual round uses standing approval.

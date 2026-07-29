@@ -1550,6 +1550,11 @@ Documentation expectations:
 
 ## v15.40 offline smoke runner implementation
 
+- A two-call round passed unknown bootstrap and diagnosed
+  `runtime_fact_contradiction` for known Focus Sash versus stale Choice Scarf.
+  Prompt and smoke guardrails now require exact runtime authority reproduction;
+  stale UI evidence can only be evidence/conflict, not confirmed fact.
+
 - The bounded semantic code `grounding_fact_missing_or_duplicate` identified a
   smoke-only mismatch: every actual fixture used the same weather-only runtime
   projection. The runner now reuses fixture-specific safe runtime authority and

@@ -53,7 +53,7 @@ def build_actual_adapters(*, model: str) -> tuple[Callable[[], bool], Callable[[
         return bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
     def provider_call(fixture_id: str) -> dict[str, Any]:
         from llm.advisor_client import call_structured_recommendation_provider
-        payload = {"request_version": "v14.3", "battle_snapshot_summary": _fixture_summary(fixture_id), "candidate_exact_set": [], "selectable_candidate_exact_set": [], "candidate_comparisons": [], "known_limitations": ["sanitized smoke"], "guardrails": {"no_untrusted_inference": True}, "runtime_advice_state": _runtime(fixture_id)}
+        payload = {"request_version": "v14.3", "battle_snapshot_summary": _fixture_summary(fixture_id), "candidate_exact_set": [], "selectable_candidate_exact_set": [], "candidate_comparisons": [], "known_limitations": ["sanitized smoke"], "guardrails": {"no_untrusted_inference": True, "runtime_authority_over_stale_ui": True}, "runtime_advice_state": _runtime(fixture_id)}
         response, _usage = call_structured_recommendation_provider(provider_payload=payload, model=model)
         return response
     return credential_available, provider_call

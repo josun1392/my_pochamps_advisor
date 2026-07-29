@@ -18817,6 +18817,11 @@ Maintained boundaries:
 
 ## v15.40 Runtime-Grounding Smoke Runner Offline Contract
 
+- A two-call v15.41 round passed unknown bootstrap but returned
+  `runtime_fact_contradiction` on known-item/stale-UI. The prompt and smoke
+  guardrails now explicitly require exact runtime known-fact reproduction and
+  keep stale UI evidence out of confirmed facts.
+
 - A later v15.41 semantic diagnostic, `grounding_fact_missing_or_duplicate`,
   showed the actual runner was using one weather-only projection for every
   fixture. It now uses existing fixture-specific runtime authority and stale UI

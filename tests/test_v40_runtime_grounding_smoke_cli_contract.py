@@ -80,6 +80,16 @@ def test_actual_fixture_payloads_reuse_runtime_authority_and_stale_evidence_cont
     assert _fixture_summary("runtime-known-item-stale-ui")["stale_ui_evidence"] == {"opponent_item": "Choice Scarf"}
 
 
+def test_actual_adapter_declares_runtime_authority_over_stale_ui(monkeypatch):
+    import llm.advisor_client as client
+    captured = {}
+    monkeypatch.setattr(client, "call_structured_recommendation_provider", lambda **kwargs: (captured.update(kwargs) or {"grounding": {}} , {}))
+    from scripts.run_sanitized_runtime_grounding_smoke import build_actual_adapters
+    _, provider = build_actual_adapters(model=DEFAULT_MODEL)
+    provider("runtime-known-item-stale-ui")
+    assert captured["provider_payload"]["guardrails"]["runtime_authority_over_stale_ui"] is True
+
+
 def test_direct_script_subprocess_imports_project_and_stops_at_unavailable_credential():
     code = f"""
 import os

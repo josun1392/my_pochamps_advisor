@@ -27,6 +27,7 @@ def test_prompt_defines_runtime_state_unknown_and_known_absent_semantics():
     assert "known_absent is confirmed absence" in text
     assert "cannot override runtime known facts" in text
     assert "grounding-v1" in text
+    assert "never in confirmed_facts" in text
 
 
 def test_grounding_v1_requires_exact_fields():
