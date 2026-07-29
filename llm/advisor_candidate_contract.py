@@ -739,6 +739,7 @@ def validate_runtime_grounding(*, runtime_advice_state: Mapping[str, Any], groun
             if any(token in path.lower() for token in ("fingerprint", "cas", "ledger", "token", "thread", "reducer", "persistence")):
                 errors.append("internal_metadata_grounding"); continue
             if category in {"confirmed_facts", "unknown_facts"}:
+                if entry.get("authority") != "runtime": errors.append("runtime_authority_invalid")
                 if path not in facts or path in seen:
                     errors.append("grounding_fact_missing_or_duplicate"); continue
                 seen.add(path)
@@ -747,6 +748,10 @@ def validate_runtime_grounding(*, runtime_advice_state: Mapping[str, Any], groun
                 if category == "confirmed_facts" and status == "unknown": errors.append("unknown_promoted")
                 if category == "confirmed_facts" and entry.get("status") != status: errors.append("runtime_fact_contradiction")
                 if status == "known" and entry.get("value") != facts[path].get("value"): errors.append("runtime_fact_contradiction")
+            elif category == "evidence_only" and entry.get("authority") not in {"evidence", "stale"}:
+                errors.append("evidence_authority_invalid")
+            elif category == "conflicts" and entry.get("authority") != "conflict":
+                errors.append("conflict_authority_invalid")
     forbidden = ("fingerprint", "cas", "reducer", "ledger", "request token", "thread identity", "runtime_advice_state")
     if any(term in user_answer.lower() for term in forbidden): errors.append("internal_metadata_in_answer")
     return sorted(set(errors))

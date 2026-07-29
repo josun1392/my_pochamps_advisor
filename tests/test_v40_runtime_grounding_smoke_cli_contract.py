@@ -69,7 +69,7 @@ def test_runtime_unknown_bootstrap_fake_provider_reaches_semantic_validation_aft
     calls = []
     def fake(fixture_id):
         calls.append(fixture_id)
-        return {"grounding": {"schema_version": "grounding-v1", "confirmed_facts": [], "unknown_facts": [{"path": "field.weather"}], "evidence_only": [], "conflicts": [], "conditional_dependencies": []}}
+        return {"grounding": {"schema_version": "grounding-v1", "confirmed_facts": [], "unknown_facts": [{"path": "field.weather", "authority": "runtime"}], "evidence_only": [], "conflicts": [], "conditional_dependencies": []}}
     result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=REQUIRED_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=fake)
     assert result["exit_code"] == EXIT["ok"] and calls == list(REQUIRED_FIXTURES)
 
@@ -135,7 +135,7 @@ def test_direct_script_subprocess_allows_fake_provider_to_reach_grounding_valida
 import runpy
 import sys
 import llm.advisor_client as client
-client.call_structured_recommendation_provider = lambda **kwargs: ({{'grounding': {{'schema_version': 'grounding-v1', 'confirmed_facts': [], 'unknown_facts': [{{'path': 'field.weather'}}], 'evidence_only': [], 'conflicts': [], 'conditional_dependencies': []}}}}, {{}})
+client.call_structured_recommendation_provider = lambda **kwargs: ({{'grounding': {{'schema_version': 'grounding-v1', 'confirmed_facts': [], 'unknown_facts': [{{'path': 'field.weather', 'authority': 'runtime'}}], 'evidence_only': [], 'conflicts': [], 'conditional_dependencies': []}}}}, {{}})
 sys.argv = [{str(RUNNER)!r}, '--actual', '--model', {DEFAULT_MODEL!r}, '--fixtures', *{list(REQUIRED_FIXTURES)!r}, '--max-calls', '2', '--no-retry']
 runpy.run_path({str(RUNNER)!r}, run_name='__main__')
 """

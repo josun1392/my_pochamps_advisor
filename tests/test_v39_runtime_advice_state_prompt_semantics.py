@@ -28,6 +28,7 @@ def test_prompt_defines_runtime_state_unknown_and_known_absent_semantics():
     assert "cannot override runtime known facts" in text
     assert "grounding-v1" in text
     assert "never in confirmed_facts" in text
+    assert "authority runtime" in text
 
 
 def test_grounding_v1_requires_exact_fields():
@@ -46,15 +47,24 @@ def test_grounding_rejects_internal_metadata_shape():
 
 def test_validator_rejects_unknown_promoted_to_known_and_internal_answer():
     runtime = {"self": {"item": {"status": "unknown"}}}
-    grounding = _grounding(); grounding["confirmed_facts"] = [{"path": "self.item", "status": "known", "value": "Focus Sash"}]
+    grounding = _grounding(); grounding["confirmed_facts"] = [{"path": "self.item", "status": "known", "value": "Focus Sash", "authority": "runtime"}]
     assert "unknown_promoted" in validate_runtime_grounding(runtime_advice_state=runtime, grounding=grounding)
     assert "internal_metadata_in_answer" in validate_runtime_grounding(runtime_advice_state=runtime, grounding=_grounding(), user_answer="fingerprint")
 
 
 def test_validator_accepts_known_absent_and_unknown():
     runtime = {"field": {"weather": {"status": "known_absent"}, "terrain": {"status": "unknown"}}}
-    grounding = _grounding(); grounding["confirmed_facts"] = [{"path": "field.weather", "status": "known_absent"}]; grounding["unknown_facts"] = [{"path": "field.terrain"}]
+    grounding = _grounding(); grounding["confirmed_facts"] = [{"path": "field.weather", "status": "known_absent", "authority": "runtime"}]; grounding["unknown_facts"] = [{"path": "field.terrain", "authority": "runtime"}]
     assert validate_runtime_grounding(runtime_advice_state=runtime, grounding=grounding) == []
+
+
+def test_validator_rejects_stale_item_as_confirmed_current_runtime_fact():
+    runtime = {"opponent": {"item": {"status": "known", "value": "Focus Sash"}}}
+    grounding = _grounding()
+    grounding["confirmed_facts"] = [{"path": "opponent.item", "status": "known", "value": "Choice Scarf", "authority": "runtime"}]
+    grounding["evidence_only"] = [{"path": "opponent.item", "source": "ui", "authority": "stale"}]
+    grounding["conflicts"] = [{"path": "opponent.item", "source": "ui", "authority": "conflict"}]
+    assert "runtime_fact_contradiction" in validate_runtime_grounding(runtime_advice_state=runtime, grounding=grounding)
 
 
 @pytest.mark.parametrize(
@@ -82,6 +92,11 @@ def test_runtime_provider_schema_requires_and_adapter_preserves_grounding_v1():
     schema = _structured_provider_schema(runtime_grounding_required=True)
     assert "grounding" in schema["required"]
     assert set(schema["properties"]["grounding"]["required"]) == {"schema_version", "confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies"}
-    assert all(value["items"]["required"] == ["path"] for key, value in schema["properties"]["grounding"]["properties"].items() if key != "schema_version")
+    properties = schema["properties"]["grounding"]["properties"]
+    assert properties["confirmed_facts"]["items"]["required"] == ["path", "status", "authority"]
+    assert properties["unknown_facts"]["items"]["required"] == ["path", "authority"]
+    assert properties["evidence_only"]["items"]["required"] == ["path", "authority", "source"]
+    assert properties["conflicts"]["items"]["required"] == ["path", "authority", "source"]
+    assert properties["conditional_dependencies"]["items"]["required"] == ["path"]
     response = _response(grounding=_grounding())
     assert adapt_provider_recommendation_response(provider_response=response)["grounding"] == _grounding()

@@ -27,11 +27,11 @@ def _runtime(**facts):
 
 
 def _grounding(*, confirmed=(), unknown=(), evidence=(), conflicts=(), deps=()):
-    return {"schema_version": "grounding-v1", "confirmed_facts": list(confirmed), "unknown_facts": [{"path": p} for p in unknown], "evidence_only": list(evidence), "conflicts": list(conflicts), "conditional_dependencies": [{"path": p} for p in deps]}
+    return {"schema_version": "grounding-v1", "confirmed_facts": list(confirmed), "unknown_facts": [{"path": p, "authority": "runtime"} for p in unknown], "evidence_only": [{**entry, "authority": "evidence"} for entry in evidence], "conflicts": [{**entry, "authority": "conflict", "source": entry.get("source", "ui")} for entry in conflicts], "conditional_dependencies": [{"path": p} for p in deps]}
 
 
 def _confirmed(path, status, value=None):
-    entry = {"path": path, "status": status}
+    entry = {"path": path, "status": status, "authority": "runtime"}
     if status == "known": entry["value"] = value
     return entry
 

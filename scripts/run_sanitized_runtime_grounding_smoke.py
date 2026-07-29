@@ -20,7 +20,7 @@ OPTIONAL_FIXTURE = "runtime-partial-known-hp"
 APPROVED_MODELS = frozenset({DEFAULT_MODEL})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 STRUCTURAL_GROUNDING_CODES = frozenset({"grounding_missing", "grounding_not_mapping", "grounding_version_missing", "grounding_version_invalid", "grounding_entries_missing", "grounding_entries_not_list", "grounding_entry_not_mapping", "grounding_entry_field_missing", "grounding_entry_field_invalid", "grounding_unknown_field"})
-SEMANTIC_GROUNDING_CODES = frozenset({"grounding_fact_missing_or_duplicate", "unknown_misclassification", "unknown_promoted", "runtime_fact_contradiction"})
+SEMANTIC_GROUNDING_CODES = frozenset({"grounding_fact_missing_or_duplicate", "unknown_misclassification", "unknown_promoted", "runtime_fact_contradiction", "runtime_authority_invalid", "evidence_authority_invalid", "conflict_authority_invalid"})
 
 
 def _runtime(fixture_id: str) -> dict[str, Any]:

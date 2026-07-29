@@ -1550,6 +1550,11 @@ Documentation expectations:
 
 ## v15.40 offline smoke runner implementation
 
+- T1-approved authority contract extension: category-specific grounding entries
+  now require runtime, evidence/stale, or conflict authority/source metadata.
+  Focus Sash is runtime-confirmed; Choice Scarf is stale UI evidence and cannot
+  be a confirmed current fact. Actual verification remains approval-bounded.
+
 - A two-call round passed unknown bootstrap and diagnosed
   `runtime_fact_contradiction` for known Focus Sash versus stale Choice Scarf.
   Prompt and smoke guardrails now require exact runtime authority reproduction;

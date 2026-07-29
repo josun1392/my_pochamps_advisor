@@ -101,3 +101,15 @@ reproduce that authority. The prompt and smoke payload now explicitly require
 confirmed entries to reproduce known runtime facts exactly and restrict stale UI
 evidence to `evidence_only` or `conflicts`. No runtime authority policy or
 validator meaning changed; a further actual round uses standing approval.
+
+## Machine-readable authority contract
+
+The repeated known-item contradiction showed that one generic entry schema did
+not distinguish current runtime facts from stale evidence. Grounding-v1 now uses
+category-specific entries: confirmed and unknown facts require
+`authority=runtime`; evidence-only requires `authority=evidence` or `stale`
+plus its source; and conflicts require `authority=conflict` plus its source.
+The validator rejects authority misuse and continues to reject any confirmed
+value that differs from the runtime known value. A regression fixes Focus Sash
+as authoritative while Choice Scarf remains stale UI evidence, never current
+confirmation. No raw provider result is recorded.

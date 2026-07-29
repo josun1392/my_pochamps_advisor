@@ -18817,6 +18817,12 @@ Maintained boundaries:
 
 ## v15.40 Runtime-Grounding Smoke Runner Offline Contract
 
+- T1 approved a v15.41 authority contract extension after repeated known-item
+  contradiction. Grounding-v1 schema now distinguishes runtime-confirmed/
+  unknown, evidence/stale, and conflict entries by machine-readable authority
+  and source; validator regressions retain Focus Sash authority over Choice
+  Scarf stale evidence.
+
 - A two-call v15.41 round passed unknown bootstrap but returned
   `runtime_fact_contradiction` on known-item/stale-UI. The prompt and smoke
   guardrails now explicitly require exact runtime known-fact reproduction and
