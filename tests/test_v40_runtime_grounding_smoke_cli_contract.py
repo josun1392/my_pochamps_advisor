@@ -3,7 +3,7 @@ import json
 import subprocess
 import sys
 
-from scripts.run_sanitized_runtime_grounding_smoke import DEFAULT_MODEL, EXIT, REQUIRED_FIXTURES, SEMANTIC_GROUNDING_CODES, STRUCTURAL_GROUNDING_CODES, _cli_surface, main, run_smoke
+from scripts.run_sanitized_runtime_grounding_smoke import DEFAULT_MODEL, EXIT, REQUIRED_FIXTURES, SEMANTIC_GROUNDING_CODES, STRUCTURAL_GROUNDING_CODES, _cli_surface, _fixture_summary, _runtime, main, run_smoke
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -72,6 +72,12 @@ def test_runtime_unknown_bootstrap_fake_provider_reaches_semantic_validation_aft
         return {"grounding": {"schema_version": "grounding-v1", "confirmed_facts": [], "unknown_facts": [{"path": "field.weather"}], "evidence_only": [], "conflicts": [], "conditional_dependencies": []}}
     result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=REQUIRED_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=fake)
     assert result["exit_code"] == EXIT["ok"] and calls == list(REQUIRED_FIXTURES)
+
+
+def test_actual_fixture_payloads_reuse_runtime_authority_and_stale_evidence_contract():
+    assert _runtime("runtime-unknown-bootstrap")["opponent"]["active_pokemon"]["item"]["status"] == "unknown"
+    assert _runtime("runtime-known-item-stale-ui")["opponent"]["active_pokemon"]["item"] == {"status": "known", "value": "Focus Sash"}
+    assert _fixture_summary("runtime-known-item-stale-ui")["stale_ui_evidence"] == {"opponent_item": "Choice Scarf"}
 
 
 def test_direct_script_subprocess_imports_project_and_stops_at_unavailable_credential():

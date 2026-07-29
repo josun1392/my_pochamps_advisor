@@ -18817,6 +18817,11 @@ Maintained boundaries:
 
 ## v15.40 Runtime-Grounding Smoke Runner Offline Contract
 
+- A later v15.41 semantic diagnostic, `grounding_fact_missing_or_duplicate`,
+  showed the actual runner was using one weather-only projection for every
+  fixture. It now uses existing fixture-specific runtime authority and stale UI
+  evidence meanings for provider payload and validation; no actual retry occurs.
+
 - The next approved v15.41 smoke reached semantic exit 7 after structural
   success. The runner now surfaces existing bounded semantic validator codes in
   the same sanitized CLI result; no raw grounding/provider data is emitted and

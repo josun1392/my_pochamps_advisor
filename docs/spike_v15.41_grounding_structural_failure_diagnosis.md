@@ -78,3 +78,15 @@ bounded semantic validator code. The smoke result and CLI now also preserve
 only the existing allowlisted semantic validator codes; they still exclude raw
 grounding values and provider data. No additional actual call is made by this
 change; a separate T1 approval is required to identify the exact semantic code.
+
+## Fixture projection follow-up
+
+The next approved call surfaced `grounding_fact_missing_or_duplicate` at
+semantic exit 7. Offline inspection showed that the smoke runner supplied one
+weather-only runtime projection for every fixture, despite the existing fixture
+contract covering active HP, fainted, condition, item, field, and side facts.
+It also supplied only an opaque fixture ID for the stale-item case. The runner
+now builds the existing fixture-specific provider-safe projection, including
+the authoritative Focus Sash fact and stale Choice Scarf evidence, and validates
+against that same projection. This preserves unknowns and authority semantics;
+the next actual call needs separate T1 approval.

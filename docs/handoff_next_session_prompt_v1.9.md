@@ -1550,6 +1550,11 @@ Documentation expectations:
 
 ## v15.40 offline smoke runner implementation
 
+- The bounded semantic code `grounding_fact_missing_or_duplicate` identified a
+  smoke-only mismatch: every actual fixture used the same weather-only runtime
+  projection. The runner now reuses fixture-specific safe runtime authority and
+  stale UI evidence inputs. Do not make another actual call without T1 approval.
+
 - A later approved v15.41 smoke reached semantic exit 7 after structural pass.
   The CLI now carries only existing bounded semantic validator codes alongside
   structural diagnostics; a new T1 approval is required for another actual run.

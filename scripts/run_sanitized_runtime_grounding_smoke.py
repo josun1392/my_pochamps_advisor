@@ -23,8 +23,24 @@ STRUCTURAL_GROUNDING_CODES = frozenset({"grounding_missing", "grounding_not_mapp
 SEMANTIC_GROUNDING_CODES = frozenset({"grounding_fact_missing_or_duplicate", "unknown_misclassification", "unknown_promoted", "runtime_fact_contradiction"})
 
 
-def _runtime() -> dict[str, Any]:
-    return {"field": {"weather": {"status": "unknown"}}}
+def _runtime(fixture_id: str) -> dict[str, Any]:
+    unknown = {"status": "unknown"}
+    active = {key: dict(unknown) for key in ("current_hp", "max_hp", "fainted", "condition", "item")}
+    runtime = {
+        "self": {"active_pokemon": {key: dict(value) for key, value in active.items()}},
+        "opponent": {"active_pokemon": {key: dict(value) for key, value in active.items()}},
+        "field": {key: dict(unknown) for key in ("weather", "terrain", "self_side_conditions", "opponent_side_conditions")},
+    }
+    if fixture_id == "runtime-known-item-stale-ui":
+        runtime["opponent"]["active_pokemon"]["item"] = {"status": "known", "value": "Focus Sash"}
+    return runtime
+
+
+def _fixture_summary(fixture_id: str) -> dict[str, Any]:
+    summary = {"fixture_id": fixture_id}
+    if fixture_id == "runtime-known-item-stale-ui":
+        summary["stale_ui_evidence"] = {"opponent_item": "Choice Scarf"}
+    return summary
 
 
 def _grounding() -> dict[str, Any]:
@@ -37,7 +53,7 @@ def build_actual_adapters(*, model: str) -> tuple[Callable[[], bool], Callable[[
         return bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
     def provider_call(fixture_id: str) -> dict[str, Any]:
         from llm.advisor_client import call_structured_recommendation_provider
-        payload = {"request_version": "v14.3", "battle_snapshot_summary": {"fixture_id": fixture_id}, "candidate_exact_set": [], "selectable_candidate_exact_set": [], "candidate_comparisons": [], "known_limitations": ["sanitized smoke"], "guardrails": {"no_untrusted_inference": True}, "runtime_advice_state": _runtime()}
+        payload = {"request_version": "v14.3", "battle_snapshot_summary": _fixture_summary(fixture_id), "candidate_exact_set": [], "selectable_candidate_exact_set": [], "candidate_comparisons": [], "known_limitations": ["sanitized smoke"], "guardrails": {"no_untrusted_inference": True}, "runtime_advice_state": _runtime(fixture_id)}
         response, _usage = call_structured_recommendation_provider(provider_payload=payload, model=model)
         return response
     return credential_available, provider_call
@@ -59,7 +75,7 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
         except Exception: return {"exit_code": EXIT["provider"], "provider_calls": len(results) + 1, "network_calls": 0, "results": results, "fixture_id": fixture_id, "failure_category": "provider_failure"}
         if not isinstance(response, dict):
             return {"exit_code": EXIT["parse"], "provider_calls": len(results) + 1, "network_calls": 0, "results": results, "fixture_id": fixture_id, "failure_category": "structured_response_parse_failure"}
-        errors = validate_runtime_grounding(runtime_advice_state=_runtime(), grounding=response.get("grounding") if isinstance(response, dict) else None)
+        errors = validate_runtime_grounding(runtime_advice_state=_runtime(fixture_id), grounding=response.get("grounding") if isinstance(response, dict) else None)
         if errors:
             if any("internal" in error for error in errors): code = EXIT["redaction"]
             elif any(error in STRUCTURAL_GROUNDING_CODES for error in errors): code = EXIT["structural"]
