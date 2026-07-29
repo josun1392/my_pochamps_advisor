@@ -126,13 +126,13 @@ def test_structured_provider_schema_requires_parser_claim_shape_and_mechanics_ki
     assert schema["properties"]["mechanics_acknowledgements"]["items"]["required"] == ["slot_index", "move", "mechanics_path", "status", "missing_inputs_path"]
 
 
-def test_single_direct_mechanics_schema_constrains_the_machine_acknowledgement_link():
+def test_single_direct_mechanics_schema_keeps_dynamic_linkage_out_of_provider_enums():
     from llm.advisor_client import _structured_provider_schema
 
     payload = _prepared(FIXTURES[0])["recommendation_request"]
     schema = _structured_provider_schema(mechanics_grounding_required=True, provider_payload=payload)
     properties = schema["properties"]["mechanics_acknowledgements"]["items"]["properties"]
-    assert properties["slot_index"]["enum"] == [0]
-    assert properties["move"]["enum"] == ["tackle"]
-    assert properties["mechanics_path"]["enum"] == ["candidate_comparisons.0.mechanics_result"]
-    assert properties["status"]["enum"] == ["known"]
+    assert "enum" not in properties["slot_index"]
+    assert "enum" not in properties["move"]
+    assert "enum" not in properties["mechanics_path"]
+    assert properties["status"]["enum"] == ["known", "insufficient_context", "unsupported_mechanic"]

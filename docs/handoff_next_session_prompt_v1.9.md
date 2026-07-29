@@ -1689,3 +1689,7 @@ Documentation expectations:
 - Preserve an internal strict response contract and use a separately adapted
   provider schema when current Gemini REST schema compatibility requires it;
   do not weaken mechanics, grounding, fixture, or semantic validation.
+- The approved diagnostic identified a dynamic provider-schema enum rejection
+  (`HTTP 400`, `INVALID_ARGUMENT`, `response_schema`). Keep candidate-specific
+  exactness in the strict parser, not provider enum constraints; the required
+  value-free acknowledgement shape and semantic validation remain unchanged.

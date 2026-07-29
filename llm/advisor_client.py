@@ -274,26 +274,9 @@ def _provider_exception_diagnostic(error: Exception) -> str:
 
 
 def _mechanics_acknowledgement_item_schema(*, provider_payload: Mapping[str, Any]) -> dict[str, Any]:
-    """Constrain a single direct-mechanics acknowledgement without values."""
+    """Keep provider schema representable; parser owns exact dynamic linkage."""
     schema = deepcopy(_MECHANICS_ACK_SCHEMA)
-    comparisons = provider_payload.get("candidate_comparisons")
-    expected = []
-    if isinstance(comparisons, list):
-        for index, candidate in enumerate(comparisons):
-            mechanics = candidate.get("mechanics_result") if isinstance(candidate, Mapping) else None
-            move = candidate.get("move") if isinstance(candidate, Mapping) else None
-            status = mechanics.get("status") if isinstance(mechanics, Mapping) else None
-            if isinstance(move, str) and status in {"known", "insufficient_context", "unsupported_mechanic"}:
-                expected.append((index, move, f"candidate_comparisons.{index}.mechanics_result", status))
-    if len(expected) == 1:
-        slot_index, move, path, status = expected[0]
-        properties = schema["properties"]
-        properties["slot_index"]["enum"] = [slot_index]
-        properties["move"]["enum"] = [move]
-        properties["mechanics_path"]["enum"] = [path]
-        properties["status"]["enum"] = [status]
-        if status == "insufficient_context":
-            properties["missing_inputs_path"]["enum"] = [f"{path}.missing_inputs"]
+    schema["description"] = "Provider-compatible value-free acknowledgement shape; the strict parser validates exact candidate, path, status, and dependency against deterministic evidence."
     return schema
 
 

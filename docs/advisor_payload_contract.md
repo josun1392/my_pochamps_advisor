@@ -3336,3 +3336,9 @@ error body is parsed transiently for classification and then discarded. The
 strict internal response contract remains separate from the provider schema;
 the current REST API documents the older `responseSchema` field as deprecated
 in favor of `responseJsonSchema`.
+
+The compatibility diagnostic classified the request as HTTP 400,
+`INVALID_ARGUMENT`, `response_schema`, `schema_keyword_enum`. Therefore the
+provider-facing acknowledgement item no longer contains dynamic candidate enum
+constraints. This does not relax internal validation: the parser still checks
+the exact candidate/action, canonical path, status, and missing dependency.

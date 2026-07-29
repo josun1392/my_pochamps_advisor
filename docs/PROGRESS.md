@@ -18967,3 +18967,8 @@ Maintained boundaries:
   documents `responseSchema` as deprecated and `responseJsonSchema` as the JSON
   Schema surface, so compatibility work must keep the strict internal contract
   separate from a provider-compatible schema representation.
+- The approved compatibility diagnostic returned HTTP 400 / `INVALID_ARGUMENT`
+  with the bounded `response_schema` / `schema_keyword_enum` category. The
+  provider-facing schema no longer adds candidate-specific dynamic enums; the
+  existing strict parser remains the sole authority for exact candidate/path/
+  status/dependency linkage.
