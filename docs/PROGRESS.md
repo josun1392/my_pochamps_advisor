@@ -18972,3 +18972,14 @@ Maintained boundaries:
   provider-facing schema no longer adds candidate-specific dynamic enums; the
   existing strict parser remains the sole authority for exact candidate/path/
   status/dependency linkage.
+
+## v15.47 native mechanics numeric-claim alignment
+
+- Structured claims may carry optional value-free `mechanics_path` and static
+  `numeric_scope`. For known direct mechanics, numeric damage range, percent
+  range, or single-hit KO probability is accepted only when the exact candidate
+  path and scope are present and every numeric literal equals native evidence.
+- The provider schema stays non-dynamic; internal validation owns exact linkage
+  and numeric equality. Incomplete mechanics keeps `partial_context` and
+  rejects referenced damage/percent/KO numbers. No calculator, default,
+  fixture, or mechanics authority changed.

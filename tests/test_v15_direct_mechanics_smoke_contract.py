@@ -97,7 +97,7 @@ def test_one_fixture_diagnostic_run_has_a_hard_one_call_limit():
     assert result["provider_calls"] == 1
 
 
-def test_known_mechanics_claim_is_allowed_but_numeric_or_insufficient_mechanics_claims_are_rejected():
+def test_known_mechanics_numeric_claim_requires_exact_native_scope_and_insufficient_blocks_it():
     import pytest
     from llm.advisor_candidate_contract import _validate_claim, complete_recommendation_cycle
 
@@ -105,13 +105,31 @@ def test_known_mechanics_claim_is_allowed_but_numeric_or_insufficient_mechanics_
     accepted = complete_recommendation_cycle(prepared_cycle=complete, response_payload=_response(complete["recommendation_request"]))
     assert accepted["status"] == "resolved"
 
+    mechanics = complete["recommendation_request"]["candidate_comparisons"][0]["mechanics_result"]
     numeric = _response(complete["recommendation_request"])
-    numeric["primary_reasons"] = [{"kind": "mechanics", "claim": "50 damage"}]
-    assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=numeric)["errors"] == ["mechanics_numeric_claim_without_evidence"]
+    numeric["primary_reasons"] = [{"kind": "mechanics", "claim": f"{mechanics['damage_range']['minimum']}-{mechanics['damage_range']['maximum']} damage", "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": "damage_range"}]
+    assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=numeric)["status"] == "resolved"
+
+    for scope, values in (("damage_percent_range", mechanics["damage_percent_range"].values()), ("single_hit_probability", (mechanics["ko_result"]["single_hit_probability"],))):
+        scoped = _response(complete["recommendation_request"])
+        scoped["primary_reasons"] = [{"kind": "mechanics", "claim": "-".join(str(value) for value in values), "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": scope}]
+        assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=scoped)["status"] == "resolved"
+
+    mismatch = _response(complete["recommendation_request"])
+    mismatch["primary_reasons"] = [{"kind": "mechanics", "claim": "50 damage", "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": "damage_range"}]
+    assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=mismatch)["errors"] == ["mechanics_numeric_value_mismatch"]
+
+    wrong_path = _response(complete["recommendation_request"])
+    wrong_path["primary_reasons"] = [{"kind": "mechanics", "claim": f"{mechanics['damage_range']['minimum']}-{mechanics['damage_range']['maximum']} damage", "mechanics_path": "candidate_comparisons.1.mechanics_result", "numeric_scope": "damage_range"}]
+    assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=wrong_path)["errors"] == ["mechanics_numeric_scope_invalid"]
 
     incomplete = _prepared(FIXTURES[1])
     with pytest.raises(ValueError, match="mechanics_claim_on_insufficient_context"):
         _validate_claim({"kind": "mechanics", "claim": "deterministic mechanics"}, incomplete["candidates"][0])
+
+    insufficient_numeric = _response(incomplete["recommendation_request"])
+    insufficient_numeric["primary_reasons"] = [{"kind": "partial_context", "claim": "1-2 damage", "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": "damage_range"}]
+    assert complete_recommendation_cycle(prepared_cycle=incomplete, response_payload=insufficient_numeric)["errors"] == ["mechanics_numeric_claim_on_insufficient_context"]
 
 
 def test_structured_provider_schema_requires_parser_claim_shape_and_mechanics_kind():
@@ -121,6 +139,7 @@ def test_structured_provider_schema_requires_parser_claim_shape_and_mechanics_ki
     claim = schema["properties"]["primary_reasons"]["items"]
     assert claim["required"] == ["kind", "claim"]
     assert "mechanics" in claim["properties"]["kind"]["enum"]
+    assert set(("mechanics_path", "numeric_scope")) <= set(claim["properties"])
     assert schema["properties"]["alternatives"]["items"]["properties"]["reason"] == claim
     assert "mechanics_acknowledgements" in schema["required"]
     assert schema["properties"]["mechanics_acknowledgements"]["items"]["required"] == ["slot_index", "move", "mechanics_path", "status", "missing_inputs_path"]

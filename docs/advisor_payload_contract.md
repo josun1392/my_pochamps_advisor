@@ -3342,3 +3342,13 @@ The compatibility diagnostic classified the request as HTTP 400,
 provider-facing acknowledgement item no longer contains dynamic candidate enum
 constraints. This does not relax internal validation: the parser still checks
 the exact candidate/action, canonical path, status, and missing dependency.
+
+## v15.47 native mechanics numeric claims
+
+Claims retain required `kind` and `claim` and may additionally contain a
+value-free `mechanics_path` plus `numeric_scope` (`damage_range`,
+`damage_percent_range`, or `single_hit_probability`). A known direct-mechanics
+numeric claim is valid only if its exact candidate path/scope is present and
+its numeric literals equal the selected native range or probability. For
+`insufficient_context`, referenced numeric mechanics claims are rejected and
+only conditional/insufficient advice remains valid.

@@ -1693,3 +1693,13 @@ Documentation expectations:
   (`HTTP 400`, `INVALID_ARGUMENT`, `response_schema`). Keep candidate-specific
   exactness in the strict parser, not provider enum constraints; the required
   value-free acknowledgement shape and semantic validation remain unchanged.
+
+## v15.47 numeric mechanics claim contract
+
+- A numeric known-mechanics claim must include value-free `mechanics_path` and
+  static `numeric_scope`; parser-side validation matches every numeric literal
+  to the native selected range/probability. Do not add duplicate evidence or a
+  dynamic provider enum.
+- For insufficient mechanics, keep conditional/partial advice and reject any
+  referenced damage, percent, or KO numeric claim. Do not recalculate,
+  midpoint, round, mix candidates, or infer a new KO category.

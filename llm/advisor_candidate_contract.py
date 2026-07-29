@@ -3,7 +3,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 from copy import deepcopy
+from decimal import Decimal
 import math
+import re
 
 from llm.advisor_battle_state_context import build_deterministic_calculation_context
 from llm.advisor_turn_snapshot import (
@@ -407,15 +409,45 @@ def _has_forbidden_response_content(value: Any) -> bool:
     return False
 
 
-def _comparison_for_pair(request: Mapping[str, Any], pair: Mapping[str, Any]) -> Mapping[str, Any] | None:
-    for comparison in request.get("candidate_comparisons", []):
+def _comparison_context_for_pair(request: Mapping[str, Any], pair: Mapping[str, Any]) -> tuple[Mapping[str, Any], str] | None:
+    for index, comparison in enumerate(request.get("candidate_comparisons", [])):
         if isinstance(comparison, Mapping) and comparison.get("move") == pair["move"] and comparison.get("slot_index") == pair["slot_index"]:
-            return comparison
+            return comparison, f"candidate_comparisons.{index}.mechanics_result"
     return None
 
 
-def _validate_claim(reason: Any, candidate: Mapping[str, Any]) -> None:
-    if not isinstance(reason, Mapping) or set(reason) != {"kind", "claim"} or not isinstance(reason.get("claim"), str) or not reason["claim"]:
+def _comparison_for_pair(request: Mapping[str, Any], pair: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    context = _comparison_context_for_pair(request, pair)
+    return context[0] if context else None
+
+
+_NUMERIC_SCOPE_VALUES = frozenset({"damage_range", "damage_percent_range", "single_hit_probability"})
+_NUMERIC_LITERAL_PATTERN = re.compile(r"(?<![A-Za-z_])\d+(?:\.\d+)?")
+
+
+def _numeric_literals(claim: str) -> list[Decimal]:
+    return [Decimal(value) for value in _NUMERIC_LITERAL_PATTERN.findall(claim)]
+
+
+def _mechanics_scope_values(mechanics: Mapping[str, Any], scope: str) -> list[Decimal] | None:
+    if scope in {"damage_range", "damage_percent_range"}:
+        value = mechanics.get(scope)
+        if not isinstance(value, Mapping):
+            return None
+        values = [value.get("minimum"), value.get("maximum")]
+    elif scope == "single_hit_probability":
+        ko_result = mechanics.get("ko_result")
+        values = [ko_result.get("single_hit_probability")] if isinstance(ko_result, Mapping) else [None]
+    else:
+        return None
+    if not all(isinstance(value, (int, float)) and not isinstance(value, bool) for value in values):
+        return None
+    return [Decimal(str(value)) for value in values]
+
+
+def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path: str | None = None) -> None:
+    allowed_keys = {"kind", "claim", "mechanics_path", "numeric_scope"}
+    if not isinstance(reason, Mapping) or not set(reason) <= allowed_keys or not {"kind", "claim"} <= set(reason) or not isinstance(reason.get("claim"), str) or not reason["claim"]:
         raise ValueError("invalid_claim")
     kind = reason["kind"]
     damage = candidate.get("damage")
@@ -424,10 +456,19 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any]) -> None:
     mechanics_insufficient = isinstance(mechanics, Mapping) and mechanics.get("status") == "insufficient_context"
     if kind not in _CLAIM_KINDS:
         raise ValueError("mechanics_claim_scope_invalid" if isinstance(mechanics, Mapping) and mechanics.get("status") != "not_requested" else "invalid_claim")
-    if mechanics_insufficient and kind in {"damage", "ko", "mechanics"}:
-        raise ValueError("mechanics_claim_on_insufficient_context")
-    if mechanics_known and kind in {"damage", "ko", "mechanics"} and any(character.isdigit() for character in reason["claim"]):
-        raise ValueError("mechanics_numeric_claim_without_evidence")
+    numeric_claim = bool(_numeric_literals(reason["claim"]))
+    if mechanics_insufficient and (kind in {"damage", "ko", "mechanics"} or numeric_claim and ("mechanics_path" in reason or "numeric_scope" in reason)):
+        raise ValueError("mechanics_numeric_claim_on_insufficient_context" if numeric_claim else "mechanics_claim_on_insufficient_context")
+    if mechanics_known and kind in {"damage", "ko", "mechanics"} and numeric_claim:
+        path = reason.get("mechanics_path")
+        scope = reason.get("numeric_scope")
+        if path != mechanics_path or not isinstance(scope, str) or scope not in _NUMERIC_SCOPE_VALUES:
+            raise ValueError("mechanics_numeric_scope_invalid")
+        expected = _mechanics_scope_values(mechanics, scope)
+        if expected is None or _numeric_literals(reason["claim"]) != expected:
+            raise ValueError("mechanics_numeric_value_mismatch")
+    elif "mechanics_path" in reason or "numeric_scope" in reason:
+        raise ValueError("mechanics_numeric_scope_invalid")
     if kind == "damage" and (not isinstance(damage, Mapping) or damage.get("status") != "resolved") and not mechanics_known:
         raise ValueError("claim_evidence_unavailable")
     if kind == "ko" and (not isinstance(damage, Mapping) or "ko" not in damage or damage["ko"] is None) and not (mechanics_known and isinstance(mechanics.get("ko_result"), Mapping)):
@@ -467,23 +508,32 @@ def parse_recommendation_response(*, request: Mapping[str, Any], response_payloa
         except ValueError:
             return _response_failure("recommended_candidate_not_selectable")
         primary = {"move": move, "slot_index": slot}
-        candidate = _comparison_for_pair(request, primary)
-        if candidate is None:
+        context = _comparison_context_for_pair(request, primary)
+        if context is None:
             return _response_failure("request_candidate_evidence_missing")
+        candidate, mechanics_path = context
     else:
         if move is not None or slot is not None:
             return _response_failure("unexpected_recommended_candidate")
         readiness = request.get("readiness", {}).get("status") if isinstance(request, Mapping) else None
         if status == "no_usable_candidate" and readiness not in {"no_selectable_candidates", "no_candidates"}:
             return _response_failure("request_not_no_usable_candidate")
-        if status == "insufficient_context":
-            candidate = {}
+        direct_contexts = [
+            (comparison, f"candidate_comparisons.{index}.mechanics_result")
+            for index, comparison in enumerate(request.get("candidate_comparisons", []))
+            if isinstance(comparison, Mapping)
+            and isinstance(comparison.get("mechanics_result"), Mapping)
+            and comparison["mechanics_result"].get("status") != "not_requested"
+        ]
+        if status == "insufficient_context" and len(direct_contexts) == 1:
+            candidate, mechanics_path = dict(direct_contexts[0][0]), direct_contexts[0][1]
+            candidate["status"] = "partial"
         else:
-            candidate = {}
+            candidate, mechanics_path = {}, None
         primary = None
     try:
         for reason in [*reasons, *risks]:
-            _validate_claim(reason, candidate)
+            _validate_claim(reason, candidate, mechanics_path=mechanics_path)
         seen_alternatives = set()
         for alternative in alternatives:
             if not isinstance(alternative, Mapping) or set(alternative) != {"move", "slot_index", "reason"}:
@@ -493,10 +543,11 @@ def parse_recommendation_response(*, request: Mapping[str, Any], response_payloa
             key = (pair["move"], pair["slot_index"])
             if key in seen_alternatives or pair == primary:
                 raise ValueError("invalid_alternative")
-            alternative_candidate = _comparison_for_pair(request, pair)
-            if alternative_candidate is None:
+            alternative_context = _comparison_context_for_pair(request, pair)
+            if alternative_context is None:
                 raise ValueError("invalid_alternative")
-            _validate_claim(alternative["reason"], alternative_candidate)
+            alternative_candidate, alternative_path = alternative_context
+            _validate_claim(alternative["reason"], alternative_candidate, mechanics_path=alternative_path)
             seen_alternatives.add(key)
     except ValueError as error:
         return _response_failure(str(error))
