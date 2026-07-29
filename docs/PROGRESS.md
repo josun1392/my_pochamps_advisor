@@ -18817,6 +18817,12 @@ Maintained boundaries:
 
 ## v15.40 Runtime-Grounding Smoke Runner Offline Contract
 
+- v15.41 now surfaces an existing bounded structural diagnostic from validator
+  through the smoke result to one sanitized CLI JSON line. The line permits
+  only fixture ID, failure category, diagnostic code, exit code, and call count;
+  raw provider data remains excluded. Offline subprocess coverage is green and
+  actual smoke remains approval-gated.
+
 - v15.41 diagnosed the actual smoke's exit-6 boundary offline: runtime
   completion required `grounding-v1`, but the production response schema and
   decoded key check allowed only the legacy six fields. Runtime requests now

@@ -46,3 +46,16 @@ Offline tests cover every structural category, runtime schema requirement,
 adapter preservation, semantic/internal exit preservation, and a fake
 `runtime-unknown-bootstrap` structural pass. They use no credential, provider,
 or network activity. A future actual rerun requires new T1 approval.
+
+## CLI diagnostic surface
+
+The prior actual smoke reached exit 6 but the runner CLI printed no result, so
+its bounded validator diagnostic was unavailable for reporting. The runner now
+passes `fixture_id`, `failure_category`, and an allowlisted
+`structural_diagnostic` from validation to its in-memory smoke result and emits
+one sanitized JSON line at the CLI boundary. The line contains only fixture ID,
+failure category, diagnostic code, exit code, and provider call count. It never
+contains a grounding value, provider material, prompt, payload, credential, or
+internal metadata. Non-structural outcomes omit the structural diagnostic;
+existing exit 6/7/8 meanings are unchanged. This is offline-tested only and
+does not authorize an actual rerun.

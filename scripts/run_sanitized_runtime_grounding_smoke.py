@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 import sys
@@ -54,18 +55,25 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
     results = []
     for fixture_id in selected:
         try: response = provider_call(fixture_id)
-        except Exception: return {"exit_code": EXIT["provider"], "provider_calls": len(results) + 1, "network_calls": 0, "results": results}
+        except Exception: return {"exit_code": EXIT["provider"], "provider_calls": len(results) + 1, "network_calls": 0, "results": results, "fixture_id": fixture_id, "failure_category": "provider_failure"}
         if not isinstance(response, dict):
-            return {"exit_code": EXIT["parse"], "provider_calls": len(results) + 1, "network_calls": 0, "results": results}
+            return {"exit_code": EXIT["parse"], "provider_calls": len(results) + 1, "network_calls": 0, "results": results, "fixture_id": fixture_id, "failure_category": "structured_response_parse_failure"}
         errors = validate_runtime_grounding(runtime_advice_state=_runtime(), grounding=response.get("grounding") if isinstance(response, dict) else None)
         if errors:
             if any("internal" in error for error in errors): code = EXIT["redaction"]
             elif any(error in STRUCTURAL_GROUNDING_CODES for error in errors): code = EXIT["structural"]
             else: code = EXIT["semantic"]
             diagnostic = next((error for error in errors if error in STRUCTURAL_GROUNDING_CODES), None)
-            return {"exit_code": code, "provider_calls": len(results) + 1, "network_calls": 0, "results": results, "diagnostic_code": diagnostic}
+            category = "internal_metadata_exposure" if code == EXIT["redaction"] else "grounding_structural_failure" if code == EXIT["structural"] else "grounding_semantic_failure"
+            return {"exit_code": code, "provider_calls": len(results) + 1, "network_calls": 0, "results": results, "fixture_id": fixture_id, "failure_category": category, "structural_diagnostic": diagnostic}
         results.append({"fixture_id": fixture_id, "status": "passed"})
     return {"exit_code": EXIT["ok"], "provider_calls": len(results), "network_calls": 0, "results": results}
+
+
+def _cli_surface(result: dict[str, Any]) -> dict[str, Any]:
+    """Expose only bounded smoke status, never provider material or exceptions."""
+    allowed = ("fixture_id", "failure_category", "structural_diagnostic", "exit_code", "provider_calls")
+    return {key: result[key] for key in allowed if key in result and result[key] is not None}
 
 
 def main(argv: Sequence[str] | None = None, *, actual_adapter_factory: Callable[..., tuple[Callable[[], bool], Callable[[str], dict[str, Any]]]] = build_actual_adapters) -> int:
@@ -76,6 +84,7 @@ def main(argv: Sequence[str] | None = None, *, actual_adapter_factory: Callable[
         credential_available, provider_call = actual_adapter_factory(model=args.model)
         kwargs.update(credential_available=credential_available, provider_call=provider_call)
     result = run_smoke(**kwargs)
+    print(json.dumps(_cli_surface(result), separators=(",", ":")))
     return int(result["exit_code"])
 
 

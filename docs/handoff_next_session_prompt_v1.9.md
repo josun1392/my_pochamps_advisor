@@ -1550,6 +1550,11 @@ Documentation expectations:
 
 ## v15.40 offline smoke runner implementation
 
+- The v15.41 smoke CLI now prints one sanitized JSON result line. Structural
+  failures retain the validator's existing allowlisted diagnostic together with
+  fixture ID, category, exit code, and call count only. Do not print raw
+  grounding/provider material or rerun actual smoke without new T1 approval.
+
 - v15.41 aligned runtime structured response schema with the existing
   grounding-v1 validator: runtime payloads require a seven-field grounded
   response, while legacy non-runtime payloads remain six-field compatible.
