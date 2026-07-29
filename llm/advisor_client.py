@@ -111,6 +111,7 @@ _STRUCTURED_RESPONSE_KEYS = (
     "primary_reasons", "risks", "alternatives",
 )
 _GROUNDED_STRUCTURED_RESPONSE_KEYS = (*_STRUCTURED_RESPONSE_KEYS, "grounding")
+_MECHANICS_ACK_RESPONSE_KEYS = (*_GROUNDED_STRUCTURED_RESPONSE_KEYS, "mechanics_acknowledgements")
 _GROUNDING_V1_ENTRY_KEYS = ("confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies")
 _GROUNDING_V1_ENTRY_SCHEMAS = {
     "confirmed_facts": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}, "status": {"type": "STRING", "enum": ["known", "known_absent"]}, "authority": {"type": "STRING", "enum": ["runtime"]}, "value": {}}, "required": ["path", "status", "authority"]},
@@ -120,6 +121,7 @@ _GROUNDING_V1_ENTRY_SCHEMAS = {
     "conditional_dependencies": {"type": "OBJECT", "properties": {"path": {"type": "STRING"}}, "required": ["path"]},
 }
 _STRUCTURED_CLAIM_SCHEMA = {"type": "OBJECT", "properties": {"kind": {"type": "STRING", "enum": ["damage", "ko", "hit_chance", "move_order", "self_effect", "dynamic_mechanic", "partial_context", "mechanics"]}, "claim": {"type": "STRING"}}, "required": ["kind", "claim"]}
+_MECHANICS_ACK_SCHEMA = {"type": "OBJECT", "properties": {"slot_index": {"type": "INTEGER"}, "move": {"type": "STRING"}, "mechanics_path": {"type": "STRING"}, "status": {"type": "STRING", "enum": ["known", "insufficient_context", "unsupported_mechanic"]}, "missing_inputs_path": {"type": "STRING", "nullable": True}}, "required": ["slot_index", "move", "mechanics_path", "status", "missing_inputs_path"]}
 _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Return only the declared JSON shape. A resolved recommendation must use a selectable exact move and slot pair. "
     "Ground reasons and risks in candidate comparisons, warnings, unavailable reasons, and known limitations. "
@@ -127,7 +129,7 @@ _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Use partial_context only for an actually unavailable or incomplete field. Each reason or risk must be exactly a kind/claim object: use only the supported claim kinds and a non-empty claim string. Alternatives require selectable exact move+slot pairs and reasons. "
     "Do not invent EVs, IVs, nature, items, abilities, opponent moves, or final stats. Use insufficient_context when evidence is insufficient and no_usable_candidate when none is selectable. "
     "When runtime_advice_state is present it is authoritative current state: unknown is unobserved, not absent, false, zero, full HP, healthy, inactive, or empty; known_absent is confirmed absence; known with value is trusted current state. In that case include required grounding-v1 with schema_version plus confirmed_facts, unknown_facts, evidence_only, conflicts, and conditional_dependencies lists; every list entry requires a non-empty canonical provider-safe path. confirmed_facts and unknown_facts use authority runtime; evidence_only uses authority evidence or stale plus an allowed source; conflicts uses authority conflict plus an allowed source. A confirmed grounding entry must reproduce its runtime fact status and, for known facts, its exact runtime value. UI and unapplied observation evidence cannot override runtime known facts or resolve runtime unknown facts; conflicting stale UI evidence belongs only in evidence_only or conflicts, never in confirmed_facts. Never infer current battle facts from species metadata. State uncertainty or conditional dependence when needed, and never expose runtime_advice_state, fingerprint, CAS, reducer, ledger, session authority, request token, or thread identity."
-    "When candidate_comparisons contains mechanics_result, treat it as authoritative deterministic evidence: do not recompute, change, or invent damage, percent, or KO values. For known mechanics, use only the mechanics claim kind with a non-numeric claim; do not write a number, percentage, or KO probability in advice. This is mandatory: for every candidate_comparisons entry with mechanics_result, put exactly its canonical path candidate_comparisons.<its slot index in the array>.mechanics_result in grounding.evidence_only with authority evidence and source deterministic. Do not omit that entry even when it is the only evidence. For insufficient_context mechanics, also put candidate_comparisons.<its slot index in the array>.mechanics_result.missing_inputs in grounding.conditional_dependencies and use partial_context only; do not make a damage, KO, or mechanics claim."
+    "When candidate_comparisons contains mechanics_result, treat it as authoritative deterministic evidence: do not recompute, change, or invent damage, percent, or KO values. For known mechanics, use only the mechanics claim kind with a non-numeric claim; do not write a number, percentage, or KO probability in advice. This is mandatory: return exactly one mechanics_acknowledgements object for every candidate with mechanics_result, using only slot_index, move, canonical mechanics_path candidate_comparisons.<its slot index in the array>.mechanics_result, its exact status, and missing_inputs_path only when status is insufficient_context (otherwise null). mechanics_acknowledgements is value-free: never include mechanics values or duplicate this link in grounding.evidence_only. For insufficient_context mechanics use partial_context only; do not make a damage, KO, or mechanics claim."
 )
 
 
@@ -158,10 +160,12 @@ def _structured_provider_schema(*, runtime_grounding_required: bool = False, mec
             "required": ["schema_version", *_GROUNDING_V1_ENTRY_KEYS],
             "description": "Required grounding-v1 authority mapping for runtime_advice_state; entries use only canonical provider-safe paths.",
         }
+    if mechanics_grounding_required:
+        properties["mechanics_acknowledgements"] = {"type": "ARRAY", "items": _MECHANICS_ACK_SCHEMA, "description": "Required value-free acknowledgement for every direct mechanics candidate; copy only slot, move, canonical mechanics path, status, and missing-input path when incomplete."}
     return {
         "type": "OBJECT",
         "properties": properties,
-        "required": list(_GROUNDED_STRUCTURED_RESPONSE_KEYS if runtime_grounding_required or mechanics_grounding_required else _STRUCTURED_RESPONSE_KEYS),
+        "required": list(_MECHANICS_ACK_RESPONSE_KEYS if mechanics_grounding_required else _GROUNDED_STRUCTURED_RESPONSE_KEYS if runtime_grounding_required else _STRUCTURED_RESPONSE_KEYS),
     }
 
 
@@ -238,7 +242,7 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         decoded = json.loads(text)
     except (TypeError, ValueError):
         raise StructuredProviderError("provider_structured_decode_failed") from None
-    expected_response_keys = _GROUNDED_STRUCTURED_RESPONSE_KEYS if "runtime_advice_state" in provider_payload or _payload_has_mechanics_result(provider_payload) else _STRUCTURED_RESPONSE_KEYS
+    expected_response_keys = _MECHANICS_ACK_RESPONSE_KEYS if _payload_has_mechanics_result(provider_payload) else _GROUNDED_STRUCTURED_RESPONSE_KEYS if "runtime_advice_state" in provider_payload else _STRUCTURED_RESPONSE_KEYS
     if not isinstance(decoded, dict) or set(decoded) != set(expected_response_keys):
         raise StructuredProviderError("provider_response_malformed")
     usage = _normalized_structured_usage(usage_data=body.get("usageMetadata"), model=model)

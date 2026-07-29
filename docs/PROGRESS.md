@@ -18927,3 +18927,14 @@ Maintained boundaries:
   semantic parser as generic `invalid_claim`.
 - `mechanics_result` is preserved in provider candidate comparisons without raw
   rolls, engine context/provenance, bridge output, or internal metadata.
+
+## v15.44 machine-required direct mechanics acknowledgement
+
+- Direct-mechanics responses now require the value-free
+  `mechanics_acknowledgements` schema field. Its exact candidate/action,
+  canonical result path, status, and incomplete missing-input dependency are
+  semantically validated without echoing any mechanics values.
+- This replaces the duplicate mechanics link in generic grounding evidence.
+  Known, insufficient, unsupported, omitted, wrong-path, and wrong-dependency
+  cases stay bounded in the offline contract; legacy no-direct-context requests
+  retain their earlier response shape. Actual smoke remains approval-gated.

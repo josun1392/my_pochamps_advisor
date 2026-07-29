@@ -3,17 +3,24 @@ from scripts.run_sanitized_direct_mechanics_smoke import EXIT, FIXTURES, _prepar
 
 def _response(payload):
     mechanics = payload["candidate_comparisons"][0]["mechanics_result"]
+    acknowledgement = {
+        "slot_index": 0,
+        "move": "tackle",
+        "mechanics_path": "candidate_comparisons.0.mechanics_result",
+        "status": mechanics["status"],
+        "missing_inputs_path": "candidate_comparisons.0.mechanics_result.missing_inputs" if mechanics["status"] == "insufficient_context" else None,
+    }
     grounding = {
         "schema_version": "grounding-v1",
         "confirmed_facts": [],
         "unknown_facts": [],
-        "evidence_only": [{"path": "candidate_comparisons.0.mechanics_result", "authority": "evidence", "source": "deterministic"}],
+        "evidence_only": [],
         "conflicts": [],
         "conditional_dependencies": ([{"path": "candidate_comparisons.0.mechanics_result.missing_inputs"}] if mechanics["status"] == "insufficient_context" else []),
     }
     if mechanics["status"] == "insufficient_context":
-        return {"recommendation_status": "insufficient_context", "recommended_move": None, "recommended_slot_index": None, "primary_reasons": [{"kind": "partial_context", "claim": "deterministic mechanics is incomplete"}], "risks": [], "alternatives": [], "grounding": grounding}
-    return {"recommendation_status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0, "primary_reasons": [{"kind": "mechanics", "claim": "deterministic mechanics evidence"}], "risks": [], "alternatives": [], "grounding": grounding}
+        return {"recommendation_status": "insufficient_context", "recommended_move": None, "recommended_slot_index": None, "primary_reasons": [{"kind": "partial_context", "claim": "deterministic mechanics is incomplete"}], "risks": [], "alternatives": [], "grounding": grounding, "mechanics_acknowledgements": [acknowledgement]}
+    return {"recommendation_status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0, "primary_reasons": [{"kind": "mechanics", "claim": "deterministic mechanics evidence"}], "risks": [], "alternatives": [], "grounding": grounding, "mechanics_acknowledgements": [acknowledgement]}
 
 
 def test_fixture_preparation_produces_known_and_insufficient_mechanics_evidence():
@@ -30,13 +37,33 @@ def test_fake_provider_requires_value_free_mechanics_acknowledgement_and_preserv
 
     def missing_ack(payload):
         response = _response(payload)
-        response["grounding"]["evidence_only"] = []
+        del response["mechanics_acknowledgements"]
         return response
 
     failed = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=missing_ack)
     assert failed["exit_code"] == EXIT["semantic"]
     assert failed["provider_calls"] == 1
-    assert failed["diagnostic"] == "mechanics_result_unacknowledged"
+    assert failed["diagnostic"] == "mechanics_acknowledgement_missing"
+
+    def wrong_path(payload):
+        response = _response(payload)
+        response["mechanics_acknowledgements"][0]["mechanics_path"] = "candidate_comparisons.1.mechanics_result"
+        return response
+
+    wrong_path_failed = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=wrong_path)
+    assert wrong_path_failed["exit_code"] == EXIT["semantic"]
+    assert wrong_path_failed["diagnostic"] == "mechanics_acknowledgement_path_invalid"
+
+    def wrong_dependency(payload):
+        response = _response(payload)
+        if response["mechanics_acknowledgements"][0]["status"] == "insufficient_context":
+            response["mechanics_acknowledgements"][0]["missing_inputs_path"] = None
+        return response
+
+    dependency_failed = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=wrong_dependency)
+    assert dependency_failed["exit_code"] == EXIT["semantic"]
+    assert dependency_failed["provider_calls"] == 2
+    assert dependency_failed["diagnostic"] == "mechanics_acknowledgement_dependency_invalid"
 
 
 def test_provider_failure_exposes_only_allowlisted_sanitized_code():
@@ -73,3 +100,5 @@ def test_structured_provider_schema_requires_parser_claim_shape_and_mechanics_ki
     assert claim["required"] == ["kind", "claim"]
     assert "mechanics" in claim["properties"]["kind"]["enum"]
     assert schema["properties"]["alternatives"]["items"]["properties"]["reason"] == claim
+    assert "mechanics_acknowledgements" in schema["required"]
+    assert schema["properties"]["mechanics_acknowledgements"]["items"]["required"] == ["slot_index", "move", "mechanics_path", "status", "missing_inputs_path"]

@@ -3297,3 +3297,15 @@ its canonical `candidate_comparisons.<index>.mechanics_result` path in
 `insufficient_context` additionally uses the value-free `.missing_inputs` path
 as a conditional dependency. This is acknowledgement, not a provider-supplied
 calculation or raw result echo.
+
+## v15.44 machine-required mechanics acknowledgement
+
+For a direct-mechanics request, the response schema additionally requires a
+`mechanics_acknowledgements` list. It contains exactly one value-free mapping
+per opted-in candidate: `slot_index`, `move`, canonical `mechanics_path`, the
+native result `status`, and `missing_inputs_path` only for
+`insufficient_context` (otherwise `null`). The parser validates the exact
+candidate/action, canonical path, status, and incomplete dependency; omitted
+or mismatched links are semantic failures. The list must not repeat damage,
+percent, KO, roll, or other mechanics values, and replaces the duplicate
+mechanics path previously required in grounding `evidence_only`.

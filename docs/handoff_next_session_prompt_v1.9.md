@@ -1651,3 +1651,15 @@ Documentation expectations:
 - Provider schema reason/risk/alternative-reason items require `{kind, claim}`
   and use the bounded claim-kind enum, including `mechanics`; do not relax the
   parser to accept arbitrary reason objects.
+
+## v15.44 machine-required mechanics acknowledgement
+
+- Direct-mechanics provider responses require `mechanics_acknowledgements`, one
+  value-free mapping per candidate (`slot_index`, `move`, canonical mechanics
+  path, exact status, and an incomplete-only missing-input path). Validate this
+  machine link before advice semantics; do not ask generic grounding evidence to
+  duplicate it.
+- The native result remains authoritative: never put damage, percent, KO, roll,
+  Q12 input, or provenance into the acknowledgement, and do not alter unknown/
+  insufficient/unsupported policy. Run actual smoke only after offline green,
+  exact commit/push, and explicit T1 approval.
