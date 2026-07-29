@@ -3356,3 +3356,8 @@ only conditional/insufficient advice remains valid.
 For a single insufficient direct candidate, the provider schema description
 states the exact canonical `.missing_inputs` dependency path. It is guidance,
 not a dynamic enum; the strict parser still rejects any different dependency.
+
+Numeric claim guidance is explicit: all numeric literals must be the selected
+native scope values, with no added HKO label, midpoint, rounded derivative, or
+cross-candidate number. A non-numeric mechanics summary has no numeric scope
+reference and remains valid for known mechanics.

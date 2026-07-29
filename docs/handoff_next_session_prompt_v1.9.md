@@ -1707,3 +1707,7 @@ midpoint, round, mix candidates, or infer a new KO category.
 - For a single insufficient direct candidate, describe the exact canonical
   missing-input dependency path in the provider schema without dynamic enums.
   Keep parser-side exact dependency validation unchanged.
+- For a numeric mechanics claim, every digit must belong to the selected native
+  scope. Explicitly forbid added HKO labels, midpoint/rounded values, and mixed
+  candidate numbers; choose a non-numeric summary if exact copying is not
+  possible.

@@ -18988,3 +18988,8 @@ Maintained boundaries:
   `mechanics_acknowledgement_dependency_invalid`. The provider-compatible
   incomplete acknowledgement schema now describes the exact missing-input path
   without reintroducing dynamic enums; parser authority is unchanged.
+- A later complete-fixture call reached bounded
+  `mechanics_numeric_value_mismatch`. Static provider-schema descriptions now
+  require that a numeric claim contain only the selected native scope literals;
+  prompt guidance explicitly forbids extra digits such as HKO labels and permits
+  a non-numeric summary when exact copying is not possible.

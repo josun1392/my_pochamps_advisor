@@ -140,6 +140,7 @@ def test_structured_provider_schema_requires_parser_claim_shape_and_mechanics_ki
     assert claim["required"] == ["kind", "claim"]
     assert "mechanics" in claim["properties"]["kind"]["enum"]
     assert set(("mechanics_path", "numeric_scope")) <= set(claim["properties"])
+    assert "no other digit" in claim["properties"]["claim"]["description"]
     assert schema["properties"]["alternatives"]["items"]["properties"]["reason"] == claim
     assert "mechanics_acknowledgements" in schema["required"]
     assert schema["properties"]["mechanics_acknowledgements"]["items"]["required"] == ["slot_index", "move", "mechanics_path", "status", "missing_inputs_path"]
