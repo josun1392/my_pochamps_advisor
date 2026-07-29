@@ -1643,3 +1643,5 @@ Documentation expectations:
   candidate mechanics path; insufficient mechanics also ground the missing-input
   dependency. Do not apply this requirement to legacy candidates with no direct
   context.
+- The runner reports allowlisted provider diagnostics such as
+  `provider_timeout` only; do not print raw exceptions or provider output.

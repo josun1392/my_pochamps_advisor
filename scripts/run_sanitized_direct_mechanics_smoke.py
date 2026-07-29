@@ -88,8 +88,10 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
             return {"exit_code": EXIT["blocked"], "provider_calls": len(results), "fixture_id": fixture_id, "failure_category": "payload_preparation_failure", "results": results}
         try:
             response = provider_call(payload)
-        except Exception:
-            return {"exit_code": EXIT["provider"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "provider_failure", "results": results}
+        except Exception as error:
+            code = getattr(error, "code", "provider_failure")
+            diagnostic = code if isinstance(code, str) and code in {"provider_timeout", "provider_unavailable", "provider_safety_blocked", "provider_response_missing", "provider_response_malformed", "provider_structured_decode_failed", "provider_response_validation_failed"} else "provider_failure"
+            return {"exit_code": EXIT["provider"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "provider_failure", "diagnostic": diagnostic, "results": results}
         if not isinstance(response, dict):
             return {"exit_code": EXIT["parse"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "structured_response_parse_failure", "results": results}
         completed = complete_recommendation_cycle(prepared_cycle=prepared, response_payload=response)

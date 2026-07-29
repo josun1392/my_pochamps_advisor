@@ -18913,5 +18913,7 @@ Maintained boundaries:
   direct mechanics. It uses the production preparation, payload, structured
   response parser, and grounding validator; output is bounded to status,
   fixture, diagnostic, and call count.
+- Provider transport/structured failures expose only an allowlisted sanitized
+  code (including `provider_timeout`), never an exception or response detail.
 - `mechanics_result` is preserved in provider candidate comparisons without raw
   rolls, engine context/provenance, bridge output, or internal metadata.

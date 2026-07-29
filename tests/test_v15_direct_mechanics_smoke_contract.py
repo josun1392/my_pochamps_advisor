@@ -37,3 +37,12 @@ def test_fake_provider_requires_value_free_mechanics_acknowledgement_and_preserv
     assert failed["exit_code"] == EXIT["semantic"]
     assert failed["provider_calls"] == 1
     assert failed["diagnostic"] == "mechanics_result_unacknowledged"
+
+
+def test_provider_failure_exposes_only_allowlisted_sanitized_code():
+    class Timeout(Exception):
+        code = "provider_timeout"
+
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=lambda _: (_ for _ in ()).throw(Timeout()))
+    assert result["exit_code"] == EXIT["provider"]
+    assert result["diagnostic"] == "provider_timeout"
