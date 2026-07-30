@@ -113,6 +113,7 @@ _STRUCTURED_RESPONSE_KEYS = (
 _GROUNDED_STRUCTURED_RESPONSE_KEYS = (*_STRUCTURED_RESPONSE_KEYS, "grounding")
 _MECHANICS_ACK_RESPONSE_KEYS = (*_GROUNDED_STRUCTURED_RESPONSE_KEYS, "mechanics_acknowledgements")
 _RANKING_ACK_RESPONSE_KEYS = (*_MECHANICS_ACK_RESPONSE_KEYS, "ranking_acknowledgements")
+_MULTI_PROVIDER_RESPONSE_KEYS = ("recommendation_status", "selected_candidate_id", "explanation_code")
 SAFE_PROVIDER_DIAGNOSTIC_CODES = frozenset({
     "provider_client_initialization_failure",
     "provider_model_not_found",
@@ -155,6 +156,7 @@ _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Do not invent EVs, IVs, nature, items, abilities, opponent moves, or final stats. Use insufficient_context when evidence is insufficient and no_usable_candidate when none is selectable. "
     "When runtime_advice_state is present it is authoritative current state: unknown is unobserved, not absent, false, zero, full HP, healthy, inactive, or empty; known_absent is confirmed absence; known with value is trusted current state. In that case include required grounding-v1 with schema_version plus confirmed_facts, unknown_facts, evidence_only, conflicts, and conditional_dependencies lists; every list entry requires a non-empty canonical provider-safe path. confirmed_facts and unknown_facts use authority runtime; evidence_only uses authority evidence or stale plus an allowed source; conflicts uses authority conflict plus an allowed source. A confirmed grounding entry must reproduce its runtime fact status and, for known facts, its exact runtime value. UI and unapplied observation evidence cannot override runtime known facts or resolve runtime unknown facts; conflicting stale UI evidence belongs only in evidence_only or conflicts, never in confirmed_facts. Never infer current battle facts from species metadata. State uncertainty or conditional dependence when needed, and never expose runtime_advice_state, fingerprint, CAS, reducer, ledger, session authority, request token, or thread identity."
     "When candidate_comparisons contains mechanics_result, treat it as authoritative deterministic evidence: do not recompute, change, or invent damage, percent, or KO values. When mechanics_comparison is present, its comparison_status, rank, and fixed comparison_reason are deterministic: recommend its unique rank-1 candidate; do not reorder candidates, infer a rank for an unranked candidate, or create a scoring rationale not supplied there. For a multi-candidate mechanics comparison, return exactly one value-free ranking_acknowledgements object for every comparison row, copying only its slot_index, move, comparison_status, rank, and comparison_reason. Multi-candidate recommendation claims are value-free: include no damage, percent, KO, rank, score, or other number and no mechanics_path or numeric_scope; the deterministic selection and ranking_acknowledgements are the only provider-facing ranking references. A numeric mechanics, damage, or KO claim is allowed only for a single known direct-mechanics candidate when it includes mechanics_path for that exact candidate and numeric_scope of damage_range, damage_percent_range, or single_hit_probability; every numeric literal in the claim must reproduce exactly the selected native value or range for that scope. Never calculate an average, midpoint, rounded derivative, new KO category, or mixed-candidate value. This is mandatory: return exactly one mechanics_acknowledgements object for every candidate with mechanics_result, using only slot_index, move, canonical mechanics_path candidate_comparisons.<its slot index in the array>.mechanics_result, its exact status, and missing_inputs_path only when status is insufficient_context (otherwise null). mechanics_acknowledgements is value-free: never include mechanics values or duplicate this link in grounding.evidence_only. For insufficient_context mechanics use partial_context only; do not make a damage, KO, or mechanics claim or any mechanics number."
+    "For a multi-candidate mechanics comparison, this overrides all acknowledgement and claim instructions above: return only recommendation_status resolved, selected_candidate_id equal to the selected slot_index, and one bounded explanation_code. Never return grounding, claims, paths, dependencies, ranks, acknowledgements, or mechanics numbers; the server binds those from deterministic request evidence."
 )
 
 
@@ -334,6 +336,8 @@ def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | 
 
 
 def _structured_provider_schema(*, runtime_grounding_required: bool = False, mechanics_grounding_required: bool = False, ranking_acknowledgement_required: bool = False, provider_payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    if ranking_acknowledgement_required:
+        return {"type": "OBJECT", "properties": {"recommendation_status": {"type": "STRING", "enum": ["resolved"]}, "selected_candidate_id": {"type": "INTEGER"}, "explanation_code": {"type": "STRING", "enum": ["clear_ranked_winner", "only_rankable_candidate", "stable_tie_break", "partial_context", "unsupported_alternatives"]}}, "required": list(_MULTI_PROVIDER_RESPONSE_KEYS)}
     claim_schema = _claim_schema_for_provider_payload(provider_payload=provider_payload)
     direct_statuses = _direct_mechanics_statuses(provider_payload=provider_payload)
     properties = {
@@ -451,7 +455,7 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         decoded = json.loads(text)
     except (TypeError, ValueError):
         raise StructuredProviderError("provider_structured_decode_failed") from None
-    expected_response_keys = _RANKING_ACK_RESPONSE_KEYS if _payload_has_multi_mechanics_ranking(provider_payload) else _MECHANICS_ACK_RESPONSE_KEYS if _payload_has_mechanics_result(provider_payload) else _GROUNDED_STRUCTURED_RESPONSE_KEYS if "runtime_advice_state" in provider_payload else _STRUCTURED_RESPONSE_KEYS
+    expected_response_keys = _MULTI_PROVIDER_RESPONSE_KEYS if _payload_has_multi_mechanics_ranking(provider_payload) else _MECHANICS_ACK_RESPONSE_KEYS if _payload_has_mechanics_result(provider_payload) else _GROUNDED_STRUCTURED_RESPONSE_KEYS if "runtime_advice_state" in provider_payload else _STRUCTURED_RESPONSE_KEYS
     if not isinstance(decoded, dict) or set(decoded) != set(expected_response_keys):
         raise StructuredProviderError("provider_response_malformed")
     usage = _normalized_structured_usage(usage_data=body.get("usageMetadata"), model=model)

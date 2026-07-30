@@ -1837,3 +1837,10 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
   use it for evidence. The deterministic request/grounding dependency,
   mechanics path/status, and ranking acknowledgement remain authoritative and
   strict. Single direct mechanics still requires exact dependency equality.
+
+## v15.60 deterministic multi acknowledgement binding
+
+- Multi provider response is now minimal: resolved status, selected slot ID,
+  and a bounded explanation code. Server validates rank-one selection and
+  deterministically builds mechanics/ranking acknowledgements from request
+  evidence. Do not apply this path to single direct mechanics.

@@ -729,6 +729,36 @@ def prepare_recommendation_cycle(*, moves: Sequence[Any], battle_snapshot: Mappi
     return _cycle_result(status="ready", candidates=candidates, evidence_bundle=evidence, recommendation_request=request)
 
 
+def _bind_multi_provider_response(*, request: Mapping[str, Any], response: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """Bind a minimal multi-move provider choice to authoritative request evidence."""
+    if set(response) != set(_MULTI_PROVIDER_RESPONSE_KEYS) or response.get("recommendation_status") != "resolved":
+        return None
+    selected = response.get("selected_candidate_id")
+    rows = request.get("candidate_comparisons")
+    if not isinstance(selected, int) or isinstance(selected, bool) or not isinstance(rows, list):
+        return None
+    chosen = next((row for row in rows if isinstance(row, Mapping) and row.get("slot_index") == selected), None)
+    if not isinstance(chosen, Mapping):
+        return None
+    comparison = chosen.get("mechanics_comparison")
+    if not isinstance(comparison, Mapping) or comparison.get("comparison_status") != "rankable" or comparison.get("rank") != 1:
+        return None
+    rankable = [row for row in rows if isinstance(row, Mapping) and isinstance(row.get("mechanics_comparison"), Mapping) and row["mechanics_comparison"].get("comparison_status") == "rankable"]
+    expected_code = "only_rankable_candidate" if comparison.get("comparison_reason") == "only_rankable_candidate" else "stable_tie_break" if any(row is not chosen and row.get("mechanics_result") == chosen.get("mechanics_result") for row in rankable) else "clear_ranked_winner"
+    if response.get("explanation_code") != expected_code:
+        return None
+    mechanics_acknowledgements = []
+    ranking_acknowledgements = []
+    for index, row in enumerate(rows):
+        mechanics = row.get("mechanics_result") if isinstance(row, Mapping) else None
+        ranking = row.get("mechanics_comparison") if isinstance(row, Mapping) else None
+        if not isinstance(row, Mapping) or not isinstance(mechanics, Mapping) or not isinstance(ranking, Mapping):
+            return None
+        mechanics_acknowledgements.append({"slot_index": row["slot_index"], "move": row["move"], "mechanics_path": f"candidate_comparisons.{index}.mechanics_result", "status": mechanics.get("status"), "missing_inputs_path": None})
+        ranking_acknowledgements.append({"slot_index": row["slot_index"], "move": row["move"], **ranking})
+    return {"recommendation_status": "resolved", "recommended_move": chosen["move"], "recommended_slot_index": selected, "primary_reasons": [{"kind": "mechanics", "claim": "deterministic ranking evidence"}], "risks": [], "alternatives": [], "grounding": {"schema_version": "grounding-v1", "confirmed_facts": [], "unknown_facts": [], "evidence_only": [], "conflicts": [], "conditional_dependencies": []}, "mechanics_acknowledgements": mechanics_acknowledgements, "ranking_acknowledgements": ranking_acknowledgements}
+
+
 def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response_payload: Mapping[str, Any]) -> dict[str, Any]:
     """Complete a ready provider-neutral cycle through the offline parser only."""
     if not isinstance(prepared_cycle, Mapping) or prepared_cycle.get("status") != "ready" or not isinstance(prepared_cycle.get("recommendation_request"), Mapping):
@@ -739,6 +769,11 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
     request = prepared_cycle["recommendation_request"]
     mechanics_required = _request_has_mechanics_result(request)
     ranking_required = _request_has_multi_mechanics_ranking(request)
+    if ranking_required:
+        bound = _bind_multi_provider_response(request=request, response=response_payload)
+        if bound is None:
+            return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["multi_provider_binding_invalid"])
+        response_payload = bound
     if (_RUNTIME_PROVIDER_KEY in request or mechanics_required) and "grounding" not in response_payload:
         return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["grounding_required"])
     if mechanics_required and "mechanics_acknowledgements" not in response_payload:
@@ -870,6 +905,7 @@ _PROVIDER_RESPONSE_KEYS = (
 _GROUNDED_PROVIDER_RESPONSE_KEYS = (*_PROVIDER_RESPONSE_KEYS, "grounding")
 _MECHANICS_ACK_PROVIDER_RESPONSE_KEYS = (*_GROUNDED_PROVIDER_RESPONSE_KEYS, "mechanics_acknowledgements")
 _RANKING_ACK_PROVIDER_RESPONSE_KEYS = (*_MECHANICS_ACK_PROVIDER_RESPONSE_KEYS, "ranking_acknowledgements")
+_MULTI_PROVIDER_RESPONSE_KEYS = ("recommendation_status", "selected_candidate_id", "explanation_code")
 _PROVIDER_RESPONSE_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate"})
 _PREPARED_CYCLE_KEYS = frozenset({"status", "candidates", "evidence_bundle", "recommendation_request", "recommendation_result", "errors"})
 
@@ -906,11 +942,15 @@ def adapt_provider_recommendation_response(*, provider_response: Mapping[str, An
     """Copy a provider-independent structured response without semantic evaluation."""
     if type(provider_response) is not dict:
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
-    if set(provider_response) not in (set(_PROVIDER_RESPONSE_KEYS), set(_GROUNDED_PROVIDER_RESPONSE_KEYS), set(_MECHANICS_ACK_PROVIDER_RESPONSE_KEYS), set(_RANKING_ACK_PROVIDER_RESPONSE_KEYS)):
+    if set(provider_response) not in (set(_PROVIDER_RESPONSE_KEYS), set(_GROUNDED_PROVIDER_RESPONSE_KEYS), set(_MECHANICS_ACK_PROVIDER_RESPONSE_KEYS), set(_RANKING_ACK_PROVIDER_RESPONSE_KEYS), set(_MULTI_PROVIDER_RESPONSE_KEYS)):
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
     if provider_response.get("recommendation_status") not in _PROVIDER_RESPONSE_STATUSES:
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
     try:
+        if set(provider_response) == set(_MULTI_PROVIDER_RESPONSE_KEYS):
+            if provider_response.get("recommendation_status") != "resolved" or not isinstance(provider_response.get("selected_candidate_id"), int) or isinstance(provider_response.get("selected_candidate_id"), bool) or provider_response.get("explanation_code") not in {"clear_ranked_winner", "only_rankable_candidate", "stable_tie_break", "partial_context", "unsupported_alternatives"}:
+                raise ValueError("invalid multi response")
+            return serialize_recommendation_request(deepcopy(provider_response))
         if "grounding" in provider_response:
             grounding = provider_response["grounding"]
             required = {"schema_version", "confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies"}

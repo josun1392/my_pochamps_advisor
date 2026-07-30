@@ -3495,6 +3495,14 @@ mechanics number in free text while preserving its bounded responsibility to
 return the deterministic selected action and ranking acknowledgements. Internal
 validation continues to reject any numeric claim received outside this schema.
 
+## v15.60 deterministic multi-move acknowledgement binding
+
+Multi-move provider output is limited to `recommendation_status`, a selected
+candidate slot ID, and a bounded explanation code. The server validates the
+rank-one candidate and code against the request, then generates mechanics and
+ranking acknowledgements from authoritative candidate comparisons. Single
+direct-mechanics retains provider-authored path/scope acknowledgement behavior.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics

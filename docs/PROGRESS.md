@@ -19089,6 +19089,13 @@ Maintained boundaries:
   acknowledgement validation remain. Single direct-mechanics keeps its exact
   dependency-path check. No raw provider data was inspected.
 
+## v15.60 deterministic multi acknowledgement binding
+
+- Multi provider responses no longer copy mechanics paths, dependencies, ranks,
+  or acknowledgements. They return only a selected slot ID and bounded code;
+  server binding validates rank one and regenerates acknowledgements from the
+  existing request. Single direct mechanics is unchanged.
+
 ## v15.57 multi-move value-free provider responsibility
 
 - T1 approved removal of multi-move provider numeric mechanics claims after
