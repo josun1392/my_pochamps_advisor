@@ -19123,3 +19123,14 @@ Maintained boundaries:
   non-authoritative (with string/null type bounds); deterministic request and
   grounding dependencies, mechanics path/status, and ranking acknowledgements
   remain strict. Single direct-mechanics exact dependency equality is unchanged.
+
+## v16 known action-order evidence
+
+- Added a narrow priority-first action-order evaluator for a self candidate and
+  explicitly selected opponent action. It uses canonical move priority plus
+  user-confirmed final Speed and user-confirmed Trick Room state only.
+- Candidate `action_order` evidence is separate from deterministic damage
+  ranking. Unknown inputs remain insufficient, equal Speed remains a tie, and
+  conditional priority mechanics are explicitly unsupported; Speed stages,
+  Tailwind, base Speed, item/ability inference, and provider activity are not
+  used.

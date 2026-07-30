@@ -7,7 +7,11 @@ from decimal import Decimal
 import math
 import re
 
-from llm.advisor_battle_state_context import build_deterministic_calculation_context
+from llm.advisor_battle_state_context import (
+    build_deterministic_calculation_context,
+    normalize_user_confirmed_current_field_state,
+    normalize_user_confirmed_final_battle_stat,
+)
 from llm.advisor_turn_snapshot import (
     build_snapshot_damage_input,
     build_snapshot_stat_provenance,
@@ -17,6 +21,7 @@ from llm.advisor_turn_snapshot import (
 )
 from llm.advisor_q12_snapshot_adapter import invoke_existing_q12_from_snapshot
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
+from llm.narrow_action_order import evaluate_action_order
 
 CANDIDATE_STATUSES = frozenset({"resolved", "partial", "unavailable"})
 RECOMMENDATION_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate", "validation_failed"})
@@ -118,7 +123,7 @@ def _production_context(snapshot: Mapping[str, Any], selected_move: Mapping[str,
     return build_deterministic_calculation_context(
         context.get("final_stat_context"), context.get("stat_stage_context"), selected_move,
         context.get("current_hp_context"), context.get("pokemon"), context.get("condition_context"),
-        context.get("field_state_context"), context.get("battle_format_context"), context.get("opponent_selected_move"),
+        context.get("field_state_context"), context.get("battle_format_context"), None,
         context.get("attacker_level_context"), context.get("observed_previous_damage_context"),
         context.get("battle_counter_context"), context.get("consecutive_use_context"),
         context.get("weight_context"), context.get("turn_event_context"),
@@ -133,6 +138,53 @@ def _without_internal_provenance(value: Any) -> Any:
     if isinstance(value, tuple):
         return tuple(_without_internal_provenance(item) for item in value)
     return deepcopy(value)
+
+
+def _trusted_final_speed(snapshot: Mapping[str, Any], side: str) -> int | None:
+    context = snapshot.get("final_stat_context")
+    entries = context.get("current_final_stats") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        return None
+    for entry in entries:
+        try:
+            normalized = normalize_user_confirmed_final_battle_stat(entry)
+        except ValueError:
+            continue
+        if normalized["side"] == side and normalized["stat"] == "speed":
+            return normalized["value"]
+    return None
+
+
+def _known_trick_room(snapshot: Mapping[str, Any]) -> str:
+    context = snapshot.get("field_state_context")
+    field = context.get("current_field") if isinstance(context, Mapping) else None
+    try:
+        normalized = normalize_user_confirmed_current_field_state(field)
+    except ValueError:
+        return "unknown"
+    return "active" if "trick-room" in normalized["global_effects"] else "inactive"
+
+
+def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -> dict[str, Any] | None:
+    selected = snapshot.get("opponent_selected_move")
+    move_id = selected.get("move_id") if isinstance(selected, Mapping) else None
+    if not isinstance(move_id, str) or not move_id:
+        return None
+    try:
+        metadata = repositories.get(move_id) if hasattr(repositories, "get") else repositories[move_id]
+    except Exception:
+        return {"move_id": move_id}
+    return {"move_id": move_id, "priority": _metadata_value(metadata, "priority")}
+
+
+def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: Any, repositories: Any) -> dict[str, Any]:
+    return evaluate_action_order(
+        self_action={"move_id": move, "priority": _metadata_value(metadata, "priority")},
+        opponent_action=_canonical_opponent_action(snapshot, repositories),
+        self_final_speed=_trusted_final_speed(snapshot, "self"),
+        opponent_final_speed=_trusted_final_speed(snapshot, "opponent"),
+        trick_room=_known_trick_room(snapshot),
+    )
 
 
 def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapping[str, Any], repositories: Any, turn_snapshot: Any = None, selectable_moves: Sequence[str | None] | None = None, species_repository: Any = None) -> dict[str, Any]:
@@ -177,6 +229,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     dynamic_move = _dynamic_summary(context)
     damage = _damage_summary(context)
     optional_outputs, self_effects, optional_reasons = _optional_outputs(context)
+    optional_outputs["action_order"] = _action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories)
     if dynamic_move is not None and dynamic_move["status"] != "resolved":
         reasons = ["required_dynamic_context_unavailable"]
         assessment = context.get(dynamic_move["assessment_key"]) if isinstance(context, Mapping) else None
