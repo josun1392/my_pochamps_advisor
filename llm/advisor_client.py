@@ -337,7 +337,14 @@ def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | 
 
 def _structured_provider_schema(*, runtime_grounding_required: bool = False, mechanics_grounding_required: bool = False, ranking_acknowledgement_required: bool = False, provider_payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
     if ranking_acknowledgement_required:
-        return {"type": "OBJECT", "properties": {"recommendation_status": {"type": "STRING", "enum": ["resolved"]}, "selected_candidate_id": {"type": "INTEGER"}, "explanation_code": {"type": "STRING", "enum": ["clear_ranked_winner", "only_rankable_candidate", "stable_tie_break", "partial_context", "unsupported_alternatives"]}}, "required": list(_MULTI_PROVIDER_RESPONSE_KEYS)}
+        rows = provider_payload.get("candidate_comparisons") if isinstance(provider_payload, Mapping) else []
+        winner = next((row for row in rows if isinstance(row, Mapping) and isinstance(row.get("mechanics_comparison"), Mapping) and row["mechanics_comparison"].get("rank") == 1), None)
+        code = "clear_ranked_winner"
+        if isinstance(winner, Mapping):
+            comparison = winner["mechanics_comparison"]
+            if comparison.get("comparison_reason") == "only_rankable_candidate": code = "only_rankable_candidate"
+            elif any(isinstance(row, Mapping) and row is not winner and row.get("mechanics_result") == winner.get("mechanics_result") and isinstance(row.get("mechanics_comparison"), Mapping) and row["mechanics_comparison"].get("comparison_status") == "rankable" for row in rows): code = "stable_tie_break"
+        return {"type": "OBJECT", "properties": {"recommendation_status": {"type": "STRING", "enum": ["resolved"]}, "selected_candidate_id": {"type": "INTEGER"}, "explanation_code": {"type": "STRING", "enum": [code]}}, "required": list(_MULTI_PROVIDER_RESPONSE_KEYS)}
     claim_schema = _claim_schema_for_provider_payload(provider_payload=provider_payload)
     direct_statuses = _direct_mechanics_statuses(provider_payload=provider_payload)
     properties = {
