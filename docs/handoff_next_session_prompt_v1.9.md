@@ -1745,3 +1745,17 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
 - The change follows the bounded actual diagnostic
   `insufficient_context_not_preserved`. Validate offline, commit, and push;
   do not perform another actual call without fresh T1 approval.
+
+## v15.51 multi-move direct-mechanics ranking
+
+- Evaluate every selectable move independently with the native direct slice.
+  For native direct results only, add `mechanics_comparison` to the existing
+  candidate comparison row: bounded comparison status, nullable rank, and
+  fixed reason. Do not expose a score or any raw engine material.
+- Rank only complete known results. Order by effective action, guaranteed KO,
+  KO probability, minimum/maximum percent, damage range, type effectiveness,
+  then ascending slot. Preserve incomplete/unsupported/unavailable candidates
+  as unranked; `only_rankable_candidate` is explicit.
+- Provider guidance treats the rank as deterministic evidence and forbids
+  provider-side reordering or inferred scores. This milestone is offline only;
+  do not use credentials, providers, or network.

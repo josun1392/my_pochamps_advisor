@@ -3398,3 +3398,21 @@ provider-facing `recommendation_status` enum is also narrowed to
 claim surface and parser, preventing a structurally valid incomplete request
 from being returned as resolved or no-usable-candidate. The strict parser and
 value-free canonical missing-input acknowledgement remain unchanged.
+
+## v15.51 multi-move direct-mechanics comparison
+
+Each selectable move is evaluated independently through the existing native
+direct-mechanics boundary. A provider-safe `mechanics_comparison` appears only
+when the candidate has a `native_q12_direct_damage` result. It contains only
+`comparison_status`, nullable `rank`, and a bounded `comparison_reason`; the
+existing `mechanics_result` supplies the already-bounded type, damage,
+percent, KO, missing-input, and unsupported evidence. Internal score tuples,
+raw rolls, calculation input, provenance, and bridge output remain excluded.
+
+Only complete `known` native results are `rankable`. Their deterministic order
+is: effective action, guaranteed single-hit KO, single-hit KO probability,
+minimum damage percent, maximum damage percent, minimum damage, maximum damage,
+type effectiveness, then ascending move slot. `insufficient_context`,
+`unsupported_mechanic`, and unavailable candidates have no rank. A single
+rankable candidate is explicitly marked `only_rankable_candidate` rather than
+being treated as a comparison win.

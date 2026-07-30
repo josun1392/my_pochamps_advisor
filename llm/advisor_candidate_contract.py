@@ -225,6 +225,88 @@ def evaluate_move_slots(*, moves: Sequence[Any], battle_snapshot: Mapping[str, A
     if isinstance(moves, (str, bytes)) or not isinstance(moves, Sequence) or len(moves) > maximum_slots: raise ValueError("invalid move slots")
     return [evaluate_move_candidate(slot_index=index, move=move, battle_snapshot=deepcopy(dict(battle_snapshot)), repositories=repositories, turn_snapshot=turn_snapshot, selectable_moves=moves, species_repository=species_repository) for index, move in enumerate(moves) if move is not None]
 
+
+_MECHANICS_COMPARISON_STATUSES = frozenset({"rankable", "insufficient_context", "unsupported_mechanic", "unavailable"})
+_NATIVE_DIRECT_MECHANICS_SOURCE = "native_q12_direct_damage"
+
+
+def _finite_number(value: Any) -> float | None:
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
+        return None
+    return float(value)
+
+
+def _known_direct_metrics(mechanics: Mapping[str, Any]) -> tuple[float, float, float, float, float, float, float] | None:
+    damage = mechanics.get("damage_range")
+    percent = mechanics.get("damage_percent_range")
+    ko = mechanics.get("ko_result")
+    if not isinstance(damage, Mapping) or not isinstance(percent, Mapping) or not isinstance(ko, Mapping):
+        return None
+    minimum, maximum = _finite_number(damage.get("minimum")), _finite_number(damage.get("maximum"))
+    minimum_percent, maximum_percent = _finite_number(percent.get("minimum")), _finite_number(percent.get("maximum"))
+    probability, effectiveness = _finite_number(ko.get("single_hit_probability")), _finite_number(mechanics.get("type_effectiveness"))
+    if None in {minimum, maximum, minimum_percent, maximum_percent, probability, effectiveness}:
+        return None
+    assert minimum is not None and maximum is not None and minimum_percent is not None and maximum_percent is not None and probability is not None and effectiveness is not None
+    if minimum < 0 or maximum < minimum or minimum_percent < 0 or maximum_percent < minimum_percent or not 0 <= probability <= 1 or effectiveness < 0:
+        return None
+    return minimum, maximum, minimum_percent, maximum_percent, probability, effectiveness, float(probability >= 1)
+
+
+def _direct_mechanics_comparison(candidate: Mapping[str, Any]) -> tuple[dict[str, Any], tuple[float, ...] | None] | None:
+    mechanics = candidate.get("mechanics_result")
+    if not isinstance(mechanics, Mapping) or mechanics.get("mechanics_source") != _NATIVE_DIRECT_MECHANICS_SOURCE:
+        return None
+    if candidate.get("status") == "unavailable" or candidate.get("availability") == "unavailable":
+        return {"comparison_status": "unavailable", "rank": None, "comparison_reason": "candidate_unavailable"}, None
+    status = mechanics.get("status")
+    if status == "insufficient_context":
+        return {"comparison_status": "insufficient_context", "rank": None, "comparison_reason": "mechanics_insufficient_context"}, None
+    if status == "unsupported_mechanic":
+        return {"comparison_status": "unsupported_mechanic", "rank": None, "comparison_reason": "mechanics_unsupported"}, None
+    if status != "known":
+        return {"comparison_status": "unavailable", "rank": None, "comparison_reason": "mechanics_unavailable"}, None
+    metrics = _known_direct_metrics(mechanics)
+    if metrics is None:
+        return {"comparison_status": "unavailable", "rank": None, "comparison_reason": "mechanics_evidence_unavailable"}, None
+    minimum, maximum, minimum_percent, maximum_percent, probability, effectiveness, guaranteed = metrics
+    effective_action = float(effectiveness > 0 and maximum > 0)
+    # The tuple is internal-only ranking evidence.  Only its resulting rank and
+    # fixed reason are placed in the provider-safe comparison row.
+    key = (effective_action, guaranteed, probability, minimum_percent, maximum_percent, minimum, maximum, effectiveness)
+    return {"comparison_status": "rankable", "rank": None, "comparison_reason": "deterministic_known_mechanics"}, key
+
+
+def rank_direct_mechanics_candidates(*, candidates: Sequence[Mapping[str, Any]]) -> dict[tuple[int, str], dict[str, Any]]:
+    """Classify and deterministically rank native direct-mechanics candidates.
+
+    Only a complete native direct result is rankable.  Unknown, incomplete,
+    unsupported, and unavailable inputs never receive an inferred score.
+    """
+    comparisons: dict[tuple[int, str], dict[str, Any]] = {}
+    rankable: list[tuple[tuple[float, ...], int, str]] = []
+    for candidate in candidates:
+        if not isinstance(candidate, Mapping):
+            continue
+        slot, move = candidate.get("slot_index"), candidate.get("move")
+        if not isinstance(slot, int) or isinstance(slot, bool) or not isinstance(move, str) or not move:
+            continue
+        result = _direct_mechanics_comparison(candidate)
+        if result is None:
+            continue
+        comparison, key = result
+        comparisons[(slot, move)] = comparison
+        if key is not None:
+            rankable.append((key, slot, move))
+    rankable.sort(key=lambda item: (*item[0], -item[1]), reverse=True)
+    only_rankable = len(rankable) == 1
+    for rank, (_key, slot, move) in enumerate(rankable, start=1):
+        comparison = comparisons[(slot, move)]
+        comparison["rank"] = rank
+        if only_rankable:
+            comparison["comparison_reason"] = "only_rankable_candidate"
+    return comparisons
+
 _RECOMMENDATION_GUARDRAILS = {
     "select_only_from_selectable_exact_set": True,
     "do_not_modify_deterministic_evidence": True,
@@ -297,6 +379,15 @@ def _validate_request_contract(request: Mapping[str, Any]) -> None:
             expected_selectable.append(pair)
     if selectable != expected_selectable:
         raise ValueError("invalid recommendation request")
+    expected_mechanics_comparisons = rank_direct_mechanics_candidates(candidates=comparisons)
+    for row in comparisons:
+        pair = _exact_pair(row, exact=False)
+        expected_comparison = expected_mechanics_comparisons.get((pair["slot_index"], pair["move"]))
+        if expected_comparison is None:
+            if "mechanics_comparison" in row:
+                raise ValueError("invalid recommendation request")
+        elif row.get("mechanics_comparison") != expected_comparison:
+            raise ValueError("invalid recommendation request")
     expected_status = "no_candidates" if not pairs else "ready" if selectable else "no_selectable_candidates"
     if readiness.get("status") != expected_status or readiness.get("selectable_candidate_count") != len(selectable):
         raise ValueError("invalid recommendation request")
@@ -313,6 +404,7 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
     try:
         comparisons = []
         pairs = []
+        normalized_candidates = []
         for candidate in candidates:
             normalized = validate_candidate(candidate)
             pair = _exact_pair(normalized, exact=False)
@@ -322,9 +414,18 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
             # Q12 is internal deterministic evidence.  Keep its compact result
             # on the prepared candidate while preserving the provider comparison
             # contract and never serializing a calculation input/provenance block.
-            provider_candidate = {key: value for key, value in normalized.items() if key != "q12_damage"}
-            comparisons.append({**deepcopy(provider_candidate), "eligibility": eligibility})
+            normalized_candidates.append(normalized)
             pairs.append(pair)
+        ranked_mechanics = rank_direct_mechanics_candidates(candidates=normalized_candidates)
+        for normalized in normalized_candidates:
+            eligibility = _candidate_eligibility(normalized)
+            provider_candidate = {key: value for key, value in normalized.items() if key != "q12_damage"}
+            pair = _exact_pair(normalized, exact=False)
+            row = {**deepcopy(provider_candidate), "eligibility": eligibility}
+            comparison = ranked_mechanics.get((pair["slot_index"], pair["move"]))
+            if comparison is not None:
+                row["mechanics_comparison"] = comparison
+            comparisons.append(row)
         if not all(isinstance(item, str) for item in limitations):
             raise ValueError("invalid known limitations")
     except (TypeError, ValueError):

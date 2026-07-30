@@ -19027,3 +19027,15 @@ Maintained boundaries:
 - This is a schema-only contract alignment: no mechanics result, parser
   authority, prompt policy, fixture, retry, fallback, or repair behavior was
   broadened. A subsequent actual run requires new T1 approval.
+
+## v15.51 multi-move deterministic mechanics ranking
+
+- Selectable move slots now retain independent native direct-mechanics results
+  and add provider-safe `mechanics_comparison` rows only for native direct
+  evidence. The row exposes bounded status, rank, and reason; it never exposes
+  an internal score, raw roll, engine context, or provenance.
+- Rankable results are known direct mechanics only. Fixed ordering is effective
+  action, guaranteed KO, KO probability, minimum/maximum damage percent,
+  damage range, type effectiveness, then stable slot order. Incomplete,
+  unsupported, and unavailable moves remain unranked with their existing
+  missing-input or unsupported evidence preserved.
