@@ -1800,3 +1800,13 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
   while `numeric_scope` is absent or null. A numeric claim still requires a
   valid scope and exact native values. Incomplete evidence remains a
   `partial_context_claim` and cannot receive a mechanics reference or scope.
+
+## v15.56 multi-move incomplete dependency acknowledgement
+
+- In multi-candidate mechanics acknowledgements, use `null` for
+  `missing_inputs_path`; the authoritative incomplete dependency stays in the
+  request/grounding path while mechanics path/status and ranking acknowledgement
+  remain exact. An arbitrary non-null dependency string remains invalid.
+- This is multi-only. Single direct-mechanics still requires its exact
+  incomplete dependency path. Run offline validation, commit, and push before
+  the next approval-gated actual round.

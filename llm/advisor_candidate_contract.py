@@ -751,6 +751,7 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
         errors = validate_mechanics_acknowledgements(
             request=request,
             acknowledgements=response_payload.get("mechanics_acknowledgements"),
+            allow_null_missing_input_dependency=ranking_required,
         )
         if errors:
             return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=errors)
@@ -971,7 +972,7 @@ def _request_has_multi_mechanics_ranking(request: Mapping[str, Any]) -> bool:
     ) >= 2
 
 
-def validate_mechanics_acknowledgements(*, request: Mapping[str, Any], acknowledgements: Any) -> list[str]:
+def validate_mechanics_acknowledgements(*, request: Mapping[str, Any], acknowledgements: Any, allow_null_missing_input_dependency: bool = False) -> list[str]:
     """Validate the schema-required, value-free direct-mechanics links."""
     comparisons = request.get("candidate_comparisons")
     if not isinstance(comparisons, list):
@@ -1008,7 +1009,10 @@ def validate_mechanics_acknowledgements(*, request: Mapping[str, Any], acknowled
             return ["mechanics_acknowledgement_path_invalid"]
         if acknowledgement.get("status") != expected_status:
             return ["mechanics_acknowledgement_status_invalid"]
-        if acknowledgement.get("missing_inputs_path") != expected_dependency:
+        if acknowledgement.get("missing_inputs_path") != expected_dependency and not (
+            allow_null_missing_input_dependency and expected_dependency is not None
+            and acknowledgement.get("missing_inputs_path") is None
+        ):
             return ["mechanics_acknowledgement_dependency_invalid"]
     return [] if seen == set(expected) else ["mechanics_acknowledgement_missing"]
 

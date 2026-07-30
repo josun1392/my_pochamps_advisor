@@ -19079,3 +19079,12 @@ Maintained boundaries:
   exact numeric contract. Offline coverage includes value-free absent/null
   scope, valid and invalid numeric evidence, insufficient candidate references,
   and stable tie preservation. No provider call occurred during this change.
+
+## v15.56 multi-move incomplete dependency copy
+
+- Additional actual round one passed clear-winner and stopped at
+  mixed-availability with bounded `mechanics_acknowledgement_dependency_invalid`.
+  The multi-candidate schema now fixes the redundant provider-side incomplete
+  dependency copy to null; strict mechanics path/status and ranking
+  acknowledgement validation remain. Single direct-mechanics keeps its exact
+  dependency-path check. No raw provider data was inspected.

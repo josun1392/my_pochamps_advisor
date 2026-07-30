@@ -3463,3 +3463,13 @@ Only a claim containing native mechanics numeric literals is a
 allowed numeric scope, and an exact native-value match. This conditional rule
 does not alter the single direct-mechanics schema: it still requires both path
 and scope for every known mechanics claim.
+
+## v15.56 multi-move incomplete acknowledgement dependency
+
+For a multi-candidate mechanics comparison, an incomplete candidate still
+requires the exact candidate mechanics path and status in its mechanics
+acknowledgement and its exact rank/status/reason acknowledgement. Its redundant
+`missing_inputs_path` provider copy is fixed to `null`; the authoritative
+dependency remains in the request and grounding contract. Non-null incorrect
+copies are rejected. Single direct-mechanics acknowledgements retain their
+exact incomplete dependency-path requirement.

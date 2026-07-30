@@ -13,7 +13,7 @@ def _response(payload, *, selected=None):
     for index, row in enumerate(rows):
         mechanics = row["mechanics_result"]
         path = f"candidate_comparisons.{index}.mechanics_result"
-        mechanics_acknowledgements.append({"slot_index": row["slot_index"], "move": row["move"], "mechanics_path": path, "status": mechanics["status"], "missing_inputs_path": f"{path}.missing_inputs" if mechanics["status"] == "insufficient_context" else None})
+        mechanics_acknowledgements.append({"slot_index": row["slot_index"], "move": row["move"], "mechanics_path": path, "status": mechanics["status"], "missing_inputs_path": None})
         ranking_acknowledgements.append({"slot_index": row["slot_index"], "move": row["move"], **row["mechanics_comparison"]})
     grounding = {"schema_version": "grounding-v1", "confirmed_facts": [], "unknown_facts": [], "evidence_only": [], "conflicts": [], "conditional_dependencies": [{"path": acknowledgement["missing_inputs_path"]} for acknowledgement in mechanics_acknowledgements if acknowledgement["missing_inputs_path"] is not None]}
     selected_index = rows.index(winner)
@@ -102,6 +102,18 @@ def test_multi_move_rejects_an_insufficient_candidate_reference_and_preserves_st
     assert (accepted["recommendation_result"]["recommended_move"], accepted["recommendation_result"]["recommended_slot_index"]) == ("tackle", 0)
 
 
+def test_multi_move_allows_only_null_incomplete_dependency_copy_while_single_direct_stays_strict():
+    from llm.advisor_candidate_contract import complete_recommendation_cycle
+
+    mixed = _prepared(FIXTURES[1])
+    accepted = complete_recommendation_cycle(prepared_cycle=mixed, response_payload=_response(mixed["recommendation_request"]))
+    assert accepted["status"] == "resolved"
+
+    malformed = _response(mixed["recommendation_request"])
+    malformed["mechanics_acknowledgements"][1]["missing_inputs_path"] = "invalid"
+    assert complete_recommendation_cycle(prepared_cycle=mixed, response_payload=malformed)["errors"] == ["mechanics_acknowledgement_dependency_invalid"]
+
+
 def test_schema_requires_value_free_multi_move_ranking_acknowledgements():
     from llm.advisor_client import _structured_provider_schema
 
@@ -116,6 +128,8 @@ def test_schema_requires_value_free_multi_move_ranking_acknowledgements():
     assert claim["required"] == ["kind", "claim", "mechanics_path"]
     assert claim["properties"]["numeric_scope"]["nullable"] is True
     assert "Use no digits in claim" in claim["properties"]["claim"]["description"]
+    dependency = schema["properties"]["mechanics_acknowledgements"]["items"]["properties"]["missing_inputs_path"]["description"]
+    assert "always use null" in dependency
 
 
 def test_default_and_invalid_actual_paths_do_not_invoke_fake_provider():
