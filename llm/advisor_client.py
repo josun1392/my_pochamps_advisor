@@ -359,7 +359,7 @@ def _structured_provider_schema(*, runtime_grounding_required: bool = False, mec
     if mechanics_grounding_required:
         mechanics_schema = _mechanics_acknowledgement_item_schema(provider_payload=provider_payload) if isinstance(provider_payload, Mapping) else _MECHANICS_ACK_SCHEMA
         if ranking_acknowledgement_required:
-            mechanics_schema["properties"]["missing_inputs_path"]["description"] = "For a multi-candidate comparison, always use null; authoritative incomplete status is carried by mechanics_acknowledgements, ranking_acknowledgements, and grounding."
+            mechanics_schema["properties"]["missing_inputs_path"]["description"] = "For a multi-candidate comparison, use null. This provider field is non-authoritative; incomplete status is carried by mechanics_acknowledgements, ranking_acknowledgements, and grounding."
         properties["mechanics_acknowledgements"] = {"type": "ARRAY", "items": mechanics_schema, "description": "Required value-free acknowledgement for every direct mechanics candidate; copy only slot, move, canonical mechanics path, status, and missing-input path when incomplete."}
     if ranking_acknowledgement_required:
         properties["ranking_acknowledgements"] = {"type": "ARRAY", "items": _RANKING_ACK_SCHEMA, "description": "Required value-free acknowledgement for every deterministic multi-move comparison; copy only slot, move, status, rank, and fixed reason."}

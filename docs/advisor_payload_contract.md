@@ -3494,3 +3494,13 @@ deterministic explanation strings. This prevents Gemini from placing a native
 mechanics number in free text while preserving its bounded responsibility to
 return the deterministic selected action and ranking acknowledgements. Internal
 validation continues to reject any numeric claim received outside this schema.
+
+## v15.59 multi-move incomplete dependency authority
+
+In a multi-candidate response, `missing_inputs_path` in a mechanics
+acknowledgement is a provider-format field, not an authority source. The
+authoritative missing-input dependency remains in the deterministic request and
+grounding surfaces. A null or string provider copy is accepted but never used;
+invalid types are rejected. Exact mechanics path/status and the complete
+ranking acknowledgement remain mandatory. Single direct-mechanics keeps exact
+dependency-path equality.

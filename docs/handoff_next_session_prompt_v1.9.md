@@ -1829,3 +1829,11 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
   outside the provider response. Internal validation still rejects numeric
   claim text if received. Validate offline, commit, and push before any later
   approval-gated actual round.
+
+## v15.59 multi incomplete dependency authority
+
+- For a multi-candidate mechanics acknowledgement, `missing_inputs_path` is a
+  non-authoritative provider-format string: accept only string/null and never
+  use it for evidence. The deterministic request/grounding dependency,
+  mechanics path/status, and ranking acknowledgement remain authoritative and
+  strict. Single direct mechanics still requires exact dependency equality.

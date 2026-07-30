@@ -19107,3 +19107,12 @@ Maintained boundaries:
   provider data was not inspected. The multi claim schema now uses only static
   value-free explanation strings, while internal validation still rejects any
   numeric bypass. This is not applied to single direct-mechanics.
+
+## v15.59 multi-move non-authoritative dependency copy
+
+- The bounded explanation actual round again passed clear-winner and stopped
+  at mixed-availability because of a provider-formatted incomplete dependency
+  string. Multi validation now treats only that redundant string as
+  non-authoritative (with string/null type bounds); deterministic request and
+  grounding dependencies, mechanics path/status, and ranking acknowledgements
+  remain strict. Single direct-mechanics exact dependency equality is unchanged.

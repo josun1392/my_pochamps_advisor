@@ -93,7 +93,7 @@ def test_multi_move_rejects_an_insufficient_candidate_reference_and_preserves_st
     assert (accepted["recommendation_result"]["recommended_move"], accepted["recommendation_result"]["recommended_slot_index"]) == ("tackle", 0)
 
 
-def test_multi_move_allows_only_null_incomplete_dependency_copy_while_single_direct_stays_strict():
+def test_multi_move_treats_incomplete_dependency_copy_as_non_authoritative_while_single_direct_stays_strict():
     from llm.advisor_candidate_contract import complete_recommendation_cycle
 
     mixed = _prepared(FIXTURES[1])
@@ -102,7 +102,11 @@ def test_multi_move_allows_only_null_incomplete_dependency_copy_while_single_dir
 
     malformed = _response(mixed["recommendation_request"])
     malformed["mechanics_acknowledgements"][1]["missing_inputs_path"] = "invalid"
-    assert complete_recommendation_cycle(prepared_cycle=mixed, response_payload=malformed)["errors"] == ["mechanics_acknowledgement_dependency_invalid"]
+    assert complete_recommendation_cycle(prepared_cycle=mixed, response_payload=malformed)["status"] == "resolved"
+
+    invalid_type = _response(mixed["recommendation_request"])
+    invalid_type["mechanics_acknowledgements"][1]["missing_inputs_path"] = 42
+    assert complete_recommendation_cycle(prepared_cycle=mixed, response_payload=invalid_type)["errors"] == ["mechanics_acknowledgement_dependency_invalid"]
 
 
 def test_schema_requires_value_free_multi_move_ranking_acknowledgements():
@@ -119,7 +123,7 @@ def test_schema_requires_value_free_multi_move_ranking_acknowledgements():
     assert claim["required"] == ["kind", "claim"]
     assert claim["properties"]["claim"]["enum"] == ["deterministic ranking evidence", "deterministic comparison supports the selected action", "selected action follows deterministic ranking"]
     dependency = schema["properties"]["mechanics_acknowledgements"]["items"]["properties"]["missing_inputs_path"]["description"]
-    assert "always use null" in dependency
+    assert "non-authoritative" in dependency
 
 
 def test_multi_move_keeps_native_numeric_evidence_in_the_deterministic_request_and_result():
