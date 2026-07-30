@@ -1780,3 +1780,11 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
 - This follows the bounded clear-winner diagnostic
   `mechanics_numeric_scope_invalid`. Run offline validation, commit, and push
   before any later approval-gated actual round.
+
+## v15.54 multi-move digit-free claim text
+
+- The next bounded clear-winner diagnostic was
+  `mechanics_numeric_value_mismatch`. For multi-candidate native mechanics,
+  provider claim text is now explicitly digit-free; ranking remains only in
+  the existing value-free acknowledgement list. Offline validation, commit,
+  and push are required before the final approved actual round.

@@ -19059,3 +19059,11 @@ Maintained boundaries:
   schema fields for mechanics path and numeric scope are now non-null required,
   and provider guidance explicitly binds them to the selected rank-one
   candidate. The parser's exact native evidence validation is unchanged.
+
+## v15.54 multi-move numeric-claim narrowing
+
+- The second actual clear-winner response reached semantic validation with
+  bounded `mechanics_numeric_value_mismatch`. Multi-candidate claim text is now
+  explicitly digit-free; rank remains in the existing value-free
+  acknowledgement contract, while parser-side native numeric validation is
+  unchanged.

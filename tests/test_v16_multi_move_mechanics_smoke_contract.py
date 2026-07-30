@@ -75,6 +75,7 @@ def test_schema_requires_value_free_multi_move_ranking_acknowledgements():
     claim = schema["properties"]["primary_reasons"]["items"]
     assert "nullable" not in claim["properties"]["mechanics_path"]
     assert "nullable" not in claim["properties"]["numeric_scope"]
+    assert "Use no digits in claim" in claim["properties"]["claim"]["description"]
 
 
 def test_default_and_invalid_actual_paths_do_not_invoke_fake_provider():

@@ -3440,3 +3440,10 @@ every mechanics claim to the recommended unique rank-one candidate's exact
 path. Parser-side exact path and native-value validation remains authoritative;
 this schema narrowing only removes the nullable reference path that could lead
 to a bounded `mechanics_numeric_scope_invalid` failure.
+
+## v15.54 multi-move claim text
+
+For a multi-candidate native direct-mechanics request, ranking remains only in
+the value-free `ranking_acknowledgements` records. Provider `claim` strings are
+explicitly digit-free summaries, avoiding a derived or mismatched mechanics
+number while retaining the exact required selected-candidate path and scope.
