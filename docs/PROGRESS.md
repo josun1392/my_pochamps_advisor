@@ -19088,3 +19088,14 @@ Maintained boundaries:
   dependency copy to null; strict mechanics path/status and ranking
   acknowledgement validation remain. Single direct-mechanics keeps its exact
   dependency-path check. No raw provider data was inspected.
+
+## v15.57 multi-move value-free provider responsibility
+
+- T1 approved removal of multi-move provider numeric mechanics claims after
+  repeated bounded scope diagnostics. The multi provider schema now contains
+  only a value-free mechanics claim, while strict request-aware validation
+  rejects numeric literals and claim-level mechanics path/scope references.
+- Deterministic native mechanics and ranking evidence remain in candidate
+  request/result surfaces. Ranking acknowledgement and selected rank-one action
+  remain authoritative; single direct mechanics keeps its exact numeric claim
+  contract. No provider call occurred during this implementation step.

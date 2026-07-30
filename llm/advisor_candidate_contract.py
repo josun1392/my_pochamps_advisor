@@ -550,10 +550,10 @@ def _classify_claim(*, reason: Mapping[str, Any], mechanics_known: bool, mechani
     """Classify direct-mechanics claims without weakening numeric evidence checks."""
     if mechanics_insufficient and reason.get("kind") == "partial_context":
         return "partial_context_claim"
+    if mechanics_known and multi_mechanics_ranking and reason.get("kind") == "mechanics":
+        return "numeric_mechanics_claim" if _numeric_literals(reason["claim"]) else "value_free_ranking_claim"
     if mechanics_known and _numeric_literals(reason["claim"]):
         return "numeric_mechanics_claim"
-    if mechanics_known and multi_mechanics_ranking and reason.get("kind") == "mechanics":
-        return "value_free_ranking_claim"
     return None
 
 
@@ -583,8 +583,10 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path
     )
     has_mechanics_reference = "mechanics_path" in reason or "numeric_scope" in reason
     if claim_classification == "value_free_ranking_claim":
-        if reason.get("mechanics_path") != mechanics_path or reason.get("numeric_scope") is not None:
-            raise ValueError("mechanics_numeric_scope_invalid")
+        if has_mechanics_reference:
+            raise ValueError("multi_move_claim_reference_forbidden")
+    elif multi_mechanics_ranking and claim_classification == "numeric_mechanics_claim":
+        raise ValueError("multi_move_numeric_claim_forbidden")
     elif mechanics_known and kind in {"damage", "ko", "mechanics"} and (numeric_claim or kind == "mechanics" and has_mechanics_reference):
         path = reason.get("mechanics_path")
         scope = reason.get("numeric_scope")

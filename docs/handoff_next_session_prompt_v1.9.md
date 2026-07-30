@@ -1810,3 +1810,13 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
 - This is multi-only. Single direct-mechanics still requires its exact
   incomplete dependency path. Run offline validation, commit, and push before
   the next approval-gated actual round.
+
+## v15.57 multi-move provider claims are value-free
+
+- Multi-move provider claim objects now contain only `kind` plus a value-free
+  mechanics explanation. Do not send a claim-level mechanics path, numeric
+  scope, damage/percent/KO value, rank, score, or other number. The selected
+  action and required ranking acknowledgement are authoritative.
+- Keep native mechanics numeric evidence in deterministic candidate request and
+  completed result surfaces for rendering. This is multi-only: single direct
+  mechanics retains its path/scope exact numeric provider contract.

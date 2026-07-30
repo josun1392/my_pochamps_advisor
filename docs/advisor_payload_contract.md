@@ -3473,3 +3473,16 @@ acknowledgement and its exact rank/status/reason acknowledgement. Its redundant
 dependency remains in the request and grounding contract. Non-null incorrect
 copies are rejected. Single direct-mechanics acknowledgements retain their
 exact incomplete dependency-path requirement.
+
+## v15.57 multi-move provider claims are value-free
+
+For a multi-candidate deterministic mechanics ranking, provider claim objects
+contain only `kind: mechanics` and a non-numeric explanation. They cannot carry
+`mechanics_path`, `numeric_scope`, damage, percent, KO probability, a score, or
+any other numeric claim. The exact selected action plus the required
+`ranking_acknowledgements` list are the provider-facing ranking reference.
+
+Native mechanics results, including damage range, damage-percent range, and KO
+result, remain in the deterministic candidate request and completed-cycle
+candidate result surfaces for UI/rendering. Single direct-mechanics retains its
+separate path/scope exact-numeric provider contract.
