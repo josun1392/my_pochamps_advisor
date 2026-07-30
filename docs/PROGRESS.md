@@ -19017,3 +19017,13 @@ Maintained boundaries:
 - This applies only to `native_q12_direct_damage` results; ordinary dynamic
   mechanics keep their existing response path. No provider call was made while
   implementing this follow-up to the bounded actual diagnostic.
+
+## v15.50 incomplete-mechanics status preservation
+
+- An actual incomplete-fixture response reached the runner's state-preservation
+  check with `insufficient_context_not_preserved`. The state-aware provider
+  schema now restricts `recommendation_status` to `insufficient_context` when
+  every native direct mechanics result is incomplete.
+- This is a schema-only contract alignment: no mechanics result, parser
+  authority, prompt policy, fixture, retry, fallback, or repair behavior was
+  broadened. A subsequent actual run requires new T1 approval.

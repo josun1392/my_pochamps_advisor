@@ -291,17 +291,22 @@ def _mechanics_acknowledgement_item_schema(*, provider_payload: Mapping[str, Any
     return schema
 
 
-def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | None) -> dict[str, Any]:
-    """Bound the provider claim shape when every direct-mechanics result is incomplete."""
-    schema = deepcopy(_STRUCTURED_CLAIM_SCHEMA)
+def _direct_mechanics_statuses(*, provider_payload: Mapping[str, Any] | None) -> list[str]:
+    """Return only native direct-mechanics statuses for state-aware provider bounds."""
     comparisons = provider_payload.get("candidate_comparisons") if isinstance(provider_payload, Mapping) else None
-    statuses = [
+    return [
         candidate["mechanics_result"].get("status")
         for candidate in comparisons
         if isinstance(candidate, Mapping)
         and isinstance(candidate.get("mechanics_result"), Mapping)
         and candidate["mechanics_result"].get("mechanics_source") == "native_q12_direct_damage"
     ] if isinstance(comparisons, list) else []
+
+
+def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Bound the provider claim shape when every direct-mechanics result is incomplete."""
+    schema = deepcopy(_STRUCTURED_CLAIM_SCHEMA)
+    statuses = _direct_mechanics_statuses(provider_payload=provider_payload)
     if statuses and all(status == "known" for status in statuses):
         schema["properties"]["kind"] = {"type": "STRING", "enum": ["mechanics"]}
         schema["properties"]["claim"] = {"type": "STRING", "description": "Known direct-mechanics summary. If numeric, use only exact native scope values and no other digit."}
@@ -316,6 +321,7 @@ def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | 
 
 def _structured_provider_schema(*, runtime_grounding_required: bool = False, mechanics_grounding_required: bool = False, provider_payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
     claim_schema = _claim_schema_for_provider_payload(provider_payload=provider_payload)
+    direct_statuses = _direct_mechanics_statuses(provider_payload=provider_payload)
     properties = {
         "recommendation_status": {"type": "STRING", "enum": ["resolved", "insufficient_context", "no_usable_candidate"], "description": "resolved needs an exact selectable pair; other statuses have no pair."},
         "recommended_move": {"type": "STRING", "nullable": True, "description": "Exact selectable move identity for resolved only."},
@@ -324,6 +330,8 @@ def _structured_provider_schema(*, runtime_grounding_required: bool = False, mec
         "risks": {"type": "ARRAY", "items": claim_schema, "description": "Grounded warnings, unavailable reasons, or known limitations only."},
         "alternatives": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {"move": {"type": "STRING"}, "slot_index": {"type": "INTEGER"}, "reason": claim_schema}, "required": ["move", "slot_index", "reason"]}, "description": "Each alternative is an exact selectable move+slot mapping with a grounded reason."},
     }
+    if direct_statuses and all(status == "insufficient_context" for status in direct_statuses):
+        properties["recommendation_status"] = {"type": "STRING", "enum": ["insufficient_context"], "description": "All direct mechanics are incomplete; preserve insufficient_context."}
     if runtime_grounding_required or mechanics_grounding_required:
         properties["grounding"] = {
             "type": "OBJECT",

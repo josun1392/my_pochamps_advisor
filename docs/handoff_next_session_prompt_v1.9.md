@@ -1734,4 +1734,14 @@ midpoint, round, mix candidates, or infer a new KO category.
   `mechanics_numeric_scope_invalid` in the complete fixture.
 - Parser validation still allows a non-numeric summary with the exact
   value-free reference and requires exact native values for every numeric
-  literal. Do not apply this restriction to non-direct dynamic mechanics.
+literal. Do not apply this restriction to non-direct dynamic mechanics.
+
+## v15.50 incomplete-mechanics recommendation status
+
+- For an all-`insufficient_context` native direct-mechanics request, restrict
+  the provider schema's `recommendation_status` enum to `insufficient_context`.
+  This complements the partial-context-only claim surface and preserves the
+  runner's state contract.
+- The change follows the bounded actual diagnostic
+  `insufficient_context_not_preserved`. Validate offline, commit, and push;
+  do not perform another actual call without fresh T1 approval.

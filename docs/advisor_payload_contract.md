@@ -3389,3 +3389,12 @@ mechanics summary with that exact reference, and validates numeric literals
 against the selected native scope when numbers are present. Dynamic-mechanic
 results without `native_q12_direct_damage` provenance do not enter this direct
 mechanics restriction.
+
+## v15.50 incomplete-mechanics recommendation status
+
+When every native direct-mechanics result is `insufficient_context`, the
+provider-facing `recommendation_status` enum is also narrowed to
+`insufficient_context`. This preserves the same state already required by the
+claim surface and parser, preventing a structurally valid incomplete request
+from being returned as resolved or no-usable-candidate. The strict parser and
+value-free canonical missing-input acknowledgement remain unchanged.

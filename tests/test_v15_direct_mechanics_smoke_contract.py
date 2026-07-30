@@ -170,6 +170,7 @@ def test_single_direct_mechanics_schema_keeps_dynamic_linkage_out_of_provider_en
     assert properties["status"]["enum"] == ["known", "insufficient_context", "unsupported_mechanic"]
 
     incomplete_schema = _structured_provider_schema(mechanics_grounding_required=True, provider_payload=_prepared(FIXTURES[1])["recommendation_request"])
+    assert incomplete_schema["properties"]["recommendation_status"]["enum"] == ["insufficient_context"]
     incomplete_claim = incomplete_schema["properties"]["primary_reasons"]["items"]
     assert incomplete_claim["properties"]["kind"]["enum"] == ["partial_context"]
     assert set(incomplete_claim["properties"]) == {"kind", "claim"}
