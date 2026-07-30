@@ -315,7 +315,7 @@ def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | 
                 "type": "OBJECT",
                 "properties": {
                     "kind": {"type": "STRING", "enum": ["mechanics"]},
-                    "claim": {"type": "STRING", "description": "Value-free deterministic ranking explanation only. Do not include any damage, percent, KO, score, rank, or other number; ranking_acknowledgements is authoritative."},
+                    "claim": {"type": "STRING", "enum": ["deterministic ranking evidence", "deterministic comparison supports the selected action", "selected action follows deterministic ranking"], "description": "Choose exactly one value-free deterministic ranking explanation. ranking_acknowledgements is authoritative; no damage, percent, KO, score, rank, or other number is permitted."},
                 },
                 "required": ["kind", "claim"],
             }

@@ -1820,3 +1820,12 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
 - Keep native mechanics numeric evidence in deterministic candidate request and
   completed result surfaces for rendering. This is multi-only: single direct
   mechanics retains its path/scope exact numeric provider contract.
+
+## v15.58 bounded multi-move provider explanation
+
+- Multi provider claim text is restricted by schema to static value-free
+  deterministic explanation strings. Selection and ranking acknowledgement
+  retain the meaningful deterministic references; native numeric evidence stays
+  outside the provider response. Internal validation still rejects numeric
+  claim text if received. Validate offline, commit, and push before any later
+  approval-gated actual round.

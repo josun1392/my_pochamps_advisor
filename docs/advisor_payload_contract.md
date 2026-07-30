@@ -3486,3 +3486,11 @@ Native mechanics results, including damage range, damage-percent range, and KO
 result, remain in the deterministic candidate request and completed-cycle
 candidate result surfaces for UI/rendering. Single direct-mechanics retains its
 separate path/scope exact-numeric provider contract.
+
+## v15.58 bounded multi-move provider explanation
+
+The multi-move provider claim schema uses a small static enum of value-free
+deterministic explanation strings. This prevents Gemini from placing a native
+mechanics number in free text while preserving its bounded responsibility to
+return the deterministic selected action and ranking acknowledgements. Internal
+validation continues to reject any numeric claim received outside this schema.

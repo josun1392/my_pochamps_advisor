@@ -117,7 +117,7 @@ def test_schema_requires_value_free_multi_move_ranking_acknowledgements():
     claim = schema["properties"]["primary_reasons"]["items"]
     assert set(claim["properties"]) == {"kind", "claim"}
     assert claim["required"] == ["kind", "claim"]
-    assert "Do not include any damage" in claim["properties"]["claim"]["description"]
+    assert claim["properties"]["claim"]["enum"] == ["deterministic ranking evidence", "deterministic comparison supports the selected action", "selected action follows deterministic ranking"]
     dependency = schema["properties"]["mechanics_acknowledgements"]["items"]["properties"]["missing_inputs_path"]["description"]
     assert "always use null" in dependency
 

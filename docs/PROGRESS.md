@@ -19099,3 +19099,11 @@ Maintained boundaries:
   request/result surfaces. Ranking acknowledgement and selected rank-one action
   remain authoritative; single direct mechanics keeps its exact numeric claim
   contract. No provider call occurred during this implementation step.
+
+## v15.58 bounded multi-move explanation enum
+
+- The first value-free actual round passed clear-winner and rejected a numeric
+  mixed-availability claim with `multi_move_numeric_claim_forbidden`; raw
+  provider data was not inspected. The multi claim schema now uses only static
+  value-free explanation strings, while internal validation still rejects any
+  numeric bypass. This is not applied to single direct-mechanics.
