@@ -19067,3 +19067,15 @@ Maintained boundaries:
   explicitly digit-free; rank remains in the existing value-free
   acknowledgement contract, while parser-side native numeric validation is
   unchanged.
+
+## v15.55 multi-move value-free/numeric claim split
+
+- Corrected the request-unaware validator coupling that required
+  `numeric_scope` for a value-free multi-move mechanics summary merely because
+  it carried `mechanics_path`. Multi-move value-free rank-one claims now use
+  the strict ranking acknowledgement plus exact selected path and omit or null
+  scope; numeric mechanics claims retain exact scope/native-value validation.
+- Single direct-mechanics keeps its existing non-null path/scope schema and
+  exact numeric contract. Offline coverage includes value-free absent/null
+  scope, valid and invalid numeric evidence, insufficient candidate references,
+  and stable tie preservation. No provider call occurred during this change.

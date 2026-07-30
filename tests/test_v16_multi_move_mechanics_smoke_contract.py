@@ -17,7 +17,7 @@ def _response(payload, *, selected=None):
         ranking_acknowledgements.append({"slot_index": row["slot_index"], "move": row["move"], **row["mechanics_comparison"]})
     grounding = {"schema_version": "grounding-v1", "confirmed_facts": [], "unknown_facts": [], "evidence_only": [], "conflicts": [], "conditional_dependencies": [{"path": acknowledgement["missing_inputs_path"]} for acknowledgement in mechanics_acknowledgements if acknowledgement["missing_inputs_path"] is not None]}
     selected_index = rows.index(winner)
-    return {"recommendation_status": "resolved", "recommended_move": winner["move"], "recommended_slot_index": winner["slot_index"], "primary_reasons": [{"kind": "mechanics", "claim": "deterministic mechanics evidence", "mechanics_path": f"candidate_comparisons.{selected_index}.mechanics_result", "numeric_scope": "damage_range"}], "risks": [], "alternatives": [], "grounding": grounding, "mechanics_acknowledgements": mechanics_acknowledgements, "ranking_acknowledgements": ranking_acknowledgements}
+    return {"recommendation_status": "resolved", "recommended_move": winner["move"], "recommended_slot_index": winner["slot_index"], "primary_reasons": [{"kind": "mechanics", "claim": "deterministic mechanics evidence", "mechanics_path": f"candidate_comparisons.{selected_index}.mechanics_result"}], "risks": [], "alternatives": [], "grounding": grounding, "mechanics_acknowledgements": mechanics_acknowledgements, "ranking_acknowledgements": ranking_acknowledgements}
 
 
 def test_three_fixture_fake_provider_requires_rank_one_selection_and_exact_acknowledgements():
@@ -63,6 +63,45 @@ def test_provider_cannot_select_a_non_rank_one_candidate_even_with_valid_acknowl
     assert result["diagnostic"] == "ranking_selection_mismatch"
 
 
+def test_multi_move_claim_classification_separates_value_free_and_numeric_evidence():
+    from llm.advisor_candidate_contract import complete_recommendation_cycle
+
+    prepared = _prepared(FIXTURES[0])
+    response = _response(prepared["recommendation_request"])
+    assert complete_recommendation_cycle(prepared_cycle=prepared, response_payload=response)["status"] == "resolved"
+
+    nullable = _response(prepared["recommendation_request"])
+    nullable["primary_reasons"][0]["numeric_scope"] = None
+    assert complete_recommendation_cycle(prepared_cycle=prepared, response_payload=nullable)["status"] == "resolved"
+
+    numeric = _response(prepared["recommendation_request"])
+    mechanics = prepared["recommendation_request"]["candidate_comparisons"][1]["mechanics_result"]
+    numeric["primary_reasons"][0].update({"claim": f"{mechanics['damage_range']['minimum']}-{mechanics['damage_range']['maximum']} damage", "numeric_scope": "damage_range"})
+    assert complete_recommendation_cycle(prepared_cycle=prepared, response_payload=numeric)["status"] == "resolved"
+
+    missing_scope = deepcopy(numeric)
+    del missing_scope["primary_reasons"][0]["numeric_scope"]
+    assert complete_recommendation_cycle(prepared_cycle=prepared, response_payload=missing_scope)["errors"] == ["mechanics_numeric_scope_invalid"]
+
+    mismatch = deepcopy(numeric)
+    mismatch["primary_reasons"][0]["claim"] = "50 damage"
+    assert complete_recommendation_cycle(prepared_cycle=prepared, response_payload=mismatch)["errors"] == ["mechanics_numeric_value_mismatch"]
+
+
+def test_multi_move_rejects_an_insufficient_candidate_reference_and_preserves_stable_tie():
+    from llm.advisor_candidate_contract import complete_recommendation_cycle
+
+    mixed = _prepared(FIXTURES[1])
+    invalid = _response(mixed["recommendation_request"])
+    invalid["primary_reasons"][0]["mechanics_path"] = "candidate_comparisons.1.mechanics_result"
+    assert complete_recommendation_cycle(prepared_cycle=mixed, response_payload=invalid)["errors"] == ["mechanics_numeric_scope_invalid"]
+
+    tie = _prepared(FIXTURES[2])
+    accepted = complete_recommendation_cycle(prepared_cycle=tie, response_payload=_response(tie["recommendation_request"]))
+    assert accepted["status"] == "resolved"
+    assert (accepted["recommendation_result"]["recommended_move"], accepted["recommendation_result"]["recommended_slot_index"]) == ("tackle", 0)
+
+
 def test_schema_requires_value_free_multi_move_ranking_acknowledgements():
     from llm.advisor_client import _structured_provider_schema
 
@@ -74,7 +113,8 @@ def test_schema_requires_value_free_multi_move_ranking_acknowledgements():
     assert set(item["properties"]) == {"slot_index", "move", "comparison_status", "rank", "comparison_reason"}
     claim = schema["properties"]["primary_reasons"]["items"]
     assert "nullable" not in claim["properties"]["mechanics_path"]
-    assert "nullable" not in claim["properties"]["numeric_scope"]
+    assert claim["required"] == ["kind", "claim", "mechanics_path"]
+    assert claim["properties"]["numeric_scope"]["nullable"] is True
     assert "Use no digits in claim" in claim["properties"]["claim"]["description"]
 
 

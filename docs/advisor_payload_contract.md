@@ -3447,3 +3447,19 @@ For a multi-candidate native direct-mechanics request, ranking remains only in
 the value-free `ranking_acknowledgements` records. Provider `claim` strings are
 explicitly digit-free summaries, avoiding a derived or mismatched mechanics
 number while retaining the exact required selected-candidate path and scope.
+
+## v15.55 multi-move claim classification
+
+The semantic validator separates three direct-mechanics claim classes:
+`value_free_ranking_claim`, `numeric_mechanics_claim`, and
+`partial_context_claim`. For a multi-candidate ranking, a value-free mechanics
+claim must reference the selected rank-one candidate's exact mechanics path;
+its `numeric_scope` is omitted or `null`. The required value-free
+`ranking_acknowledgements` list remains the authority for rank, status, and
+fixed comparison reason.
+
+Only a claim containing native mechanics numeric literals is a
+`numeric_mechanics_claim`; it requires the exact candidate path, a non-null
+allowed numeric scope, and an exact native-value match. This conditional rule
+does not alter the single direct-mechanics schema: it still requires both path
+and scope for every known mechanics claim.

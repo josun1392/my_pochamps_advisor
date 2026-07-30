@@ -314,10 +314,13 @@ def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | 
         claim_description = "Known direct-mechanics summary. If numeric, use only exact native scope values and no other digit."
         if provider_payload is not None and _payload_has_multi_mechanics_ranking(provider_payload):
             claim_description = "Known multi-candidate direct-mechanics summary. Use no digits in claim; ranking is carried only by ranking_acknowledgements."
+            schema["properties"]["numeric_scope"] = {"type": "STRING", "nullable": True, "enum": ["damage_range", "damage_percent_range", "single_hit_probability"], "description": "Required only when claim contains native mechanics numbers; otherwise omit or use null."}
+            schema["required"] = ["kind", "claim", "mechanics_path"]
         schema["properties"]["claim"] = {"type": "STRING", "description": claim_description}
         schema["properties"]["mechanics_path"] = {"type": "STRING", "description": "Required exact mechanics path for the recommended known direct candidate."}
-        schema["properties"]["numeric_scope"] = {"type": "STRING", "enum": ["damage_range", "damage_percent_range", "single_hit_probability"], "description": "Required selected native scope for the recommended known direct candidate."}
-        schema["required"] = ["kind", "claim", "mechanics_path", "numeric_scope"]
+        if not (provider_payload is not None and _payload_has_multi_mechanics_ranking(provider_payload)):
+            schema["properties"]["numeric_scope"] = {"type": "STRING", "enum": ["damage_range", "damage_percent_range", "single_hit_probability"], "description": "Required selected native scope for the recommended known direct candidate."}
+            schema["required"] = ["kind", "claim", "mechanics_path", "numeric_scope"]
     if statuses and all(status == "insufficient_context" for status in statuses):
         schema["properties"] = {
             "kind": {"type": "STRING", "enum": ["partial_context"]},

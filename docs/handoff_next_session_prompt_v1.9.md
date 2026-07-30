@@ -1788,3 +1788,15 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
   provider claim text is now explicitly digit-free; ranking remains only in
   the existing value-free acknowledgement list. Offline validation, commit,
   and push are required before the final approved actual round.
+
+## v15.55 multi-move claim classification
+
+- Keep single direct-mechanics unchanged: known mechanics claims require
+  non-null `mechanics_path` and `numeric_scope`, and numeric literals must
+  exactly match native evidence.
+- For multi-candidate ranking only, distinguish value-free ranking claims from
+  numeric mechanics claims. A value-free `mechanics` claim requires the
+  selected rank-one path and the separately required ranking acknowledgement,
+  while `numeric_scope` is absent or null. A numeric claim still requires a
+  valid scope and exact native values. Incomplete evidence remains a
+  `partial_context_claim` and cannot receive a mechanics reference or scope.

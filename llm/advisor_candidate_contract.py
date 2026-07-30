@@ -546,7 +546,18 @@ def _mechanics_scope_values(mechanics: Mapping[str, Any], scope: str) -> list[De
     return [Decimal(str(value)) for value in values]
 
 
-def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path: str | None = None) -> None:
+def _classify_claim(*, reason: Mapping[str, Any], mechanics_known: bool, mechanics_insufficient: bool, multi_mechanics_ranking: bool) -> str | None:
+    """Classify direct-mechanics claims without weakening numeric evidence checks."""
+    if mechanics_insufficient and reason.get("kind") == "partial_context":
+        return "partial_context_claim"
+    if mechanics_known and _numeric_literals(reason["claim"]):
+        return "numeric_mechanics_claim"
+    if mechanics_known and multi_mechanics_ranking and reason.get("kind") == "mechanics":
+        return "value_free_ranking_claim"
+    return None
+
+
+def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path: str | None = None, multi_mechanics_ranking: bool = False) -> None:
     allowed_keys = {"kind", "claim", "mechanics_path", "numeric_scope"}
     if not isinstance(reason, Mapping) or not set(reason) <= allowed_keys or not {"kind", "claim"} <= set(reason) or not isinstance(reason.get("claim"), str) or not reason["claim"]:
         raise ValueError("invalid_claim")
@@ -564,8 +575,17 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path
             raise ValueError("mechanics_numeric_claim_on_insufficient_context" if numeric_claim else "mechanics_claim_on_insufficient_context")
         if numeric_claim or "mechanics_path" in reason or "numeric_scope" in reason:
             raise ValueError("mechanics_numeric_claim_on_insufficient_context")
+    claim_classification = _classify_claim(
+        reason=reason,
+        mechanics_known=mechanics_known,
+        mechanics_insufficient=mechanics_insufficient,
+        multi_mechanics_ranking=multi_mechanics_ranking,
+    )
     has_mechanics_reference = "mechanics_path" in reason or "numeric_scope" in reason
-    if mechanics_known and kind in {"damage", "ko", "mechanics"} and (numeric_claim or kind == "mechanics" and has_mechanics_reference):
+    if claim_classification == "value_free_ranking_claim":
+        if reason.get("mechanics_path") != mechanics_path or reason.get("numeric_scope") is not None:
+            raise ValueError("mechanics_numeric_scope_invalid")
+    elif mechanics_known and kind in {"damage", "ko", "mechanics"} and (numeric_claim or kind == "mechanics" and has_mechanics_reference):
         path = reason.get("mechanics_path")
         scope = reason.get("numeric_scope")
         if path != mechanics_path or not isinstance(scope, str) or scope not in _NUMERIC_SCOPE_VALUES:
@@ -638,9 +658,10 @@ def parse_recommendation_response(*, request: Mapping[str, Any], response_payloa
         else:
             candidate, mechanics_path = {}, None
         primary = None
+    multi_mechanics_ranking = _request_has_multi_mechanics_ranking(request)
     try:
         for reason in [*reasons, *risks]:
-            _validate_claim(reason, candidate, mechanics_path=mechanics_path)
+            _validate_claim(reason, candidate, mechanics_path=mechanics_path, multi_mechanics_ranking=multi_mechanics_ranking)
         seen_alternatives = set()
         for alternative in alternatives:
             if not isinstance(alternative, Mapping) or set(alternative) != {"move", "slot_index", "reason"}:
@@ -654,7 +675,7 @@ def parse_recommendation_response(*, request: Mapping[str, Any], response_payloa
             if alternative_context is None:
                 raise ValueError("invalid_alternative")
             alternative_candidate, alternative_path = alternative_context
-            _validate_claim(alternative["reason"], alternative_candidate, mechanics_path=alternative_path)
+            _validate_claim(alternative["reason"], alternative_candidate, mechanics_path=alternative_path, multi_mechanics_ranking=multi_mechanics_ranking)
             seen_alternatives.add(key)
     except ValueError as error:
         return _response_failure(str(error))
