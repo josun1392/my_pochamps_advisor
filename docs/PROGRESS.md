@@ -19039,3 +19039,15 @@ Maintained boundaries:
   damage range, type effectiveness, then stable slot order. Incomplete,
   unsupported, and unavailable moves remain unranked with their existing
   missing-input or unsupported evidence preserved.
+
+## v15.52 multi-move provider ranking acknowledgement
+
+- Multi-candidate direct-mechanics responses now require a value-free
+  `ranking_acknowledgements` list. Parser validation exactly matches each
+  candidate row's slot, move, comparison status, rank, and fixed reason; no
+  score, raw mechanics input, or provider-calculated rank is accepted.
+- Added an approval-gated sanitized three-call smoke runner for clear winner,
+  mixed availability, and stable slot tie. It requires a rank-one provider
+  selection and both acknowledgement contracts while exposing only bounded
+  result data. Offline tests use fakes only; provider, credential, and network
+  activity remain zero.

@@ -1759,3 +1759,14 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
 - Provider guidance treats the rank as deterministic evidence and forbids
   provider-side reordering or inferred scores. This milestone is offline only;
   do not use credentials, providers, or network.
+
+## v15.52 multi-move provider smoke contract
+
+- If a payload contains at least two `mechanics_comparison` rows, require a
+  value-free `ranking_acknowledgements` response list. Every item must exactly
+  copy only the candidate reference, comparison status, nullable rank, and
+  fixed reason; parser validation rejects rank mutation or omission.
+- Use `scripts/run_sanitized_multi_move_mechanics_smoke.py` only with explicit
+  approval. It runs clear winner, mixed availability, and stable tie in order,
+  enforces rank-one selection, stops on the first failure, and prints no raw
+  prompt, payload, provider response, credential, or internal mechanics data.

@@ -112,6 +112,7 @@ _STRUCTURED_RESPONSE_KEYS = (
 )
 _GROUNDED_STRUCTURED_RESPONSE_KEYS = (*_STRUCTURED_RESPONSE_KEYS, "grounding")
 _MECHANICS_ACK_RESPONSE_KEYS = (*_GROUNDED_STRUCTURED_RESPONSE_KEYS, "mechanics_acknowledgements")
+_RANKING_ACK_RESPONSE_KEYS = (*_MECHANICS_ACK_RESPONSE_KEYS, "ranking_acknowledgements")
 SAFE_PROVIDER_DIAGNOSTIC_CODES = frozenset({
     "provider_client_initialization_failure",
     "provider_model_not_found",
@@ -133,7 +134,7 @@ SAFE_PROVIDER_DIAGNOSTIC_CODES = frozenset({
 _SAFE_API_ERROR_STATUSES = frozenset({"INVALID_ARGUMENT", "UNAUTHENTICATED", "PERMISSION_DENIED", "NOT_FOUND", "RESOURCE_EXHAUSTED", "DEADLINE_EXCEEDED", "UNAVAILABLE", "INTERNAL", "UNKNOWN"})
 _SAFE_PROVIDER_FAILURE_STAGES = frozenset({"client_initialization", "request_transport", "http_response", "response_parsing"})
 _SAFE_PROVIDER_COMPONENTS = frozenset({"generation_config", "response_schema"})
-_SAFE_PROVIDER_LOGICAL_FIELDS = frozenset({"mechanics_acknowledgements", "grounding", "response_schema"})
+_SAFE_PROVIDER_LOGICAL_FIELDS = frozenset({"mechanics_acknowledgements", "ranking_acknowledgements", "grounding", "response_schema"})
 _SAFE_SCHEMA_REASONS = frozenset({"schema_keyword_nullable", "schema_keyword_enum", "schema_keyword_required", "schema_keyword_additional_properties", "schema_keyword_composition", "schema_keyword_collection_bound", "schema_keyword_type", "schema_request_rejected", "diagnostic_insufficient"})
 _GROUNDING_V1_ENTRY_KEYS = ("confirmed_facts", "unknown_facts", "evidence_only", "conflicts", "conditional_dependencies")
 _GROUNDING_V1_ENTRY_SCHEMAS = {
@@ -145,6 +146,7 @@ _GROUNDING_V1_ENTRY_SCHEMAS = {
 }
 _STRUCTURED_CLAIM_SCHEMA = {"type": "OBJECT", "properties": {"kind": {"type": "STRING", "enum": ["damage", "ko", "hit_chance", "move_order", "self_effect", "dynamic_mechanic", "partial_context", "mechanics"]}, "claim": {"type": "STRING", "description": "For a numeric direct-mechanics claim, include only the exact native scope values and no other digit."}, "mechanics_path": {"type": "STRING", "nullable": True, "description": "Required with numeric direct-mechanics claim: exact candidate mechanics path."}, "numeric_scope": {"type": "STRING", "nullable": True, "enum": ["damage_range", "damage_percent_range", "single_hit_probability"], "description": "Required with numeric direct-mechanics claim; it selects the only native values permitted in claim."}}, "required": ["kind", "claim"]}
 _MECHANICS_ACK_SCHEMA = {"type": "OBJECT", "properties": {"slot_index": {"type": "INTEGER"}, "move": {"type": "STRING"}, "mechanics_path": {"type": "STRING"}, "status": {"type": "STRING", "enum": ["known", "insufficient_context", "unsupported_mechanic"]}, "missing_inputs_path": {"type": "STRING", "nullable": True}}, "required": ["slot_index", "move", "mechanics_path", "status", "missing_inputs_path"]}
+_RANKING_ACK_SCHEMA = {"type": "OBJECT", "properties": {"slot_index": {"type": "INTEGER"}, "move": {"type": "STRING"}, "comparison_status": {"type": "STRING", "enum": ["rankable", "insufficient_context", "unsupported_mechanic", "unavailable"]}, "rank": {"type": "INTEGER", "nullable": True}, "comparison_reason": {"type": "STRING", "enum": ["deterministic_known_mechanics", "only_rankable_candidate", "mechanics_insufficient_context", "mechanics_unsupported", "candidate_unavailable", "mechanics_unavailable", "mechanics_evidence_unavailable"]}}, "required": ["slot_index", "move", "comparison_status", "rank", "comparison_reason"]}
 _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Return only the declared JSON shape. A resolved recommendation must use a selectable exact move and slot pair. "
     "Ground reasons and risks in candidate comparisons, warnings, unavailable reasons, and known limitations. "
@@ -152,7 +154,7 @@ _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Use partial_context only for an actually unavailable or incomplete field. Each reason or risk must be exactly a kind/claim object: use only the supported claim kinds and a non-empty claim string. Alternatives require selectable exact move+slot pairs and reasons. "
     "Do not invent EVs, IVs, nature, items, abilities, opponent moves, or final stats. Use insufficient_context when evidence is insufficient and no_usable_candidate when none is selectable. "
     "When runtime_advice_state is present it is authoritative current state: unknown is unobserved, not absent, false, zero, full HP, healthy, inactive, or empty; known_absent is confirmed absence; known with value is trusted current state. In that case include required grounding-v1 with schema_version plus confirmed_facts, unknown_facts, evidence_only, conflicts, and conditional_dependencies lists; every list entry requires a non-empty canonical provider-safe path. confirmed_facts and unknown_facts use authority runtime; evidence_only uses authority evidence or stale plus an allowed source; conflicts uses authority conflict plus an allowed source. A confirmed grounding entry must reproduce its runtime fact status and, for known facts, its exact runtime value. UI and unapplied observation evidence cannot override runtime known facts or resolve runtime unknown facts; conflicting stale UI evidence belongs only in evidence_only or conflicts, never in confirmed_facts. Never infer current battle facts from species metadata. State uncertainty or conditional dependence when needed, and never expose runtime_advice_state, fingerprint, CAS, reducer, ledger, session authority, request token, or thread identity."
-    "When candidate_comparisons contains mechanics_result, treat it as authoritative deterministic evidence: do not recompute, change, or invent damage, percent, or KO values. When mechanics_comparison is present, its comparison_status, rank, and fixed comparison_reason are deterministic: do not reorder candidates, infer a rank for an unranked candidate, or create a scoring rationale not supplied there. A numeric mechanics, damage, or KO claim is allowed only for known mechanics when it includes mechanics_path for that exact candidate and numeric_scope of damage_range, damage_percent_range, or single_hit_probability; every numeric literal in the claim must reproduce exactly the selected native value or range for that scope. Never calculate an average, midpoint, rounded derivative, new KO category, or mixed-candidate value. Do not add any other digit such as 1HKO or 2HKO. If exact values cannot be copied, use a concise non-numeric mechanics summary and omit mechanics_path and numeric_scope. This is mandatory: return exactly one mechanics_acknowledgements object for every candidate with mechanics_result, using only slot_index, move, canonical mechanics_path candidate_comparisons.<its slot index in the array>.mechanics_result, its exact status, and missing_inputs_path only when status is insufficient_context (otherwise null). mechanics_acknowledgements is value-free: never include mechanics values or duplicate this link in grounding.evidence_only. For insufficient_context mechanics use partial_context only; do not make a damage, KO, or mechanics claim or any mechanics number."
+    "When candidate_comparisons contains mechanics_result, treat it as authoritative deterministic evidence: do not recompute, change, or invent damage, percent, or KO values. When mechanics_comparison is present, its comparison_status, rank, and fixed comparison_reason are deterministic: do not reorder candidates, infer a rank for an unranked candidate, or create a scoring rationale not supplied there. For a multi-candidate mechanics comparison, return exactly one value-free ranking_acknowledgements object for every comparison row, copying only its slot_index, move, comparison_status, rank, and comparison_reason. A numeric mechanics, damage, or KO claim is allowed only for known mechanics when it includes mechanics_path for that exact candidate and numeric_scope of damage_range, damage_percent_range, or single_hit_probability; every numeric literal in the claim must reproduce exactly the selected native value or range for that scope. Never calculate an average, midpoint, rounded derivative, new KO category, or mixed-candidate value. Do not add any other digit such as 1HKO or 2HKO. If exact values cannot be copied, use a concise non-numeric mechanics summary and omit mechanics_path and numeric_scope. This is mandatory: return exactly one mechanics_acknowledgements object for every candidate with mechanics_result, using only slot_index, move, canonical mechanics_path candidate_comparisons.<its slot index in the array>.mechanics_result, its exact status, and missing_inputs_path only when status is insufficient_context (otherwise null). mechanics_acknowledgements is value-free: never include mechanics values or duplicate this link in grounding.evidence_only. For insufficient_context mechanics use partial_context only; do not make a damage, KO, or mechanics claim or any mechanics number."
 )
 
 
@@ -319,7 +321,7 @@ def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | 
     return schema
 
 
-def _structured_provider_schema(*, runtime_grounding_required: bool = False, mechanics_grounding_required: bool = False, provider_payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _structured_provider_schema(*, runtime_grounding_required: bool = False, mechanics_grounding_required: bool = False, ranking_acknowledgement_required: bool = False, provider_payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
     claim_schema = _claim_schema_for_provider_payload(provider_payload=provider_payload)
     direct_statuses = _direct_mechanics_statuses(provider_payload=provider_payload)
     properties = {
@@ -345,10 +347,12 @@ def _structured_provider_schema(*, runtime_grounding_required: bool = False, mec
     if mechanics_grounding_required:
         mechanics_schema = _mechanics_acknowledgement_item_schema(provider_payload=provider_payload) if isinstance(provider_payload, Mapping) else _MECHANICS_ACK_SCHEMA
         properties["mechanics_acknowledgements"] = {"type": "ARRAY", "items": mechanics_schema, "description": "Required value-free acknowledgement for every direct mechanics candidate; copy only slot, move, canonical mechanics path, status, and missing-input path when incomplete."}
+    if ranking_acknowledgement_required:
+        properties["ranking_acknowledgements"] = {"type": "ARRAY", "items": _RANKING_ACK_SCHEMA, "description": "Required value-free acknowledgement for every deterministic multi-move comparison; copy only slot, move, status, rank, and fixed reason."}
     return {
         "type": "OBJECT",
         "properties": properties,
-        "required": list(_MECHANICS_ACK_RESPONSE_KEYS if mechanics_grounding_required else _GROUNDED_STRUCTURED_RESPONSE_KEYS if runtime_grounding_required else _STRUCTURED_RESPONSE_KEYS),
+        "required": list(_RANKING_ACK_RESPONSE_KEYS if ranking_acknowledgement_required else _MECHANICS_ACK_RESPONSE_KEYS if mechanics_grounding_required else _GROUNDED_STRUCTURED_RESPONSE_KEYS if runtime_grounding_required else _STRUCTURED_RESPONSE_KEYS),
     }
 
 
@@ -360,6 +364,14 @@ def _payload_has_mechanics_result(payload: Mapping[str, Any]) -> bool:
         and candidate["mechanics_result"].get("status") != "not_requested"
         for candidate in comparisons
     )
+
+
+def _payload_has_multi_mechanics_ranking(payload: Mapping[str, Any]) -> bool:
+    comparisons = payload.get("candidate_comparisons")
+    return isinstance(comparisons, list) and sum(
+        isinstance(candidate, Mapping) and isinstance(candidate.get("mechanics_comparison"), Mapping)
+        for candidate in comparisons
+    ) >= 2
 
 
 def _normalized_structured_usage(*, usage_data: Any, model: str) -> dict[str, int | str | bool | None]:
@@ -385,7 +397,7 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         raise StructuredProviderError("provider_authentication_failure")
     request_body = {
         "contents": [{"role": "user", "parts": [{"text": _STRUCTURED_SEMANTIC_GUIDANCE + "\n\nDeterministic evidence:\n" + json.dumps(dict(provider_payload), ensure_ascii=False)}]}],
-        "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema(runtime_grounding_required="runtime_advice_state" in provider_payload, mechanics_grounding_required=_payload_has_mechanics_result(provider_payload), provider_payload=provider_payload)},
+        "generationConfig": {"responseMimeType": "application/json", "responseSchema": _structured_provider_schema(runtime_grounding_required="runtime_advice_state" in provider_payload, mechanics_grounding_required=_payload_has_mechanics_result(provider_payload), ranking_acknowledgement_required=_payload_has_multi_mechanics_ranking(provider_payload), provider_payload=provider_payload)},
     }
     try:
         response = requests.post(
@@ -425,7 +437,7 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
         decoded = json.loads(text)
     except (TypeError, ValueError):
         raise StructuredProviderError("provider_structured_decode_failed") from None
-    expected_response_keys = _MECHANICS_ACK_RESPONSE_KEYS if _payload_has_mechanics_result(provider_payload) else _GROUNDED_STRUCTURED_RESPONSE_KEYS if "runtime_advice_state" in provider_payload else _STRUCTURED_RESPONSE_KEYS
+    expected_response_keys = _RANKING_ACK_RESPONSE_KEYS if _payload_has_multi_mechanics_ranking(provider_payload) else _MECHANICS_ACK_RESPONSE_KEYS if _payload_has_mechanics_result(provider_payload) else _GROUNDED_STRUCTURED_RESPONSE_KEYS if "runtime_advice_state" in provider_payload else _STRUCTURED_RESPONSE_KEYS
     if not isinstance(decoded, dict) or set(decoded) != set(expected_response_keys):
         raise StructuredProviderError("provider_response_malformed")
     usage = _normalized_structured_usage(usage_data=body.get("usageMetadata"), model=model)

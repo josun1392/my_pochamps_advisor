@@ -715,10 +715,13 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
     evidence = prepared_cycle.get("evidence_bundle")
     request = prepared_cycle["recommendation_request"]
     mechanics_required = _request_has_mechanics_result(request)
+    ranking_required = _request_has_multi_mechanics_ranking(request)
     if (_RUNTIME_PROVIDER_KEY in request or mechanics_required) and "grounding" not in response_payload:
         return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["grounding_required"])
     if mechanics_required and "mechanics_acknowledgements" not in response_payload:
         return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["mechanics_acknowledgement_missing"])
+    if ranking_required and "ranking_acknowledgements" not in response_payload:
+        return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["ranking_acknowledgement_missing"])
     if _RUNTIME_PROVIDER_KEY in request:
         errors = validate_runtime_grounding(runtime_advice_state=request[_RUNTIME_PROVIDER_KEY], grounding=response_payload.get("grounding"), legacy_compatible=False)
         if errors:
@@ -727,6 +730,13 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
         errors = validate_mechanics_acknowledgements(
             request=request,
             acknowledgements=response_payload.get("mechanics_acknowledgements"),
+        )
+        if errors:
+            return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=errors)
+    if ranking_required:
+        errors = validate_ranking_acknowledgements(
+            request=request,
+            acknowledgements=response_payload.get("ranking_acknowledgements"),
         )
         if errors:
             return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=errors)
@@ -835,6 +845,7 @@ _PROVIDER_RESPONSE_KEYS = (
 )
 _GROUNDED_PROVIDER_RESPONSE_KEYS = (*_PROVIDER_RESPONSE_KEYS, "grounding")
 _MECHANICS_ACK_PROVIDER_RESPONSE_KEYS = (*_GROUNDED_PROVIDER_RESPONSE_KEYS, "mechanics_acknowledgements")
+_RANKING_ACK_PROVIDER_RESPONSE_KEYS = (*_MECHANICS_ACK_PROVIDER_RESPONSE_KEYS, "ranking_acknowledgements")
 _PROVIDER_RESPONSE_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate"})
 _PREPARED_CYCLE_KEYS = frozenset({"status", "candidates", "evidence_bundle", "recommendation_request", "recommendation_result", "errors"})
 
@@ -871,7 +882,7 @@ def adapt_provider_recommendation_response(*, provider_response: Mapping[str, An
     """Copy a provider-independent structured response without semantic evaluation."""
     if type(provider_response) is not dict:
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
-    if set(provider_response) not in (set(_PROVIDER_RESPONSE_KEYS), set(_GROUNDED_PROVIDER_RESPONSE_KEYS), set(_MECHANICS_ACK_PROVIDER_RESPONSE_KEYS)):
+    if set(provider_response) not in (set(_PROVIDER_RESPONSE_KEYS), set(_GROUNDED_PROVIDER_RESPONSE_KEYS), set(_MECHANICS_ACK_PROVIDER_RESPONSE_KEYS), set(_RANKING_ACK_PROVIDER_RESPONSE_KEYS)):
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
     if provider_response.get("recommendation_status") not in _PROVIDER_RESPONSE_STATUSES:
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
@@ -883,6 +894,8 @@ def adapt_provider_recommendation_response(*, provider_response: Mapping[str, An
                 raise ValueError("invalid grounding")
         if "mechanics_acknowledgements" in provider_response and not isinstance(provider_response["mechanics_acknowledgements"], list):
             raise ValueError("invalid mechanics acknowledgements")
+        if "ranking_acknowledgements" in provider_response and not isinstance(provider_response["ranking_acknowledgements"], list):
+            raise ValueError("invalid ranking acknowledgements")
         return serialize_recommendation_request(deepcopy(provider_response))
     except (TypeError, ValueError):
         return _provider_adapter_failure("provider_response_validation_failed", "provider_response_validation_failed")
@@ -929,6 +942,14 @@ def _request_has_mechanics_result(request: Mapping[str, Any]) -> bool:
     )
 
 
+def _request_has_multi_mechanics_ranking(request: Mapping[str, Any]) -> bool:
+    comparisons = request.get("candidate_comparisons")
+    return isinstance(comparisons, list) and sum(
+        isinstance(candidate, Mapping) and isinstance(candidate.get("mechanics_comparison"), Mapping)
+        for candidate in comparisons
+    ) >= 2
+
+
 def validate_mechanics_acknowledgements(*, request: Mapping[str, Any], acknowledgements: Any) -> list[str]:
     """Validate the schema-required, value-free direct-mechanics links."""
     comparisons = request.get("candidate_comparisons")
@@ -969,6 +990,44 @@ def validate_mechanics_acknowledgements(*, request: Mapping[str, Any], acknowled
         if acknowledgement.get("missing_inputs_path") != expected_dependency:
             return ["mechanics_acknowledgement_dependency_invalid"]
     return [] if seen == set(expected) else ["mechanics_acknowledgement_missing"]
+
+
+def validate_ranking_acknowledgements(*, request: Mapping[str, Any], acknowledgements: Any) -> list[str]:
+    """Validate value-free provider copies of deterministic multi-move ranks."""
+    comparisons = request.get("candidate_comparisons")
+    if not isinstance(comparisons, list):
+        return ["ranking_acknowledgement_request_invalid"]
+    if not isinstance(acknowledgements, list):
+        return ["ranking_acknowledgement_missing"]
+    expected: dict[tuple[int, str], Mapping[str, Any]] = {}
+    for candidate in comparisons:
+        if not isinstance(candidate, Mapping):
+            return ["ranking_acknowledgement_request_invalid"]
+        comparison = candidate.get("mechanics_comparison")
+        if not isinstance(comparison, Mapping):
+            continue
+        slot, move = candidate.get("slot_index"), candidate.get("move")
+        if not isinstance(slot, int) or isinstance(slot, bool) or not isinstance(move, str) or not move:
+            return ["ranking_acknowledgement_request_invalid"]
+        expected[(slot, move)] = comparison
+    if len(expected) < 2:
+        return ["ranking_acknowledgement_request_invalid"]
+    seen: set[tuple[int, str]] = set()
+    required = {"slot_index", "move", "comparison_status", "rank", "comparison_reason"}
+    for acknowledgement in acknowledgements:
+        if not isinstance(acknowledgement, Mapping) or set(acknowledgement) != required:
+            return ["ranking_acknowledgement_invalid"]
+        slot, move = acknowledgement.get("slot_index"), acknowledgement.get("move")
+        if not isinstance(slot, int) or isinstance(slot, bool) or not isinstance(move, str) or not move:
+            return ["ranking_acknowledgement_invalid"]
+        key = (slot, move)
+        if key not in expected or key in seen:
+            return ["ranking_acknowledgement_candidate_invalid"]
+        seen.add(key)
+        comparison = expected[key]
+        if any(acknowledgement.get(field) != comparison.get(field) for field in ("comparison_status", "rank", "comparison_reason")):
+            return ["ranking_acknowledgement_value_invalid"]
+    return [] if seen == set(expected) else ["ranking_acknowledgement_missing"]
 
 
 def validate_runtime_grounding(*, runtime_advice_state: Mapping[str, Any], grounding: Mapping[str, Any], legacy_compatible: bool = False, user_answer: str = "") -> list[str]:

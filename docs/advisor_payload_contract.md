@@ -3416,3 +3416,18 @@ type effectiveness, then ascending move slot. `insufficient_context`,
 `unsupported_mechanic`, and unavailable candidates have no rank. A single
 rankable candidate is explicitly marked `only_rankable_candidate` rather than
 being treated as a comparison win.
+
+## v15.52 multi-move ranking acknowledgement
+
+For a request with two or more `mechanics_comparison` rows, the structured
+response additionally requires `ranking_acknowledgements`. Each item is a
+value-free exact copy of one candidate's `slot_index`, `move`,
+`comparison_status`, nullable `rank`, and fixed `comparison_reason`. The parser
+requires one item per comparison row and rejects missing, duplicate, altered,
+or extra values. This lets the provider explain deterministic evidence without
+becoming a ranking authority or receiving an internal score.
+
+The sanitized multi-move smoke uses three fixed production-path fixtures:
+clear winner, mixed known/incomplete/unsupported availability, and stable
+slot tie. It verifies rank-one selection plus mechanics and ranking
+acknowledgements, and surfaces only bounded failure categories and diagnostics.
