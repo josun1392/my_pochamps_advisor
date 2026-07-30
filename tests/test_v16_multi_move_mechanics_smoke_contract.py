@@ -72,6 +72,9 @@ def test_schema_requires_value_free_multi_move_ranking_acknowledgements():
     assert "ranking_acknowledgements" in schema["required"]
     assert item["required"] == ["slot_index", "move", "comparison_status", "rank", "comparison_reason"]
     assert set(item["properties"]) == {"slot_index", "move", "comparison_status", "rank", "comparison_reason"}
+    claim = schema["properties"]["primary_reasons"]["items"]
+    assert "nullable" not in claim["properties"]["mechanics_path"]
+    assert "nullable" not in claim["properties"]["numeric_scope"]
 
 
 def test_default_and_invalid_actual_paths_do_not_invoke_fake_provider():

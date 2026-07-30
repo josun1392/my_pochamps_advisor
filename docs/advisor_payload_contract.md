@@ -3431,3 +3431,12 @@ The sanitized multi-move smoke uses three fixed production-path fixtures:
 clear winner, mixed known/incomplete/unsupported availability, and stable
 slot tie. It verifies rank-one selection plus mechanics and ranking
 acknowledgements, and surfaces only bounded failure categories and diagnostics.
+
+## v15.53 known multi-move claim reference
+
+For an all-known native direct multi-move request, the provider schema makes
+`mechanics_path` and `numeric_scope` non-null required fields. Guidance binds
+every mechanics claim to the recommended unique rank-one candidate's exact
+path. Parser-side exact path and native-value validation remains authoritative;
+this schema narrowing only removes the nullable reference path that could lead
+to a bounded `mechanics_numeric_scope_invalid` failure.

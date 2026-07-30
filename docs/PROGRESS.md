@@ -19051,3 +19051,11 @@ Maintained boundaries:
   selection and both acknowledgement contracts while exposing only bounded
   result data. Offline tests use fakes only; provider, credential, and network
   activity remain zero.
+
+## v15.53 known multi-move reference tightening
+
+- The first actual clear-winner response reached semantic validation with
+  bounded `mechanics_numeric_scope_invalid`. All-known direct multi-move claim
+  schema fields for mechanics path and numeric scope are now non-null required,
+  and provider guidance explicitly binds them to the selected rank-one
+  candidate. The parser's exact native evidence validation is unchanged.

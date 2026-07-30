@@ -1770,3 +1770,13 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
   approval. It runs clear winner, mixed availability, and stable tie in order,
   enforces rank-one selection, stops on the first failure, and prints no raw
   prompt, payload, provider response, credential, or internal mechanics data.
+
+## v15.53 known multi-move claim references
+
+- For an all-known native direct multi-move request, make `mechanics_path` and
+  `numeric_scope` non-null required in the provider claim schema. Guidance must
+  bind every mechanics claim to the selected unique rank-one candidate's exact
+  path; parser-side exactness and native numeric validation remain unchanged.
+- This follows the bounded clear-winner diagnostic
+  `mechanics_numeric_scope_invalid`. Run offline validation, commit, and push
+  before any later approval-gated actual round.
