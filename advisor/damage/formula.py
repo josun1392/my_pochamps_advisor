@@ -86,6 +86,7 @@ class DamageContext:
     ability_atk_mod_q12: int = Q12_ONE
     ability_def_mod_q12: int = Q12_ONE
     final_mod_q12: int = Q12_ONE
+    burn_mod_q12: int = Q12_ONE
     attacker_item: ItemEffect | None = None
     defender_item: ItemEffect | None = None
     attacker_species: str = ""
@@ -415,6 +416,7 @@ def calc_damage_rolls(
                 effectiveness,
                 set(move_flags),
             ),
+            ctx.burn_mod_q12,
             ctx.final_mod_q12,
         ]
     )

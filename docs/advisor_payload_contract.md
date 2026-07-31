@@ -3528,6 +3528,20 @@ canonical ratio, and uncertainty/unsupported reason. This is separate from
 damage, action order, accuracy, status role, and rank; it describes no actual
 HP change, survival outcome, expected value, or provider-authored utility.
 
+## v15.77 applied direct-damage modifiers
+
+Known formula-damage `mechanics_result` values may include
+`applied_damage_modifiers`, an allowlisted list of rain/sun, physical-burn,
+or target-side Reflect/Light Screen labels. The values are derived solely from
+the request-start field, self-condition, opponent-side-condition, and battle
+format contexts. They expose neither multiplier nor calculation intermediate.
+
+Relevant unknown weather, self condition, target-side ownership, or active
+screen format remains `insufficient_context`; unsupported weather/format
+remains `unsupported_mechanic`. The list is absent from level-based fixed
+damage and is never provider-authored. A completed recommendation and its
+presentation may use only the resolved selected candidate's labels.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics

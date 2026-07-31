@@ -7,6 +7,8 @@ from collections import Counter
 from typing import Any
 
 from advisor.damage.formula import DamageContext, calc_damage_rolls
+from advisor.damage.field import Field, SideField
+from advisor.damage.q12 import M_HALF, Q12_ONE
 from advisor.damage.stats import StatBlock
 from advisor.damage.types import type_effectiveness_multiplier
 from advisor.probability.single_hit import ko_chance_from_outcomes
@@ -84,17 +86,26 @@ def evaluate_direct_damage_mechanics(
         missing.append("attacker.level")
     direct_attacker = _mapping(direct.get("attacker"))
     direct_defender = _mapping(direct.get("defender"))
-    modifier_reason = _unsupported_modifier(direct_attacker, direct_defender, _mapping(direct.get("field")))
+    modifier = _modifier_context(current=current, direct=direct, category=category, move_type=move_type)
+    legacy_modifier_reason = _unsupported_modifier(direct_attacker, direct_defender, {})
+    if legacy_modifier_reason is not None:
+        return _unsupported(legacy_modifier_reason)
+    modifier_reason = modifier.get("unsupported_reason")
     if modifier_reason is not None:
         return _unsupported(modifier_reason)
+    missing.extend(modifier.get("missing_inputs", []))
     for side_name, side in (("attacker", direct_attacker), ("defender", direct_defender)):
         _require_known_absent(side.get("ability"), f"{side_name}.ability", missing)
         _require_known_absent(side.get("item"), f"{side_name}.item", missing)
         _require_zero_boosts(side.get("boosts"), f"{side_name}.boosts", missing)
         _require_hp(side, side_name, missing)
-        _require_known_absent(side.get("status"), f"{side_name}.status", missing)
+        if side_name == "attacker" and modifier.get("burn_known"):
+            pass
+        else:
+            _require_known_absent(side.get("status"), f"{side_name}.status", missing)
     field = _mapping(direct.get("field"))
-    _require_known_absent(field.get("weather"), "field.weather", missing)
+    if not modifier.get("weather_known"):
+        _require_known_absent(field.get("weather"), "field.weather", missing)
     _require_known_absent(field.get("terrain"), "field.terrain", missing)
     if missing:
         return _insufficient(missing)
@@ -112,6 +123,7 @@ def evaluate_direct_damage_mechanics(
             is_critical=False, is_spread=False, move_id=move_id,
             attacker_species=attacker["pokemon_identity"], defender_species=defender["pokemon_identity"],
             attacker_stats=attacker_stats, defender_stats=defender_stats,
+            field=modifier["field"], burn_mod_q12=modifier["burn_mod_q12"],
         ))
     except (TypeError, ValueError, KeyError):
         return _unsupported("native_direct_damage")
@@ -128,7 +140,7 @@ def evaluate_direct_damage_mechanics(
         "damage_percent_range": {"minimum": round(min(total_rolls) * 100 / max_hp, 2), "maximum": round(max(total_rolls) * 100 / max_hp, 2)},
         "ko_result": {"status": "resolved", "single_hit_probability": float(ko_chance_from_outcomes(total_rolls, defender_hp))},
         "damage_model": "fixed_hit_formula" if hit_count > 1 else "single_hit_formula",
-        "missing_inputs": [], "unsupported_reason": None,
+        "applied_damage_modifiers": modifier["applied"], "missing_inputs": [], "unsupported_reason": None,
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
     }
 
@@ -220,6 +232,74 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
         if isinstance(value, Mapping) and value.get("status") == "known" and _nonempty_str(value.get("value")):
             return "field_modifier"
     return None
+
+
+def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], category: Any, move_type: Any) -> dict[str, Any]:
+    """Adapt only explicit request-start weather, burn, and target screens."""
+    result = {"field": Field(is_doubles=False), "burn_mod_q12": Q12_ONE, "applied": [], "missing_inputs": [], "unsupported_reason": None, "weather_known": False, "burn_known": False}
+    field_context = _mapping(current.get("field_state_context"))
+    field_state = _mapping(field_context.get("current_field"))
+    has_field_snapshot = isinstance(current.get("field_state_context"), Mapping)
+    weather = field_state.get("weather")
+    if weather in {"none", "rain", "sun"}:
+        result["field"] = Field(weather=weather, is_doubles=False); result["weather_known"] = True
+        if move_type == "water" and weather == "rain": result["applied"].append("rain_water_boost")
+        if move_type == "fire" and weather == "rain": result["applied"].append("rain_fire_reduction")
+        if move_type == "fire" and weather == "sun": result["applied"].append("sun_fire_boost")
+        if move_type == "water" and weather == "sun": result["applied"].append("sun_water_reduction")
+    elif weather in {None, "unknown"}:
+        if move_type in {"water", "fire"}: result["missing_inputs"].append("field.weather")
+    else: result["unsupported_reason"] = "weather_modifier"
+    conditions = _mapping(current.get("condition_context")).get("current_conditions")
+    if isinstance(conditions, list):
+        own = [x for x in conditions if isinstance(x, Mapping) and x.get("side") == "self"]
+        if category == "physical":
+            if not own or own[0].get("condition_type") == "unknown": result["missing_inputs"].append("attacker.condition")
+            elif own[0].get("condition_type") == "burn": result["burn_mod_q12"] = M_HALF; result["applied"].append("burn_physical_reduction"); result["burn_known"] = True
+            else: result["burn_known"] = True
+    elif not has_field_snapshot and _mapping(direct.get("attacker")).get("status") == _KNOWN_ABSENT:
+        result["burn_known"] = True
+    elif category == "physical":
+        result["missing_inputs"].append("attacker.condition")
+    # The legacy direct context predates request-start field snapshots.  Keep
+    # that explicit known-absent compatibility path, but never treat a present
+    # snapshot with omitted/ambiguous side ownership as an inactive screen.
+    if has_field_snapshot:
+        effects = field_state.get("side_effects")
+        screen = "reflect" if category == "physical" else "light-screen"
+        if not isinstance(effects, list):
+            result["missing_inputs"].append("target_side_conditions")
+        else:
+            target_screen = False
+            ambiguous_screen = False
+            for effect in effects:
+                if not isinstance(effect, Mapping):
+                    ambiguous_screen = True
+                    continue
+                effect_name, side = effect.get("effect"), effect.get("side")
+                if effect_name == screen:
+                    if side == "opponent":
+                        target_screen = True
+                    elif side != "self":
+                        ambiguous_screen = True
+            if ambiguous_screen:
+                result["missing_inputs"].append("target_side_conditions")
+            elif target_screen:
+                fmt = _mapping(_mapping(current.get("battle_format_context")).get("current_battle_format")).get("battle_format")
+                if fmt == "singles":
+                    result["field"] = Field(
+                        weather=result["field"].weather, is_doubles=False,
+                        defender_side=SideField(
+                            reflect=screen == "reflect",
+                            light_screen=screen == "light-screen",
+                        ),
+                    )
+                    result["applied"].append("reflect_reduction" if screen == "reflect" else "light_screen_reduction")
+                elif fmt in {None, "unknown"}:
+                    result["missing_inputs"].append("battle_format")
+                else:
+                    result["unsupported_reason"] = "battle_format"
+    return result
 
 
 def _available(value: Any) -> Any:

@@ -42,6 +42,24 @@ def _direct_result(battle):
     return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
 
 
+def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None):
+    """Exercise only the frozen request-start modifier authority inputs."""
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = move_id
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=(move_id,))
+    metadata = {"category": category, "power": 40, "type": move_type}
+    if min_hits is not None: metadata.update(min_hits=min_hits, max_hits=max_hits)
+    damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id=move_id, selectable_moves=(move_id,), move_metadata=metadata)
+    current = damage["battle_context"]["current_state"]
+    if weather is not None or side_effects is not None:
+        current["field_state_context"] = {"current_field": {"weather": weather, "side_effects": side_effects}}
+    if conditions is not None:
+        current["condition_context"] = {"current_conditions": conditions}
+    if battle_format is not None:
+        current["battle_format_context"] = {"current_battle_format": {"battle_format": battle_format}}
+    return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+
+
 def test_complete_direct_input_returns_native_damage_type_and_ko_result():
     result = _direct_result(_battle())
     assert result["status"] == "known"
@@ -229,3 +247,149 @@ def test_level_based_fixed_damage_and_fixed_hit_remain_distinct_candidate_models
     assert [row["mechanics_result"]["damage_model"] for row in rows] == ["level_based_fixed", "fixed_hit_formula"]
     assert rows[0]["mechanics_result"]["per_hit_damage_range"] is None
     assert isinstance(rows[1]["mechanics_result"]["per_hit_damage_range"], dict)
+
+
+def test_known_weather_and_burn_use_native_q12_hooks_without_defaults():
+    baseline_water = _modifier_result(category="special", move_type="water", weather="none", side_effects=[])
+    rain_water = _modifier_result(category="special", move_type="water", weather="rain", side_effects=[])
+    rain_fire = _modifier_result(category="special", move_type="fire", weather="rain", side_effects=[])
+    sun_fire = _modifier_result(category="special", move_type="fire", weather="sun", side_effects=[])
+    sun_water = _modifier_result(category="special", move_type="water", weather="sun", side_effects=[])
+    assert rain_water["status"] == sun_fire["status"] == "known"
+    assert rain_water["damage_range"]["maximum"] > baseline_water["damage_range"]["maximum"]
+    assert rain_fire["damage_range"]["maximum"] < sun_fire["damage_range"]["maximum"]
+    assert sun_water["damage_range"]["maximum"] < baseline_water["damage_range"]["maximum"]
+    assert "rain_water_boost" in rain_water["applied_damage_modifiers"]
+    assert "sun_fire_boost" in sun_fire["applied_damage_modifiers"]
+
+    burned = [{"side": "self", "condition_type": "burn"}]
+    physical = _modifier_result(weather="none", side_effects=[], conditions=burned)
+    special = _modifier_result(category="special", weather="none", side_effects=[], conditions=burned)
+    unburned = _modifier_result(weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}])
+    assert physical["damage_range"]["maximum"] < unburned["damage_range"]["maximum"]
+    assert "burn_physical_reduction" in physical["applied_damage_modifiers"]
+    assert special["status"] == "known" and "burn_physical_reduction" not in special["applied_damage_modifiers"]
+
+
+def test_unknown_relevant_modifier_context_fails_closed_but_irrelevant_context_does_not():
+    unknown_weather = _modifier_result(category="special", move_type="water", weather="unknown", side_effects=[])
+    neutral_weather = _modifier_result(category="physical", move_type="normal", weather="unknown", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}])
+    unknown_burn = _modifier_result(weather="none", side_effects=[], conditions=[{"side": "opponent", "condition_type": "burn"}])
+    special_unknown_burn = _modifier_result(category="special", weather="none", side_effects=[], conditions=[{"side": "opponent", "condition_type": "burn"}])
+    assert unknown_weather["status"] == "insufficient_context" and "field.weather" in unknown_weather["missing_inputs"]
+    assert neutral_weather["status"] == "known"
+    assert unknown_burn["status"] == "insufficient_context" and "attacker.condition" in unknown_burn["missing_inputs"]
+    assert special_unknown_burn["status"] == "known"
+    missing_physical_condition = _modifier_result(weather="none", side_effects=[])
+    assert missing_physical_condition["status"] == "insufficient_context"
+    assert "attacker.condition" in missing_physical_condition["missing_inputs"]
+
+
+def test_target_side_screens_require_explicit_ownership_and_known_singles():
+    baseline = _modifier_result(weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}])
+    reflect = _modifier_result(weather="none", side_effects=[{"side": "opponent", "effect": "reflect"}], conditions=[{"side": "self", "condition_type": "none"}], battle_format="singles")
+    self_reflect = _modifier_result(weather="none", side_effects=[{"side": "self", "effect": "reflect"}], conditions=[{"side": "self", "condition_type": "none"}])
+    unknown_owner = _modifier_result(weather="none", side_effects=[{"effect": "reflect"}], conditions=[{"side": "self", "condition_type": "none"}])
+    unknown_format = _modifier_result(weather="none", side_effects=[{"side": "opponent", "effect": "reflect"}], conditions=[{"side": "self", "condition_type": "none"}])
+    doubles = _modifier_result(weather="none", side_effects=[{"side": "opponent", "effect": "reflect"}], conditions=[{"side": "self", "condition_type": "none"}], battle_format="doubles")
+    special_baseline = _modifier_result(category="special", weather="none", side_effects=[])
+    light_screen = _modifier_result(category="special", weather="none", side_effects=[{"side": "opponent", "effect": "light-screen"}], battle_format="singles")
+    reflect_special = _modifier_result(category="special", weather="none", side_effects=[{"side": "opponent", "effect": "reflect"}])
+    light_screen_physical = _modifier_result(weather="none", side_effects=[{"side": "opponent", "effect": "light-screen"}], conditions=[{"side": "self", "condition_type": "none"}])
+    missing_effects = _modifier_result(weather="none", side_effects=None, conditions=[{"side": "self", "condition_type": "none"}])
+    assert reflect["damage_range"]["maximum"] < baseline["damage_range"]["maximum"]
+    assert "reflect_reduction" in reflect["applied_damage_modifiers"]
+    assert self_reflect["damage_range"] == baseline["damage_range"]
+    assert unknown_owner["status"] == "insufficient_context" and "target_side_conditions" in unknown_owner["missing_inputs"]
+    assert unknown_format["status"] == "insufficient_context" and "battle_format" in unknown_format["missing_inputs"]
+    assert doubles["status"] == "unsupported_mechanic" and doubles["unsupported_reason"] == "battle_format"
+    assert light_screen["damage_range"]["maximum"] < special_baseline["damage_range"]["maximum"]
+    assert light_screen["applied_damage_modifiers"] == ["light_screen_reduction"]
+    assert reflect_special["damage_range"] == special_baseline["damage_range"]
+    assert light_screen_physical["damage_range"] == baseline["damage_range"]
+    assert missing_effects["status"] == "insufficient_context" and "target_side_conditions" in missing_effects["missing_inputs"]
+
+
+def test_fixed_hit_keeps_modifier_per_hit_and_level_fixed_damage_ignores_them():
+    fixed_hit = _modifier_result(move_id="double-hit", min_hits=2, max_hits=2, weather="rain", side_effects=[], conditions=[{"side": "self", "condition_type": "burn"}])
+    assert fixed_hit["status"] == "known" and fixed_hit["hit_count"] == 2
+    assert fixed_hit["damage_range"]["minimum"] == fixed_hit["per_hit_damage_range"]["minimum"] * 2
+    assert "burn_physical_reduction" in fixed_hit["applied_damage_modifiers"]
+
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = "seismic-toss"
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("seismic-toss",))
+    damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id="seismic-toss", selectable_moves=("seismic-toss",), move_metadata={"category": "physical", "type": "normal"})
+    damage["battle_context"]["current_state"].update({"field_state_context": {"current_field": {"weather": "rain", "side_effects": [{"side": "opponent", "effect": "reflect"}]}}, "condition_context": {"current_conditions": [{"side": "self", "condition_type": "burn"}]}, "battle_format_context": {"current_battle_format": {"battle_format": "singles"}}})
+    result = evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+    assert result["status"] == "known" and result["fixed_damage"] == 50
+    assert "applied_damage_modifiers" not in result
+
+
+def test_weather_burn_and_screen_combine_only_from_one_request_start_snapshot():
+    combined = _modifier_result(
+        move_type="water", weather="rain",
+        side_effects=[{"side": "opponent", "effect": "reflect"}],
+        conditions=[{"side": "self", "condition_type": "burn"}], battle_format="singles",
+    )
+    assert combined["status"] == "known"
+    assert combined["applied_damage_modifiers"] == [
+        "rain_water_boost", "burn_physical_reduction", "reflect_reduction",
+    ]
+
+
+def test_known_ability_exception_remains_unsupported_instead_of_applying_burn():
+    battle = _battle()
+    battle["direct_mechanics_context"]["attacker"]["ability"] = {"status": "known", "value": "guts"}
+    result = _direct_result(battle)
+    assert result["status"] == "unsupported_mechanic"
+    assert result["unsupported_reason"] == "ability_modifier"
+
+
+def test_presentation_exposes_only_selected_candidate_applied_modifier_labels():
+    mechanics = _modifier_result(
+        weather="rain", side_effects=[{"side": "opponent", "effect": "reflect"}],
+        conditions=[{"side": "self", "condition_type": "burn"}], battle_format="singles",
+    )
+    presentation = {
+        "status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0,
+        "primary_reasons": [], "risks": [], "alternatives": [], "candidate_summaries": [],
+        "selected_candidate": {
+            "selected_action": {"slot_index": 0, "move": "tackle"},
+            "explanation_code": "clear_ranked_winner",
+            "evidence": {"mechanics_result": mechanics, "action_order": {"status": "insufficient_context"}, "comparison_facts": {}},
+        },
+    }
+    text = format_recommendation_presentation_text(presentation_model=presentation)
+    assert "\ud654\uc0c1\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac10\uc18c" in text
+    assert "\uc0c1\ub300 \uce21 \ub9ac\ud50c\ub809\ud130 \uc801\uc6a9" in text
+    assert "rain_water_boost" not in text and "reflect_reduction" not in text
+
+
+def test_request_start_field_snapshot_reaches_candidate_result_and_presentation():
+    battle = _battle()
+    battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "water-pulse"}, {"slot_index": 1, "move_id": "tackle"}]
+    battle["field_state_context"] = {
+        "current_field": {
+            "weather": "rain", "terrain": "none", "global_effects": [], "side_effects": [],
+            "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known",
+        }
+    }
+    battle["condition_context"] = {"current_conditions": [{"side": "self", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]}
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "water-pulse"}, {"move_id": "tackle"}], battle_input=battle,
+        move_repository={"water-pulse": {"category": "special", "power": 60, "type": "water", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}},
+        species_repository=_Species(),
+    )
+    mechanics = prepared["candidates"][0]["mechanics_result"]
+    assert mechanics["status"] == "known"
+    assert mechanics["applied_damage_modifiers"] == ["rain_water_boost"]
+    assert prepared["candidates"][1]["mechanics_result"]["status"] == "known"
+    completed = complete_recommendation_cycle(
+        prepared_cycle=prepared,
+        response_payload={"recommendation_status": "resolved", "selected_candidate_id": 0, "explanation_code": "clear_ranked_winner"},
+    )
+    text = format_recommendation_presentation_text(
+        presentation_model=build_recommendation_presentation_model(completed_cycle=completed)
+    )
+    assert "\ube44\ub85c \uc778\ud55c \ubb3c\ud0c0\uc785 \uae30\uc220 \uac15\ud654" in text

@@ -1897,3 +1897,15 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
   server-owned status evidence. It is the only approved actual smoke surface;
   provider output remains candidate ID plus explanation code and may not add
   status utility or damage claims.
+
+## v15.77 known damage-modifier context handoff
+
+- Formula-damage candidates may carry allowlisted applied modifier labels only
+  when request-start weather, self burn, target-side screen ownership, and
+  (for an active screen) singles format are explicit. Unknown relevant state
+  is bounded insufficient context; doubles and unsupported weather are not
+  silently approximated.
+- Weather and screens reuse Q12 hooks; physical burn uses its bounded Q12
+  half-damage hook. Fixed-hit applies them before exact convolution, while
+  level-based fixed damage remains unmodified. Provider output is unchanged
+  and no actual-provider call is authorized by this offline slice.

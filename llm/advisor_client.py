@@ -506,6 +506,20 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
             lines.append(f"피해 비율: {percent['minimum']}~{percent['maximum']}%")
         if isinstance(ko, Mapping) and isinstance(ko.get("single_hit_probability"), (int, float)):
             lines.append(f"1회 KO 확률: {ko['single_hit_probability'] * 100:g}%")
+        modifier_labels = {
+            "rain_water_boost": "\ube44\ub85c \uc778\ud55c \ubb3c\ud0c0\uc785 \uae30\uc220 \uac15\ud654",
+            "rain_fire_reduction": "\ube44\ub85c \uc778\ud55c \ubd88\uaf43\ud0c0\uc785 \uae30\uc220 \uc57d\ud654",
+            "sun_fire_boost": "\ub9d1\uc740 \ub0a0\uc528\ub85c \uc778\ud55c \ubd88\uaf43\ud0c0\uc785 \uae30\uc220 \uac15\ud654",
+            "sun_water_reduction": "\ub9d1\uc740 \ub0a0\uc528\ub85c \uc778\ud55c \ubb3c\ud0c0\uc785 \uae30\uc220 \uc57d\ud654",
+            "burn_physical_reduction": "\ud654\uc0c1\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac10\uc18c",
+            "reflect_reduction": "\uc0c1\ub300 \uce21 \ub9ac\ud50c\ub809\ud130 \uc801\uc6a9",
+            "light_screen_reduction": "\uc0c1\ub300 \uce21 \ub77c\uc774\ud2b8\uc2a4\ud06c\ub9b0 \uc801\uc6a9",
+        }
+        applied = mechanics.get("applied_damage_modifiers")
+        if isinstance(applied, list):
+            shown_modifiers = [modifier_labels[tag] for tag in applied if tag in modifier_labels]
+            if shown_modifiers:
+                lines.append(f"\ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub41c \uc870\uac74: {', '.join(shown_modifiers)}")
     elif isinstance(mechanics, Mapping) and mechanics.get("status") == "insufficient_context":
         lines.append("계산 정보: 확정하려면 추가 전투 정보가 필요합니다.")
     elif isinstance(mechanics, Mapping) and mechanics.get("status") == "unsupported_mechanic":

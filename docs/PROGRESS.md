@@ -19283,3 +19283,15 @@ Maintained boundaries:
 - Provider output remains selection plus explanation code. Request-level level
   and HP uncertainty remains offline fail-closed coverage rather than being
   represented as contradictory per-candidate runtime state.
+
+## v15.77 known damage-modifier context
+
+- Direct Q12 candidates now consume only explicit request-start rain/sun,
+  self-burn, and target-side Reflect/Light Screen state. Native Q12 hooks own
+  weather, screen, burn ordering, and rounding; fixed-hit convolution uses
+  those already-modified per-hit rolls.
+- Relevant unknown context fails closed, and screens require explicit
+  opponent ownership plus known singles. Level-based fixed damage remains
+  outside ordinary damage modifiers. Candidate/result/presentation surfaces
+  carry only allowlisted applied-modifier tags; no provider or network call is
+  part of this offline slice.

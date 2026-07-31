@@ -22,7 +22,7 @@ RICH_CURRENT_STATE_KEYS = (
     "lifecycle_observation_context",
     "direct_mechanics_context",
 )
-FIELD_SCOPED_CONTEXT_KEYS = frozenset({"field_state_context", "battle_format_context"})
+FIELD_SCOPED_CONTEXT_KEYS = frozenset({"condition_context", "field_state_context", "battle_format_context"})
 PROVENANCE_REQUIRED_KEYS = frozenset({"side", "slot_index", "pokemon_id", "session_id", "source", "trust"})
 BASE_STAT_KEYS = ("hp", "attack", "defense", "special-attack", "special-defense", "speed")
 
