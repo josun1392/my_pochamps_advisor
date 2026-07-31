@@ -26,7 +26,8 @@ FIXTURES = ("multi-move-clear-winner", "multi-move-mixed-availability", "multi-m
 GROUNDING_FIXTURES = ("complete-multi-candidate-mechanics", "mixed-context-multi-candidate-mechanics")
 ACCURACY_FIXTURES = ("known-accuracy-multi-candidate", "mixed-accuracy-state-multi-candidate")
 STATUS_FIXTURES = ("mixed-damage-status-candidates", "mixed-status-state-candidates")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES})
+CONSEQUENCE_FIXTURES = ("recoil-drain-consequence-candidates", "turn-terminal-consequence-candidates")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -71,12 +72,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "slam"}, {"move_id": "recover"}, {"move_id": "swords-dance"}], {"slam": {"category": "physical", "power": 100, "type": "normal", "accuracy": 75, "priority": 0}, "recover": {"category": "status", "target": "user", "healing": 50, "effect_category": "heal", "priority": 0}, "swords-dance": {"category": "status", "target": "user", "stat_changes": [{"stat": "attack", "change": 2}], "effect_category": "net-good-stats", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     if fixture_id == STATUS_FIXTURES[1]:
         return [{"move_id": "tackle"}, {"move_id": "will-o-wisp"}, {"move_id": "mystery-status"}, {"move_id": "broken-status"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}, "will-o-wisp": {"category": "status", "target": "selected-pokemon", "ailment": "burn", "effect_category": "ailment", "priority": 0}, "mystery-status": {"category": "status", "priority": 0}, "broken-status": {"category": "status", "target": "user", "stat_changes": "invalid", "priority": 0}}
+    if fixture_id == CONSEQUENCE_FIXTURES[0]:
+        return [{"move_id": "brave-bird"}, {"move_id": "drain-punch"}, {"move_id": "tackle"}], {"brave-bird": {"category": "physical", "power": 120, "type": "flying", "drain": -33, "priority": 0}, "drain-punch": {"category": "physical", "power": 75, "type": "fighting", "drain": 50, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == CONSEQUENCE_FIXTURES[1]:
+        return [{"move_id": "solar-beam"}, {"move_id": "hyper-beam"}, {"move_id": "explosion"}, {"move_id": "dynamic-consequence"}], {"solar-beam": {"category": "special", "power": 120, "type": "grass", "priority": 0}, "hyper-beam": {"category": "special", "power": 150, "type": "normal", "priority": 0}, "explosion": {"category": "physical", "power": 250, "type": "normal", "priority": 0}, "dynamic-consequence": {"category": "physical", "power": 1, "type": "normal", "dynamic_consequence": True, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES})
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -132,6 +137,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
         role_statuses = [row.get("status_move_evidence", {}).get("status") for row in rows if isinstance(row, Mapping)]
         tags = [row.get("comparison_facts", {}).get("comparison_tags", []) for row in rows if isinstance(row, Mapping)]
         return [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [1, None, None, None] and role_statuses == ["not_applicable", "known_role", "insufficient_context", "unsupported_mechanic"] and "known_status_infliction_role" in tags[1] and "status_role_unknown" in tags[2] and "status_role_unsupported" in tags[3] and all("damage_range" not in row["mechanics_result"] for row in rows[1:] if isinstance(row.get("mechanics_result"), Mapping))
+    if fixture_id == CONSEQUENCE_FIXTURES[0]:
+        consequences = [row.get("move_consequence_evidence", {}) for row in rows if isinstance(row, Mapping)]
+        return [item.get("status") for item in consequences] == ["known", "known", "no_known_consequence"] and consequences[0].get("consequence_tags") == ["recoil"] and consequences[1].get("consequence_tags") == ["drain_or_healing_from_damage"]
+    if fixture_id == CONSEQUENCE_FIXTURES[1]:
+        consequences = [row.get("move_consequence_evidence", {}) for row in rows if isinstance(row, Mapping)]
+        return consequences[0].get("consequence_tags") == ["charge_turn"] and consequences[1].get("consequence_tags") == ["recharge_turn"] and consequences[2].get("consequence_tags") == ["self_faint"] and consequences[3].get("status") == "unsupported_mechanic"
     return False
 
 
@@ -153,7 +164,7 @@ def _completed_candidate_evidence_isolated(*, payload: Mapping[str, Any], comple
             return False
         if facts.get("candidate_id") != {"slot_index": pair[0], "move": pair[1]}:
             return False
-        if candidate.get("mechanics_result") != row.get("mechanics_result") or candidate.get("action_order") != row.get("action_order") or candidate.get("accuracy_evidence") != row.get("accuracy_evidence") or candidate.get("status_move_evidence") != row.get("status_move_evidence"):
+        if candidate.get("mechanics_result") != row.get("mechanics_result") or candidate.get("action_order") != row.get("action_order") or candidate.get("accuracy_evidence") != row.get("accuracy_evidence") or candidate.get("status_move_evidence") != row.get("status_move_evidence") or candidate.get("move_consequence_evidence") != row.get("move_consequence_evidence"):
             return False
     return True
 
@@ -172,7 +183,7 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
     if not isinstance(summary, Mapping) or summary.get("selected_action") != action:
         return False
     text = format_recommendation_presentation_text(presentation_model=presentation)
-    forbidden = ("candidate_comparisons", "raw_response", "mechanics_path", "numeric_scope", "multi_provider_", "canonical_effect", "target_scope", "role_tags")
+    forbidden = ("candidate_comparisons", "raw_response", "mechanics_path", "numeric_scope", "multi_provider_", "canonical_effect", "target_scope", "role_tags", "canonical_ratio", "HP")
     if not isinstance(text, str) or any(item in text for item in forbidden) or "선택 행동:" not in text:
         return False
     mechanics = selected.get("mechanics_result")

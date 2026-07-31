@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ACCURACY_FIXTURES, EXIT, FIXTURES, GROUNDING_FIXTURES, STATUS_FIXTURES, _prepared, main, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ACCURACY_FIXTURES, CONSEQUENCE_FIXTURES, EXIT, FIXTURES, GROUNDING_FIXTURES, STATUS_FIXTURES, _prepared, main, run_smoke
 
 
 def _code(rows, winner):
@@ -54,6 +54,15 @@ def test_status_fixture_pair_keeps_roles_separate_from_damage_and_selected_evide
     mixed = _prepared(STATUS_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
     assert [row["status_move_evidence"]["status"] for row in mixed] == ["not_applicable", "known_role", "insufficient_context", "unsupported_mechanic"]
     assert all(row["comparison_facts"]["candidate_id"] == {"slot_index": row["slot_index"], "move": row["move"]} for row in mixed)
+
+
+def test_consequence_fixture_pair_keeps_canonical_tags_candidate_local():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=CONSEQUENCE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    recoil = _prepared(CONSEQUENCE_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert [row["move_consequence_evidence"]["consequence_tags"] for row in recoil] == [["recoil"], ["drain_or_healing_from_damage"], []]
+    terminal = _prepared(CONSEQUENCE_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert [row["move_consequence_evidence"]["status"] for row in terminal] == ["known", "known", "known", "unsupported_mechanic"]
 
 
 def test_cli_allows_only_the_bounded_multi_candidate_fixture_pair(capsys):

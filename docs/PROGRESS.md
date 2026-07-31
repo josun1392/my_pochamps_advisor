@@ -19240,3 +19240,9 @@ Maintained boundaries:
   It never calculates HP, survival, expected value, or a new rank.
 - The validated result and formatter receive only the selected candidate's
   bounded consequence labels; no provider or network activity is involved.
+
+## v15.72 consequence provider grounding smoke
+
+- Added an approval-gated recoil/drain and turn/terminal consequence fixture
+  pair. The provider schema remains minimal; the smoke verifies deterministic
+  candidate evidence and bounded presentation isolation only.
