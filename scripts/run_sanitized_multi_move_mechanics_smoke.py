@@ -22,6 +22,8 @@ from llm.advisor_client import SAFE_PROVIDER_DIAGNOSTIC_CODES, sanitize_provider
 from scripts.spike_advisor import DEFAULT_MODEL
 
 FIXTURES = ("multi-move-clear-winner", "multi-move-mixed-availability", "multi-move-stable-tie")
+GROUNDING_FIXTURES = ("complete-multi-candidate-mechanics", "mixed-context-multi-candidate-mechanics")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -34,13 +36,17 @@ def _provenance(side: str, slot: int, pokemon: str, *, source: str = "user_confi
     return {"side": side, "slot_index": slot, "pokemon_id": pokemon, "session_id": "multi-smoke", "source": source, "trust": "user_confirmed_current"}
 
 
-def _battle() -> dict[str, Any]:
+def _battle(*, known_action_order: bool = False) -> dict[str, Any]:
     entries = []
     for side, pokemon, slot in (("self", "pikachu", 0), ("opponent", "eevee", 1)):
         entries.extend({"side": side, "stat": stat, "value": 100 + index, "status": "user_confirmed", "source": "user_confirmed_final_battle_stat", "provenance": _provenance(side, slot, pokemon)} for index, stat in enumerate(("hp", "attack", "defense", "special-attack", "special-defense", "speed")))
     absent = {"status": "known_absent"}
     side = {"ability": absent, "item": absent, "status": absent, "boosts": {key: 0 for key in ("attack", "defense", "special-attack", "special-defense", "speed")}, "current_hp": 100, "max_hp": 100}
-    return {"current_state_session_id": "multi-smoke", "pokemon": {"my_active": {"name_en": "pikachu", "slot_index": 0}, "opponent_active": {"name_en": "eevee", "slot_index": 1}}, "moves": {"my_available_moves": []}, "final_stat_context": {"current_final_stats": entries}, "trusted_level_context": {"current_levels": [{"side": "self", "value": 50, "provenance": _provenance("self", 0, "pikachu", source="user_confirmed_current_level")}]}, "direct_mechanics_context": {"generation": "gen9", "attacker": deepcopy(side), "defender": deepcopy(side), "field": {"weather": absent, "terrain": absent}}}
+    battle = {"current_state_session_id": "multi-smoke", "pokemon": {"my_active": {"name_en": "pikachu", "slot_index": 0}, "opponent_active": {"name_en": "eevee", "slot_index": 1}}, "moves": {"my_available_moves": []}, "final_stat_context": {"current_final_stats": entries}, "trusted_level_context": {"current_levels": [{"side": "self", "value": 50, "provenance": _provenance("self", 0, "pikachu", source="user_confirmed_current_level")}]}, "direct_mechanics_context": {"generation": "gen9", "attacker": deepcopy(side), "defender": deepcopy(side), "field": {"weather": absent, "terrain": absent}}}
+    if known_action_order:
+        battle["opponent_selected_move"] = {"move_id": "tackle"}
+        battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "none", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
+    return battle
 
 
 def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
@@ -50,12 +56,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "tackle"}, {"move_id": "missing-power"}, {"move_id": "double-hit"}], {"tackle": {"category": "physical", "power": 40, "type": "normal"}, "missing-power": {"category": "physical", "type": "normal"}, "double-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": 2, "max_hits": 2}}
     if fixture_id == FIXTURES[2]:
         return [{"move_id": "tackle"}, {"move_id": "tackle"}], {"tackle": {"category": "physical", "power": 40, "type": "normal"}}
+    if fixture_id == GROUNDING_FIXTURES[0]:
+        return [{"move_id": "quick-attack"}, {"move_id": "slam"}], {"quick-attack": {"category": "physical", "power": 40, "type": "normal", "priority": 1}, "slam": {"category": "physical", "power": 100, "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == GROUNDING_FIXTURES[1]:
+        return [{"move_id": "tackle"}, {"move_id": "missing-power"}, {"move_id": "double-hit"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "missing-power": {"category": "physical", "type": "normal", "priority": 0}, "double-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": 2, "max_hits": 2, "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle()
+    battle = _battle(known_action_order=fixture_id in GROUNDING_FIXTURES)
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -82,7 +92,44 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
         return [item.get("comparison_status") for item in comparisons if isinstance(item, Mapping)] == ["rankable", "insufficient_context", "unsupported_mechanic"] and [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [1, None, None] and isinstance(mechanics[1], Mapping) and isinstance(mechanics[1].get("missing_inputs"), list) and bool(mechanics[1]["missing_inputs"]) and isinstance(mechanics[2], Mapping) and isinstance(mechanics[2].get("unsupported_reason"), str)
     if fixture_id == FIXTURES[2]:
         return [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [1, 2]
+    if fixture_id == GROUNDING_FIXTURES[0]:
+        if [item.get("rank") for item in comparisons if isinstance(item, Mapping)] != [2, 1]:
+            return False
+        return all(
+            isinstance(row, Mapping)
+            and isinstance(row.get("mechanics_result"), Mapping)
+            and row["mechanics_result"].get("status") == "known"
+            and isinstance(row.get("comparison_facts"), Mapping)
+            and row["comparison_facts"].get("candidate_id") == {"slot_index": row.get("slot_index"), "move": row.get("move")}
+            for row in rows
+        ) and any(row["comparison_facts"].get("action_order_status") == "acts_first" for row in rows)
+    if fixture_id == GROUNDING_FIXTURES[1]:
+        mechanics = [row.get("mechanics_result") for row in rows if isinstance(row, Mapping)]
+        return [item.get("comparison_status") for item in comparisons if isinstance(item, Mapping)] == ["rankable", "insufficient_context", "unsupported_mechanic"] and [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [1, None, None] and all(isinstance(row.get("comparison_facts"), Mapping) and row["comparison_facts"].get("candidate_id") == {"slot_index": row.get("slot_index"), "move": row.get("move")} for row in rows if isinstance(row, Mapping)) and isinstance(mechanics[1], Mapping) and isinstance(mechanics[1].get("missing_inputs"), list) and bool(mechanics[1]["missing_inputs"]) and isinstance(mechanics[2], Mapping) and isinstance(mechanics[2].get("unsupported_reason"), str)
     return False
+
+
+def _completed_candidate_evidence_isolated(*, payload: Mapping[str, Any], completed: Mapping[str, Any]) -> bool:
+    """Confirm completion retained each candidate's own native evidence only."""
+    rows, candidates = payload.get("candidate_comparisons"), completed.get("candidates")
+    if not isinstance(rows, list) or not isinstance(candidates, list) or len(rows) != len(candidates):
+        return False
+    indexed = {(candidate.get("slot_index"), candidate.get("move")): candidate for candidate in candidates if isinstance(candidate, Mapping)}
+    if len(indexed) != len(candidates):
+        return False
+    for row in rows:
+        if not isinstance(row, Mapping):
+            return False
+        pair = (row.get("slot_index"), row.get("move"))
+        candidate = indexed.get(pair)
+        facts = row.get("comparison_facts")
+        if not isinstance(candidate, Mapping) or not isinstance(facts, Mapping):
+            return False
+        if facts.get("candidate_id") != {"slot_index": pair[0], "move": pair[1]}:
+            return False
+        if candidate.get("mechanics_result") != row.get("mechanics_result") or candidate.get("action_order") != row.get("action_order"):
+            return False
+    return True
 
 
 def _actual_adapters(*, model: str) -> tuple[Callable[[], bool], Callable[[Mapping[str, Any]], dict[str, Any]]]:
@@ -101,7 +148,7 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
     selected = tuple(fixtures)
     if not actual:
         return {"exit_code": EXIT["ok"], "provider_calls": 0, "results": []}
-    if model != DEFAULT_MODEL or not no_retry or selected != FIXTURES or max_calls != len(selected):
+    if model != DEFAULT_MODEL or not no_retry or selected not in _ALLOWED_FIXTURE_SETS or max_calls != len(selected):
         return {"exit_code": EXIT["usage"], "provider_calls": 0, "results": []}
     if credential_available is None or not credential_available():
         return {"exit_code": EXIT["credential"], "provider_calls": 0, "results": []}
@@ -133,6 +180,8 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
             errors = completed.get("errors") if isinstance(completed.get("errors"), list) else []
             category = "grounding_structural_failure" if any(str(error).startswith("grounding_") for error in errors) else "grounding_semantic_failure"
             return {"exit_code": EXIT["structural"] if category == "grounding_structural_failure" else EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": category, "diagnostic": next((error for error in errors if isinstance(error, str)), "validation_failed"), "results": results}
+        if not _completed_candidate_evidence_isolated(payload=payload, completed=completed):
+            return {"exit_code": EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "multi_candidate_evidence_mixed", "diagnostic": "multi_candidate_evidence_mixed", "results": results}
         recommendation = completed.get("recommendation_result")
         if not isinstance(recommendation, Mapping) or (recommendation.get("recommended_move"), recommendation.get("recommended_slot_index")) != expected:
             return {"exit_code": EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "ranking_selection_mismatch", "diagnostic": "ranking_selection_mismatch", "results": results}

@@ -19169,3 +19169,14 @@ Maintained boundaries:
 - Request validation regenerates those facts and rejects cross-candidate
   mutation. Incomplete and unsupported candidates remain unranked. This change
   was validated offline only, with no credential, provider, or network use.
+
+## v15.64 multi-candidate provider grounding smoke
+
+- Added a separate two-fixture allowlist for complete and mixed-context
+  multi-candidate provider grounding. The provider response remains a selected
+  slot plus bounded explanation code; server binding owns all numeric,
+  action-order, ranking, and comparison evidence.
+- The smoke verifies candidate-local comparison facts before a call and checks
+  completion retains each slot/move's own mechanics and action-order evidence.
+  Cross-candidate evidence is reported only by a bounded diagnostic. Offline
+  validation precedes the separately authorized actual round.

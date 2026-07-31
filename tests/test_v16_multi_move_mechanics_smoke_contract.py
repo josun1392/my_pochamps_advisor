@@ -1,6 +1,7 @@
 from copy import deepcopy
+import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import EXIT, FIXTURES, _prepared, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import EXIT, FIXTURES, GROUNDING_FIXTURES, _prepared, main, run_smoke
 
 
 def _code(rows, winner):
@@ -22,6 +23,25 @@ def _response(payload, *, selected=None):
 def test_three_fixture_fake_provider_binds_deterministic_acknowledgements():
     result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=3, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 3
+
+
+def test_multi_candidate_grounding_fixtures_preserve_isolated_mechanics_and_action_order():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=GROUNDING_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    complete = _prepared(GROUNDING_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert all(row["comparison_facts"]["candidate_id"] == {"slot_index": row["slot_index"], "move": row["move"]} for row in complete)
+    assert any(row["action_order"]["status"] == "acts_first" for row in complete)
+    mixed = _prepared(GROUNDING_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert [row["mechanics_result"]["status"] for row in mixed] == ["known", "insufficient_context", "unsupported_mechanic"]
+
+
+def test_cli_allows_only_the_bounded_multi_candidate_fixture_pair(capsys):
+    def adapters(*, model):
+        assert model == "gemini-2.5-flash"
+        return (lambda: True), _response
+
+    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *GROUNDING_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_multi_provider_rejects_wrong_candidate_rank_and_extra_acknowledgements():

@@ -7,6 +7,13 @@ evidence, and regenerated bounded comparison facts without changing damage rank
 or UI slot order. No provider call occurred; any multi-candidate actual smoke
 requires separate T1 approval.
 
+## v15.64 multi-candidate provider grounding smoke
+
+The allowlisted complete/mixed multi-candidate smoke keeps Gemini at selected
+candidate ID plus bounded explanation code. Native numeric, action-order, and
+comparison evidence are bound and checked server-side per candidate. Actual
+execution requires its explicit two-call approval.
+
 ## v14.22 teardown lifecycle
 
 Window close invalidates active advice identity and suppresses late callbacks;
