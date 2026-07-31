@@ -19148,3 +19148,14 @@ Maintained boundaries:
   required numeric linkage even for a parser-valid value-free mechanics
   summary. Path and scope are now optional/nullable only for value-free known
   summaries; numeric claims still require their exact native linkage.
+
+## v15.62 deterministic direct-mechanics linkage
+
+- Replaced provider-authored single-direct mechanics path/scope with a
+  candidate-and-claim-kind response contract. The application deterministically
+  resolves the selected candidate and claim kind to canonical native evidence
+  before strict semantic validation.
+- Numeric kinds retain exact native-value validation; value-free and
+  insufficient claims cannot create numeric linkage. Provider-supplied linkage
+  fields are rejected with bounded diagnostics. Multi-move, action-order, and
+  deterministic ranking contracts are unchanged.

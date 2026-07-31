@@ -20,7 +20,7 @@ def _response(payload):
     }
     if mechanics["status"] == "insufficient_context":
         return {"recommendation_status": "insufficient_context", "recommended_move": None, "recommended_slot_index": None, "primary_reasons": [{"kind": "partial_context", "claim": "deterministic mechanics is incomplete"}], "risks": [], "alternatives": [], "grounding": grounding, "mechanics_acknowledgements": [acknowledgement]}
-    return {"recommendation_status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0, "primary_reasons": [{"kind": "mechanics", "claim": "deterministic mechanics evidence"}], "risks": [], "alternatives": [], "grounding": grounding, "mechanics_acknowledgements": [acknowledgement]}
+    return {"recommendation_status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0, "primary_reasons": [{"kind": "value_free_mechanics", "claim": "deterministic mechanics evidence"}], "risks": [], "alternatives": [], "grounding": grounding, "mechanics_acknowledgements": [acknowledgement]}
 
 
 def test_fixture_preparation_produces_known_and_insufficient_mechanics_evidence():
@@ -107,36 +107,45 @@ def test_known_mechanics_numeric_claim_requires_exact_native_scope_and_insuffici
 
     mechanics = complete["recommendation_request"]["candidate_comparisons"][0]["mechanics_result"]
     numeric = _response(complete["recommendation_request"])
-    numeric["primary_reasons"] = [{"kind": "mechanics", "claim": f"{mechanics['damage_range']['minimum']}-{mechanics['damage_range']['maximum']} damage", "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": "damage_range"}]
+    numeric["primary_reasons"] = [{"kind": "damage_value", "claim": f"{mechanics['damage_range']['minimum']}-{mechanics['damage_range']['maximum']} damage"}]
     assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=numeric)["status"] == "resolved"
 
     referenced_summary = _response(complete["recommendation_request"])
-    referenced_summary["primary_reasons"] = [{"kind": "mechanics", "claim": "deterministic mechanics evidence", "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": "damage_range"}]
+    referenced_summary["primary_reasons"] = [{"kind": "value_free_mechanics", "claim": "deterministic mechanics evidence"}]
     assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=referenced_summary)["status"] == "resolved"
 
     value_free_summary = _response(complete["recommendation_request"])
-    value_free_summary["primary_reasons"] = [{"kind": "mechanics", "claim": "deterministic mechanics evidence"}]
+    value_free_summary["primary_reasons"] = [{"kind": "value_free_mechanics", "claim": "deterministic mechanics evidence"}]
     assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=value_free_summary)["status"] == "resolved"
 
     for scope, values in (("damage_percent_range", mechanics["damage_percent_range"].values()), ("single_hit_probability", (mechanics["ko_result"]["single_hit_probability"],))):
         scoped = _response(complete["recommendation_request"])
-        scoped["primary_reasons"] = [{"kind": "mechanics", "claim": "-".join(str(value) for value in values), "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": scope}]
+        kind = "damage_percent" if scope == "damage_percent_range" else "ko_probability"
+        scoped["primary_reasons"] = [{"kind": kind, "claim": "-".join(str(value) for value in values)}]
         assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=scoped)["status"] == "resolved"
 
     mismatch = _response(complete["recommendation_request"])
-    mismatch["primary_reasons"] = [{"kind": "mechanics", "claim": "50 damage", "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": "damage_range"}]
+    mismatch["primary_reasons"] = [{"kind": "damage_value", "claim": "50 damage"}]
     assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=mismatch)["errors"] == ["mechanics_numeric_value_mismatch"]
 
+    missing_numeric = _response(complete["recommendation_request"])
+    missing_numeric["primary_reasons"] = [{"kind": "damage_value", "claim": "damage evidence"}]
+    assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=missing_numeric)["errors"] == ["mechanics_numeric_claim_without_evidence"]
+
+    numeric_value_free = _response(complete["recommendation_request"])
+    numeric_value_free["primary_reasons"] = [{"kind": "value_free_mechanics", "claim": "2 hits"}]
+    assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=numeric_value_free)["errors"] == ["provider_value_free_mechanics_numeric_forbidden"]
+
     wrong_path = _response(complete["recommendation_request"])
-    wrong_path["primary_reasons"] = [{"kind": "mechanics", "claim": f"{mechanics['damage_range']['minimum']}-{mechanics['damage_range']['maximum']} damage", "mechanics_path": "candidate_comparisons.1.mechanics_result", "numeric_scope": "damage_range"}]
-    assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=wrong_path)["errors"] == ["mechanics_numeric_scope_invalid"]
+    wrong_path["primary_reasons"] = [{"kind": "damage_value", "claim": f"{mechanics['damage_range']['minimum']}-{mechanics['damage_range']['maximum']} damage", "mechanics_path": "candidate_comparisons.1.mechanics_result"}]
+    assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=wrong_path)["errors"] == ["provider_mechanics_linkage_forbidden"]
 
     incomplete = _prepared(FIXTURES[1])
     with pytest.raises(ValueError, match="mechanics_claim_on_insufficient_context"):
         _validate_claim({"kind": "mechanics", "claim": "deterministic mechanics"}, incomplete["candidates"][0])
 
     insufficient_numeric = _response(incomplete["recommendation_request"])
-    insufficient_numeric["primary_reasons"] = [{"kind": "partial_context", "claim": "1-2 damage", "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": "damage_range"}]
+    insufficient_numeric["primary_reasons"] = [{"kind": "partial_context", "claim": "1-2 damage"}]
     assert complete_recommendation_cycle(prepared_cycle=incomplete, response_payload=insufficient_numeric)["errors"] == ["mechanics_numeric_claim_on_insufficient_context"]
 
     unreferenced_numeric = _response(incomplete["recommendation_request"])
@@ -145,7 +154,7 @@ def test_known_mechanics_numeric_claim_requires_exact_native_scope_and_insuffici
 
     numeric_free_mechanics_wording = _response(incomplete["recommendation_request"])
     numeric_free_mechanics_wording["primary_reasons"] = [{"kind": "partial_context", "claim": "damage is unavailable"}]
-    assert complete_recommendation_cycle(prepared_cycle=incomplete, response_payload=numeric_free_mechanics_wording)["errors"] == ["mechanics_partial_context_claim_invalid"]
+    assert complete_recommendation_cycle(prepared_cycle=incomplete, response_payload=numeric_free_mechanics_wording)["errors"] == ["provider_partial_context_claim_invalid"]
 
 
 def test_structured_provider_schema_requires_parser_claim_shape_and_mechanics_kind():
@@ -168,11 +177,9 @@ def test_single_direct_mechanics_schema_keeps_dynamic_linkage_out_of_provider_en
     payload = _prepared(FIXTURES[0])["recommendation_request"]
     schema = _structured_provider_schema(mechanics_grounding_required=True, provider_payload=payload)
     known_claim = schema["properties"]["primary_reasons"]["items"]
-    assert known_claim["properties"]["kind"]["enum"] == ["mechanics"]
+    assert known_claim["properties"]["kind"]["enum"] == ["damage_percent", "damage_value", "ko_probability", "value_free_mechanics"]
     assert known_claim["required"] == ["kind", "claim"]
-    assert set(("mechanics_path", "numeric_scope")) <= set(known_claim["properties"])
-    assert known_claim["properties"]["mechanics_path"]["nullable"] is True
-    assert known_claim["properties"]["numeric_scope"]["nullable"] is True
+    assert set(known_claim["properties"]) == {"kind", "claim"}
     properties = schema["properties"]["mechanics_acknowledgements"]["items"]["properties"]
     assert "enum" not in properties["slot_index"]
     assert "enum" not in properties["move"]

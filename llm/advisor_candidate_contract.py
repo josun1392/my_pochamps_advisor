@@ -582,6 +582,14 @@ INCOMPLETE_DIRECT_MECHANICS_CLAIM_VALUES = frozenset({
     "missing deterministic mechanics context",
     "conditional advice requires missing mechanics context",
 })
+DIRECT_MECHANICS_PROVIDER_CLAIM_KINDS = frozenset({
+    "damage_value", "damage_percent", "ko_probability", "value_free_mechanics", "partial_context",
+})
+_DIRECT_PROVIDER_NUMERIC_SCOPES = {
+    "damage_value": "damage_range",
+    "damage_percent": "damage_percent_range",
+    "ko_probability": "single_hit_probability",
+}
 
 
 def _numeric_literals(claim: str) -> list[Decimal]:
@@ -674,6 +682,100 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path
         raise ValueError("mechanics_claim_path_missing")
     if kind == "partial_context" and candidate.get("status") == "resolved" and any(word in reason["claim"].lower() for word in ("missing", "unavailable", "incomplete")):
         raise ValueError("claim_evidence_contradiction")
+
+
+def _direct_provider_claim_context(*, request: Mapping[str, Any], response: Mapping[str, Any]) -> tuple[Mapping[str, Any], str] | None:
+    if response.get("recommendation_status") == "resolved":
+        move, slot = response.get("recommended_move"), response.get("recommended_slot_index")
+        if not isinstance(move, str) or not isinstance(slot, int) or isinstance(slot, bool):
+            return None
+        return _comparison_context_for_pair(request, {"move": move, "slot_index": slot})
+    if response.get("recommendation_status") == "insufficient_context":
+        contexts = [
+            (comparison, f"candidate_comparisons.{index}.mechanics_result")
+            for index, comparison in enumerate(request.get("candidate_comparisons", []))
+            if isinstance(comparison, Mapping)
+            and isinstance(comparison.get("mechanics_result"), Mapping)
+            and comparison["mechanics_result"].get("mechanics_source") == "native_q12_direct_damage"
+        ]
+        return contexts[0] if len(contexts) == 1 else None
+    return None
+
+
+def _normalize_direct_provider_claim(*, claim: Any, candidate: Mapping[str, Any], mechanics_path: str) -> tuple[dict[str, Any] | None, str | None]:
+    if not isinstance(claim, Mapping) or not isinstance(claim.get("kind"), str):
+        return None, "provider_direct_claim_invalid"
+    kind = claim["kind"]
+    if kind not in DIRECT_MECHANICS_PROVIDER_CLAIM_KINDS:
+        return deepcopy(dict(claim)), None
+    if set(claim) != {"kind", "claim"} or not isinstance(claim.get("claim"), str) or not claim["claim"]:
+        return None, "provider_mechanics_linkage_forbidden"
+    mechanics = candidate.get("mechanics_result")
+    if not isinstance(mechanics, Mapping) or mechanics.get("mechanics_source") != "native_q12_direct_damage":
+        return None, "provider_direct_claim_candidate_invalid"
+    status = mechanics.get("status")
+    if kind == "partial_context":
+        if status != "insufficient_context":
+            return None, "provider_partial_context_claim_invalid"
+        if _numeric_literals(claim["claim"]):
+            return None, "mechanics_numeric_claim_on_insufficient_context"
+        if claim["claim"] not in INCOMPLETE_DIRECT_MECHANICS_CLAIM_VALUES:
+            return None, "provider_partial_context_claim_invalid"
+        return {"kind": "partial_context", "claim": claim["claim"]}, None
+    if status != "known":
+        return None, "provider_direct_claim_status_invalid"
+    if kind == "value_free_mechanics":
+        if _numeric_literals(claim["claim"]):
+            return None, "provider_value_free_mechanics_numeric_forbidden"
+        return {"kind": "mechanics", "claim": claim["claim"]}, None
+    scope = _DIRECT_PROVIDER_NUMERIC_SCOPES[kind]
+    expected = _mechanics_scope_values(mechanics, scope)
+    values = _numeric_literals(claim["claim"])
+    if expected is None:
+        return None, "ambiguous_native_mechanics_evidence"
+    if not values:
+        return None, "mechanics_numeric_claim_without_evidence"
+    return {"kind": "mechanics", "claim": claim["claim"], "mechanics_path": mechanics_path, "numeric_scope": scope}, None
+
+
+def _normalize_direct_provider_claims(*, request: Mapping[str, Any], response: Mapping[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    """Bind provider claim kinds to the selected candidate's native mechanics only."""
+    all_claims = [*response.get("primary_reasons", []), *response.get("risks", [])] if isinstance(response.get("primary_reasons"), list) and isinstance(response.get("risks"), list) else []
+    alternatives = response.get("alternatives")
+    if not any(isinstance(claim, Mapping) and claim.get("kind") in DIRECT_MECHANICS_PROVIDER_CLAIM_KINDS for claim in all_claims) and not any(isinstance(item, Mapping) and isinstance(item.get("reason"), Mapping) and item["reason"].get("kind") in DIRECT_MECHANICS_PROVIDER_CLAIM_KINDS for item in alternatives or []):
+        return deepcopy(dict(response)), None
+    context = _direct_provider_claim_context(request=request, response=response)
+    if context is None:
+        return None, "provider_direct_claim_candidate_invalid"
+    candidate, mechanics_path = context
+    normalized = deepcopy(dict(response))
+    for key in ("primary_reasons", "risks"):
+        values = normalized.get(key)
+        if not isinstance(values, list):
+            return None, "provider_direct_claim_invalid"
+        output = []
+        for claim in values:
+            item, error = _normalize_direct_provider_claim(claim=claim, candidate=candidate, mechanics_path=mechanics_path)
+            if error:
+                return None, error
+            output.append(item)
+        normalized[key] = output
+    if not isinstance(alternatives, list):
+        return None, "provider_direct_claim_invalid"
+    output_alternatives = []
+    for alternative in alternatives:
+        if not isinstance(alternative, Mapping) or not isinstance(alternative.get("reason"), Mapping):
+            return None, "provider_direct_claim_invalid"
+        pair = {"move": alternative.get("move"), "slot_index": alternative.get("slot_index")}
+        alternative_context = _comparison_context_for_pair(request, pair) if isinstance(pair["move"], str) and isinstance(pair["slot_index"], int) and not isinstance(pair["slot_index"], bool) else None
+        if alternative_context is None:
+            return None, "provider_direct_claim_candidate_invalid"
+        reason, error = _normalize_direct_provider_claim(claim=alternative["reason"], candidate=alternative_context[0], mechanics_path=alternative_context[1])
+        if error:
+            return None, error
+        output_alternatives.append({"move": pair["move"], "slot_index": pair["slot_index"], "reason": reason})
+    normalized["alternatives"] = output_alternatives
+    return normalized, None
 
 
 def parse_recommendation_response(*, request: Mapping[str, Any], response_payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -834,6 +936,11 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
         if bound is None:
             return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["multi_provider_binding_invalid"])
         response_payload = bound
+    elif mechanics_required:
+        normalized, diagnostic = _normalize_direct_provider_claims(request=request, response=response_payload)
+        if normalized is None:
+            return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=[diagnostic or "provider_direct_claim_invalid"])
+        response_payload = normalized
     if (_RUNTIME_PROVIDER_KEY in request or mechanics_required) and "grounding" not in response_payload:
         return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["grounding_required"])
     if mechanics_required and "mechanics_acknowledgements" not in response_payload:
