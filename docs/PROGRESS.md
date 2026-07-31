@@ -19190,3 +19190,12 @@ Maintained boundaries:
 - The UI-neutral presentation model exposes that copied selected-candidate
   summary only after validation. Invalid selection produces no result, and
   provider failure remains separate from mechanics insufficiency. Offline only.
+
+## v15.66 validated recommendation panel rendering
+
+- The existing structured advice-panel formatter now renders the validated
+  selected-candidate summary with Korean bounded explanation and comparison
+  labels. Native numeric and action-order text appears only for known evidence.
+- Incomplete, unsupported, failure, and no-candidate states do not display a
+  stale or inferred candidate summary. The existing panel lifecycle and
+  provider boundary are unchanged; offline validation only.

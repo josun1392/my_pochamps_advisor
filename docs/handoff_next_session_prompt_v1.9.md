@@ -21,6 +21,13 @@ exposes only that candidate's deterministic evidence in the canonical result
 and UI-neutral presentation summary. Invalid selection has no stale fallback;
 provider evaluation remains closed for this slice.
 
+## v15.66 validated recommendation panel rendering
+
+The structured panel now renders only validated selected-candidate evidence:
+known numeric/action-order summaries, bounded explanation and comparison labels,
+or clear incomplete/unsupported messaging. New requests and failures leave no
+stale selected summary. No provider call occurred.
+
 ## v14.22 teardown lifecycle
 
 Window close invalidates active advice identity and suppresses late callbacks;

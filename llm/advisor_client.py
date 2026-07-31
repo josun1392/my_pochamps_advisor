@@ -470,6 +470,47 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
     return deepcopy(decoded), usage
 
 
+def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
+    """Render only already-validated selected-candidate presentation fields."""
+    if not isinstance(selected, Mapping):
+        return []
+    action, evidence = selected.get("selected_action"), selected.get("evidence")
+    if not isinstance(action, Mapping) or not isinstance(action.get("move"), str) or not isinstance(evidence, Mapping):
+        return []
+    lines = [f"선택 행동: {action['move']}"]
+    explanation = {
+        "clear_ranked_winner": "결정적 비교에서 가장 높은 후보입니다.",
+        "only_rankable_candidate": "현재 비교 가능한 유일한 후보입니다.",
+        "stable_tie_break": "동률에서는 기존 슬롯 순서를 유지합니다.",
+    }.get(selected.get("explanation_code"))
+    if explanation:
+        lines.append(f"선택 근거: {explanation}")
+    mechanics = evidence.get("mechanics_result")
+    if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
+        damage, percent, ko = mechanics.get("damage_range"), mechanics.get("damage_percent_range"), mechanics.get("ko_result")
+        if isinstance(damage, Mapping) and isinstance(damage.get("minimum"), (int, float)) and isinstance(damage.get("maximum"), (int, float)):
+            lines.append(f"피해 범위: {damage['minimum']}~{damage['maximum']}")
+        if isinstance(percent, Mapping) and isinstance(percent.get("minimum"), (int, float)) and isinstance(percent.get("maximum"), (int, float)):
+            lines.append(f"피해 비율: {percent['minimum']}~{percent['maximum']}%")
+        if isinstance(ko, Mapping) and isinstance(ko.get("single_hit_probability"), (int, float)):
+            lines.append(f"1회 KO 확률: {ko['single_hit_probability'] * 100:g}%")
+    elif isinstance(mechanics, Mapping) and mechanics.get("status") == "insufficient_context":
+        lines.append("계산 정보: 확정하려면 추가 전투 정보가 필요합니다.")
+    elif isinstance(mechanics, Mapping) and mechanics.get("status") == "unsupported_mechanic":
+        lines.append("계산 정보: 현재 지원 범위 밖의 기술 메커니즘입니다.")
+    action_order = evidence.get("action_order")
+    order = {"acts_first": "선공 가능", "acts_second": "후공", "speed_tie": "동속"}.get(action_order.get("status") if isinstance(action_order, Mapping) else None)
+    if order:
+        lines.append(f"행동 순서: {order}")
+    facts = evidence.get("comparison_facts")
+    labels = {"immune": "상대에게 무효", "possible_ohko": "1회 KO 가능", "guaranteed_ohko": "확정 1회 KO", "higher_native_damage_range": "더 높은 확정 피해 범위", "acts_first_if_known": "선공 가능", "speed_tie": "동속", "insufficient_mechanics_context": "계산 정보 부족", "unsupported_mechanic": "지원 범위 밖 메커니즘"}
+    if isinstance(facts, Mapping) and isinstance(facts.get("comparison_tags"), list):
+        shown = [labels[tag] for tag in facts["comparison_tags"] if tag in labels]
+        if shown:
+            lines.append(f"비교 정보: {', '.join(shown)}")
+    return lines
+
+
 def format_recommendation_presentation_text(*, presentation_model: Mapping[str, Any]) -> str:
     """Format only validated presentation fields for the existing text panel."""
     if not isinstance(presentation_model, Mapping):
@@ -482,6 +523,7 @@ def format_recommendation_presentation_text(*, presentation_model: Mapping[str, 
         for label, key in (("주요 이유", "primary_reasons"), ("위험 요소", "risks"), ("대안", "alternatives"), ("후보 요약", "candidate_summaries")):
             values = presentation_model.get(key, [])
             lines.append(f"{label}: {len(values)}" if isinstance(values, list) and values else f"{label}: 없음")
+        lines.extend(_format_validated_selected_candidate_summary(presentation_model.get("selected_candidate")))
         return "\n".join(lines)
     if status == "insufficient_context":
         return "추천을 확정할 정보가 부족합니다."
