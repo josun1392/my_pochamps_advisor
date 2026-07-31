@@ -325,9 +325,8 @@ def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | 
         schema["properties"]["kind"] = {"type": "STRING", "enum": ["mechanics"]}
         claim_description = "Known direct-mechanics summary. If numeric, use only exact native scope values and no other digit."
         schema["properties"]["claim"] = {"type": "STRING", "description": claim_description}
-        schema["properties"]["mechanics_path"] = {"type": "STRING", "description": "Required exact mechanics path for the recommended known direct candidate."}
-        schema["properties"]["numeric_scope"] = {"type": "STRING", "enum": ["damage_range", "damage_percent_range", "single_hit_probability"], "description": "Required selected native scope for the recommended known direct candidate."}
-        schema["required"] = ["kind", "claim", "mechanics_path", "numeric_scope"]
+        schema["properties"]["mechanics_path"] = {"type": "STRING", "nullable": True, "description": "Required only for a numeric claim: exact mechanics path for the known direct candidate. Omit it for a value-free summary."}
+        schema["properties"]["numeric_scope"] = {"type": "STRING", "nullable": True, "enum": ["damage_range", "damage_percent_range", "single_hit_probability"], "description": "Required only for a numeric claim; omit it for a value-free summary."}
     if statuses and all(status == "insufficient_context" for status in statuses):
         schema["properties"] = {
             "kind": {"type": "STRING", "enum": ["partial_context"]},

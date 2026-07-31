@@ -18,3 +18,14 @@ This change does not alter action-order evidence, damage ranking, native
 mechanics computation, retry/fallback/repair policy, or fixture inputs.
 Offline tests only; actual provider validation requires the separately
 approved two-call round after commit and push.
+
+## Complete-direct follow-up
+
+The first approved follow-up round stopped at the complete fixture with the
+bounded `mechanics_numeric_scope_invalid` diagnostic before the incomplete
+fixture ran. The parser already permits a value-free known-mechanics summary
+without a path or scope, while the provider schema had made both fields
+unconditionally required. The schema now makes those fields nullable and
+optional for a value-free known summary. Numeric claims still require the exact
+path, allowed scope, and native values in the strict parser; no numeric claim
+contract was relaxed.

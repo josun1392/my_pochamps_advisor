@@ -114,6 +114,10 @@ def test_known_mechanics_numeric_claim_requires_exact_native_scope_and_insuffici
     referenced_summary["primary_reasons"] = [{"kind": "mechanics", "claim": "deterministic mechanics evidence", "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": "damage_range"}]
     assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=referenced_summary)["status"] == "resolved"
 
+    value_free_summary = _response(complete["recommendation_request"])
+    value_free_summary["primary_reasons"] = [{"kind": "mechanics", "claim": "deterministic mechanics evidence"}]
+    assert complete_recommendation_cycle(prepared_cycle=complete, response_payload=value_free_summary)["status"] == "resolved"
+
     for scope, values in (("damage_percent_range", mechanics["damage_percent_range"].values()), ("single_hit_probability", (mechanics["ko_result"]["single_hit_probability"],))):
         scoped = _response(complete["recommendation_request"])
         scoped["primary_reasons"] = [{"kind": "mechanics", "claim": "-".join(str(value) for value in values), "mechanics_path": "candidate_comparisons.0.mechanics_result", "numeric_scope": scope}]
@@ -165,8 +169,10 @@ def test_single_direct_mechanics_schema_keeps_dynamic_linkage_out_of_provider_en
     schema = _structured_provider_schema(mechanics_grounding_required=True, provider_payload=payload)
     known_claim = schema["properties"]["primary_reasons"]["items"]
     assert known_claim["properties"]["kind"]["enum"] == ["mechanics"]
-    assert known_claim["required"] == ["kind", "claim", "mechanics_path", "numeric_scope"]
+    assert known_claim["required"] == ["kind", "claim"]
     assert set(("mechanics_path", "numeric_scope")) <= set(known_claim["properties"])
+    assert known_claim["properties"]["mechanics_path"]["nullable"] is True
+    assert known_claim["properties"]["numeric_scope"]["nullable"] is True
     properties = schema["properties"]["mechanics_acknowledgements"]["items"]["properties"]
     assert "enum" not in properties["slot_index"]
     assert "enum" not in properties["move"]

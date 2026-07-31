@@ -19144,3 +19144,7 @@ Maintained boundaries:
 - The exact missing-input acknowledgement dependency remains required. Known
   direct-mechanics numeric scope/native-value validation, action-order
   evidence, damage ranking, and provider retry policy are unchanged.
+- A later complete-direct first-call diagnostic showed that the provider schema
+  required numeric linkage even for a parser-valid value-free mechanics
+  summary. Path and scope are now optional/nullable only for value-free known
+  summaries; numeric claims still require their exact native linkage.
