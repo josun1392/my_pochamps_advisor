@@ -360,6 +360,63 @@ def rank_direct_mechanics_candidates(*, candidates: Sequence[Mapping[str, Any]])
             comparison["comparison_reason"] = "only_rankable_candidate"
     return comparisons
 
+
+def _comparison_facts(
+    *, candidate: Mapping[str, Any], comparison: Mapping[str, Any], candidates: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Build provider-safe, candidate-local facts from existing native evidence.
+
+    This intentionally does not contribute to ``mechanics_comparison.rank``.
+    The facts describe only evidence already attached to this candidate, so an
+    action-order outcome can never become a damage-ranking input.
+    """
+    pair = _exact_pair(candidate, exact=False)
+    mechanics = candidate.get("mechanics_result")
+    mechanics_status = mechanics.get("status") if isinstance(mechanics, Mapping) else "unavailable"
+    action_order = candidate.get("action_order")
+    action_order_status = action_order.get("status") if isinstance(action_order, Mapping) else "unavailable"
+    tags: list[str] = []
+    evidence_refs: list[str] = []
+    if isinstance(mechanics, Mapping):
+        evidence_refs.append("mechanics_result")
+    if comparison.get("comparison_status") == "insufficient_context":
+        tags.append("insufficient_mechanics_context")
+    elif comparison.get("comparison_status") == "unsupported_mechanic":
+        tags.append("unsupported_mechanic")
+    metrics = _known_direct_metrics(mechanics) if isinstance(mechanics, Mapping) else None
+    if metrics is not None:
+        _minimum, _maximum, minimum_percent, maximum_percent, probability, effectiveness, _guaranteed = metrics
+        if effectiveness == 0:
+            tags.append("immune")
+        if probability >= 1:
+            tags.append("guaranteed_ohko")
+        elif probability > 0:
+            tags.append("possible_ohko")
+        for other in candidates:
+            if other is candidate or not isinstance(other, Mapping):
+                continue
+            other_mechanics = other.get("mechanics_result")
+            other_metrics = _known_direct_metrics(other_mechanics) if isinstance(other_mechanics, Mapping) else None
+            if other_metrics is None:
+                continue
+            other_minimum_percent, other_maximum_percent = other_metrics[2], other_metrics[3]
+            if minimum_percent >= other_maximum_percent and maximum_percent > other_maximum_percent:
+                tags.append("higher_native_damage_range")
+                break
+    if isinstance(action_order, Mapping):
+        evidence_refs.append("action_order")
+        if action_order_status == "acts_first":
+            tags.append("acts_first_if_known")
+        elif action_order_status == "speed_tie":
+            tags.append("speed_tie")
+    return {
+        "candidate_id": pair,
+        "mechanics_status": mechanics_status,
+        "action_order_status": action_order_status,
+        "comparison_tags": tags,
+        "evidence_refs": evidence_refs,
+    }
+
 _RECOMMENDATION_GUARDRAILS = {
     "select_only_from_selectable_exact_set": True,
     "do_not_modify_deterministic_evidence": True,
@@ -437,10 +494,16 @@ def _validate_request_contract(request: Mapping[str, Any]) -> None:
         pair = _exact_pair(row, exact=False)
         expected_comparison = expected_mechanics_comparisons.get((pair["slot_index"], pair["move"]))
         if expected_comparison is None:
-            if "mechanics_comparison" in row:
+            if "mechanics_comparison" in row or "comparison_facts" in row:
                 raise ValueError("invalid recommendation request")
-        elif row.get("mechanics_comparison") != expected_comparison:
-            raise ValueError("invalid recommendation request")
+        else:
+            if row.get("mechanics_comparison") != expected_comparison:
+                raise ValueError("invalid recommendation request")
+            expected_facts = _comparison_facts(
+                candidate=row, comparison=expected_comparison, candidates=comparisons,
+            )
+            if row.get("comparison_facts") != expected_facts:
+                raise ValueError("invalid recommendation request")
     expected_status = "no_candidates" if not pairs else "ready" if selectable else "no_selectable_candidates"
     if readiness.get("status") != expected_status or readiness.get("selectable_candidate_count") != len(selectable):
         raise ValueError("invalid recommendation request")
@@ -478,6 +541,9 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
             comparison = ranked_mechanics.get((pair["slot_index"], pair["move"]))
             if comparison is not None:
                 row["mechanics_comparison"] = comparison
+                row["comparison_facts"] = _comparison_facts(
+                    candidate=normalized, comparison=comparison, candidates=normalized_candidates,
+                )
             comparisons.append(row)
         if not all(isinstance(item, str) for item in limitations):
             raise ValueError("invalid known limitations")

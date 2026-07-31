@@ -19159,3 +19159,13 @@ Maintained boundaries:
   insufficient claims cannot create numeric linkage. Provider-supplied linkage
   fields are rejected with bounded diagnostics. Multi-move, action-order, and
   deterministic ranking contracts are unchanged.
+
+## v15.63 multi-candidate mechanics comparison facts
+
+- Provider-safe candidate rows now carry deterministic, candidate-local
+  `comparison_facts`: identity, mechanics/action-order status, bounded tags,
+  and logical evidence references. Native mechanics and action order remain
+  separate; the facts do not alter damage rank or UI slot order.
+- Request validation regenerates those facts and rejects cross-candidate
+  mutation. Incomplete and unsupported candidates remain unranked. This change
+  was validated offline only, with no credential, provider, or network use.

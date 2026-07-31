@@ -123,6 +123,29 @@ def test_immunity_is_rankable_but_loses_to_an_effective_known_action():
     assert ranked[(0, "immune")] == {"comparison_status": "rankable", "rank": 2, "comparison_reason": "deterministic_known_mechanics"}
 
 
+def test_provider_rows_add_candidate_local_native_comparison_facts_without_reranking():
+    candidates = [
+        _candidate(0, "immune", mechanics=_known(minimum=0, maximum=0, effectiveness=0)),
+        _candidate(1, "ko", mechanics=_known(minimum=90, maximum=120, probability=1)),
+        _candidate(2, "partial", mechanics=_insufficient(), status="partial", availability="partially_evaluable"),
+        _candidate(3, "unsupported", mechanics=_unsupported(), status="partial", availability="partially_evaluable"),
+    ]
+    candidates[1]["action_order"] = {"status": "acts_first"}
+    candidates[0]["action_order"] = {"status": "speed_tie"}
+    request = build_recommendation_request(evidence_bundle={"battle_snapshot_summary": {}, "candidates": candidates, "known_limitations": []})
+    rows = request["candidate_comparisons"]
+    assert [row["mechanics_comparison"]["rank"] for row in rows] == [2, 1, None, None]
+    assert rows[0]["comparison_facts"] == {
+        "candidate_id": {"slot_index": 0, "move": "immune"}, "mechanics_status": "known",
+        "action_order_status": "speed_tie", "comparison_tags": ["immune", "speed_tie"],
+        "evidence_refs": ["mechanics_result", "action_order"],
+    }
+    assert set(rows[1]["comparison_facts"]["comparison_tags"]) == {"guaranteed_ohko", "higher_native_damage_range", "acts_first_if_known"}
+    assert rows[2]["comparison_facts"]["comparison_tags"] == ["insufficient_mechanics_context"]
+    assert rows[3]["comparison_facts"]["comparison_tags"] == ["unsupported_mechanic"]
+    assert all(row["comparison_facts"]["candidate_id"] == {"slot_index": row["slot_index"], "move": row["move"]} for row in rows)
+
+
 def test_insufficient_unsupported_and_unavailable_never_receive_ranks_and_only_known_is_explicit():
     candidates = [
         _candidate(0, "known", mechanics=_known(minimum=1, maximum=2)),
@@ -183,6 +206,16 @@ def test_request_validation_rejects_provider_ranking_mutation():
     candidates = [_candidate(0, "first", mechanics=_known(minimum=1, maximum=2)), _candidate(1, "second", mechanics=_known(minimum=2, maximum=3))]
     request = build_recommendation_request(evidence_bundle={"battle_snapshot_summary": {}, "candidates": candidates, "known_limitations": []})
     request["candidate_comparisons"][0]["mechanics_comparison"]["rank"] = 1
+    from llm.advisor_candidate_contract import validate_recommendation_selection
+    import pytest
+    with pytest.raises(ValueError):
+        validate_recommendation_selection(request=request, recommended_move="second", recommended_slot_index=1)
+
+
+def test_request_validation_rejects_cross_candidate_comparison_fact_mutation():
+    candidates = [_candidate(0, "first", mechanics=_known(minimum=1, maximum=2)), _candidate(1, "second", mechanics=_known(minimum=2, maximum=3))]
+    request = build_recommendation_request(evidence_bundle={"battle_snapshot_summary": {}, "candidates": candidates, "known_limitations": []})
+    request["candidate_comparisons"][0]["comparison_facts"]["candidate_id"] = {"slot_index": 1, "move": "second"}
     from llm.advisor_candidate_contract import validate_recommendation_selection
     import pytest
     with pytest.raises(ValueError):

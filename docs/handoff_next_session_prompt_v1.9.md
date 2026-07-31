@@ -1,5 +1,12 @@
 # Next Session Prompt v1.9 - Gemini Verification Follow-Up
 
+## v15.63 multi-candidate mechanics comparison facts
+
+Candidate rows now preserve isolated native mechanics, separate action-order
+evidence, and regenerated bounded comparison facts without changing damage rank
+or UI slot order. No provider call occurred; any multi-candidate actual smoke
+requires separate T1 approval.
+
 ## v14.22 teardown lifecycle
 
 Window close invalidates active advice identity and suppresses late callbacks;
