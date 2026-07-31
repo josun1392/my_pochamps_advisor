@@ -1883,3 +1883,10 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
   and a bounded explanation code. Server validates rank-one selection and
   deterministically builds mechanics/ranking acknowledgements from request
   evidence. Do not apply this path to single direct mechanics.
+
+## v15.69 status-role evidence handoff
+
+- Status candidates now expose separate canonical `status_move_evidence` and
+  bounded comparison labels. Keep these facts distinct from damage, action
+  order, accuracy, and rank; no provider call or strategic status ranking was
+  added.

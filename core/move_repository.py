@@ -22,6 +22,10 @@ class MoveView:
     min_hits: int | None = None
     max_hits: int | None = None
     healing: int | None = None
+    target: str | None = None
+    effect_category: str | None = None
+    ailment: str | None = None
+    stat_changes: tuple[tuple[str, int], ...] = ()
 
 
 class MoveRepository:
@@ -56,6 +60,10 @@ class MoveRepository:
             min_hits=_optional_int(data.get("meta", {}).get("min_hits") if isinstance(data.get("meta"), dict) else None),
             max_hits=_optional_int(data.get("meta", {}).get("max_hits") if isinstance(data.get("meta"), dict) else None),
             healing=_optional_int(data.get("meta", {}).get("healing") if isinstance(data.get("meta"), dict) else None),
+            target=_optional_str(data.get("target")),
+            effect_category=_optional_str(data.get("meta", {}).get("category") if isinstance(data.get("meta"), dict) else None),
+            ailment=_optional_str(data.get("meta", {}).get("ailment") if isinstance(data.get("meta"), dict) else None),
+            stat_changes=_stat_changes(data.get("stat_changes")),
         )
 
     def _get_from_champions_movepool(self, move_id: str) -> MoveView:
@@ -77,6 +85,10 @@ class MoveRepository:
             drain=_optional_int(data.get("drain")),
             min_hits=_optional_int(data.get("min_hits")), max_hits=_optional_int(data.get("max_hits")),
             healing=_optional_int(data.get("healing")),
+            target=_optional_str(data.get("target")),
+            effect_category=_optional_str(data.get("effect_category")),
+            ailment=_optional_str(data.get("ailment")),
+            stat_changes=_stat_changes(data.get("stat_changes")),
         )
 
 
@@ -89,6 +101,23 @@ def _required_str(data: dict[str, Any], key: str) -> str:
 
 def _optional_int(value: Any) -> int | None:
     return value if isinstance(value, int) else None
+
+
+def _optional_str(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def _stat_changes(value: Any) -> tuple[tuple[str, int], ...]:
+    if not isinstance(value, list):
+        return ()
+    changes: list[tuple[str, int]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        stat, change = item.get("stat"), item.get("change")
+        if isinstance(stat, str) and stat and isinstance(change, int) and not isinstance(change, bool) and change:
+            changes.append((stat, change))
+    return tuple(changes)
 
 
 def _localized_name(data: dict[str, Any], lang: str) -> str | None:

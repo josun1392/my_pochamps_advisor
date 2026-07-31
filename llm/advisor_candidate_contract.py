@@ -52,7 +52,7 @@ def _metadata_value(metadata: Any, name: str) -> Any:
 
 
 def _selected_move_from_metadata(move: str, metadata: Any) -> dict[str, Any]:
-    fields = ("category", "power", "type", "accuracy", "always_hit", "priority", "drain", "min_hits", "max_hits", "healing")
+    fields = ("category", "power", "type", "accuracy", "always_hit", "priority", "drain", "min_hits", "max_hits", "healing", "target", "effect_category", "ailment", "stat_changes")
     selected = {"move_id": _metadata_value(metadata, "move_id") or move}
     selected.update({field: _metadata_value(metadata, field) for field in fields if _metadata_value(metadata, field) is not None})
     return selected
@@ -68,6 +68,66 @@ def _accuracy_evidence(metadata: Any) -> dict[str, Any]:
     if _metadata_value(metadata, "accuracy_mechanic") is not None or _metadata_value(metadata, "dynamic_accuracy") is True:
         return {"status": "unsupported_mechanic", "canonical_accuracy": None, "outcome": None, "unsupported_reason": "dynamic_accuracy_mechanic"}
     return {"status": "insufficient_context", "canonical_accuracy": None, "outcome": None, "uncertainty": ["canonical_accuracy_missing"]}
+
+
+_SELF_TARGETS = frozenset({"user", "users-field", "user-and-allies", "user-or-ally"})
+_TARGETED_OPPONENT_TARGETS = frozenset({"selected-pokemon", "all-opponents", "all-other-pokemon", "opponents-field"})
+
+
+def _canonical_stat_changes(metadata: Any) -> tuple[tuple[str, int], ...] | None:
+    value = _metadata_value(metadata, "stat_changes")
+    if value is None:
+        return ()
+    if not isinstance(value, (list, tuple)):
+        return None
+    changes: list[tuple[str, int]] = []
+    for item in value:
+        if isinstance(item, Mapping):
+            stat, change = item.get("stat"), item.get("change")
+        elif isinstance(item, tuple) and len(item) == 2:
+            stat, change = item
+        else:
+            return None
+        if not isinstance(stat, str) or not stat or not isinstance(change, int) or isinstance(change, bool) or change == 0:
+            return None
+        changes.append((stat, change))
+    return tuple(changes)
+
+
+def _status_move_evidence(metadata: Any) -> dict[str, Any]:
+    """Classify only canonical status-move metadata; never infer utility."""
+    if _metadata_value(metadata, "category") != "status":
+        return {"status": "not_applicable", "role_tags": [], "canonical_effect_tags": [], "target_scope": None, "uncertainty": []}
+    target = _metadata_value(metadata, "target")
+    effect_category = _metadata_value(metadata, "effect_category")
+    ailment = _metadata_value(metadata, "ailment")
+    changes = _canonical_stat_changes(metadata)
+    if changes is None:
+        return {"status": "unsupported_mechanic", "role_tags": [], "canonical_effect_tags": [], "target_scope": target if isinstance(target, str) else None, "unsupported_reason": "invalid_canonical_stat_changes"}
+    if not isinstance(target, str) or not target:
+        return {"status": "insufficient_context", "role_tags": [], "canonical_effect_tags": [], "target_scope": None, "uncertainty": ["canonical_target_missing"]}
+    roles: list[str] = []
+    effect_tags: list[str] = []
+    healing = _metadata_value(metadata, "healing")
+    if isinstance(healing, int) and not isinstance(healing, bool) and healing > 0:
+        roles.append("recovery")
+        effect_tags.append("canonical_healing")
+    if changes:
+        effect_tags.append("canonical_stat_change")
+        if target in _SELF_TARGETS and any(change > 0 for _stat, change in changes):
+            roles.append("self_stat_raise")
+        if target in _TARGETED_OPPONENT_TARGETS and any(change < 0 for _stat, change in changes):
+            roles.append("target_stat_lower")
+    if isinstance(ailment, str) and ailment not in {"none", "unknown"}:
+        roles.append("status_infliction")
+        effect_tags.append("canonical_ailment")
+    if isinstance(effect_category, str) and effect_category:
+        effect_tags.append("canonical_effect_category")
+    if roles:
+        return {"status": "known_role", "role_tags": roles, "canonical_effect_tags": effect_tags, "target_scope": target, "uncertainty": []}
+    if isinstance(effect_category, str) and effect_category:
+        return {"status": "known_role", "role_tags": ["utility_or_other"], "canonical_effect_tags": effect_tags, "target_scope": target, "uncertainty": []}
+    return {"status": "insufficient_context", "role_tags": [], "canonical_effect_tags": effect_tags, "target_scope": target, "uncertainty": ["canonical_effect_metadata_missing"]}
 
 
 def _dynamic_summary(context: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -211,7 +271,8 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     if not isinstance(metadata, Mapping) and not hasattr(metadata, "category"):
         return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","self_effects":[],"dynamic_move":None,"warnings":[],"unavailable_reasons":["move_metadata_unavailable"]}
     if _metadata_value(metadata, "category") == "status":
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"accuracy_evidence":_accuracy_evidence(metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
+        snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"action_order":_action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories),"accuracy_evidence":_accuracy_evidence(metadata),"status_move_evidence":_status_move_evidence(metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
     snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
     selected_move = _selected_move_from_metadata(move, metadata)
     if turn_snapshot is not None:
@@ -243,6 +304,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     optional_outputs, self_effects, optional_reasons = _optional_outputs(context)
     optional_outputs["action_order"] = _action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories)
     optional_outputs["accuracy_evidence"] = _accuracy_evidence(metadata)
+    optional_outputs["status_move_evidence"] = _status_move_evidence(metadata)
     if dynamic_move is not None and dynamic_move["status"] != "resolved":
         reasons = ["required_dynamic_context_unavailable"]
         assessment = context.get(dynamic_move["assessment_key"]) if isinstance(context, Mapping) else None
@@ -321,7 +383,11 @@ def _known_direct_metrics(mechanics: Mapping[str, Any]) -> tuple[float, float, f
 
 def _direct_mechanics_comparison(candidate: Mapping[str, Any]) -> tuple[dict[str, Any], tuple[float, ...] | None] | None:
     mechanics = candidate.get("mechanics_result")
-    if not isinstance(mechanics, Mapping) or mechanics.get("mechanics_source") != _NATIVE_DIRECT_MECHANICS_SOURCE:
+    if not isinstance(mechanics, Mapping):
+        return None
+    if mechanics.get("unsupported_reason") == "status_move":
+        return {"comparison_status": "unsupported_mechanic", "rank": None, "comparison_reason": "status_move_not_damage_rankable"}, None
+    if mechanics.get("mechanics_source") != _NATIVE_DIRECT_MECHANICS_SOURCE:
         return None
     if candidate.get("status") == "unavailable" or candidate.get("availability") == "unavailable":
         return {"comparison_status": "unavailable", "rank": None, "comparison_reason": "candidate_unavailable"}, None
@@ -389,6 +455,7 @@ def _comparison_facts(
     action_order = candidate.get("action_order")
     action_order_status = action_order.get("status") if isinstance(action_order, Mapping) else "unavailable"
     accuracy = candidate.get("accuracy_evidence")
+    status_role = candidate.get("status_move_evidence")
     tags: list[str] = []
     evidence_refs: list[str] = []
     if isinstance(mechanics, Mapping):
@@ -441,6 +508,25 @@ def _comparison_facts(
             if value is not None and len(known) >= 2:
                 if value == max(known) and value > min(known): tags.append("known_higher_canonical_accuracy")
                 if value == min(known) and value < max(known): tags.append("known_lower_canonical_accuracy")
+    if isinstance(status_role, Mapping) and status_role.get("status") != "not_applicable":
+        evidence_refs.append("status_move_evidence")
+        if status_role.get("status") == "insufficient_context":
+            tags.append("status_role_unknown")
+        elif status_role.get("status") == "unsupported_mechanic":
+            tags.append("status_role_unsupported")
+        elif status_role.get("status") == "known_role":
+            role_tags = status_role.get("role_tags")
+            if isinstance(role_tags, list):
+                if "recovery" in role_tags:
+                    tags.append("known_recovery_role")
+                if "protection" in role_tags:
+                    tags.append("known_protection_role")
+                if any(role in role_tags for role in ("self_stat_raise", "hazard_setup", "screen_setup")):
+                    tags.append("known_setup_role")
+                if "status_infliction" in role_tags:
+                    tags.append("known_status_infliction_role")
+                if any(role in role_tags for role in ("field_or_weather_setup", "hazard_removal", "switching_or_phazing")):
+                    tags.append("known_field_role")
     return {
         "candidate_id": pair,
         "mechanics_status": mechanics_status,
@@ -1046,6 +1132,7 @@ def _attach_validated_multi_selection(*, request: Mapping[str, Any], result: Map
             "mechanics_result": deepcopy(dict(mechanics)),
             "action_order": deepcopy(dict(action_order)) if isinstance(action_order, Mapping) else None,
             "accuracy_evidence": deepcopy(dict(selected["accuracy_evidence"])) if isinstance(selected.get("accuracy_evidence"), Mapping) else None,
+            "status_move_evidence": deepcopy(dict(selected["status_move_evidence"])) if isinstance(selected.get("status_move_evidence"), Mapping) else None,
             "comparison_facts": deepcopy(dict(facts)),
         },
         "uncertainty": {

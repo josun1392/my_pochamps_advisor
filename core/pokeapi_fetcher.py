@@ -112,6 +112,7 @@ class PokeAPIFetcher:
 
     @classmethod
     def _normalize_move(cls, raw: JsonDict) -> JsonDict:
+        meta = raw.get("meta") if isinstance(raw.get("meta"), dict) else {}
         return {
             "id": raw["id"],
             "name": raw["name"],
@@ -124,6 +125,22 @@ class PokeAPIFetcher:
             "priority": raw.get("priority"),
             "effect_chance": raw.get("effect_chance"),
             "target": cls._named_resource_name(raw.get("target")),
+            "meta": {
+                "ailment": cls._named_resource_name(meta.get("ailment")),
+                "category": cls._named_resource_name(meta.get("category")),
+                "drain": meta.get("drain"),
+                "healing": meta.get("healing"),
+                "min_hits": meta.get("min_hits"),
+                "max_hits": meta.get("max_hits"),
+            },
+            "stat_changes": [
+                {
+                    "stat": cls._named_resource_name(item.get("stat")),
+                    "change": item.get("change"),
+                }
+                for item in raw.get("stat_changes", [])
+                if isinstance(item, dict)
+            ],
             "_fetched_at": cls._timestamp(),
         }
 

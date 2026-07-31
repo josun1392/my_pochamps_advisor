@@ -3503,6 +3503,16 @@ rank-one candidate and code against the request, then generates mechanics and
 ranking acknowledgements from authoritative candidate comparisons. Single
 direct-mechanics retains provider-authored path/scope acknowledgement behavior.
 
+## v15.69 canonical status-move role evidence
+
+Each candidate may include `status_move_evidence` with `status`, `role_tags`,
+`canonical_effect_tags`, `target_scope`, and bounded uncertainty or unsupported
+reason. This is `not_applicable` for damage moves. For status moves, roles are
+emitted only from canonical category/target/effect metadata; absent metadata is
+not converted into a damage value, a ranking score, or a strategic claim.
+Candidate-local role evidence can add bounded comparison tags but never changes
+the native direct-mechanics rank.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics

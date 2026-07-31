@@ -19214,3 +19214,12 @@ Maintained boundaries:
 - Candidate-local canonical accuracy evidence now distinguishes numeric metadata,
   always-hits, missing metadata, and unsupported dynamic mechanics without
   calculating final hit probability or changing ranking.
+
+## v15.69 canonical status-move role evidence
+
+- Status candidates now carry candidate-local canonical role evidence from
+  category, target, metadata effect fields, ailment, healing, and stat changes.
+  Missing or malformed metadata remains bounded unknown/unsupported evidence.
+- Role facts are separate from damage, action order, and accuracy. They do not
+  alter direct-mechanics ranking, and presentation renders only Korean bounded
+  role labels without raw metadata or strategic utility claims.
