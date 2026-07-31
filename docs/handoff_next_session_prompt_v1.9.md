@@ -1890,3 +1890,10 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
   bounded comparison labels. Keep these facts distinct from damage, action
   order, accuracy, and rank; no provider call or strategic status ranking was
   added.
+
+## v15.70 status provider smoke handoff
+
+- The allowlisted status fixture pair has a rankable damage candidate plus
+  server-owned status evidence. It is the only approved actual smoke surface;
+  provider output remains candidate ID plus explanation code and may not add
+  status utility or damage claims.

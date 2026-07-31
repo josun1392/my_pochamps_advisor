@@ -3513,6 +3513,14 @@ not converted into a damage value, a ranking score, or a strategic claim.
 Candidate-local role evidence can add bounded comparison tags but never changes
 the native direct-mechanics rank.
 
+## v15.70 status-role smoke boundary
+
+The status-role smoke fixture pair retains the minimal multi-provider schema:
+only the selected candidate ID and bounded explanation code cross the provider
+boundary. Canonical role evidence remains in each deterministic candidate row;
+the smoke validates pre-call role state/tags and post-call candidate/result/
+presentation isolation without serializing status effects as damage or utility.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics

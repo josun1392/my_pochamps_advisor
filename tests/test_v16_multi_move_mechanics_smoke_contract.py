@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ACCURACY_FIXTURES, EXIT, FIXTURES, GROUNDING_FIXTURES, _prepared, main, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ACCURACY_FIXTURES, EXIT, FIXTURES, GROUNDING_FIXTURES, STATUS_FIXTURES, _prepared, main, run_smoke
 
 
 def _code(rows, winner):
@@ -45,12 +45,32 @@ def test_accuracy_fixture_pair_preserves_numeric_and_always_hit_distinction():
     assert [row["accuracy_evidence"]["status"] for row in mixed] == ["known_accuracy", "always_hits", "unsupported_mechanic"]
 
 
+def test_status_fixture_pair_keeps_roles_separate_from_damage_and_selected_evidence():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=STATUS_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    damage_status = _prepared(STATUS_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert [row["status_move_evidence"]["role_tags"] for row in damage_status] == [[], ["recovery"], ["self_stat_raise"]]
+    assert all("damage_range" not in row["mechanics_result"] for row in damage_status[1:])
+    mixed = _prepared(STATUS_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert [row["status_move_evidence"]["status"] for row in mixed] == ["not_applicable", "known_role", "insufficient_context", "unsupported_mechanic"]
+    assert all(row["comparison_facts"]["candidate_id"] == {"slot_index": row["slot_index"], "move": row["move"]} for row in mixed)
+
+
 def test_cli_allows_only_the_bounded_multi_candidate_fixture_pair(capsys):
     def adapters(*, model):
         assert model == "gemini-2.5-flash"
         return (lambda: True), _response
 
     assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *GROUNDING_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
+
+
+def test_cli_allows_the_bounded_status_fixture_pair(capsys):
+    def adapters(*, model):
+        assert model == "gemini-2.5-flash"
+        return (lambda: True), _response
+
+    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *STATUS_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 

@@ -25,7 +25,8 @@ from scripts.spike_advisor import DEFAULT_MODEL
 FIXTURES = ("multi-move-clear-winner", "multi-move-mixed-availability", "multi-move-stable-tie")
 GROUNDING_FIXTURES = ("complete-multi-candidate-mechanics", "mixed-context-multi-candidate-mechanics")
 ACCURACY_FIXTURES = ("known-accuracy-multi-candidate", "mixed-accuracy-state-multi-candidate")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES})
+STATUS_FIXTURES = ("mixed-damage-status-candidates", "mixed-status-state-candidates")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -66,12 +67,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "thunderbolt"}, {"move_id": "stone-edge"}], {"thunderbolt": {"category": "special", "power": 90, "type": "electric", "accuracy": 100, "priority": 0}, "stone-edge": {"category": "physical", "power": 100, "type": "rock", "accuracy": 80, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}}
     if fixture_id == ACCURACY_FIXTURES[1]:
         return [{"move_id": "tackle"}, {"move_id": "swift"}, {"move_id": "dynamic"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}, "swift": {"category": "special", "power": 60, "type": "normal", "always_hit": True, "priority": 0}, "dynamic": {"category": "special", "power": 1, "type": "normal", "dynamic_accuracy": True, "priority": 0}}
+    if fixture_id == STATUS_FIXTURES[0]:
+        return [{"move_id": "slam"}, {"move_id": "recover"}, {"move_id": "swords-dance"}], {"slam": {"category": "physical", "power": 100, "type": "normal", "accuracy": 75, "priority": 0}, "recover": {"category": "status", "target": "user", "healing": 50, "effect_category": "heal", "priority": 0}, "swords-dance": {"category": "status", "target": "user", "stat_changes": [{"stat": "attack", "change": 2}], "effect_category": "net-good-stats", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == STATUS_FIXTURES[1]:
+        return [{"move_id": "tackle"}, {"move_id": "will-o-wisp"}, {"move_id": "mystery-status"}, {"move_id": "broken-status"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}, "will-o-wisp": {"category": "status", "target": "selected-pokemon", "ailment": "burn", "effect_category": "ailment", "priority": 0}, "mystery-status": {"category": "status", "priority": 0}, "broken-status": {"category": "status", "target": "user", "stat_changes": "invalid", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES})
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -119,6 +124,14 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == ACCURACY_FIXTURES[1]:
         states = [row.get("accuracy_evidence", {}).get("status") for row in rows if isinstance(row, Mapping)]
         return states == ["known_accuracy", "always_hits", "unsupported_mechanic"]
+    if fixture_id == STATUS_FIXTURES[0]:
+        roles = [row.get("status_move_evidence", {}).get("role_tags") for row in rows if isinstance(row, Mapping)]
+        tags = [row.get("comparison_facts", {}).get("comparison_tags", []) for row in rows if isinstance(row, Mapping)]
+        return [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [1, None, None] and roles == [[], ["recovery"], ["self_stat_raise"]] and "known_recovery_role" in tags[1] and "known_setup_role" in tags[2] and all("damage_range" not in row["mechanics_result"] for row in rows[1:] if isinstance(row.get("mechanics_result"), Mapping))
+    if fixture_id == STATUS_FIXTURES[1]:
+        role_statuses = [row.get("status_move_evidence", {}).get("status") for row in rows if isinstance(row, Mapping)]
+        tags = [row.get("comparison_facts", {}).get("comparison_tags", []) for row in rows if isinstance(row, Mapping)]
+        return [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [1, None, None, None] and role_statuses == ["not_applicable", "known_role", "insufficient_context", "unsupported_mechanic"] and "known_status_infliction_role" in tags[1] and "status_role_unknown" in tags[2] and "status_role_unsupported" in tags[3] and all("damage_range" not in row["mechanics_result"] for row in rows[1:] if isinstance(row.get("mechanics_result"), Mapping))
     return False
 
 
@@ -140,7 +153,7 @@ def _completed_candidate_evidence_isolated(*, payload: Mapping[str, Any], comple
             return False
         if facts.get("candidate_id") != {"slot_index": pair[0], "move": pair[1]}:
             return False
-        if candidate.get("mechanics_result") != row.get("mechanics_result") or candidate.get("action_order") != row.get("action_order"):
+        if candidate.get("mechanics_result") != row.get("mechanics_result") or candidate.get("action_order") != row.get("action_order") or candidate.get("accuracy_evidence") != row.get("accuracy_evidence") or candidate.get("status_move_evidence") != row.get("status_move_evidence"):
             return False
     return True
 
@@ -159,7 +172,7 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
     if not isinstance(summary, Mapping) or summary.get("selected_action") != action:
         return False
     text = format_recommendation_presentation_text(presentation_model=presentation)
-    forbidden = ("candidate_comparisons", "raw_response", "mechanics_path", "numeric_scope", "multi_provider_")
+    forbidden = ("candidate_comparisons", "raw_response", "mechanics_path", "numeric_scope", "multi_provider_", "canonical_effect", "target_scope", "role_tags")
     if not isinstance(text, str) or any(item in text for item in forbidden) or "선택 행동:" not in text:
         return False
     mechanics = selected.get("mechanics_result")

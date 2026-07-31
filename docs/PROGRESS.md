@@ -19223,3 +19223,12 @@ Maintained boundaries:
 - Role facts are separate from damage, action order, and accuracy. They do not
   alter direct-mechanics ranking, and presentation renders only Korean bounded
   role labels without raw metadata or strategic utility claims.
+
+## v15.70 status-move provider grounding smoke
+
+- Added an approval-gated sanitized fixture pair for mixed damage/status and
+  mixed status-role states. The provider remains limited to selection plus a
+  bounded explanation; canonical role metadata remains server-owned.
+- The smoke checks candidate-local status role facts before a call and result/
+  presentation evidence isolation after it. No status simulation, utility
+  score, or ranking-policy change is included.
