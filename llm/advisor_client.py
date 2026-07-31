@@ -535,8 +535,19 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
             lines.append("기술 역할: 확인할 수 없습니다.")
         elif status_role.get("status") == "unsupported_mechanic":
             lines.append("기술 역할: 현재 지원 범위 밖의 메커니즘입니다.")
+    consequence = evidence.get("move_consequence_evidence")
+    if isinstance(consequence, Mapping):
+        if consequence.get("status") == "known" and isinstance(consequence.get("consequence_tags"), list):
+            labels = {"recoil": "피해 일부를 반동으로 받습니다", "drain_or_healing_from_damage": "입힌 피해에 비례한 흡수 효과가 있습니다", "charge_turn": "기본적으로 충전 턴이 필요합니다", "recharge_turn": "사용 후 재충전 턴이 필요합니다", "self_faint": "사용 후 자신이 기절합니다", "forced_switch": "상대 교체 효과가 있습니다", "locked_or_repeated_use": "연속 사용 제약이 있습니다"}
+            shown = [labels[tag] for tag in consequence["consequence_tags"] if tag in labels]
+            if shown:
+                lines.append(f"기술 사용 시 주의: {', '.join(shown)}")
+        elif consequence.get("status") == "insufficient_context":
+            lines.append("기술 사용 결과: 확인할 수 없습니다.")
+        elif consequence.get("status") == "unsupported_mechanic":
+            lines.append("기술 사용 결과: 현재 지원 범위 밖의 메커니즘입니다.")
     facts = evidence.get("comparison_facts")
-    labels = {"immune": "상대에게 무효", "possible_ohko": "1회 KO 가능", "guaranteed_ohko": "확정 1회 KO", "higher_native_damage_range": "더 높은 확정 피해 범위", "acts_first_if_known": "선공 가능", "speed_tie": "동속", "insufficient_mechanics_context": "계산 정보 부족", "unsupported_mechanic": "지원 범위 밖 메커니즘", "always_hits": "항상 명중", "known_higher_canonical_accuracy": "더 높은 기본 명중률", "known_lower_canonical_accuracy": "더 낮은 기본 명중률", "accuracy_unknown": "기본 명중률 정보 부족", "accuracy_unsupported": "기본 명중률 메커니즘 미지원", "known_recovery_role": "회복 역할", "known_protection_role": "보호 역할", "known_setup_role": "설정 역할", "known_status_infliction_role": "상태이상 역할", "known_field_role": "필드 역할", "status_role_unknown": "기술 역할 정보 부족", "status_role_unsupported": "기술 역할 메커니즘 미지원"}
+    labels = {"immune": "상대에게 무효", "possible_ohko": "1회 KO 가능", "guaranteed_ohko": "확정 1회 KO", "higher_native_damage_range": "더 높은 확정 피해 범위", "acts_first_if_known": "선공 가능", "speed_tie": "동속", "insufficient_mechanics_context": "계산 정보 부족", "unsupported_mechanic": "지원 범위 밖 메커니즘", "always_hits": "항상 명중", "known_higher_canonical_accuracy": "더 높은 기본 명중률", "known_lower_canonical_accuracy": "더 낮은 기본 명중률", "accuracy_unknown": "기본 명중률 정보 부족", "accuracy_unsupported": "기본 명중률 메커니즘 미지원", "known_recovery_role": "회복 역할", "known_protection_role": "보호 역할", "known_setup_role": "설정 역할", "known_status_infliction_role": "상태이상 역할", "known_field_role": "필드 역할", "status_role_unknown": "기술 역할 정보 부족", "status_role_unsupported": "기술 역할 메커니즘 미지원", "known_recoil": "반동 있음", "known_drain": "흡수 효과", "requires_charge_turn": "충전 턴 필요", "requires_recharge_turn": "재충전 턴 필요", "causes_self_faint": "자신 기절", "causes_forced_switch": "강제 교체 효과", "consequence_unknown": "기술 사용 결과 정보 부족", "consequence_unsupported": "기술 사용 결과 메커니즘 미지원"}
     if isinstance(facts, Mapping) and isinstance(facts.get("comparison_tags"), list):
         shown = [labels[tag] for tag in facts["comparison_tags"] if tag in labels]
         if shown:

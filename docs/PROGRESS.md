@@ -19232,3 +19232,11 @@ Maintained boundaries:
 - The smoke checks candidate-local status role facts before a call and result/
   presentation evidence isolation after it. No status simulation, utility
   score, or ranking-policy change is included.
+
+## v15.71 canonical move consequence evidence
+
+- Candidate-local consequence evidence labels only canonical recoil, drain,
+  charge/recharge, self-faint, forced-switch, and repeated-use identifiers.
+  It never calculates HP, survival, expected value, or a new rank.
+- The validated result and formatter receive only the selected candidate's
+  bounded consequence labels; no provider or network activity is involved.

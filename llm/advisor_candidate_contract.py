@@ -22,6 +22,7 @@ from llm.advisor_turn_snapshot import (
 from llm.advisor_q12_snapshot_adapter import invoke_existing_q12_from_snapshot
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 from llm.narrow_action_order import evaluate_action_order
+from llm.move_consequence_evidence import evaluate_move_consequence_evidence
 
 CANDIDATE_STATUSES = frozenset({"resolved", "partial", "unavailable"})
 RECOMMENDATION_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate", "validation_failed"})
@@ -272,7 +273,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
         return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","self_effects":[],"dynamic_move":None,"warnings":[],"unavailable_reasons":["move_metadata_unavailable"]}
     if _metadata_value(metadata, "category") == "status":
         snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"action_order":_action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories),"accuracy_evidence":_accuracy_evidence(metadata),"status_move_evidence":_status_move_evidence(metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"action_order":_action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories),"accuracy_evidence":_accuracy_evidence(metadata),"status_move_evidence":_status_move_evidence(metadata),"move_consequence_evidence":evaluate_move_consequence_evidence(move_id=move, metadata=metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
     snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
     selected_move = _selected_move_from_metadata(move, metadata)
     if turn_snapshot is not None:
@@ -305,6 +306,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     optional_outputs["action_order"] = _action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories)
     optional_outputs["accuracy_evidence"] = _accuracy_evidence(metadata)
     optional_outputs["status_move_evidence"] = _status_move_evidence(metadata)
+    optional_outputs["move_consequence_evidence"] = evaluate_move_consequence_evidence(move_id=move, metadata=metadata)
     if dynamic_move is not None and dynamic_move["status"] != "resolved":
         reasons = ["required_dynamic_context_unavailable"]
         assessment = context.get(dynamic_move["assessment_key"]) if isinstance(context, Mapping) else None
@@ -456,6 +458,7 @@ def _comparison_facts(
     action_order_status = action_order.get("status") if isinstance(action_order, Mapping) else "unavailable"
     accuracy = candidate.get("accuracy_evidence")
     status_role = candidate.get("status_move_evidence")
+    consequence = candidate.get("move_consequence_evidence")
     tags: list[str] = []
     evidence_refs: list[str] = []
     if isinstance(mechanics, Mapping):
@@ -527,6 +530,15 @@ def _comparison_facts(
                     tags.append("known_status_infliction_role")
                 if any(role in role_tags for role in ("field_or_weather_setup", "hazard_removal", "switching_or_phazing")):
                     tags.append("known_field_role")
+    if isinstance(consequence, Mapping):
+        evidence_refs.append("move_consequence_evidence")
+        if consequence.get("status") == "insufficient_context":
+            tags.append("consequence_unknown")
+        elif consequence.get("status") == "unsupported_mechanic":
+            tags.append("consequence_unsupported")
+        elif consequence.get("status") == "known" and isinstance(consequence.get("consequence_tags"), list):
+            mapping = {"recoil": "known_recoil", "drain_or_healing_from_damage": "known_drain", "charge_turn": "requires_charge_turn", "recharge_turn": "requires_recharge_turn", "self_faint": "causes_self_faint", "forced_switch": "causes_forced_switch"}
+            tags.extend(mapping[tag] for tag in consequence["consequence_tags"] if tag in mapping)
     return {
         "candidate_id": pair,
         "mechanics_status": mechanics_status,
@@ -1133,6 +1145,7 @@ def _attach_validated_multi_selection(*, request: Mapping[str, Any], result: Map
             "action_order": deepcopy(dict(action_order)) if isinstance(action_order, Mapping) else None,
             "accuracy_evidence": deepcopy(dict(selected["accuracy_evidence"])) if isinstance(selected.get("accuracy_evidence"), Mapping) else None,
             "status_move_evidence": deepcopy(dict(selected["status_move_evidence"])) if isinstance(selected.get("status_move_evidence"), Mapping) else None,
+            "move_consequence_evidence": deepcopy(dict(selected["move_consequence_evidence"])) if isinstance(selected.get("move_consequence_evidence"), Mapping) else None,
             "comparison_facts": deepcopy(dict(facts)),
         },
         "uncertainty": {

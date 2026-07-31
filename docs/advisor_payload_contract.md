@@ -3521,6 +3521,13 @@ boundary. Canonical role evidence remains in each deterministic candidate row;
 the smoke validates pre-call role state/tags and post-call candidate/result/
 presentation isolation without serializing status effects as damage or utility.
 
+## v15.71 move consequence evidence
+
+Candidates may include `move_consequence_evidence` with bounded status, tags,
+canonical ratio, and uncertainty/unsupported reason. This is separate from
+damage, action order, accuracy, status role, and rank; it describes no actual
+HP change, survival outcome, expected value, or provider-authored utility.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics
