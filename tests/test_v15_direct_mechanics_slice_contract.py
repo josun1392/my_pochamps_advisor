@@ -137,3 +137,19 @@ def test_mechanics_result_reaches_provider_candidate_without_snapshot_or_engine_
     assert provider_result == candidate["mechanics_result"]
     assert "damage_rolls" not in provider_result
     assert "stat_provenance" not in provider_result
+
+
+def test_fixed_two_hit_uses_exact_convolved_total_distribution_and_rejects_variable_hits():
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = "double-hit"
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("double-hit",))
+    damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id="double-hit", selectable_moves=("double-hit",), move_metadata={"category": "physical", "power": 40, "type": "normal", "min_hits": 2, "max_hits": 2})
+    result = evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+    assert result["status"] == "known" and result["hit_count"] == 2
+    assert result["per_hit_damage_range"]["maximum"] * 2 == result["damage_range"]["maximum"]
+    assert result["per_hit_damage_range"]["minimum"] * 2 == result["damage_range"]["minimum"]
+    assert result["ko_result"]["status"] == "resolved"
+    variable = deepcopy(damage)
+    variable["move"] = {"move_id": "variable", "category": "physical", "power": 40, "type": "normal", "min_hits": 2, "max_hits": 5}
+    unsupported = evaluate_direct_damage_mechanics(variable, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+    assert unsupported["status"] == "unsupported_mechanic" and unsupported["unsupported_reason"] == "variable_multi_hit_move"

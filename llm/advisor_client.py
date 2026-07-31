@@ -488,8 +488,14 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
     mechanics = evidence.get("mechanics_result")
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
         damage, percent, ko = mechanics.get("damage_range"), mechanics.get("damage_percent_range"), mechanics.get("ko_result")
+        hit_count = mechanics.get("hit_count")
+        per_hit = mechanics.get("per_hit_damage_range")
+        if isinstance(hit_count, int) and hit_count > 1:
+            lines.append(f"고정 {hit_count}회 공격")
+            if isinstance(per_hit, Mapping) and isinstance(per_hit.get("minimum"), (int, float)) and isinstance(per_hit.get("maximum"), (int, float)):
+                lines.append(f"1회당 피해 범위: {per_hit['minimum']}~{per_hit['maximum']}")
         if isinstance(damage, Mapping) and isinstance(damage.get("minimum"), (int, float)) and isinstance(damage.get("maximum"), (int, float)):
-            lines.append(f"피해 범위: {damage['minimum']}~{damage['maximum']}")
+            lines.append(f"전체 피해 범위: {damage['minimum']}~{damage['maximum']}" if isinstance(hit_count, int) and hit_count > 1 else f"피해 범위: {damage['minimum']}~{damage['maximum']}")
         if isinstance(percent, Mapping) and isinstance(percent.get("minimum"), (int, float)) and isinstance(percent.get("maximum"), (int, float)):
             lines.append(f"피해 비율: {percent['minimum']}~{percent['maximum']}%")
         if isinstance(ko, Mapping) and isinstance(ko.get("single_hit_probability"), (int, float)):

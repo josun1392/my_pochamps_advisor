@@ -19246,3 +19246,11 @@ Maintained boundaries:
 - Added an approval-gated recoil/drain and turn/terminal consequence fixture
   pair. The provider schema remains minimal; the smoke verifies deterministic
   candidate evidence and bounded presentation isolation only.
+
+## v15.73 fixed-hit direct mechanics
+
+- Native per-hit Q12 rolls are deterministically convolved for canonical fixed
+  hit counts. The existing total damage/KO comparison surface is retained, with
+  explicit per-hit evidence for presentation.
+- Variable hit counts and fixed-hit consequence accumulation remain unsupported;
+  no expected damage or accuracy-adjusted result is calculated.

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from copy import deepcopy
+from collections import Counter
 from typing import Any
 
 from advisor.damage.formula import DamageContext, calc_damage_rolls
@@ -48,8 +49,17 @@ def evaluate_direct_damage_mechanics(
         return _unsupported("status_move")
     if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY:
         return _unsupported("dynamic_base_power")
-    if move.get("min_hits") not in {None, 1} or move.get("max_hits") not in {None, 1}:
-        return _unsupported("multi_hit_move")
+    minimum, maximum = move.get("min_hits"), move.get("max_hits")
+    if minimum is None and maximum is None:
+        hit_count = 1
+    elif isinstance(minimum, int) and not isinstance(minimum, bool) and minimum == maximum and 1 <= minimum <= 4:
+        hit_count = minimum
+    elif isinstance(minimum, int) and isinstance(maximum, int) and minimum != maximum:
+        return _unsupported("variable_multi_hit_move")
+    else:
+        return _unsupported("invalid_fixed_hit_count")
+    if hit_count > 1 and move.get("drain") not in {None, 0}:
+        return _unsupported("fixed_hit_consequence_not_supported")
     if category not in {"physical", "special"}:
         return _unsupported("move_category")
     if not _positive_int(power) or not _nonempty_str(move_type):
@@ -93,14 +103,27 @@ def evaluate_direct_damage_mechanics(
         return _unsupported("native_direct_damage")
     defender_hp = direct_defender["current_hp"]
     max_hp = direct_defender["max_hp"]
+    total_counts = Counter({0: 1})
+    for _ in range(hit_count):
+        total_counts = _convolve_roll_counts(total_counts, Counter(rolls))
+    total_rolls = tuple(value for value, count in total_counts.items() for _ in range(count))
     return {
         "status": "known", "move": move_id, "type_effectiveness": type_effectiveness_multiplier(move_type, tuple(defender["types"])),
-        "damage_range": {"minimum": min(rolls), "maximum": max(rolls)},
-        "damage_percent_range": {"minimum": round(min(rolls) * 100 / max_hp, 2), "maximum": round(max(rolls) * 100 / max_hp, 2)},
-        "ko_result": {"status": "resolved", "single_hit_probability": float(ko_chance_from_outcomes(tuple(rolls), defender_hp))},
+        "hit_count": hit_count, "per_hit_damage_range": {"minimum": min(rolls), "maximum": max(rolls)},
+        "damage_range": {"minimum": min(total_rolls), "maximum": max(total_rolls)},
+        "damage_percent_range": {"minimum": round(min(total_rolls) * 100 / max_hp, 2), "maximum": round(max(total_rolls) * 100 / max_hp, 2)},
+        "ko_result": {"status": "resolved", "single_hit_probability": float(ko_chance_from_outcomes(total_rolls, defender_hp))},
         "missing_inputs": [], "unsupported_reason": None,
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
     }
+
+
+def _convolve_roll_counts(left: Counter[int], right: Counter[int]) -> Counter[int]:
+    result: Counter[int] = Counter()
+    for left_value, left_count in left.items():
+        for right_value, right_count in right.items():
+            result[left_value + right_value] += left_count * right_count
+    return result
 
 
 def _ready_side(value: Any, side: str, missing: list[str]) -> dict[str, Any] | None:

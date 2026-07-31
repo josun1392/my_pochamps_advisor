@@ -57,13 +57,13 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
     if fixture_id == FIXTURES[0]:
         return [{"move_id": "tackle"}, {"move_id": "slam"}], {"tackle": {"category": "physical", "power": 40, "type": "normal"}, "slam": {"category": "physical", "power": 100, "type": "normal"}}
     if fixture_id == FIXTURES[1]:
-        return [{"move_id": "tackle"}, {"move_id": "missing-power"}, {"move_id": "double-hit"}], {"tackle": {"category": "physical", "power": 40, "type": "normal"}, "missing-power": {"category": "physical", "type": "normal"}, "double-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": 2, "max_hits": 2}}
+        return [{"move_id": "tackle"}, {"move_id": "missing-power"}, {"move_id": "double-hit"}], {"tackle": {"category": "physical", "power": 40, "type": "normal"}, "missing-power": {"category": "physical", "type": "normal"}, "double-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": 2, "max_hits": 5}}
     if fixture_id == FIXTURES[2]:
         return [{"move_id": "tackle"}, {"move_id": "tackle"}], {"tackle": {"category": "physical", "power": 40, "type": "normal"}}
     if fixture_id == GROUNDING_FIXTURES[0]:
         return [{"move_id": "quick-attack"}, {"move_id": "slam"}], {"quick-attack": {"category": "physical", "power": 40, "type": "normal", "priority": 1}, "slam": {"category": "physical", "power": 100, "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     if fixture_id == GROUNDING_FIXTURES[1]:
-        return [{"move_id": "tackle"}, {"move_id": "missing-power"}, {"move_id": "double-hit"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "missing-power": {"category": "physical", "type": "normal", "priority": 0}, "double-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": 2, "max_hits": 2, "priority": 0}}
+        return [{"move_id": "tackle"}, {"move_id": "missing-power"}, {"move_id": "double-hit"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "missing-power": {"category": "physical", "type": "normal", "priority": 0}, "double-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": 2, "max_hits": 5, "priority": 0}}
     if fixture_id == ACCURACY_FIXTURES[0]:
         return [{"move_id": "thunderbolt"}, {"move_id": "stone-edge"}], {"thunderbolt": {"category": "special", "power": 90, "type": "electric", "accuracy": 100, "priority": 0}, "stone-edge": {"category": "physical", "power": 100, "type": "rock", "accuracy": 80, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}}
     if fixture_id == ACCURACY_FIXTURES[1]:
