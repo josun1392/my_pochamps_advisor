@@ -16,6 +16,13 @@ from llm.advisor_battle_state_context import DYNAMIC_MOVE_ASSESSMENT_REGISTRY
 _STAT_KEYS = ("hp", "attack", "defense", "special-attack", "special-defense", "speed")
 _BOOST_KEYS = ("attack", "defense", "special-attack", "special-defense", "speed")
 _KNOWN_ABSENT = {"status": "known_absent"}
+LEVEL_BASED_FIXED_DAMAGE_MOVE_TYPES = {"seismic-toss": "normal", "night-shade": "ghost"}
+UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS = frozenset({
+    "bide", "comeuppance", "counter", "dragon-rage", "endeavor", "final-gambit",
+    "fissure", "guillotine", "horn-drill", "metal-burst", "mirror-coat",
+    "natures-madness", "psywave", "ruination", "sheer-cold", "sonic-boom", "super-fang",
+})
+NATIVE_DIRECT_MECHANICS_SOURCES = frozenset({"native_q12_direct_damage", "native_level_based_fixed_damage"})
 
 
 def evaluate_direct_damage_mechanics(
@@ -44,6 +51,13 @@ def evaluate_direct_damage_mechanics(
     move_id = move.get("move_id")
     if not isinstance(move_id, str) or not move_id:
         missing.append("selected_move")
+    if move_id in LEVEL_BASED_FIXED_DAMAGE_MOVE_TYPES:
+        return _evaluate_level_based_fixed_damage(
+            direct=direct, stat_provenance=stat_provenance, trusted_level=trusted_level,
+            move_id=move_id, generation=generation,
+        )
+    if move_id in UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS:
+        return _fixed_unsupported("unsupported_fixed_damage_rule")
     category, power, move_type = move.get("category"), move.get("power"), move.get("type")
     if category == "status":
         return _unsupported("status_move")
@@ -113,8 +127,43 @@ def evaluate_direct_damage_mechanics(
         "damage_range": {"minimum": min(total_rolls), "maximum": max(total_rolls)},
         "damage_percent_range": {"minimum": round(min(total_rolls) * 100 / max_hp, 2), "maximum": round(max(total_rolls) * 100 / max_hp, 2)},
         "ko_result": {"status": "resolved", "single_hit_probability": float(ko_chance_from_outcomes(total_rolls, defender_hp))},
+        "damage_model": "fixed_hit_formula" if hit_count > 1 else "single_hit_formula",
         "missing_inputs": [], "unsupported_reason": None,
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
+    }
+
+
+def _evaluate_level_based_fixed_damage(*, direct: Mapping[str, Any], stat_provenance: Mapping[str, Any], trusted_level: int | None, move_id: str, generation: str) -> dict[str, Any]:
+    """Resolve only canonical attacker-level damage without Q12/stat inputs."""
+    missing: list[str] = []
+    if not _valid_level(trusted_level):
+        missing.append("attacker.level")
+    defender = _mapping(direct.get("defender"))
+    _require_hp(defender, "defender", missing)
+    defender_types = _available(_mapping(stat_provenance.get("defender")).get("types"))
+    if not isinstance(defender_types, list) or not defender_types or not all(_nonempty_str(item) for item in defender_types):
+        missing.append("defender.types")
+    for side_name in ("attacker", "defender"):
+        ability = _mapping(direct.get(side_name)).get("ability")
+        if ability == _KNOWN_ABSENT:
+            continue
+        if isinstance(ability, Mapping) and ability.get("status") == "known" and _nonempty_str(ability.get("value")):
+            return _fixed_unsupported("ability_modifier")
+        missing.append(f"{side_name}.ability")
+    if missing:
+        return _fixed_insufficient(missing)
+    assert isinstance(trusted_level, int) and isinstance(defender_types, list)
+    effectiveness = type_effectiveness_multiplier(LEVEL_BASED_FIXED_DAMAGE_MOVE_TYPES[move_id], tuple(defender_types))
+    damage = trusted_level if effectiveness > 0 else 0
+    max_hp, current_hp = defender["max_hp"], defender["current_hp"]
+    return {
+        "status": "known", "move": move_id, "damage_model": "level_based_fixed", "fixed_damage": damage,
+        "type_effectiveness": effectiveness, "hit_count": 1, "per_hit_damage_range": None,
+        "damage_range": {"minimum": damage, "maximum": damage},
+        "damage_percent_range": {"minimum": round(damage * 100 / max_hp, 2), "maximum": round(damage * 100 / max_hp, 2)},
+        "ko_result": {"status": "resolved", "single_hit_probability": 1.0 if damage >= current_hp else 0.0},
+        "missing_inputs": [], "unsupported_reason": None,
+        "mechanics_source": "native_level_based_fixed_damage", "generation": generation,
     }
 
 
@@ -194,3 +243,11 @@ def _insufficient(missing: list[str]) -> dict[str, Any]:
 
 def _unsupported(reason: str) -> dict[str, Any]:
     return {"status": "unsupported_mechanic", "move": None, "type_effectiveness": None, "damage_range": None, "damage_percent_range": None, "ko_result": None, "missing_inputs": [], "unsupported_reason": reason, "mechanics_source": "native_q12_direct_damage", "generation": None}
+
+
+def _fixed_insufficient(missing: list[str]) -> dict[str, Any]:
+    return {"status": "insufficient_context", "move": None, "damage_model": "level_based_fixed", "fixed_damage": None, "type_effectiveness": None, "damage_range": None, "damage_percent_range": None, "ko_result": None, "missing_inputs": sorted(set(missing)), "unsupported_reason": None, "mechanics_source": "native_level_based_fixed_damage", "generation": None}
+
+
+def _fixed_unsupported(reason: str) -> dict[str, Any]:
+    return {"status": "unsupported_mechanic", "move": None, "damage_model": "level_based_fixed", "fixed_damage": None, "type_effectiveness": None, "damage_range": None, "damage_percent_range": None, "ko_result": None, "missing_inputs": [], "unsupported_reason": reason, "mechanics_source": "native_level_based_fixed_damage", "generation": None}

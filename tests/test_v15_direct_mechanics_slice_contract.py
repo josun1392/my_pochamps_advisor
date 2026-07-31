@@ -1,6 +1,7 @@
 from copy import deepcopy
 
-from llm.advisor_candidate_contract import prepare_ui_recommendation_cycle
+from llm.advisor_candidate_contract import build_recommendation_presentation_model, complete_recommendation_cycle, prepare_ui_recommendation_cycle
+from llm.advisor_client import format_recommendation_presentation_text
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 from llm.advisor_turn_snapshot import (
     BASE_STAT_KEYS,
@@ -153,3 +154,78 @@ def test_fixed_two_hit_uses_exact_convolved_total_distribution_and_rejects_varia
     variable["move"] = {"move_id": "variable", "category": "physical", "power": 40, "type": "normal", "min_hits": 2, "max_hits": 5}
     unsupported = evaluate_direct_damage_mechanics(variable, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
     assert unsupported["status"] == "unsupported_mechanic" and unsupported["unsupported_reason"] == "variable_multi_hit_move"
+
+
+def test_level_based_fixed_damage_uses_only_trusted_level_target_hp_and_canonical_identity():
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = "seismic-toss"
+    battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("seismic-toss",))
+    damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id="seismic-toss", selectable_moves=("seismic-toss",), move_metadata={"category": "physical", "type": "normal"})
+    provenance = build_snapshot_stat_provenance(snapshot, species_repository=_Species())
+    provenance["attacker"]["final_stats"] = {"available": False, "value": None}
+    result = evaluate_direct_damage_mechanics(damage, stat_provenance=provenance, trusted_level=50)
+    assert result["status"] == "known" and result["damage_model"] == "level_based_fixed"
+    assert result["fixed_damage"] == 50 and result["damage_range"] == {"minimum": 50, "maximum": 50}
+    assert result["damage_percent_range"] == {"minimum": 25.0, "maximum": 25.0}
+    assert result["ko_result"]["single_hit_probability"] == 1.0
+    assert result["mechanics_source"] == "native_level_based_fixed_damage"
+
+
+def test_level_based_fixed_damage_preserves_immunity_unknowns_and_unsupported_special_rules():
+    class Types(_Species):
+        def get(self, name):
+            result = super().get(name)
+            result["types_en"] = ["ghost"] if name == "eevee" else ["normal"]
+            return result
+
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = "seismic-toss"
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("seismic-toss",))
+    damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id="seismic-toss", selectable_moves=("seismic-toss",), move_metadata={"category": "physical", "type": "normal"})
+    provenance = build_snapshot_stat_provenance(snapshot, species_repository=Types())
+    immune = evaluate_direct_damage_mechanics(damage, stat_provenance=provenance, trusted_level=50)
+    assert immune["status"] == "known" and immune["fixed_damage"] == 0 and immune["type_effectiveness"] == 0.0
+    assert immune["ko_result"]["single_hit_probability"] == 0.0
+    assert evaluate_direct_damage_mechanics(damage, stat_provenance=provenance, trusted_level=None)["missing_inputs"] == ["attacker.level"]
+    unknown_hp = deepcopy(damage)
+    unknown_hp["battle_context"]["current_state"]["direct_mechanics_context"]["defender"].pop("current_hp")
+    assert "defender.current_hp" in evaluate_direct_damage_mechanics(unknown_hp, stat_provenance=provenance, trusted_level=50)["missing_inputs"]
+    unknown_max_hp = deepcopy(damage)
+    unknown_max_hp["battle_context"]["current_state"]["direct_mechanics_context"]["defender"].pop("max_hp")
+    assert "defender.max_hp" in evaluate_direct_damage_mechanics(unknown_max_hp, stat_provenance=provenance, trusted_level=50)["missing_inputs"]
+    unsupported = deepcopy(damage)
+    unsupported["move"] = {"move_id": "psywave", "category": "special", "power": 1, "type": "psychic"}
+    result = evaluate_direct_damage_mechanics(unsupported, stat_provenance=provenance, trusted_level=50)
+    assert result["status"] == "unsupported_mechanic" and result["unsupported_reason"] == "unsupported_fixed_damage_rule"
+
+
+def test_level_based_fixed_damage_reaches_candidate_comparison_result_and_presentation():
+    battle = _battle()
+    battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "seismic-toss"}, {"slot_index": 1, "move_id": "tackle"}]
+    battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "seismic-toss"}, {"move_id": "tackle"}], battle_input=battle,
+        move_repository={"seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}, species_repository=_Species(),
+    )
+    assert prepared["status"] == "ready"
+    rows = prepared["recommendation_request"]["candidate_comparisons"]
+    assert rows[0]["mechanics_result"]["damage_model"] == "level_based_fixed"
+    assert rows[0]["mechanics_comparison"]["rank"] == 1
+    completed = complete_recommendation_cycle(prepared_cycle=prepared, response_payload={"recommendation_status": "resolved", "selected_candidate_id": 0, "explanation_code": "clear_ranked_winner"})
+    assert completed["recommendation_result"]["selected_action"] == {"slot_index": 0, "move": "seismic-toss"}
+    text = format_recommendation_presentation_text(presentation_model=build_recommendation_presentation_model(completed_cycle=completed))
+    assert "피해 방식: 사용자 레벨과 동일한 고정 피해" in text and "고정 피해: 50" in text
+
+
+def test_level_based_fixed_damage_and_fixed_hit_remain_distinct_candidate_models():
+    battle = _battle()
+    battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "seismic-toss"}, {"slot_index": 1, "move_id": "double-hit"}]
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "seismic-toss"}, {"move_id": "double-hit"}], battle_input=battle,
+        move_repository={"seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "double-hit": {"category": "physical", "power": 40, "type": "normal", "min_hits": 2, "max_hits": 2, "priority": 0}}, species_repository=_Species(),
+    )
+    rows = prepared["recommendation_request"]["candidate_comparisons"]
+    assert [row["mechanics_result"]["damage_model"] for row in rows] == ["level_based_fixed", "fixed_hit_formula"]
+    assert rows[0]["mechanics_result"]["per_hit_damage_range"] is None
+    assert isinstance(rows[1]["mechanics_result"]["per_hit_damage_range"], dict)

@@ -305,7 +305,7 @@ def _direct_mechanics_statuses(*, provider_payload: Mapping[str, Any] | None) ->
         for candidate in comparisons
         if isinstance(candidate, Mapping)
         and isinstance(candidate.get("mechanics_result"), Mapping)
-        and candidate["mechanics_result"].get("mechanics_source") == "native_q12_direct_damage"
+        and candidate["mechanics_result"].get("mechanics_source") in {"native_q12_direct_damage", "native_level_based_fixed_damage"}
     ] if isinstance(comparisons, list) else []
 
 
@@ -488,6 +488,12 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
     mechanics = evidence.get("mechanics_result")
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
         damage, percent, ko = mechanics.get("damage_range"), mechanics.get("damage_percent_range"), mechanics.get("ko_result")
+        if mechanics.get("damage_model") == "level_based_fixed":
+            lines.append("피해 방식: 사용자 레벨과 동일한 고정 피해")
+            if mechanics.get("type_effectiveness") == 0:
+                lines.append("피해 없음: 타입 무효")
+            elif isinstance(mechanics.get("fixed_damage"), int):
+                lines.append(f"고정 피해: {mechanics['fixed_damage']}")
         hit_count = mechanics.get("hit_count")
         per_hit = mechanics.get("per_hit_damage_range")
         if isinstance(hit_count, int) and hit_count > 1:

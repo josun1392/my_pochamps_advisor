@@ -19264,3 +19264,12 @@ Maintained boundaries:
 - The provider schema remains selection plus bounded explanation only. Variable
   and malformed hit counts stay unsupported; no expected or accuracy-adjusted
   damage is requested or rendered.
+
+## v15.75 level-based fixed-damage mechanics
+
+- Added a separate native path for canonical `seismic-toss` and `night-shade`.
+  It uses only trusted user level, target HP, defender types, and explicit
+  ability state; it does not enter the Q12/stat or base-power calculation path.
+- The existing deterministic candidate/result/presentation flow retains the
+  fixed-damage model and labels it separately. HP-ratio, random, literal,
+  counter, and OHKO special damage rules remain unsupported.

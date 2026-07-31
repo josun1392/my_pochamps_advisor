@@ -20,7 +20,7 @@ from llm.advisor_turn_snapshot import (
     snapshot_deterministic_context,
 )
 from llm.advisor_q12_snapshot_adapter import invoke_existing_q12_from_snapshot
-from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
+from llm.advisor_direct_mechanics import NATIVE_DIRECT_MECHANICS_SOURCES, evaluate_direct_damage_mechanics
 from llm.narrow_action_order import evaluate_action_order
 from llm.move_consequence_evidence import evaluate_move_consequence_evidence
 
@@ -357,7 +357,7 @@ def evaluate_move_slots(*, moves: Sequence[Any], battle_snapshot: Mapping[str, A
 
 
 _MECHANICS_COMPARISON_STATUSES = frozenset({"rankable", "insufficient_context", "unsupported_mechanic", "unavailable"})
-_NATIVE_DIRECT_MECHANICS_SOURCE = "native_q12_direct_damage"
+_NATIVE_DIRECT_MECHANICS_SOURCES = NATIVE_DIRECT_MECHANICS_SOURCES
 
 
 def _finite_number(value: Any) -> float | None:
@@ -389,7 +389,7 @@ def _direct_mechanics_comparison(candidate: Mapping[str, Any]) -> tuple[dict[str
         return None
     if mechanics.get("unsupported_reason") == "status_move":
         return {"comparison_status": "unsupported_mechanic", "rank": None, "comparison_reason": "status_move_not_damage_rankable"}, None
-    if mechanics.get("mechanics_source") != _NATIVE_DIRECT_MECHANICS_SOURCE:
+    if mechanics.get("mechanics_source") not in _NATIVE_DIRECT_MECHANICS_SOURCES:
         return None
     if candidate.get("status") == "unavailable" or candidate.get("availability") == "unavailable":
         return {"comparison_status": "unavailable", "rank": None, "comparison_reason": "candidate_unavailable"}, None
@@ -826,7 +826,7 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path
     kind = reason["kind"]
     damage = candidate.get("damage")
     mechanics = candidate.get("mechanics_result")
-    direct_mechanics = isinstance(mechanics, Mapping) and mechanics.get("mechanics_source") == "native_q12_direct_damage"
+    direct_mechanics = isinstance(mechanics, Mapping) and mechanics.get("mechanics_source") in _NATIVE_DIRECT_MECHANICS_SOURCES
     mechanics_known = direct_mechanics and mechanics.get("status") == "known" and isinstance(mechanics.get("damage_range"), Mapping)
     mechanics_insufficient = direct_mechanics and mechanics.get("status") == "insufficient_context"
     if kind not in _CLAIM_KINDS:
@@ -892,7 +892,7 @@ def _direct_provider_claim_context(*, request: Mapping[str, Any], response: Mapp
             for index, comparison in enumerate(request.get("candidate_comparisons", []))
             if isinstance(comparison, Mapping)
             and isinstance(comparison.get("mechanics_result"), Mapping)
-            and comparison["mechanics_result"].get("mechanics_source") == "native_q12_direct_damage"
+            and comparison["mechanics_result"].get("mechanics_source") in _NATIVE_DIRECT_MECHANICS_SOURCES
         ]
         return contexts[0] if len(contexts) == 1 else None
     return None
@@ -907,7 +907,7 @@ def _normalize_direct_provider_claim(*, claim: Any, candidate: Mapping[str, Any]
     if set(claim) != {"kind", "claim"} or not isinstance(claim.get("claim"), str) or not claim["claim"]:
         return None, "provider_mechanics_linkage_forbidden"
     mechanics = candidate.get("mechanics_result")
-    if not isinstance(mechanics, Mapping) or mechanics.get("mechanics_source") != "native_q12_direct_damage":
+    if not isinstance(mechanics, Mapping) or mechanics.get("mechanics_source") not in _NATIVE_DIRECT_MECHANICS_SOURCES:
         return None, "provider_direct_claim_candidate_invalid"
     status = mechanics.get("status")
     if kind == "partial_context":
