@@ -24,7 +24,8 @@ from scripts.spike_advisor import DEFAULT_MODEL
 
 FIXTURES = ("multi-move-clear-winner", "multi-move-mixed-availability", "multi-move-stable-tie")
 GROUNDING_FIXTURES = ("complete-multi-candidate-mechanics", "mixed-context-multi-candidate-mechanics")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES})
+ACCURACY_FIXTURES = ("known-accuracy-multi-candidate", "mixed-accuracy-state-multi-candidate")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -61,12 +62,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "quick-attack"}, {"move_id": "slam"}], {"quick-attack": {"category": "physical", "power": 40, "type": "normal", "priority": 1}, "slam": {"category": "physical", "power": 100, "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     if fixture_id == GROUNDING_FIXTURES[1]:
         return [{"move_id": "tackle"}, {"move_id": "missing-power"}, {"move_id": "double-hit"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "missing-power": {"category": "physical", "type": "normal", "priority": 0}, "double-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": 2, "max_hits": 2, "priority": 0}}
+    if fixture_id == ACCURACY_FIXTURES[0]:
+        return [{"move_id": "thunderbolt"}, {"move_id": "stone-edge"}], {"thunderbolt": {"category": "special", "power": 90, "type": "electric", "accuracy": 100, "priority": 0}, "stone-edge": {"category": "physical", "power": 100, "type": "rock", "accuracy": 80, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}}
+    if fixture_id == ACCURACY_FIXTURES[1]:
+        return [{"move_id": "tackle"}, {"move_id": "swift"}, {"move_id": "dynamic"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}, "swift": {"category": "special", "power": 60, "type": "normal", "always_hit": True, "priority": 0}, "dynamic": {"category": "special", "power": 1, "type": "normal", "dynamic_accuracy": True, "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in GROUNDING_FIXTURES)
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES})
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -107,6 +112,13 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == GROUNDING_FIXTURES[1]:
         mechanics = [row.get("mechanics_result") for row in rows if isinstance(row, Mapping)]
         return [item.get("comparison_status") for item in comparisons if isinstance(item, Mapping)] == ["rankable", "insufficient_context", "unsupported_mechanic"] and [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [1, None, None] and all(isinstance(row.get("comparison_facts"), Mapping) and row["comparison_facts"].get("candidate_id") == {"slot_index": row.get("slot_index"), "move": row.get("move")} for row in rows if isinstance(row, Mapping)) and isinstance(mechanics[1], Mapping) and isinstance(mechanics[1].get("missing_inputs"), list) and bool(mechanics[1]["missing_inputs"]) and isinstance(mechanics[2], Mapping) and isinstance(mechanics[2].get("unsupported_reason"), str)
+    if fixture_id == ACCURACY_FIXTURES[0]:
+        states = [row.get("accuracy_evidence", {}).get("status") for row in rows if isinstance(row, Mapping)]
+        tags = [row.get("comparison_facts", {}).get("comparison_tags", []) for row in rows if isinstance(row, Mapping)]
+        return states == ["known_accuracy", "known_accuracy"] and "known_higher_canonical_accuracy" in tags[0] and "known_lower_canonical_accuracy" in tags[1]
+    if fixture_id == ACCURACY_FIXTURES[1]:
+        states = [row.get("accuracy_evidence", {}).get("status") for row in rows if isinstance(row, Mapping)]
+        return states == ["known_accuracy", "always_hits", "unsupported_mechanic"]
     return False
 
 
@@ -153,7 +165,15 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
     mechanics = selected.get("mechanics_result")
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
         return "피해 범위:" in text and "피해 비율:" in text
-    return "피해 범위:" not in text and "피해 비율:" not in text
+    accuracy = selected.get("accuracy_evidence")
+    if isinstance(accuracy, Mapping) and accuracy.get("status") == "known_accuracy":
+        if accuracy.get("canonical_accuracy") == 100 and "항상 명중하는 기술" in text:
+            return False
+        if "기본 명중률:" not in text:
+            return False
+    if isinstance(accuracy, Mapping) and accuracy.get("status") in {"insufficient_context", "unsupported_mechanic"} and isinstance(accuracy.get("canonical_accuracy"), (int, float)):
+        return False
+    return "피해 범위:" not in text and "피해 비율:" not in text if not (isinstance(mechanics, Mapping) and mechanics.get("status") == "known") else True
 
 
 def _actual_adapters(*, model: str) -> tuple[Callable[[], bool], Callable[[Mapping[str, Any]], dict[str, Any]]]:

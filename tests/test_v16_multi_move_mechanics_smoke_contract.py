@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import EXIT, FIXTURES, GROUNDING_FIXTURES, _prepared, main, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ACCURACY_FIXTURES, EXIT, FIXTURES, GROUNDING_FIXTURES, _prepared, main, run_smoke
 
 
 def _code(rows, winner):
@@ -33,6 +33,16 @@ def test_multi_candidate_grounding_fixtures_preserve_isolated_mechanics_and_acti
     assert any(row["action_order"]["status"] == "acts_first" for row in complete)
     mixed = _prepared(GROUNDING_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
     assert [row["mechanics_result"]["status"] for row in mixed] == ["known", "insufficient_context", "unsupported_mechanic"]
+
+
+def test_accuracy_fixture_pair_preserves_numeric_and_always_hit_distinction():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=ACCURACY_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    known = _prepared(ACCURACY_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert [row["accuracy_evidence"]["status"] for row in known] == ["known_accuracy", "known_accuracy"]
+    assert known[0]["accuracy_evidence"]["canonical_accuracy"] == 100
+    mixed = _prepared(ACCURACY_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert [row["accuracy_evidence"]["status"] for row in mixed] == ["known_accuracy", "always_hits", "unsupported_mechanic"]
 
 
 def test_cli_allows_only_the_bounded_multi_candidate_fixture_pair(capsys):
