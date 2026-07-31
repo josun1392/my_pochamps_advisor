@@ -3542,6 +3542,15 @@ remains `unsupported_mechanic`. The list is absent from level-based fixed
 damage and is never provider-authored. A completed recommendation and its
 presentation may use only the resolved selected candidate's labels.
 
+## v15.78 modifier grounding smoke boundary
+
+The modifier grounding smoke fixture pair validates request-start
+candidate-local `applied_damage_modifiers` before an actual call and compares
+the completed selected evidence against the same deterministic row afterward.
+Known labels may be presented only for that selected row. Unknown/unsupported
+formula candidates and level-based fixed damage carry no such labels; provider
+selection never becomes modifier authority.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics

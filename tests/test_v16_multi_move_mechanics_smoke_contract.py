@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ACCURACY_FIXTURES, CONSEQUENCE_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, STATUS_FIXTURES, _prepared, main, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ACCURACY_FIXTURES, CONSEQUENCE_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, MODIFIER_FIXTURES, STATUS_FIXTURES, _prepared, main, run_smoke
 
 
 def _code(rows, winner):
@@ -94,6 +94,22 @@ def test_fixed_damage_fixture_pair_keeps_level_model_q12_and_immunity_isolated()
     assert mixed[2]["mechanics_result"]["unsupported_reason"] == "unsupported_fixed_damage_rule"
 
 
+def test_modifier_fixture_pair_preserves_candidate_local_known_and_fail_closed_evidence():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=MODIFIER_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    combined = _prepared(MODIFIER_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert [row["mechanics_result"].get("applied_damage_modifiers") for row in combined] == [
+        ["rain_water_boost", "burn_physical_reduction", "reflect_reduction"],
+        ["rain_fire_reduction", "light_screen_reduction"],
+        None,
+    ]
+    mixed = _prepared(MODIFIER_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert mixed[0]["mechanics_result"]["status"] == "insufficient_context"
+    assert mixed[1]["mechanics_result"]["unsupported_reason"] == "battle_format"
+    assert mixed[2]["mechanics_result"]["damage_model"] == "level_based_fixed"
+    assert "applied_damage_modifiers" not in mixed[2]["mechanics_result"]
+
+
 def test_cli_allows_only_the_bounded_multi_candidate_fixture_pair(capsys):
     def adapters(*, model):
         assert model == "gemini-2.5-flash"
@@ -127,6 +143,15 @@ def test_cli_allows_the_bounded_fixed_damage_fixture_pair(capsys):
         return (lambda: True), _response
 
     assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *FIXED_DAMAGE_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
+
+
+def test_cli_allows_the_bounded_modifier_fixture_pair(capsys):
+    def adapters(*, model):
+        assert model == "gemini-2.5-flash"
+        return (lambda: True), _response
+
+    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *MODIFIER_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 

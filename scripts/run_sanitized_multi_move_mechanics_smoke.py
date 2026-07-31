@@ -29,7 +29,8 @@ STATUS_FIXTURES = ("mixed-damage-status-candidates", "mixed-status-state-candida
 CONSEQUENCE_FIXTURES = ("recoil-drain-consequence-candidates", "turn-terminal-consequence-candidates")
 FIXED_HIT_FIXTURES = ("complete-fixed-hit-candidates", "mixed-fixed-variable-hit-candidates")
 FIXED_DAMAGE_FIXTURES = ("complete-level-fixed-damage-candidates", "mixed-fixed-damage-state-candidates")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES})
+MODIFIER_FIXTURES = ("combined-known-damage-modifiers", "mixed-modifier-authority-states")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -87,12 +88,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "seismic-toss"}, {"move_id": "tackle"}], {"seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 30, "type": "normal", "priority": 0}}
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
         return [{"move_id": "seismic-toss"}, {"move_id": "night-shade"}, {"move_id": "psywave"}], {"seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "night-shade": {"category": "special", "type": "ghost", "priority": 0}, "psywave": {"category": "special", "power": 1, "type": "psychic", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == MODIFIER_FIXTURES[0]:
+        return [{"move_id": "aqua-tail"}, {"move_id": "flamethrower"}, {"move_id": "seismic-toss"}], {"aqua-tail": {"category": "physical", "power": 90, "type": "water", "priority": 1}, "flamethrower": {"category": "special", "power": 90, "type": "fire", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == MODIFIER_FIXTURES[1]:
+        return [{"move_id": "aqua-tail"}, {"move_id": "hyper-beam"}, {"move_id": "seismic-toss"}], {"aqua-tail": {"category": "physical", "power": 90, "type": "water", "priority": 0}, "hyper-beam": {"category": "special", "power": 150, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -100,6 +105,15 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
         for entry in battle["final_stat_context"]["current_final_stats"]:
             if entry.get("side") == "opponent":
                 entry["provenance"]["pokemon_id"] = "gengar"
+    if fixture_id == MODIFIER_FIXTURES[0]:
+        battle["trusted_level_context"]["current_levels"][0]["value"] = 1
+        battle["field_state_context"] = {"current_field": {"weather": "rain", "terrain": "none", "global_effects": [], "side_effects": [{"side": "opponent", "effect": "reflect"}, {"side": "opponent", "effect": "light-screen"}], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
+        battle["condition_context"] = {"current_conditions": [{"side": "self", "condition_type": "burn", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]}
+        battle["battle_format_context"] = {"current_battle_format": {"battle_format": "singles", "source": "user_confirmed_battle_format", "confidence": "known"}}
+    if fixture_id == MODIFIER_FIXTURES[1]:
+        battle["field_state_context"] = {"current_field": {"weather": "unknown", "terrain": "none", "global_effects": [], "side_effects": [{"side": "opponent", "effect": "light-screen"}], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
+        battle["condition_context"] = {"current_conditions": [{"side": "self", "condition_type": "unknown", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]}
+        battle["battle_format_context"] = {"current_battle_format": {"battle_format": "doubles", "source": "user_confirmed_battle_format", "confidence": "known"}}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -173,6 +187,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
         immune, fixed, unsupported = [row.get("mechanics_result", {}) for row in rows]
         return immune.get("damage_model") == "level_based_fixed" and immune.get("fixed_damage") == 0 and immune.get("type_effectiveness") == 0.0 and immune.get("ko_result", {}).get("single_hit_probability") == 0.0 and fixed.get("damage_model") == "level_based_fixed" and fixed.get("fixed_damage") == 50 and fixed.get("damage_range") == {"minimum": 50, "maximum": 50} and fixed.get("type_effectiveness") == 2.0 and unsupported.get("status") == "unsupported_mechanic" and unsupported.get("unsupported_reason") == "unsupported_fixed_damage_rule" and comparisons[1].get("rank") == 1
+    if fixture_id == MODIFIER_FIXTURES[0]:
+        mechanics = [row.get("mechanics_result", {}) for row in rows if isinstance(row, Mapping)]
+        return [item.get("status") for item in mechanics] == ["known", "known", "known"] and [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [1, 3, 2] and mechanics[0].get("applied_damage_modifiers") == ["rain_water_boost", "burn_physical_reduction", "reflect_reduction"] and mechanics[1].get("applied_damage_modifiers") == ["rain_fire_reduction", "light_screen_reduction"] and mechanics[2].get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in mechanics[2]
+    if fixture_id == MODIFIER_FIXTURES[1]:
+        mechanics = [row.get("mechanics_result", {}) for row in rows if isinstance(row, Mapping)]
+        return mechanics[0].get("status") == "insufficient_context" and {"field.weather", "attacker.condition"} <= set(mechanics[0].get("missing_inputs", [])) and mechanics[1].get("status") == "unsupported_mechanic" and mechanics[1].get("unsupported_reason") == "battle_format" and mechanics[2].get("status") == "known" and mechanics[2].get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in mechanics[2]
     return False
 
 
@@ -217,6 +237,18 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
     if not isinstance(text, str) or any(item in text for item in forbidden) or "선택 행동:" not in text:
         return False
     mechanics = selected.get("mechanics_result")
+    if fixture_id in MODIFIER_FIXTURES:
+        applied = mechanics.get("applied_damage_modifiers") if isinstance(mechanics, Mapping) else None
+        labels = {
+            "rain_water_boost": "\ube44\ub85c \uc778\ud55c \ubb3c\ud0c0\uc785 \uae30\uc220 \uac15\ud654",
+            "rain_fire_reduction": "\ube44\ub85c \uc778\ud55c \ubd88\uaf43\ud0c0\uc785 \uae30\uc220 \uc57d\ud654",
+            "burn_physical_reduction": "\ud654\uc0c1\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac10\uc18c",
+            "reflect_reduction": "\uc0c1\ub300 \uce21 \ub9ac\ud50c\ub809\ud130 \uc801\uc6a9",
+            "light_screen_reduction": "\uc0c1\ub300 \uce21 \ub77c\uc774\ud2b8\uc2a4\ud06c\ub9b0 \uc801\uc6a9",
+        }
+        if isinstance(applied, list):
+            return all(labels[tag] in text for tag in applied if tag in labels) and all(tag not in text for tag in labels)
+        return not any(label in text for label in labels.values())
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
         if fixture_id in FIXED_DAMAGE_FIXTURES and mechanics.get("damage_model") == "level_based_fixed":
             labels = ("\ud53c\ud574 \ubc29\uc2dd: \uc0ac\uc6a9\uc790 \ub808\ubca8\uacfc \ub3d9\uc77c\ud55c \uace0\uc815 \ud53c\ud574",)

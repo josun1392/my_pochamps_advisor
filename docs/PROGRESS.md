@@ -19295,3 +19295,14 @@ Maintained boundaries:
   outside ordinary damage modifiers. Candidate/result/presentation surfaces
   carry only allowlisted applied-modifier tags; no provider or network call is
   part of this offline slice.
+
+## v15.78 known damage-modifier provider grounding smoke
+
+- Added an approval-gated fixture pair for combined known rain/burn/screen
+  state and mixed unknown/doubles/fixed-damage state. The pre-call contract
+  verifies candidate-local applied labels, fail-closed status, and
+  level-fixed non-application before a provider call.
+- Completion and presentation assertions continue to use only the validated
+  selected candidate. Provider output stays limited to candidate selection and
+  bounded explanation; no modifier multiplier, rounding, or derived damage is
+  accepted from the provider.

@@ -1909,3 +1909,12 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
   half-damage hook. Fixed-hit applies them before exact convolution, while
   level-based fixed damage remains unmodified. Provider output is unchanged
   and no actual-provider call is authorized by this offline slice.
+
+## v15.78 modifier grounding smoke handoff
+
+- The allowlisted modifier fixture pair is `combined-known-damage-modifiers`
+  and `mixed-modifier-authority-states`. It performs pre-call native evidence
+  checks and post-call candidate/result/presentation isolation checks.
+- Provider remains selection plus bounded explanation only. Use the pair only
+  under explicit approval, with two calls, no retry/fallback/repair, and no
+  raw provider or modifier-calculation output.
