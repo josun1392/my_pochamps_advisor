@@ -19199,3 +19199,12 @@ Maintained boundaries:
 - Incomplete, unsupported, failure, and no-candidate states do not display a
   stale or inferred candidate summary. The existing panel lifecycle and
   provider boundary are unchanged; offline validation only.
+
+## v15.67 production recommendation presentation smoke
+
+- The sanitized multi-candidate smoke now verifies the production-derived path
+  from completion through canonical result, presentation model, and formatter
+  with bounded presence/absence checks only. No raw text or provider data is
+  emitted.
+- Headless controller/formatter coverage is used because the existing panel
+  already receives that presentation text; widget lifecycle remains unchanged.

@@ -15,10 +15,11 @@ if str(ROOT) not in sys.path:
 
 from llm.advisor_candidate_contract import (
     build_provider_recommendation_payload,
+    build_recommendation_presentation_model,
     complete_recommendation_cycle,
     prepare_ui_recommendation_cycle,
 )
-from llm.advisor_client import SAFE_PROVIDER_DIAGNOSTIC_CODES, sanitize_provider_failure_context
+from llm.advisor_client import SAFE_PROVIDER_DIAGNOSTIC_CODES, format_recommendation_presentation_text, sanitize_provider_failure_context
 from scripts.spike_advisor import DEFAULT_MODEL
 
 FIXTURES = ("multi-move-clear-winner", "multi-move-mixed-availability", "multi-move-stable-tie")
@@ -132,6 +133,29 @@ def _completed_candidate_evidence_isolated(*, payload: Mapping[str, Any], comple
     return True
 
 
+def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any]) -> bool:
+    result = completed.get("recommendation_result")
+    if not isinstance(result, Mapping) or result.get("status") != "resolved":
+        return False
+    selected = result.get("selected_candidate_evidence")
+    action = result.get("selected_action")
+    facts = selected.get("comparison_facts") if isinstance(selected, Mapping) else None
+    if not isinstance(selected, Mapping) or not isinstance(action, Mapping) or not isinstance(facts, Mapping) or facts.get("candidate_id") != action:
+        return False
+    presentation = build_recommendation_presentation_model(completed_cycle=completed)
+    summary = presentation.get("selected_candidate") if isinstance(presentation, Mapping) else None
+    if not isinstance(summary, Mapping) or summary.get("selected_action") != action:
+        return False
+    text = format_recommendation_presentation_text(presentation_model=presentation)
+    forbidden = ("candidate_comparisons", "raw_response", "mechanics_path", "numeric_scope", "multi_provider_")
+    if not isinstance(text, str) or any(item in text for item in forbidden) or "선택 행동:" not in text:
+        return False
+    mechanics = selected.get("mechanics_result")
+    if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
+        return "피해 범위:" in text and "피해 비율:" in text
+    return "피해 범위:" not in text and "피해 비율:" not in text
+
+
 def _actual_adapters(*, model: str) -> tuple[Callable[[], bool], Callable[[Mapping[str, Any]], dict[str, Any]]]:
     def credential_available() -> bool:
         return bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
@@ -182,6 +206,8 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
             return {"exit_code": EXIT["structural"] if category == "grounding_structural_failure" else EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": category, "diagnostic": next((error for error in errors if isinstance(error, str)), "validation_failed"), "results": results}
         if not _completed_candidate_evidence_isolated(payload=payload, completed=completed):
             return {"exit_code": EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "multi_candidate_evidence_mixed", "diagnostic": "multi_candidate_evidence_mixed", "results": results}
+        if not _presentation_contract_valid(fixture_id=fixture_id, completed=completed):
+            return {"exit_code": EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "presentation_contract_invalid", "diagnostic": "presentation_contract_invalid", "results": results}
         recommendation = completed.get("recommendation_result")
         if not isinstance(recommendation, Mapping) or (recommendation.get("recommended_move"), recommendation.get("recommended_slot_index")) != expected:
             return {"exit_code": EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "ranking_selection_mismatch", "diagnostic": "ranking_selection_mismatch", "results": results}

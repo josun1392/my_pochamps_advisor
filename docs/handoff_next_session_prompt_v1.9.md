@@ -28,6 +28,12 @@ known numeric/action-order summaries, bounded explanation and comparison labels,
 or clear incomplete/unsupported messaging. New requests and failures leave no
 stale selected summary. No provider call occurred.
 
+## v15.67 production recommendation presentation smoke
+
+Multi-candidate smoke now asserts canonical result and formatter handoff without
+printing provider or UI text. Actual execution remains bounded to the approved
+fixture pair and no-retry call budget.
+
 ## v14.22 teardown lifecycle
 
 Window close invalidates active advice identity and suppresses late callbacks;
