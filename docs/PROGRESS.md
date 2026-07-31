@@ -19273,3 +19273,13 @@ Maintained boundaries:
 - The existing deterministic candidate/result/presentation flow retains the
   fixed-damage model and labels it separately. HP-ratio, random, literal,
   counter, and OHKO special damage rules remain unsupported.
+
+## v15.76 level-fixed-damage provider grounding smoke
+
+- Added an approval-gated level-fixed/Q12 fixture and an immunity plus
+  unsupported-special fixture. Pre-call checks keep fixed values, models, KO,
+  and immunity deterministic and candidate-local; completion verifies selected
+  evidence and bounded presentation only.
+- Provider output remains selection plus explanation code. Request-level level
+  and HP uncertainty remains offline fail-closed coverage rather than being
+  represented as contradictory per-candidate runtime state.

@@ -28,13 +28,14 @@ ACCURACY_FIXTURES = ("known-accuracy-multi-candidate", "mixed-accuracy-state-mul
 STATUS_FIXTURES = ("mixed-damage-status-candidates", "mixed-status-state-candidates")
 CONSEQUENCE_FIXTURES = ("recoil-drain-consequence-candidates", "turn-terminal-consequence-candidates")
 FIXED_HIT_FIXTURES = ("complete-fixed-hit-candidates", "mixed-fixed-variable-hit-candidates")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES})
+FIXED_DAMAGE_FIXTURES = ("complete-level-fixed-damage-candidates", "mixed-fixed-damage-state-candidates")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
 class _Species:
     def get(self, name: str) -> dict[str, Any]:
-        return {"en": name, "types_en": ["normal"], "base_stats": {key: 80 for key in ("hp", "attack", "defense", "special-attack", "special-defense", "speed")}}
+        return {"en": name, "types_en": ["ghost"] if name == "gengar" else ["normal"], "base_stats": {key: 80 for key in ("hp", "attack", "defense", "special-attack", "special-defense", "speed")}}
 
 
 def _provenance(side: str, slot: int, pokemon: str, *, source: str = "user_confirmed_final_battle_stat") -> dict[str, Any]:
@@ -81,12 +82,23 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "double-hit"}, {"move_id": "slam"}], {"double-hit": {"category": "physical", "power": 60, "type": "normal", "min_hits": 2, "max_hits": 2, "priority": 0}, "slam": {"category": "physical", "power": 100, "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     if fixture_id == FIXED_HIT_FIXTURES[1]:
         return [{"move_id": "double-hit"}, {"move_id": "variable-hit"}, {"move_id": "broken-hit"}], {"double-hit": {"category": "physical", "power": 60, "type": "normal", "min_hits": 2, "max_hits": 2, "priority": 0}, "variable-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": 2, "max_hits": 5, "priority": 0}, "broken-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": "two", "max_hits": 2, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
+        return [{"move_id": "seismic-toss"}, {"move_id": "tackle"}], {"seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 30, "type": "normal", "priority": 0}}
+    if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
+        return [{"move_id": "seismic-toss"}, {"move_id": "night-shade"}, {"move_id": "psywave"}], {"seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "night-shade": {"category": "special", "type": "ghost", "priority": 0}, "psywave": {"category": "special", "power": 1, "type": "psychic", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES})
+    if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
+        battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
+    if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
+        battle["pokemon"]["opponent_active"]["name_en"] = "gengar"
+        for entry in battle["final_stat_context"]["current_final_stats"]:
+            if entry.get("side") == "opponent":
+                entry["provenance"]["pokemon_id"] = "gengar"
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -154,6 +166,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == FIXED_HIT_FIXTURES[1]:
         mechanics = [row.get("mechanics_result", {}) for row in rows if isinstance(row, Mapping)]
         return mechanics[0].get("hit_count") == 2 and mechanics[1].get("unsupported_reason") == "variable_multi_hit_move" and mechanics[2].get("unsupported_reason") == "invalid_fixed_hit_count"
+    if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
+        fixed, q12 = rows[0].get("mechanics_result", {}), rows[1].get("mechanics_result", {})
+        return fixed.get("status") == "known" and fixed.get("damage_model") == "level_based_fixed" and fixed.get("fixed_damage") == 50 and fixed.get("damage_range") == {"minimum": 50, "maximum": 50} and fixed.get("damage_percent_range") == {"minimum": 25.0, "maximum": 25.0} and fixed.get("ko_result", {}).get("single_hit_probability") == 1.0 and q12.get("mechanics_source") == "native_q12_direct_damage" and q12.get("damage_model") == "single_hit_formula" and comparisons[0].get("rank") == 1
+    if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
+        immune, fixed, unsupported = [row.get("mechanics_result", {}) for row in rows]
+        return immune.get("damage_model") == "level_based_fixed" and immune.get("fixed_damage") == 0 and immune.get("type_effectiveness") == 0.0 and immune.get("ko_result", {}).get("single_hit_probability") == 0.0 and fixed.get("damage_model") == "level_based_fixed" and fixed.get("fixed_damage") == 50 and fixed.get("damage_range") == {"minimum": 50, "maximum": 50} and fixed.get("type_effectiveness") == 2.0 and unsupported.get("status") == "unsupported_mechanic" and unsupported.get("unsupported_reason") == "unsupported_fixed_damage_rule" and comparisons[1].get("rank") == 1
     return False
 
 
@@ -199,6 +217,9 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
         return False
     mechanics = selected.get("mechanics_result")
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
+        if fixture_id in FIXED_DAMAGE_FIXTURES and mechanics.get("damage_model") == "level_based_fixed":
+            labels = ("\ud53c\ud574 \ubc29\uc2dd: \uc0ac\uc6a9\uc790 \ub808\ubca8\uacfc \ub3d9\uc77c\ud55c \uace0\uc815 \ud53c\ud574",)
+            return all(label in text for label in labels) and (("\ud53c\ud574 \uc5c6\uc74c: \ud0c0\uc785 \ubb34\ud6a8" in text) if mechanics.get("type_effectiveness") == 0 else (f"\uace0\uc815 \ud53c\ud574: {mechanics.get('fixed_damage')}" in text))
         if fixture_id in FIXED_HIT_FIXTURES and mechanics.get("hit_count") == 2:
             return all(label in text for label in ("\uace0\uc815 2\ud68c \uacf5\uaca9", "1\ud68c\ub2f9 \ud53c\ud574 \ubc94\uc704:", "\uc804\uccb4 \ud53c\ud574 \ubc94\uc704:"))
         return "피해 범위:" in text and "피해 비율:" in text
