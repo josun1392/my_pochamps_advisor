@@ -19208,3 +19208,9 @@ Maintained boundaries:
   emitted.
 - Headless controller/formatter coverage is used because the existing panel
   already receives that presentation text; widget lifecycle remains unchanged.
+
+## v15.68 known move accuracy evidence
+
+- Candidate-local canonical accuracy evidence now distinguishes numeric metadata,
+  always-hits, missing metadata, and unsupported dynamic mechanics without
+  calculating final hit probability or changing ranking.

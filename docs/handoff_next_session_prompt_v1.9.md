@@ -34,6 +34,11 @@ Multi-candidate smoke now asserts canonical result and formatter handoff without
 printing provider or UI text. Actual execution remains bounded to the approved
 fixture pair and no-retry call budget.
 
+## v15.68 known move accuracy evidence
+
+Candidate accuracy is now metadata-only, independent of damage/action order;
+100 accuracy and always-hit moves remain distinct. Provider evaluation is closed.
+
 ## v14.22 teardown lifecycle
 
 Window close invalidates active advice identity and suppresses late callbacks;

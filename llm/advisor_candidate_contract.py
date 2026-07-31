@@ -52,10 +52,22 @@ def _metadata_value(metadata: Any, name: str) -> Any:
 
 
 def _selected_move_from_metadata(move: str, metadata: Any) -> dict[str, Any]:
-    fields = ("category", "power", "type", "accuracy", "drain", "min_hits", "max_hits", "healing")
+    fields = ("category", "power", "type", "accuracy", "always_hit", "priority", "drain", "min_hits", "max_hits", "healing")
     selected = {"move_id": _metadata_value(metadata, "move_id") or move}
     selected.update({field: _metadata_value(metadata, field) for field in fields if _metadata_value(metadata, field) is not None})
     return selected
+
+
+def _accuracy_evidence(metadata: Any) -> dict[str, Any]:
+    """Expose canonical move accuracy without calculating final hit probability."""
+    if _metadata_value(metadata, "always_hit") is True:
+        return {"status": "always_hits", "canonical_accuracy": None, "outcome": "always_hits", "uncertainty": []}
+    accuracy = _metadata_value(metadata, "accuracy")
+    if isinstance(accuracy, (int, float)) and not isinstance(accuracy, bool) and 1 <= accuracy <= 100:
+        return {"status": "known_accuracy", "canonical_accuracy": accuracy, "outcome": "canonical_accuracy_only", "uncertainty": []}
+    if _metadata_value(metadata, "accuracy_mechanic") is not None or _metadata_value(metadata, "dynamic_accuracy") is True:
+        return {"status": "unsupported_mechanic", "canonical_accuracy": None, "outcome": None, "unsupported_reason": "dynamic_accuracy_mechanic"}
+    return {"status": "insufficient_context", "canonical_accuracy": None, "outcome": None, "uncertainty": ["canonical_accuracy_missing"]}
 
 
 def _dynamic_summary(context: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -199,7 +211,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     if not isinstance(metadata, Mapping) and not hasattr(metadata, "category"):
         return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","self_effects":[],"dynamic_move":None,"warnings":[],"unavailable_reasons":["move_metadata_unavailable"]}
     if _metadata_value(metadata, "category") == "status":
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"accuracy_evidence":_accuracy_evidence(metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
     snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
     selected_move = _selected_move_from_metadata(move, metadata)
     if turn_snapshot is not None:
@@ -230,6 +242,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     damage = _damage_summary(context)
     optional_outputs, self_effects, optional_reasons = _optional_outputs(context)
     optional_outputs["action_order"] = _action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories)
+    optional_outputs["accuracy_evidence"] = _accuracy_evidence(metadata)
     if dynamic_move is not None and dynamic_move["status"] != "resolved":
         reasons = ["required_dynamic_context_unavailable"]
         assessment = context.get(dynamic_move["assessment_key"]) if isinstance(context, Mapping) else None
@@ -375,6 +388,7 @@ def _comparison_facts(
     mechanics_status = mechanics.get("status") if isinstance(mechanics, Mapping) else "unavailable"
     action_order = candidate.get("action_order")
     action_order_status = action_order.get("status") if isinstance(action_order, Mapping) else "unavailable"
+    accuracy = candidate.get("accuracy_evidence")
     tags: list[str] = []
     evidence_refs: list[str] = []
     if isinstance(mechanics, Mapping):
@@ -409,6 +423,24 @@ def _comparison_facts(
             tags.append("acts_first_if_known")
         elif action_order_status == "speed_tie":
             tags.append("speed_tie")
+    if isinstance(accuracy, Mapping):
+        evidence_refs.append("accuracy_evidence")
+        if accuracy.get("status") == "always_hits":
+            tags.append("always_hits")
+        elif accuracy.get("status") == "insufficient_context":
+            tags.append("accuracy_unknown")
+        elif accuracy.get("status") == "unsupported_mechanic":
+            tags.append("accuracy_unsupported")
+        elif accuracy.get("status") == "known_accuracy":
+            value = _finite_number(accuracy.get("canonical_accuracy"))
+            known = [
+                _finite_number(other.get("accuracy_evidence", {}).get("canonical_accuracy"))
+                for other in candidates if isinstance(other, Mapping) and isinstance(other.get("accuracy_evidence"), Mapping) and other.get("accuracy_evidence", {}).get("status") == "known_accuracy"
+            ]
+            known = [item for item in known if item is not None]
+            if value is not None and len(known) >= 2:
+                if value == max(known) and value > min(known): tags.append("known_higher_canonical_accuracy")
+                if value == min(known) and value < max(known): tags.append("known_lower_canonical_accuracy")
     return {
         "candidate_id": pair,
         "mechanics_status": mechanics_status,
@@ -1013,6 +1045,7 @@ def _attach_validated_multi_selection(*, request: Mapping[str, Any], result: Map
         "selected_candidate_evidence": {
             "mechanics_result": deepcopy(dict(mechanics)),
             "action_order": deepcopy(dict(action_order)) if isinstance(action_order, Mapping) else None,
+            "accuracy_evidence": deepcopy(dict(selected["accuracy_evidence"])) if isinstance(selected.get("accuracy_evidence"), Mapping) else None,
             "comparison_facts": deepcopy(dict(facts)),
         },
         "uncertainty": {

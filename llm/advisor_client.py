@@ -502,8 +502,18 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
     order = {"acts_first": "선공 가능", "acts_second": "후공", "speed_tie": "동속"}.get(action_order.get("status") if isinstance(action_order, Mapping) else None)
     if order:
         lines.append(f"행동 순서: {order}")
+    accuracy = evidence.get("accuracy_evidence")
+    if isinstance(accuracy, Mapping):
+        if accuracy.get("status") == "known_accuracy" and isinstance(accuracy.get("canonical_accuracy"), (int, float)):
+            lines.append(f"기본 명중률: {accuracy['canonical_accuracy']}%")
+        elif accuracy.get("status") == "always_hits":
+            lines.append("기본 명중률: 항상 명중하는 기술")
+        elif accuracy.get("status") == "insufficient_context":
+            lines.append("기본 명중률: 확인할 수 없습니다.")
+        elif accuracy.get("status") == "unsupported_mechanic":
+            lines.append("기본 명중률: 현재 지원 범위 밖의 메커니즘입니다.")
     facts = evidence.get("comparison_facts")
-    labels = {"immune": "상대에게 무효", "possible_ohko": "1회 KO 가능", "guaranteed_ohko": "확정 1회 KO", "higher_native_damage_range": "더 높은 확정 피해 범위", "acts_first_if_known": "선공 가능", "speed_tie": "동속", "insufficient_mechanics_context": "계산 정보 부족", "unsupported_mechanic": "지원 범위 밖 메커니즘"}
+    labels = {"immune": "상대에게 무효", "possible_ohko": "1회 KO 가능", "guaranteed_ohko": "확정 1회 KO", "higher_native_damage_range": "더 높은 확정 피해 범위", "acts_first_if_known": "선공 가능", "speed_tie": "동속", "insufficient_mechanics_context": "계산 정보 부족", "unsupported_mechanic": "지원 범위 밖 메커니즘", "always_hits": "항상 명중", "known_higher_canonical_accuracy": "더 높은 기본 명중률", "known_lower_canonical_accuracy": "더 낮은 기본 명중률", "accuracy_unknown": "기본 명중률 정보 부족", "accuracy_unsupported": "기본 명중률 메커니즘 미지원"}
     if isinstance(facts, Mapping) and isinstance(facts.get("comparison_tags"), list):
         shown = [labels[tag] for tag in facts["comparison_tags"] if tag in labels]
         if shown:
