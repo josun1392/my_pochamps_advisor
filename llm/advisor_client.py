@@ -77,6 +77,7 @@ from llm.advisor_turn_snapshot import try_build_turn_snapshot_from_battle_input
 from llm.advisor_turn_events import build_optional_turn_pipeline_for_advice_payload
 from llm.token_logger import UNKNOWN_MODEL_OR_UNKNOWN_PRICING, TokenLogger
 from llm.advisor_candidate_contract import (
+    INCOMPLETE_DIRECT_MECHANICS_CLAIM_VALUES,
     adapt_provider_recommendation_response,
     build_provider_recommendation_payload,
     build_recommendation_presentation_model,
@@ -330,7 +331,7 @@ def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | 
     if statuses and all(status == "insufficient_context" for status in statuses):
         schema["properties"] = {
             "kind": {"type": "STRING", "enum": ["partial_context"]},
-            "claim": {"type": "STRING", "description": "State only missing deterministic context. Do not include damage, percent, KO, or other mechanics numbers."},
+            "claim": {"type": "STRING", "enum": sorted(INCOMPLETE_DIRECT_MECHANICS_CLAIM_VALUES), "description": "Choose exactly one value-free missing-context statement. Do not include damage, percent, KO, OHKO/2HKO, or other mechanics numbers."},
         }
     return schema
 

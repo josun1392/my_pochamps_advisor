@@ -139,6 +139,10 @@ def test_known_mechanics_numeric_claim_requires_exact_native_scope_and_insuffici
     unreferenced_numeric["primary_reasons"] = [{"kind": "partial_context", "claim": "1-2 damage"}]
     assert complete_recommendation_cycle(prepared_cycle=incomplete, response_payload=unreferenced_numeric)["errors"] == ["mechanics_numeric_claim_on_insufficient_context"]
 
+    numeric_free_mechanics_wording = _response(incomplete["recommendation_request"])
+    numeric_free_mechanics_wording["primary_reasons"] = [{"kind": "partial_context", "claim": "damage is unavailable"}]
+    assert complete_recommendation_cycle(prepared_cycle=incomplete, response_payload=numeric_free_mechanics_wording)["errors"] == ["mechanics_partial_context_claim_invalid"]
+
 
 def test_structured_provider_schema_requires_parser_claim_shape_and_mechanics_kind():
     from llm.advisor_client import _structured_provider_schema
@@ -174,6 +178,11 @@ def test_single_direct_mechanics_schema_keeps_dynamic_linkage_out_of_provider_en
     incomplete_claim = incomplete_schema["properties"]["primary_reasons"]["items"]
     assert incomplete_claim["properties"]["kind"]["enum"] == ["partial_context"]
     assert set(incomplete_claim["properties"]) == {"kind", "claim"}
+    assert set(incomplete_claim["properties"]["claim"]["enum"]) == {
+        "deterministic mechanics is incomplete",
+        "missing deterministic mechanics context",
+        "conditional advice requires missing mechanics context",
+    }
     assert incomplete_schema["properties"]["alternatives"]["items"]["properties"]["reason"] == incomplete_claim
     dependency_description = incomplete_schema["properties"]["mechanics_acknowledgements"]["items"]["properties"]["missing_inputs_path"]["description"]
     assert dependency_description.endswith(".mechanics_result.missing_inputs; otherwise use null.")

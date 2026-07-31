@@ -19134,3 +19134,13 @@ Maintained boundaries:
   conditional priority mechanics are explicitly unsupported; Speed stages,
   Tailwind, base Speed, item/ability inference, and provider activity are not
   used.
+
+## v15.61 incomplete direct-mechanics claim closure
+
+- The remaining incomplete-direct actual failure exposed an unrestricted
+  `partial_context.claim` string despite the state-aware claim kind/schema.
+  The provider and parser now share a bounded value-free missing-context claim
+  allowlist for all-insufficient direct-mechanics requests.
+- The exact missing-input acknowledgement dependency remains required. Known
+  direct-mechanics numeric scope/native-value validation, action-order
+  evidence, damage ranking, and provider retry policy are unchanged.

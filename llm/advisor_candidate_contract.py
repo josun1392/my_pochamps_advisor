@@ -577,6 +577,11 @@ def _comparison_for_pair(request: Mapping[str, Any], pair: Mapping[str, Any]) ->
 
 _NUMERIC_SCOPE_VALUES = frozenset({"damage_range", "damage_percent_range", "single_hit_probability"})
 _NUMERIC_LITERAL_PATTERN = re.compile(r"(?<![A-Za-z_])\d+(?:\.\d+)?")
+INCOMPLETE_DIRECT_MECHANICS_CLAIM_VALUES = frozenset({
+    "deterministic mechanics is incomplete",
+    "missing deterministic mechanics context",
+    "conditional advice requires missing mechanics context",
+})
 
 
 def _numeric_literals(claim: str) -> list[Decimal]:
@@ -628,6 +633,8 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path
             raise ValueError("mechanics_numeric_claim_on_insufficient_context" if numeric_claim else "mechanics_claim_on_insufficient_context")
         if numeric_claim or "mechanics_path" in reason or "numeric_scope" in reason:
             raise ValueError("mechanics_numeric_claim_on_insufficient_context")
+        if reason["claim"] not in INCOMPLETE_DIRECT_MECHANICS_CLAIM_VALUES:
+            raise ValueError("mechanics_partial_context_claim_invalid")
     claim_classification = _classify_claim(
         reason=reason,
         mechanics_known=mechanics_known,
