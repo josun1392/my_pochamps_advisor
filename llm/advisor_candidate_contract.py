@@ -987,6 +987,43 @@ def _bind_multi_provider_response(*, request: Mapping[str, Any], response: Mappi
     return {"recommendation_status": "resolved", "recommended_move": chosen["move"], "recommended_slot_index": selected, "primary_reasons": [{"kind": "mechanics", "claim": "deterministic ranking evidence"}], "risks": [], "alternatives": [], "grounding": {"schema_version": "grounding-v1", "confirmed_facts": [], "unknown_facts": [], "evidence_only": [], "conflicts": [], "conditional_dependencies": []}, "mechanics_acknowledgements": mechanics_acknowledgements, "ranking_acknowledgements": ranking_acknowledgements}
 
 
+def _attach_validated_multi_selection(*, request: Mapping[str, Any], result: Mapping[str, Any], explanation_code: str) -> dict[str, Any] | None:
+    """Attach only the selected request-start candidate's deterministic evidence."""
+    if result.get("status") != "resolved" or not isinstance(result.get("recommended_slot_index"), int):
+        return None
+    slot, move = result["recommended_slot_index"], result.get("recommended_move")
+    rows = request.get("candidate_comparisons")
+    if not isinstance(move, str) or not isinstance(rows, list):
+        return None
+    selected = next((row for row in rows if isinstance(row, Mapping) and row.get("slot_index") == slot and row.get("move") == move), None)
+    if not isinstance(selected, Mapping):
+        return None
+    facts = selected.get("comparison_facts")
+    mechanics = selected.get("mechanics_result")
+    if not isinstance(facts, Mapping) or facts.get("candidate_id") != {"slot_index": slot, "move": move} or not isinstance(mechanics, Mapping):
+        return None
+    action_order = selected.get("action_order")
+    if action_order is not None and not isinstance(action_order, Mapping):
+        return None
+    output = deepcopy(dict(result))
+    output.update({
+        "selected_candidate_id": slot,
+        "selected_action": {"slot_index": slot, "move": move},
+        "explanation_code": explanation_code,
+        "selected_candidate_evidence": {
+            "mechanics_result": deepcopy(dict(mechanics)),
+            "action_order": deepcopy(dict(action_order)) if isinstance(action_order, Mapping) else None,
+            "comparison_facts": deepcopy(dict(facts)),
+        },
+        "uncertainty": {
+            "mechanics_status": mechanics.get("status"),
+            "missing_inputs": deepcopy(mechanics.get("missing_inputs")) if isinstance(mechanics.get("missing_inputs"), list) else [],
+            "unsupported_reason": mechanics.get("unsupported_reason") if isinstance(mechanics.get("unsupported_reason"), str) else None,
+        },
+    })
+    return output
+
+
 def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response_payload: Mapping[str, Any]) -> dict[str, Any]:
     """Complete a ready provider-neutral cycle through the offline parser only."""
     if not isinstance(prepared_cycle, Mapping) or prepared_cycle.get("status") != "ready" or not isinstance(prepared_cycle.get("recommendation_request"), Mapping):
@@ -997,6 +1034,7 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
     request = prepared_cycle["recommendation_request"]
     mechanics_required = _request_has_mechanics_result(request)
     ranking_required = _request_has_multi_mechanics_ranking(request)
+    explanation_code = response_payload.get("explanation_code") if isinstance(response_payload, Mapping) else None
     if ranking_required:
         bound = _bind_multi_provider_response(request=request, response=response_payload)
         if bound is None:
@@ -1035,6 +1073,13 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
     result = parse_recommendation_response(request=request, response_payload=response_payload)
     if result["status"] == "validation_failed":
         return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=result.get("errors", ["response_validation_failed"]))
+    if ranking_required:
+        if not isinstance(explanation_code, str):
+            return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["multi_provider_binding_invalid"])
+        enriched = _attach_validated_multi_selection(request=request, result=result, explanation_code=explanation_code)
+        if enriched is None:
+            return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["validated_selection_resolution_invalid"])
+        result = enriched
     return _cycle_result(status=result["status"], candidates=candidates, evidence_bundle=evidence, recommendation_request=request, recommendation_result=result)
 
 
@@ -1444,6 +1489,7 @@ def build_recommendation_presentation_model(*, completed_cycle: Mapping[str, Any
         "risks": [],
         "alternatives": [],
         "candidate_summaries": [],
+        "selected_candidate": None,
         "errors": ["invalid_completed_cycle"],
     }
     if not isinstance(completed_cycle, Mapping):
@@ -1482,6 +1528,20 @@ def build_recommendation_presentation_model(*, completed_cycle: Mapping[str, Any
             "candidate_summaries": deepcopy(candidates),
             "errors": ["response_validation_failed"],
         }
+    selected_candidate = None
+    if approved["status"] == "resolved" and "selected_candidate_evidence" in result:
+        expected_action = {"slot_index": approved["recommended_slot_index"], "move": approved["recommended_move"]}
+        evidence = result.get("selected_candidate_evidence")
+        if result.get("selected_candidate_id") != approved["recommended_slot_index"] or result.get("selected_action") != expected_action or not isinstance(result.get("explanation_code"), str) or not isinstance(evidence, Mapping):
+            return {**empty, "candidate_summaries": deepcopy(candidates), "errors": ["response_validation_failed"]}
+        try:
+            selected_candidate = serialize_recommendation_request({
+                "selected_candidate_id": result["selected_candidate_id"], "selected_action": result["selected_action"],
+                "explanation_code": result["explanation_code"], "evidence": evidence,
+                "uncertainty": result.get("uncertainty", {}),
+            })
+        except (TypeError, ValueError):
+            return {**empty, "candidate_summaries": deepcopy(candidates), "errors": ["response_validation_failed"]}
     return {
         "status": approved["status"],
         "recommended_move": approved["recommended_move"],
@@ -1490,5 +1550,6 @@ def build_recommendation_presentation_model(*, completed_cycle: Mapping[str, Any
         "risks": deepcopy(approved["risks"]),
         "alternatives": deepcopy(approved["alternatives"]),
         "candidate_summaries": deepcopy(candidates),
+        "selected_candidate": selected_candidate,
         "errors": deepcopy(approved["errors"]),
     }

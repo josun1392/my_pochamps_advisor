@@ -19180,3 +19180,13 @@ Maintained boundaries:
   completion retains each slot/move's own mechanics and action-order evidence.
   Cross-candidate evidence is reported only by a bounded diagnostic. Offline
   validation precedes the separately authorized actual round.
+
+## v15.65 validated multi-candidate recommendation result
+
+- A validated multi-provider slot selection now resolves against request-start
+  candidate inventory and adds only the selected action's native mechanics,
+  action-order, comparison facts, bounded uncertainty, and explanation code to
+  the canonical recommendation result.
+- The UI-neutral presentation model exposes that copied selected-candidate
+  summary only after validation. Invalid selection produces no result, and
+  provider failure remains separate from mechanics insufficiency. Offline only.

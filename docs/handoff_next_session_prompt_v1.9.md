@@ -14,6 +14,13 @@ candidate ID plus bounded explanation code. Native numeric, action-order, and
 comparison evidence are bound and checked server-side per candidate. Actual
 execution requires its explicit two-call approval.
 
+## v15.65 validated multi-candidate recommendation result
+
+Validated multi-provider selection now resolves its request-start action and
+exposes only that candidate's deterministic evidence in the canonical result
+and UI-neutral presentation summary. Invalid selection has no stale fallback;
+provider evaluation remains closed for this slice.
+
 ## v14.22 teardown lifecycle
 
 Window close invalidates active advice identity and suppresses late callbacks;
