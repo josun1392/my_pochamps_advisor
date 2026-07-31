@@ -27,7 +27,8 @@ GROUNDING_FIXTURES = ("complete-multi-candidate-mechanics", "mixed-context-multi
 ACCURACY_FIXTURES = ("known-accuracy-multi-candidate", "mixed-accuracy-state-multi-candidate")
 STATUS_FIXTURES = ("mixed-damage-status-candidates", "mixed-status-state-candidates")
 CONSEQUENCE_FIXTURES = ("recoil-drain-consequence-candidates", "turn-terminal-consequence-candidates")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES})
+FIXED_HIT_FIXTURES = ("complete-fixed-hit-candidates", "mixed-fixed-variable-hit-candidates")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -76,12 +77,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "brave-bird"}, {"move_id": "drain-punch"}, {"move_id": "tackle"}], {"brave-bird": {"category": "physical", "power": 120, "type": "flying", "drain": -33, "priority": 0}, "drain-punch": {"category": "physical", "power": 75, "type": "fighting", "drain": 50, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     if fixture_id == CONSEQUENCE_FIXTURES[1]:
         return [{"move_id": "solar-beam"}, {"move_id": "hyper-beam"}, {"move_id": "explosion"}, {"move_id": "dynamic-consequence"}], {"solar-beam": {"category": "special", "power": 120, "type": "grass", "priority": 0}, "hyper-beam": {"category": "special", "power": 150, "type": "normal", "priority": 0}, "explosion": {"category": "physical", "power": 250, "type": "normal", "priority": 0}, "dynamic-consequence": {"category": "physical", "power": 1, "type": "normal", "dynamic_consequence": True, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == FIXED_HIT_FIXTURES[0]:
+        return [{"move_id": "double-hit"}, {"move_id": "slam"}], {"double-hit": {"category": "physical", "power": 60, "type": "normal", "min_hits": 2, "max_hits": 2, "priority": 0}, "slam": {"category": "physical", "power": 100, "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == FIXED_HIT_FIXTURES[1]:
+        return [{"move_id": "double-hit"}, {"move_id": "variable-hit"}, {"move_id": "broken-hit"}], {"double-hit": {"category": "physical", "power": 60, "type": "normal", "min_hits": 2, "max_hits": 2, "priority": 0}, "variable-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": 2, "max_hits": 5, "priority": 0}, "broken-hit": {"category": "physical", "power": 35, "type": "normal", "min_hits": "two", "max_hits": 2, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES})
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -143,6 +148,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == CONSEQUENCE_FIXTURES[1]:
         consequences = [row.get("move_consequence_evidence", {}) for row in rows if isinstance(row, Mapping)]
         return consequences[0].get("consequence_tags") == ["charge_turn"] and consequences[1].get("consequence_tags") == ["recharge_turn"] and consequences[2].get("consequence_tags") == ["self_faint"] and consequences[3].get("status") == "unsupported_mechanic"
+    if fixture_id == FIXED_HIT_FIXTURES[0]:
+        fixed = rows[0].get("mechanics_result", {}) if rows else {}
+        return fixed.get("status") == "known" and fixed.get("hit_count") == 2 and isinstance(fixed.get("per_hit_damage_range"), Mapping) and isinstance(fixed.get("damage_range"), Mapping) and rows[1].get("mechanics_result", {}).get("hit_count") == 1
+    if fixture_id == FIXED_HIT_FIXTURES[1]:
+        mechanics = [row.get("mechanics_result", {}) for row in rows if isinstance(row, Mapping)]
+        return mechanics[0].get("hit_count") == 2 and mechanics[1].get("unsupported_reason") == "variable_multi_hit_move" and mechanics[2].get("unsupported_reason") == "invalid_fixed_hit_count"
     return False
 
 
@@ -188,6 +199,8 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
         return False
     mechanics = selected.get("mechanics_result")
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
+        if fixture_id in FIXED_HIT_FIXTURES and mechanics.get("hit_count") == 2:
+            return all(label in text for label in ("\uace0\uc815 2\ud68c \uacf5\uaca9", "1\ud68c\ub2f9 \ud53c\ud574 \ubc94\uc704:", "\uc804\uccb4 \ud53c\ud574 \ubc94\uc704:"))
         return "피해 범위:" in text and "피해 비율:" in text
     accuracy = selected.get("accuracy_evidence")
     if isinstance(accuracy, Mapping) and accuracy.get("status") == "known_accuracy":

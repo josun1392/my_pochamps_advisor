@@ -19254,3 +19254,13 @@ Maintained boundaries:
   explicit per-hit evidence for presentation.
 - Variable hit counts and fixed-hit consequence accumulation remain unsupported;
   no expected damage or accuracy-adjusted result is calculated.
+
+## v15.74 fixed-hit provider grounding smoke
+
+- Added an approval-gated fixed two-hit/single-hit fixture and a fixed versus
+  variable/malformed multi-hit fixture. The smoke verifies candidate-local
+  per-hit versus total evidence before the call and selected-result/presentation
+  isolation afterward.
+- The provider schema remains selection plus bounded explanation only. Variable
+  and malformed hit counts stay unsupported; no expected or accuracy-adjusted
+  damage is requested or rendered.

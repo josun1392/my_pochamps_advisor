@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ACCURACY_FIXTURES, CONSEQUENCE_FIXTURES, EXIT, FIXTURES, GROUNDING_FIXTURES, STATUS_FIXTURES, _prepared, main, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ACCURACY_FIXTURES, CONSEQUENCE_FIXTURES, EXIT, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, STATUS_FIXTURES, _prepared, main, run_smoke
 
 
 def _code(rows, winner):
@@ -65,6 +65,21 @@ def test_consequence_fixture_pair_keeps_canonical_tags_candidate_local():
     assert [row["move_consequence_evidence"]["status"] for row in terminal] == ["known", "known", "known", "unsupported_mechanic"]
 
 
+def test_fixed_hit_fixture_pair_preserves_per_hit_total_and_variable_hit_boundary():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXED_HIT_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    complete = _prepared(FIXED_HIT_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    fixed = complete[0]["mechanics_result"]
+    assert fixed["hit_count"] == 2
+    assert isinstance(fixed["per_hit_damage_range"], dict)
+    assert isinstance(fixed["damage_range"], dict)
+    assert complete[0]["mechanics_comparison"]["rank"] == 1
+    assert complete[1]["mechanics_result"]["hit_count"] == 1
+    mixed = _prepared(FIXED_HIT_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert mixed[0]["mechanics_result"]["hit_count"] == 2
+    assert [row["mechanics_result"].get("unsupported_reason") for row in mixed[1:]] == ["variable_multi_hit_move", "invalid_fixed_hit_count"]
+
+
 def test_cli_allows_only_the_bounded_multi_candidate_fixture_pair(capsys):
     def adapters(*, model):
         assert model == "gemini-2.5-flash"
@@ -80,6 +95,15 @@ def test_cli_allows_the_bounded_status_fixture_pair(capsys):
         return (lambda: True), _response
 
     assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *STATUS_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
+
+
+def test_cli_allows_the_bounded_fixed_hit_fixture_pair(capsys):
+    def adapters(*, model):
+        assert model == "gemini-2.5-flash"
+        return (lambda: True), _response
+
+    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *FIXED_HIT_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
