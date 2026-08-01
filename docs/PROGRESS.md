@@ -19351,3 +19351,16 @@ Maintained boundaries:
   variants remain provider-free. The actual schema stays selection plus a
   bounded explanation; completed result and presentation expose only the
   selected candidate's allowed item label.
+
+## v15.83 known defender-ability damage modifiers
+
+- Formula-damage candidates now use only an explicit request-start opponent
+  ability for the static Thick Fat, Fur Coat, Ice Scales, or Filter reduction
+  that canonically matches the move. The existing Q12 defender-ability hooks
+  retain modifier ordering and integer rounding; fixed-hit applies the
+  resulting per-hit rolls before exact convolution.
+- Unknown opponent ability remains insufficient and a known ability outside
+  this bounded allowlist remains unsupported. Level-based fixed damage stays
+  outside ordinary defender modifiers. Only an applied candidate-local label
+  reaches the selected result and presentation; no provider or network call is
+  part of this offline slice.

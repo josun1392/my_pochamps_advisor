@@ -42,7 +42,7 @@ def _direct_result(battle):
     return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
 
 
-def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None):
+def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_ability=None, defender_types=None):
     """Exercise only the frozen request-start modifier authority inputs."""
     battle = _battle()
     battle["moves"]["my_available_moves"][0]["move_id"] = move_id
@@ -70,7 +70,13 @@ def _modifier_result(*, category="physical", move_type="normal", move_id="tackle
         current["direct_mechanics_context"]["attacker"]["ability"] = {"status": "unknown"}
     elif ability is not None:
         current["ability_context"] = {"current_abilities": [{"side": "self", "ability": ability}]}
-    return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+    if defender_ability is not None:
+        entries = current.setdefault("ability_context", {}).setdefault("current_abilities", [])
+        entries.append({"side": "opponent", "ability": defender_ability})
+    provenance = build_snapshot_stat_provenance(snapshot, species_repository=_Species())
+    if defender_types is not None:
+        provenance["defender"]["types"] = {"available": True, "value": defender_types}
+    return evaluate_direct_damage_mechanics(damage, stat_provenance=provenance, trusted_level=50)
 
 
 def test_complete_direct_input_returns_native_damage_type_and_ko_result():
@@ -470,6 +476,46 @@ def test_static_item_modifier_composes_with_existing_modifiers_and_fixed_hit_but
     assert "applied_damage_modifiers" not in result
 
 
+def test_static_defender_ability_modifiers_apply_only_to_matching_candidates():
+    fire_baseline = _modifier_result(category="special", move_type="fire", weather="none", side_effects=[])
+    thick_fat = _modifier_result(category="special", move_type="fire", weather="none", side_effects=[], defender_ability="thick-fat")
+    thick_fat_mismatch = _modifier_result(category="special", move_type="water", weather="none", side_effects=[], defender_ability="thick-fat")
+    fur_coat_physical = _modifier_result(weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}], defender_ability="fur-coat")
+    fur_coat_special = _modifier_result(category="special", weather="none", side_effects=[], defender_ability="fur-coat")
+    ice_scales_special = _modifier_result(category="special", weather="none", side_effects=[], defender_ability="ice-scales")
+    filter_super = _modifier_result(category="special", move_type="electric", weather="none", side_effects=[], defender_ability="filter", defender_types=["water"])
+    filter_neutral = _modifier_result(category="special", weather="none", side_effects=[], defender_ability="filter")
+    assert thick_fat["damage_range"]["maximum"] < fire_baseline["damage_range"]["maximum"]
+    assert "defender_ability_thick_fat_reduction" in thick_fat["applied_damage_modifiers"]
+    assert thick_fat_mismatch["applied_damage_modifiers"] == []
+    assert "defender_ability_fur_coat_reduction" in fur_coat_physical["applied_damage_modifiers"]
+    assert fur_coat_special["applied_damage_modifiers"] == []
+    assert "defender_ability_ice_scales_reduction" in ice_scales_special["applied_damage_modifiers"]
+    assert "defender_ability_filter_reduction" in filter_super["applied_damage_modifiers"]
+    assert filter_neutral["applied_damage_modifiers"] == []
+
+
+def test_defender_ability_authority_fails_closed_and_fixed_damage_does_not_require_it():
+    unknown = _modifier_result(defender_ability="unknown")
+    unsupported = _modifier_result(defender_ability="solid-rock")
+    malformed = _modifier_result(defender_ability="bad/ability")
+    fixed_hit = _modifier_result(move_id="double-hit", min_hits=2, max_hits=2, conditions=[{"side": "self", "condition_type": "none"}], defender_ability="fur-coat")
+    assert unknown["status"] == "insufficient_context" and unknown["missing_inputs"] == ["defender.ability"]
+    assert unsupported["status"] == "unsupported_mechanic" and unsupported["unsupported_reason"] == "defender_ability_modifier"
+    assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "defender_ability_modifier"
+    assert fixed_hit["status"] == "known" and fixed_hit["hit_count"] == 2
+    assert "defender_ability_fur_coat_reduction" in fixed_hit["applied_damage_modifiers"]
+
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = "seismic-toss"
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("seismic-toss",))
+    damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id="seismic-toss", selectable_moves=("seismic-toss",), move_metadata={"category": "physical", "type": "normal"})
+    damage["battle_context"]["current_state"]["ability_context"] = {"current_abilities": [{"side": "opponent", "ability": "fur-coat"}]}
+    result = evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+    assert result["status"] == "known" and result["damage_model"] == "level_based_fixed"
+    assert "applied_damage_modifiers" not in result
+
+
 def test_request_start_self_ability_reaches_only_matching_candidate_and_presentation():
     battle = _battle()
     battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "mach-punch"}, {"slot_index": 1, "move_id": "tackle"}]
@@ -508,6 +554,28 @@ def test_request_start_self_item_reaches_only_matching_candidate_and_presentatio
     text = format_recommendation_presentation_text(presentation_model=build_recommendation_presentation_model(completed_cycle=completed))
     assert "\uad6c\uc560\uc758\ubc34\ub4dc \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac15\ud654" in text
     assert "item_choice_band_boost" not in text
+
+
+def test_request_start_opponent_ability_reaches_only_matching_candidate_and_presentation():
+    battle = _battle()
+    battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "tackle"}, {"slot_index": 1, "move_id": "swift"}]
+    battle["ability_context"] = {"current_abilities": [{
+        "side": "opponent", "ability": "fur-coat", "status": "user_confirmed",
+        "source": "user_confirmed_current_ability", "confidence": "known",
+        "provenance": {**_provenance("opponent", 1, "eevee"), "source": "user_confirmed_current_ability"},
+    }]}
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "tackle"}, {"move_id": "swift"}], battle_input=battle,
+        move_repository={"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "swift": {"category": "special", "power": 60, "type": "normal", "priority": 0}}, species_repository=_Species(),
+    )
+    candidates = prepared["candidates"]
+    assert candidates[0]["mechanics_result"]["applied_damage_modifiers"] == ["defender_ability_fur_coat_reduction"]
+    assert candidates[1]["mechanics_result"]["status"] == "known"
+    assert candidates[1]["mechanics_result"]["applied_damage_modifiers"] == []
+    completed = complete_recommendation_cycle(prepared_cycle=prepared, response_payload={"recommendation_status": "resolved", "selected_candidate_id": 1, "explanation_code": "clear_ranked_winner"})
+    text = format_recommendation_presentation_text(presentation_model=build_recommendation_presentation_model(completed_cycle=completed))
+    assert "\ud37c\ucf54\ud2b8 \ud2b9\uc131\uc73c\ub85c \ubb3c\ub9ac \ud53c\ud574 \uac10\uc18c" not in text
+    assert "defender_ability_fur_coat_reduction" not in text
 
 
 def test_presentation_exposes_only_selected_candidate_applied_modifier_labels():

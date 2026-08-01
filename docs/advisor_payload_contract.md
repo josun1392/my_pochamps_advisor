@@ -3592,6 +3592,20 @@ the selected candidate and bounded explanation code. Unknown/default item
 states, malformed identities, and known unsupported items are exercised
 offline only; they never authorize an item-free formula result.
 
+## v15.83 known defender-ability modifiers
+
+Formula-damage `mechanics_result.applied_damage_modifiers` may additionally
+contain one server-generated target-ability reduction tag: Thick Fat for Fire
+or Ice, Fur Coat for physical damage, Ice Scales for special damage, or Filter
+for super-effective damage. The tag exists only when the request-start
+opponent ability and canonical move condition both match. Q12 remains the
+authority for the modifier chain and rounding; fixed-hit retains the tag after
+per-hit evaluation and exact convolution. Level-based fixed damage has no
+ordinary defender-ability modifier tag. Unknown target ability remains
+insufficient context and known unsupported ability remains unsupported
+mechanics, never a no-effect default. Provider output remains selection plus a
+bounded explanation only.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics

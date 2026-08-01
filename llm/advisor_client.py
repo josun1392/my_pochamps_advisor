@@ -522,6 +522,10 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
             "item_choice_band_boost": "\uad6c\uc560\uc758\ubc34\ub4dc \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac15\ud654",
             "item_choice_specs_boost": "\uad6c\uc560\uc758\uc548\uacbd \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ud2b9\uc218 \ud53c\ud574 \uac15\ud654",
             "item_muscle_band_boost": "\uadfc\ub825\ubc34\ub4dc \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac15\ud654",
+            "defender_ability_thick_fat_reduction": "\ub450\uaebc\uc6b4\uc9c0\ubc29 \ud2b9\uc131\uc73c\ub85c \ubd88\uaf43 \ub610\ub294 \uc5bc\uc74c \uae30\uc220 \ud53c\ud574 \uac10\uc18c",
+            "defender_ability_fur_coat_reduction": "\ud37c\ucf54\ud2b8 \ud2b9\uc131\uc73c\ub85c \ubb3c\ub9ac \ud53c\ud574 \uac10\uc18c",
+            "defender_ability_ice_scales_reduction": "\uc544\uc774\uc2a4\uc2a4\ucf00\uc77c \ud2b9\uc131\uc73c\ub85c \ud2b9\uc218 \ud53c\ud574 \uac10\uc18c",
+            "defender_ability_filter_reduction": "\ud544\ud130 \ud2b9\uc131\uc73c\ub85c \uc57d\uc810 \uae30\uc220 \ud53c\ud574 \uac10\uc18c",
         }
         applied = mechanics.get("applied_damage_modifiers")
         if isinstance(applied, list):
