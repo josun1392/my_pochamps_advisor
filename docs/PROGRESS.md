@@ -19340,3 +19340,14 @@ Maintained boundaries:
   the allowlist remain unsupported. Only an applied candidate-local tag reaches
   the selected result and presentation; no item activation, consumption, or
   recoil calculation is added.
+
+## v15.82 held-item modifier grounding smoke
+
+- Added an approval-gated pair for matching Choice Band formula/fixed-hit
+  candidates with a level-fixed control, and for a known unsupported item with
+  the same level-fixed control. Pre-call checks preserve candidate-local tags,
+  exact native damage evidence, and no modifier on level-based fixed damage.
+- Unknown, malformed, system-default, explicit no-item, and all-unusable
+  variants remain provider-free. The actual schema stays selection plus a
+  bounded explanation; completed result and presentation expose only the
+  selected candidate's allowed item label.

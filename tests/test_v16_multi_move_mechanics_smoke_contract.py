@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, CONSEQUENCE_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, MODIFIER_FIXTURES, STATUS_FIXTURES, _prepared, main, offline_ability_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, CONSEQUENCE_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, STATUS_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -133,6 +133,31 @@ def test_offline_ability_authority_variants_never_call_provider_or_default_to_ab
     assert variants["no_usable_cycle_status"] == "no_selectable_candidates"
 
 
+def test_item_fixture_pair_preserves_matching_fixed_hit_and_level_fixed_control():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=ITEM_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    supported = _prepared(ITEM_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert [row["mechanics_result"].get("applied_damage_modifiers") for row in supported] == [["item_choice_band_boost"], ["item_choice_band_boost"], [], None]
+    assert [row["mechanics_comparison"]["rank"] for row in supported] == [1, 2, 3, 4]
+    unsupported = _prepared(ITEM_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert unsupported[0]["mechanics_result"]["unsupported_reason"] == "item_modifier"
+    assert unsupported[1]["mechanics_result"]["damage_model"] == "level_based_fixed"
+    assert unsupported[1]["mechanics_comparison"]["rank"] == 1
+
+
+def test_offline_item_authority_variants_never_call_provider_or_default_to_absence():
+    variants = offline_item_authority_variants()
+    assert variants["provider_calls"] == 0
+    assert variants["variants"] == {
+        "unknown": {"cycle_status": "ready", "mechanics_status": "insufficient_context", "rank": None},
+        "malformed": {"cycle_status": "ready", "mechanics_status": "unsupported_mechanic", "rank": None},
+        "explicit_none": {"cycle_status": "ready", "mechanics_status": "known", "rank": 1},
+        "system_default": {"cycle_status": "ready", "mechanics_status": "insufficient_context", "rank": None},
+        "unsupported": {"cycle_status": "ready", "mechanics_status": "unsupported_mechanic", "rank": None},
+    }
+    assert variants["no_usable_cycle_status"] == "ready"
+
+
 def test_cli_allows_only_the_bounded_multi_candidate_fixture_pair(capsys):
     def adapters(*, model):
         assert model == "gemini-2.5-flash"
@@ -184,6 +209,15 @@ def test_cli_allows_the_bounded_ability_fixture_pair(capsys):
         return (lambda: True), _response
 
     assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *ABILITY_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
+
+
+def test_cli_allows_the_bounded_item_fixture_pair(capsys):
+    def adapters(*, model):
+        assert model == "gemini-2.5-flash"
+        return (lambda: True), _response
+
+    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *ITEM_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 

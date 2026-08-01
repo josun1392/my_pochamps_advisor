@@ -31,7 +31,8 @@ FIXED_HIT_FIXTURES = ("complete-fixed-hit-candidates", "mixed-fixed-variable-hit
 FIXED_DAMAGE_FIXTURES = ("complete-level-fixed-damage-candidates", "mixed-fixed-damage-state-candidates")
 MODIFIER_FIXTURES = ("combined-known-damage-modifiers", "mixed-modifier-authority-states")
 ABILITY_FIXTURES = ("supported-attacker-ability-candidates", "unsupported-ability-with-level-fixed-control")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES})
+ITEM_FIXTURES = ("supported-held-item-candidates", "unsupported-item-with-level-fixed-control")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -97,12 +98,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "mach-punch"}, {"move_id": "tackle"}, {"move_id": "seismic-toss"}], {"mach-punch": {"category": "physical", "power": 40, "type": "fighting", "priority": 1}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
     if fixture_id == ABILITY_FIXTURES[1]:
         return [{"move_id": "tackle"}, {"move_id": "seismic-toss"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
+    if fixture_id == ITEM_FIXTURES[0]:
+        return [{"move_id": "double-hit"}, {"move_id": "tackle"}, {"move_id": "swift"}, {"move_id": "seismic-toss"}], {"double-hit": {"category": "physical", "power": 60, "type": "normal", "min_hits": 2, "max_hits": 2, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "swift": {"category": "special", "power": 60, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
+    if fixture_id == ITEM_FIXTURES[1]:
+        return [{"move_id": "tackle"}, {"move_id": "seismic-toss"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -124,6 +129,11 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
         battle["ability_context"] = {"current_abilities": [_current_ability("iron-fist")]}
     if fixture_id == ABILITY_FIXTURES[1]:
         battle["ability_context"] = {"current_abilities": [_current_ability("guts")]}
+    if fixture_id == ITEM_FIXTURES[0]:
+        battle["trusted_level_context"]["current_levels"][0]["value"] = 1
+        battle["item_profiles"] = {"my_active": {"status": "user_confirmed", "source": "user_input", "item_id": "choice-band"}}
+    if fixture_id == ITEM_FIXTURES[1]:
+        battle["item_profiles"] = {"my_active": {"status": "user_confirmed", "source": "user_input", "item_id": "choice-scarf"}}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -150,6 +160,35 @@ def offline_ability_authority_variants() -> dict[str, Any]:
     no_usable_battle = _battle(known_action_order=True)
     no_usable_battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "missing"}]
     no_usable = prepare_ui_recommendation_cycle(selected_moves=[{"move_id": "missing"}], battle_input=no_usable_battle, move_repository={}, species_repository=_Species())
+    return {"provider_calls": 0, "variants": variants, "no_usable_cycle_status": no_usable.get("status")}
+
+
+def offline_item_authority_variants() -> dict[str, Any]:
+    """Exercise non-provider item states without converting them to no-item."""
+    variants: dict[str, dict[str, Any]] = {}
+    profiles = {
+        "unknown": {"status": "unknown", "source": "user_unconfirmed", "item_id": None},
+        "malformed": {"status": "user_confirmed", "source": "user_input", "item_id": "bad/item"},
+        "explicit_none": {"status": "none", "source": "user_input", "item_id": None},
+        "system_default": {"status": "system_default_none", "source": "system_default", "item_id": None},
+        "unsupported": {"status": "user_confirmed", "source": "user_input", "item_id": "choice-scarf"},
+    }
+    for name, profile in profiles.items():
+        battle = _battle(known_action_order=True)
+        battle["item_profiles"] = {"my_active": profile}
+        battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "tackle"}]
+        prepared = prepare_ui_recommendation_cycle(
+            selected_moves=[{"move_id": "tackle"}], battle_input=battle,
+            move_repository={"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}, species_repository=_Species(),
+        )
+        rows = prepared.get("recommendation_request", {}).get("candidate_comparisons", []) if isinstance(prepared.get("recommendation_request"), Mapping) else []
+        mechanics = rows[0].get("mechanics_result", {}) if isinstance(rows, list) and rows and isinstance(rows[0], Mapping) else {}
+        comparison = rows[0].get("mechanics_comparison", {}) if isinstance(rows, list) and rows and isinstance(rows[0], Mapping) else {}
+        variants[name] = {"cycle_status": prepared.get("status"), "mechanics_status": mechanics.get("status"), "rank": comparison.get("rank")}
+    no_usable = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "tackle"}], battle_input={**_battle(known_action_order=True), "item_profiles": {"my_active": profiles["unsupported"]}, "moves": {"my_available_moves": [{"slot_index": 0, "move_id": "tackle"}]}},
+        move_repository={"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}, species_repository=_Species(),
+    )
     return {"provider_calls": 0, "variants": variants, "no_usable_cycle_status": no_usable.get("status")}
 
 
@@ -234,6 +273,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == ABILITY_FIXTURES[1]:
         unsupported, fixed = [row.get("mechanics_result", {}) for row in rows]
         return [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [None, 1] and unsupported.get("status") == "unsupported_mechanic" and unsupported.get("unsupported_reason") == "ability_modifier" and fixed.get("status") == "known" and fixed.get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in fixed
+    if fixture_id == ITEM_FIXTURES[0]:
+        fixed_hit, matching, nonmatching, level_fixed = [row.get("mechanics_result", {}) for row in rows]
+        return [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [1, 2, 3, 4] and fixed_hit.get("status") == matching.get("status") == nonmatching.get("status") == level_fixed.get("status") == "known" and fixed_hit.get("hit_count") == 2 and fixed_hit.get("applied_damage_modifiers") == ["item_choice_band_boost"] and matching.get("applied_damage_modifiers") == ["item_choice_band_boost"] and nonmatching.get("applied_damage_modifiers") == [] and level_fixed.get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in level_fixed
+    if fixture_id == ITEM_FIXTURES[1]:
+        unsupported, fixed = [row.get("mechanics_result", {}) for row in rows]
+        return [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [None, 1] and unsupported.get("status") == "unsupported_mechanic" and unsupported.get("unsupported_reason") == "item_modifier" and fixed.get("status") == "known" and fixed.get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in fixed
     return False
 
 
@@ -289,6 +334,17 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
         if fixture_id == ABILITY_FIXTURES[0]:
             return isinstance(applied, list) and applied == ["ability_iron_fist_boost"] and ability_labels["ability_iron_fist_boost"] in text and all(tag not in text for tag in ability_labels)
         return isinstance(mechanics, Mapping) and mechanics.get("damage_model") == "level_based_fixed" and not any(label in text for label in ability_labels.values())
+    if fixture_id in ITEM_FIXTURES:
+        item_labels = {
+            "item_life_orb_boost": "\uc0dd\uba85\uc758\uad6c\uc2ac \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ud53c\ud574 \uac15\ud654",
+            "item_choice_band_boost": "\uad6c\uc560\uc758\ubc34\ub4dc \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac15\ud654",
+            "item_choice_specs_boost": "\uad6c\uc560\uc758\uc548\uacbd \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ud2b9\uc218 \ud53c\ud574 \uac15\ud654",
+            "item_muscle_band_boost": "\uadfc\ub825\ubc34\ub4dc \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac15\ud654",
+        }
+        applied = mechanics.get("applied_damage_modifiers") if isinstance(mechanics, Mapping) else None
+        if fixture_id == ITEM_FIXTURES[0]:
+            return isinstance(applied, list) and applied == ["item_choice_band_boost"] and item_labels["item_choice_band_boost"] in text and all(tag not in text for tag in item_labels)
+        return isinstance(mechanics, Mapping) and mechanics.get("damage_model") == "level_based_fixed" and not any(label in text for label in item_labels.values())
     if fixture_id in MODIFIER_FIXTURES:
         applied = mechanics.get("applied_damage_modifiers") if isinstance(mechanics, Mapping) else None
         labels = {

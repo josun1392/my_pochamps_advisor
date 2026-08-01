@@ -3583,6 +3583,15 @@ not a no-item assumption. Category-mismatched supported items add no tag;
 known items outside the allowlist remain unsupported. The provider never
 receives item multiplier, activation, consumption, or recoil authority.
 
+## v15.82 held-item grounding smoke
+
+The held-item smoke pair validates server-owned item evidence before calling
+the provider and verifies the completed selected result and presentation use
+the same candidate-local evidence. The provider response remains limited to
+the selected candidate and bounded explanation code. Unknown/default item
+states, malformed identities, and known unsupported items are exercised
+offline only; they never authorize an item-free formula result.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics
