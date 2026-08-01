@@ -507,6 +507,10 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
         if isinstance(ko, Mapping) and isinstance(ko.get("single_hit_probability"), (int, float)):
             lines.append(f"1회 KO 확률: {ko['single_hit_probability'] * 100:g}%")
         modifier_labels = {
+            "terrain_electric_boost": "일렉트릭필드로 전기 기술 피해 강화",
+            "terrain_grassy_boost": "그래스필드로 풀 기술 피해 강화",
+            "terrain_psychic_boost": "사이코필드로 에스퍼 기술 피해 강화",
+            "terrain_misty_dragon_reduction": "미스트필드로 드래곤 기술 피해 감소",
             "rain_water_boost": "\ube44\ub85c \uc778\ud55c \ubb3c\ud0c0\uc785 \uae30\uc220 \uac15\ud654",
             "rain_fire_reduction": "\ube44\ub85c \uc778\ud55c \ubd88\uaf43\ud0c0\uc785 \uae30\uc220 \uc57d\ud654",
             "sun_fire_boost": "\ub9d1\uc740 \ub0a0\uc528\ub85c \uc778\ud55c \ubd88\uaf43\ud0c0\uc785 \uae30\uc220 \uac15\ud654",

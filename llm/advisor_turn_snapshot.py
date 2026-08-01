@@ -14,7 +14,7 @@ from llm.advisor_runtime_state_projection import normalize_runtime_advice_state_
 
 RICH_CURRENT_STATE_KEYS = (
     "current_hp_context", "condition_context", "ability_context", "stat_stage_context",
-    "field_state_context", "item_event_context", "final_stat_context",
+    "field_state_context", "grounded_context", "item_event_context", "final_stat_context",
     "battle_format_context", "observed_previous_damage_context", "battle_counter_context",
     "consecutive_use_context", "weight_context", "turn_event_context", "trusted_level_context",
     "observed_damage_context",
@@ -1046,7 +1046,7 @@ def _normalize_context_provenance(
     pokemon: Mapping[str, Any], session_id: str | None,
 ) -> dict[str, Any] | None:
     """Keep field state directly; never auto-attach unproven scoped legacy facts."""
-    if context_key in FIELD_SCOPED_CONTEXT_KEYS:
+    if context_key in FIELD_SCOPED_CONTEXT_KEYS or context_key == "grounded_context":
         _validate_current_state_ownership(value, active_slots=active_slots, session_id=session_id)
         return dict(value)
     if context_key == "direct_mechanics_context":

@@ -390,6 +390,7 @@ class MainWindow(QMainWindow):
         self._structured_ability_confirmations: dict[str, dict] = {}
         self._current_stat_stage_confirmations: dict[tuple[str, str], dict] = {}
         self._current_field_state_confirmation: dict | None = None
+        self._grounded_context_confirmation = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
         self._current_final_stat_confirmations: dict[tuple[str, str], dict] = {}
         self._structured_final_stat_confirmations: dict[tuple[str, str], dict] = {}
         self._current_hp_confirmations: dict[str, dict] = {}
@@ -698,7 +699,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def _open_current_field_state_dialog(self) -> None:
         current_field = getattr(self, "_current_field_state_confirmation", None)
-        dialog = CurrentFieldStateDialog(current_field=current_field, parent=self)
+        dialog = CurrentFieldStateDialog(current_field=current_field, grounded_context=getattr(self, "_grounded_context_confirmation", None), parent=self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         snapshot = dialog.current_field_state_confirmation
@@ -706,6 +707,14 @@ class MainWindow(QMainWindow):
             return
         try:
             self._current_field_state_confirmation = normalize_user_confirmed_current_field_state(snapshot)
+            self._grounded_context_confirmation = getattr(dialog, "grounded_context_confirmation", None) or getattr(
+                self,
+                "_grounded_context_confirmation",
+                {
+                    "self": {"status": "unknown", "provenance": "unknown"},
+                    "opponent": {"status": "unknown", "provenance": "unknown"},
+                },
+            )
         except ValueError:
             return
         self._update_current_field_state_summary()
@@ -713,6 +722,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def _clear_current_field_state_confirmation(self) -> None:
         self._current_field_state_confirmation = None
+        self._grounded_context_confirmation = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
         self._update_current_field_state_summary()
 
     @Slot()
@@ -981,6 +991,7 @@ class MainWindow(QMainWindow):
         self._structured_observed_damage_confirmations = []
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
+        self._grounded_context_confirmation = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
         self._battle_counter_confirmation = None
         self._consecutive_use_confirmation = None
         self._reset_battle_presentation()
@@ -1647,6 +1658,7 @@ class MainWindow(QMainWindow):
                     battle_input["current_field_state_confirmation"] = (
                         normalize_user_confirmed_current_field_state(snapshot)
                     )
+                    battle_input["grounded_context"] = deepcopy(getattr(self, "_grounded_context_confirmation", {}))
                 except ValueError:
                     pass
         if include_current_battle_format_confirmation:

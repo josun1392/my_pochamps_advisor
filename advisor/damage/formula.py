@@ -77,6 +77,8 @@ class DamageContext:
     field: Field = dataclass_field(default_factory=Field)
     attacker_grounded_inputs: GroundedInputs | None = None
     defender_grounded_inputs: GroundedInputs | None = None
+    attacker_grounded: bool | None = None
+    defender_grounded: bool | None = None
     bypass_screens: bool = False
     breaks_screens: bool = False
     attacker_tera_type: str | None = None
@@ -160,11 +162,11 @@ def calc_damage_rolls(
         defender_grounded_inputs,
         ability=eff_defender_ability.ability_id if eff_defender_ability else None,
     )
-    attacker_grounded = is_grounded(
+    attacker_grounded = ctx.attacker_grounded if ctx.attacker_grounded is not None else is_grounded(
         attacker_grounded_inputs,
         field,
     )
-    defender_grounded = is_grounded(
+    defender_grounded = ctx.defender_grounded if ctx.defender_grounded is not None else is_grounded(
         defender_grounded_inputs,
         field,
     )

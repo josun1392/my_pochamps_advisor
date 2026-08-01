@@ -642,3 +642,34 @@ def test_request_start_field_snapshot_reaches_candidate_result_and_presentation(
         presentation_model=build_recommendation_presentation_model(completed_cycle=completed)
     )
     assert "\ube44\ub85c \uc778\ud55c \ubb3c\ud0c0\uc785 \uae30\uc220 \uac15\ud654" in text
+
+
+def test_request_start_grounded_terrain_reaches_only_the_matching_candidate_and_presentation():
+    battle = _battle()
+    battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "thunderbolt"}, {"slot_index": 1, "move_id": "tackle"}]
+    battle["field_state_context"] = {
+        "current_field": {
+            "weather": "none", "terrain": "electric", "global_effects": [], "side_effects": [],
+            "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known",
+        }
+    }
+    battle["grounded_context"] = {
+        "self": {"status": "known_grounded", "provenance": "user_confirmed_current"},
+        "opponent": {"status": "unknown", "provenance": "unknown"},
+    }
+    battle["condition_context"] = {"current_conditions": [{"side": "self", "condition_type": "none"}]}
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "thunderbolt"}, {"move_id": "tackle"}], battle_input=battle,
+        move_repository={"thunderbolt": {"category": "special", "power": 90, "type": "electric", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}},
+        species_repository=_Species(),
+    )
+    assert prepared["candidates"][0]["mechanics_result"]["applied_damage_modifiers"] == ["terrain_electric_boost"]
+    assert prepared["candidates"][1]["mechanics_result"]["applied_damage_modifiers"] == []
+    completed = complete_recommendation_cycle(
+        prepared_cycle=prepared,
+        response_payload={"recommendation_status": "resolved", "selected_candidate_id": 0, "explanation_code": "clear_ranked_winner"},
+    )
+    text = format_recommendation_presentation_text(
+        presentation_model=build_recommendation_presentation_model(completed_cycle=completed)
+    )
+    assert "\uc77c\ub809\ud2b8\ub9ad\ud544\ub4dc\ub85c \uc804\uae30 \uae30\uc220 \ud53c\ud574 \uac15\ud654" in text

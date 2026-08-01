@@ -43,6 +43,19 @@ def test_field_dialog_apply_readback_and_snapshot_normalization() -> None:
     assert dialog.current_field_state_confirmation["confidence"] == "known"
 
 
+def test_grounded_confirmation_is_explicit_and_unknown_by_default() -> None:
+    QApplication.instance() or QApplication([])
+    dialog = CurrentFieldStateDialog(current_field=_field())
+    assert dialog.grounded_context_confirmation is None
+    dialog.self_grounded.setCurrentText("known_grounded")
+    dialog.opponent_grounded.setCurrentText("known_ungrounded")
+    dialog._save()
+    assert dialog.grounded_context_confirmation == {
+        "self": {"status": "known_grounded", "provenance": "user_confirmed_current"},
+        "opponent": {"status": "known_ungrounded", "provenance": "user_confirmed_current"},
+    }
+
+
 def test_field_session_apply_cancel_clear_and_count(monkeypatch) -> None:
     window, panel = _window()
     dialogs = [_FakeDialog(_field()), _FakeDialog(_field("sun")), _FakeDialog(_field("snow"), accepted=False)]

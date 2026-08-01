@@ -158,7 +158,8 @@ def evaluate_direct_damage_mechanics(
     field = _mapping(direct.get("field"))
     if not modifier.get("weather_known"):
         _require_known_absent(field.get("weather"), "field.weather", missing)
-    _require_known_absent(field.get("terrain"), "field.terrain", missing)
+    if not modifier.get("terrain_known"):
+        _require_known_absent(field.get("terrain"), "field.terrain", missing)
     if missing:
         return _insufficient(missing)
     assert attacker is not None and defender is not None and isinstance(trusted_level, int)
@@ -180,6 +181,7 @@ def evaluate_direct_damage_mechanics(
             attacker_species=attacker["pokemon_identity"], defender_species=defender["pokemon_identity"],
             attacker_stats=attacker_stats, defender_stats=defender_stats,
             field=modifier["field"], burn_mod_q12=modifier["burn_mod_q12"],
+            attacker_grounded=modifier.get("attacker_grounded"), defender_grounded=modifier.get("defender_grounded"),
             attacker_ability=ability_modifier["ability_effect"],
             attacker_item=item_modifier["item_effect"],
             defender_ability=defender_ability_modifier["ability_effect"],
@@ -471,7 +473,7 @@ def _item_authority_is_explicit(stat_provenance: Mapping[str, Any]) -> bool:
 
 def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], category: Any, move_type: Any) -> dict[str, Any]:
     """Adapt only explicit request-start weather, burn, and target screens."""
-    result = {"field": Field(is_doubles=False), "burn_mod_q12": Q12_ONE, "applied": [], "missing_inputs": [], "unsupported_reason": None, "weather_known": False, "burn_known": False}
+    result = {"field": Field(is_doubles=False), "burn_mod_q12": Q12_ONE, "applied": [], "missing_inputs": [], "unsupported_reason": None, "weather_known": False, "burn_known": False, "terrain_known": False, "attacker_grounded": None, "defender_grounded": None}
     field_context = _mapping(current.get("field_state_context"))
     field_state = _mapping(field_context.get("current_field"))
     has_field_snapshot = isinstance(current.get("field_state_context"), Mapping)
@@ -485,6 +487,26 @@ def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], 
     elif weather in {None, "unknown"}:
         if move_type in {"water", "fire"}: result["missing_inputs"].append("field.weather")
     else: result["unsupported_reason"] = "weather_modifier"
+    terrain = field_state.get("terrain")
+    terrain_types = {"electric": ("electric", "attacker_grounded", "terrain_electric_boost"), "grassy": ("grass", "attacker_grounded", "terrain_grassy_boost"), "psychic": ("psychic", "attacker_grounded", "terrain_psychic_boost"), "misty": ("dragon", "defender_grounded", "terrain_misty_dragon_reduction")}
+    if terrain == "none":
+        result["terrain_known"] = True
+    elif terrain in terrain_types:
+        result["terrain_known"] = True
+        required_type, grounded_key, tag = terrain_types[terrain]
+        if move_type == required_type:
+            grounded = _grounded_authority(current, "self" if grounded_key == "attacker_grounded" else "opponent")
+            if grounded == "invalid": result["unsupported_reason"] = "grounded_context"
+            elif grounded is None: result["missing_inputs"].append("self.grounded" if grounded_key == "attacker_grounded" else "opponent.grounded")
+            else:
+                result[grounded_key] = grounded
+                if grounded: result["applied"].append(tag)
+        result["field"] = Field(weather=result["field"].weather, terrain=terrain, is_doubles=False)
+    elif terrain in {None, "unknown"}:
+        if _mapping(direct.get("field")).get("terrain") == _KNOWN_ABSENT and (not has_field_snapshot or "terrain" not in field_state):
+            result["terrain_known"] = True
+        elif move_type in {"electric", "grass", "psychic", "dragon"}: result["missing_inputs"].append("field.terrain")
+    else: result["unsupported_reason"] = "terrain_modifier"
     conditions = _mapping(current.get("condition_context")).get("current_conditions")
     if isinstance(conditions, list):
         own = [x for x in conditions if isinstance(x, Mapping) and x.get("side") == "self"]
@@ -523,7 +545,7 @@ def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], 
                 fmt = _mapping(_mapping(current.get("battle_format_context")).get("current_battle_format")).get("battle_format")
                 if fmt == "singles":
                     result["field"] = Field(
-                        weather=result["field"].weather, is_doubles=False,
+                        weather=result["field"].weather, terrain=result["field"].terrain, is_doubles=False,
                         defender_side=SideField(
                             reflect=screen == "reflect",
                             light_screen=screen == "light-screen",
@@ -535,6 +557,17 @@ def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], 
                 else:
                     result["unsupported_reason"] = "battle_format"
     return result
+
+
+def _grounded_authority(current: Mapping[str, Any], side: str) -> bool | None | str:
+    context = current.get("grounded_context")
+    entry = context.get(side) if isinstance(context, Mapping) else None
+    if not isinstance(entry, Mapping): return None
+    status, provenance = entry.get("status"), entry.get("provenance")
+    if status == "known_grounded" and provenance == "user_confirmed_current": return True
+    if status == "known_ungrounded" and provenance == "user_confirmed_current": return False
+    if status == "unknown" and provenance == "unknown": return None
+    return "invalid"
 
 
 def _available(value: Any) -> Any:
