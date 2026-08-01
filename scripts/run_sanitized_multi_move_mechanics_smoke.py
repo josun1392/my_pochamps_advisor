@@ -30,7 +30,8 @@ CONSEQUENCE_FIXTURES = ("recoil-drain-consequence-candidates", "turn-terminal-co
 FIXED_HIT_FIXTURES = ("complete-fixed-hit-candidates", "mixed-fixed-variable-hit-candidates")
 FIXED_DAMAGE_FIXTURES = ("complete-level-fixed-damage-candidates", "mixed-fixed-damage-state-candidates")
 MODIFIER_FIXTURES = ("combined-known-damage-modifiers", "mixed-modifier-authority-states")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES})
+ABILITY_FIXTURES = ("supported-attacker-ability-candidates", "unsupported-ability-with-level-fixed-control")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -92,12 +93,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "aqua-tail"}, {"move_id": "flamethrower"}, {"move_id": "seismic-toss"}], {"aqua-tail": {"category": "physical", "power": 90, "type": "water", "priority": 1}, "flamethrower": {"category": "special", "power": 90, "type": "fire", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     if fixture_id == MODIFIER_FIXTURES[1]:
         return [{"move_id": "aqua-tail"}, {"move_id": "hyper-beam"}, {"move_id": "seismic-toss"}], {"aqua-tail": {"category": "physical", "power": 90, "type": "water", "priority": 0}, "hyper-beam": {"category": "special", "power": 150, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == ABILITY_FIXTURES[0]:
+        return [{"move_id": "mach-punch"}, {"move_id": "tackle"}, {"move_id": "seismic-toss"}], {"mach-punch": {"category": "physical", "power": 40, "type": "fighting", "priority": 1}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
+    if fixture_id == ABILITY_FIXTURES[1]:
+        return [{"move_id": "tackle"}, {"move_id": "seismic-toss"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -114,8 +119,38 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
         battle["field_state_context"] = {"current_field": {"weather": "unknown", "terrain": "none", "global_effects": [], "side_effects": [{"side": "opponent", "effect": "light-screen"}], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
         battle["condition_context"] = {"current_conditions": [{"side": "self", "condition_type": "unknown", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]}
         battle["battle_format_context"] = {"current_battle_format": {"battle_format": "doubles", "source": "user_confirmed_battle_format", "confidence": "known"}}
+    if fixture_id == ABILITY_FIXTURES[0]:
+        battle["trusted_level_context"]["current_levels"][0]["value"] = 1
+        battle["ability_context"] = {"current_abilities": [_current_ability("iron-fist")]}
+    if fixture_id == ABILITY_FIXTURES[1]:
+        battle["ability_context"] = {"current_abilities": [_current_ability("guts")]}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
+
+
+def _current_ability(ability: str) -> dict[str, Any]:
+    return {"side": "self", "ability": ability, "status": "user_confirmed", "source": "user_confirmed_current_ability", "confidence": "known", "provenance": _provenance("self", 0, "pikachu", source="user_confirmed_current_ability")}
+
+
+def offline_ability_authority_variants() -> dict[str, Any]:
+    """Exercise non-provider ability states without converting them to absence."""
+    variants: dict[str, dict[str, Any]] = {}
+    for name, ability in (("unknown", "unknown"), ("malformed", "bad/ability"), ("unsupported", "guts")):
+        battle = _battle(known_action_order=True)
+        battle["ability_context"] = {"current_abilities": [_current_ability(ability)]}
+        battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "tackle"}]
+        prepared = prepare_ui_recommendation_cycle(
+            selected_moves=[{"move_id": "tackle"}], battle_input=battle,
+            move_repository={"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}, species_repository=_Species(),
+        )
+        rows = prepared.get("recommendation_request", {}).get("candidate_comparisons", []) if isinstance(prepared.get("recommendation_request"), Mapping) else []
+        mechanics = rows[0].get("mechanics_result", {}) if isinstance(rows, list) and rows and isinstance(rows[0], Mapping) else {}
+        comparison = rows[0].get("mechanics_comparison", {}) if isinstance(rows, list) and rows and isinstance(rows[0], Mapping) else {}
+        variants[name] = {"cycle_status": prepared.get("status"), "mechanics_status": mechanics.get("status"), "rank": comparison.get("rank")}
+    no_usable_battle = _battle(known_action_order=True)
+    no_usable_battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "missing"}]
+    no_usable = prepare_ui_recommendation_cycle(selected_moves=[{"move_id": "missing"}], battle_input=no_usable_battle, move_repository={}, species_repository=_Species())
+    return {"provider_calls": 0, "variants": variants, "no_usable_cycle_status": no_usable.get("status")}
 
 
 def _expected_rank_one(payload: Mapping[str, Any]) -> tuple[str, int] | None:
@@ -193,6 +228,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == MODIFIER_FIXTURES[1]:
         mechanics = [row.get("mechanics_result", {}) for row in rows if isinstance(row, Mapping)]
         return mechanics[0].get("status") == "insufficient_context" and {"field.weather", "attacker.condition"} <= set(mechanics[0].get("missing_inputs", [])) and mechanics[1].get("status") == "unsupported_mechanic" and mechanics[1].get("unsupported_reason") == "battle_format" and mechanics[2].get("status") == "known" and mechanics[2].get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in mechanics[2]
+    if fixture_id == ABILITY_FIXTURES[0]:
+        matching, nonmatching, fixed = [row.get("mechanics_result", {}) for row in rows]
+        return [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [1, 2, 3] and matching.get("status") == nonmatching.get("status") == fixed.get("status") == "known" and matching.get("applied_damage_modifiers") == ["ability_iron_fist_boost"] and nonmatching.get("applied_damage_modifiers") == [] and fixed.get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in fixed
+    if fixture_id == ABILITY_FIXTURES[1]:
+        unsupported, fixed = [row.get("mechanics_result", {}) for row in rows]
+        return [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [None, 1] and unsupported.get("status") == "unsupported_mechanic" and unsupported.get("unsupported_reason") == "ability_modifier" and fixed.get("status") == "known" and fixed.get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in fixed
     return False
 
 
@@ -237,6 +278,17 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
     if not isinstance(text, str) or any(item in text for item in forbidden) or "선택 행동:" not in text:
         return False
     mechanics = selected.get("mechanics_result")
+    if fixture_id in ABILITY_FIXTURES:
+        ability_labels = {
+            "ability_iron_fist_boost": "\uc544\uc774\uc5b8\ud53c\uc2a4\ud2b8\uc5d0 \uc758\ud55c \ud380\uce58 \uae30\uc220 \uac15\ud654",
+            "ability_strong_jaw_boost": "\uc2a4\ud2b8\ub871\uc870에 \uc758\ud55c \ubb3c\uae30 \uae30\uc220 \uac15\ud654",
+            "ability_mega_launcher_boost": "\uba54\uac00\ub7f0\uccd0에 \uc758\ud55c \ud30c\ub3d9 \uae30\uc220 \uac15\ud654",
+            "ability_technician_boost": "\ud14c\ud06c\ub2c8션에 \uc758\ud55c \uc800\uc704\ub825 \uae30\uc220 \uac15\ud654",
+        }
+        applied = mechanics.get("applied_damage_modifiers") if isinstance(mechanics, Mapping) else None
+        if fixture_id == ABILITY_FIXTURES[0]:
+            return isinstance(applied, list) and applied == ["ability_iron_fist_boost"] and ability_labels["ability_iron_fist_boost"] in text and all(tag not in text for tag in ability_labels)
+        return isinstance(mechanics, Mapping) and mechanics.get("damage_model") == "level_based_fixed" and not any(label in text for label in ability_labels.values())
     if fixture_id in MODIFIER_FIXTURES:
         applied = mechanics.get("applied_damage_modifiers") if isinstance(mechanics, Mapping) else None
         labels = {

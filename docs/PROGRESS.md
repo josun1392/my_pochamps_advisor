@@ -19318,3 +19318,12 @@ Maintained boundaries:
   unsupported, and only actually applied candidate-local tags reach the
   selected result/presentation. No provider or network call is part of this
   offline slice.
+
+## v15.80 attacker-ability provider grounding smoke
+
+- Added an approval-gated pair for matching Iron Fist evidence and for a known
+  unsupported ability with a level-fixed control candidate. The provider still
+  selects only deterministic rank one with a bounded explanation.
+- Unknown/malformed/no-usable ability variants remain provider-free pre-call
+  checks; they never default to no ability. Candidate/result/presentation
+  assertions keep applied tags local to the selected candidate.

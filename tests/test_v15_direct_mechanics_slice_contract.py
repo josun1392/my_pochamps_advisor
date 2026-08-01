@@ -392,6 +392,26 @@ def test_ability_modifier_applies_per_fixed_hit_but_not_level_fixed_damage():
     assert "applied_damage_modifiers" not in result
 
 
+def test_static_ability_modifier_composes_with_known_weather_burn_screens_and_fixed_hits():
+    weather = _modifier_result(
+        category="special", move_type="water", move_id="water-pulse", power=60,
+        ability="mega-launcher", weather="rain", side_effects=[],
+    )
+    burn_screen = _modifier_result(
+        move_id="mach-punch", ability="iron-fist", weather="none",
+        conditions=[{"side": "self", "condition_type": "burn"}],
+        side_effects=[{"side": "opponent", "effect": "reflect"}], battle_format="singles",
+    )
+    fixed_hit = _modifier_result(
+        move_id="double-hit", power=60, min_hits=2, max_hits=2, ability="technician",
+        weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}],
+    )
+    assert weather["applied_damage_modifiers"] == ["rain_water_boost", "ability_mega_launcher_boost"]
+    assert burn_screen["applied_damage_modifiers"] == ["burn_physical_reduction", "reflect_reduction", "ability_iron_fist_boost"]
+    assert fixed_hit["status"] == "known" and fixed_hit["hit_count"] == 2
+    assert fixed_hit["applied_damage_modifiers"] == ["ability_technician_boost"]
+
+
 def test_request_start_self_ability_reaches_only_matching_candidate_and_presentation():
     battle = _battle()
     battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "mach-punch"}, {"slot_index": 1, "move_id": "tackle"}]

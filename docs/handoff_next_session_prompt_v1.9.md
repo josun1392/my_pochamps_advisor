@@ -1929,3 +1929,13 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
 - Unknown ability is insufficient and known unsupported ability is unsupported;
   only an applied candidate-local tag reaches the selected result/presentation.
   No actual provider validation is authorized by this slice.
+
+## v15.80 attacker ability grounding smoke handoff
+
+- The allowlisted actual pair is `supported-attacker-ability-candidates` and
+  `unsupported-ability-with-level-fixed-control`. The latter keeps known
+  unsupported formula damage fail-closed while its level-fixed control remains
+  rankable without an ability tag.
+- Unknown/malformed/no-usable variants remain offline-only with provider count
+  zero. The provider response stays resolved candidate ID plus bounded
+  explanation; use the pair only under its explicit two-call approval.

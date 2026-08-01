@@ -3563,6 +3563,15 @@ no ability modifier tag. Unknown self ability is insufficient context and
 known unsupported ability is unsupported mechanics, never a no-ability
 default. Provider output remains selection plus bounded explanation only.
 
+## v15.80 attacker-ability grounding smoke
+
+The actual smoke pair uses the same three-field multi-provider response and
+checks server-owned ability evidence before invocation and after deterministic
+selection binding. The supported fixture selects an Iron Fist rank-one action;
+the control fixture selects level-based fixed damage while known Guts formula
+damage remains unsupported. Unknown, malformed, and no-usable variants are
+pre-call-only and have provider count zero.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics
