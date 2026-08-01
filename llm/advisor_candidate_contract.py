@@ -283,6 +283,16 @@ def _trusted_final_speed(snapshot: Mapping[str, Any], side: str) -> int | None:
 
 def _known_trick_room(snapshot: Mapping[str, Any]) -> tuple[str, str]:
     context = snapshot.get("field_state_context")
+    declared = context.get("trick_room") if isinstance(context, Mapping) else None
+    if isinstance(declared, Mapping):
+        status, provenance = declared.get("status"), declared.get("provenance")
+        if status == "known_active" and provenance in {"user_confirmed_current", "trusted_observed_current"}:
+            return "active", provenance
+        if status == "known_inactive" and provenance in {"user_confirmed_current", "trusted_observed_current"}:
+            return "inactive", provenance
+        if status == "unknown" and provenance == "unknown":
+            return "unknown", "unknown"
+        return "unknown", "unknown"
     field = context.get("current_field") if isinstance(context, Mapping) else None
     try:
         normalized = normalize_user_confirmed_current_field_state(field)

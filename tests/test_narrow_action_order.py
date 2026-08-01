@@ -202,10 +202,12 @@ def test_candidate_derives_trick_room_tristate_only_from_confirmed_field_snapsho
     }
     known = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot=active, repositories=repository)
     malformed = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot={**base, "field_state_context": {"current_field": {"global_effects": ["trick-room"]}}}, repositories=repository)
+    explicit_unknown = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot={**base, "field_state_context": {"trick_room": {"status": "unknown", "provenance": "unknown"}}}, repositories=repository)
     assert known["action_order"]["status"] == "acts_second"
     assert known["action_order"]["trick_room"] == "active"
     assert known["action_order"]["trick_room_authority"] == "user_confirmed_current"
     assert malformed["action_order"]["missing_inputs"] == ["trick_room"]
+    assert explicit_unknown["action_order"]["missing_inputs"] == ["trick_room"]
 
 
 def test_presentation_uses_bounded_trick_room_action_order_text_only_for_selected_candidate():

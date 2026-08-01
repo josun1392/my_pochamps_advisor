@@ -37,7 +37,8 @@ STAGE_FIXTURES = ("supported-damage-stat-stage-candidates", "incomplete-stage-wi
 SPEED_STAGE_FIXTURES = ("supported-speed-stage-action-order", "incomplete-speed-stage-with-priority-control")
 ACCURACY_STAGE_FIXTURES = ("supported-accuracy-evasion-stage-candidates", "incomplete-accuracy-stage-with-always-hit-control")
 TERRAIN_FIXTURES = ("supported-grounded-terrain-candidates", "incomplete-grounded-terrain-with-control")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES})
+TRICK_ROOM_FIXTURES = ("supported-trick-room-action-order", "unknown-trick-room-with-priority-control")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -127,12 +128,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "thunderbolt"}, {"move_id": "tackle"}, {"move_id": "double-hit"}, {"move_id": "seismic-toss"}], {"thunderbolt": {"category": "special", "power": 90, "type": "electric", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "double-hit": {"category": "physical", "power": 60, "type": "electric", "min_hits": 2, "max_hits": 2, "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
     if fixture_id == TERRAIN_FIXTURES[1]:
         return [{"move_id": "thunderbolt"}, {"move_id": "seismic-toss"}], {"thunderbolt": {"category": "special", "power": 90, "type": "electric", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
+    if fixture_id == TRICK_ROOM_FIXTURES[0]:
+        return [{"move_id": "slam"}, {"move_id": "quick-attack"}, {"move_id": "seismic-toss"}], {"slam": {"category": "physical", "power": 100, "type": "normal", "priority": 0}, "quick-attack": {"category": "physical", "power": 40, "type": "normal", "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == TRICK_ROOM_FIXTURES[1]:
+        return [{"move_id": "slam"}, {"move_id": "seismic-toss"}], {"slam": {"category": "physical", "power": 100, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 1}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -183,6 +188,12 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
     if fixture_id == TERRAIN_FIXTURES[1]:
         battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "electric", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
         battle["grounded_context"] = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
+    if fixture_id == TRICK_ROOM_FIXTURES[0]:
+        battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "none", "global_effects": ["trick-room"], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
+        battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 0), _stage("opponent", "defense", 0), _stage("self", "speed", -1), _stage("opponent", "speed", 0)]}
+    if fixture_id == TRICK_ROOM_FIXTURES[1]:
+        battle["field_state_context"] = {"trick_room": {"status": "unknown", "provenance": "unknown"}}
+        battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 0), _stage("opponent", "defense", 0), _stage("self", "speed", -1), _stage("opponent", "speed", 0)]}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -421,6 +432,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == TERRAIN_FIXTURES[1]:
         incomplete, level_fixed = [row.get("mechanics_result", {}) for row in rows]
         return incomplete.get("status") == "insufficient_context" and incomplete.get("missing_inputs") == ["self.grounded"] and level_fixed.get("status") == "known" and level_fixed.get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in level_fixed and comparisons[1].get("rank") == 1
+    if fixture_id == TRICK_ROOM_FIXTURES[0]:
+        orders = [row.get("action_order", {}) for row in rows]
+        return all(order.get("status") == "acts_first" for order in orders) and orders[0].get("reason") == "speed_advantage" and orders[0].get("trick_room") == "active" and orders[0].get("speed_stage_adjustment_applied") is True and orders[1].get("reason") == "priority_advantage" and "speed_stage_adjustment_applied" not in orders[1] and rows[2].get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and comparisons[0].get("rank") == 1
+    if fixture_id == TRICK_ROOM_FIXTURES[1]:
+        orders = [row.get("action_order", {}) for row in rows]
+        return orders[0].get("status") == "insufficient_context" and orders[0].get("missing_inputs") == ["trick_room"] and orders[1].get("status") == "acts_first" and orders[1].get("reason") == "priority_advantage" and rows[1].get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and comparisons[1].get("rank") == 1
     return False
 
 
@@ -521,6 +538,11 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
         if fixture_id == TERRAIN_FIXTURES[0]:
             return isinstance(applied, list) and applied == ["terrain_electric_boost"] and labels["terrain_electric_boost"] in text and all(tag not in text for tag in labels)
         return isinstance(mechanics, Mapping) and mechanics.get("damage_model") == "level_based_fixed" and not any(label in text for label in labels.values())
+    if fixture_id in TRICK_ROOM_FIXTURES:
+        order = selected.get("action_order")
+        if fixture_id == TRICK_ROOM_FIXTURES[0]:
+            return isinstance(order, Mapping) and order.get("trick_room") == "active" and "\ud2b8\ub9ad\ub8f8\uc774 \uc801\uc6a9\ub418\uc5b4 \ub354 \ub290\ub9b0 \ucabd\uc774 \uba3c\uc800 \ud589\ub3d9\ud568" in text and "trick_room" not in text
+        return isinstance(order, Mapping) and order.get("reason") == "priority_advantage" and "\uc6b0\uc120\ub3c4\uac00 \ub192\uc544 \ud2b8\ub9ad\ub8f8\uacfc \ubb34\uad00\ud558\uac8c \uba3c\uc800 \ud589\ub3d9\ud568" in text and "trick_room" not in text
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
         if fixture_id in FIXED_DAMAGE_FIXTURES and mechanics.get("damage_model") == "level_based_fixed":
             labels = ("\ud53c\ud574 \ubc29\uc2dd: \uc0ac\uc6a9\uc790 \ub808\ubca8\uacfc \ub3d9\uc77c\ud55c \uace0\uc815 \ud53c\ud574",)
