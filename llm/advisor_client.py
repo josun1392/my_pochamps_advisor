@@ -549,7 +549,16 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
     accuracy = evidence.get("accuracy_evidence")
     if isinstance(accuracy, Mapping):
         if accuracy.get("status") == "known_accuracy" and isinstance(accuracy.get("canonical_accuracy"), (int, float)):
-            lines.append(f"기본 명중률: {accuracy['canonical_accuracy']}%")
+            adjusted = accuracy.get("adjusted_accuracy")
+            stages = accuracy.get("accuracy_stage_evidence")
+            if isinstance(adjusted, (int, float)) and isinstance(stages, Mapping) and stages.get("accuracy_stage_adjustment_applied") is True:
+                lines.append(f"명중률: {adjusted}%")
+                labels = {("self", 1): "명중 상승을 반영함", ("self", -1): "명중 하락을 반영함", ("opponent", 1): "상대 회피 상승을 반영함", ("opponent", -1): "상대 회피 하락을 반영함"}
+                shown = [labels[(side, 1 if value > 0 else -1)] for side, value in (("self", stages.get("self_accuracy_stage")), ("opponent", stages.get("opponent_evasion_stage"))) if isinstance(value, int) and value and (side, 1 if value > 0 else -1) in labels]
+                if shown:
+                    lines.append(f"명중률에 반영된 랭크: {', '.join(shown)}")
+            else:
+                lines.append(f"기본 명중률: {accuracy['canonical_accuracy']}%")
         elif accuracy.get("status") == "always_hits":
             lines.append("기본 명중률: 항상 명중하는 기술")
         elif accuracy.get("status") == "insufficient_context":

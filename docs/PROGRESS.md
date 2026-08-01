@@ -19392,6 +19392,19 @@ Maintained boundaries:
   provider call; effective Speed values, stage ratios, and provider text stay
   outside the presentation contract.
 
+## v15.89 known Accuracy/Evasion stages
+
+- Ordinary candidates consume explicit request-start self Accuracy and
+  opponent Evasion stages only when a stage context is supplied. The
+  canonical `(3 + stage) / 3` or `3 / (3 - stage)` rational calculation is
+  floor-rounded and clamped, while the original canonical move accuracy stays
+  available for comparison without affecting damage ranks.
+- Omitted stage authority retains base-accuracy-only compatibility; explicit
+  missing, duplicate, or malformed relevant stage authority fails closed.
+  Always-hit moves remain independent of Accuracy/Evasion stages, and UI
+  output exposes only bounded adjusted-accuracy and non-neutral direction
+  labels.
+
 ## v15.83 known defender-ability damage modifiers
 
 - Formula-damage candidates now use only an explicit request-start opponent

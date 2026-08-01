@@ -228,6 +228,8 @@ def _relevant_stage_context(*, current: Mapping[str, Any], category: Any) -> dic
             result["unsupported_reason"] = "stat_stage_context"; return result
         resolved[key] = normalized["stage"]
     needed = (("self", offensive), ("opponent", defensive))
+    if not any(key in resolved for key in needed):
+        return result
     missing = [f"attacker.{offensive}_stage" if side == "self" else f"defender.{stat}_stage" for side, stat in needed if (side, stat) not in resolved]
     if missing:
         result["missing_inputs"] = missing; return result

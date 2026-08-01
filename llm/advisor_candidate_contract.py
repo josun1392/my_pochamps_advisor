@@ -60,12 +60,64 @@ def _selected_move_from_metadata(move: str, metadata: Any) -> dict[str, Any]:
     return selected
 
 
-def _accuracy_evidence(metadata: Any) -> dict[str, Any]:
-    """Expose canonical move accuracy without calculating final hit probability."""
+def _accuracy_stage_context(snapshot: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Resolve only explicit request-start Accuracy/Evasion stage authority."""
+    context = snapshot.get("stat_stage_context")
+    if not isinstance(context, Mapping):
+        return None
+    entries = context.get("current_stages")
+    if not isinstance(entries, list):
+        return {"status": "unsupported_mechanic", "unsupported_reason": "accuracy_stage_context"}
+    resolved: dict[tuple[str, str], int] = {}
+    for entry in entries:
+        try:
+            normalized = normalize_user_confirmed_current_stat_stage(
+                {key: value for key, value in entry.items() if key != "provenance"}
+            )
+        except (ValueError, AttributeError):
+            return {"status": "unsupported_mechanic", "unsupported_reason": "accuracy_stage_context"}
+        key = (normalized["side"], normalized["stat"])
+        if key in resolved:
+            return {"status": "unsupported_mechanic", "unsupported_reason": "accuracy_stage_context"}
+        resolved[key] = normalized["stage"]
+    missing = [
+        label
+        for side, stat, label in (("self", "accuracy", "self_accuracy_stage"), ("opponent", "evasion", "opponent_evasion_stage"))
+        if (side, stat) not in resolved
+    ]
+    if missing:
+        return {"status": "insufficient_context", "missing_inputs": missing}
+    return {
+        "status": "known",
+        "self_accuracy_stage": resolved[("self", "accuracy")],
+        "opponent_evasion_stage": resolved[("opponent", "evasion")],
+    }
+
+
+def _accuracy_evidence(metadata: Any, snapshot: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Expose canonical move accuracy, applying only explicit stage authority."""
     if _metadata_value(metadata, "always_hit") is True:
         return {"status": "always_hits", "canonical_accuracy": None, "outcome": "always_hits", "uncertainty": []}
     accuracy = _metadata_value(metadata, "accuracy")
     if isinstance(accuracy, (int, float)) and not isinstance(accuracy, bool) and 1 <= accuracy <= 100:
+        stage_context = _accuracy_stage_context(snapshot) if isinstance(snapshot, Mapping) and isinstance(snapshot.get("stat_stage_context"), Mapping) else None
+        if isinstance(stage_context, Mapping) and stage_context.get("status") != "known":
+            if stage_context.get("status") == "insufficient_context":
+                return {"status": "insufficient_context", "canonical_accuracy": accuracy, "outcome": None, "uncertainty": stage_context["missing_inputs"]}
+            return {"status": "unsupported_mechanic", "canonical_accuracy": accuracy, "outcome": None, "unsupported_reason": stage_context.get("unsupported_reason")}
+        if isinstance(stage_context, Mapping):
+            accuracy_stage, evasion_stage = stage_context["self_accuracy_stage"], stage_context["opponent_evasion_stage"]
+            net_stage = max(-6, min(6, accuracy_stage - evasion_stage))
+            numerator, denominator = (3 + net_stage, 3) if net_stage >= 0 else (3, 3 - net_stage)
+            adjusted = min(100, int(accuracy * numerator // denominator))
+            return {
+                "status": "known_accuracy", "canonical_accuracy": accuracy, "adjusted_accuracy": adjusted,
+                "outcome": "stage_adjusted_accuracy", "uncertainty": [],
+                "accuracy_stage_evidence": {
+                    "self_accuracy_stage": accuracy_stage, "opponent_evasion_stage": evasion_stage,
+                    "accuracy_stage_adjustment_applied": True, "resolved_accuracy_basis": "canonical_accuracy_and_stages",
+                },
+            }
         return {"status": "known_accuracy", "canonical_accuracy": accuracy, "outcome": "canonical_accuracy_only", "uncertainty": []}
     if _metadata_value(metadata, "accuracy_mechanic") is not None or _metadata_value(metadata, "dynamic_accuracy") is True:
         return {"status": "unsupported_mechanic", "canonical_accuracy": None, "outcome": None, "unsupported_reason": "dynamic_accuracy_mechanic"}
@@ -292,7 +344,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
         return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","self_effects":[],"dynamic_move":None,"warnings":[],"unavailable_reasons":["move_metadata_unavailable"]}
     if _metadata_value(metadata, "category") == "status":
         snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"action_order":_action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories),"accuracy_evidence":_accuracy_evidence(metadata),"status_move_evidence":_status_move_evidence(metadata),"move_consequence_evidence":evaluate_move_consequence_evidence(move_id=move, metadata=metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"action_order":_action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories),"accuracy_evidence":_accuracy_evidence(metadata, snapshot),"status_move_evidence":_status_move_evidence(metadata),"move_consequence_evidence":evaluate_move_consequence_evidence(move_id=move, metadata=metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
     snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
     selected_move = _selected_move_from_metadata(move, metadata)
     if turn_snapshot is not None:
@@ -323,7 +375,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     damage = _damage_summary(context)
     optional_outputs, self_effects, optional_reasons = _optional_outputs(context)
     optional_outputs["action_order"] = _action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories)
-    optional_outputs["accuracy_evidence"] = _accuracy_evidence(metadata)
+    optional_outputs["accuracy_evidence"] = _accuracy_evidence(metadata, snapshot)
     optional_outputs["status_move_evidence"] = _status_move_evidence(metadata)
     optional_outputs["move_consequence_evidence"] = evaluate_move_consequence_evidence(move_id=move, metadata=metadata)
     if dynamic_move is not None and dynamic_move["status"] != "resolved":
