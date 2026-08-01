@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Any, Mapping
+from llm.advisor_battle_state_context import calculate_stage_adjusted_stat
 
 
 # These moves have a priority that depends on state outside this narrow slice.
@@ -29,6 +30,8 @@ def evaluate_action_order(
     self_final_speed: Any,
     opponent_final_speed: Any,
     trick_room: str,
+    self_speed_stage: Any = None,
+    opponent_speed_stage: Any = None,
 ) -> dict[str, Any]:
     """Resolve a known action pair using only trusted final Speed and field state."""
     self_reference, self_error = _action(self_action, "self")
@@ -74,6 +77,13 @@ def evaluate_action_order(
     if missing_speeds:
         result["missing_inputs"] = missing_speeds
         return result
+    missing_stages = [name for name, value in (("self_speed_stage", self_speed_stage), ("opponent_speed_stage", opponent_speed_stage)) if isinstance(value, bool) or not isinstance(value, int) or not -6 <= value <= 6]
+    if missing_stages:
+        result["missing_inputs"] = missing_stages
+        return result
+    self_final_speed = calculate_stage_adjusted_stat(self_final_speed, self_speed_stage)
+    opponent_final_speed = calculate_stage_adjusted_stat(opponent_final_speed, opponent_speed_stage)
+    result.update(self_speed_stage=self_speed_stage, opponent_speed_stage=opponent_speed_stage, speed_stage_adjustment_applied=True)
     result.update(self_final_speed=self_final_speed, opponent_final_speed=opponent_final_speed)
     if self_final_speed == opponent_final_speed:
         result.update(status="speed_tie", reason="equal_priority_equal_speed", speed_comparison="equal")

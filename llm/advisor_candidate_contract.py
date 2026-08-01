@@ -10,6 +10,7 @@ import re
 from llm.advisor_battle_state_context import (
     build_deterministic_calculation_context,
     normalize_user_confirmed_current_field_state,
+    normalize_user_confirmed_current_stat_stage,
     normalize_user_confirmed_final_battle_stat,
 )
 from llm.advisor_turn_snapshot import (
@@ -238,6 +239,21 @@ def _known_trick_room(snapshot: Mapping[str, Any]) -> str:
     return "active" if "trick-room" in normalized["global_effects"] else "inactive"
 
 
+def _trusted_speed_stage(snapshot: Mapping[str, Any], side: str) -> int | None:
+    context = snapshot.get("stat_stage_context")
+    entries = context.get("current_stages") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        return None
+    found = []
+    for entry in entries:
+        try:
+            value = normalize_user_confirmed_current_stat_stage({key: item for key, item in entry.items() if key != "provenance"})
+        except (ValueError, AttributeError):
+            return None
+        if value["side"] == side and value["stat"] == "speed": found.append(value["stage"])
+    return found[0] if len(found) == 1 else None
+
+
 def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -> dict[str, Any] | None:
     selected = snapshot.get("opponent_selected_move")
     move_id = selected.get("move_id") if isinstance(selected, Mapping) else None
@@ -257,6 +273,8 @@ def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: 
         self_final_speed=_trusted_final_speed(snapshot, "self"),
         opponent_final_speed=_trusted_final_speed(snapshot, "opponent"),
         trick_room=_known_trick_room(snapshot),
+        self_speed_stage=_trusted_speed_stage(snapshot, "self"),
+        opponent_speed_stage=_trusted_speed_stage(snapshot, "opponent"),
     )
 
 
