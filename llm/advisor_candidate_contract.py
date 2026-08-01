@@ -109,7 +109,7 @@ def _accuracy_evidence(metadata: Any, snapshot: Mapping[str, Any] | None = None)
             accuracy_stage, evasion_stage = stage_context["self_accuracy_stage"], stage_context["opponent_evasion_stage"]
             net_stage = max(-6, min(6, accuracy_stage - evasion_stage))
             numerator, denominator = (3 + net_stage, 3) if net_stage >= 0 else (3, 3 - net_stage)
-            adjusted = min(100, int(accuracy * numerator // denominator))
+            adjusted = min(100, int(Decimal(str(accuracy)) * numerator // denominator))
             return {
                 "status": "known_accuracy", "canonical_accuracy": accuracy, "adjusted_accuracy": adjusted,
                 "outcome": "stage_adjusted_accuracy", "uncertainty": [],
