@@ -36,7 +36,8 @@ DEFENDER_ABILITY_FIXTURES = ("supported-defender-ability-candidates", "unsupport
 STAGE_FIXTURES = ("supported-damage-stat-stage-candidates", "incomplete-stage-with-level-fixed-control")
 SPEED_STAGE_FIXTURES = ("supported-speed-stage-action-order", "incomplete-speed-stage-with-priority-control")
 ACCURACY_STAGE_FIXTURES = ("supported-accuracy-evasion-stage-candidates", "incomplete-accuracy-stage-with-always-hit-control")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES})
+TERRAIN_FIXTURES = ("supported-grounded-terrain-candidates", "incomplete-grounded-terrain-with-control")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -122,12 +123,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "tackle"}, {"move_id": "quick-attack"}, {"move_id": "seismic-toss"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "quick-attack": {"category": "physical", "power": 100, "type": "normal", "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
     if fixture_id == SPEED_STAGE_FIXTURES[1]:
         return [{"move_id": "tackle"}, {"move_id": "quick-attack"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "quick-attack": {"category": "physical", "power": 100, "type": "normal", "priority": 1}}
+    if fixture_id == TERRAIN_FIXTURES[0]:
+        return [{"move_id": "thunderbolt"}, {"move_id": "tackle"}, {"move_id": "double-hit"}, {"move_id": "seismic-toss"}], {"thunderbolt": {"category": "special", "power": 90, "type": "electric", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "double-hit": {"category": "physical", "power": 60, "type": "electric", "min_hits": 2, "max_hits": 2, "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
+    if fixture_id == TERRAIN_FIXTURES[1]:
+        return [{"move_id": "thunderbolt"}, {"move_id": "seismic-toss"}], {"thunderbolt": {"category": "special", "power": 90, "type": "electric", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -172,6 +177,12 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
         battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 0), _stage("opponent", "defense", 0), _stage("self", "special-attack", 0), _stage("opponent", "special-defense", 0), _stage("self", "speed", 0), _stage("opponent", "speed", 0), _stage("self", "accuracy", 1), _stage("opponent", "evasion", 0)]}
     if fixture_id == ACCURACY_STAGE_FIXTURES[1]:
         battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 0), _stage("opponent", "defense", 0), _stage("self", "special-attack", 0), _stage("opponent", "special-defense", 0), _stage("self", "speed", 0), _stage("opponent", "speed", 0), _stage("self", "accuracy", 0)]}
+    if fixture_id == TERRAIN_FIXTURES[0]:
+        battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "electric", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
+        battle["grounded_context"] = {"self": {"status": "known_grounded", "provenance": "user_confirmed_current"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
+    if fixture_id == TERRAIN_FIXTURES[1]:
+        battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "electric", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
+        battle["grounded_context"] = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -265,6 +276,32 @@ def offline_defender_ability_authority_variants() -> dict[str, Any]:
     stale_rows = stale.get("recommendation_request", {}).get("candidate_comparisons", []) if isinstance(stale.get("recommendation_request"), Mapping) else []
     stale_mechanics = stale_rows[0].get("mechanics_result", {}) if isinstance(stale_rows, list) and stale_rows and isinstance(stale_rows[0], Mapping) else {}
     return {"provider_calls": 0, "variants": variants, "stale_context_status": stale_mechanics.get("status"), "candidate_mismatch_errors": mismatch.get("errors"), "no_usable_cycle_status": no_usable.get("status")}
+
+
+def offline_grounded_terrain_authority_variants() -> dict[str, Any]:
+    """Exercise explicit terrain grounded states without provider access."""
+    variants: dict[str, dict[str, Any]] = {}
+    for name, grounded in (
+        ("grounded", {"status": "known_grounded", "provenance": "user_confirmed_current"}),
+        ("ungrounded", {"status": "known_ungrounded", "provenance": "user_confirmed_current"}),
+        ("unknown", {"status": "unknown", "provenance": "unknown"}),
+        ("malformed", {"status": "known_grounded", "provenance": "system_default"}),
+    ):
+        battle = _battle(known_action_order=True)
+        battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "electric", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
+        battle["grounded_context"] = {"self": grounded, "opponent": {"status": "unknown", "provenance": "unknown"}}
+        battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "thunderbolt"}]
+        prepared = prepare_ui_recommendation_cycle(
+            selected_moves=[{"move_id": "thunderbolt"}], battle_input=battle,
+            move_repository={"thunderbolt": {"category": "special", "power": 90, "type": "electric", "priority": 0}}, species_repository=_Species(),
+        )
+        row = prepared.get("recommendation_request", {}).get("candidate_comparisons", [{}])[0]
+        mechanics, comparison = row.get("mechanics_result", {}), row.get("mechanics_comparison", {})
+        variants[name] = {"mechanics_status": mechanics.get("status"), "applied": mechanics.get("applied_damage_modifiers"), "rank": comparison.get("rank")}
+    no_usable = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "missing"}], battle_input={**_battle(known_action_order=True), "moves": {"my_available_moves": [{"slot_index": 0, "move_id": "missing"}]}}, move_repository={}, species_repository=_Species(),
+    )
+    return {"provider_calls": 0, "variants": variants, "no_usable_cycle_status": no_usable.get("status")}
 
 
 def _expected_rank_one(payload: Mapping[str, Any]) -> tuple[str, int] | None:
@@ -378,6 +415,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == SPEED_STAGE_FIXTURES[1]:
         orders = [row.get("action_order", {}) for row in rows]
         return orders[0].get("status") == "insufficient_context" and orders[0].get("missing_inputs") == ["opponent_speed_stage"] and orders[1].get("status") == "acts_first" and orders[1].get("reason") == "priority_advantage"
+    if fixture_id == TERRAIN_FIXTURES[0]:
+        electric, unrelated, fixed_hit, level_fixed = [row.get("mechanics_result", {}) for row in rows]
+        return electric.get("status") == unrelated.get("status") == fixed_hit.get("status") == level_fixed.get("status") == "known" and electric.get("applied_damage_modifiers") == ["terrain_electric_boost"] and unrelated.get("applied_damage_modifiers") == [] and fixed_hit.get("hit_count") == 2 and fixed_hit.get("applied_damage_modifiers") == ["terrain_electric_boost"] and level_fixed.get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in level_fixed and comparisons[2].get("rank") == 1
+    if fixture_id == TERRAIN_FIXTURES[1]:
+        incomplete, level_fixed = [row.get("mechanics_result", {}) for row in rows]
+        return incomplete.get("status") == "insufficient_context" and incomplete.get("missing_inputs") == ["self.grounded"] and level_fixed.get("status") == "known" and level_fixed.get("damage_model") == "level_based_fixed" and "applied_damage_modifiers" not in level_fixed and comparisons[1].get("rank") == 1
     return False
 
 
@@ -467,6 +510,17 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
         if isinstance(applied, list):
             return all(labels[tag] in text for tag in applied if tag in labels) and all(tag not in text for tag in labels)
         return not any(label in text for label in labels.values())
+    if fixture_id in TERRAIN_FIXTURES:
+        labels = {
+            "terrain_electric_boost": "\uc77c\ub809\ud2b8\ub9ad\ud544\ub4dc\ub85c \uc804\uae30 \uae30\uc220 \ud53c\ud574 \uac15\ud654",
+            "terrain_grassy_boost": "\uadf8\ub798\uc2a4\ud544\ub4dc\ub85c \ud480 \uae30\uc220 \ud53c\ud574 \uac15\ud654",
+            "terrain_psychic_boost": "\uc0ac\uc774\ucf54\ud544\ub4dc\ub85c \uc5d0\uc2a4\ud37c \uae30\uc220 \ud53c\ud574 \uac15\ud654",
+            "terrain_misty_dragon_reduction": "\ubbf8\uc2a4\ud2f0\ud544\ub4dc\ub85c \ub4dc\ub798\uace4 \uae30\uc220 \ud53c\ud574 \uac10\uc18c",
+        }
+        applied = mechanics.get("applied_damage_modifiers") if isinstance(mechanics, Mapping) else None
+        if fixture_id == TERRAIN_FIXTURES[0]:
+            return isinstance(applied, list) and applied == ["terrain_electric_boost"] and labels["terrain_electric_boost"] in text and all(tag not in text for tag in labels)
+        return isinstance(mechanics, Mapping) and mechanics.get("damage_model") == "level_based_fixed" and not any(label in text for label in labels.values())
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
         if fixture_id in FIXED_DAMAGE_FIXTURES and mechanics.get("damage_model") == "level_based_fixed":
             labels = ("\ud53c\ud574 \ubc29\uc2dd: \uc0ac\uc6a9\uc790 \ub808\ubca8\uacfc \ub3d9\uc77c\ud55c \uace0\uc815 \ud53c\ud574",)

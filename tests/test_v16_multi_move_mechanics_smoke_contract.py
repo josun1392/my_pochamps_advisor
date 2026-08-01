@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATUS_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_item_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATUS_FIXTURES, TERRAIN_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -204,6 +204,32 @@ def test_speed_stage_fixture_pair_keeps_priority_first_and_unknown_fail_closed()
     assert incomplete[1]["action_order"]["status"] == "acts_first"
 
 
+def test_grounded_terrain_fixture_pair_keeps_candidate_local_q12_evidence():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=TERRAIN_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    supported = _prepared(TERRAIN_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert [row["mechanics_result"].get("applied_damage_modifiers") for row in supported] == [["terrain_electric_boost"], [], ["terrain_electric_boost"], None]
+    assert supported[2]["mechanics_result"]["hit_count"] == 2
+    assert supported[3]["mechanics_result"]["damage_model"] == "level_based_fixed"
+    incomplete = _prepared(TERRAIN_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert incomplete[0]["mechanics_result"]["missing_inputs"] == ["self.grounded"]
+    assert incomplete[1]["mechanics_comparison"]["rank"] == 1
+
+
+def test_offline_grounded_terrain_variants_remain_fail_closed_without_provider_calls():
+    variants = offline_grounded_terrain_authority_variants()
+    assert variants == {
+        "provider_calls": 0,
+        "variants": {
+            "grounded": {"mechanics_status": "known", "applied": ["terrain_electric_boost"], "rank": 1},
+            "ungrounded": {"mechanics_status": "known", "applied": [], "rank": 1},
+            "unknown": {"mechanics_status": "insufficient_context", "applied": None, "rank": None},
+            "malformed": {"mechanics_status": "unsupported_mechanic", "applied": None, "rank": None},
+        },
+        "no_usable_cycle_status": "no_selectable_candidates",
+    }
+
+
 def test_offline_defender_ability_authority_variants_never_call_provider_or_default_to_no_effect():
     variants = offline_defender_ability_authority_variants()
     assert variants["provider_calls"] == 0
@@ -295,6 +321,15 @@ def test_cli_allows_the_bounded_speed_stage_fixture_pair(capsys):
         return (lambda: True), _response
 
     assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *SPEED_STAGE_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
+
+
+def test_cli_allows_the_bounded_grounded_terrain_fixture_pair(capsys):
+    def adapters(*, model):
+        assert model == "gemini-2.5-flash"
+        return (lambda: True), _response
+
+    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *TERRAIN_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
