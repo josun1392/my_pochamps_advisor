@@ -79,7 +79,11 @@ def evaluate_action_order(
         result["missing_inputs"] = missing_speeds
         return result
     if self_speed_stage is not _STAGE_AUTHORITY_NOT_SUPPLIED or opponent_speed_stage is not _STAGE_AUTHORITY_NOT_SUPPLIED:
-        missing_stages = [name for name, value in (("self_speed_stage", self_speed_stage), ("opponent_speed_stage", opponent_speed_stage)) if isinstance(value, bool) or not isinstance(value, int) or not -6 <= value <= 6]
+        invalid = [value for value in (self_speed_stage, opponent_speed_stage) if value is not None and (isinstance(value, bool) or not isinstance(value, int) or not -6 <= value <= 6)]
+        if invalid:
+            result.update(status="unsupported_mechanic", unsupported_reason="speed_stage_context")
+            return result
+        missing_stages = [name for name, value in (("self_speed_stage", self_speed_stage), ("opponent_speed_stage", opponent_speed_stage)) if value is None]
         if missing_stages:
             result["missing_inputs"] = missing_stages
             return result

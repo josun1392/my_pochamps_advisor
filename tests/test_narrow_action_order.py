@@ -49,6 +49,38 @@ def test_equal_speed_is_explicit_tie_and_unknowns_are_not_defaulted():
     assert unknown_field["missing_inputs"] == ["trick_room"]
 
 
+def test_explicit_speed_stage_authority_adjusts_equal_priority_speed_only():
+    result = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=100, opponent_final_speed=120, trick_room="inactive",
+        self_speed_stage=1, opponent_speed_stage=0,
+    )
+    assert result["status"] == "acts_first"
+    assert result["speed_stage_adjustment_applied"] is True
+    assert (result["self_speed_stage"], result["opponent_speed_stage"]) == (1, 0)
+
+
+def test_explicit_unknown_or_malformed_speed_stage_fails_closed_but_priority_does_not_need_it():
+    unknown = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=100, opponent_final_speed=90, trick_room="inactive",
+        self_speed_stage=None, opponent_speed_stage=0,
+    )
+    malformed = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=100, opponent_final_speed=90, trick_room="inactive",
+        self_speed_stage=7, opponent_speed_stage=0,
+    )
+    priority = evaluate_action_order(
+        self_action=_action("quick-attack", 1), opponent_action=_action("scratch", 0),
+        self_final_speed=None, opponent_final_speed=None, trick_room="unknown",
+        self_speed_stage=None, opponent_speed_stage=None,
+    )
+    assert unknown["missing_inputs"] == ["self_speed_stage"]
+    assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "speed_stage_context"
+    assert priority["status"] == "acts_first" and "speed_stage_adjustment_applied" not in priority
+
+
 @pytest.mark.parametrize(
     ("kwargs", "expected"),
     [
