@@ -19352,6 +19352,17 @@ Maintained boundaries:
   bounded explanation; completed result and presentation expose only the
   selected candidate's allowed item label.
 
+## v15.84 defender-ability modifier grounding smoke
+
+- Added the approval-gated Fur Coat fixture with a physical fixed-hit match,
+  special non-match, and level-fixed non-application. A known Solid Rock
+  fixture keeps formula damage unsupported while a level-fixed control remains
+  deterministic rank one.
+- Unknown, malformed, stale, and candidate-mismatch target-ability states are
+  provider-free checks. The actual response still contains only the selected
+  rank-one candidate and a bounded explanation; target ability and native Q12
+  evidence remain server-owned.
+
 ## v15.83 known defender-ability damage modifiers
 
 - Formula-damage candidates now use only an explicit request-start opponent

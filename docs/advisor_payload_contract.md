@@ -3606,6 +3606,17 @@ insufficient context and known unsupported ability remains unsupported
 mechanics, never a no-effect default. Provider output remains selection plus a
 bounded explanation only.
 
+## v15.84 defender-ability grounding smoke
+
+The approval-gated pair verifies candidate-local target-ability evidence with
+the minimal provider response. The Fur Coat fixture selects only the
+deterministic physical fixed-hit winner; its special peer has no tag and its
+level-based fixed-damage peer has no ordinary defender modifier. The Solid
+Rock control fixture leaves formula damage unsupported while selection binds
+to the server-owned level-fixed evidence. Unknown, malformed, stale, and
+non-rank-one-selection variants are provider-free and cannot convert target
+ability into no effect.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics
