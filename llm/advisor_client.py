@@ -548,6 +548,15 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
         lines.append("계산 정보: 현재 지원 범위 밖의 기술 메커니즘입니다.")
     action_order = evidence.get("action_order")
     order = {"acts_first": "선공 가능", "acts_second": "후공", "speed_tie": "동속"}.get(action_order.get("status") if isinstance(action_order, Mapping) else None)
+    if isinstance(action_order, Mapping):
+        if action_order.get("reason") == "priority_advantage" and action_order.get("status") == "acts_first":
+            order = "우선도가 높아 트릭룸과 무관하게 먼저 행동함"
+        elif action_order.get("status") == "speed_tie":
+            order = "보정 후 스피드가 같아 동속임"
+        elif action_order.get("reason") == "speed_advantage" and action_order.get("trick_room") == "active":
+            order = "트릭룸이 적용되어 더 느린 쪽이 먼저 행동함"
+        elif action_order.get("reason") == "speed_advantage" and action_order.get("trick_room") == "inactive":
+            order = "트릭룸이 없어 보정 후 스피드가 빠른 쪽이 먼저 행동함"
     if order:
         lines.append(f"행동 순서: {order}")
     accuracy = evidence.get("accuracy_evidence")

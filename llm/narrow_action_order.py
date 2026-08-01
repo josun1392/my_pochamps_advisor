@@ -9,6 +9,7 @@ from llm.advisor_battle_state_context import calculate_stage_adjusted_stat
 # Do not silently treat their canonical base priority as the final priority.
 _CONDITIONAL_PRIORITY_MOVES = frozenset({"grassy-glide"})
 _STAGE_AUTHORITY_NOT_SUPPLIED = object()
+_TRICK_ROOM_AUTHORITY_NOT_SUPPLIED = object()
 
 
 def _action(value: Mapping[str, Any] | None, side: str) -> tuple[dict[str, Any] | None, str | None]:
@@ -30,7 +31,8 @@ def evaluate_action_order(
     opponent_action: Mapping[str, Any] | None,
     self_final_speed: Any,
     opponent_final_speed: Any,
-    trick_room: str,
+    trick_room: Any = _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED,
+    trick_room_provenance: str | None = None,
     self_speed_stage: Any = _STAGE_AUTHORITY_NOT_SUPPLIED,
     opponent_speed_stage: Any = _STAGE_AUTHORITY_NOT_SUPPLIED,
 ) -> dict[str, Any]:
@@ -40,7 +42,8 @@ def evaluate_action_order(
     result: dict[str, Any] = {
         "self_action": self_reference,
         "opponent_action": opponent_reference,
-        "trick_room": trick_room if trick_room in {"active", "inactive", "unknown"} else "unknown",
+        "trick_room": "inactive" if trick_room is _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED else trick_room if trick_room in {"active", "inactive", "unknown"} else "unknown",
+        "trick_room_authority": "omitted" if trick_room is _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED else trick_room_provenance if trick_room_provenance in {"user_confirmed_current", "trusted_observed_current", "unknown"} else "unknown",
         "authority": "canonical_move_metadata_and_trusted_runtime",
         "status": "insufficient_context",
         "missing_inputs": [],

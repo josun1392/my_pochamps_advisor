@@ -281,14 +281,14 @@ def _trusted_final_speed(snapshot: Mapping[str, Any], side: str) -> int | None:
     return None
 
 
-def _known_trick_room(snapshot: Mapping[str, Any]) -> str:
+def _known_trick_room(snapshot: Mapping[str, Any]) -> tuple[str, str]:
     context = snapshot.get("field_state_context")
     field = context.get("current_field") if isinstance(context, Mapping) else None
     try:
         normalized = normalize_user_confirmed_current_field_state(field)
     except ValueError:
-        return "unknown"
-    return "active" if "trick-room" in normalized["global_effects"] else "inactive"
+        return "unknown", "unknown"
+    return ("active" if "trick-room" in normalized["global_effects"] else "inactive"), "user_confirmed_current"
 
 
 def _trusted_speed_stage(snapshot: Mapping[str, Any], side: str) -> int | None:
@@ -319,12 +319,14 @@ def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -
 
 
 def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: Any, repositories: Any) -> dict[str, Any]:
+    trick_room, trick_room_provenance = _known_trick_room(snapshot)
     kwargs = {
         "self_action": {"move_id": move, "priority": _metadata_value(metadata, "priority")},
         "opponent_action": _canonical_opponent_action(snapshot, repositories),
         "self_final_speed": _trusted_final_speed(snapshot, "self"),
         "opponent_final_speed": _trusted_final_speed(snapshot, "opponent"),
-        "trick_room": _known_trick_room(snapshot),
+        "trick_room": trick_room,
+        "trick_room_provenance": trick_room_provenance,
     }
     if isinstance(snapshot.get("stat_stage_context"), Mapping):
         kwargs.update(self_speed_stage=_trusted_speed_stage(snapshot, "self"), opponent_speed_stage=_trusted_speed_stage(snapshot, "opponent"))

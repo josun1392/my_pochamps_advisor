@@ -1,6 +1,7 @@
 import pytest
 
 from llm.advisor_candidate_contract import build_evidence_bundle, build_recommendation_request, evaluate_move_candidate
+from llm.advisor_client import format_recommendation_presentation_text
 from llm.narrow_action_order import evaluate_action_order
 
 
@@ -47,6 +48,40 @@ def test_equal_speed_is_explicit_tie_and_unknowns_are_not_defaulted():
     )
     assert unknown_field["status"] == "insufficient_context"
     assert unknown_field["missing_inputs"] == ["trick_room"]
+
+
+def test_trick_room_active_reverses_only_equal_priority_and_omitted_standalone_stays_compatible():
+    active = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=80, opponent_final_speed=120, trick_room="active",
+        trick_room_provenance="user_confirmed_current",
+    )
+    priority = evaluate_action_order(
+        self_action=_action("quick-attack", 1), opponent_action=_action("scratch", 0),
+        self_final_speed=80, opponent_final_speed=120, trick_room="unknown",
+        trick_room_provenance="unknown",
+    )
+    omitted = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=120, opponent_final_speed=80,
+    )
+    assert active["status"] == "acts_first" and active["trick_room_authority"] == "user_confirmed_current"
+    assert priority["status"] == "acts_first" and priority["reason"] == "priority_advantage"
+    assert omitted["status"] == "acts_first" and omitted["trick_room_authority"] == "omitted"
+
+
+def test_trick_room_active_preserves_speed_stage_order_and_tie():
+    reversed_order = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=100, opponent_final_speed=120, trick_room="active",
+        self_speed_stage=1, opponent_speed_stage=0,
+    )
+    tie = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=100, opponent_final_speed=100, trick_room="active",
+    )
+    assert reversed_order["status"] == "acts_second" and reversed_order["speed_stage_adjustment_applied"] is True
+    assert tie["status"] == "speed_tie"
 
 
 def test_explicit_speed_stage_authority_adjusts_equal_priority_speed_only():
@@ -147,3 +182,45 @@ def test_candidate_never_promotes_unknown_field_or_unresolved_opponent_metadata(
     )
     assert candidate["action_order"]["status"] == "insufficient_context"
     assert candidate["action_order"]["missing_inputs"] == ["opponent_move_priority"]
+
+
+def test_candidate_derives_trick_room_tristate_only_from_confirmed_field_snapshot():
+    base = {
+        "final_stat_context": {"current_final_stats": [_speed("self", 120), _speed("opponent", 80)]},
+        "opponent_selected_move": {"move_id": "scratch"},
+    }
+    repository = {
+        "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0},
+        "scratch": {"category": "physical", "power": 40, "type": "normal", "priority": 0},
+    }
+    active = {
+        **base,
+        "field_state_context": {"current_field": {
+            "weather": "none", "terrain": "none", "global_effects": ["trick-room"], "side_effects": [],
+            "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known",
+        }},
+    }
+    known = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot=active, repositories=repository)
+    malformed = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot={**base, "field_state_context": {"current_field": {"global_effects": ["trick-room"]}}}, repositories=repository)
+    assert known["action_order"]["status"] == "acts_second"
+    assert known["action_order"]["trick_room"] == "active"
+    assert known["action_order"]["trick_room_authority"] == "user_confirmed_current"
+    assert malformed["action_order"]["missing_inputs"] == ["trick_room"]
+
+
+def test_presentation_uses_bounded_trick_room_action_order_text_only_for_selected_candidate():
+    presentation = {
+        "status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0,
+        "primary_reasons": [], "risks": [], "alternatives": [], "candidate_summaries": [],
+        "selected_candidate": {
+            "selected_action": {"slot_index": 0, "move": "tackle"},
+            "evidence": {
+                "mechanics_result": {"status": "insufficient_context"},
+                "action_order": {"status": "acts_first", "reason": "speed_advantage", "trick_room": "active"},
+                "comparison_facts": {},
+            },
+        },
+    }
+    text = format_recommendation_presentation_text(presentation_model=presentation)
+    assert "\ud2b8\ub9ad\ub8f8\uc774 \uc801\uc6a9\ub418\uc5b4 \ub354 \ub290\ub9b0 \ucabd\uc774 \uba3c\uc800 \ud589\ub3d9\ud568" in text
+    assert "trick_room" not in text and "user_confirmed_current" not in text
