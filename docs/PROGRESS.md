@@ -19374,6 +19374,13 @@ Maintained boundaries:
   irrelevant stages do not block the candidate. Presentation exposes only a
   selected candidate's bounded stage direction, never ratios or effective stats.
 
+## v15.86 damage stat-stage grounding smoke
+
+- Added approval-gated physical/special/fixed-hit stage fixtures and an
+  incomplete relevant-stage fixture with a level-fixed control. The runner
+  checks candidate-local stage evidence before invocation and binds only the
+  selected candidate after provider validation.
+
 ## v15.83 known defender-ability damage modifiers
 
 - Formula-damage candidates now use only an explicit request-start opponent

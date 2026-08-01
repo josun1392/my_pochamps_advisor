@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, STATUS_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_item_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, STAGE_FIXTURES, STATUS_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -168,6 +168,18 @@ def test_defender_ability_fixture_pair_preserves_matching_fixed_hit_and_level_fi
     assert unsupported[0]["mechanics_result"]["unsupported_reason"] == "defender_ability_modifier"
     assert unsupported[1]["mechanics_result"]["damage_model"] == "level_based_fixed"
     assert unsupported[1]["mechanics_comparison"]["rank"] == 1
+
+
+def test_stage_fixture_pair_preserves_physical_special_mapping_and_level_fixed_control():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=STAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    supported = _prepared(STAGE_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert supported[0]["mechanics_result"]["stat_stage_evidence"]["offensive_stage_stat"] == "attack"
+    assert supported[1]["mechanics_result"]["stat_stage_evidence"]["offensive_stage_stat"] == "special-attack"
+    assert "stat_stage_evidence" not in supported[2]["mechanics_result"]
+    incomplete = _prepared(STAGE_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert incomplete[0]["mechanics_result"]["status"] == "insufficient_context"
+    assert incomplete[1]["mechanics_comparison"]["rank"] == 1
 
 
 def test_offline_defender_ability_authority_variants_never_call_provider_or_default_to_no_effect():
