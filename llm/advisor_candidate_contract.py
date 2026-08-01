@@ -267,15 +267,16 @@ def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -
 
 
 def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: Any, repositories: Any) -> dict[str, Any]:
-    return evaluate_action_order(
-        self_action={"move_id": move, "priority": _metadata_value(metadata, "priority")},
-        opponent_action=_canonical_opponent_action(snapshot, repositories),
-        self_final_speed=_trusted_final_speed(snapshot, "self"),
-        opponent_final_speed=_trusted_final_speed(snapshot, "opponent"),
-        trick_room=_known_trick_room(snapshot),
-        self_speed_stage=_trusted_speed_stage(snapshot, "self"),
-        opponent_speed_stage=_trusted_speed_stage(snapshot, "opponent"),
-    )
+    kwargs = {
+        "self_action": {"move_id": move, "priority": _metadata_value(metadata, "priority")},
+        "opponent_action": _canonical_opponent_action(snapshot, repositories),
+        "self_final_speed": _trusted_final_speed(snapshot, "self"),
+        "opponent_final_speed": _trusted_final_speed(snapshot, "opponent"),
+        "trick_room": _known_trick_room(snapshot),
+    }
+    if isinstance(snapshot.get("stat_stage_context"), Mapping):
+        kwargs.update(self_speed_stage=_trusted_speed_stage(snapshot, "self"), opponent_speed_stage=_trusted_speed_stage(snapshot, "opponent"))
+    return evaluate_action_order(**kwargs)
 
 
 def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapping[str, Any], repositories: Any, turn_snapshot: Any = None, selectable_moves: Sequence[str | None] | None = None, species_repository: Any = None) -> dict[str, Any]:
