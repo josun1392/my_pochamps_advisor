@@ -19331,7 +19331,7 @@ Maintained boundaries:
 ## v15.81 known held-item damage modifiers
 
 - Formula-damage candidates now use only request-start, user-confirmed self
-  Life Orb, Choice Band, Choice Specs, Muscle Band, or Wise Glasses. Existing
+  Life Orb, Choice Band, Choice Specs, or Muscle Band. Existing
   Q12 item hooks own modifier order and rounding; fixed-hit applies the same
   per-hit result before exact convolution, while level-based fixed damage is
   unchanged.

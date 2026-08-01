@@ -522,7 +522,6 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
             "item_choice_band_boost": "\uad6c\uc560\uc758\ubc34\ub4dc \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac15\ud654",
             "item_choice_specs_boost": "\uad6c\uc560\uc758\uc548\uacbd \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ud2b9\uc218 \ud53c\ud574 \uac15\ud654",
             "item_muscle_band_boost": "\uadfc\ub825\ubc34\ub4dc \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac15\ud654",
-            "item_wise_glasses_boost": "\ubc14\uc6b4\uacbd \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ud2b9\uc218 \ud53c\ud574 \uac15\ud654",
         }
         applied = mechanics.get("applied_damage_modifiers")
         if isinstance(applied, list):

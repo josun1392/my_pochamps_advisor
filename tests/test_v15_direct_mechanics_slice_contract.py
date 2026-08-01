@@ -428,14 +428,12 @@ def test_static_self_item_boosts_use_only_current_user_confirmed_item_authority(
     choice_band_special = _modifier_result(category="special", item="choice-band")
     choice_specs = _modifier_result(category="special", item="choice-specs")
     muscle_band = _modifier_result(item="muscle-band")
-    wise_glasses = _modifier_result(category="special", item="wise-glasses")
     assert life_orb["damage_range"]["maximum"] > baseline["damage_range"]["maximum"]
     assert "item_life_orb_boost" in life_orb["applied_damage_modifiers"]
     assert "item_choice_band_boost" in choice_band["applied_damage_modifiers"]
     assert choice_band_special["status"] == "known" and "item_choice_band_boost" not in choice_band_special["applied_damage_modifiers"]
     assert "item_choice_specs_boost" in choice_specs["applied_damage_modifiers"]
     assert "item_muscle_band_boost" in muscle_band["applied_damage_modifiers"]
-    assert "item_wise_glasses_boost" in wise_glasses["applied_damage_modifiers"]
 
 
 def test_item_authority_fails_closed_for_default_unknown_and_unsupported_profiles():
@@ -443,19 +441,21 @@ def test_item_authority_fails_closed_for_default_unknown_and_unsupported_profile
     default = _modifier_result(item="system_default")
     no_item = _modifier_result(item="none")
     unsupported = _modifier_result(item="choice-scarf")
+    excluded = _modifier_result(item="wise-glasses")
     malformed = _modifier_result(item="not a canonical item")
     assert unknown["status"] == "insufficient_context" and unknown["missing_inputs"] == ["attacker.item"]
     assert default["status"] == "insufficient_context" and default["missing_inputs"] == ["attacker.item"]
     assert no_item["status"] == "known" and no_item["applied_damage_modifiers"] == []
     assert unsupported["status"] == "unsupported_mechanic" and unsupported["unsupported_reason"] == "item_modifier"
+    assert excluded["status"] == "unsupported_mechanic" and excluded["unsupported_reason"] == "item_modifier"
     assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "item_modifier"
 
 
 def test_static_item_modifier_composes_with_existing_modifiers_and_fixed_hit_but_not_fixed_damage():
-    weather = _modifier_result(category="special", move_type="water", move_id="water-pulse", power=60, item="wise-glasses", weather="rain", side_effects=[])
+    weather = _modifier_result(category="special", move_type="water", move_id="water-pulse", power=60, item="choice-specs", weather="rain", side_effects=[])
     burn_screen = _modifier_result(move_id="mach-punch", item="choice-band", weather="none", conditions=[{"side": "self", "condition_type": "burn"}], side_effects=[{"side": "opponent", "effect": "reflect"}], battle_format="singles", ability="iron-fist")
     fixed_hit = _modifier_result(move_id="double-hit", power=60, min_hits=2, max_hits=2, item="life-orb", weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}])
-    assert weather["applied_damage_modifiers"] == ["rain_water_boost", "item_wise_glasses_boost"]
+    assert weather["applied_damage_modifiers"] == ["rain_water_boost", "item_choice_specs_boost"]
     assert burn_screen["applied_damage_modifiers"] == ["burn_physical_reduction", "reflect_reduction", "ability_iron_fist_boost", "item_choice_band_boost"]
     assert fixed_hit["status"] == "known" and fixed_hit["hit_count"] == 2
     assert fixed_hit["applied_damage_modifiers"] == ["item_life_orb_boost"]

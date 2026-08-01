@@ -36,13 +36,12 @@ ABILITY_MODIFIER_TAGS = {
     "mega-launcher": "ability_mega_launcher_boost",
     "technician": "ability_technician_boost",
 }
-STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band", "wise-glasses"})
+STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band"})
 ITEM_MODIFIER_TAGS = {
     "life-orb": "item_life_orb_boost",
     "choice-band": "item_choice_band_boost",
     "choice-specs": "item_choice_specs_boost",
     "muscle-band": "item_muscle_band_boost",
-    "wise-glasses": "item_wise_glasses_boost",
 }
 
 
@@ -351,7 +350,7 @@ def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
     applies = (
         item_id == "life-orb"
         or (item_id in {"choice-band", "muscle-band"} and category == "physical")
-        or (item_id in {"choice-specs", "wise-glasses"} and category == "special")
+        or (item_id == "choice-specs" and category == "special")
     )
     if not applies:
         return result
