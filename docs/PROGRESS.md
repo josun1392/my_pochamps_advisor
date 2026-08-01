@@ -19363,6 +19363,17 @@ Maintained boundaries:
   rank-one candidate and a bounded explanation; target ability and native Q12
   evidence remain server-owned.
 
+## v15.85 known offensive and defensive stat stages
+
+- Formula candidates consume only explicit request-start Attack/Defense or
+  Special Attack/Special Defense stages. The canonical floor-rounded stage
+  helper adjusts trusted final stats before Q12; fixed-hit reuses the same
+  per-hit inputs and level-based fixed damage remains independent.
+- A supplied stage context must contain exactly the two candidate-relevant
+  stages. Unknown, malformed, or duplicate relevant stages fail closed, while
+  irrelevant stages do not block the candidate. Presentation exposes only a
+  selected candidate's bounded stage direction, never ratios or effective stats.
+
 ## v15.83 known defender-ability damage modifiers
 
 - Formula-damage candidates now use only an explicit request-start opponent

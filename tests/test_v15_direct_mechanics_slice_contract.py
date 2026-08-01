@@ -42,7 +42,7 @@ def _direct_result(battle):
     return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
 
 
-def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_ability=None, defender_types=None):
+def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_ability=None, defender_types=None, stages=None):
     """Exercise only the frozen request-start modifier authority inputs."""
     battle = _battle()
     battle["moves"]["my_available_moves"][0]["move_id"] = move_id
@@ -73,6 +73,8 @@ def _modifier_result(*, category="physical", move_type="normal", move_id="tackle
     if defender_ability is not None:
         entries = current.setdefault("ability_context", {}).setdefault("current_abilities", [])
         entries.append({"side": "opponent", "ability": defender_ability})
+    if stages is not None:
+        current["stat_stage_context"] = {"current_stages": [{"side": side, "stat": stat, "stage": stage, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"} for side, stat, stage in stages]}
     provenance = build_snapshot_stat_provenance(snapshot, species_repository=_Species())
     if defender_types is not None:
         provenance["defender"]["types"] = {"available": True, "value": defender_types}
@@ -493,6 +495,21 @@ def test_static_defender_ability_modifiers_apply_only_to_matching_candidates():
     assert "defender_ability_ice_scales_reduction" in ice_scales_special["applied_damage_modifiers"]
     assert "defender_ability_filter_reduction" in filter_super["applied_damage_modifiers"]
     assert filter_neutral["applied_damage_modifiers"] == []
+
+
+def test_relevant_trusted_stat_stages_adjust_formula_damage_without_affecting_fixed_damage():
+    neutral = _modifier_result(stages=[("self", "attack", 0), ("opponent", "defense", 0)])
+    boosted = _modifier_result(stages=[("self", "attack", 1), ("opponent", "defense", 0)])
+    reduced = _modifier_result(stages=[("self", "attack", -1), ("opponent", "defense", 1)])
+    special = _modifier_result(category="special", stages=[("self", "special-attack", 2), ("opponent", "special-defense", -1)])
+    unknown = _modifier_result(stages=[("self", "attack", 1)])
+    irrelevant = _modifier_result(stages=[("self", "attack", 0), ("opponent", "defense", 0), ("self", "special-attack", -6)])
+    malformed = _modifier_result(stages=[("self", "attack", 7), ("opponent", "defense", 0)])
+    assert boosted["damage_range"]["maximum"] > neutral["damage_range"]["maximum"] > reduced["damage_range"]["maximum"]
+    assert special["stat_stage_evidence"] == {"offensive_stage_stat": "special-attack", "offensive_stage_value": 2, "defensive_stage_stat": "special-defense", "defensive_stage_value": -1, "stage_adjustment_applied": True}
+    assert unknown["status"] == "insufficient_context" and unknown["missing_inputs"] == ["defender.defense_stage"]
+    assert irrelevant["status"] == "known"
+    assert malformed["status"] == "unsupported_mechanic"
 
 
 def test_defender_ability_authority_fails_closed_and_fixed_damage_does_not_require_it():

@@ -16,7 +16,7 @@ from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.types import type_effectiveness_multiplier
 from advisor.probability.single_hit import ko_chance_from_outcomes
-from llm.advisor_battle_state_context import DYNAMIC_MOVE_ASSESSMENT_REGISTRY
+from llm.advisor_battle_state_context import DYNAMIC_MOVE_ASSESSMENT_REGISTRY, calculate_stage_adjusted_stat, normalize_user_confirmed_current_stat_stage
 
 
 _STAT_KEYS = ("hp", "attack", "defense", "special-attack", "special-defense", "speed")
@@ -122,6 +122,7 @@ def evaluate_direct_damage_mechanics(
         current=current, direct_defender=direct_defender, category=category, move_type=move_type,
         defender_types=defender["types"] if defender is not None else (),
     )
+    stage_context = _relevant_stage_context(current=current, category=category)
     legacy_modifier_reason = _unsupported_modifier(
         {**direct_attacker, "ability": _KNOWN_ABSENT, "item": _KNOWN_ABSENT}, {**direct_defender, "ability": _KNOWN_ABSENT}, {}
     )
@@ -136,10 +137,13 @@ def evaluate_direct_damage_mechanics(
         return _unsupported(item_modifier["unsupported_reason"])
     if defender_ability_modifier["unsupported_reason"] is not None:
         return _unsupported(defender_ability_modifier["unsupported_reason"])
+    if stage_context["unsupported_reason"] is not None:
+        return _unsupported(stage_context["unsupported_reason"])
     missing.extend(modifier.get("missing_inputs", []))
     missing.extend(ability_modifier["missing_inputs"])
     missing.extend(item_modifier["missing_inputs"])
     missing.extend(defender_ability_modifier["missing_inputs"])
+    missing.extend(stage_context["missing_inputs"])
     for side_name, side in (("attacker", direct_attacker), ("defender", direct_defender)):
         if side_name == "defender" and not defender_ability_modifier["authority_explicit"]:
             _require_known_absent(side.get("ability"), f"{side_name}.ability", missing)
@@ -162,10 +166,14 @@ def evaluate_direct_damage_mechanics(
         attacker_stats = _stat_block(attacker["final_stats"])
         defender_stats = _stat_block(defender["final_stats"])
         is_physical = category == "physical"
+        attack_stat = attacker_stats.atk if is_physical else attacker_stats.spa
+        defense_stat = defender_stats.def_ if is_physical else defender_stats.spd
+        if stage_context["applied"]:
+            attack_stat = calculate_stage_adjusted_stat(attack_stat, stage_context["offensive_stage_value"])
+            defense_stat = calculate_stage_adjusted_stat(defense_stat, stage_context["defensive_stage_value"])
         rolls = calc_damage_rolls(DamageContext(
             attacker_level=trusted_level, move_power=power,  # type: ignore[arg-type]
-            attack_stat=attacker_stats.atk if is_physical else attacker_stats.spa,
-            defense_stat=defender_stats.def_ if is_physical else defender_stats.spd,
+            attack_stat=attack_stat, defense_stat=defense_stat,
             move_type=move_type, attacker_types=tuple(attacker["types"]),
             defender_types=tuple(defender["types"]), is_physical=is_physical,
             is_critical=False, is_spread=False, move_id=move_id,
@@ -192,8 +200,40 @@ def evaluate_direct_damage_mechanics(
         "ko_result": {"status": "resolved", "single_hit_probability": float(ko_chance_from_outcomes(total_rolls, defender_hp))},
         "damage_model": "fixed_hit_formula" if hit_count > 1 else "single_hit_formula",
         "applied_damage_modifiers": [*modifier["applied"], *ability_modifier["applied"], *item_modifier["applied"], *defender_ability_modifier["applied"]], "missing_inputs": [], "unsupported_reason": None,
+        "stat_stage_evidence": stage_context["evidence"],
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
     }
+
+
+def _relevant_stage_context(*, current: Mapping[str, Any], category: Any) -> dict[str, Any]:
+    offensive, defensive = ("attack", "defense") if category == "physical" else ("special-attack", "special-defense")
+    result = {"missing_inputs": [], "unsupported_reason": None, "applied": False, "offensive_stage_value": 0, "defensive_stage_value": 0, "evidence": None}
+    context = current.get("stat_stage_context")
+    if context is None:
+        return result
+    entries = context.get("current_stages") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        result["missing_inputs"] = [f"attacker.{offensive}_stage", f"defender.{defensive}_stage"]
+        return result
+    resolved: dict[tuple[str, str], int] = {}
+    for entry in entries:
+        if not isinstance(entry, Mapping):
+            result["unsupported_reason"] = "stat_stage_context"; return result
+        try:
+            normalized = normalize_user_confirmed_current_stat_stage({key: value for key, value in entry.items() if key != "provenance"})
+        except ValueError:
+            result["unsupported_reason"] = "stat_stage_context"; return result
+        key = (normalized["side"], normalized["stat"])
+        if key in resolved:
+            result["unsupported_reason"] = "stat_stage_context"; return result
+        resolved[key] = normalized["stage"]
+    needed = (("self", offensive), ("opponent", defensive))
+    missing = [f"attacker.{offensive}_stage" if side == "self" else f"defender.{stat}_stage" for side, stat in needed if (side, stat) not in resolved]
+    if missing:
+        result["missing_inputs"] = missing; return result
+    result.update(applied=True, offensive_stage_value=resolved[("self", offensive)], defensive_stage_value=resolved[("opponent", defensive)])
+    result["evidence"] = {"offensive_stage_stat": offensive, "offensive_stage_value": result["offensive_stage_value"], "defensive_stage_stat": defensive, "defensive_stage_value": result["defensive_stage_value"], "stage_adjustment_applied": True}
+    return result
 
 
 def _evaluate_level_based_fixed_damage(*, direct: Mapping[str, Any], stat_provenance: Mapping[str, Any], trusted_level: int | None, move_id: str, generation: str) -> dict[str, Any]:

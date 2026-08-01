@@ -3617,6 +3617,15 @@ to the server-owned level-fixed evidence. Unknown, malformed, stale, and
 non-rank-one-selection variants are provider-free and cannot convert target
 ability into no effect.
 
+## v15.85 formula stat-stage evidence
+
+Known formula mechanics may include `stat_stage_evidence` with only the
+candidate-relevant offensive and defensive stat IDs, their trusted stages, and
+`stage_adjustment_applied`. The canonical stage helper applies the floor-rounded
+ratio to trusted final stats before Q12. Stage context is required only when it
+is supplied; then both relevant entries must be explicit and unique. The field
+is absent for level-based fixed damage and is never provider-authored.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics

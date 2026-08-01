@@ -532,6 +532,12 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
             shown_modifiers = [modifier_labels[tag] for tag in applied if tag in modifier_labels]
             if shown_modifiers:
                 lines.append(f"\ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub41c \uc870\uac74: {', '.join(shown_modifiers)}")
+        stages = mechanics.get("stat_stage_evidence")
+        if isinstance(stages, Mapping) and stages.get("stage_adjustment_applied") is True:
+            labels = {("attack", 1): "\uacf5\uaca9 \uc0c1\uc2b9\uc774 \ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub428", ("attack", -1): "\uacf5\uaca9 \ud558\ub77d\uc774 \ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub428", ("special-attack", 1): "\ud2b9\uc218\uacf5\uaca9 \uc0c1\uc2b9\uc774 \ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub428", ("special-attack", -1): "\ud2b9\uc218\uacf5\uaca9 \ud558\ub77d\uc774 \ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub428", ("defense", 1): "\uc0c1\ub300 \ubc29\uc5b4 \uc0c1\uc2b9\uc774 \ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub428", ("defense", -1): "\uc0c1\ub300 \ubc29\uc5b4 \ud558\ub77d\uc774 \ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub428", ("special-defense", 1): "\uc0c1\ub300 \ud2b9\uc218\ubc29\uc5b4 \uc0c1\uc2b9\uc774 \ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub428", ("special-defense", -1): "\uc0c1\ub300 \ud2b9\uc218\ubc29\uc5b4 \ud558\ub77d\uc774 \ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub428"}
+            shown = [labels[(stages.get(stat_key), 1 if stages.get(value_key) > 0 else -1)] for stat_key, value_key in (("offensive_stage_stat", "offensive_stage_value"), ("defensive_stage_stat", "defensive_stage_value")) if isinstance(stages.get(value_key), int) and stages.get(value_key) and (stages.get(stat_key), 1 if stages.get(value_key) > 0 else -1) in labels]
+            if shown:
+                lines.append(f"\ud53c\ud574 \uacc4\uc0b0\uc5d0 \ubc18\uc601\ub41c \ub2a5\ub825\uce58 \ub7ad\ud06c: {', '.join(shown)}")
     elif isinstance(mechanics, Mapping) and mechanics.get("status") == "insufficient_context":
         lines.append("계산 정보: 확정하려면 추가 전투 정보가 필요합니다.")
     elif isinstance(mechanics, Mapping) and mechanics.get("status") == "unsupported_mechanic":
