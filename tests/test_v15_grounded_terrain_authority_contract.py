@@ -1,4 +1,5 @@
-from llm.advisor_direct_mechanics import _modifier_context
+from llm.advisor_direct_mechanics import _grounded_authority, _modifier_context
+from llm.advisor_turn_snapshot import build_request_start_recommendation_snapshot
 
 
 def _current(terrain, self_status, opponent_status):
@@ -20,3 +21,33 @@ def test_unknown_or_malformed_grounded_authority_fails_closed_only_when_relevant
     malformed = _current("psychic", "known_grounded", "unknown")
     malformed["grounded_context"]["self"]["provenance"] = "unknown"
     assert _modifier_context(current=malformed, direct={}, category="special", move_type="psychic")["unsupported_reason"] == "grounded_context"
+
+
+def test_each_side_has_independent_explicit_grounded_authority_and_invalid_pairs_fail_closed():
+    current = _current("none", "known_ungrounded", "known_grounded")
+    assert _grounded_authority(current, "self") is False
+    assert _grounded_authority(current, "opponent") is True
+    for status in ("known_grounded", "known_ungrounded"):
+        invalid = _current("none", status, "unknown")
+        invalid["grounded_context"]["self"]["provenance"] = "system_default"
+        assert _grounded_authority(invalid, "self") == "invalid"
+
+
+def test_request_start_snapshot_detaches_grounded_authority_from_later_input_mutation():
+    battle = {
+        "pokemon": {
+            "my_active": {"name_en": "pikachu", "slot_index": 0},
+            "opponent_active": {"name_en": "eevee", "slot_index": 1},
+        },
+        "moves": {"my_available_moves": [{"slot_index": 0, "move_id": "thunderbolt"}]},
+        "grounded_context": {
+            "self": {"status": "known_grounded", "provenance": "user_confirmed_current"},
+            "opponent": {"status": "known_ungrounded", "provenance": "user_confirmed_current"},
+        },
+    }
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("thunderbolt",))
+    battle["grounded_context"]["self"]["status"] = "unknown"
+    assert snapshot.to_dict()["current_state"]["grounded_context"] == {
+        "self": {"status": "known_grounded", "provenance": "user_confirmed_current"},
+        "opponent": {"status": "known_ungrounded", "provenance": "user_confirmed_current"},
+    }

@@ -63,6 +63,14 @@ def test_field_session_apply_cancel_clear_and_count(monkeypatch) -> None:
     window._open_current_field_state_dialog(); window._open_current_field_state_dialog(); window._open_current_field_state_dialog()
     assert window._current_field_state_confirmation["weather"] == "sun"
     assert panel.current_field_state_button.text() == "Field state (3)"
+    window._grounded_context_confirmation = {
+        "self": {"status": "known_grounded", "provenance": "user_confirmed_current"},
+        "opponent": {"status": "known_ungrounded", "provenance": "user_confirmed_current"},
+    }
     window._clear_current_field_state_confirmation()
     assert window._current_field_state_confirmation is None
+    assert window._grounded_context_confirmation == {
+        "self": {"status": "unknown", "provenance": "unknown"},
+        "opponent": {"status": "unknown", "provenance": "unknown"},
+    }
     assert panel.current_field_state_button.text() == "Field state"
