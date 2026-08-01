@@ -514,6 +514,10 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
             "burn_physical_reduction": "\ud654\uc0c1\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac10\uc18c",
             "reflect_reduction": "\uc0c1\ub300 \uce21 \ub9ac\ud50c\ub809\ud130 \uc801\uc6a9",
             "light_screen_reduction": "\uc0c1\ub300 \uce21 \ub77c\uc774\ud2b8\uc2a4\ud06c\ub9b0 \uc801\uc6a9",
+            "ability_iron_fist_boost": "\uc544\uc774\uc5b8\ud53c\uc2a4\ud2b8\uc5d0 \uc758\ud55c \ud380\uce58 \uae30\uc220 \uac15\ud654",
+            "ability_strong_jaw_boost": "\uc2a4\ud2b8\ub871\uc870\uc5d0 \uc758\ud55c \ubb3c\uae30 \uae30\uc220 \uac15\ud654",
+            "ability_mega_launcher_boost": "\uba54\uac00\ub7f0\uccd0\uc5d0 \uc758\ud55c \ud30c\ub3d9 \uae30\uc220 \uac15\ud654",
+            "ability_technician_boost": "\ud14c\ud06c\ub2c8\uc158\uc5d0 \uc758\ud55c \uc800\uc704\ub825 \uae30\uc220 \uac15\ud654",
         }
         applied = mechanics.get("applied_damage_modifiers")
         if isinstance(applied, list):

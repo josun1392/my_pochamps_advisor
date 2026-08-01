@@ -3551,6 +3551,18 @@ Known labels may be presented only for that selected row. Unknown/unsupported
 formula candidates and level-based fixed damage carry no such labels; provider
 selection never becomes modifier authority.
 
+## v15.79 known attacker-ability modifiers
+
+Formula-damage `mechanics_result.applied_damage_modifiers` may additionally
+contain one of the four allowlisted, server-generated static attacker ability
+tags: Iron Fist, Strong Jaw, Mega Launcher, or Technician. The tag exists only
+when the request-start self ability and canonical move condition both match.
+It carries no multiplier or raw ability metadata. Fixed-hit retains the tag on
+its total result after per-hit Q12 evaluation; level-based fixed damage carries
+no ability modifier tag. Unknown self ability is insufficient context and
+known unsupported ability is unsupported mechanics, never a no-ability
+default. Provider output remains selection plus bounded explanation only.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics

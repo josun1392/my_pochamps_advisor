@@ -42,12 +42,12 @@ def _direct_result(battle):
     return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
 
 
-def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None):
+def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None):
     """Exercise only the frozen request-start modifier authority inputs."""
     battle = _battle()
     battle["moves"]["my_available_moves"][0]["move_id"] = move_id
     snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=(move_id,))
-    metadata = {"category": category, "power": 40, "type": move_type}
+    metadata = {"category": category, "power": power, "type": move_type}
     if min_hits is not None: metadata.update(min_hits=min_hits, max_hits=max_hits)
     damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id=move_id, selectable_moves=(move_id,), move_metadata=metadata)
     current = damage["battle_context"]["current_state"]
@@ -57,6 +57,10 @@ def _modifier_result(*, category="physical", move_type="normal", move_id="tackle
         current["condition_context"] = {"current_conditions": conditions}
     if battle_format is not None:
         current["battle_format_context"] = {"current_battle_format": {"battle_format": battle_format}}
+    if ability == "unknown":
+        current["direct_mechanics_context"]["attacker"]["ability"] = {"status": "unknown"}
+    elif ability is not None:
+        current["ability_context"] = {"current_abilities": [{"side": "self", "ability": ability}]}
     return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
 
 
@@ -344,6 +348,70 @@ def test_known_ability_exception_remains_unsupported_instead_of_applying_burn():
     result = _direct_result(battle)
     assert result["status"] == "unsupported_mechanic"
     assert result["unsupported_reason"] == "ability_modifier"
+
+
+def test_static_self_ability_boosts_use_canonical_move_conditions_only():
+    baseline = _modifier_result(move_id="mach-punch")
+    iron_fist = _modifier_result(move_id="mach-punch", ability="iron-fist")
+    strong_jaw = _modifier_result(move_id="crunch", ability="strong-jaw")
+    jaw_mismatch = _modifier_result(move_id="tackle", ability="strong-jaw")
+    mega_launcher = _modifier_result(category="special", move_type="water", move_id="water-pulse", power=60, ability="mega-launcher", weather="none", side_effects=[])
+    technician = _modifier_result(move_id="tackle", power=60, ability="technician")
+    technician_mismatch = _modifier_result(move_id="tackle", power=61, ability="technician")
+    assert iron_fist["damage_range"]["maximum"] > baseline["damage_range"]["maximum"]
+    assert "ability_iron_fist_boost" in iron_fist["applied_damage_modifiers"]
+    assert "ability_strong_jaw_boost" in strong_jaw["applied_damage_modifiers"]
+    assert jaw_mismatch["status"] == "known" and "ability_strong_jaw_boost" not in jaw_mismatch["applied_damage_modifiers"]
+    assert "ability_mega_launcher_boost" in mega_launcher["applied_damage_modifiers"]
+    assert "ability_technician_boost" in technician["applied_damage_modifiers"]
+    assert technician_mismatch["status"] == "known" and "ability_technician_boost" not in technician_mismatch["applied_damage_modifiers"]
+
+
+def test_ability_context_fails_closed_for_unknown_unsupported_and_missing_flag_metadata():
+    unknown = _modifier_result(ability="unknown")
+    unsupported = _modifier_result(ability="guts")
+    missing_flags = _modifier_result(move_id="unmapped-move", ability="strong-jaw")
+    assert unknown["status"] == "insufficient_context" and unknown["missing_inputs"] == ["attacker.ability"]
+    assert unsupported["status"] == "unsupported_mechanic" and unsupported["unsupported_reason"] == "ability_modifier"
+    assert missing_flags["status"] == "unsupported_mechanic" and missing_flags["unsupported_reason"] == "move_flag_metadata"
+
+
+def test_ability_modifier_applies_per_fixed_hit_but_not_level_fixed_damage():
+    baseline = _modifier_result(move_id="double-hit", min_hits=2, max_hits=2)
+    technician = _modifier_result(move_id="double-hit", min_hits=2, max_hits=2, ability="technician")
+    assert technician["status"] == "known" and technician["damage_range"]["maximum"] > baseline["damage_range"]["maximum"]
+    assert technician["applied_damage_modifiers"] == ["ability_technician_boost"]
+
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = "seismic-toss"
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("seismic-toss",))
+    damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id="seismic-toss", selectable_moves=("seismic-toss",), move_metadata={"category": "physical", "type": "normal"})
+    damage["battle_context"]["current_state"]["ability_context"] = {"current_abilities": [{"side": "self", "ability": "iron-fist"}]}
+    result = evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+    assert result["status"] == "known" and result["fixed_damage"] == 50
+    assert "applied_damage_modifiers" not in result
+
+
+def test_request_start_self_ability_reaches_only_matching_candidate_and_presentation():
+    battle = _battle()
+    battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "mach-punch"}, {"slot_index": 1, "move_id": "tackle"}]
+    battle["ability_context"] = {"current_abilities": [{
+        "side": "self", "ability": "iron-fist", "status": "user_confirmed",
+        "source": "user_confirmed_current_ability", "confidence": "known",
+        "provenance": {"side": "self", "slot_index": 0, "pokemon_id": "pikachu", "session_id": "s", "source": "user_confirmed_current_ability", "trust": "user_confirmed_current"},
+    }]}
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "mach-punch"}, {"move_id": "tackle"}], battle_input=battle,
+        move_repository={"mach-punch": {"category": "physical", "power": 40, "type": "fighting", "priority": 1}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}, species_repository=_Species(),
+    )
+    candidates = prepared["candidates"]
+    assert candidates[0]["mechanics_result"]["applied_damage_modifiers"] == ["ability_iron_fist_boost"]
+    assert candidates[1]["mechanics_result"]["status"] == "known"
+    assert candidates[1]["mechanics_result"]["applied_damage_modifiers"] == []
+    completed = complete_recommendation_cycle(prepared_cycle=prepared, response_payload={"recommendation_status": "resolved", "selected_candidate_id": 0, "explanation_code": "clear_ranked_winner"})
+    text = format_recommendation_presentation_text(presentation_model=build_recommendation_presentation_model(completed_cycle=completed))
+    assert "\uc544\uc774\uc5b8\ud53c\uc2a4\ud2b8\uc5d0 \uc758\ud55c \ud380\uce58 \uae30\uc220 \uac15\ud654" in text
+    assert "ability_iron_fist_boost" not in text
 
 
 def test_presentation_exposes_only_selected_candidate_applied_modifier_labels():

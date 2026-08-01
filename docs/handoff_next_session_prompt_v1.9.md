@@ -1918,3 +1918,14 @@ literal. Do not apply this restriction to non-direct dynamic mechanics.
 - Provider remains selection plus bounded explanation only. Use the pair only
   under explicit approval, with two calls, no retry/fallback/repair, and no
   raw provider or modifier-calculation output.
+
+## v15.79 attacker ability modifier handoff
+
+- The offline direct-mechanics path supports only user-confirmed self Iron
+  Fist, Strong Jaw, Mega Launcher, and Technician where canonical move metadata
+  proves the static condition. It reuses the existing Q12 base-power chain;
+  fixed-hit applies it per roll before convolution and level-fixed damage is
+  unchanged.
+- Unknown ability is insufficient and known unsupported ability is unsupported;
+  only an applied candidate-local tag reaches the selected result/presentation.
+  No actual provider validation is authorized by this slice.

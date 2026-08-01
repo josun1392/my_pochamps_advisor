@@ -19306,3 +19306,15 @@ Maintained boundaries:
   selected candidate. Provider output stays limited to candidate selection and
   bounded explanation; no modifier multiplier, rounding, or derived damage is
   accepted from the provider.
+
+## v15.79 known attacker-ability damage modifiers
+
+- Formula-damage candidates now admit only request-start self Iron Fist,
+  Strong Jaw, Mega Launcher, or Technician when canonical move metadata proves
+  the static condition. Existing Q12 base-power ordering/rounding is reused;
+  fixed-hit applies the modifier before exact convolution and level-fixed
+  damage remains outside the path.
+- Unknown ability remains insufficient, known unsupported ability remains
+  unsupported, and only actually applied candidate-local tags reach the
+  selected result/presentation. No provider or network call is part of this
+  offline slice.

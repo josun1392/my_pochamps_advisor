@@ -7,9 +7,12 @@ from collections import Counter
 from typing import Any
 
 from advisor.damage.formula import DamageContext, calc_damage_rolls
+from advisor.damage.abilities import get_ability
+from advisor.damage.ability_modifiers import get_bp_ability_modifier
 from advisor.damage.field import Field, SideField
 from advisor.damage.q12 import M_HALF, Q12_ONE
 from advisor.damage.stats import StatBlock
+from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.types import type_effectiveness_multiplier
 from advisor.probability.single_hit import ko_chance_from_outcomes
 from llm.advisor_battle_state_context import DYNAMIC_MOVE_ASSESSMENT_REGISTRY
@@ -25,6 +28,13 @@ UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS = frozenset({
     "natures-madness", "psywave", "ruination", "sheer-cold", "sonic-boom", "super-fang",
 })
 NATIVE_DIRECT_MECHANICS_SOURCES = frozenset({"native_q12_direct_damage", "native_level_based_fixed_damage"})
+STATIC_ATTACKER_BASE_POWER_ABILITIES = frozenset({"iron-fist", "strong-jaw", "mega-launcher", "technician"})
+ABILITY_MODIFIER_TAGS = {
+    "iron-fist": "ability_iron_fist_boost",
+    "strong-jaw": "ability_strong_jaw_boost",
+    "mega-launcher": "ability_mega_launcher_boost",
+    "technician": "ability_technician_boost",
+}
 
 
 def evaluate_direct_damage_mechanics(
@@ -87,15 +97,24 @@ def evaluate_direct_damage_mechanics(
     direct_attacker = _mapping(direct.get("attacker"))
     direct_defender = _mapping(direct.get("defender"))
     modifier = _modifier_context(current=current, direct=direct, category=category, move_type=move_type)
-    legacy_modifier_reason = _unsupported_modifier(direct_attacker, direct_defender, {})
+    ability_modifier = _attacker_ability_modifier_context(
+        current=current, direct_attacker=direct_attacker, move_id=move_id, power=power,
+    )
+    legacy_modifier_reason = _unsupported_modifier(
+        {**direct_attacker, "ability": _KNOWN_ABSENT}, direct_defender, {}
+    )
     if legacy_modifier_reason is not None:
         return _unsupported(legacy_modifier_reason)
     modifier_reason = modifier.get("unsupported_reason")
     if modifier_reason is not None:
         return _unsupported(modifier_reason)
+    if ability_modifier["unsupported_reason"] is not None:
+        return _unsupported(ability_modifier["unsupported_reason"])
     missing.extend(modifier.get("missing_inputs", []))
+    missing.extend(ability_modifier["missing_inputs"])
     for side_name, side in (("attacker", direct_attacker), ("defender", direct_defender)):
-        _require_known_absent(side.get("ability"), f"{side_name}.ability", missing)
+        if side_name == "defender":
+            _require_known_absent(side.get("ability"), f"{side_name}.ability", missing)
         _require_known_absent(side.get("item"), f"{side_name}.item", missing)
         _require_zero_boosts(side.get("boosts"), f"{side_name}.boosts", missing)
         _require_hp(side, side_name, missing)
@@ -124,6 +143,7 @@ def evaluate_direct_damage_mechanics(
             attacker_species=attacker["pokemon_identity"], defender_species=defender["pokemon_identity"],
             attacker_stats=attacker_stats, defender_stats=defender_stats,
             field=modifier["field"], burn_mod_q12=modifier["burn_mod_q12"],
+            attacker_ability=ability_modifier["ability_effect"],
         ))
     except (TypeError, ValueError, KeyError):
         return _unsupported("native_direct_damage")
@@ -140,7 +160,7 @@ def evaluate_direct_damage_mechanics(
         "damage_percent_range": {"minimum": round(min(total_rolls) * 100 / max_hp, 2), "maximum": round(max(total_rolls) * 100 / max_hp, 2)},
         "ko_result": {"status": "resolved", "single_hit_probability": float(ko_chance_from_outcomes(total_rolls, defender_hp))},
         "damage_model": "fixed_hit_formula" if hit_count > 1 else "single_hit_formula",
-        "applied_damage_modifiers": modifier["applied"], "missing_inputs": [], "unsupported_reason": None,
+        "applied_damage_modifiers": [*modifier["applied"], *ability_modifier["applied"]], "missing_inputs": [], "unsupported_reason": None,
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
     }
 
@@ -232,6 +252,50 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
         if isinstance(value, Mapping) and value.get("status") == "known" and _nonempty_str(value.get("value")):
             return "field_modifier"
     return None
+
+
+def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_attacker: Mapping[str, Any], move_id: str, power: Any) -> dict[str, Any]:
+    """Resolve only request-start self ability IDs usable at the BP modifier step."""
+    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None}
+    context = current.get("ability_context")
+    if not isinstance(context, Mapping):
+        if direct_attacker.get("ability") == _KNOWN_ABSENT:
+            return result
+        if isinstance(direct_attacker.get("ability"), Mapping) and direct_attacker["ability"].get("status") == "known":
+            result["unsupported_reason"] = "ability_modifier"
+        else:
+            result["missing_inputs"].append("attacker.ability")
+        return result
+    entries = context.get("current_abilities")
+    if not isinstance(entries, list):
+        result["missing_inputs"].append("attacker.ability")
+        return result
+    self_entries = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == "self"]
+    if len(self_entries) != 1:
+        result["missing_inputs"].append("attacker.ability")
+        return result
+    ability_id = self_entries[0].get("ability")
+    if not _nonempty_str(ability_id) or ability_id == "unknown":
+        result["missing_inputs"].append("attacker.ability")
+        return result
+    if ability_id not in STATIC_ATTACKER_BASE_POWER_ABILITIES:
+        result["unsupported_reason"] = "ability_modifier"
+        return result
+    if not _positive_int(power):
+        result["missing_inputs"].append("selected_move_metadata")
+        return result
+    flags_by_move = load_move_flags()
+    if ability_id != "technician" and move_id not in flags_by_move:
+        result["unsupported_reason"] = "move_flag_metadata"
+        return result
+    flags = set(flags_by_move.get(move_id, ()))
+    modifier = get_bp_ability_modifier(ability_id, base_power=power, move_flags=flags, move_id=move_id)
+    effect = get_ability(ability_id)
+    if effect is None or modifier == Q12_ONE:
+        return result
+    result["ability_effect"] = effect
+    result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
+    return result
 
 
 def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], category: Any, move_type: Any) -> dict[str, Any]:
