@@ -19381,6 +19381,17 @@ Maintained boundaries:
   checks candidate-local stage evidence before invocation and binds only the
   selected candidate after provider validation.
 
+## v15.88 Speed-stage action-order grounding smoke
+
+- The approval-gated fixture pair keeps priority ahead of Speed-stage
+  authority: equal-priority moves use explicit request-start Speed stages and
+  trusted final Speeds, while a higher-priority control remains selectable when
+  an equal-priority candidate lacks an opponent Speed stage.
+- The runner accepts only this exact two-fixture pair with a two-call,
+  no-retry limit. It verifies candidate-local action-order evidence before a
+  provider call; effective Speed values, stage ratios, and provider text stay
+  outside the presentation contract.
+
 ## v15.83 known defender-ability damage modifiers
 
 - Formula-damage candidates now use only an explicit request-start opponent

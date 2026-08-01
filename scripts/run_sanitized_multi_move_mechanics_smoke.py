@@ -34,7 +34,8 @@ ABILITY_FIXTURES = ("supported-attacker-ability-candidates", "unsupported-abilit
 ITEM_FIXTURES = ("supported-held-item-candidates", "unsupported-item-with-level-fixed-control")
 DEFENDER_ABILITY_FIXTURES = ("supported-defender-ability-candidates", "unsupported-defender-ability-with-level-fixed-control")
 STAGE_FIXTURES = ("supported-damage-stat-stage-candidates", "incomplete-stage-with-level-fixed-control")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES})
+SPEED_STAGE_FIXTURES = ("supported-speed-stage-action-order", "incomplete-speed-stage-with-priority-control")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -112,12 +113,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "double-hit"}, {"move_id": "swift"}, {"move_id": "seismic-toss"}], {"double-hit": {"category": "physical", "power": 60, "type": "normal", "min_hits": 2, "max_hits": 2, "priority": 0}, "swift": {"category": "special", "power": 60, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
     if fixture_id == STAGE_FIXTURES[1]:
         return [{"move_id": "tackle"}, {"move_id": "seismic-toss"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
+    if fixture_id == SPEED_STAGE_FIXTURES[0]:
+        return [{"move_id": "tackle"}, {"move_id": "quick-attack"}, {"move_id": "seismic-toss"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "quick-attack": {"category": "physical", "power": 100, "type": "normal", "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}}
+    if fixture_id == SPEED_STAGE_FIXTURES[1]:
+        return [{"move_id": "tackle"}, {"move_id": "quick-attack"}], {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "quick-attack": {"category": "physical", "power": 100, "type": "normal", "priority": 1}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -154,6 +159,10 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
         battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 1), _stage("self", "special-attack", -1), _stage("opponent", "defense", 1), _stage("opponent", "special-defense", -1)]}
     if fixture_id == STAGE_FIXTURES[1]:
         battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 1)]}
+    if fixture_id == SPEED_STAGE_FIXTURES[0]:
+        battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 0), _stage("opponent", "defense", 0), _stage("self", "speed", 1), _stage("opponent", "speed", 0)]}
+    if fixture_id == SPEED_STAGE_FIXTURES[1]:
+        battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 0), _stage("opponent", "defense", 0), _stage("self", "speed", 1)]}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -348,6 +357,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == STAGE_FIXTURES[1]:
         incomplete, fixed = [row.get("mechanics_result", {}) for row in rows]
         return [item.get("rank") for item in comparisons if isinstance(item, Mapping)] == [None, 1] and incomplete.get("status") == "insufficient_context" and "defender.defense_stage" in incomplete.get("missing_inputs", []) and fixed.get("damage_model") == "level_based_fixed" and "stat_stage_evidence" not in fixed
+    if fixture_id == SPEED_STAGE_FIXTURES[0]:
+        orders = [row.get("action_order", {}) for row in rows]
+        return orders[0].get("status") == "acts_first" and orders[0].get("speed_stage_adjustment_applied") is True and orders[1].get("reason") == "priority_advantage" and "speed_stage_adjustment_applied" not in orders[1] and orders[2].get("status") == "acts_first"
+    if fixture_id == SPEED_STAGE_FIXTURES[1]:
+        orders = [row.get("action_order", {}) for row in rows]
+        return orders[0].get("status") == "insufficient_context" and orders[0].get("missing_inputs") == ["opponent_speed_stage"] and orders[1].get("status") == "acts_first" and orders[1].get("reason") == "priority_advantage"
     return False
 
 

@@ -221,7 +221,7 @@ def _trusted_final_speed(snapshot: Mapping[str, Any], side: str) -> int | None:
         return None
     for entry in entries:
         try:
-            normalized = normalize_user_confirmed_final_battle_stat(entry)
+            normalized = normalize_user_confirmed_final_battle_stat({key: value for key, value in entry.items() if key != "provenance"})
         except ValueError:
             continue
         if normalized["side"] == side and normalized["stat"] == "speed":
