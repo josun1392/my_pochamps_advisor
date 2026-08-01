@@ -19405,6 +19405,13 @@ Maintained boundaries:
   output exposes only bounded adjusted-accuracy and non-neutral direction
   labels.
 
+## v15.90 Accuracy/Evasion provider grounding smoke
+
+- The bounded actual pair verifies adjusted ordinary accuracy separately from
+  always-hit metadata, including an explicit-unknown Evasion case where only
+  the always-hit control remains selectable. Provider output stays limited to
+  selection and explanation code.
+
 ## v15.83 known defender-ability damage modifiers
 
 - Formula-damage candidates now use only an explicit request-start opponent

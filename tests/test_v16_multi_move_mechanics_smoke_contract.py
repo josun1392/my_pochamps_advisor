@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATUS_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_item_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATUS_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -43,6 +43,17 @@ def test_accuracy_fixture_pair_preserves_numeric_and_always_hit_distinction():
     assert known[0]["accuracy_evidence"]["canonical_accuracy"] == 100
     mixed = _prepared(ACCURACY_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
     assert [row["accuracy_evidence"]["status"] for row in mixed] == ["known_accuracy", "always_hits", "unsupported_mechanic"]
+
+
+def test_accuracy_stage_fixture_pair_keeps_adjusted_evidence_and_always_hit_control():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=ACCURACY_STAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    supported = _prepared(ACCURACY_STAGE_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert [row["accuracy_evidence"].get("adjusted_accuracy") for row in supported[:2]] == [100, 93]
+    assert supported[2]["accuracy_evidence"]["status"] == "always_hits"
+    incomplete = _prepared(ACCURACY_STAGE_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert incomplete[0]["accuracy_evidence"]["uncertainty"] == ["opponent_evasion_stage"]
+    assert incomplete[1]["mechanics_comparison"]["rank"] == 1
 
 
 def test_status_fixture_pair_keeps_roles_separate_from_damage_and_selected_evidence():
