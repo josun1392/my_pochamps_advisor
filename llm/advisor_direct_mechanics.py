@@ -10,6 +10,7 @@ from advisor.damage.formula import DamageContext, calc_damage_rolls
 from advisor.damage.abilities import get_ability
 from advisor.damage.ability_modifiers import get_bp_ability_modifier
 from advisor.damage.field import Field, SideField
+from advisor.damage.items import get_item
 from advisor.damage.q12 import M_HALF, Q12_ONE
 from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
@@ -34,6 +35,14 @@ ABILITY_MODIFIER_TAGS = {
     "strong-jaw": "ability_strong_jaw_boost",
     "mega-launcher": "ability_mega_launcher_boost",
     "technician": "ability_technician_boost",
+}
+STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band", "wise-glasses"})
+ITEM_MODIFIER_TAGS = {
+    "life-orb": "item_life_orb_boost",
+    "choice-band": "item_choice_band_boost",
+    "choice-specs": "item_choice_specs_boost",
+    "muscle-band": "item_muscle_band_boost",
+    "wise-glasses": "item_wise_glasses_boost",
 }
 
 
@@ -100,8 +109,11 @@ def evaluate_direct_damage_mechanics(
     ability_modifier = _attacker_ability_modifier_context(
         current=current, direct_attacker=direct_attacker, move_id=move_id, power=power,
     )
+    item_modifier = _attacker_item_modifier_context(
+        stat_provenance=stat_provenance, direct_attacker=direct_attacker, category=category,
+    )
     legacy_modifier_reason = _unsupported_modifier(
-        {**direct_attacker, "ability": _KNOWN_ABSENT}, direct_defender, {}
+        {**direct_attacker, "ability": _KNOWN_ABSENT, "item": _KNOWN_ABSENT}, direct_defender, {}
     )
     if legacy_modifier_reason is not None:
         return _unsupported(legacy_modifier_reason)
@@ -110,12 +122,16 @@ def evaluate_direct_damage_mechanics(
         return _unsupported(modifier_reason)
     if ability_modifier["unsupported_reason"] is not None:
         return _unsupported(ability_modifier["unsupported_reason"])
+    if item_modifier["unsupported_reason"] is not None:
+        return _unsupported(item_modifier["unsupported_reason"])
     missing.extend(modifier.get("missing_inputs", []))
     missing.extend(ability_modifier["missing_inputs"])
+    missing.extend(item_modifier["missing_inputs"])
     for side_name, side in (("attacker", direct_attacker), ("defender", direct_defender)):
         if side_name == "defender":
             _require_known_absent(side.get("ability"), f"{side_name}.ability", missing)
-        _require_known_absent(side.get("item"), f"{side_name}.item", missing)
+        if side_name != "attacker" or not _item_authority_is_explicit(stat_provenance):
+            _require_known_absent(side.get("item"), f"{side_name}.item", missing)
         _require_zero_boosts(side.get("boosts"), f"{side_name}.boosts", missing)
         _require_hp(side, side_name, missing)
         if side_name == "attacker" and modifier.get("burn_known"):
@@ -144,6 +160,7 @@ def evaluate_direct_damage_mechanics(
             attacker_stats=attacker_stats, defender_stats=defender_stats,
             field=modifier["field"], burn_mod_q12=modifier["burn_mod_q12"],
             attacker_ability=ability_modifier["ability_effect"],
+            attacker_item=item_modifier["item_effect"],
         ))
     except (TypeError, ValueError, KeyError):
         return _unsupported("native_direct_damage")
@@ -160,7 +177,7 @@ def evaluate_direct_damage_mechanics(
         "damage_percent_range": {"minimum": round(min(total_rolls) * 100 / max_hp, 2), "maximum": round(max(total_rolls) * 100 / max_hp, 2)},
         "ko_result": {"status": "resolved", "single_hit_probability": float(ko_chance_from_outcomes(total_rolls, defender_hp))},
         "damage_model": "fixed_hit_formula" if hit_count > 1 else "single_hit_formula",
-        "applied_damage_modifiers": [*modifier["applied"], *ability_modifier["applied"]], "missing_inputs": [], "unsupported_reason": None,
+        "applied_damage_modifiers": [*modifier["applied"], *ability_modifier["applied"], *item_modifier["applied"]], "missing_inputs": [], "unsupported_reason": None,
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
     }
 
@@ -296,6 +313,55 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
     result["ability_effect"] = effect
     result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
     return result
+
+
+def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direct_attacker: Mapping[str, Any], category: Any) -> dict[str, Any]:
+    """Resolve only a request-start, user-confirmed self held item.
+
+    The profile source is retained by the frozen snapshot so a UI default is
+    never promoted to known absence.  Legacy direct contexts without an item
+    profile retain their explicit known-absent compatibility path.
+    """
+    result = {"item_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None}
+    attacker = _mapping(stat_provenance.get("attacker"))
+    item = _mapping(attacker.get("known_item"))
+    status = item.get("status")
+    profile_source = item.get("profile_source")
+    if status == "known_absent":
+        return result
+    if status == "unknown":
+        if profile_source is None and direct_attacker.get("item") == _KNOWN_ABSENT:
+            return result
+        if profile_source is None and isinstance(direct_attacker.get("item"), Mapping) and direct_attacker["item"].get("status") == "known":
+            result["unsupported_reason"] = "item_modifier"
+            return result
+        result["missing_inputs"].append("attacker.item")
+        return result
+    if status != "known" or not _nonempty_str(item.get("value")):
+        result["missing_inputs"].append("attacker.item")
+        return result
+    item_id = item["value"]
+    if item_id not in STATIC_ATTACKER_DAMAGE_ITEMS:
+        result["unsupported_reason"] = "item_modifier"
+        return result
+    effect = get_item(item_id)
+    if effect is None:
+        result["unsupported_reason"] = "item_modifier"
+        return result
+    applies = (
+        item_id == "life-orb"
+        or (item_id in {"choice-band", "muscle-band"} and category == "physical")
+        or (item_id in {"choice-specs", "wise-glasses"} and category == "special")
+    )
+    if not applies:
+        return result
+    result["item_effect"] = effect
+    result["applied"].append(ITEM_MODIFIER_TAGS[item_id])
+    return result
+
+
+def _item_authority_is_explicit(stat_provenance: Mapping[str, Any]) -> bool:
+    return _mapping(_mapping(stat_provenance.get("attacker")).get("known_item")).get("status") in {"known", "known_absent"}
 
 
 def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], category: Any, move_type: Any) -> dict[str, Any]:

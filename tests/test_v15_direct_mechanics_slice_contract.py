@@ -42,10 +42,19 @@ def _direct_result(battle):
     return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
 
 
-def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None):
+def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None):
     """Exercise only the frozen request-start modifier authority inputs."""
     battle = _battle()
     battle["moves"]["my_available_moves"][0]["move_id"] = move_id
+    if item is not None:
+        if item == "unknown":
+            battle["item_profiles"] = {"my_active": {"status": "unknown", "source": "user_unconfirmed", "item_id": None}}
+        elif item == "system_default":
+            battle["item_profiles"] = {"my_active": {"status": "system_default_none", "source": "system_default", "item_id": None}}
+        elif item == "none":
+            battle["item_profiles"] = {"my_active": {"status": "none", "source": "user_input", "item_id": None}}
+        else:
+            battle["item_profiles"] = {"my_active": {"status": "user_confirmed", "source": "user_input", "item_id": item}}
     snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=(move_id,))
     metadata = {"category": category, "power": power, "type": move_type}
     if min_hits is not None: metadata.update(min_hits=min_hits, max_hits=max_hits)
@@ -412,6 +421,55 @@ def test_static_ability_modifier_composes_with_known_weather_burn_screens_and_fi
     assert fixed_hit["applied_damage_modifiers"] == ["ability_technician_boost"]
 
 
+def test_static_self_item_boosts_use_only_current_user_confirmed_item_authority():
+    baseline = _modifier_result()
+    life_orb = _modifier_result(item="life-orb")
+    choice_band = _modifier_result(item="choice-band")
+    choice_band_special = _modifier_result(category="special", item="choice-band")
+    choice_specs = _modifier_result(category="special", item="choice-specs")
+    muscle_band = _modifier_result(item="muscle-band")
+    wise_glasses = _modifier_result(category="special", item="wise-glasses")
+    assert life_orb["damage_range"]["maximum"] > baseline["damage_range"]["maximum"]
+    assert "item_life_orb_boost" in life_orb["applied_damage_modifiers"]
+    assert "item_choice_band_boost" in choice_band["applied_damage_modifiers"]
+    assert choice_band_special["status"] == "known" and "item_choice_band_boost" not in choice_band_special["applied_damage_modifiers"]
+    assert "item_choice_specs_boost" in choice_specs["applied_damage_modifiers"]
+    assert "item_muscle_band_boost" in muscle_band["applied_damage_modifiers"]
+    assert "item_wise_glasses_boost" in wise_glasses["applied_damage_modifiers"]
+
+
+def test_item_authority_fails_closed_for_default_unknown_and_unsupported_profiles():
+    unknown = _modifier_result(item="unknown")
+    default = _modifier_result(item="system_default")
+    no_item = _modifier_result(item="none")
+    unsupported = _modifier_result(item="choice-scarf")
+    malformed = _modifier_result(item="not a canonical item")
+    assert unknown["status"] == "insufficient_context" and unknown["missing_inputs"] == ["attacker.item"]
+    assert default["status"] == "insufficient_context" and default["missing_inputs"] == ["attacker.item"]
+    assert no_item["status"] == "known" and no_item["applied_damage_modifiers"] == []
+    assert unsupported["status"] == "unsupported_mechanic" and unsupported["unsupported_reason"] == "item_modifier"
+    assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "item_modifier"
+
+
+def test_static_item_modifier_composes_with_existing_modifiers_and_fixed_hit_but_not_fixed_damage():
+    weather = _modifier_result(category="special", move_type="water", move_id="water-pulse", power=60, item="wise-glasses", weather="rain", side_effects=[])
+    burn_screen = _modifier_result(move_id="mach-punch", item="choice-band", weather="none", conditions=[{"side": "self", "condition_type": "burn"}], side_effects=[{"side": "opponent", "effect": "reflect"}], battle_format="singles", ability="iron-fist")
+    fixed_hit = _modifier_result(move_id="double-hit", power=60, min_hits=2, max_hits=2, item="life-orb", weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}])
+    assert weather["applied_damage_modifiers"] == ["rain_water_boost", "item_wise_glasses_boost"]
+    assert burn_screen["applied_damage_modifiers"] == ["burn_physical_reduction", "reflect_reduction", "ability_iron_fist_boost", "item_choice_band_boost"]
+    assert fixed_hit["status"] == "known" and fixed_hit["hit_count"] == 2
+    assert fixed_hit["applied_damage_modifiers"] == ["item_life_orb_boost"]
+
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = "seismic-toss"
+    battle["item_profiles"] = {"my_active": {"status": "user_confirmed", "source": "user_input", "item_id": "life-orb"}}
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("seismic-toss",))
+    damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id="seismic-toss", selectable_moves=("seismic-toss",), move_metadata={"category": "physical", "type": "normal"})
+    result = evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+    assert result["status"] == "known" and result["fixed_damage"] == 50
+    assert "applied_damage_modifiers" not in result
+
+
 def test_request_start_self_ability_reaches_only_matching_candidate_and_presentation():
     battle = _battle()
     battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "mach-punch"}, {"slot_index": 1, "move_id": "tackle"}]
@@ -432,6 +490,24 @@ def test_request_start_self_ability_reaches_only_matching_candidate_and_presenta
     text = format_recommendation_presentation_text(presentation_model=build_recommendation_presentation_model(completed_cycle=completed))
     assert "\uc544\uc774\uc5b8\ud53c\uc2a4\ud2b8\uc5d0 \uc758\ud55c \ud380\uce58 \uae30\uc220 \uac15\ud654" in text
     assert "ability_iron_fist_boost" not in text
+
+
+def test_request_start_self_item_reaches_only_matching_candidate_and_presentation():
+    battle = _battle()
+    battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "tackle"}, {"slot_index": 1, "move_id": "swift"}]
+    battle["item_profiles"] = {"my_active": {"status": "user_confirmed", "source": "user_input", "item_id": "choice-band"}}
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "tackle"}, {"move_id": "swift"}], battle_input=battle,
+        move_repository={"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "swift": {"category": "special", "power": 60, "type": "normal", "priority": 0}}, species_repository=_Species(),
+    )
+    candidates = prepared["candidates"]
+    assert candidates[0]["mechanics_result"]["applied_damage_modifiers"] == ["item_choice_band_boost"]
+    assert candidates[1]["mechanics_result"]["status"] == "known"
+    assert candidates[1]["mechanics_result"]["applied_damage_modifiers"] == []
+    completed = complete_recommendation_cycle(prepared_cycle=prepared, response_payload={"recommendation_status": "resolved", "selected_candidate_id": 0, "explanation_code": "clear_ranked_winner"})
+    text = format_recommendation_presentation_text(presentation_model=build_recommendation_presentation_model(completed_cycle=completed))
+    assert "\uad6c\uc560\uc758\ubc34\ub4dc \uc18c\uc9c0\ud488\uc73c\ub85c \uc778\ud55c \ubb3c\ub9ac \ud53c\ud574 \uac15\ud654" in text
+    assert "item_choice_band_boost" not in text
 
 
 def test_presentation_exposes_only_selected_candidate_applied_modifier_labels():

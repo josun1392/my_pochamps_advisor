@@ -110,6 +110,7 @@ class PokemonBattleSlot:
     current_hp_percent: int | float | None = None
     known_item_id: str | None = None
     item_status: str | None = None
+    item_source: str | None = None
     stat_stages: Mapping[str, int] = field(default_factory=dict)
     major_status: str | None = None
     volatile_conditions: tuple[str, ...] = field(default_factory=tuple)
@@ -118,6 +119,8 @@ class PokemonBattleSlot:
         object.__setattr__(self, "side", _validate_side(self.side, field_name="side"))
         object.__setattr__(self, "current_hp_percent", _validate_hp_percent(self.current_hp_percent))
         object.__setattr__(self, "item_status", _validate_item_status(self.item_status))
+        if self.item_source is not None and (not isinstance(self.item_source, str) or not self.item_source):
+            raise ValueError("item_source must be a non-empty string or None")
         object.__setattr__(self, "stat_stages", _normalize_stat_stages(self.stat_stages))
         object.__setattr__(
             self,
@@ -134,6 +137,7 @@ class PokemonBattleSlot:
             "current_hp_percent": self.current_hp_percent,
             "known_item_id": self.known_item_id,
             "item_status": self.item_status,
+            "item_source": self.item_source,
             "stat_stages": dict(self.stat_stages),
             "major_status": self.major_status,
             "volatile_conditions": list(self.volatile_conditions),
@@ -149,6 +153,7 @@ class PokemonBattleSlot:
             current_hp_percent=value.get("current_hp_percent"),
             known_item_id=value.get("known_item_id"),
             item_status=value.get("item_status"),
+            item_source=value.get("item_source"),
             stat_stages=value.get("stat_stages") or {},
             major_status=value.get("major_status"),
             volatile_conditions=tuple(value.get("volatile_conditions") or ()),

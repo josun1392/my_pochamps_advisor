@@ -19327,3 +19327,16 @@ Maintained boundaries:
 - Unknown/malformed/no-usable ability variants remain provider-free pre-call
   checks; they never default to no ability. Candidate/result/presentation
   assertions keep applied tags local to the selected candidate.
+
+## v15.81 known held-item damage modifiers
+
+- Formula-damage candidates now use only request-start, user-confirmed self
+  Life Orb, Choice Band, Choice Specs, Muscle Band, or Wise Glasses. Existing
+  Q12 item hooks own modifier order and rounding; fixed-hit applies the same
+  per-hit result before exact convolution, while level-based fixed damage is
+  unchanged.
+- Snapshot provenance distinguishes user-confirmed no-item from a system
+  default. Unknown/default items remain insufficient and known items outside
+  the allowlist remain unsupported. Only an applied candidate-local tag reaches
+  the selected result and presentation; no item activation, consumption, or
+  recoil calculation is added.

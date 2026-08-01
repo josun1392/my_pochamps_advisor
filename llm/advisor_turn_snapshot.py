@@ -104,7 +104,7 @@ def _battle_slot_from_payload(
     pokemon_payload: Mapping[str, Any],
     item_profile: Mapping[str, Any],
 ) -> PokemonBattleSlot:
-    item_status, known_item_id = _snapshot_item_state(item_profile)
+    item_status, known_item_id, item_source = _snapshot_item_state(item_profile)
     return PokemonBattleSlot(
         side=side,
         slot_index=_optional_int(pokemon_payload.get("slot_index")),
@@ -113,22 +113,24 @@ def _battle_slot_from_payload(
         current_hp_percent=pokemon_payload.get("hp_percent"),
         known_item_id=known_item_id,
         item_status=item_status,
+        item_source=item_source,
         stat_stages={},
         major_status=None,
         volatile_conditions=(),
     )
 
 
-def _snapshot_item_state(item_profile: Mapping[str, Any]) -> tuple[str, str | None]:
+def _snapshot_item_state(item_profile: Mapping[str, Any]) -> tuple[str, str | None, str | None]:
     status = _optional_str(item_profile.get("status"))
     item_id = _optional_str(item_profile.get("item_id"))
+    source = _optional_str(item_profile.get("source"))
     if status == "user_confirmed":
-        return "user_confirmed", item_id
+        return "user_confirmed", item_id, source
     if status in {"none", "system_default_none", "absent"}:
-        return "absent", None
+        return "absent", None, source
     if status in {"inferred", "consumed"}:
-        return status, item_id if status == "inferred" else None
-    return "unknown", None
+        return status, item_id if status == "inferred" else None, source
+    return "unknown", None, source
 
 
 def _mapping_or_empty(value: Any) -> Mapping[str, Any]:
@@ -378,7 +380,11 @@ def _snapshot_side_stat_provenance(
         raise ValueError("species_metadata_identity_mismatch")
     final_values = _provenanced_stats(current_state.get("final_stat_context"), "current_final_stats", side)
     stage_values = _provenanced_stats(current_state.get("stat_stage_context"), "current_stages", side, value_key="stage")
-    item_id = _optional_str(slot.get("known_item_id")) if slot.get("item_status") == "user_confirmed" else None
+    item_status = _optional_str(slot.get("item_status"))
+    item_source = _optional_str(slot.get("item_source"))
+    item_id = _optional_str(slot.get("known_item_id")) if item_status == "user_confirmed" else None
+    item_known = item_status == "user_confirmed" and item_id is not None and item_source == "user_input"
+    item_known_absent = item_status == "absent" and item_source == "user_input"
     ability_id = _provenanced_ability(current_state.get("ability_context"), side)
     return {
         "pokemon_identity": species_id,
@@ -390,7 +396,15 @@ def _snapshot_side_stat_provenance(
         "final_stats": _provenance_block(final_values if len(final_values) == len(BASE_STAT_KEYS) else None, source="user_confirmed_final_stat", trust="user_confirmed_current", reason="final_stats_unavailable"),
         "stat_stages": _provenance_block(stage_values or None, source="user_confirmed_current_stat_stage", trust="user_confirmed_current", reason="stat_stages_unavailable"),
         "known_ability": _provenance_block(ability_id, source="user_confirmed_current_ability" if ability_id else "unknown", trust="user_confirmed_current" if ability_id else "unknown", reason="ability_unknown"),
-        "known_item": _provenance_block(item_id, source="user_confirmed_current" if item_id else "unknown", trust="user_confirmed_current" if item_id else "unknown", reason="item_unknown"),
+        "known_item": {
+            "available": item_known or item_known_absent,
+            "status": "known" if item_known else "known_absent" if item_known_absent else "unknown",
+            "value": item_id if item_known else None,
+            "source": "user_confirmed_current_item" if item_known or item_known_absent else "unknown",
+            "trust": "user_confirmed_current" if item_known or item_known_absent else "unknown",
+            "reason": None if item_known or item_known_absent else "item_unknown",
+            "profile_source": item_source,
+        },
     }
 
 

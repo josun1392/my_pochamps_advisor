@@ -3572,6 +3572,17 @@ the control fixture selects level-based fixed damage while known Guts formula
 damage remains unsupported. Unknown, malformed, and no-usable variants are
 pre-call-only and have provider count zero.
 
+## v15.81 known held-item modifiers
+
+Formula-damage `mechanics_result.applied_damage_modifiers` may additionally
+contain one server-generated tag for an applied request-start self Life Orb,
+Choice Band, Choice Specs, Muscle Band, or Wise Glasses. The frozen snapshot
+retains the item profile source so only a user-confirmed item or explicit
+user-confirmed no-item is authoritative; a system default or unknown item is
+not a no-item assumption. Category-mismatched supported items add no tag;
+known items outside the allowlist remain unsupported. The provider never
+receives item multiplier, activation, consumption, or recoil authority.
+
 ## v15.59 multi-move incomplete dependency authority
 
 In a multi-candidate response, `missing_inputs_path` in a mechanics

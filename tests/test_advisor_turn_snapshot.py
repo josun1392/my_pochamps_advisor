@@ -35,6 +35,7 @@ def test_build_turn_snapshot_from_valid_battle_input_maps_active_slots() -> None
     assert player.current_hp_percent == 64
     assert player.known_item_id == "choice-scarf"
     assert player.item_status == "user_confirmed"
+    assert player.item_source == "user_input"
     assert dict(player.stat_stages) == {}
     assert player.major_status is None
     assert player.volatile_conditions == ()
@@ -43,6 +44,7 @@ def test_build_turn_snapshot_from_valid_battle_input_maps_active_slots() -> None
     assert opponent.current_hp_percent == 37.5
     assert opponent.known_item_id == "focus-sash"
     assert opponent.item_status == "user_confirmed"
+    assert opponent.item_source == "user_input"
     assert snapshot.battle_state.weather is None
     assert snapshot.battle_state.terrain is None
     assert dict(snapshot.battle_state.field_conditions) == {}
@@ -92,8 +94,24 @@ def test_build_turn_snapshot_maps_absent_and_inferred_item_statuses() -> None:
     assert snapshot.battle_state.active_opponent is not None
     assert snapshot.battle_state.active_player.item_status == "absent"
     assert snapshot.battle_state.active_player.known_item_id is None
+    assert snapshot.battle_state.active_player.item_source is None
     assert snapshot.battle_state.active_opponent.item_status == "inferred"
     assert snapshot.battle_state.active_opponent.known_item_id == "focus-sash"
+
+
+def test_turn_snapshot_preserves_user_confirmed_no_item_separately_from_default_source() -> None:
+    payload = _battle_input(selected_move=_flamethrower())
+    payload["item_profiles"] = {
+        "my_active": {"status": "none", "source": "user_input", "item_id": None},
+        "opponent_active": {"status": "system_default_none", "source": "system_default", "item_id": None},
+    }
+    snapshot = build_turn_snapshot_from_battle_input(payload)
+    assert snapshot.battle_state.active_player is not None
+    assert snapshot.battle_state.active_opponent is not None
+    assert snapshot.battle_state.active_player.item_status == "absent"
+    assert snapshot.battle_state.active_player.item_source == "user_input"
+    assert snapshot.battle_state.active_opponent.item_status == "absent"
+    assert snapshot.battle_state.active_opponent.item_source == "system_default"
 
 
 def test_strict_turn_snapshot_builder_raises_for_invalid_state() -> None:
