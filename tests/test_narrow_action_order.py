@@ -238,6 +238,64 @@ def test_static_speed_modifier_unknown_and_unsupported_authority_fail_closed_but
     assert priority["status"] == "acts_first" and "self_speed_item" not in priority
 
 
+@pytest.mark.parametrize(
+    ("override", "status", "detail"),
+    [
+        ({"self_final_speed": None}, "insufficient_context", "self_final_speed"),
+        ({"opponent_final_speed": None}, "insufficient_context", "opponent_final_speed"),
+        ({"self_speed_stage": None}, "insufficient_context", "self_speed_stage"),
+        ({"opponent_speed_stage": None}, "insufficient_context", "opponent_speed_stage"),
+        ({"self_paralysis": "unknown"}, "insufficient_context", "self_paralysis"),
+        ({"opponent_paralysis": "unknown"}, "insufficient_context", "opponent_paralysis"),
+        ({"self_speed_item": "unknown"}, "insufficient_context", "self_speed_item"),
+        ({"opponent_speed_item": "unknown"}, "insufficient_context", "opponent_speed_item"),
+        ({"self_speed_ability": "unknown"}, "insufficient_context", "self_speed_ability"),
+        ({"opponent_speed_ability": "unknown"}, "insufficient_context", "opponent_speed_ability"),
+        ({"weather": "unknown"}, "insufficient_context", "weather"),
+        ({"self_tailwind": "unknown"}, "insufficient_context", "self_tailwind"),
+        ({"opponent_tailwind": "unknown"}, "insufficient_context", "opponent_tailwind"),
+        ({"trick_room": "unknown"}, "insufficient_context", "trick_room"),
+        ({"self_speed_item": "iron-ball"}, "unsupported_mechanic", "speed_item_modifier"),
+        ({"self_speed_ability": "surge-surfer"}, "unsupported_mechanic", "speed_ability_modifier"),
+    ],
+)
+def test_equal_priority_authority_matrix_fails_closed_one_input_at_a_time(override, status, detail):
+    base = {
+        "self_action": _action("tackle", 0), "opponent_action": _action("scratch", 0),
+        "self_final_speed": 100, "opponent_final_speed": 90, "trick_room": "inactive",
+        "self_speed_stage": 0, "opponent_speed_stage": 0,
+        "self_paralysis": "not_paralyzed", "opponent_paralysis": "not_paralyzed",
+        "self_speed_item": "none", "opponent_speed_item": "none",
+        "self_speed_ability": "swift-swim", "opponent_speed_ability": "static", "weather": "rain",
+        "self_tailwind": "inactive", "opponent_tailwind": "inactive",
+    }
+    result = evaluate_action_order(**{**base, **override})
+    assert result["status"] == status
+    assert detail in (result.get("missing_inputs") or [result.get("unsupported_reason")])
+
+
+def test_priority_first_bypasses_every_speed_authority_and_full_stack_preserves_tie():
+    priority = evaluate_action_order(
+        self_action=_action("quick-attack", 1), opponent_action=_action("scratch", 0),
+        self_final_speed=None, opponent_final_speed=None, trick_room="unknown",
+        self_speed_stage=None, opponent_speed_stage=None, self_paralysis="unknown", opponent_paralysis="unknown",
+        self_speed_item="unknown", opponent_speed_item="unknown", self_speed_ability="unknown", opponent_speed_ability="unknown", weather="unknown",
+        self_tailwind="unknown", opponent_tailwind="unknown",
+    )
+    tie = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=200, opponent_final_speed=396, trick_room="active",
+        self_speed_stage=-1, opponent_speed_stage=0,
+        self_paralysis="paralyzed", opponent_paralysis="not_paralyzed",
+        self_speed_item="choice-scarf", opponent_speed_item="none",
+        self_speed_ability="swift-swim", opponent_speed_ability="static", weather="rain",
+        self_tailwind="active", opponent_tailwind="inactive",
+    )
+    assert priority["status"] == "acts_first" and priority["reason"] == "priority_advantage"
+    assert not any(key.endswith("_applied") for key in priority)
+    assert tie["status"] == "speed_tie" and tie["self_final_speed"] == tie["opponent_final_speed"]
+
+
 def test_explicit_speed_stage_authority_adjusts_equal_priority_speed_only():
     result = evaluate_action_order(
         self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
