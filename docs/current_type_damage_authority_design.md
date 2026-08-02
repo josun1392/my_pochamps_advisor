@@ -8,7 +8,7 @@ Move type remains canonical move metadata. It is neither inferred from a name no
 
 ## Canonical authority precedence
 
-For a future Q12 type adapter, resolve each needed side independently:
+Formula Q12 resolves each needed side independently in this fixed order:
 
 | Current type context state | Type source | Damage supportability |
 | --- | --- | --- |
@@ -31,7 +31,7 @@ Effectiveness is `type_effectiveness(canonical_move_type, resolved_defender_type
 
 STAB and effectiveness are independent inputs. Known attacker type plus unknown defender type establishes STAB but not exact type-aware Q12; the reverse also applies. Both known inputs make the type portion complete. Unknown is never upgraded to no-STAB or neutral effectiveness.
 
-The future adapter applies only to formula Q12 candidates. It does not make type authority mandatory for pure status, priority-only controls, or level-based fixed damage. Canonical fixed-damage type interaction remains the existing fixed-damage contract until separately inventoried; this design deliberately does not reinterpret it. A candidate already blocked by a move-success gate remains non-selectable and exposes no successful damage outcome regardless of whether its type inputs are known.
+The adapter applies only to formula Q12 candidates. It does not make type authority mandatory for pure status, priority-only controls, or level-based fixed damage. Canonical fixed-damage type interaction remains the existing fixed-damage contract until separately inventoried; this closure does not reinterpret it. A candidate already blocked by a move-success gate remains non-selectable and exposes no successful damage outcome regardless of whether its type inputs are known.
 
 ## Lifecycle, evidence, and provider boundary
 
@@ -39,10 +39,20 @@ Only request-start frozen `current_type_context` may override legacy types. New/
 
 Candidate-local internal evidence distinguishes `attacker_type_authority`, `defender_type_authority`, `stab_basis`, `effectiveness_basis`, `legacy_species_type_compatibility_used`, `current_type_override_used`, and `type_related_damage_supportability`. Presentation must not expose raw type lists, provenance/session identifiers, internal paths, or numeric multipliers.
 
-## Implementation boundary and next goal
+An explicit-unknown or malformed formula input is non-selectable. This does not affect a level-based fixed-damage, pure-status, priority-only, or already-blocked candidate. The result/presentation layer attaches only the selected candidate's server-owned evidence; the provider never creates a type authority, STAB, effectiveness, supportability, or damage value.
+
+## Closure and next boundary
 
 The bounded adapter reuses the existing frozen context, `calc_stab`, and Gen 9 chart; it does not alter Q12 multiplier order. It preserves weather, terrain, burn, screen, ability, item, fixed-hit, priority, and move-success contracts. Level-based fixed damage keeps its existing legacy type boundary. A later goal, if authorized, may add trusted current-type updates for type mutation; it must not add Terastallization, provider schema changes, or expected-outcome ranking implicitly.
 
 ## Sanitized provider-grounding coverage
 
-The offline/actual fixture pair `supported-current-type-q12-override` and `unknown-current-type-with-fixed-control` keeps selection server-owned. The first verifies known self and opponent current types override species metadata for a formula candidate. The second keeps an explicit-unknown formula candidate non-selectable without a species fallback, while a level-based fixed-damage control remains selectable. The provider receives only the existing minimal selection contract and never derives type, STAB, effectiveness, Q12, or supportability evidence.
+The offline/actual fixture pair `supported-current-type-q12-override` and `unknown-current-type-with-fixed-control` keeps selection server-owned. The first verifies known self and opponent current types override species metadata for a formula candidate. The second keeps an explicit-unknown formula candidate non-selectable without a species fallback, while a level-based fixed-damage control remains selectable.
+
+The related `supported-dark-type-prankster-immunity` and `unknown-current-type-with-nonprankster-control` fixtures verify that the Dark-Prankster move-success gate uses the same frozen side-owned context without promoting a species type when current type is unknown. A complete move-success block short-circuits secondary Q12 type uncertainty.
+
+All four fixtures use the existing minimal provider selection response only; the provider never derives type, STAB, effectiveness, Q12, or supportability evidence.
+
+## Unsupported inventory
+
+This closure does not implement Terastallization, Soak, Trick-or-Treat, Forest's Curse, Magic Powder, Protean, Libero, Color Change, Reflect Type, a type-mutation reducer, dynamic STAB variants, spread/complex target immunity, ability suppression, Neutralizing Gas, Mold Breaker interaction, expected outcomes, or probability-based ranking. Such inputs must not be softened into species fallback, neutral effectiveness, or no-STAB.

@@ -69,6 +69,10 @@ def test_snapshot_uses_only_bound_current_types_and_is_detached_from_ui_or_speci
     assert "current_type_context" not in capture_ui_current_state_provenance(_battle_input(), session_id="session-1")
     stale = capture_ui_current_state_provenance(_battle_input(), session_id="session-2", current_type_confirmations=[known])
     assert "current_type_context" not in stale
+    wrong_slot = capture_ui_current_state_provenance(_battle_input(), session_id="session-1", current_type_confirmations=[_bound(_known(), slot=1, pokemon="pikachu")])
+    wrong_pokemon = capture_ui_current_state_provenance(_battle_input(), session_id="session-1", current_type_confirmations=[_bound(_known(), slot=0, pokemon="eevee")])
+    assert "current_type_context" not in wrong_slot
+    assert "current_type_context" not in wrong_pokemon
 
 
 def test_candidate_adapter_passes_current_type_context_without_provider_or_species_fallback() -> None:
