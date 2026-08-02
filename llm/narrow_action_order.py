@@ -24,7 +24,7 @@ _GALE_WINGS_HP_AUTHORITY_NOT_SUPPLIED = object()
 _SUPPORTED_SPEED_ABILITIES = frozenset({"swift-swim", "chlorophyll", "sand-rush", "slush-rush"})
 _UNSUPPORTED_SPEED_ABILITIES = frozenset({"surge-surfer", "unburden", "speed-boost", "slow-start", "protosynthesis", "quark-drive"})
 _UNSUPPORTED_SPEED_ITEMS = frozenset({"iron-ball", "macho-brace", "power-anklet", "power-band", "power-belt", "power-bracer", "power-lens", "power-weight", "lagging-tail", "full-incense", "quick-claw", "custap-berry"})
-_UNSUPPORTED_PRIORITY_ABILITIES = frozenset({"triage", "stall", "mycelium-might"})
+_UNSUPPORTED_PRIORITY_ABILITIES = frozenset({"stall", "mycelium-might"})
 
 
 def _action(value: Mapping[str, Any] | None, side: str) -> tuple[dict[str, Any] | None, str | None]:
@@ -37,12 +37,14 @@ def _action(value: Mapping[str, Any] | None, side: str) -> tuple[dict[str, Any] 
         return {"move_id": move_id}, "conditional_priority_mechanic"
     if isinstance(priority, bool) or not isinstance(priority, int) or not -7 <= priority <= 7:
         return {"move_id": move_id}, f"{side}_move_priority"
-    category, move_type = value.get("category"), value.get("type")
+    category, move_type, triage_healing = value.get("category"), value.get("type"), value.get("triage_healing", "omitted")
     if category is not None and category not in {"status", "physical", "special"}:
         return {"move_id": move_id, "priority": priority}, f"{side}_move_category"
     if move_type is not None and (not isinstance(move_type, str) or not move_type):
         return {"move_id": move_id, "priority": priority, "category": category}, f"{side}_move_type"
-    return {"move_id": move_id, "priority": priority, "category": category, "type": move_type}, None
+    if triage_healing not in {"omitted", "eligible", "non_eligible", "unknown", "invalid"}:
+        return {"move_id": move_id, "priority": priority, "category": category, "type": move_type}, f"{side}_healing_move"
+    return {"move_id": move_id, "priority": priority, "category": category, "type": move_type, "triage_healing": triage_healing}, None
 
 
 def evaluate_action_order(
@@ -112,7 +114,7 @@ def evaluate_action_order(
     }
     for side, ability in priority_abilities.items():
         action = self_reference if side == "self" else opponent_reference
-        category, move_type = action.get("category"), action.get("type")
+        category, move_type, triage_healing = action.get("category"), action.get("type"), action.get("triage_healing")
         if ability in _UNSUPPORTED_PRIORITY_ABILITIES:
             result.update(status="unsupported_mechanic", unsupported_reason="priority_ability_modifier")
             return result
@@ -150,7 +152,23 @@ def evaluate_action_order(
                     if side == "self": self_priority += 1
                     else: opponent_priority += 1
                     result[f"{side}_gale_wings_applied"] = True
+        if ability == "triage":
+            if triage_healing == "omitted":
+                continue
+            if triage_healing == "unknown":
+                result["missing_inputs"] = [f"{side}_healing_move_authority"]
+                return result
+            if triage_healing == "invalid":
+                result.update(status="unsupported_mechanic", unsupported_reason="healing_move_metadata")
+                return result
+            if triage_healing == "eligible":
+                if side == "self": self_priority += 3
+                else: opponent_priority += 3
+                result[f"{side}_triage_applied"] = True
         if ability == "unknown" and move_type == "flying":
+            result["missing_inputs"] = [f"{side}_priority_ability"]
+            return result
+        if ability == "unknown" and triage_healing == "eligible":
             result["missing_inputs"] = [f"{side}_priority_ability"]
             return result
     result.update(

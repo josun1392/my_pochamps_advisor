@@ -55,12 +55,45 @@ def test_prankster_equal_priority_uses_existing_speed_chain_and_unknown_or_unsup
     )
     unsupported = evaluate_action_order(
         self_action={"move_id": "recover", "priority": 0, "category": "status"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical"},
-        self_final_speed=100, opponent_final_speed=90, self_priority_ability="triage", opponent_priority_ability="static",
+        self_final_speed=100, opponent_final_speed=90, self_priority_ability="stall", opponent_priority_ability="static",
     )
     assert tied["status"] == "acts_second" and tied["self_prankster_applied"] is True and tied["opponent_prankster_applied"] is True
     assert unknown["missing_inputs"] == ["self_priority_ability"]
     assert malformed_category["missing_inputs"] == ["self_move_category"]
     assert unsupported["unsupported_reason"] == "priority_ability_modifier"
+
+
+def test_triage_applies_only_to_canonical_healing_moves_and_keeps_unknowns_fail_closed():
+    self_healing = evaluate_action_order(
+        self_action={"move_id": "drain-punch", "priority": 0, "category": "physical", "triage_healing": "eligible"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical", "triage_healing": "non_eligible"},
+        self_final_speed=None, opponent_final_speed=None, self_priority_ability="triage", opponent_priority_ability="static",
+    )
+    opponent_healing = evaluate_action_order(
+        self_action={"move_id": "tackle", "priority": 0, "category": "physical", "triage_healing": "non_eligible"}, opponent_action={"move_id": "recover", "priority": -1, "category": "status", "triage_healing": "eligible"},
+        self_final_speed=None, opponent_final_speed=None, self_priority_ability="static", opponent_priority_ability="triage",
+    )
+    non_healing = evaluate_action_order(
+        self_action={"move_id": "tackle", "priority": 0, "category": "physical", "triage_healing": "non_eligible"}, opponent_action={"move_id": "scratch", "priority": 0, "category": "physical", "triage_healing": "non_eligible"},
+        self_final_speed=120, opponent_final_speed=100, trick_room="inactive", self_priority_ability="triage", opponent_priority_ability="static",
+    )
+    unknown = evaluate_action_order(
+        self_action={"move_id": "mystery", "priority": 0, "category": "physical", "triage_healing": "unknown"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical", "triage_healing": "non_eligible"},
+        self_final_speed=120, opponent_final_speed=100, self_priority_ability="triage", opponent_priority_ability="static",
+    )
+    malformed = evaluate_action_order(
+        self_action={"move_id": "broken", "priority": 0, "category": "physical", "triage_healing": "invalid"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical", "triage_healing": "non_eligible"},
+        self_final_speed=120, opponent_final_speed=100, self_priority_ability="triage", opponent_priority_ability="static",
+    )
+    unknown_ability = evaluate_action_order(
+        self_action={"move_id": "drain-punch", "priority": 0, "category": "physical", "triage_healing": "eligible"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical", "triage_healing": "non_eligible"},
+        self_final_speed=120, opponent_final_speed=100, self_priority_ability="unknown", opponent_priority_ability="static",
+    )
+    assert self_healing["status"] == "acts_first" and self_healing["self_priority"] == 3 and self_healing["self_triage_applied"] is True
+    assert opponent_healing["status"] == "acts_second" and opponent_healing["opponent_priority"] == 2 and opponent_healing["opponent_triage_applied"] is True
+    assert non_healing["status"] == "acts_first" and "self_triage_applied" not in non_healing
+    assert unknown["missing_inputs"] == ["self_healing_move_authority"]
+    assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "healing_move_metadata"
+    assert unknown_ability["missing_inputs"] == ["self_priority_ability"]
 
 
 def test_gale_wings_requires_same_side_flying_type_and_exact_full_hp_before_priority_resolution():

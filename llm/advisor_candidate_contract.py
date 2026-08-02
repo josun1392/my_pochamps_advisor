@@ -451,6 +451,19 @@ def _trusted_speed_stage(snapshot: Mapping[str, Any], side: str) -> int | None:
     return found[0] if len(found) == 1 else None
 
 
+def _triage_healing_eligibility(metadata: Any) -> str:
+    """Classify Triage only from canonical numeric healing/drain metadata."""
+    healing, drain = _metadata_value(metadata, "healing"), _metadata_value(metadata, "drain")
+    values = (healing, drain)
+    if any(value is not None and (isinstance(value, bool) or not isinstance(value, int) or not -100 <= value <= 100) for value in values):
+        return "invalid"
+    if any(isinstance(value, int) and value > 0 for value in values):
+        return "eligible"
+    if all(isinstance(value, int) for value in values):
+        return "non_eligible"
+    return "unknown"
+
+
 def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -> dict[str, Any] | None:
     selected = snapshot.get("opponent_selected_move")
     move_id = selected.get("move_id") if isinstance(selected, Mapping) else None
@@ -460,7 +473,7 @@ def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -
         metadata = repositories.get(move_id) if hasattr(repositories, "get") else repositories[move_id]
     except Exception:
         return {"move_id": move_id}
-    return {"move_id": move_id, "priority": _metadata_value(metadata, "priority"), "category": _metadata_value(metadata, "category"), "type": _metadata_value(metadata, "type")}
+    return {"move_id": move_id, "priority": _metadata_value(metadata, "priority"), "category": _metadata_value(metadata, "category"), "type": _metadata_value(metadata, "type"), "triage_healing": _triage_healing_eligibility(metadata)}
 
 
 def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: Any, repositories: Any) -> dict[str, Any]:
@@ -468,7 +481,7 @@ def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: 
     (self_tailwind, self_tailwind_provenance), (opponent_tailwind, opponent_tailwind_provenance) = _known_tailwind(snapshot)
     (self_paralysis, self_paralysis_provenance), (opponent_paralysis, opponent_paralysis_provenance) = _known_paralysis(snapshot)
     kwargs = {
-        "self_action": {"move_id": move, "priority": _metadata_value(metadata, "priority"), "category": _metadata_value(metadata, "category"), "type": _metadata_value(metadata, "type")},
+        "self_action": {"move_id": move, "priority": _metadata_value(metadata, "priority"), "category": _metadata_value(metadata, "category"), "type": _metadata_value(metadata, "type"), "triage_healing": _triage_healing_eligibility(metadata)},
         "opponent_action": _canonical_opponent_action(snapshot, repositories),
         "self_final_speed": _trusted_final_speed(snapshot, "self"),
         "opponent_final_speed": _trusted_final_speed(snapshot, "opponent"),

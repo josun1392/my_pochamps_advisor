@@ -43,7 +43,8 @@ PARALYSIS_FIXTURES = ("supported-paralysis-speed-action-order", "unknown-paralys
 STATIC_SPEED_FIXTURES = ("supported-static-speed-modifier-action-order", "unknown-static-speed-authority-with-priority-control")
 PRANKSTER_FIXTURES = ("supported-prankster-priority", "unknown-prankster-authority-with-priority-control")
 GALE_WINGS_FIXTURES = ("supported-gale-wings-priority", "unknown-gale-wings-hp-with-priority-control")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES})
+TRIAGE_FIXTURES = ("supported-triage-healing-priority", "unknown-triage-healing-with-priority-control")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES, TRIAGE_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -157,12 +158,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "brave-bird"}, {"move_id": "slam"}, {"move_id": "quick-attack"}, {"move_id": "seismic-toss"}], {"brave-bird": {"category": "physical", "power": 120, "type": "flying", "priority": 0}, "slam": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "quick-attack": {"category": "physical", "power": 40, "type": "normal", "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     if fixture_id == GALE_WINGS_FIXTURES[1]:
         return [{"move_id": "brave-bird"}, {"move_id": "seismic-toss"}], {"brave-bird": {"category": "physical", "power": 120, "type": "flying", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 1}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == TRIAGE_FIXTURES[0]:
+        return [{"move_id": "drain-punch"}, {"move_id": "tackle"}, {"move_id": "quick-attack"}, {"move_id": "seismic-toss"}], {"drain-punch": {"category": "physical", "power": 75, "type": "fighting", "drain": 50, "healing": 0, "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "drain": 0, "healing": 0, "priority": 0}, "quick-attack": {"category": "physical", "power": 40, "type": "normal", "drain": 0, "healing": 0, "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "drain": 0, "healing": 0, "priority": 0}}
+    if fixture_id == TRIAGE_FIXTURES[1]:
+        return [{"move_id": "mystery-drain"}, {"move_id": "seismic-toss"}], {"mystery-drain": {"category": "physical", "power": 1, "type": "fighting", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "drain": 0, "healing": 0, "priority": 1}, "tackle": {"category": "physical", "power": 40, "type": "normal", "drain": 0, "healing": 0, "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES, *TRIAGE_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -260,6 +265,10 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
     if fixture_id == GALE_WINGS_FIXTURES[1]:
         battle["ability_context"] = {"current_abilities": [_current_ability("gale-wings"), _current_ability("prankster", side="opponent", pokemon="eevee", slot=1)]}
         battle["current_hp_context"] = {"current_hp": [_current_hp("opponent", 100, 100)]}
+    if fixture_id == TRIAGE_FIXTURES[0]:
+        battle["ability_context"] = {"current_abilities": [_current_ability("triage"), _current_ability("prankster", side="opponent", pokemon="eevee", slot=1)]}
+    if fixture_id == TRIAGE_FIXTURES[1]:
+        battle["ability_context"] = {"current_abilities": [_current_ability("triage"), _current_ability("prankster", side="opponent", pokemon="eevee", slot=1)]}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -539,6 +548,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == GALE_WINGS_FIXTURES[1]:
         orders = [row.get("action_order", {}) for row in rows]
         return orders[0].get("status") == "insufficient_context" and orders[0].get("missing_inputs") == ["self_full_hp_authority"] and orders[1].get("status") == "acts_first" and orders[1].get("reason") == "priority_advantage" and "self_gale_wings_applied" not in orders[1] and rows[1].get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and comparisons[1].get("rank") == 1
+    if fixture_id == TRIAGE_FIXTURES[0]:
+        orders = [row.get("action_order", {}) for row in rows]
+        return orders[0].get("status") == "acts_first" and orders[0].get("self_triage_applied") is True and orders[0].get("self_base_priority") == 0 and orders[0].get("self_priority") == 3 and orders[0].get("reason") == "priority_advantage" and orders[1].get("status") == "speed_tie" and "self_triage_applied" not in orders[1] and orders[2].get("status") == "acts_first" and orders[2].get("reason") == "priority_advantage" and rows[3].get("mechanics_result", {}).get("damage_model") == "level_based_fixed"
+    if fixture_id == TRIAGE_FIXTURES[1]:
+        orders = [row.get("action_order", {}) for row in rows]
+        return orders[0].get("status") == "insufficient_context" and orders[0].get("missing_inputs") == ["self_healing_move_authority"] and orders[1].get("status") == "acts_first" and orders[1].get("reason") == "priority_advantage" and "self_triage_applied" not in orders[1] and rows[1].get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and comparisons[1].get("rank") == 1
     return False
 
 
@@ -663,6 +678,11 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
         order = selected.get("action_order")
         expected_status = "speed_tie" if fixture_id == PRANKSTER_FIXTURES[0] else "acts_first"
         return isinstance(order, Mapping) and order.get("status") == expected_status and "prankster" not in text and "effective_priority" not in text
+    if fixture_id in TRIAGE_FIXTURES:
+        order = selected.get("action_order")
+        if fixture_id == TRIAGE_FIXTURES[0]:
+            return isinstance(order, Mapping) and order.get("self_triage_applied") is True and "힐링시프트로 회복 기술의 우선도가 올라 먼저 행동함" in text and "triage" not in text and "effective_priority" not in text
+        return isinstance(order, Mapping) and order.get("reason") == "priority_advantage" and "힐링시프트" not in text and "healing_move_authority" not in text
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
         if fixture_id in FIXED_DAMAGE_FIXTURES and mechanics.get("damage_model") == "level_based_fixed":
             labels = ("\ud53c\ud574 \ubc29\uc2dd: \uc0ac\uc6a9\uc790 \ub808\ubca8\uacfc \ub3d9\uc77c\ud55c \uace0\uc815 \ud53c\ud574",)

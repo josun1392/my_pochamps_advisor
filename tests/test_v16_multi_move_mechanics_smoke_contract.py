@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -302,6 +302,21 @@ def test_gale_wings_fixture_pair_keeps_exact_hp_authority_and_priority_isolated(
     assert supported[3]["mechanics_result"]["damage_model"] == "level_based_fixed"
     incomplete = _prepared(GALE_WINGS_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
     assert incomplete[0]["action_order"]["missing_inputs"] == ["self_full_hp_authority"]
+    assert incomplete[1]["action_order"]["reason"] == "priority_advantage"
+    assert incomplete[1]["mechanics_comparison"]["rank"] == 1
+
+
+def test_triage_fixture_pair_keeps_canonical_healing_authority_and_q12_evidence_isolated():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=TRIAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    supported = _prepared(TRIAGE_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert supported[0]["action_order"]["self_triage_applied"] is True
+    assert supported[0]["action_order"]["self_base_priority"] == 0
+    assert supported[0]["action_order"]["self_priority"] == 3
+    assert supported[0]["mechanics_result"]["status"] == "known"
+    assert "self_triage_applied" not in supported[1]["action_order"]
+    incomplete = _prepared(TRIAGE_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert incomplete[0]["action_order"]["missing_inputs"] == ["self_healing_move_authority"]
     assert incomplete[1]["action_order"]["reason"] == "priority_advantage"
     assert incomplete[1]["mechanics_comparison"]["rank"] == 1
 

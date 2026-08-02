@@ -549,7 +549,11 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
     action_order = evidence.get("action_order")
     order = {"acts_first": "선공 가능", "acts_second": "후공", "speed_tie": "동속"}.get(action_order.get("status") if isinstance(action_order, Mapping) else None)
     if isinstance(action_order, Mapping):
-        if action_order.get("reason") == "priority_advantage" and action_order.get("self_gale_wings_applied") is True and action_order.get("status") == "acts_first":
+        if action_order.get("reason") == "priority_advantage" and action_order.get("self_triage_applied") is True and action_order.get("status") == "acts_first":
+            order = "힐링시프트로 회복 기술의 우선도가 올라 먼저 행동함"
+        elif action_order.get("reason") == "priority_advantage" and action_order.get("opponent_triage_applied") is True and action_order.get("status") == "acts_second":
+            order = "상대 힐링시프트의 우선도 보정을 반영하면 후공함"
+        elif action_order.get("reason") == "priority_advantage" and action_order.get("self_gale_wings_applied") is True and action_order.get("status") == "acts_first":
             order = "질풍날개와 최대 체력 상태를 반영해 비행 기술의 우선도가 올라 먼저 행동함"
         elif action_order.get("reason") == "priority_advantage" and action_order.get("opponent_gale_wings_applied") is True and action_order.get("status") == "acts_second":
             order = "상대의 질풍날개 우선도 보정을 반영하면 후공함"
