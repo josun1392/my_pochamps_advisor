@@ -45,13 +45,19 @@ Each candidate retains its own `self_base_priority`, `opponent_base_priority`, r
 
 Priority generation does not imply move success, priority-blocking resolution, damage, healing amount, drain recovery, or HP mutation. Q12 formula evidence and level-based fixed-damage evidence remain independent from supported priority evidence.
 
+## Psychic Terrain priority-block gate
+
+The candidate layer separately applies a narrow move-success gate after action order is resolved. With trusted current Psychic Terrain, an effective priority above zero, canonical `selected-pokemon` targeting, and the opposing target's trusted `known_grounded` state, the move is marked `blocked` with the bounded `psychic_terrain_priority` reason and is removed from the selectable set. Its action-order evidence remains intact, but no damage, KO, or status-success claim is exposed. This consumes the already resolved effective priority, so Prankster, Gale Wings, and Triage are not recalculated.
+
+Known ungrounded targets, nonpositive priority, and self/ally/field targets are allowed by this gate only; that is not a general success guarantee. Unknown relevant terrain, target scope, groundedness, or effective priority is fail-closed; malformed authority and complex/spread targets are unsupported. Omitted terrain/grounded gate authority preserves the narrow evaluator's prior behavior. Psychic Terrain's damage boost remains separate from this move-success gate.
+
 ## Provider boundary
 
 The provider returns only recommendation status, selected candidate identity, and a bounded explanation code. It cannot supply or change ability, category/type, HP, healing/drain metadata, base/effective priority, Speed, stages, paralysis, item, weather, Tailwind, Trick Room, modifiers, or action order. A no-usable-candidate cycle makes zero provider calls.
 
 ## Unsupported inventory
 
-Quick Feet, Unburden, Speed Boost, Surge Surfer, Slow Start, Protosynthesis, Quark Drive, Booster Energy, Iron Ball, Macho Brace, Power items, Lagging Tail, Full Incense, Quick Claw, Custap Berry, Stall, Mycelium Might, conditional/dual-purpose healing moves without explicit positive numeric metadata, weather/Tailwind/Trick Room duration, full-paralysis probability, and Choice-lock strategy remain outside this evaluator. Prankster's Dark-target move-success rule, Psychic Terrain/Queenly Majesty/Dazzling/Armor Tail priority blocking, ability suppression, Triage healing consequences, and all Gale Wings HP mutation/approximation are also excluded. Known relevant unsupported mechanics fail closed rather than being treated as no effect.
+Quick Feet, Unburden, Speed Boost, Surge Surfer, Slow Start, Protosynthesis, Quark Drive, Booster Energy, Iron Ball, Macho Brace, Power items, Lagging Tail, Full Incense, Quick Claw, Custap Berry, Stall, Mycelium Might, conditional/dual-purpose healing moves without explicit positive numeric metadata, weather/Tailwind/Trick Room duration, full-paralysis probability, and Choice-lock strategy remain outside this evaluator. Prankster's Dark-target move-success rule, Queenly Majesty/Dazzling/Armor Tail priority blocking, ability suppression, Triage healing consequences, and all Gale Wings HP mutation/approximation are also excluded. Psychic Terrain supports only direct opposing-single priority blocking; spread/partial target resolution remains unsupported. Known relevant unsupported mechanics fail closed rather than being treated as no effect.
 
 ## Grounding coverage and next step
 

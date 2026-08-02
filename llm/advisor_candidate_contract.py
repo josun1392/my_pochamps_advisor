@@ -129,6 +129,10 @@ def _accuracy_evidence(metadata: Any, snapshot: Mapping[str, Any] | None = None)
 
 _SELF_TARGETS = frozenset({"user", "users-field", "user-and-allies", "user-or-ally"})
 _TARGETED_OPPONENT_TARGETS = frozenset({"selected-pokemon", "all-opponents", "all-other-pokemon", "opponents-field"})
+_PSYCHIC_TERRAIN_OPPOSING_SINGLE_TARGETS = frozenset({"selected-pokemon"})
+_PSYCHIC_TERRAIN_ALLY_TARGETS = frozenset({"ally", "user-or-ally"})
+_PSYCHIC_TERRAIN_FIELD_TARGETS = frozenset({"users-field", "opponents-field", "entire-field"})
+_PSYCHIC_TERRAIN_COMPLEX_TARGETS = frozenset({"all-opponents", "all-other-pokemon", "all-pokemon", "random-opponent"})
 
 
 def _canonical_stat_changes(metadata: Any) -> tuple[tuple[str, int], ...] | None:
@@ -466,6 +470,62 @@ def _triage_healing_eligibility(metadata: Any) -> str:
     return "unknown"
 
 
+def _psychic_terrain_priority_gate(snapshot: Mapping[str, Any], metadata: Any, action_order: Any) -> dict[str, Any] | None:
+    """Gate only opposing single-target positive-priority moves on Psychic Terrain."""
+    context = snapshot.get("field_state_context")
+    if not isinstance(context, Mapping) or not isinstance(snapshot.get("grounded_context"), Mapping):
+        return None
+    current = context.get("current_field")
+    if current is None:
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["field.terrain"]}
+    if not isinstance(current, Mapping):
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["field.terrain"]}
+    if current.get("terrain") == "unknown":
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["field.terrain"]}
+    try:
+        terrain = normalize_user_confirmed_current_field_state(current)["terrain"]
+    except ValueError:
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "psychic_terrain_context"}
+    if terrain != "psychic":
+        return {"status": "allowed", "move_success_status": "allowed"}
+    if isinstance(action_order, Mapping) and action_order.get("status") == "unsupported_mechanic":
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "effective_priority"}
+    if not isinstance(action_order, Mapping) or isinstance(action_order.get("self_priority"), bool) or not isinstance(action_order.get("self_priority"), int):
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["effective_priority"]}
+    if action_order["self_priority"] <= 0:
+        return {"status": "allowed", "move_success_status": "allowed"}
+    target = _metadata_value(metadata, "target")
+    if not isinstance(target, str) or not target:
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["move.target"]}
+    if target == "unknown":
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["move.target"]}
+    if target in _SELF_TARGETS or target in _PSYCHIC_TERRAIN_ALLY_TARGETS or target in _PSYCHIC_TERRAIN_FIELD_TARGETS:
+        return {"status": "allowed", "move_success_status": "allowed"}
+    if target in _PSYCHIC_TERRAIN_COMPLEX_TARGETS:
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "psychic_terrain_complex_target"}
+    if target not in _PSYCHIC_TERRAIN_OPPOSING_SINGLE_TARGETS:
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "move_target_metadata"}
+    grounded_context = snapshot.get("grounded_context")
+    grounded = grounded_context.get("opponent") if isinstance(grounded_context, Mapping) else None
+    if not isinstance(grounded, Mapping) or (grounded.get("status") == "unknown" and grounded.get("provenance") == "unknown"):
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["opponent.grounded"]}
+    if grounded.get("status") == "known_ungrounded" and grounded.get("provenance") == "user_confirmed_current":
+        return {"status": "allowed", "move_success_status": "allowed"}
+    if grounded.get("status") == "known_grounded" and grounded.get("provenance") == "user_confirmed_current":
+        return {"status": "blocked", "move_success_status": "blocked", "block_reason": "psychic_terrain_priority", "psychic_terrain_priority_blocked": True}
+    return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "grounded_context"}
+
+
+def _psychic_terrain_unavailable_candidate(*, slot_index: int, move: str, action_order: Mapping[str, Any], move_success: Mapping[str, Any]) -> dict[str, Any]:
+    reason = move_success.get("block_reason") if move_success.get("status") == "blocked" else "psychic_terrain_priority_block_context"
+    return {
+        "slot_index": slot_index, "move": move, "status": "unavailable", "availability": "unavailable",
+        "damage": {"status": "unavailable", "reason": reason}, "q12_damage": {"status": "unavailable", "limitations": [reason]},
+        "mechanics_result": {"status": "unavailable", "move": None}, "self_effects": [], "dynamic_move": None,
+        "warnings": [], "unavailable_reasons": [reason], "action_order": action_order, "move_success": deepcopy(dict(move_success)),
+    }
+
+
 def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -> dict[str, Any] | None:
     selected = snapshot.get("opponent_selected_move")
     move_id = selected.get("move_id") if isinstance(selected, Mapping) else None
@@ -523,10 +583,13 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
         return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","self_effects":[],"dynamic_move":None,"warnings":[],"unavailable_reasons":["move_metadata_unavailable"]}
     if not isinstance(metadata, Mapping) and not hasattr(metadata, "category"):
         return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","self_effects":[],"dynamic_move":None,"warnings":[],"unavailable_reasons":["move_metadata_unavailable"]}
-    if _metadata_value(metadata, "category") == "status":
-        snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"action_order":_action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories),"accuracy_evidence":_accuracy_evidence(metadata, snapshot),"status_move_evidence":_status_move_evidence(metadata),"move_consequence_evidence":evaluate_move_consequence_evidence(move_id=move, metadata=metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[]}
     snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
+    action_order = _action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories)
+    move_success = _psychic_terrain_priority_gate(snapshot, metadata, action_order)
+    if isinstance(move_success, Mapping) and move_success.get("status") in {"blocked", "insufficient_context", "unsupported_mechanic"}:
+        return _psychic_terrain_unavailable_candidate(slot_index=slot_index, move=move, action_order=action_order, move_success=move_success)
+    if _metadata_value(metadata, "category") == "status":
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"action_order":action_order,"accuracy_evidence":_accuracy_evidence(metadata, snapshot),"status_move_evidence":_status_move_evidence(metadata),"move_consequence_evidence":evaluate_move_consequence_evidence(move_id=move, metadata=metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[], **({"move_success": move_success} if isinstance(move_success, Mapping) else {})}
     selected_move = _selected_move_from_metadata(move, metadata)
     if turn_snapshot is not None:
         try:
@@ -555,7 +618,8 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     dynamic_move = _dynamic_summary(context)
     damage = _damage_summary(context)
     optional_outputs, self_effects, optional_reasons = _optional_outputs(context)
-    optional_outputs["action_order"] = _action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories)
+    optional_outputs["action_order"] = action_order
+    if isinstance(move_success, Mapping): optional_outputs["move_success"] = move_success
     optional_outputs["accuracy_evidence"] = _accuracy_evidence(metadata, snapshot)
     optional_outputs["status_move_evidence"] = _status_move_evidence(metadata)
     optional_outputs["move_consequence_evidence"] = evaluate_move_consequence_evidence(move_id=move, metadata=metadata)
@@ -1395,6 +1459,7 @@ def _attach_validated_multi_selection(*, request: Mapping[str, Any], result: Map
         "selected_candidate_evidence": {
             "mechanics_result": deepcopy(dict(mechanics)),
             "action_order": deepcopy(dict(action_order)) if isinstance(action_order, Mapping) else None,
+            "move_success": deepcopy(dict(selected["move_success"])) if isinstance(selected.get("move_success"), Mapping) else None,
             "accuracy_evidence": deepcopy(dict(selected["accuracy_evidence"])) if isinstance(selected.get("accuracy_evidence"), Mapping) else None,
             "status_move_evidence": deepcopy(dict(selected["status_move_evidence"])) if isinstance(selected.get("status_move_evidence"), Mapping) else None,
             "move_consequence_evidence": deepcopy(dict(selected["move_consequence_evidence"])) if isinstance(selected.get("move_consequence_evidence"), Mapping) else None,

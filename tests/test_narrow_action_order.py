@@ -1,6 +1,6 @@
 import pytest
 
-from llm.advisor_candidate_contract import _triage_healing_eligibility, build_evidence_bundle, build_recommendation_request, evaluate_move_candidate
+from llm.advisor_candidate_contract import _triage_healing_eligibility, build_evidence_bundle, build_recommendation_request, evaluate_move_candidate, prepare_recommendation_cycle
 from llm.advisor_client import format_recommendation_presentation_text
 from llm.narrow_action_order import evaluate_action_order
 
@@ -659,6 +659,68 @@ def test_candidate_binds_same_side_prankster_to_canonical_status_category_only()
     special = evaluate_move_candidate(slot_index=1, move="thunderbolt", battle_snapshot=base, repositories=repository)
     assert status["action_order"]["status"] == "acts_first" and status["action_order"]["self_prankster_applied"] is True
     assert special["action_order"]["status"] == "acts_second" and "self_prankster_applied" not in special["action_order"]
+
+
+def _psychic_priority_snapshot(*, terrain="psychic", opponent_grounded="known_grounded", ability=None, current_hp=False):
+    snapshot = {
+        "field_state_context": {"current_field": {"weather": "none", "terrain": terrain, "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}},
+        "grounded_context": {"opponent": {"status": opponent_grounded, "provenance": "user_confirmed_current" if opponent_grounded != "unknown" else "unknown"}},
+        "opponent_selected_move": {"move_id": "tackle"},
+    }
+    if ability is not None:
+        snapshot["ability_context"] = {"current_abilities": [{"side": "self", "ability": ability, "status": "user_confirmed", "source": "user_confirmed_current_ability", "confidence": "known"}]}
+    if current_hp:
+        snapshot["current_hp_context"] = {"current_hp": [{"side": "self", "current_hp": 100, "maximum_hp": 100, "status": "user_confirmed", "source": "user_confirmed_current_hp", "confidence": "known", "provenance": {"side": "self", "slot_index": 0, "pokemon_id": "pikachu", "session_id": "test", "source": "user_confirmed_current_hp", "trust": "user_confirmed_current"}}]}
+    return snapshot
+
+
+def test_psychic_terrain_priority_gate_blocks_only_grounded_opposing_single_target_moves():
+    repository = {
+        "quick": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 1},
+        "slow": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0},
+        "self": {"category": "status", "target": "user", "priority": 1},
+        "spread": {"category": "physical", "power": 40, "type": "normal", "target": "all-opponents", "priority": 1},
+        "unknown-target": {"category": "physical", "power": 40, "type": "normal", "target": "unknown", "priority": 1},
+        "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0},
+    }
+    blocked = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_psychic_priority_snapshot(), repositories=repository)
+    ungrounded = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_psychic_priority_snapshot(opponent_grounded="known_ungrounded"), repositories=repository)
+    non_positive = evaluate_move_candidate(slot_index=0, move="slow", battle_snapshot=_psychic_priority_snapshot(), repositories=repository)
+    self_target = evaluate_move_candidate(slot_index=0, move="self", battle_snapshot=_psychic_priority_snapshot(), repositories=repository)
+    complex_target = evaluate_move_candidate(slot_index=0, move="spread", battle_snapshot=_psychic_priority_snapshot(), repositories=repository)
+    unknown_target = evaluate_move_candidate(slot_index=0, move="unknown-target", battle_snapshot=_psychic_priority_snapshot(), repositories=repository)
+    omitted = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot={key: value for key, value in _psychic_priority_snapshot().items() if key != "grounded_context"}, repositories=repository)
+    assert blocked["availability"] == "unavailable" and blocked["move_success"]["block_reason"] == "psychic_terrain_priority" and blocked["action_order"]["status"] == "acts_first"
+    assert blocked["damage"] == {"status": "unavailable", "reason": "psychic_terrain_priority"}
+    assert ungrounded["move_success"]["move_success_status"] == "allowed" and ungrounded["availability"] != "unavailable"
+    assert non_positive["move_success"]["move_success_status"] == "allowed" and non_positive["availability"] != "unavailable"
+    assert self_target["move_success"]["move_success_status"] == "allowed" and self_target["availability"] != "unavailable"
+    assert complex_target["availability"] == "unavailable" and complex_target["move_success"]["unsupported_reason"] == "psychic_terrain_complex_target"
+    assert unknown_target["move_success"]["missing_inputs"] == ["move.target"]
+    assert "move_success" not in omitted
+
+
+def test_psychic_terrain_priority_gate_uses_effective_priority_and_fails_closed_on_relevant_authority():
+    repository = {
+        "status": {"category": "status", "target": "selected-pokemon", "priority": 0},
+        "brave": {"category": "physical", "power": 120, "type": "flying", "target": "selected-pokemon", "priority": 0},
+        "drain": {"category": "physical", "power": 75, "type": "fighting", "target": "selected-pokemon", "drain": 50, "healing": 0, "priority": 0},
+        "quick": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 1},
+        "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0},
+    }
+    prankster = evaluate_move_candidate(slot_index=0, move="status", battle_snapshot=_psychic_priority_snapshot(ability="prankster"), repositories=repository)
+    gale = evaluate_move_candidate(slot_index=0, move="brave", battle_snapshot=_psychic_priority_snapshot(ability="gale-wings", current_hp=True), repositories=repository)
+    triage = evaluate_move_candidate(slot_index=0, move="drain", battle_snapshot=_psychic_priority_snapshot(ability="triage"), repositories=repository)
+    unknown_grounded = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_psychic_priority_snapshot(opponent_grounded="unknown"), repositories=repository)
+    unknown_terrain = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_psychic_priority_snapshot(terrain="unknown"), repositories=repository)
+    prepared = prepare_recommendation_cycle(moves=["quick"], battle_snapshot=_psychic_priority_snapshot(), repositories=repository)
+    assert all(candidate["move_success"]["move_success_status"] == "blocked" for candidate in (prankster, gale, triage))
+    assert prankster["action_order"]["self_prankster_applied"] is True
+    assert gale["action_order"]["self_gale_wings_applied"] is True
+    assert triage["action_order"]["self_triage_applied"] is True
+    assert unknown_grounded["move_success"]["missing_inputs"] == ["opponent.grounded"]
+    assert unknown_terrain["move_success"]["missing_inputs"] == ["field.terrain"]
+    assert prepared["status"] == "no_selectable_candidates"
 
 
 def test_presentation_uses_bounded_trick_room_action_order_text_only_for_selected_candidate():
