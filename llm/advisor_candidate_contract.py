@@ -1424,6 +1424,8 @@ def _bind_multi_provider_response(*, request: Mapping[str, Any], response: Mappi
     mechanics_acknowledgements = []
     ranking_acknowledgements = []
     for index, row in enumerate(rows):
+        if isinstance(row, Mapping) and row.get("eligibility") == "not_selectable":
+            continue
         mechanics = row.get("mechanics_result") if isinstance(row, Mapping) else None
         ranking = row.get("mechanics_comparison") if isinstance(row, Mapping) else None
         if not isinstance(row, Mapping) or not isinstance(mechanics, Mapping) or not isinstance(ranking, Mapping):
@@ -1752,6 +1754,8 @@ def validate_mechanics_acknowledgements(*, request: Mapping[str, Any], acknowled
         return ["mechanics_acknowledgement_missing"]
     expected: dict[tuple[int, str], tuple[str, str, str | None]] = {}
     for index, candidate in enumerate(comparisons):
+        if isinstance(candidate, Mapping) and candidate.get("eligibility") == "not_selectable":
+            continue
         mechanics = candidate.get("mechanics_result") if isinstance(candidate, Mapping) else None
         move = candidate.get("move") if isinstance(candidate, Mapping) else None
         if not isinstance(mechanics, Mapping) or mechanics.get("status") == "not_requested":
