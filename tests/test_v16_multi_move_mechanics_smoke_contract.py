@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -276,6 +276,21 @@ def test_static_speed_fixture_pair_keeps_item_authority_and_priority_isolated():
     assert incomplete[1]["mechanics_comparison"]["rank"] == 1
 
 
+def test_prankster_fixture_pair_keeps_status_priority_and_unknown_authority_isolated():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=PRANKSTER_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    supported = _prepared(PRANKSTER_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
+    assert supported[0]["action_order"]["self_prankster_applied"] is True
+    assert supported[0]["action_order"]["self_base_priority"] == 0
+    assert supported[0]["action_order"]["self_priority"] == 1
+    assert "self_prankster_applied" not in supported[1]["action_order"]
+    assert supported[2]["action_order"]["reason"] == "priority_advantage"
+    incomplete = _prepared(PRANKSTER_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
+    assert incomplete[0]["action_order"]["missing_inputs"] == ["self_priority_ability"]
+    assert incomplete[1]["action_order"]["reason"] == "priority_advantage"
+    assert incomplete[1]["mechanics_comparison"]["rank"] == 1
+
+
 def test_offline_grounded_terrain_variants_remain_fail_closed_without_provider_calls():
     variants = offline_grounded_terrain_authority_variants()
     assert variants == {
@@ -426,6 +441,15 @@ def test_cli_allows_the_bounded_static_speed_fixture_pair(capsys):
         return (lambda: True), _response
 
     assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *STATIC_SPEED_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
+
+
+def test_cli_allows_the_bounded_prankster_fixture_pair(capsys):
+    def adapters(*, model):
+        assert model == "gemini-2.5-flash"
+        return (lambda: True), _response
+
+    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *PRANKSTER_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
