@@ -107,6 +107,10 @@ def evaluate_direct_damage_mechanics(
         missing.append("selected_move_metadata")
     attacker = _ready_side(stat_provenance.get("attacker"), "attacker", missing)
     defender = _ready_side(stat_provenance.get("defender"), "defender", missing)
+    type_authorities = _type_damage_authorities(stat_provenance)
+    if type_authorities["unsupported"]:
+        return _unsupported("current_type_context")
+    missing.extend(type_authorities["missing_inputs"])
     if not _valid_level(trusted_level):
         missing.append("attacker.level")
     direct_attacker = _mapping(direct.get("attacker"))
@@ -204,6 +208,7 @@ def evaluate_direct_damage_mechanics(
         "applied_damage_modifiers": [*modifier["applied"], *ability_modifier["applied"], *item_modifier["applied"], *defender_ability_modifier["applied"]], "missing_inputs": [], "unsupported_reason": None,
         "stat_stage_evidence": stage_context["evidence"],
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
+        "type_damage_evidence": type_authorities["evidence"],
     }
 
 
@@ -247,7 +252,10 @@ def _evaluate_level_based_fixed_damage(*, direct: Mapping[str, Any], stat_proven
         missing.append("attacker.level")
     defender = _mapping(direct.get("defender"))
     _require_hp(defender, "defender", missing)
-    defender_types = _available(_mapping(stat_provenance.get("defender")).get("types"))
+    defender_block = _mapping(stat_provenance.get("defender"))
+    defender_types = _available(defender_block.get("legacy_types"))
+    if defender_types is None:
+        defender_types = _available(defender_block.get("types"))
     if not isinstance(defender_types, list) or not defender_types or not all(_nonempty_str(item) for item in defender_types):
         missing.append("defender.types")
     for side_name in ("attacker", "defender"):
@@ -289,10 +297,37 @@ def _ready_side(value: Any, side: str, missing: list[str]) -> dict[str, Any] | N
     identity = value.get("pokemon_identity")
     if not _nonempty_str(identity): missing.append(f"{side}.identity")
     types = _available(value.get("types"))
-    if not isinstance(types, list) or not types or not all(_nonempty_str(item) for item in types): missing.append(f"{side}.types")
+    type_status = _mapping(value.get("type_authority")).get("status")
+    if (not isinstance(types, list) or not types or not all(_nonempty_str(item) for item in types)) and type_status not in {"unknown", "malformed"}:
+        missing.append(f"{side}.types")
     stats = _available(value.get("final_stats"))
     if not isinstance(stats, Mapping) or set(stats) != set(_STAT_KEYS): missing.append(f"{side}.final_stats")
     return {"pokemon_identity": identity, "types": types, "final_stats": stats}
+
+
+def _type_damage_authorities(stat_provenance: Mapping[str, Any]) -> dict[str, Any]:
+    sides = {name: _mapping(stat_provenance.get(name)).get("type_authority") for name in ("attacker", "defender")}
+    normalized = {name: _mapping(value) or {"status": "known", "basis": "legacy_species"} for name, value in sides.items()}
+    if any(value.get("status") == "malformed" for value in normalized.values()):
+        return {"unsupported": True, "missing_inputs": [], "evidence": None}
+    missing = [
+        f"{name}.current_type" for name, value in normalized.items()
+        if value.get("status") not in {None, "known"} and value.get("basis") == "current_type_context"
+    ]
+    attacker_basis, defender_basis = normalized["attacker"].get("basis"), normalized["defender"].get("basis")
+    return {
+        "unsupported": False,
+        "missing_inputs": missing,
+        "evidence": {
+            "attacker_type_authority": attacker_basis,
+            "defender_type_authority": defender_basis,
+            "stab_basis": attacker_basis,
+            "effectiveness_basis": defender_basis,
+            "current_type_override_used": "current_type_context" in {attacker_basis, defender_basis},
+            "legacy_species_type_compatibility_used": "legacy_species" in {attacker_basis, defender_basis},
+            "type_related_damage_supportability": "complete" if not missing else "insufficient_context",
+        },
+    }
 
 
 def _require_known_absent(value: Any, name: str, missing: list[str]) -> None:

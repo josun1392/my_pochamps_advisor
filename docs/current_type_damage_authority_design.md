@@ -2,7 +2,7 @@
 
 ## Status and inventory
 
-This is a design-only contract. It does not change the production Q12 result. Today, `build_type_aware_damage_estimate` obtains `my_active.types` and `opponent_active.types` through `_selected_types`, applies ordinary `calc_stab`, and multiplies the Gen 9 type chart across one or two defender types. The request-start `current_type_context` is already detached, side-bound, and excluded from provider payloads, but today is used only by the Dark-type Prankster move-success gate. `build_snapshot_stat_provenance` supplies repository species metadata to the legacy Q12 bridge.
+The snapshot Q12 and native direct-formula candidate paths now resolve their type inputs through this contract. `build_snapshot_stat_provenance` supplies a side-owned type block to both paths: trusted known current types override repository species metadata, while omitted context preserves the legacy species bridge. The request-start `current_type_context` remains detached, side-bound, and excluded from provider payloads. The older `build_type_aware_damage_estimate` path remains a separate legacy presentation calculation and is not widened by this bounded integration.
 
 Move type remains canonical move metadata. It is neither inferred from a name nor supplied by the provider.
 
@@ -37,8 +37,8 @@ The future adapter applies only to formula Q12 candidates. It does not make type
 
 Only request-start frozen `current_type_context` may override legacy types. New/reset sessions start explicit unknown; stale session-bound entries are rejected. Provider output cannot create current type, STAB, effectiveness, immunity, or type-related supportability.
 
-The future candidate-local internal evidence should distinguish `move_type_authority`, `attacker_type_authority`, `defender_type_authority`, `stab_basis`, `effectiveness_basis`, `legacy_species_type_compatibility_used`, `current_type_override_used`, and `type_related_damage_supportability`. Presentation must not expose raw type lists, provenance/session identifiers, internal paths, or numeric multipliers.
+Candidate-local internal evidence distinguishes `attacker_type_authority`, `defender_type_authority`, `stab_basis`, `effectiveness_basis`, `legacy_species_type_compatibility_used`, `current_type_override_used`, and `type_related_damage_supportability`. Presentation must not expose raw type lists, provenance/session identifiers, internal paths, or numeric multipliers.
 
-## Implementation prerequisites and next goal
+## Implementation boundary and next goal
 
-Implement only after adding a small adapter that accepts the existing frozen context without changing omitted legacy Q12 fixtures. It must preserve all existing weather, terrain, burn, screen, ability, item, fixed-hit, priority, and move-success contracts. The next bounded implementation goal is to wire this authority adapter into formula Q12 candidates and add candidate-local evidence; it must not add type mutation, Terastallization, provider schema changes, or expected-outcome ranking.
+The bounded adapter reuses the existing frozen context, `calc_stab`, and Gen 9 chart; it does not alter Q12 multiplier order. It preserves weather, terrain, burn, screen, ability, item, fixed-hit, priority, and move-success contracts. Level-based fixed damage keeps its existing legacy type boundary. A later goal, if authorized, may add trusted current-type updates for type mutation; it must not add Terastallization, provider schema changes, or expected-outcome ranking implicitly.

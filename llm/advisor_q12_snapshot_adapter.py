@@ -21,8 +21,12 @@ def invoke_existing_q12_from_snapshot(
         ready = build_q12_input_adapter(snapshot_damage_input, stat_provenance=stat_provenance)
     except ValueError:
         return _unavailable("invalid_snapshot_input")
+    if ready.get("status") == "unsupported_mechanic":
+        return _unsupported(
+            str(ready.get("reason", "q12_input_unsupported")), ready.get("type_damage_evidence"),
+        )
     if ready.get("status") != "ready_for_existing_q12_boundary":
-        return _unavailable(str(ready.get("reason", "q12_input_unavailable")))
+        return _unavailable(str(ready.get("reason", "q12_input_unavailable")), ready.get("type_damage_evidence"))
     if not _ready_signature_matches_snapshot(ready, snapshot_damage_input):
         return _unavailable("invalid_snapshot_identity")
     if isinstance(trusted_level, bool) or not isinstance(trusted_level, int) or not 1 <= trusted_level <= 100:
@@ -80,6 +84,7 @@ def invoke_existing_q12_from_snapshot(
             "Only trusted final stats, repository types, and move metadata were supplied.",
             "Stat stages, ability/item modifiers, weather, terrain, field effects, and observed events are not applied by this adapter.",
         ],
+        "type_damage_evidence": ready.get("type_damage_evidence"),
     }
 
 
@@ -133,8 +138,8 @@ def _stat_block(values: Any) -> StatBlock:
     )
 
 
-def _unavailable(reason: str) -> dict[str, Any]:
-    return {
+def _unavailable(reason: str, type_damage_evidence: Any = None) -> dict[str, Any]:
+    result = {
         "status": "unavailable",
         "candidate_move_id": None,
         "candidate_move_slot": None,
@@ -145,3 +150,11 @@ def _unavailable(reason: str) -> dict[str, Any]:
         "ko_context": None,
         "limitations": [reason],
     }
+    if isinstance(type_damage_evidence, Mapping): result["type_damage_evidence"] = dict(type_damage_evidence)
+    return result
+
+
+def _unsupported(reason: str, type_damage_evidence: Any = None) -> dict[str, Any]:
+    result = _unavailable(reason, type_damage_evidence)
+    result["status"] = "unsupported_mechanic"
+    return result

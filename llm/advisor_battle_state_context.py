@@ -650,6 +650,8 @@ def classify_current_type_dark_membership(context: Mapping[str, Any] | None, *, 
         return "malformed"
     if not isinstance(context, Mapping):
         return "unknown"
+    if context.get("authority_status") == "malformed":
+        return "malformed"
     entries = context.get("current_types")
     if not isinstance(entries, list):
         return "malformed"

@@ -297,6 +297,18 @@ def build_q12_input_adapter(
     if not isinstance(attacker, Mapping) or not isinstance(defender, Mapping):
         raise ValueError("invalid_stat_provenance")
     required = (attacker, defender)
+    type_authorities = tuple(
+        _mapping_or_empty(side.get("type_authority")) or {"status": "known", "basis": "legacy_species", "reason": None}
+        for side in required
+    )
+    if any(authority.get("status") == "malformed" for authority in type_authorities):
+        return {"status": "unsupported_mechanic", "reason": "current_type_context", "type_damage_evidence": _type_damage_evidence(*type_authorities, supportability="unsupported_mechanic")}
+    unknown_sides = [
+        name for name, authority in zip(("attacker", "defender"), type_authorities)
+        if authority.get("status") != "known" and authority.get("basis") == "current_type_context"
+    ]
+    if unknown_sides:
+        return {"status": "unavailable", "reason": f"{unknown_sides[0]}.current_type", "type_damage_evidence": _type_damage_evidence(*type_authorities, supportability="insufficient_context")}
     if any(not _available_block(side.get("types")) for side in required):
         return {"status": "unavailable", "reason": "missing_type_metadata"}
     if any(not _available_block(side.get("base_stats")) for side in required):
@@ -309,6 +321,24 @@ def build_q12_input_adapter(
         "defender": deepcopy(dict(defender)),
         "move": deepcopy(dict(damage_input.get("move", {}))),
         "limits": deepcopy(list(stat_provenance.get("limits", []))),
+        "type_damage_evidence": _type_damage_evidence(*type_authorities, supportability="complete"),
+    }
+
+
+def _type_damage_evidence(
+    attacker: Mapping[str, Any], defender: Mapping[str, Any], *, supportability: str,
+) -> dict[str, Any]:
+    attacker_basis, defender_basis = attacker.get("basis"), defender.get("basis")
+    current_override = "current_type_context" in {attacker_basis, defender_basis}
+    legacy_compatibility = "legacy_species" in {attacker_basis, defender_basis}
+    return {
+        "attacker_type_authority": attacker_basis,
+        "defender_type_authority": defender_basis,
+        "stab_basis": attacker_basis,
+        "effectiveness_basis": defender_basis,
+        "current_type_override_used": current_override,
+        "legacy_species_type_compatibility_used": legacy_compatibility,
+        "type_related_damage_supportability": supportability,
     }
 
 
@@ -387,12 +417,17 @@ def _snapshot_side_stat_provenance(
     item_known = item_status == "user_confirmed" and item_id is not None and item_source == "user_input"
     item_known_absent = item_status == "absent" and item_source == "user_input"
     ability_id = _provenanced_ability(current_state.get("ability_context"), side)
+    type_block, type_authority = _snapshot_type_authority(
+        current_state=current_state, side=side, legacy_types=types,
+    )
     return {
         "pokemon_identity": species_id,
         "side": side,
         "slot_index": slot.get("slot_index"),
         "session_id": session_id,
-        "types": _provenance_block(types, source="repository_metadata", trust="deterministic_metadata", reason="missing_type_metadata"),
+        "types": type_block,
+        "legacy_types": _provenance_block(types, source="repository_metadata", trust="deterministic_metadata", reason="missing_type_metadata"),
+        "type_authority": type_authority,
         "base_stats": _provenance_block(base_stats, source="repository_metadata", trust="deterministic_metadata", reason="missing_base_stat_metadata"),
         "final_stats": _provenance_block(final_values if len(final_values) == len(BASE_STAT_KEYS) else None, source="user_confirmed_final_stat", trust="user_confirmed_current", reason="final_stats_unavailable"),
         "stat_stages": _provenance_block(stage_values or None, source="user_confirmed_current_stat_stage", trust="user_confirmed_current", reason="stat_stages_unavailable"),
@@ -407,6 +442,37 @@ def _snapshot_side_stat_provenance(
             "profile_source": item_source,
         },
     }
+
+
+def _snapshot_type_authority(
+    *, current_state: Mapping[str, Any], side: str, legacy_types: list[str] | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Resolve one side's frozen current type without changing omitted legacy Q12."""
+    context = current_state.get("current_type_context")
+    legacy = _provenance_block(
+        legacy_types, source="repository_metadata", trust="deterministic_metadata", reason="missing_type_metadata",
+    )
+    if context is None:
+        return legacy, {"status": "known" if legacy["available"] else "unknown", "basis": "legacy_species", "reason": legacy["reason"]}
+    if not isinstance(context, Mapping) or context.get("authority_status") == "malformed":
+        return _provenance_block(None, source="current_type_context", trust="unsupported", reason="malformed_current_type"), {"status": "malformed", "basis": "current_type_context", "reason": "malformed_current_type"}
+    entries = context.get("current_types")
+    if not isinstance(entries, list):
+        return _provenance_block(None, source="current_type_context", trust="unsupported", reason="malformed_current_type"), {"status": "malformed", "basis": "current_type_context", "reason": "malformed_current_type"}
+    matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
+    if not matches:
+        return legacy, {"status": "known" if legacy["available"] else "unknown", "basis": "legacy_species", "reason": legacy["reason"]}
+    if len(matches) != 1:
+        return _provenance_block(None, source="current_type_context", trust="unsupported", reason="malformed_current_type"), {"status": "malformed", "basis": "current_type_context", "reason": "malformed_current_type"}
+    try:
+        normalized = normalize_current_type_authority({key: value for key, value in matches[0].items() if key != "provenance"})
+    except ValueError:
+        return _provenance_block(None, source="current_type_context", trust="unsupported", reason="malformed_current_type"), {"status": "malformed", "basis": "current_type_context", "reason": "malformed_current_type"}
+    if normalized["state"] == "unknown":
+        return _provenance_block(None, source="current_type_context", trust="unknown", reason="current_type_unknown"), {"status": "unknown", "basis": "current_type_context", "reason": "current_type_unknown"}
+    return _provenance_block(
+        normalized["types"], source="current_type_context", trust=normalized["authority_provenance"], reason="current_type_unknown",
+    ), {"status": "known", "basis": "current_type_context", "reason": None}
 
 
 def _lookup_species_metadata(repository: Any, species_id: str) -> Any:
@@ -1097,10 +1163,12 @@ def _normalize_context_provenance(
         return dict(value)
     if context_key == "current_type_context":
         entries = value.get("current_types")
-        normalized = normalize_structured_current_type_confirmations(
-            entries, pokemon=pokemon, session_id=session_id or "",
-        ) if isinstance(entries, list) else []
-        return {"current_types": normalized} if normalized else None
+        if not isinstance(entries, list) or not entries:
+            return {"current_types": [], "authority_status": "malformed"}
+        normalized = normalize_structured_current_type_confirmations(entries, pokemon=pokemon, session_id=session_id or "")
+        if len(normalized) != len(entries):
+            return {"current_types": [], "authority_status": "malformed"}
+        return {"current_types": normalized}
     if context_key == "direct_mechanics_context":
         _validate_current_state_ownership(value, active_slots=active_slots, session_id=session_id)
         return deepcopy(dict(value))
