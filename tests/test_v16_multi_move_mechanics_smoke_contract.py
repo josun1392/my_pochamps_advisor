@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -524,6 +524,23 @@ def test_priority_blocking_ability_fixture_pair_excludes_blocked_candidates_and_
     assert supported["candidate_comparisons"][0]["move_success"]["priority_block_source"] == "armor_tail_priority"
     short_circuit = _prepared(PRIORITY_BLOCKING_ABILITY_FIXTURES[1])["recommendation_request"]
     assert short_circuit["candidate_comparisons"][0]["move_success"]["block_reason"] == "psychic_terrain_priority"
+
+
+def test_dark_prankster_fixture_pair_excludes_blocked_or_unknown_candidates_and_binds_only_controls(capsys):
+    def adapters(*, model):
+        assert model == "gemini-2.5-flash"
+        def provider(payload):
+            winner = next(row for row in payload["candidate_comparisons"] if isinstance(row.get("mechanics_comparison"), dict) and row["mechanics_comparison"].get("rank") == 1)
+            return {"recommendation_status": "resolved", "selected_candidate_id": winner["slot_index"], "explanation_code": "clear_ranked_winner"}
+        return (lambda: True), provider
+
+    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *DARK_TYPE_PRANKSTER_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
+    supported = _prepared(DARK_TYPE_PRANKSTER_FIXTURES[0])["recommendation_request"]
+    assert supported["selectable_candidate_exact_set"] == [{"slot_index": 1, "move": "seismic-toss"}, {"slot_index": 2, "move": "night-shade"}]
+    assert supported["candidate_comparisons"][0]["move_success"]["block_reason"] == "dark_type_prankster_immunity"
+    unknown = _prepared(DARK_TYPE_PRANKSTER_FIXTURES[1])["recommendation_request"]
+    assert unknown["candidate_comparisons"][0]["move_success"]["missing_inputs"] == ["opponent.current_type"]
 
 
 def test_multi_provider_rejects_wrong_candidate_rank_and_extra_acknowledgements():

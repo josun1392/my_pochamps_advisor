@@ -659,7 +659,7 @@ def classify_current_type_dark_membership(context: Mapping[str, Any] | None, *, 
     if len(matches) != 1:
         return "malformed"
     try:
-        entry = normalize_current_type_authority(matches[0])
+        entry = normalize_current_type_authority({key: value for key, value in matches[0].items() if key != "provenance"})
     except ValueError:
         return "malformed"
     if entry["state"] == "unknown":

@@ -65,6 +65,7 @@ def test_snapshot_uses_only_bound_current_types_and_is_detached_from_ui_or_speci
     known["types"] = ["fire"]
     assert captured["current_type_context"]["current_types"][0]["types"] == ["dark"]  # type: ignore[index]
     assert captured["current_type_context"]["current_types"][1]["state"] == "unknown"  # type: ignore[index]
+    assert classify_current_type_dark_membership(captured["current_type_context"], side="self") == "known_contains_dark"  # type: ignore[arg-type]
     assert "current_type_context" not in capture_ui_current_state_provenance(_battle_input(), session_id="session-1")
     stale = capture_ui_current_state_provenance(_battle_input(), session_id="session-2", current_type_confirmations=[known])
     assert "current_type_context" not in stale

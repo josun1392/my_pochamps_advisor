@@ -46,7 +46,8 @@ GALE_WINGS_FIXTURES = ("supported-gale-wings-priority", "unknown-gale-wings-hp-w
 TRIAGE_FIXTURES = ("supported-triage-priority", "unknown-triage-eligibility-with-priority-control")
 PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES = ("supported-psychic-terrain-priority-block", "unknown-groundedness-with-nonpriority-control")
 PRIORITY_BLOCKING_ABILITY_FIXTURES = ("supported-priority-blocking-ability", "priority-block-short-circuit-with-unknown-secondary-source")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES, TRIAGE_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES})
+DARK_TYPE_PRANKSTER_FIXTURES = ("supported-dark-type-prankster-immunity", "unknown-current-type-with-nonprankster-control")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES, TRIAGE_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -168,12 +169,14 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "quick-attack"}, {"move_id": "seismic-toss"}, {"move_id": "tackle"}], {"quick-attack": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
     if fixture_id in PRIORITY_BLOCKING_ABILITY_FIXTURES:
         return [{"move_id": "quick-attack"}, {"move_id": "seismic-toss"}, {"move_id": "night-shade"}], {"quick-attack": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "night-shade": {"category": "special", "type": "ghost", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
+    if fixture_id in DARK_TYPE_PRANKSTER_FIXTURES:
+        return [{"move_id": "taunt"}, {"move_id": "seismic-toss"}, {"move_id": "night-shade"}], {"taunt": {"category": "status", "target": "selected-pokemon", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "night-shade": {"category": "special", "type": "ghost", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES, *TRIAGE_FIXTURES, *PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES, *TRIAGE_FIXTURES, *PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES, *DARK_TYPE_PRANKSTER_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -283,6 +286,17 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
         if fixture_id == PRIORITY_BLOCKING_ABILITY_FIXTURES[1]:
             battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "psychic", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
             battle["grounded_context"] = {"opponent": {"status": "known_grounded", "provenance": "user_confirmed_current"}}
+    if fixture_id in DARK_TYPE_PRANKSTER_FIXTURES:
+        battle["ability_context"] = {"current_abilities": [_current_ability("prankster"), _current_ability("static", side="opponent", pokemon="eevee", slot=1)]}
+        if fixture_id == DARK_TYPE_PRANKSTER_FIXTURES[0]:
+            battle["current_type_context"] = {"current_types": [{
+                "side": "opponent", "state": "known", "types": ["ghost", "dark"],
+                "status": "user_confirmed", "source": "user_confirmed_current_type",
+                "authority_provenance": "user_confirmed_current", "confidence": "known",
+                "provenance": _provenance("opponent", 1, "eevee", source="user_confirmed_current_type"),
+            }]}
+        else:
+            battle["current_type_context"] = {"current_types": [{"side": "opponent", "state": "unknown", "status": "unknown", "source": "unknown", "authority_provenance": "unknown", "confidence": "unknown"}]}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -582,6 +596,13 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
         blocked, control, lower = rows
         success = blocked.get("move_success", {})
         return success.get("move_success_status") == "blocked" and success.get("block_reason") == "psychic_terrain_priority" and success.get("psychic_terrain_priority_blocked") is True and success.get("armor_tail_priority_blocked") is not True and blocked.get("availability") == "unavailable" and blocked.get("damage", {}).get("status") == "unavailable" and "q12_damage" not in blocked and control.get("move_success", {}).get("move_success_status") == "allowed" and control.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and lower.get("move_success", {}).get("move_success_status") == "allowed" and lower.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [None, 1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 1, "move": "seismic-toss"}, {"slot_index": 2, "move": "night-shade"}]
+    if fixture_id == DARK_TYPE_PRANKSTER_FIXTURES[0]:
+        blocked, control, lower = rows
+        success = blocked.get("move_success", {})
+        return success.get("move_success_status") == "blocked" and success.get("block_reason") == "dark_type_prankster_immunity" and success.get("dark_type_prankster_immunity_blocked") is True and success.get("target_type_authority_used") == "known_contains_dark" and blocked.get("availability") == "unavailable" and blocked.get("damage", {}).get("status") == "unavailable" and "q12_damage" not in blocked and blocked.get("action_order", {}).get("self_prankster_applied") is True and control.get("move_success", {}).get("move_success_status") == "allowed" and control.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and lower.get("move_success", {}).get("move_success_status") == "allowed" and lower.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [None, 1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 1, "move": "seismic-toss"}, {"slot_index": 2, "move": "night-shade"}]
+    if fixture_id == DARK_TYPE_PRANKSTER_FIXTURES[1]:
+        incomplete, control, lower = rows
+        return incomplete.get("move_success", {}).get("status") == "insufficient_context" and incomplete.get("move_success", {}).get("missing_inputs") == ["opponent.current_type"] and incomplete.get("availability") == "unavailable" and incomplete.get("damage", {}).get("status") == "unavailable" and "q12_damage" not in incomplete and control.get("move_success", {}).get("move_success_status") == "allowed" and control.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and lower.get("move_success", {}).get("move_success_status") == "allowed" and lower.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [None, 1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 1, "move": "seismic-toss"}, {"slot_index": 2, "move": "night-shade"}]
     return False
 
 
@@ -717,9 +738,9 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
         if fixture_id == TRIAGE_FIXTURES[0]:
             return isinstance(order, Mapping) and order.get("self_triage_applied") is True and "힐링시프트로 회복 기술의 우선도가 올라 먼저 행동함" in text and "triage" not in text and "effective_priority" not in text
         return isinstance(order, Mapping) and order.get("reason") == "priority_advantage" and "힐링시프트" not in text and "healing_move_authority" not in text
-    if fixture_id in {*PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES}:
+    if fixture_id in {*PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES, *DARK_TYPE_PRANKSTER_FIXTURES}:
         move_success = selected.get("move_success")
-        return isinstance(move_success, Mapping) and move_success.get("move_success_status") == "allowed" and move_success.get("psychic_terrain_priority_blocked") is not True and "psychic_terrain" not in text and "priority_blocked" not in text
+        return isinstance(move_success, Mapping) and move_success.get("move_success_status") == "allowed" and move_success.get("psychic_terrain_priority_blocked") is not True and move_success.get("dark_type_prankster_immunity_blocked") is not True and "psychic_terrain" not in text and "priority_blocked" not in text and "current_type" not in text
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
         if fixture_id in FIXED_DAMAGE_FIXTURES and mechanics.get("damage_model") == "level_based_fixed":
             labels = ("\ud53c\ud574 \ubc29\uc2dd: \uc0ac\uc6a9\uc790 \ub808\ubca8\uacfc \ub3d9\uc77c\ud55c \uace0\uc815 \ud53c\ud574",)
