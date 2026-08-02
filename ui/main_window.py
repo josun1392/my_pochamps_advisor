@@ -40,6 +40,7 @@ from llm.advisor_battle_state_context import (
     normalize_user_confirmed_battle_format,
     normalize_user_confirmed_current_stat_stage,
     normalize_user_confirmed_current_ability,
+    normalize_current_type_authority,
     normalize_user_confirmed_current_condition,
     validate_explicit_user_item_event_confirmation,
 )
@@ -63,6 +64,7 @@ from ui.widgets.field_profile_dialog import FieldProfileDialog
 from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
 from ui.widgets.current_ability_dialog import CurrentAbilityDialog
+from ui.widgets.current_type_dialog import CurrentTypeDialog
 from ui.widgets.current_stat_stage_dialog import CurrentStatStageDialog
 from ui.widgets.current_field_state_dialog import CurrentFieldStateDialog
 from ui.widgets.current_final_stat_dialog import CurrentFinalStatDialog
@@ -153,6 +155,27 @@ def _normalize_current_ability_session(abilities: object) -> dict[str, dict]:
         if candidate["side"] == side:
             normalized[side] = candidate
     return normalized
+
+
+def _normalize_current_type_session(types: object) -> dict[str, dict]:
+    if not isinstance(types, dict):
+        return {}
+    normalized: dict[str, dict] = {}
+    for side, entry in types.items():
+        try:
+            candidate = normalize_current_type_authority(entry)
+        except ValueError:
+            continue
+        if candidate["side"] == side:
+            normalized[side] = candidate
+    return normalized
+
+
+def _unknown_current_type_session() -> dict[str, dict]:
+    return {
+        side: {"side": side, "state": "unknown", "status": "unknown", "source": "unknown", "authority_provenance": "unknown", "confidence": "unknown"}
+        for side in ("self", "opponent")
+    }
 
 
 def _normalize_current_stat_stage_session(stages: object) -> dict[tuple[str, str], dict]:
@@ -388,6 +411,8 @@ class MainWindow(QMainWindow):
         self._current_condition_confirmations: dict[str, dict] = {}
         self._current_ability_confirmations: dict[str, dict] = {}
         self._structured_ability_confirmations: dict[str, dict] = {}
+        self._current_type_confirmations: dict[str, dict] = _unknown_current_type_session()
+        self._structured_type_confirmations: dict[str, dict] = {}
         self._current_stat_stage_confirmations: dict[tuple[str, str], dict] = {}
         self._current_field_state_confirmation: dict | None = None
         self._grounded_context_confirmation = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
@@ -451,6 +476,8 @@ class MainWindow(QMainWindow):
         self.center_column.llm_advice_panel.current_ability_session_reset_requested.connect(
             self._clear_current_ability_confirmations
         )
+        self.center_column.llm_advice_panel.current_type_requested.connect(self._open_current_type_dialog)
+        self.center_column.llm_advice_panel.current_type_session_reset_requested.connect(self._clear_current_type_confirmations)
         self.center_column.llm_advice_panel.current_stat_stage_requested.connect(self._open_current_stat_stage_dialog)
         self.center_column.llm_advice_panel.current_stat_stage_session_reset_requested.connect(
             self._clear_current_stat_stage_confirmations
@@ -474,6 +501,7 @@ class MainWindow(QMainWindow):
         self._update_item_event_summary()
         self._update_current_condition_summary()
         self._update_current_ability_summary()
+        self._update_current_type_summary()
         self._update_current_stat_stage_summary()
         self._update_current_field_state_summary()
         self._update_current_final_stat_summary()
@@ -645,6 +673,39 @@ class MainWindow(QMainWindow):
         self._current_ability_confirmations = {}
         self._structured_ability_confirmations = {}
         self._update_current_ability_summary()
+
+    @Slot()
+    def _open_current_type_dialog(self) -> None:
+        current_types = getattr(self, "_current_type_confirmations", {})
+        dialog = CurrentTypeDialog(current_types=current_types, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        entry = dialog.current_type_confirmation
+        if entry is None:
+            return
+        try:
+            normalized = normalize_current_type_authority(entry)
+        except ValueError:
+            return
+        self._current_type_confirmations = {**_normalize_current_type_session(current_types), normalized["side"]: normalized}
+        structured = dict(getattr(self, "_structured_type_confirmations", {}))
+        if normalized["state"] == "known":
+            structured_entry = self._capture_structured_ability_confirmation(normalized)
+            if structured_entry is not None:
+                structured[normalized["side"]] = structured_entry
+        else:
+            structured.pop(normalized["side"], None)
+        self._structured_type_confirmations = structured
+        self._update_current_type_summary()
+
+    @Slot()
+    def _clear_current_type_confirmations(self) -> None:
+        self._current_type_confirmations = _unknown_current_type_session()
+        self._structured_type_confirmations = {}
+        update_current_type_summary = getattr(self, "_update_current_type_summary", None)
+        if callable(update_current_type_summary):
+            update_current_type_summary()
+        self._update_current_type_summary()
 
     def _capture_structured_ability_confirmation(self, entry: dict) -> dict | None:
         """Bind a confirmed ability to its active owner without changing public UI data."""
@@ -983,6 +1044,8 @@ class MainWindow(QMainWindow):
         self._current_condition_confirmations = {}
         self._current_ability_confirmations = {}
         self._structured_ability_confirmations = {}
+        self._current_type_confirmations = _unknown_current_type_session()
+        self._structured_type_confirmations = {}
         self._current_stat_stage_confirmations = {}
         self._current_final_stat_confirmations = {}
         self._structured_final_stat_confirmations = {}
@@ -1125,6 +1188,12 @@ class MainWindow(QMainWindow):
         try:
             panel = self.center_column.llm_advice_panel
             panel.set_current_ability_count(len(self._current_ability_confirmations))
+        except (AttributeError, RuntimeError):
+            pass
+
+    def _update_current_type_summary(self) -> None:
+        try:
+            self.center_column.llm_advice_panel.set_current_type_count(len(self._current_type_confirmations))
         except (AttributeError, RuntimeError):
             pass
 
@@ -1372,6 +1441,10 @@ class MainWindow(QMainWindow):
                 ability_confirmations=deepcopy(
                     list(getattr(self, "_structured_ability_confirmations", {}).values())
                 ),
+                current_type_confirmations=deepcopy([
+                    *list(getattr(self, "_structured_type_confirmations", {}).values()),
+                    *[entry for entry in getattr(self, "_current_type_confirmations", {}).values() if isinstance(entry, dict) and entry.get("state") == "unknown"],
+                ]),
                 observed_damage_confirmations=deepcopy(
                     getattr(self, "_structured_observed_damage_confirmations", [])
                 ),

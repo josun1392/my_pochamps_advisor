@@ -854,6 +854,7 @@ def _remove_ui_only_field_profiles(payload: dict[str, Any]) -> None:
     payload.pop("item_event_confirmations", None)
     payload.pop("current_condition_confirmations", None)
     payload.pop("current_ability_confirmations", None)
+    payload.pop("current_type_context", None)
     payload.pop("current_stat_stage_confirmations", None)
     payload.pop("current_final_stat_confirmations", None)
     payload.pop("current_hp_confirmations", None)

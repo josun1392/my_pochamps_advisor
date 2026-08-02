@@ -29,6 +29,8 @@ class LLMAdvicePanel(QFrame):
     current_condition_session_reset_requested = Signal()
     current_ability_requested = Signal()
     current_ability_session_reset_requested = Signal()
+    current_type_requested = Signal()
+    current_type_session_reset_requested = Signal()
     current_stat_stage_requested = Signal()
     current_stat_stage_session_reset_requested = Signal()
     current_field_state_requested = Signal()
@@ -107,6 +109,14 @@ class LLMAdvicePanel(QFrame):
         self.clear_current_abilities_button.setToolTip("Clear user-confirmed current abilities for this battle session.")
         self.clear_current_abilities_button.clicked.connect(self.current_ability_session_reset_requested.emit)
 
+        self.current_type_button = QPushButton("Current type")
+        self.current_type_button.setObjectName("currentTypeButton")
+        self.current_type_button.setToolTip("Record explicit current type authority; species/base type is not used as a fallback.")
+        self.current_type_button.clicked.connect(self.current_type_requested.emit)
+        self.clear_current_types_button = QPushButton("Clear current types")
+        self.clear_current_types_button.setObjectName("clearCurrentTypesButton")
+        self.clear_current_types_button.clicked.connect(self.current_type_session_reset_requested.emit)
+
         self.current_stat_stage_button = QPushButton("Stat stages")
         self.current_stat_stage_button.setToolTip("Open user-confirmed current stat stages. This does not resolve their cause or outcomes.")
         self.current_stat_stage_button.clicked.connect(self.current_stat_stage_requested.emit)
@@ -165,6 +175,8 @@ class LLMAdvicePanel(QFrame):
         layout.addWidget(self.clear_current_conditions_button)
         layout.addWidget(self.current_ability_button)
         layout.addWidget(self.clear_current_abilities_button)
+        layout.addWidget(self.current_type_button)
+        layout.addWidget(self.clear_current_types_button)
         layout.addWidget(self.current_stat_stage_button)
         layout.addWidget(self.clear_current_stat_stages_button)
         layout.addWidget(self.current_field_state_button)
@@ -206,6 +218,10 @@ class LLMAdvicePanel(QFrame):
         label = "Ability" if normalized_count == 0 else f"Ability ({normalized_count})"
         self.current_ability_button.setText(label)
 
+    def set_current_type_count(self, count: int) -> None:
+        normalized_count = max(0, int(count))
+        self.current_type_button.setText("Current type" if normalized_count == 0 else f"Current type ({normalized_count})")
+
     def set_current_stat_stage_count(self, count: int) -> None:
         normalized_count = max(0, int(count))
         self.current_stat_stage_button.setText("Stat stages" if normalized_count == 0 else f"Stat stages ({normalized_count})")
@@ -232,6 +248,8 @@ class LLMAdvicePanel(QFrame):
         self.clear_current_conditions_button.setDisabled(is_running)
         self.current_ability_button.setDisabled(is_running)
         self.clear_current_abilities_button.setDisabled(is_running)
+        self.current_type_button.setDisabled(is_running)
+        self.clear_current_types_button.setDisabled(is_running)
         self.current_stat_stage_button.setDisabled(is_running)
         self.clear_current_stat_stages_button.setDisabled(is_running)
         self.current_field_state_button.setDisabled(is_running)

@@ -6,6 +6,7 @@ from typing import Any, Mapping
 
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
 from llm.advisor_battle_state_context import (
+    normalize_current_type_authority,
     normalize_user_confirmed_current_ability,
     normalize_user_confirmed_final_battle_stat,
 )
@@ -13,7 +14,7 @@ from llm.advisor_runtime_state_projection import normalize_runtime_advice_state_
 
 
 RICH_CURRENT_STATE_KEYS = (
-    "current_hp_context", "condition_context", "ability_context", "stat_stage_context",
+    "current_hp_context", "condition_context", "ability_context", "current_type_context", "stat_stage_context",
     "field_state_context", "grounded_context", "item_event_context", "final_stat_context",
     "battle_format_context", "observed_previous_damage_context", "battle_counter_context",
     "consecutive_use_context", "weight_context", "turn_event_context", "trusted_level_context",
@@ -525,6 +526,7 @@ def capture_ui_current_state_provenance(
     observed_events: Sequence[Mapping[str, Any]] | None = None,
     final_stat_confirmations: Sequence[Mapping[str, Any]] | None = None,
     ability_confirmations: Sequence[Mapping[str, Any]] | None = None,
+    current_type_confirmations: Sequence[Mapping[str, Any]] | None = None,
     observed_damage_confirmations: Sequence[Mapping[str, Any]] | None = None,
     used_move_confirmations: Sequence[Mapping[str, Any]] | None = None,
     hp_transition_confirmations: Sequence[Mapping[str, Any]] | None = None,
@@ -542,7 +544,7 @@ def capture_ui_current_state_provenance(
     provenance_added = False
     pokemon = _mapping_or_empty(captured.get("pokemon"))
     for key in RICH_CURRENT_STATE_KEYS:
-        if key == "trusted_level_context":
+        if key in {"trusted_level_context", "current_type_context"}:
             continue
         context = captured.get(key)
         if not isinstance(context, Mapping):
@@ -581,6 +583,12 @@ def capture_ui_current_state_provenance(
     )
     if abilities:
         captured["ability_context"] = {"current_abilities": abilities}
+        provenance_added = True
+    current_types = normalize_structured_current_type_confirmations(
+        current_type_confirmations, pokemon=pokemon, session_id=session_id,
+    )
+    if current_types:
+        captured["current_type_context"] = {"current_types": current_types}
         provenance_added = True
     observed_damage = normalize_structured_observed_damage_confirmations(
         observed_damage_confirmations, pokemon=pokemon, session_id=session_id,
@@ -854,6 +862,44 @@ def normalize_structured_ability_confirmations(
     return result
 
 
+def normalize_structured_current_type_confirmations(
+    confirmations: Sequence[Mapping[str, Any]] | None, *, pokemon: Mapping[str, Any], session_id: str,
+) -> list[dict[str, Any]]:
+    """Keep explicit unknown types, but require ownership for known types."""
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, (str, bytes)):
+        return []
+    active_slots = {
+        "self": _optional_int(_mapping_or_empty(pokemon.get("my_active")).get("slot_index")),
+        "opponent": _optional_int(_mapping_or_empty(pokemon.get("opponent_active")).get("slot_index")),
+    }
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for confirmation in confirmations:
+        if not isinstance(confirmation, Mapping):
+            continue
+        raw = {key: value for key, value in confirmation.items() if key != "provenance"}
+        try:
+            normalized = normalize_current_type_authority(raw)
+        except ValueError:
+            continue
+        side = normalized["side"]
+        if side in seen:
+            continue
+        if normalized["state"] == "unknown":
+            seen.add(side)
+            result.append(normalized)
+            continue
+        entry = {**normalized, "provenance": deepcopy(confirmation.get("provenance"))}
+        if not _entry_has_valid_provenance(entry, active_slots=active_slots, pokemon=pokemon, session_id=session_id):
+            continue
+        provenance = entry["provenance"]
+        if provenance.get("source") != normalized["source"] or provenance.get("trust") != normalized["authority_provenance"]:
+            continue
+        seen.add(side)
+        result.append(entry)
+    return result
+
+
 def normalize_structured_trusted_levels(
     confirmations: Sequence[Mapping[str, Any]] | None, *, pokemon: Mapping[str, Any], session_id: str,
 ) -> list[dict[str, Any]]:
@@ -1049,6 +1095,12 @@ def _normalize_context_provenance(
     if context_key in FIELD_SCOPED_CONTEXT_KEYS or context_key == "grounded_context":
         _validate_current_state_ownership(value, active_slots=active_slots, session_id=session_id)
         return dict(value)
+    if context_key == "current_type_context":
+        entries = value.get("current_types")
+        normalized = normalize_structured_current_type_confirmations(
+            entries, pokemon=pokemon, session_id=session_id or "",
+        ) if isinstance(entries, list) else []
+        return {"current_types": normalized} if normalized else None
     if context_key == "direct_mechanics_context":
         _validate_current_state_ownership(value, active_slots=active_slots, session_id=session_id)
         return deepcopy(dict(value))

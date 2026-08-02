@@ -247,6 +247,14 @@ USER_CONFIRMED_CURRENT_ABILITY_FUTURE_UNSUPPORTED_SOURCES = frozenset(
     }
 )
 _ABILITY_ID_PATTERN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+CURRENT_TYPE_IDS = frozenset({
+    "normal", "fire", "water", "electric", "grass", "ice", "fighting", "poison", "ground", "flying",
+    "psychic", "bug", "rock", "ghost", "dragon", "dark", "steel", "fairy",
+})
+CURRENT_TYPE_ALLOWED_KNOWN_SOURCES = frozenset({"user_confirmed_current_type", "trusted_observed_current_type"})
+CURRENT_TYPE_ALLOWED_KNOWN_STATUSES = frozenset({"user_confirmed", "trusted_observed"})
+CURRENT_TYPE_REQUIRED_FIELDS = frozenset({"side", "state", "status", "source", "authority_provenance"})
+CURRENT_TYPE_OPTIONAL_FIELDS = frozenset({"types", "confidence"})
 USER_CONFIRMED_CURRENT_STAT_STAGE_ALLOWED_SOURCES = frozenset({"user_confirmed_current_stat_stage"})
 USER_CONFIRMED_CURRENT_STAT_STAGE_REQUIRED_FIELDS = frozenset({"side", "stat", "stage", "status", "source"})
 USER_CONFIRMED_CURRENT_STAT_STAGE_OPTIONAL_FIELDS = frozenset({"confidence"})
@@ -563,6 +571,100 @@ def _first_forbidden_ability_field(value: object) -> str | None:
             if nested is not None:
                 return nested
     return None
+
+
+def normalize_current_type_authority(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize a side-owned current typing without consulting species metadata.
+
+    Current type is intentionally distinct from a Pokemon's repository/base
+    typing: only an explicit request-start authority may make it known.
+    """
+    if not isinstance(candidate, Mapping):
+        raise ValueError("current type candidate must be a mapping")
+    unexpected = set(candidate) - (CURRENT_TYPE_REQUIRED_FIELDS | CURRENT_TYPE_OPTIONAL_FIELDS)
+    if unexpected:
+        raise ValueError(f"unexpected current type field: {sorted(unexpected)[0]}")
+    missing = CURRENT_TYPE_REQUIRED_FIELDS - set(candidate)
+    if missing:
+        raise ValueError(f"current type missing required field: {sorted(missing)[0]}")
+    side, state = candidate.get("side"), candidate.get("state")
+    if side not in {"self", "opponent"}:
+        raise ValueError("current type side must be self or opponent")
+    if state == "unknown":
+        if set(candidate) - CURRENT_TYPE_REQUIRED_FIELDS - {"confidence"}:
+            raise ValueError("unknown current type must not include types")
+        if candidate.get("status") != "unknown" or candidate.get("source") != "unknown" or candidate.get("authority_provenance") != "unknown":
+            raise ValueError("unknown current type authority must be explicit")
+        if "confidence" in candidate and candidate["confidence"] != "unknown":
+            raise ValueError("unknown current type confidence must be unknown")
+        return {"side": side, "state": "unknown", "status": "unknown", "source": "unknown", "authority_provenance": "unknown", "confidence": "unknown"}
+    if state != "known":
+        raise ValueError("current type state must be known or unknown")
+    source, status, provenance = candidate.get("source"), candidate.get("status"), candidate.get("authority_provenance")
+    if source not in CURRENT_TYPE_ALLOWED_KNOWN_SOURCES or status not in CURRENT_TYPE_ALLOWED_KNOWN_STATUSES:
+        raise ValueError("current type source or status is not allowed")
+    if provenance not in {"user_confirmed_current", "trusted_observed_current"}:
+        raise ValueError("current type provenance is not allowed")
+    if (source, status, provenance) not in {
+        ("user_confirmed_current_type", "user_confirmed", "user_confirmed_current"),
+        ("trusted_observed_current_type", "trusted_observed", "trusted_observed_current"),
+    }:
+        raise ValueError("current type source, status, and provenance must agree")
+    raw_types = candidate.get("types")
+    if not isinstance(raw_types, Sequence) or isinstance(raw_types, (str, bytes)) or not 1 <= len(raw_types) <= 2:
+        raise ValueError("current type requires one or two canonical types")
+    normalized_types = tuple(_normalize_current_type_id(value) for value in raw_types)
+    if len(set(normalized_types)) != len(normalized_types):
+        raise ValueError("current type entries must not be duplicated")
+    if "confidence" in candidate and candidate["confidence"] != "known":
+        raise ValueError("known current type confidence must be known")
+    return {"side": side, "state": "known", "types": list(normalized_types), "status": status, "source": source, "authority_provenance": provenance, "confidence": "known"}
+
+
+def _normalize_current_type_id(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("current type must be canonical")
+    normalized = value.strip().lower().replace("_", "-")
+    if normalized not in CURRENT_TYPE_IDS:
+        raise ValueError("current type must be canonical")
+    return normalized
+
+
+def build_current_type_context_from_confirmations(confirmations: Sequence[Mapping[str, Any]] | None) -> dict[str, Any] | None:
+    if not isinstance(confirmations, Sequence) or isinstance(confirmations, (str, bytes)):
+        return None
+    by_side: dict[str, dict[str, Any]] = {}
+    for candidate in confirmations:
+        try:
+            normalized = normalize_current_type_authority(candidate)
+        except ValueError:
+            continue
+        by_side[normalized["side"]] = normalized
+    entries = [by_side[side] for side in ("self", "opponent") if side in by_side]
+    return {"current_types": entries} if entries else None
+
+
+def classify_current_type_dark_membership(context: Mapping[str, Any] | None, *, side: str) -> str:
+    """Read-only classifier for a future Dark-target gate; it has no effects."""
+    if side not in {"self", "opponent"}:
+        return "malformed"
+    if not isinstance(context, Mapping):
+        return "unknown"
+    entries = context.get("current_types")
+    if not isinstance(entries, list):
+        return "malformed"
+    matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
+    if not matches:
+        return "unknown"
+    if len(matches) != 1:
+        return "malformed"
+    try:
+        entry = normalize_current_type_authority(matches[0])
+    except ValueError:
+        return "malformed"
+    if entry["state"] == "unknown":
+        return "unknown"
+    return "known_contains_dark" if "dark" in entry["types"] else "known_does_not_contain_dark"
 
 
 def build_current_condition_context_from_confirmations(
