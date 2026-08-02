@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, CURRENT_TYPE_Q12_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -541,6 +541,28 @@ def test_dark_prankster_fixture_pair_excludes_blocked_or_unknown_candidates_and_
     assert supported["candidate_comparisons"][0]["move_success"]["block_reason"] == "dark_type_prankster_immunity"
     unknown = _prepared(DARK_TYPE_PRANKSTER_FIXTURES[1])["recommendation_request"]
     assert unknown["candidate_comparisons"][0]["move_success"]["missing_inputs"] == ["opponent.current_type"]
+
+
+def test_current_type_q12_fixture_pair_binds_only_server_owned_override_or_fixed_control(capsys):
+    def adapters(*, model):
+        assert model == "gemini-2.5-flash"
+
+        def provider(payload):
+            winner = next(row for row in payload["candidate_comparisons"] if isinstance(row.get("mechanics_comparison"), dict) and row["mechanics_comparison"].get("rank") == 1)
+            code = "only_rankable_candidate" if winner["mechanics_comparison"].get("comparison_reason") == "only_rankable_candidate" else "clear_ranked_winner"
+            return {"recommendation_status": "resolved", "selected_candidate_id": winner["slot_index"], "explanation_code": code}
+
+        return (lambda: True), provider
+
+    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *CURRENT_TYPE_Q12_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
+    override = _prepared(CURRENT_TYPE_Q12_FIXTURES[0])["recommendation_request"]
+    formula = override["candidate_comparisons"][0]
+    assert override["selectable_candidate_exact_set"] == [{"slot_index": 0, "move": "flamethrower"}, {"slot_index": 1, "move": "seismic-toss"}]
+    assert formula["mechanics_result"]["type_damage_evidence"] == {"attacker_type_authority": "current_type_context", "defender_type_authority": "current_type_context", "stab_basis": "current_type_context", "effectiveness_basis": "current_type_context", "current_type_override_used": True, "legacy_species_type_compatibility_used": False, "type_related_damage_supportability": "complete"}
+    unknown = _prepared(CURRENT_TYPE_Q12_FIXTURES[1])["recommendation_request"]
+    assert unknown["selectable_candidate_exact_set"] == [{"slot_index": 1, "move": "seismic-toss"}]
+    assert unknown["candidate_comparisons"][0]["mechanics_result"]["missing_inputs"] == ["attacker.current_type"]
 
 
 def test_multi_provider_rejects_wrong_candidate_rank_and_extra_acknowledgements():

@@ -42,3 +42,7 @@ Candidate-local internal evidence distinguishes `attacker_type_authority`, `defe
 ## Implementation boundary and next goal
 
 The bounded adapter reuses the existing frozen context, `calc_stab`, and Gen 9 chart; it does not alter Q12 multiplier order. It preserves weather, terrain, burn, screen, ability, item, fixed-hit, priority, and move-success contracts. Level-based fixed damage keeps its existing legacy type boundary. A later goal, if authorized, may add trusted current-type updates for type mutation; it must not add Terastallization, provider schema changes, or expected-outcome ranking implicitly.
+
+## Sanitized provider-grounding coverage
+
+The offline/actual fixture pair `supported-current-type-q12-override` and `unknown-current-type-with-fixed-control` keeps selection server-owned. The first verifies known self and opponent current types override species metadata for a formula candidate. The second keeps an explicit-unknown formula candidate non-selectable without a species fallback, while a level-based fixed-damage control remains selectable. The provider receives only the existing minimal selection contract and never derives type, STAB, effectiveness, Q12, or supportability evidence.

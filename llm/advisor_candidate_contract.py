@@ -746,6 +746,19 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     optional_outputs["accuracy_evidence"] = _accuracy_evidence(metadata, snapshot)
     optional_outputs["status_move_evidence"] = _status_move_evidence(metadata)
     optional_outputs["move_consequence_evidence"] = evaluate_move_consequence_evidence(move_id=move, metadata=metadata)
+    current_type_missing = (
+        isinstance(mechanics_result, Mapping)
+        and mechanics_result.get("status") == "insufficient_context"
+        and any(item in {"attacker.current_type", "defender.current_type"} for item in mechanics_result.get("missing_inputs", ()) if isinstance(item, str))
+    )
+    current_type_malformed = (
+        isinstance(mechanics_result, Mapping)
+        and mechanics_result.get("status") == "unsupported_mechanic"
+        and mechanics_result.get("unsupported_reason") == "current_type_context"
+    )
+    if current_type_missing or current_type_malformed:
+        reason = "required_current_type_authority_unavailable" if current_type_missing else "current_type_authority_unsupported"
+        return {"slot_index": slot_index, "move": move, "status": "unavailable", "availability": "unavailable", "damage": {"status": "unavailable", "reason": reason}, "q12_damage": q12_damage, "mechanics_result": mechanics_result, "self_effects": self_effects, "dynamic_move": dynamic_move, "warnings": [], "unavailable_reasons": [reason], **optional_outputs}
     if dynamic_move is not None and dynamic_move["status"] != "resolved":
         reasons = ["required_dynamic_context_unavailable"]
         assessment = context.get(dynamic_move["assessment_key"]) if isinstance(context, Mapping) else None
@@ -1927,6 +1940,8 @@ def validate_ranking_acknowledgements(*, request: Mapping[str, Any], acknowledge
     for candidate in comparisons:
         if not isinstance(candidate, Mapping):
             return ["ranking_acknowledgement_request_invalid"]
+        if candidate.get("eligibility") == "not_selectable":
+            continue
         comparison = candidate.get("mechanics_comparison")
         if not isinstance(comparison, Mapping):
             continue
@@ -1934,7 +1949,7 @@ def validate_ranking_acknowledgements(*, request: Mapping[str, Any], acknowledge
         if not isinstance(slot, int) or isinstance(slot, bool) or not isinstance(move, str) or not move:
             return ["ranking_acknowledgement_request_invalid"]
         expected[(slot, move)] = comparison
-    if len(expected) < 2:
+    if not expected:
         return ["ranking_acknowledgement_request_invalid"]
     seen: set[tuple[int, str]] = set()
     required = {"slot_index", "move", "comparison_status", "rank", "comparison_reason"}
