@@ -723,6 +723,64 @@ def test_psychic_terrain_priority_gate_uses_effective_priority_and_fails_closed_
     assert prepared["status"] == "no_selectable_candidates"
 
 
+def _priority_blocking_ability_snapshot(*, opponent_ability, terrain=None, grounded=None, self_ability=None):
+    snapshot = {"opponent_selected_move": {"move_id": "tackle"}}
+    abilities = [{"side": "opponent", "ability": opponent_ability, "status": "user_confirmed", "source": "user_confirmed_current_ability", "confidence": "known"}]
+    if self_ability is not None:
+        abilities.append({"side": "self", "ability": self_ability, "status": "user_confirmed", "source": "user_confirmed_current_ability", "confidence": "known"})
+    snapshot["ability_context"] = {"current_abilities": abilities}
+    if terrain is not None:
+        snapshot["field_state_context"] = {"current_field": {"weather": "none", "terrain": terrain, "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
+    if grounded is not None:
+        snapshot["grounded_context"] = {"opponent": {"status": grounded, "provenance": "user_confirmed_current" if grounded != "unknown" else "unknown"}}
+    return snapshot
+
+
+@pytest.mark.parametrize(("ability", "source", "flag"), [
+    ("queenly-majesty", "queenly_majesty_priority", "queenly_majesty_priority_blocked"),
+    ("dazzling", "dazzling_priority", "dazzling_priority_blocked"),
+    ("armor-tail", "armor_tail_priority", "armor_tail_priority_blocked"),
+])
+def test_defender_priority_blocking_abilities_block_only_positive_opposing_single_target_moves(ability, source, flag):
+    repository = {
+        "quick": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 1},
+        "slow": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0},
+        "self": {"category": "status", "target": "user", "priority": 1},
+        "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0},
+    }
+    snapshot = _priority_blocking_ability_snapshot(opponent_ability=ability)
+    blocked = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=snapshot, repositories=repository)
+    non_positive = evaluate_move_candidate(slot_index=0, move="slow", battle_snapshot=snapshot, repositories=repository)
+    self_target = evaluate_move_candidate(slot_index=0, move="self", battle_snapshot=snapshot, repositories=repository)
+    assert blocked["availability"] == "unavailable" and blocked["action_order"]["status"] == "acts_first"
+    assert blocked["move_success"]["block_reason"] == "priority_blocking_ability" and blocked["move_success"]["priority_block_source"] == source and blocked["move_success"][flag] is True
+    assert blocked["damage"] == {"status": "unavailable", "reason": "priority_blocking_ability"}
+    assert non_positive["move_success"]["move_success_status"] == "allowed"
+    assert self_target["move_success"]["move_success_status"] == "allowed"
+
+
+def test_defender_priority_blocking_ability_authority_and_psychic_sources_are_fail_closed_but_short_circuit_each_other():
+    repository = {
+        "quick": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 1},
+        "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0},
+    }
+    non_blocking = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_priority_blocking_ability_snapshot(opponent_ability="static"), repositories=repository)
+    unknown = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_priority_blocking_ability_snapshot(opponent_ability="unknown"), repositories=repository)
+    unsupported = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_priority_blocking_ability_snapshot(opponent_ability="stall"), repositories=repository)
+    self_owned = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_priority_blocking_ability_snapshot(opponent_ability="static", self_ability="queenly-majesty"), repositories=repository)
+    ability_short_circuit = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_priority_blocking_ability_snapshot(opponent_ability="dazzling", terrain="unknown", grounded="unknown"), repositories=repository)
+    terrain_short_circuit = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_priority_blocking_ability_snapshot(opponent_ability="unknown", terrain="psychic", grounded="known_grounded"), repositories=repository)
+    both = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_priority_blocking_ability_snapshot(opponent_ability="armor-tail", terrain="psychic", grounded="known_grounded"), repositories=repository)
+    no_usable = prepare_recommendation_cycle(moves=["quick"], battle_snapshot=_priority_blocking_ability_snapshot(opponent_ability="queenly-majesty"), repositories=repository)
+    assert non_blocking["move_success"]["move_success_status"] == "allowed" and self_owned["move_success"]["move_success_status"] == "allowed"
+    assert unknown["move_success"]["missing_inputs"] == ["opponent.priority_blocking_ability"]
+    assert unsupported["move_success"]["unsupported_reason"] == "effective_priority"
+    assert ability_short_circuit["move_success"]["priority_block_source"] == "dazzling_priority"
+    assert terrain_short_circuit["move_success"]["block_reason"] == "psychic_terrain_priority"
+    assert both["move_success"]["priority_block_sources"] == ["psychic_terrain_priority", "armor_tail_priority"]
+    assert no_usable["status"] == "no_selectable_candidates"
+
+
 def test_presentation_uses_bounded_trick_room_action_order_text_only_for_selected_candidate():
     presentation = {
         "status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0,

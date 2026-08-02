@@ -133,6 +133,8 @@ _PSYCHIC_TERRAIN_OPPOSING_SINGLE_TARGETS = frozenset({"selected-pokemon"})
 _PSYCHIC_TERRAIN_ALLY_TARGETS = frozenset({"ally", "user-or-ally"})
 _PSYCHIC_TERRAIN_FIELD_TARGETS = frozenset({"users-field", "opponents-field", "entire-field"})
 _PSYCHIC_TERRAIN_COMPLEX_TARGETS = frozenset({"all-opponents", "all-other-pokemon", "all-pokemon", "random-opponent"})
+_PRIORITY_BLOCKING_ABILITIES = frozenset({"queenly-majesty", "dazzling", "armor-tail"})
+_UNSUPPORTED_PRIORITY_BLOCKING_ABILITIES = frozenset({"stall", "mycelium-might"})
 
 
 def _canonical_stat_changes(metadata: Any) -> tuple[tuple[str, int], ...] | None:
@@ -470,8 +472,29 @@ def _triage_healing_eligibility(metadata: Any) -> str:
     return "unknown"
 
 
-def _psychic_terrain_priority_gate(snapshot: Mapping[str, Any], metadata: Any, action_order: Any) -> dict[str, Any] | None:
-    """Gate only opposing single-target positive-priority moves on Psychic Terrain."""
+def _priority_block_relevance(metadata: Any, action_order: Any) -> dict[str, Any]:
+    """Classify the shared narrow priority-block applicability without inferring target scope."""
+    priority = action_order.get("self_priority") if isinstance(action_order, Mapping) else None
+    if isinstance(priority, int) and not isinstance(priority, bool) and priority <= 0:
+        return {"status": "allowed", "move_success_status": "allowed"}
+    target = _metadata_value(metadata, "target")
+    if not isinstance(target, str) or not target or target == "unknown":
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["move.target"]}
+    if target in _SELF_TARGETS or target in _PSYCHIC_TERRAIN_ALLY_TARGETS or target in _PSYCHIC_TERRAIN_FIELD_TARGETS:
+        return {"status": "allowed", "move_success_status": "allowed"}
+    if isinstance(action_order, Mapping) and action_order.get("status") == "unsupported_mechanic":
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "effective_priority"}
+    if isinstance(priority, bool) or not isinstance(priority, int):
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["effective_priority"]}
+    if target in _PSYCHIC_TERRAIN_COMPLEX_TARGETS:
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "psychic_terrain_complex_target"}
+    if target not in _PSYCHIC_TERRAIN_OPPOSING_SINGLE_TARGETS:
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "move_target_metadata"}
+    return {"status": "opposing_single"}
+
+
+def _psychic_terrain_priority_source(snapshot: Mapping[str, Any], metadata: Any, action_order: Any) -> dict[str, Any] | None:
+    """Resolve only the Psychic Terrain source of the narrow priority-block gate."""
     context = snapshot.get("field_state_context")
     if not isinstance(context, Mapping) or not isinstance(snapshot.get("grounded_context"), Mapping):
         return None
@@ -488,23 +511,9 @@ def _psychic_terrain_priority_gate(snapshot: Mapping[str, Any], metadata: Any, a
         return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "psychic_terrain_context"}
     if terrain != "psychic":
         return {"status": "allowed", "move_success_status": "allowed"}
-    if isinstance(action_order, Mapping) and action_order.get("status") == "unsupported_mechanic":
-        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "effective_priority"}
-    if not isinstance(action_order, Mapping) or isinstance(action_order.get("self_priority"), bool) or not isinstance(action_order.get("self_priority"), int):
-        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["effective_priority"]}
-    if action_order["self_priority"] <= 0:
-        return {"status": "allowed", "move_success_status": "allowed"}
-    target = _metadata_value(metadata, "target")
-    if not isinstance(target, str) or not target:
-        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["move.target"]}
-    if target == "unknown":
-        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["move.target"]}
-    if target in _SELF_TARGETS or target in _PSYCHIC_TERRAIN_ALLY_TARGETS or target in _PSYCHIC_TERRAIN_FIELD_TARGETS:
-        return {"status": "allowed", "move_success_status": "allowed"}
-    if target in _PSYCHIC_TERRAIN_COMPLEX_TARGETS:
-        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "psychic_terrain_complex_target"}
-    if target not in _PSYCHIC_TERRAIN_OPPOSING_SINGLE_TARGETS:
-        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "move_target_metadata"}
+    relevance = _priority_block_relevance(metadata, action_order)
+    if relevance.get("status") != "opposing_single":
+        return relevance
     grounded_context = snapshot.get("grounded_context")
     grounded = grounded_context.get("opponent") if isinstance(grounded_context, Mapping) else None
     if not isinstance(grounded, Mapping) or (grounded.get("status") == "unknown" and grounded.get("provenance") == "unknown"):
@@ -514,6 +523,71 @@ def _psychic_terrain_priority_gate(snapshot: Mapping[str, Any], metadata: Any, a
     if grounded.get("status") == "known_grounded" and grounded.get("provenance") == "user_confirmed_current":
         return {"status": "blocked", "move_success_status": "blocked", "block_reason": "psychic_terrain_priority", "psychic_terrain_priority_blocked": True}
     return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "grounded_context"}
+
+
+def _priority_blocking_ability_source(snapshot: Mapping[str, Any], metadata: Any, action_order: Any) -> dict[str, Any] | None:
+    """Resolve only the defender-side Queenly Majesty, Dazzling, or Armor Tail source."""
+    context = snapshot.get("ability_context")
+    if not isinstance(context, Mapping):
+        return None
+    if "current_abilities" not in context:
+        return None
+    entries = context.get("current_abilities")
+    if not isinstance(entries, list):
+        return None
+    matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == "opponent"]
+    if not matches:
+        return None
+    if len(matches) != 1:
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "priority_blocking_ability_context"}
+    if _metadata_value(metadata, "target") is None:
+        return None
+    relevance = _priority_block_relevance(metadata, action_order)
+    if relevance.get("status") != "opposing_single":
+        return relevance
+    try:
+        ability = normalize_user_confirmed_current_ability({key: value for key, value in matches[0].items() if key != "provenance"})["ability"]
+    except ValueError:
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "priority_blocking_ability_context"}
+    if ability == "unknown":
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["opponent.priority_blocking_ability"]}
+    if ability in _UNSUPPORTED_PRIORITY_BLOCKING_ABILITIES:
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "priority_blocking_ability"}
+    if ability not in _PRIORITY_BLOCKING_ABILITIES:
+        return {"status": "allowed", "move_success_status": "allowed"}
+    source = f"{ability.replace('-', '_')}_priority"
+    return {
+        "status": "blocked", "move_success_status": "blocked", "block_reason": "priority_blocking_ability",
+        "priority_block_source": source, "priority_block_sources": [source],
+        "defender_ability_authority_used": ability, f"{ability.replace('-', '_')}_priority_blocked": True,
+    }
+
+
+def _priority_block_gate(snapshot: Mapping[str, Any], metadata: Any, action_order: Any) -> dict[str, Any] | None:
+    """Merge independent Psychic Terrain and defender-ability priority-block sources."""
+    sources = [source for source in (_psychic_terrain_priority_source(snapshot, metadata, action_order), _priority_blocking_ability_source(snapshot, metadata, action_order)) if isinstance(source, Mapping)]
+    blocked = [source for source in sources if source.get("status") == "blocked"]
+    if blocked:
+        result = deepcopy(dict(blocked[0]))
+        source_names: list[str] = []
+        for source in blocked:
+            name = source.get("priority_block_source") or source.get("block_reason")
+            if isinstance(name, str) and name not in source_names:
+                source_names.append(name)
+            for key, value in source.items():
+                if key.endswith("_priority_blocked") or key in {"defender_ability_authority_used", "priority_block_source"}:
+                    result[key] = deepcopy(value)
+        result["priority_block_sources"] = source_names
+        return result
+    unsupported = next((source for source in sources if source.get("status") == "unsupported_mechanic"), None)
+    if unsupported is not None:
+        return deepcopy(dict(unsupported))
+    insufficient = next((source for source in sources if source.get("status") == "insufficient_context"), None)
+    if insufficient is not None:
+        return deepcopy(dict(insufficient))
+    if sources:
+        return {"status": "allowed", "move_success_status": "allowed"}
+    return None
 
 
 def _psychic_terrain_unavailable_candidate(*, slot_index: int, move: str, action_order: Mapping[str, Any], move_success: Mapping[str, Any]) -> dict[str, Any]:
@@ -585,7 +659,7 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
         return {"slot_index":slot_index,"move":move,"status":"unavailable","availability":"unavailable","self_effects":[],"dynamic_move":None,"warnings":[],"unavailable_reasons":["move_metadata_unavailable"]}
     snapshot = battle_snapshot if isinstance(battle_snapshot, Mapping) else {}
     action_order = _action_order_evidence(snapshot, move=move, metadata=metadata, repositories=repositories)
-    move_success = _psychic_terrain_priority_gate(snapshot, metadata, action_order)
+    move_success = _priority_block_gate(snapshot, metadata, action_order)
     if isinstance(move_success, Mapping) and move_success.get("status") in {"blocked", "insufficient_context", "unsupported_mechanic"}:
         return _psychic_terrain_unavailable_candidate(slot_index=slot_index, move=move, action_order=action_order, move_success=move_success)
     if _metadata_value(metadata, "category") == "status":
