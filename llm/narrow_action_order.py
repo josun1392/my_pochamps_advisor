@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 from llm.advisor_battle_state_context import calculate_stage_adjusted_stat
+from advisor.damage.q12 import Q12_ONE
+from advisor.damage.status_effects import paralysis_spe_modifier
 
 
 # These moves have a priority that depends on state outside this narrow slice.
@@ -11,6 +13,7 @@ _CONDITIONAL_PRIORITY_MOVES = frozenset({"grassy-glide"})
 _STAGE_AUTHORITY_NOT_SUPPLIED = object()
 _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED = object()
 _TAILWIND_AUTHORITY_NOT_SUPPLIED = object()
+_PARALYSIS_AUTHORITY_NOT_SUPPLIED = object()
 
 
 def _action(value: Mapping[str, Any] | None, side: str) -> tuple[dict[str, Any] | None, str | None]:
@@ -38,6 +41,12 @@ def evaluate_action_order(
     opponent_tailwind: Any = _TAILWIND_AUTHORITY_NOT_SUPPLIED,
     self_tailwind_provenance: str | None = None,
     opponent_tailwind_provenance: str | None = None,
+    self_paralysis: Any = _PARALYSIS_AUTHORITY_NOT_SUPPLIED,
+    opponent_paralysis: Any = _PARALYSIS_AUTHORITY_NOT_SUPPLIED,
+    self_paralysis_provenance: str | None = None,
+    opponent_paralysis_provenance: str | None = None,
+    self_paralysis_speed_ability_unsupported: bool = False,
+    opponent_paralysis_speed_ability_unsupported: bool = False,
     self_speed_stage: Any = _STAGE_AUTHORITY_NOT_SUPPLIED,
     opponent_speed_stage: Any = _STAGE_AUTHORITY_NOT_SUPPLIED,
 ) -> dict[str, Any]:
@@ -79,9 +88,6 @@ def evaluate_action_order(
             speed_comparison="not_needed",
         )
         return result
-    if result["trick_room"] == "unknown":
-        result["missing_inputs"] = ["trick_room"]
-        return result
     missing_speeds = [
         name
         for name, value in (("self_final_speed", self_final_speed), ("opponent_final_speed", opponent_final_speed))
@@ -102,6 +108,30 @@ def evaluate_action_order(
         self_final_speed = calculate_stage_adjusted_stat(self_final_speed, self_speed_stage)
         opponent_final_speed = calculate_stage_adjusted_stat(opponent_final_speed, opponent_speed_stage)
         result.update(self_speed_stage=self_speed_stage, opponent_speed_stage=opponent_speed_stage, speed_stage_adjustment_applied=True)
+    self_paralysis_state = "not_paralyzed" if self_paralysis is _PARALYSIS_AUTHORITY_NOT_SUPPLIED else self_paralysis if self_paralysis in {"paralyzed", "not_paralyzed", "unknown", "invalid"} else "invalid"
+    opponent_paralysis_state = "not_paralyzed" if opponent_paralysis is _PARALYSIS_AUTHORITY_NOT_SUPPLIED else opponent_paralysis if opponent_paralysis in {"paralyzed", "not_paralyzed", "unknown", "invalid"} else "invalid"
+    result.update(
+        self_paralysis=self_paralysis_state,
+        opponent_paralysis=opponent_paralysis_state,
+        self_paralysis_authority="omitted" if self_paralysis is _PARALYSIS_AUTHORITY_NOT_SUPPLIED else self_paralysis_provenance if self_paralysis_provenance in {"user_confirmed_current", "trusted_observed_current", "unknown"} else "unknown",
+        opponent_paralysis_authority="omitted" if opponent_paralysis is _PARALYSIS_AUTHORITY_NOT_SUPPLIED else opponent_paralysis_provenance if opponent_paralysis_provenance in {"user_confirmed_current", "trusted_observed_current", "unknown"} else "unknown",
+    )
+    if "invalid" in {self_paralysis_state, opponent_paralysis_state}:
+        result.update(status="unsupported_mechanic", unsupported_reason="paralysis_context")
+        return result
+    missing_paralysis = [name for name, value in (("self_paralysis", self_paralysis_state), ("opponent_paralysis", opponent_paralysis_state)) if value == "unknown"]
+    if missing_paralysis:
+        result["missing_inputs"] = missing_paralysis
+        return result
+    if (self_paralysis_state == "paralyzed" and self_paralysis_speed_ability_unsupported) or (opponent_paralysis_state == "paralyzed" and opponent_paralysis_speed_ability_unsupported):
+        result.update(status="unsupported_mechanic", unsupported_reason="paralysis_speed_ability")
+        return result
+    if self_paralysis_state == "paralyzed":
+        self_final_speed = (self_final_speed * paralysis_spe_modifier("paralysis", "static")) // Q12_ONE
+    if opponent_paralysis_state == "paralyzed":
+        opponent_final_speed = (opponent_final_speed * paralysis_spe_modifier("paralysis", "static")) // Q12_ONE
+    if "paralyzed" in {self_paralysis_state, opponent_paralysis_state}:
+        result["paralysis_speed_adjustment_applied"] = True
     if "invalid" in {result["self_tailwind"], result["opponent_tailwind"]}:
         result.update(status="unsupported_mechanic", unsupported_reason="tailwind_context")
         return result
@@ -115,6 +145,9 @@ def evaluate_action_order(
         opponent_final_speed *= 2
     if "active" in {result["self_tailwind"], result["opponent_tailwind"]}:
         result["tailwind_adjustment_applied"] = True
+    if result["trick_room"] == "unknown":
+        result["missing_inputs"] = ["trick_room"]
+        return result
     result.update(self_final_speed=self_final_speed, opponent_final_speed=opponent_final_speed)
     if self_final_speed == opponent_final_speed:
         result.update(status="speed_tie", reason="equal_priority_equal_speed", speed_comparison="equal")

@@ -146,6 +146,57 @@ def test_tailwind_side_authority_variants_do_not_reuse_prior_snapshot_evidence()
     assert missing_speed["missing_inputs"] == ["self_final_speed"]
 
 
+def test_paralysis_uses_canonical_integer_speed_reduction_before_tailwind_and_trick_room():
+    inactive = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=201, opponent_final_speed=150, trick_room="inactive",
+        self_paralysis="paralyzed", opponent_paralysis="not_paralyzed",
+        self_tailwind="inactive", opponent_tailwind="inactive",
+    )
+    tailwind = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=201, opponent_final_speed=150, trick_room="inactive",
+        self_paralysis="paralyzed", opponent_paralysis="not_paralyzed",
+        self_tailwind="active", opponent_tailwind="inactive",
+    )
+    trick_room = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=201, opponent_final_speed=150, trick_room="active",
+        self_paralysis="paralyzed", opponent_paralysis="not_paralyzed",
+        self_tailwind="inactive", opponent_tailwind="inactive",
+    )
+    assert inactive["status"] == "acts_second" and inactive["self_final_speed"] == 100
+    assert tailwind["status"] == "acts_first" and tailwind["self_final_speed"] == 200
+    assert trick_room["status"] == "acts_first" and trick_room["paralysis_speed_adjustment_applied"] is True
+
+
+def test_paralysis_unknown_malformed_and_quick_feet_fail_closed_only_when_needed():
+    unknown = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=100, opponent_final_speed=90, trick_room="inactive",
+        self_paralysis="unknown", opponent_paralysis="not_paralyzed",
+    )
+    malformed = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=100, opponent_final_speed=90, trick_room="inactive",
+        self_paralysis="invalid", opponent_paralysis="not_paralyzed",
+    )
+    quick_feet = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=100, opponent_final_speed=90, trick_room="inactive",
+        self_paralysis="paralyzed", opponent_paralysis="not_paralyzed", self_paralysis_speed_ability_unsupported=True,
+    )
+    priority = evaluate_action_order(
+        self_action=_action("quick-attack", 1), opponent_action=_action("scratch", 0),
+        self_final_speed=None, opponent_final_speed=None, trick_room="unknown",
+        self_paralysis="unknown", opponent_paralysis="unknown",
+    )
+    assert unknown["missing_inputs"] == ["self_paralysis"]
+    assert malformed["unsupported_reason"] == "paralysis_context"
+    assert quick_feet["unsupported_reason"] == "paralysis_speed_ability"
+    assert priority["status"] == "acts_first" and "self_paralysis" not in priority
+
+
 def test_explicit_speed_stage_authority_adjusts_equal_priority_speed_only():
     result = evaluate_action_order(
         self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
@@ -250,6 +301,7 @@ def test_candidate_derives_trick_room_tristate_only_from_confirmed_field_snapsho
     base = {
         "final_stat_context": {"current_final_stats": [_speed("self", 120), _speed("opponent", 80)]},
         "opponent_selected_move": {"move_id": "scratch"},
+        "condition_context": {"current_conditions": [{"side": side, "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"} for side in ("self", "opponent")]},
     }
     repository = {
         "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0},
@@ -262,9 +314,10 @@ def test_candidate_derives_trick_room_tristate_only_from_confirmed_field_snapsho
             "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known",
         }},
     }
+    tails_inactive = {"tailwind": {side: {"status": "known_inactive", "provenance": "user_confirmed_current"} for side in ("self", "opponent")}}
     known = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot=active, repositories=repository)
-    malformed = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot={**base, "field_state_context": {"current_field": {"global_effects": ["trick-room"]}}}, repositories=repository)
-    explicit_unknown = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot={**base, "field_state_context": {"trick_room": {"status": "unknown", "provenance": "unknown"}}}, repositories=repository)
+    malformed = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot={**base, "field_state_context": {"current_field": {"global_effects": ["trick-room"]}, **tails_inactive}}, repositories=repository)
+    explicit_unknown = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot={**base, "field_state_context": {"trick_room": {"status": "unknown", "provenance": "unknown"}, **tails_inactive}}, repositories=repository)
     assert known["action_order"]["status"] == "acts_second"
     assert known["action_order"]["trick_room"] == "active"
     assert known["action_order"]["trick_room_authority"] == "user_confirmed_current"
@@ -276,6 +329,7 @@ def test_candidate_derives_side_owned_tailwind_only_from_confirmed_field_snapsho
     base = {
         "final_stat_context": {"current_final_stats": [_speed("self", 100), _speed("opponent", 150)]},
         "opponent_selected_move": {"move_id": "scratch"},
+        "condition_context": {"current_conditions": [{"side": side, "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"} for side in ("self", "opponent")]},
     }
     repository = {
         "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0},
@@ -292,6 +346,21 @@ def test_candidate_derives_side_owned_tailwind_only_from_confirmed_field_snapsho
     assert known["action_order"]["self_tailwind"] == "active"
     assert known["action_order"]["opponent_tailwind"] == "inactive"
     assert unknown["action_order"]["missing_inputs"] == ["self_tailwind"]
+
+
+def test_candidate_derives_paralysis_from_confirmed_conditions_and_rejects_quick_feet():
+    base = {
+        "final_stat_context": {"current_final_stats": [_speed("self", 201), _speed("opponent", 150)]},
+        "field_state_context": {"current_field": {"weather": "none", "terrain": "none", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}},
+        "opponent_selected_move": {"move_id": "scratch"},
+    }
+    repository = {"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "scratch": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    conditions = {"current_conditions": [{"side": "self", "condition_type": "paralysis", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}, {"side": "opponent", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]}
+    known = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot={**base, "condition_context": conditions}, repositories=repository)
+    quick_feet = evaluate_move_candidate(slot_index=0, move="tackle", battle_snapshot={**base, "condition_context": conditions, "ability_context": {"current_abilities": [{"side": "self", "ability": "quick-feet"}]}}, repositories=repository)
+    assert known["action_order"]["self_paralysis"] == "paralyzed"
+    assert known["action_order"]["status"] == "acts_second"
+    assert quick_feet["action_order"]["unsupported_reason"] == "paralysis_speed_ability"
 
 
 def test_presentation_uses_bounded_trick_room_action_order_text_only_for_selected_candidate():
@@ -325,3 +394,18 @@ def test_presentation_uses_bounded_tailwind_text_only_when_applied():
     text = format_recommendation_presentation_text(presentation_model=presentation)
     assert "우리 쪽 순풍을 반영해 먼저 행동함" in text
     assert "tailwind" not in text and "effective_speed" not in text
+
+
+def test_presentation_uses_bounded_paralysis_text_only_when_applied():
+    presentation = {
+        "status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0,
+        "primary_reasons": [], "risks": [], "alternatives": [], "candidate_summaries": [],
+        "selected_candidate": {"selected_action": {"slot_index": 0, "move": "tackle"}, "evidence": {
+            "mechanics_result": {"status": "insufficient_context"},
+            "action_order": {"status": "acts_second", "reason": "speed_advantage", "trick_room": "inactive", "self_paralysis": "paralyzed", "paralysis_speed_adjustment_applied": True},
+            "comparison_facts": {},
+        }},
+    }
+    text = format_recommendation_presentation_text(presentation_model=presentation)
+    assert "마비로 감소한 스피드를 반영하면 후공함" in text
+    assert "paralysis" not in text and "effective_speed" not in text

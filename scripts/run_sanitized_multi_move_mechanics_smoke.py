@@ -61,7 +61,7 @@ def _battle(*, known_action_order: bool = False) -> dict[str, Any]:
     battle = {"current_state_session_id": "multi-smoke", "pokemon": {"my_active": {"name_en": "pikachu", "slot_index": 0}, "opponent_active": {"name_en": "eevee", "slot_index": 1}}, "moves": {"my_available_moves": []}, "final_stat_context": {"current_final_stats": entries}, "trusted_level_context": {"current_levels": [{"side": "self", "value": 50, "provenance": _provenance("self", 0, "pikachu", source="user_confirmed_current_level")}]}, "direct_mechanics_context": {"generation": "gen9", "attacker": deepcopy(side), "defender": deepcopy(side), "field": {"weather": absent, "terrain": absent}}}
     if known_action_order:
         battle["opponent_selected_move"] = {"move_id": "tackle"}
-        battle["condition_context"] = {"current_conditions": [{"side": "self", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]}
+        battle["condition_context"] = {"current_conditions": [{"side": side, "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"} for side in ("self", "opponent")]}
         battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "none", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
     return battle
 
@@ -153,11 +153,11 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
     if fixture_id == MODIFIER_FIXTURES[0]:
         battle["trusted_level_context"]["current_levels"][0]["value"] = 1
         battle["field_state_context"] = {"current_field": {"weather": "rain", "terrain": "none", "global_effects": [], "side_effects": [{"side": "opponent", "effect": "reflect"}, {"side": "opponent", "effect": "light-screen"}], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
-        battle["condition_context"] = {"current_conditions": [{"side": "self", "condition_type": "burn", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]}
+        battle["condition_context"] = {"current_conditions": [{"side": "self", "condition_type": "burn", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}, {"side": "opponent", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]}
         battle["battle_format_context"] = {"current_battle_format": {"battle_format": "singles", "source": "user_confirmed_battle_format", "confidence": "known"}}
     if fixture_id == MODIFIER_FIXTURES[1]:
         battle["field_state_context"] = {"current_field": {"weather": "unknown", "terrain": "none", "global_effects": [], "side_effects": [{"side": "opponent", "effect": "light-screen"}], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
-        battle["condition_context"] = {"current_conditions": [{"side": "self", "condition_type": "unknown", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]}
+        battle["condition_context"] = {"current_conditions": [{"side": "self", "condition_type": "unknown", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}, {"side": "opponent", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]}
         battle["battle_format_context"] = {"current_battle_format": {"battle_format": "doubles", "source": "user_confirmed_battle_format", "confidence": "known"}}
     if fixture_id == ABILITY_FIXTURES[0]:
         battle["trusted_level_context"]["current_levels"][0]["value"] = 1
@@ -197,7 +197,7 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
         battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "none", "global_effects": ["trick-room"], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
         battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 0), _stage("opponent", "defense", 0), _stage("self", "speed", -1), _stage("opponent", "speed", 0)]}
     if fixture_id == TRICK_ROOM_FIXTURES[1]:
-        battle["field_state_context"] = {"trick_room": {"status": "unknown", "provenance": "unknown"}}
+        battle["field_state_context"] = {"trick_room": {"status": "unknown", "provenance": "unknown"}, "tailwind": {side: {"status": "known_inactive", "provenance": "user_confirmed_current"} for side in ("self", "opponent")}}
         battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 0), _stage("opponent", "defense", 0), _stage("self", "speed", -1), _stage("opponent", "speed", 0)]}
     if fixture_id == TAILWIND_FIXTURES[0]:
         battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "none", "global_effects": ["trick-room"], "side_effects": [{"side": "self", "effect": "tailwind"}], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}

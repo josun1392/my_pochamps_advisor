@@ -9,6 +9,7 @@ import re
 
 from llm.advisor_battle_state_context import (
     build_deterministic_calculation_context,
+    normalize_user_confirmed_current_condition,
     normalize_user_confirmed_current_field_state,
     normalize_user_confirmed_current_stat_stage,
     normalize_user_confirmed_final_battle_stat,
@@ -333,6 +334,58 @@ def _known_tailwind(snapshot: Mapping[str, Any]) -> tuple[tuple[str, str], tuple
     )
 
 
+def _known_paralysis(snapshot: Mapping[str, Any]) -> tuple[tuple[str, str], tuple[str, str]]:
+    context = snapshot.get("condition_context")
+    declared = context.get("paralysis") if isinstance(context, Mapping) else None
+    if isinstance(declared, Mapping):
+        values = []
+        for side in ("self", "opponent"):
+            value = declared.get(side)
+            if not isinstance(value, Mapping):
+                values.append(("invalid", "unknown"))
+                continue
+            status, provenance = value.get("status"), value.get("provenance")
+            if status == "known_paralyzed" and provenance in {"user_confirmed_current", "trusted_observed_current"}:
+                values.append(("paralyzed", provenance))
+            elif status == "known_not_paralyzed" and provenance in {"user_confirmed_current", "trusted_observed_current"}:
+                values.append(("not_paralyzed", provenance))
+            elif status == "unknown" and provenance == "unknown":
+                values.append(("unknown", "unknown"))
+            else:
+                values.append(("invalid", "unknown"))
+        return values[0], values[1]
+    entries = context.get("current_conditions") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        return ("unknown", "unknown"), ("unknown", "unknown")
+    values = []
+    for side in ("self", "opponent"):
+        matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
+        if len(matches) == 0:
+            values.append(("unknown", "unknown"))
+            continue
+        if len(matches) != 1:
+            values.append(("invalid", "unknown"))
+            continue
+        try:
+            condition = normalize_user_confirmed_current_condition(matches[0])
+        except ValueError:
+            values.append(("invalid", "unknown"))
+            continue
+        if condition["condition_type"] == "unknown":
+            values.append(("unknown", "unknown"))
+        elif condition["condition_type"] == "paralysis":
+            values.append(("paralyzed", "user_confirmed_current"))
+        else:
+            values.append(("not_paralyzed", "user_confirmed_current"))
+    return values[0], values[1]
+
+
+def _has_quick_feet(snapshot: Mapping[str, Any], side: str) -> bool:
+    context = snapshot.get("ability_context")
+    entries = context.get("current_abilities") if isinstance(context, Mapping) else None
+    return isinstance(entries, list) and any(isinstance(entry, Mapping) and entry.get("side") == side and entry.get("ability") == "quick-feet" for entry in entries)
+
+
 def _trusted_speed_stage(snapshot: Mapping[str, Any], side: str) -> int | None:
     context = snapshot.get("stat_stage_context")
     entries = context.get("current_stages") if isinstance(context, Mapping) else None
@@ -363,6 +416,7 @@ def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -
 def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: Any, repositories: Any) -> dict[str, Any]:
     trick_room, trick_room_provenance = _known_trick_room(snapshot)
     (self_tailwind, self_tailwind_provenance), (opponent_tailwind, opponent_tailwind_provenance) = _known_tailwind(snapshot)
+    (self_paralysis, self_paralysis_provenance), (opponent_paralysis, opponent_paralysis_provenance) = _known_paralysis(snapshot)
     kwargs = {
         "self_action": {"move_id": move, "priority": _metadata_value(metadata, "priority")},
         "opponent_action": _canonical_opponent_action(snapshot, repositories),
@@ -374,6 +428,12 @@ def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: 
         "opponent_tailwind": opponent_tailwind,
         "self_tailwind_provenance": self_tailwind_provenance,
         "opponent_tailwind_provenance": opponent_tailwind_provenance,
+        "self_paralysis": self_paralysis,
+        "opponent_paralysis": opponent_paralysis,
+        "self_paralysis_provenance": self_paralysis_provenance,
+        "opponent_paralysis_provenance": opponent_paralysis_provenance,
+        "self_paralysis_speed_ability_unsupported": _has_quick_feet(snapshot, "self"),
+        "opponent_paralysis_speed_ability_unsupported": _has_quick_feet(snapshot, "opponent"),
     }
     if isinstance(snapshot.get("stat_stage_context"), Mapping):
         kwargs.update(self_speed_stage=_trusted_speed_stage(snapshot, "self"), opponent_speed_stage=_trusted_speed_stage(snapshot, "opponent"))

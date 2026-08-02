@@ -553,6 +553,8 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
             order = "우선도가 높아 트릭룸과 무관하게 먼저 행동함"
         elif action_order.get("status") == "speed_tie":
             order = "보정 후 스피드가 같아 동속임"
+        elif action_order.get("reason") == "speed_advantage" and action_order.get("trick_room") == "active" and action_order.get("paralysis_speed_adjustment_applied") is True:
+            order = "트릭룸에서는 마비로 느려진 쪽이 먼저 행동함"
         elif action_order.get("reason") == "speed_advantage" and action_order.get("trick_room") == "active" and action_order.get("tailwind_adjustment_applied") is True:
             order = "트릭룸에서는 순풍 보정 후 더 느린 쪽이 먼저 행동함"
         elif action_order.get("reason") == "speed_advantage" and action_order.get("trick_room") == "active":
@@ -561,6 +563,10 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
             order = "우리 쪽 순풍을 반영해 먼저 행동함"
         elif action_order.get("reason") == "speed_advantage" and action_order.get("opponent_tailwind") == "active" and action_order.get("status") == "acts_second":
             order = "상대 순풍을 반영해 후공함"
+        elif action_order.get("reason") == "speed_advantage" and action_order.get("self_paralysis") == "paralyzed" and action_order.get("status") == "acts_second":
+            order = "마비로 감소한 스피드를 반영하면 후공함"
+        elif action_order.get("reason") == "speed_advantage" and action_order.get("opponent_paralysis") == "paralyzed" and action_order.get("status") == "acts_first":
+            order = "상대 마비를 반영해 먼저 행동함"
         elif action_order.get("reason") == "speed_advantage" and action_order.get("trick_room") == "inactive":
             order = "트릭룸이 없어 보정 후 스피드가 빠른 쪽이 먼저 행동함"
     if order:
