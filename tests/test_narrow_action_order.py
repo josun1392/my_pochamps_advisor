@@ -55,12 +55,45 @@ def test_prankster_equal_priority_uses_existing_speed_chain_and_unknown_or_unsup
     )
     unsupported = evaluate_action_order(
         self_action={"move_id": "recover", "priority": 0, "category": "status"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical"},
-        self_final_speed=100, opponent_final_speed=90, self_priority_ability="gale-wings", opponent_priority_ability="static",
+        self_final_speed=100, opponent_final_speed=90, self_priority_ability="triage", opponent_priority_ability="static",
     )
     assert tied["status"] == "acts_second" and tied["self_prankster_applied"] is True and tied["opponent_prankster_applied"] is True
     assert unknown["missing_inputs"] == ["self_priority_ability"]
     assert malformed_category["missing_inputs"] == ["self_move_category"]
     assert unsupported["unsupported_reason"] == "priority_ability_modifier"
+
+
+def test_gale_wings_requires_same_side_flying_type_and_exact_full_hp_before_priority_resolution():
+    full = evaluate_action_order(
+        self_action={"move_id": "brave-bird", "priority": 0, "category": "physical", "type": "flying"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical", "type": "normal"},
+        self_final_speed=None, opponent_final_speed=None, self_priority_ability="gale-wings", opponent_priority_ability="static",
+        self_gale_wings_full_hp="full",
+    )
+    opponent_full = evaluate_action_order(
+        self_action={"move_id": "tackle", "priority": 0, "category": "physical", "type": "normal"}, opponent_action={"move_id": "brave-bird", "priority": 0, "category": "physical", "type": "flying"},
+        self_final_speed=None, opponent_final_speed=None, self_priority_ability="static", opponent_priority_ability="gale-wings",
+        opponent_gale_wings_full_hp="full",
+    )
+    not_full = evaluate_action_order(
+        self_action={"move_id": "brave-bird", "priority": 0, "category": "physical", "type": "flying"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical", "type": "normal"},
+        self_final_speed=120, opponent_final_speed=100, trick_room="inactive", self_priority_ability="gale-wings", opponent_priority_ability="static",
+        self_gale_wings_full_hp="not_full",
+    )
+    unknown = evaluate_action_order(
+        self_action={"move_id": "brave-bird", "priority": 0, "category": "physical", "type": "flying"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical", "type": "normal"},
+        self_final_speed=120, opponent_final_speed=100, self_priority_ability="gale-wings", opponent_priority_ability="static",
+        self_gale_wings_full_hp="unknown",
+    )
+    non_flying = evaluate_action_order(
+        self_action={"move_id": "tackle", "priority": 0, "category": "physical", "type": "normal"}, opponent_action={"move_id": "scratch", "priority": 0, "category": "physical", "type": "normal"},
+        self_final_speed=120, opponent_final_speed=100, trick_room="inactive", self_priority_ability="gale-wings", opponent_priority_ability="static",
+        self_gale_wings_full_hp="unknown",
+    )
+    assert full["status"] == "acts_first" and full["self_gale_wings_applied"] is True and full["self_priority"] == 1
+    assert opponent_full["status"] == "acts_second" and opponent_full["opponent_gale_wings_applied"] is True
+    assert not_full["status"] == "acts_first" and "self_gale_wings_applied" not in not_full
+    assert unknown["missing_inputs"] == ["self_full_hp_authority"]
+    assert non_flying["status"] == "acts_first" and "self_gale_wings_applied" not in non_flying
 
 
 @pytest.mark.parametrize(
@@ -551,6 +584,21 @@ def test_presentation_uses_bounded_prankster_text_only_when_applied():
     text = format_recommendation_presentation_text(presentation_model=presentation)
     assert "짓궂은마음으로 변화 기술의 우선도가 올라 먼저 행동함" in text
     assert "prankster" not in text and "effective_priority" not in text
+
+
+def test_presentation_uses_bounded_gale_wings_text_without_exact_hp_or_priority_values():
+    presentation = {
+        "status": "resolved", "recommended_move": "brave-bird", "recommended_slot_index": 0,
+        "primary_reasons": [], "risks": [], "alternatives": [], "candidate_summaries": [],
+        "selected_candidate": {"selected_action": {"slot_index": 0, "move": "brave-bird"}, "evidence": {
+            "mechanics_result": {"status": "insufficient_context"},
+            "action_order": {"status": "acts_first", "reason": "priority_advantage", "self_gale_wings_applied": True},
+            "comparison_facts": {},
+        }},
+    }
+    text = format_recommendation_presentation_text(presentation_model=presentation)
+    assert "질풍날개와 최대 체력 상태를 반영해 비행 기술의 우선도가 올라 먼저 행동함" in text
+    assert "gale_wings" not in text and "effective_priority" not in text and "current_hp" not in text
 
 
 def test_presentation_uses_bounded_tailwind_text_only_when_applied():

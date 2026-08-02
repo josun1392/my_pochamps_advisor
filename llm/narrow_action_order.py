@@ -20,10 +20,11 @@ _TAILWIND_AUTHORITY_NOT_SUPPLIED = object()
 _PARALYSIS_AUTHORITY_NOT_SUPPLIED = object()
 _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED = object()
 _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED = object()
+_GALE_WINGS_HP_AUTHORITY_NOT_SUPPLIED = object()
 _SUPPORTED_SPEED_ABILITIES = frozenset({"swift-swim", "chlorophyll", "sand-rush", "slush-rush"})
 _UNSUPPORTED_SPEED_ABILITIES = frozenset({"surge-surfer", "unburden", "speed-boost", "slow-start", "protosynthesis", "quark-drive"})
 _UNSUPPORTED_SPEED_ITEMS = frozenset({"iron-ball", "macho-brace", "power-anklet", "power-band", "power-belt", "power-bracer", "power-lens", "power-weight", "lagging-tail", "full-incense", "quick-claw", "custap-berry"})
-_UNSUPPORTED_PRIORITY_ABILITIES = frozenset({"gale-wings", "triage", "stall", "mycelium-might"})
+_UNSUPPORTED_PRIORITY_ABILITIES = frozenset({"triage", "stall", "mycelium-might"})
 
 
 def _action(value: Mapping[str, Any] | None, side: str) -> tuple[dict[str, Any] | None, str | None]:
@@ -36,10 +37,12 @@ def _action(value: Mapping[str, Any] | None, side: str) -> tuple[dict[str, Any] 
         return {"move_id": move_id}, "conditional_priority_mechanic"
     if isinstance(priority, bool) or not isinstance(priority, int) or not -7 <= priority <= 7:
         return {"move_id": move_id}, f"{side}_move_priority"
-    category = value.get("category")
+    category, move_type = value.get("category"), value.get("type")
     if category is not None and category not in {"status", "physical", "special"}:
         return {"move_id": move_id, "priority": priority}, f"{side}_move_category"
-    return {"move_id": move_id, "priority": priority, "category": category}, None
+    if move_type is not None and (not isinstance(move_type, str) or not move_type):
+        return {"move_id": move_id, "priority": priority, "category": category}, f"{side}_move_type"
+    return {"move_id": move_id, "priority": priority, "category": category, "type": move_type}, None
 
 
 def evaluate_action_order(
@@ -69,6 +72,8 @@ def evaluate_action_order(
     weather: Any = _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED,
     self_priority_ability: Any = _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED,
     opponent_priority_ability: Any = _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED,
+    self_gale_wings_full_hp: Any = _GALE_WINGS_HP_AUTHORITY_NOT_SUPPLIED,
+    opponent_gale_wings_full_hp: Any = _GALE_WINGS_HP_AUTHORITY_NOT_SUPPLIED,
 ) -> dict[str, Any]:
     """Resolve a known action pair using only trusted final Speed and field state."""
     self_reference, self_error = _action(self_action, "self")
@@ -101,9 +106,13 @@ def evaluate_action_order(
         "self": "omitted" if self_priority_ability is _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED else self_priority_ability,
         "opponent": "omitted" if opponent_priority_ability is _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED else opponent_priority_ability,
     }
+    gale_wings_full_hp = {
+        "self": self_gale_wings_full_hp,
+        "opponent": opponent_gale_wings_full_hp,
+    }
     for side, ability in priority_abilities.items():
         action = self_reference if side == "self" else opponent_reference
-        category = action.get("category")
+        category, move_type = action.get("category"), action.get("type")
         if ability in _UNSUPPORTED_PRIORITY_ABILITIES:
             result.update(status="unsupported_mechanic", unsupported_reason="priority_ability_modifier")
             return result
@@ -120,6 +129,30 @@ def evaluate_action_order(
             if side == "self": self_priority += 1
             else: opponent_priority += 1
             result[f"{side}_prankster_applied"] = True
+        if ability == "gale-wings":
+            if move_type is None:
+                result["missing_inputs"] = [f"{side}_move_type"]
+                return result
+            if move_type == "flying":
+                hp_state = gale_wings_full_hp[side]
+                if hp_state is _GALE_WINGS_HP_AUTHORITY_NOT_SUPPLIED:
+                    continue
+                if hp_state == "unknown":
+                    result["missing_inputs"] = [f"{side}_full_hp_authority"]
+                    return result
+                if hp_state == "invalid":
+                    result.update(status="unsupported_mechanic", unsupported_reason="full_hp_context")
+                    return result
+                if hp_state not in {"full", "not_full"}:
+                    result.update(status="unsupported_mechanic", unsupported_reason="full_hp_context")
+                    return result
+                if hp_state == "full":
+                    if side == "self": self_priority += 1
+                    else: opponent_priority += 1
+                    result[f"{side}_gale_wings_applied"] = True
+        if ability == "unknown" and move_type == "flying":
+            result["missing_inputs"] = [f"{side}_priority_ability"]
+            return result
     result.update(
         self_base_priority=base_priorities["self"], opponent_base_priority=base_priorities["opponent"],
         self_priority=self_priority,

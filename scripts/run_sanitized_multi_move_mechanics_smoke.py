@@ -42,7 +42,8 @@ TAILWIND_FIXTURES = ("supported-tailwind-action-order", "unknown-tailwind-with-p
 PARALYSIS_FIXTURES = ("supported-paralysis-speed-action-order", "unknown-paralysis-with-priority-control")
 STATIC_SPEED_FIXTURES = ("supported-static-speed-modifier-action-order", "unknown-static-speed-authority-with-priority-control")
 PRANKSTER_FIXTURES = ("supported-prankster-priority", "unknown-prankster-authority-with-priority-control")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES})
+GALE_WINGS_FIXTURES = ("supported-gale-wings-priority", "unknown-gale-wings-hp-with-priority-control")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -152,12 +153,16 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "recover"}, {"move_id": "slam"}, {"move_id": "quick-attack"}, {"move_id": "seismic-toss"}], {"recover": {"category": "status", "target": "user", "healing": 50, "effect_category": "heal", "priority": 0}, "slam": {"category": "physical", "power": 100, "type": "normal", "priority": 0}, "quick-attack": {"category": "physical", "power": 40, "type": "normal", "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     if fixture_id == PRANKSTER_FIXTURES[1]:
         return [{"move_id": "recover"}, {"move_id": "seismic-toss"}], {"recover": {"category": "status", "target": "user", "healing": 50, "effect_category": "heal", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 1}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == GALE_WINGS_FIXTURES[0]:
+        return [{"move_id": "brave-bird"}, {"move_id": "slam"}, {"move_id": "quick-attack"}, {"move_id": "seismic-toss"}], {"brave-bird": {"category": "physical", "power": 120, "type": "flying", "priority": 0}, "slam": {"category": "physical", "power": 40, "type": "normal", "priority": 0}, "quick-attack": {"category": "physical", "power": 40, "type": "normal", "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    if fixture_id == GALE_WINGS_FIXTURES[1]:
+        return [{"move_id": "brave-bird"}, {"move_id": "seismic-toss"}], {"brave-bird": {"category": "physical", "power": 120, "type": "flying", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "priority": 1}, "tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -249,12 +254,23 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
             {"side": "self", "ability": "unknown", "status": "user_confirmed", "source": "user_confirmed_current_ability", "confidence": "known"},
             {"side": "opponent", "ability": "static", "status": "user_confirmed", "source": "user_confirmed_current_ability", "confidence": "known"},
         ]}
+    if fixture_id == GALE_WINGS_FIXTURES[0]:
+        battle["ability_context"] = {"current_abilities": [_current_ability("gale-wings"), _current_ability("prankster", side="opponent", pokemon="eevee", slot=1)]}
+        battle["current_hp_context"] = {"current_hp": [_current_hp("self", 100, 100), _current_hp("opponent", 100, 100)]}
+    if fixture_id == GALE_WINGS_FIXTURES[1]:
+        battle["ability_context"] = {"current_abilities": [_current_ability("gale-wings"), _current_ability("prankster", side="opponent", pokemon="eevee", slot=1)]}
+        battle["current_hp_context"] = {"current_hp": [_current_hp("opponent", 100, 100)]}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
 
 def _current_ability(ability: str, *, side: str = "self", pokemon: str = "pikachu", slot: int = 0) -> dict[str, Any]:
     return {"side": side, "ability": ability, "status": "user_confirmed", "source": "user_confirmed_current_ability", "confidence": "known", "provenance": _provenance(side, slot, pokemon, source="user_confirmed_current_ability")}
+
+
+def _current_hp(side: str, current_hp: int, maximum_hp: int) -> dict[str, Any]:
+    pokemon, slot = ("pikachu", 0) if side == "self" else ("eevee", 1)
+    return {"side": side, "current_hp": current_hp, "maximum_hp": maximum_hp, "status": "user_confirmed", "source": "user_confirmed_current_hp", "confidence": "known", "provenance": _provenance(side, slot, pokemon, source="user_confirmed_current_hp")}
 
 
 def _stage(side: str, stat: str, stage: int) -> dict[str, Any]:
@@ -517,6 +533,12 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == PRANKSTER_FIXTURES[1]:
         orders = [row.get("action_order", {}) for row in rows]
         return orders[0].get("status") == "insufficient_context" and orders[0].get("missing_inputs") == ["self_priority_ability"] and orders[1].get("status") == "acts_first" and orders[1].get("reason") == "priority_advantage" and "self_prankster_applied" not in orders[1] and rows[1].get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and comparisons[1].get("rank") == 1
+    if fixture_id == GALE_WINGS_FIXTURES[0]:
+        orders = [row.get("action_order", {}) for row in rows]
+        return orders[0].get("status") == "acts_first" and orders[0].get("self_gale_wings_applied") is True and orders[0].get("self_base_priority") == 0 and orders[0].get("self_priority") == 1 and orders[0].get("reason") == "priority_advantage" and orders[1].get("status") == "speed_tie" and "self_gale_wings_applied" not in orders[1] and orders[2].get("status") == "acts_first" and orders[2].get("reason") == "priority_advantage" and rows[3].get("mechanics_result", {}).get("damage_model") == "level_based_fixed"
+    if fixture_id == GALE_WINGS_FIXTURES[1]:
+        orders = [row.get("action_order", {}) for row in rows]
+        return orders[0].get("status") == "insufficient_context" and orders[0].get("missing_inputs") == ["self_full_hp_authority"] and orders[1].get("status") == "acts_first" and orders[1].get("reason") == "priority_advantage" and "self_gale_wings_applied" not in orders[1] and rows[1].get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and comparisons[1].get("rank") == 1
     return False
 
 

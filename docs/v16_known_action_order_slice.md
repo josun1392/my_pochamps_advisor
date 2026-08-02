@@ -7,7 +7,7 @@ self candidate action and an explicitly selected opponent action.
 ## Authority and order
 
 - Base move priority and category are read from canonical move metadata for both actions.
-- A user-confirmed current Prankster applies `+1` only to its own status-category action. Dark-target move success is not evaluated here.
+- A user-confirmed current Prankster applies `+1` only to its own status-category action. A user-confirmed current Gale Wings applies `+1` only to its own Flying-type action when a request-start exact HP snapshot confirms that side is at full HP. Dark-target move success is not evaluated here.
 - Speed is accepted only when each side has a normalized, user-confirmed final
   battle Speed.
 - Trick Room is read only from a normalized, user-confirmed current field
@@ -25,7 +25,7 @@ are explicitly unsupported rather than silently resolved.
 ## Boundaries
 
 It does not call the legacy move-order assessment or apply Dark-type Prankster
-failure, Gale Wings, Triage, Stall, Mycelium Might, priority blocking,
+failure, Triage, Stall, Mycelium Might, priority blocking,
 ability suppression, duration mechanics, or opponent-action prediction.
 Missing canonical priority/category, relevant ability, opponent action,
 trusted final Speed, or known field/side authority remains insufficient context;

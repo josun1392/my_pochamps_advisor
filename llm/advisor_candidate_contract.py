@@ -14,6 +14,7 @@ from llm.advisor_battle_state_context import (
     normalize_user_confirmed_current_stat_stage,
     normalize_user_confirmed_final_battle_stat,
     normalize_user_confirmed_current_ability,
+    normalize_user_confirmed_current_hp,
 )
 from llm.advisor_turn_snapshot import (
     build_snapshot_damage_input,
@@ -403,8 +404,29 @@ def _known_speed_ability(snapshot: Mapping[str, Any], side: str) -> str:
     matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
     if len(matches) != 1: return "unknown" if not matches else "invalid"
     if matches[0].get("ability") == "quick-feet": return "quick-feet"
-    try: return normalize_user_confirmed_current_ability(matches[0])["ability"]
+    try: return normalize_user_confirmed_current_ability({key: value for key, value in matches[0].items() if key != "provenance"})["ability"]
     except ValueError: return "invalid"
+
+
+def _known_full_hp(snapshot: Mapping[str, Any], side: str) -> str:
+    """Classify only exact, request-start HP authority for Gale Wings."""
+    context = snapshot.get("current_hp_context")
+    entries = context.get("current_hp") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        return "unknown"
+    matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
+    if len(matches) != 1:
+        return "unknown" if not matches else "invalid"
+    entry = matches[0]
+    provenance = entry.get("provenance")
+    if not isinstance(provenance, Mapping) or provenance.get("source") != "user_confirmed_current_hp" or provenance.get("trust") != "user_confirmed_current":
+        return "invalid"
+    try:
+        normalized = normalize_user_confirmed_current_hp({key: value for key, value in entry.items() if key != "provenance"})
+    except ValueError:
+        return "invalid"
+    current, maximum = normalized["current_hp"], normalized["maximum_hp"]
+    return "full" if current > 0 and current == maximum else "not_full"
 
 
 def _known_speed_weather(snapshot: Mapping[str, Any]) -> str:
@@ -438,7 +460,7 @@ def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -
         metadata = repositories.get(move_id) if hasattr(repositories, "get") else repositories[move_id]
     except Exception:
         return {"move_id": move_id}
-    return {"move_id": move_id, "priority": _metadata_value(metadata, "priority"), "category": _metadata_value(metadata, "category")}
+    return {"move_id": move_id, "priority": _metadata_value(metadata, "priority"), "category": _metadata_value(metadata, "category"), "type": _metadata_value(metadata, "type")}
 
 
 def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: Any, repositories: Any) -> dict[str, Any]:
@@ -446,7 +468,7 @@ def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: 
     (self_tailwind, self_tailwind_provenance), (opponent_tailwind, opponent_tailwind_provenance) = _known_tailwind(snapshot)
     (self_paralysis, self_paralysis_provenance), (opponent_paralysis, opponent_paralysis_provenance) = _known_paralysis(snapshot)
     kwargs = {
-        "self_action": {"move_id": move, "priority": _metadata_value(metadata, "priority"), "category": _metadata_value(metadata, "category")},
+        "self_action": {"move_id": move, "priority": _metadata_value(metadata, "priority"), "category": _metadata_value(metadata, "category"), "type": _metadata_value(metadata, "type")},
         "opponent_action": _canonical_opponent_action(snapshot, repositories),
         "self_final_speed": _trusted_final_speed(snapshot, "self"),
         "opponent_final_speed": _trusted_final_speed(snapshot, "opponent"),
@@ -470,6 +492,8 @@ def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: 
     if isinstance(snapshot.get("ability_context"), Mapping):
         self_ability, opponent_ability = _known_speed_ability(snapshot, "self"), _known_speed_ability(snapshot, "opponent")
         kwargs.update(self_speed_ability=self_ability, opponent_speed_ability=opponent_ability, self_priority_ability=self_ability, opponent_priority_ability=opponent_ability, weather=_known_speed_weather(snapshot))
+    if isinstance(snapshot.get("current_hp_context"), Mapping):
+        kwargs.update(self_gale_wings_full_hp=_known_full_hp(snapshot, "self"), opponent_gale_wings_full_hp=_known_full_hp(snapshot, "opponent"))
     return evaluate_action_order(**kwargs)
 
 

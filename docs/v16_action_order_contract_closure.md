@@ -2,11 +2,11 @@
 
 ## Supported scope
 
-The native action-order evaluator supports canonical move priority, trusted current Prankster on its own status-category action, trusted raw final Speed, Speed stages, paralysis Speed reduction, Choice Scarf, Swift Swim, Chlorophyll, Sand Rush, Slush Rush, side-owned Tailwind, Trick Room, and `speed_tie`. It produces candidate-local evidence; it does not resolve a provider-generated order.
+The native action-order evaluator supports canonical move priority, trusted current Prankster on its own status-category action, trusted current Gale Wings on its own Flying-type action at exact full HP, trusted raw final Speed, Speed stages, paralysis Speed reduction, Choice Scarf, Swift Swim, Chlorophyll, Sand Rush, Slush Rush, side-owned Tailwind, Trick Room, and `speed_tie`. It produces candidate-local evidence; it does not resolve a provider-generated order.
 
 ## Canonical sequence
 
-1. Validate canonical base priorities and move categories, then apply trusted same-side Prankster only to status actions.
+1. Validate canonical base priorities, move categories, and move types; then apply trusted same-side Prankster only to status actions and Gale Wings only to Flying actions with exact full-HP authority.
 2. Resolve differing effective priorities immediately.
 3. For equal priority, require trusted final Speeds.
 4. Apply Speed stages, paralysis, supported static item/weather-ability modifiers, then Tailwind.
@@ -24,7 +24,7 @@ Standalone evaluator arguments retain omitted-authority compatibility through pr
 
 ## Evidence and presentation
 
-Priority-resolved candidates contain no unnecessary Speed-modifier evidence. Prankster evidence appears only on the side-owned status action where it applied. Equal-priority evidence only records applied stages, paralysis, Choice Scarf, matching weather ability, Tailwind, weather basis, Trick Room, and tie outcome when applicable. Recommendation results and presentation bind only the selected candidate's server-owned evidence. UI text never exposes effective Speed, multipliers, numeric priority, provenance, internal paths, unknown-as-absence, or a tie winner.
+Priority-resolved candidates contain no unnecessary Speed-modifier evidence. Prankster evidence appears only on the side-owned status action where it applied; Gale Wings evidence appears only on the side-owned Flying action whose exact request-start HP is full. Equal-priority evidence only records applied stages, paralysis, Choice Scarf, matching weather ability, Tailwind, weather basis, Trick Room, and tie outcome when applicable. Recommendation results and presentation bind only the selected candidate's server-owned evidence. UI text never exposes effective Speed, multipliers, exact HP, numeric priority, provenance, internal paths, unknown-as-absence, or a tie winner.
 
 ## Provider boundary
 
@@ -32,7 +32,7 @@ The provider returns only recommendation status, selected candidate identity, an
 
 ## Unsupported inventory
 
-Quick Feet, Unburden, Speed Boost, Surge Surfer, Slow Start, Protosynthesis, Quark Drive, Booster Energy, Iron Ball, Macho Brace, Power items, Lagging Tail, Full Incense, Quick Claw, Custap Berry, Stall, Mycelium Might, Gale Wings, Triage, weather/Tailwind/Trick Room duration, full-paralysis probability, and Choice-lock strategy remain outside this evaluator. Prankster's Dark-target move-success rule is also excluded. Known relevant unsupported mechanics fail closed rather than being treated as no effect.
+Quick Feet, Unburden, Speed Boost, Surge Surfer, Slow Start, Protosynthesis, Quark Drive, Booster Energy, Iron Ball, Macho Brace, Power items, Lagging Tail, Full Incense, Quick Claw, Custap Berry, Stall, Mycelium Might, Triage, weather/Tailwind/Trick Room duration, full-paralysis probability, and Choice-lock strategy remain outside this evaluator. Prankster's Dark-target move-success rule and all Gale Wings HP mutation/approximation are also excluded. Known relevant unsupported mechanics fail closed rather than being treated as no effect.
 
 ## Grounding coverage and next step
 
