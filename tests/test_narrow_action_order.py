@@ -112,6 +112,65 @@ def test_triage_eligibility_uses_only_nonconflicting_canonical_numeric_metadata(
     assert _triage_healing_eligibility(metadata) == expected
 
 
+@pytest.mark.parametrize(
+    ("ability", "action", "extra", "expected_priority", "evidence_key"),
+    [
+        ("prankster", {"move_id": "status", "priority": 0, "category": "status"}, {}, 1, "self_prankster_applied"),
+        ("prankster", {"move_id": "status", "priority": 1, "category": "status"}, {}, 2, "self_prankster_applied"),
+        ("prankster", {"move_id": "status", "priority": -1, "category": "status"}, {}, 0, "self_prankster_applied"),
+        ("gale-wings", {"move_id": "flying", "priority": 0, "category": "physical", "type": "flying"}, {"self_gale_wings_full_hp": "full"}, 1, "self_gale_wings_applied"),
+        ("gale-wings", {"move_id": "flying", "priority": 1, "category": "physical", "type": "flying"}, {"self_gale_wings_full_hp": "full"}, 2, "self_gale_wings_applied"),
+        ("gale-wings", {"move_id": "flying", "priority": -1, "category": "physical", "type": "flying"}, {"self_gale_wings_full_hp": "full"}, 0, "self_gale_wings_applied"),
+        ("triage", {"move_id": "drain", "priority": 0, "category": "physical", "triage_healing": "eligible"}, {}, 3, "self_triage_applied"),
+        ("triage", {"move_id": "drain", "priority": 1, "category": "physical", "triage_healing": "eligible"}, {}, 4, "self_triage_applied"),
+        ("triage", {"move_id": "drain", "priority": -1, "category": "physical", "triage_healing": "eligible"}, {}, 2, "self_triage_applied"),
+    ],
+)
+def test_priority_modifier_accumulation_preserves_canonical_base_priority(ability, action, extra, expected_priority, evidence_key):
+    result = evaluate_action_order(
+        self_action=action, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical", "type": "normal", "triage_healing": "non_eligible"},
+        self_final_speed=120, opponent_final_speed=100, trick_room="inactive", self_priority_ability=ability, opponent_priority_ability="static", **extra,
+    )
+    assert result["self_base_priority"] == action["priority"]
+    assert result["self_priority"] == expected_priority
+    assert result[evidence_key] is True
+
+
+@pytest.mark.parametrize(
+    ("self_ability", "self_action", "self_extra", "opponent_ability", "opponent_action", "opponent_extra", "expected", "expected_evidence"),
+    [
+        ("prankster", {"move_id": "status", "priority": 0, "category": "status"}, {}, "gale-wings", {"move_id": "flying", "priority": 0, "category": "physical", "type": "flying"}, {"opponent_gale_wings_full_hp": "full"}, "acts_first", ("self_prankster_applied", "opponent_gale_wings_applied")),
+        ("triage", {"move_id": "drain", "priority": 0, "category": "physical", "triage_healing": "eligible"}, {}, "prankster", {"move_id": "status", "priority": 0, "category": "status"}, {}, "acts_first", ("self_triage_applied", "opponent_prankster_applied")),
+        ("gale-wings", {"move_id": "flying", "priority": 0, "category": "physical", "type": "flying"}, {"self_gale_wings_full_hp": "full"}, "triage", {"move_id": "drain", "priority": 0, "category": "physical", "triage_healing": "eligible"}, {}, "acts_second", ("self_gale_wings_applied", "opponent_triage_applied")),
+        ("triage", {"move_id": "drain", "priority": 0, "category": "physical", "triage_healing": "eligible"}, {}, "triage", {"move_id": "drain", "priority": 0, "category": "physical", "triage_healing": "eligible"}, {}, "acts_first", ("self_triage_applied", "opponent_triage_applied")),
+    ],
+)
+def test_cross_side_priority_modifiers_are_owned_and_ties_handoff_to_speed_chain(self_ability, self_action, self_extra, opponent_ability, opponent_action, opponent_extra, expected, expected_evidence):
+    result = evaluate_action_order(
+        self_action=self_action, opponent_action=opponent_action,
+        self_final_speed=120, opponent_final_speed=100, trick_room="inactive",
+        self_priority_ability=self_ability, opponent_priority_ability=opponent_ability,
+        self_speed_stage=0, opponent_speed_stage=0, **self_extra, **opponent_extra,
+    )
+    assert result["status"] == expected
+    assert all(result[key] is True for key in expected_evidence)
+    if result["priority_comparison"] == "equal":
+        assert result["reason"] == "speed_advantage" and result["speed_stage_adjustment_applied"] is True
+    else:
+        assert result["reason"] == "priority_advantage" and "speed_stage_adjustment_applied" not in result
+
+
+def test_priority_difference_bypasses_all_speed_authority_without_speed_evidence():
+    result = evaluate_action_order(
+        self_action={"move_id": "drain", "priority": 0, "category": "physical", "triage_healing": "eligible"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical", "triage_healing": "non_eligible"},
+        self_final_speed=None, opponent_final_speed=None, trick_room="unknown", self_speed_stage=None, opponent_speed_stage=None,
+        self_paralysis="unknown", opponent_paralysis="unknown", self_speed_item="unknown", opponent_speed_item="unknown", self_speed_ability="unknown", opponent_speed_ability="unknown", weather="unknown", self_tailwind="unknown", opponent_tailwind="unknown",
+        self_priority_ability="triage", opponent_priority_ability="static",
+    )
+    assert result["status"] == "acts_first" and result["reason"] == "priority_advantage" and result["speed_comparison"] == "not_needed"
+    assert not any(key.endswith("_adjustment_applied") or key.endswith("_speed_item_applied") or key.endswith("_speed_ability_applied") for key in result)
+
+
 def test_gale_wings_requires_same_side_flying_type_and_exact_full_hp_before_priority_resolution():
     full = evaluate_action_order(
         self_action={"move_id": "brave-bird", "priority": 0, "category": "physical", "type": "flying"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical", "type": "normal"},
@@ -648,6 +707,21 @@ def test_presentation_uses_bounded_gale_wings_text_without_exact_hp_or_priority_
     text = format_recommendation_presentation_text(presentation_model=presentation)
     assert "질풍날개와 최대 체력 상태를 반영해 비행 기술의 우선도가 올라 먼저 행동함" in text
     assert "gale_wings" not in text and "effective_priority" not in text and "current_hp" not in text
+
+
+def test_presentation_uses_bounded_triage_text_without_healing_metadata_or_priority_values():
+    presentation = {
+        "status": "resolved", "recommended_move": "drain-punch", "recommended_slot_index": 0,
+        "primary_reasons": [], "risks": [], "alternatives": [], "candidate_summaries": [],
+        "selected_candidate": {"selected_action": {"slot_index": 0, "move": "drain-punch"}, "evidence": {
+            "mechanics_result": {"status": "insufficient_context"},
+            "action_order": {"status": "acts_first", "reason": "priority_advantage", "self_triage_applied": True},
+            "comparison_facts": {},
+        }},
+    }
+    text = format_recommendation_presentation_text(presentation_model=presentation)
+    assert "힐링시프트로 회복 기술의 우선도가 올라 먼저 행동함" in text
+    assert "triage" not in text and "effective_priority" not in text and "healing_move_authority" not in text
 
 
 def test_presentation_uses_bounded_tailwind_text_only_when_applied():

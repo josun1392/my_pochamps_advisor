@@ -6,13 +6,16 @@ The native action-order evaluator supports canonical move priority, trusted curr
 
 ## Canonical sequence
 
-1. Validate canonical base priorities, move categories/types, and numeric healing/drain metadata; then apply trusted same-side Prankster only to status actions, Gale Wings only to Flying actions with exact full-HP authority, and Triage only to moves whose canonical `healing` or `drain` value is positive.
-2. Resolve differing effective priorities immediately.
-3. For equal priority, require trusted final Speeds.
-4. Apply Speed stages, paralysis, supported static item/weather-ability modifiers, then Tailwind.
-5. Compare adjusted integer Speeds.
-6. Use normal order when Trick Room is inactive and reverse order when active.
-7. Preserve `speed_tie` when adjusted Speeds are equal.
+1. Validate trusted canonical base priority for each action.
+2. Read canonical category, type, and numeric healing/drain metadata for that same action.
+3. Resolve the same-side trusted current ability.
+4. Apply Prankster `+1` only to a status action.
+5. Apply Gale Wings `+1` only to a Flying action with exact request-start full HP.
+6. Apply Triage `+3` only to a move with positive canonical healing or drain metadata.
+7. Add each supported modifier to, rather than replacing, base priority.
+8. Compare the two effective priorities.
+9. Resolve differing priorities immediately without requesting Speed authority.
+10. For a tie, hand off unchanged to final Speed, stages, paralysis, static Speed modifiers, Tailwind, comparison, Trick Room, then `speed_tie`.
 
 The implementation reuses the existing stage, paralysis, Q12 item, and Q12 ability helpers. Final Speed is the trusted pre-battle-order-modifier value; no base-stat, EV, IV, nature, or provider inference is used.
 
@@ -22,18 +25,34 @@ Request-start snapshots provide final stats, stages, conditions, item profiles, 
 
 Standalone evaluator arguments retain omitted-authority compatibility through private sentinels. The request snapshot is detached before candidates are evaluated, so later UI state cannot alter candidate evidence.
 
+## Priority authority matrix
+
+| Mechanic | Trusted applicable authority | Trusted non-applicable authority | Unknown | Malformed/conflicting |
+| --- | --- | --- | --- | --- |
+| Prankster | same-side ability + status category | physical/special or known non-Prankster | `insufficient_context` when relevant | `unsupported_mechanic` |
+| Gale Wings | same-side ability + Flying type + exact full HP | non-Flying or exact not-full HP | `insufficient_context` when relevant | `unsupported_mechanic` |
+| Triage | same-side ability + positive canonical healing/drain integer | valid zero/negative values or known non-Triage | `insufficient_context` when relevant | `unsupported_mechanic` |
+
+Only one current ability is accepted per side. Duplicate or conflicting same-side ability authority is fail-closed; self and opponent may independently carry different supported abilities. Omitted standalone modifier authority preserves base-priority-only behavior, while explicit unknown is never converted to non-applicable.
+
+## Priority-first and Speed handoff
+
+After a priority difference, the result has `reason=priority_advantage` and `speed_comparison=not_needed`; it carries no applied Speed-stage, paralysis, item, ability, Tailwind, Trick Room, or tie evidence. Equal effective priority alone enters the existing Speed chain. That handoff does not reinterpret priority modifiers or alter integer rounding, Trick Room reversal, or tie semantics.
+
 ## Evidence and presentation
 
-Priority-resolved candidates contain no unnecessary Speed-modifier evidence. Prankster evidence appears only on the side-owned status action where it applied; Gale Wings evidence appears only on the side-owned Flying action whose exact request-start HP is full; Triage evidence appears only on the side-owned action with explicit positive canonical healing/drain metadata. Missing or malformed Triage metadata is fail-closed when Triage is relevant. Equal-priority evidence only records applied stages, paralysis, Choice Scarf, matching weather ability, Tailwind, weather basis, Trick Room, and tie outcome when applicable. Recommendation results and presentation bind only the selected candidate's server-owned evidence. UI text never exposes effective Speed, multipliers, healing amount, exact HP, numeric priority, provenance, internal paths, unknown-as-absence, or a tie winner.
+Each candidate retains its own `self_base_priority`, `opponent_base_priority`, resolved effective priorities, comparison basis, and only actually applied `self_*/opponent_*_prankster_applied`, `*_gale_wings_applied`, or `*_triage_applied` tags. Priority-resolved candidates contain no unnecessary Speed-modifier evidence. Missing or malformed Triage metadata is fail-closed when Triage is relevant. Recommendation results and presentation bind only the selected candidate's server-owned evidence. UI text never exposes effective Speed, multipliers, healing amount, exact HP, numeric priority, provenance, internal paths, unknown-as-absence, or a tie winner.
+
+Priority generation does not imply move success, priority-blocking resolution, damage, healing amount, drain recovery, or HP mutation. Q12 formula evidence and level-based fixed-damage evidence remain independent from supported priority evidence.
 
 ## Provider boundary
 
-The provider returns only recommendation status, selected candidate identity, and a bounded explanation code. It cannot supply or change priority, Speed, stages, paralysis, item, ability, weather, Tailwind, Trick Room, modifiers, or action order. No selectable candidate skips the provider call under the existing recommendation contract.
+The provider returns only recommendation status, selected candidate identity, and a bounded explanation code. It cannot supply or change ability, category/type, HP, healing/drain metadata, base/effective priority, Speed, stages, paralysis, item, weather, Tailwind, Trick Room, modifiers, or action order. A no-usable-candidate cycle makes zero provider calls.
 
 ## Unsupported inventory
 
-Quick Feet, Unburden, Speed Boost, Surge Surfer, Slow Start, Protosynthesis, Quark Drive, Booster Energy, Iron Ball, Macho Brace, Power items, Lagging Tail, Full Incense, Quick Claw, Custap Berry, Stall, Mycelium Might, conditional/dual-purpose healing moves without explicit positive numeric metadata, weather/Tailwind/Trick Room duration, full-paralysis probability, and Choice-lock strategy remain outside this evaluator. Prankster's Dark-target move-success rule, Triage healing consequences, and all Gale Wings HP mutation/approximation are also excluded. Known relevant unsupported mechanics fail closed rather than being treated as no effect.
+Quick Feet, Unburden, Speed Boost, Surge Surfer, Slow Start, Protosynthesis, Quark Drive, Booster Energy, Iron Ball, Macho Brace, Power items, Lagging Tail, Full Incense, Quick Claw, Custap Berry, Stall, Mycelium Might, conditional/dual-purpose healing moves without explicit positive numeric metadata, weather/Tailwind/Trick Room duration, full-paralysis probability, and Choice-lock strategy remain outside this evaluator. Prankster's Dark-target move-success rule, Psychic Terrain/Queenly Majesty/Dazzling/Armor Tail priority blocking, ability suppression, Triage healing consequences, and all Gale Wings HP mutation/approximation are also excluded. Known relevant unsupported mechanics fail closed rather than being treated as no effect.
 
 ## Grounding coverage and next step
 
-Sanitized fixture contracts cover base/effective priority, Prankster candidate isolation, stages, Tailwind, Trick Room, paralysis, and static Speed modifiers with deterministic selected-candidate binding. Further action-order work should be a separate bounded proposal for one unsupported mechanic, rather than expanding this contract implicitly.
+Sanitized actual-grounding fixtures cover Prankster, Gale Wings, and Triage candidate isolation and selected-candidate binding; their offline/fake-provider contracts remain regression coverage for the minimal provider boundary. Further work should be a separate bounded proposal for one unsupported priority-blocking or move-success mechanic, rather than expanding this contract implicitly.
