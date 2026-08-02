@@ -402,6 +402,7 @@ def _known_speed_ability(snapshot: Mapping[str, Any], side: str) -> str:
     if not isinstance(entries, list): return "unknown"
     matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
     if len(matches) != 1: return "unknown" if not matches else "invalid"
+    if matches[0].get("ability") == "quick-feet": return "quick-feet"
     try: return normalize_user_confirmed_current_ability(matches[0])["ability"]
     except ValueError: return "invalid"
 
@@ -437,7 +438,7 @@ def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -
         metadata = repositories.get(move_id) if hasattr(repositories, "get") else repositories[move_id]
     except Exception:
         return {"move_id": move_id}
-    return {"move_id": move_id, "priority": _metadata_value(metadata, "priority")}
+    return {"move_id": move_id, "priority": _metadata_value(metadata, "priority"), "category": _metadata_value(metadata, "category")}
 
 
 def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: Any, repositories: Any) -> dict[str, Any]:
@@ -445,7 +446,7 @@ def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: 
     (self_tailwind, self_tailwind_provenance), (opponent_tailwind, opponent_tailwind_provenance) = _known_tailwind(snapshot)
     (self_paralysis, self_paralysis_provenance), (opponent_paralysis, opponent_paralysis_provenance) = _known_paralysis(snapshot)
     kwargs = {
-        "self_action": {"move_id": move, "priority": _metadata_value(metadata, "priority")},
+        "self_action": {"move_id": move, "priority": _metadata_value(metadata, "priority"), "category": _metadata_value(metadata, "category")},
         "opponent_action": _canonical_opponent_action(snapshot, repositories),
         "self_final_speed": _trusted_final_speed(snapshot, "self"),
         "opponent_final_speed": _trusted_final_speed(snapshot, "opponent"),
@@ -467,7 +468,8 @@ def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: 
     if isinstance(snapshot.get("item_profiles"), Mapping):
         kwargs.update(self_speed_item=_known_speed_item(snapshot, "self"), opponent_speed_item=_known_speed_item(snapshot, "opponent"))
     if isinstance(snapshot.get("ability_context"), Mapping):
-        kwargs.update(self_speed_ability=_known_speed_ability(snapshot, "self"), opponent_speed_ability=_known_speed_ability(snapshot, "opponent"), weather=_known_speed_weather(snapshot))
+        self_ability, opponent_ability = _known_speed_ability(snapshot, "self"), _known_speed_ability(snapshot, "opponent")
+        kwargs.update(self_speed_ability=self_ability, opponent_speed_ability=opponent_ability, self_priority_ability=self_ability, opponent_priority_ability=opponent_ability, weather=_known_speed_weather(snapshot))
     return evaluate_action_order(**kwargs)
 
 

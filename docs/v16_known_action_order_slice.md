@@ -6,13 +6,16 @@ self candidate action and an explicitly selected opponent action.
 
 ## Authority and order
 
-- Move priority is read from canonical move metadata for both actions.
+- Base move priority and category are read from canonical move metadata for both actions.
+- A user-confirmed current Prankster applies `+1` only to its own status-category action. Dark-target move success is not evaluated here.
 - Speed is accepted only when each side has a normalized, user-confirmed final
   battle Speed.
 - Trick Room is read only from a normalized, user-confirmed current field
   state. A missing or untrusted field is `unknown`, never inactive.
-- Higher priority acts first. At equal priority, active Trick Room reverses
-  the known-final-Speed comparison; equal Speed is `speed_tie`.
+- Higher effective priority acts first. At equal priority, the evaluator applies
+  Speed stages, paralysis, Choice Scarf, supported matching weather abilities,
+  and side-owned Tailwind before active Trick Room reverses the known-final-Speed
+  comparison; equal adjusted Speed is `speed_tie`.
 
 The evaluator returns `acts_first`, `acts_second`, `speed_tie`,
 `insufficient_context`, or `unsupported_mechanic`, together with bounded
@@ -21,10 +24,12 @@ are explicitly unsupported rather than silently resolved.
 
 ## Boundaries
 
-It does not call the legacy move-order assessment and does not apply Speed
-stages, Tailwind, base Speed, items, abilities, status, or opponent-action
-prediction. Missing canonical priority, opponent action, trusted final Speed,
-or known Trick Room remains insufficient context.
+It does not call the legacy move-order assessment or apply Dark-type Prankster
+failure, Gale Wings, Triage, Stall, Mycelium Might, priority blocking,
+ability suppression, duration mechanics, or opponent-action prediction.
+Missing canonical priority/category, relevant ability, opponent action,
+trusted final Speed, or known field/side authority remains insufficient context;
+known relevant unsupported priority abilities remain unsupported.
 
 `action_order` is copied into each candidate/provider-safe comparison as
 separate deterministic evidence. It does not modify damage, candidate rank, or

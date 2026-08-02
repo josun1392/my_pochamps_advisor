@@ -549,7 +549,9 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
     action_order = evidence.get("action_order")
     order = {"acts_first": "선공 가능", "acts_second": "후공", "speed_tie": "동속"}.get(action_order.get("status") if isinstance(action_order, Mapping) else None)
     if isinstance(action_order, Mapping):
-        if action_order.get("reason") == "priority_advantage" and action_order.get("status") == "acts_first":
+        if action_order.get("reason") == "priority_advantage" and action_order.get("self_prankster_applied") is True and action_order.get("status") == "acts_first":
+            order = "짓궂은마음으로 변화 기술의 우선도가 올라 먼저 행동함"
+        elif action_order.get("reason") == "priority_advantage" and action_order.get("status") == "acts_first":
             order = "우선도가 높아 트릭룸과 무관하게 먼저 행동함"
         elif action_order.get("status") == "speed_tie":
             order = "보정 후 스피드가 같아 동속임"

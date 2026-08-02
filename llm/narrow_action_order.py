@@ -19,9 +19,11 @@ _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED = object()
 _TAILWIND_AUTHORITY_NOT_SUPPLIED = object()
 _PARALYSIS_AUTHORITY_NOT_SUPPLIED = object()
 _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED = object()
+_PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED = object()
 _SUPPORTED_SPEED_ABILITIES = frozenset({"swift-swim", "chlorophyll", "sand-rush", "slush-rush"})
 _UNSUPPORTED_SPEED_ABILITIES = frozenset({"surge-surfer", "unburden", "speed-boost", "slow-start", "protosynthesis", "quark-drive"})
 _UNSUPPORTED_SPEED_ITEMS = frozenset({"iron-ball", "macho-brace", "power-anklet", "power-band", "power-belt", "power-bracer", "power-lens", "power-weight", "lagging-tail", "full-incense", "quick-claw", "custap-berry"})
+_UNSUPPORTED_PRIORITY_ABILITIES = frozenset({"gale-wings", "triage", "stall", "mycelium-might"})
 
 
 def _action(value: Mapping[str, Any] | None, side: str) -> tuple[dict[str, Any] | None, str | None]:
@@ -34,7 +36,10 @@ def _action(value: Mapping[str, Any] | None, side: str) -> tuple[dict[str, Any] 
         return {"move_id": move_id}, "conditional_priority_mechanic"
     if isinstance(priority, bool) or not isinstance(priority, int) or not -7 <= priority <= 7:
         return {"move_id": move_id}, f"{side}_move_priority"
-    return {"move_id": move_id, "priority": priority}, None
+    category = value.get("category")
+    if category is not None and category not in {"status", "physical", "special"}:
+        return {"move_id": move_id, "priority": priority}, f"{side}_move_category"
+    return {"move_id": move_id, "priority": priority, "category": category}, None
 
 
 def evaluate_action_order(
@@ -62,6 +67,8 @@ def evaluate_action_order(
     self_speed_ability: Any = _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED,
     opponent_speed_ability: Any = _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED,
     weather: Any = _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED,
+    self_priority_ability: Any = _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED,
+    opponent_priority_ability: Any = _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED,
 ) -> dict[str, Any]:
     """Resolve a known action pair using only trusted final Speed and field state."""
     self_reference, self_error = _action(self_action, "self")
@@ -89,7 +96,32 @@ def evaluate_action_order(
         return result
     assert self_reference is not None and opponent_reference is not None
     self_priority, opponent_priority = self_reference["priority"], opponent_reference["priority"]
+    base_priorities = {"self": self_priority, "opponent": opponent_priority}
+    priority_abilities = {
+        "self": "omitted" if self_priority_ability is _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED else self_priority_ability,
+        "opponent": "omitted" if opponent_priority_ability is _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED else opponent_priority_ability,
+    }
+    for side, ability in priority_abilities.items():
+        action = self_reference if side == "self" else opponent_reference
+        category = action.get("category")
+        if ability in _UNSUPPORTED_PRIORITY_ABILITIES:
+            result.update(status="unsupported_mechanic", unsupported_reason="priority_ability_modifier")
+            return result
+        if ability == "invalid":
+            result.update(status="unsupported_mechanic", unsupported_reason="priority_ability_context")
+            return result
+        if ability == "prankster" and category is None:
+            result["missing_inputs"] = [f"{side}_move_category"]
+            return result
+        if ability == "unknown" and category == "status":
+            result["missing_inputs"] = [f"{side}_priority_ability"]
+            return result
+        if ability == "prankster" and category == "status":
+            if side == "self": self_priority += 1
+            else: opponent_priority += 1
+            result[f"{side}_prankster_applied"] = True
     result.update(
+        self_base_priority=base_priorities["self"], opponent_base_priority=base_priorities["opponent"],
         self_priority=self_priority,
         opponent_priority=opponent_priority,
         priority_comparison="equal" if self_priority == opponent_priority else "self_higher" if self_priority > opponent_priority else "opponent_higher",

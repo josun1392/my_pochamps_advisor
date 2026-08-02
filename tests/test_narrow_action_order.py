@@ -20,7 +20,47 @@ def test_priority_is_decisive_without_speed_or_field(self_priority, opponent_pri
     )
     assert result["status"] == expected
     assert result["reason"] == "priority_advantage"
-    assert result["speed_comparison"] == "not_needed"
+
+
+def test_prankster_applies_only_to_its_side_status_move_and_sums_with_base_priority():
+    self_status = evaluate_action_order(
+        self_action={"move_id": "recover", "priority": 0, "category": "status"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical"},
+        self_final_speed=None, opponent_final_speed=None, self_priority_ability="prankster", opponent_priority_ability="static",
+    )
+    opponent_status = evaluate_action_order(
+        self_action={"move_id": "tackle", "priority": 0, "category": "physical"}, opponent_action={"move_id": "recover", "priority": 1, "category": "status"},
+        self_final_speed=None, opponent_final_speed=None, self_priority_ability="static", opponent_priority_ability="prankster",
+    )
+    non_status = evaluate_action_order(
+        self_action={"move_id": "swift", "priority": 0, "category": "special"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical"},
+        self_final_speed=110, opponent_final_speed=100, trick_room="inactive", self_priority_ability="prankster", opponent_priority_ability="static",
+    )
+    assert self_status["status"] == "acts_first" and self_status["self_priority"] == 1 and self_status["self_prankster_applied"] is True
+    assert opponent_status["status"] == "acts_second" and opponent_status["opponent_priority"] == 2 and opponent_status["opponent_prankster_applied"] is True
+    assert non_status["status"] == "acts_first" and "self_prankster_applied" not in non_status
+
+
+def test_prankster_equal_priority_uses_existing_speed_chain_and_unknown_or_unsupported_authority_fails_closed():
+    tied = evaluate_action_order(
+        self_action={"move_id": "recover", "priority": 0, "category": "status"}, opponent_action={"move_id": "recover", "priority": 0, "category": "status"},
+        self_final_speed=100, opponent_final_speed=120, trick_room="inactive", self_priority_ability="prankster", opponent_priority_ability="prankster",
+    )
+    unknown = evaluate_action_order(
+        self_action={"move_id": "recover", "priority": 0, "category": "status"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical"},
+        self_final_speed=100, opponent_final_speed=90, self_priority_ability="unknown", opponent_priority_ability="static",
+    )
+    malformed_category = evaluate_action_order(
+        self_action={"move_id": "recover", "priority": 0, "category": "invalid"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical"},
+        self_final_speed=100, opponent_final_speed=90, self_priority_ability="prankster", opponent_priority_ability="static",
+    )
+    unsupported = evaluate_action_order(
+        self_action={"move_id": "recover", "priority": 0, "category": "status"}, opponent_action={"move_id": "tackle", "priority": 0, "category": "physical"},
+        self_final_speed=100, opponent_final_speed=90, self_priority_ability="gale-wings", opponent_priority_ability="static",
+    )
+    assert tied["status"] == "acts_second" and tied["self_prankster_applied"] is True and tied["opponent_prankster_applied"] is True
+    assert unknown["missing_inputs"] == ["self_priority_ability"]
+    assert malformed_category["missing_inputs"] == ["self_move_category"]
+    assert unsupported["unsupported_reason"] == "priority_ability_modifier"
 
 
 @pytest.mark.parametrize(
@@ -462,6 +502,24 @@ def test_candidate_derives_paralysis_from_confirmed_conditions_and_rejects_quick
     assert quick_feet["action_order"]["unsupported_reason"] == "paralysis_speed_ability"
 
 
+def test_candidate_binds_same_side_prankster_to_canonical_status_category_only():
+    base = {
+        "final_stat_context": {"current_final_stats": [_speed("self", 100), _speed("opponent", 200)]},
+        "field_state_context": {"current_field": {"weather": "none", "terrain": "none", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}},
+        "condition_context": {"current_conditions": [{"side": side, "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"} for side in ("self", "opponent")]},
+        "ability_context": {"current_abilities": [
+            {"side": "self", "ability": "prankster", "status": "user_confirmed", "source": "user_confirmed_current_ability", "confidence": "known"},
+            {"side": "opponent", "ability": "static", "status": "user_confirmed", "source": "user_confirmed_current_ability", "confidence": "known"},
+        ]},
+        "opponent_selected_move": {"move_id": "scratch"},
+    }
+    repository = {"recover": {"category": "status", "target": "user", "priority": 0}, "thunderbolt": {"category": "special", "power": 90, "type": "electric", "priority": 0}, "scratch": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    status = evaluate_move_candidate(slot_index=0, move="recover", battle_snapshot=base, repositories=repository)
+    special = evaluate_move_candidate(slot_index=1, move="thunderbolt", battle_snapshot=base, repositories=repository)
+    assert status["action_order"]["status"] == "acts_first" and status["action_order"]["self_prankster_applied"] is True
+    assert special["action_order"]["status"] == "acts_second" and "self_prankster_applied" not in special["action_order"]
+
+
 def test_presentation_uses_bounded_trick_room_action_order_text_only_for_selected_candidate():
     presentation = {
         "status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0,
@@ -478,6 +536,21 @@ def test_presentation_uses_bounded_trick_room_action_order_text_only_for_selecte
     text = format_recommendation_presentation_text(presentation_model=presentation)
     assert "\ud2b8\ub9ad\ub8f8\uc774 \uc801\uc6a9\ub418\uc5b4 \ub354 \ub290\ub9b0 \ucabd\uc774 \uba3c\uc800 \ud589\ub3d9\ud568" in text
     assert "trick_room" not in text and "user_confirmed_current" not in text
+
+
+def test_presentation_uses_bounded_prankster_text_only_when_applied():
+    presentation = {
+        "status": "resolved", "recommended_move": "recover", "recommended_slot_index": 0,
+        "primary_reasons": [], "risks": [], "alternatives": [], "candidate_summaries": [],
+        "selected_candidate": {"selected_action": {"slot_index": 0, "move": "recover"}, "evidence": {
+            "mechanics_result": {"status": "insufficient_context"},
+            "action_order": {"status": "acts_first", "reason": "priority_advantage", "self_prankster_applied": True},
+            "comparison_facts": {},
+        }},
+    }
+    text = format_recommendation_presentation_text(presentation_model=presentation)
+    assert "짓궂은마음으로 변화 기술의 우선도가 올라 먼저 행동함" in text
+    assert "prankster" not in text and "effective_priority" not in text
 
 
 def test_presentation_uses_bounded_tailwind_text_only_when_applied():
