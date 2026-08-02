@@ -43,7 +43,7 @@ PARALYSIS_FIXTURES = ("supported-paralysis-speed-action-order", "unknown-paralys
 STATIC_SPEED_FIXTURES = ("supported-static-speed-modifier-action-order", "unknown-static-speed-authority-with-priority-control")
 PRANKSTER_FIXTURES = ("supported-prankster-priority", "unknown-prankster-authority-with-priority-control")
 GALE_WINGS_FIXTURES = ("supported-gale-wings-priority", "unknown-gale-wings-hp-with-priority-control")
-TRIAGE_FIXTURES = ("supported-triage-healing-priority", "unknown-triage-healing-with-priority-control")
+TRIAGE_FIXTURES = ("supported-triage-priority", "unknown-triage-eligibility-with-priority-control")
 _ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES, TRIAGE_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 

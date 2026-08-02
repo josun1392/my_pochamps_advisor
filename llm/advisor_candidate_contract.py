@@ -455,7 +455,9 @@ def _triage_healing_eligibility(metadata: Any) -> str:
     """Classify Triage only from canonical numeric healing/drain metadata."""
     healing, drain = _metadata_value(metadata, "healing"), _metadata_value(metadata, "drain")
     values = (healing, drain)
-    if any(value is not None and (isinstance(value, bool) or not isinstance(value, int) or not -100 <= value <= 100) for value in values):
+    if (healing is not None and (isinstance(healing, bool) or not isinstance(healing, int) or not 0 <= healing <= 100)) or (drain is not None and (isinstance(drain, bool) or not isinstance(drain, int) or not -100 <= drain <= 100)):
+        return "invalid"
+    if isinstance(healing, int) and isinstance(drain, int) and healing > 0 and drain != 0:
         return "invalid"
     if any(isinstance(value, int) and value > 0 for value in values):
         return "eligible"

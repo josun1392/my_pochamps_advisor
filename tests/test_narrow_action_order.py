@@ -1,6 +1,6 @@
 import pytest
 
-from llm.advisor_candidate_contract import build_evidence_bundle, build_recommendation_request, evaluate_move_candidate
+from llm.advisor_candidate_contract import _triage_healing_eligibility, build_evidence_bundle, build_recommendation_request, evaluate_move_candidate
 from llm.advisor_client import format_recommendation_presentation_text
 from llm.narrow_action_order import evaluate_action_order
 
@@ -94,6 +94,22 @@ def test_triage_applies_only_to_canonical_healing_moves_and_keeps_unknowns_fail_
     assert unknown["missing_inputs"] == ["self_healing_move_authority"]
     assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "healing_move_metadata"
     assert unknown_ability["missing_inputs"] == ["self_priority_ability"]
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        ({"healing": 50, "drain": 0}, "eligible"),
+        ({"healing": 0, "drain": 50}, "eligible"),
+        ({"healing": 0, "drain": 0}, "non_eligible"),
+        ({"healing": 0, "drain": -33}, "non_eligible"),
+        ({}, "unknown"),
+        ({"healing": "50", "drain": 0}, "invalid"),
+        ({"healing": 50, "drain": 50}, "invalid"),
+    ],
+)
+def test_triage_eligibility_uses_only_nonconflicting_canonical_numeric_metadata(metadata, expected):
+    assert _triage_healing_eligibility(metadata) == expected
 
 
 def test_gale_wings_requires_same_side_flying_type_and_exact_full_hp_before_priority_resolution():
