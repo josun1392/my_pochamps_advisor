@@ -128,6 +128,24 @@ def test_tailwind_unknown_and_malformed_fail_closed_only_for_equal_priority():
     assert priority["status"] == "acts_first" and priority["reason"] == "priority_advantage"
 
 
+def test_tailwind_side_authority_variants_do_not_reuse_prior_snapshot_evidence():
+    base = {
+        "self_action": _action("tackle", 0), "opponent_action": _action("scratch", 0),
+        "self_final_speed": 100, "opponent_final_speed": 150, "trick_room": "inactive",
+    }
+    self_active = evaluate_action_order(**base, self_tailwind="active", opponent_tailwind="inactive")
+    opponent_active = evaluate_action_order(**base, self_tailwind="inactive", opponent_tailwind="active")
+    both_active = evaluate_action_order(**base, self_tailwind="active", opponent_tailwind="active")
+    both_inactive = evaluate_action_order(**base, self_tailwind="inactive", opponent_tailwind="inactive")
+    opponent_unknown = evaluate_action_order(**base, self_tailwind="inactive", opponent_tailwind="unknown")
+    missing_speed = evaluate_action_order(**{**base, "self_final_speed": None}, self_tailwind="inactive", opponent_tailwind="inactive")
+    assert self_active["status"] == "acts_first" and self_active["self_tailwind"] == "active"
+    assert opponent_active["status"] == "acts_second" and opponent_active["opponent_tailwind"] == "active"
+    assert both_active["status"] == both_inactive["status"] == "acts_second"
+    assert opponent_unknown["missing_inputs"] == ["opponent_tailwind"]
+    assert missing_speed["missing_inputs"] == ["self_final_speed"]
+
+
 def test_explicit_speed_stage_authority_adjusts_equal_priority_speed_only():
     result = evaluate_action_order(
         self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
