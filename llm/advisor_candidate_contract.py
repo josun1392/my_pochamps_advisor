@@ -1429,6 +1429,7 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
 
 _UI_SNAPSHOT_CONTEXT_KEYS = (
     "final_stat_context", "stat_stage_context", "current_hp_context", "condition_context", "field_state_context",
+    "item_profiles",
     "battle_format_context", "attacker_level_context", "observed_previous_damage_context", "battle_counter_context",
     "consecutive_use_context", "weight_context", "turn_event_context",
 )
