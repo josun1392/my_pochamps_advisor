@@ -8,4 +8,4 @@
 - Request capture is detached/frozen. A later UI mutation or a previous session's bound entry cannot alter the captured context.
 - `classify_current_type_dark_membership` is read-only and returns only `known_contains_dark`, `known_does_not_contain_dark`, `unknown`, or `malformed`.
 
-The minimal UI offers an explicit Unknown / Known exact type(s) control for self and opponent. This context is copied through the candidate adapter but removed from legacy provider payloads. It does not implement Dark-type Prankster immunity, STAB, type effectiveness, Terastallization, type mutation, or any move-success/effect rule; those require a separately approved gate.
+The minimal UI offers an explicit Unknown / Known exact type(s) control for self and opponent. This context is copied through the candidate adapter but removed from legacy provider payloads. A separate bounded move-success gate may use the read-only classifier for Dark-type Prankster immunity only when the server-owned `prankster_applied` evidence is present for an opposing-single status move. It does not add STAB, type effectiveness, Terastallization, type mutation, or a general type-effect engine.

@@ -781,6 +781,62 @@ def test_defender_priority_blocking_ability_authority_and_psychic_sources_are_fa
     assert no_usable["status"] == "no_selectable_candidates"
 
 
+def _dark_prankster_snapshot(*, opponent_types=None, opponent_ability="static", terrain=None, grounded=None):
+    snapshot = _priority_blocking_ability_snapshot(opponent_ability=opponent_ability, self_ability="prankster", terrain=terrain, grounded=grounded)
+    if opponent_types is not None:
+        if opponent_types == "unknown":
+            entry = {"side": "opponent", "state": "unknown", "status": "unknown", "source": "unknown", "authority_provenance": "unknown", "confidence": "unknown"}
+        else:
+            entry = {"side": "opponent", "state": "known", "types": opponent_types, "status": "user_confirmed", "source": "user_confirmed_current_type", "authority_provenance": "user_confirmed_current", "confidence": "known"}
+        snapshot["current_type_context"] = {"current_types": [entry]}
+    return snapshot
+
+
+def test_dark_type_prankster_immunity_blocks_only_actual_prankster_status_moves_and_preserves_order():
+    repository = {
+        "status": {"category": "status", "target": "selected-pokemon", "priority": 0},
+        "quick": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 1},
+        "self": {"category": "status", "target": "user", "priority": 0},
+        "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0},
+    }
+    pure_dark = evaluate_move_candidate(slot_index=0, move="status", battle_snapshot=_dark_prankster_snapshot(opponent_types=["dark"]), repositories=repository)
+    dual_dark = evaluate_move_candidate(slot_index=0, move="status", battle_snapshot=_dark_prankster_snapshot(opponent_types=["ghost", "dark"]), repositories=repository)
+    non_dark = evaluate_move_candidate(slot_index=0, move="status", battle_snapshot=_dark_prankster_snapshot(opponent_types=["ghost"]), repositories=repository)
+    physical = evaluate_move_candidate(slot_index=0, move="quick", battle_snapshot=_dark_prankster_snapshot(opponent_types=["dark"]), repositories=repository)
+    self_target = evaluate_move_candidate(slot_index=0, move="self", battle_snapshot=_dark_prankster_snapshot(opponent_types=["dark"]), repositories=repository)
+    for blocked in (pure_dark, dual_dark):
+        assert blocked["availability"] == "unavailable"
+        assert blocked["move_success"]["block_reason"] == "dark_type_prankster_immunity"
+        assert blocked["move_success"]["dark_type_prankster_immunity_blocked"] is True
+        assert blocked["action_order"]["self_prankster_applied"] is True
+        assert blocked["damage"] == {"status": "unavailable", "reason": "dark_type_prankster_immunity"}
+    assert non_dark["move_success"]["move_success_status"] == "allowed" and non_dark["availability"] != "unavailable"
+    assert physical["move_success"]["move_success_status"] == "allowed" and "dark_type_prankster_immunity_blocked" not in physical["move_success"]
+    assert self_target["move_success"]["move_success_status"] == "allowed"
+
+
+def test_dark_type_prankster_authority_fails_closed_and_complete_sources_short_circuit_unknown_secondaries():
+    repository = {
+        "status": {"category": "status", "target": "selected-pokemon", "priority": 0},
+        "spread": {"category": "status", "target": "all-opponents", "priority": 0},
+        "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0},
+    }
+    unknown = evaluate_move_candidate(slot_index=0, move="status", battle_snapshot=_dark_prankster_snapshot(opponent_types="unknown"), repositories=repository)
+    malformed = evaluate_move_candidate(slot_index=0, move="status", battle_snapshot=_dark_prankster_snapshot(opponent_types=["dark", "dark"]), repositories=repository)
+    spread = evaluate_move_candidate(slot_index=0, move="spread", battle_snapshot=_dark_prankster_snapshot(opponent_types=["dark"]), repositories=repository)
+    dark_short_circuit = evaluate_move_candidate(slot_index=0, move="status", battle_snapshot=_dark_prankster_snapshot(opponent_types=["dark"], opponent_ability="unknown", terrain="unknown", grounded="unknown"), repositories=repository)
+    terrain_short_circuit = evaluate_move_candidate(slot_index=0, move="status", battle_snapshot=_dark_prankster_snapshot(opponent_types="unknown", opponent_ability="unknown", terrain="psychic", grounded="known_grounded"), repositories=repository)
+    ability_short_circuit = evaluate_move_candidate(slot_index=0, move="status", battle_snapshot=_dark_prankster_snapshot(opponent_types="unknown", opponent_ability="armor-tail"), repositories=repository)
+    no_usable = prepare_recommendation_cycle(moves=["status"], battle_snapshot=_dark_prankster_snapshot(opponent_types=["dark"]), repositories=repository)
+    assert unknown["move_success"]["missing_inputs"] == ["opponent.current_type"]
+    assert malformed["move_success"]["unsupported_reason"] == "current_type_context"
+    assert spread["move_success"]["unsupported_reason"] == "psychic_terrain_complex_target"
+    assert dark_short_circuit["move_success"]["priority_block_source"] == "dark_type_prankster_immunity"
+    assert terrain_short_circuit["move_success"]["block_reason"] == "psychic_terrain_priority"
+    assert ability_short_circuit["move_success"]["priority_block_source"] == "armor_tail_priority"
+    assert no_usable["status"] == "no_selectable_candidates"
+
+
 def test_presentation_uses_bounded_trick_room_action_order_text_only_for_selected_candidate():
     presentation = {
         "status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0,

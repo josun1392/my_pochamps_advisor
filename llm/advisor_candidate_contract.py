@@ -15,6 +15,7 @@ from llm.advisor_battle_state_context import (
     normalize_user_confirmed_final_battle_stat,
     normalize_user_confirmed_current_ability,
     normalize_user_confirmed_current_hp,
+    classify_current_type_dark_membership,
 )
 from llm.advisor_turn_snapshot import (
     build_snapshot_damage_input,
@@ -563,9 +564,57 @@ def _priority_blocking_ability_source(snapshot: Mapping[str, Any], metadata: Any
     }
 
 
+def _dark_type_prankster_target_relevance(metadata: Any) -> dict[str, Any]:
+    """Classify Dark-immunity target scope without re-evaluating priority."""
+    target = _metadata_value(metadata, "target")
+    if not isinstance(target, str) or not target or target == "unknown":
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["move.target"]}
+    if target in _SELF_TARGETS or target in _PSYCHIC_TERRAIN_ALLY_TARGETS or target in _PSYCHIC_TERRAIN_FIELD_TARGETS:
+        return {"status": "allowed", "move_success_status": "allowed"}
+    if target in _PSYCHIC_TERRAIN_COMPLEX_TARGETS:
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "dark_type_prankster_complex_target"}
+    if target not in _PSYCHIC_TERRAIN_OPPOSING_SINGLE_TARGETS:
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "move_target_metadata"}
+    return {"status": "opposing_single"}
+
+
+def _dark_type_prankster_source(snapshot: Mapping[str, Any], metadata: Any, action_order: Any) -> dict[str, Any] | None:
+    """Resolve only Dark-target immunity for an already-applied self Prankster modifier."""
+    context = snapshot.get("current_type_context")
+    if not isinstance(context, Mapping) or "current_types" not in context:
+        return None
+    if isinstance(action_order, Mapping) and action_order.get("status") == "unsupported_mechanic":
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "prankster_applied_evidence"}
+    if not isinstance(action_order, Mapping) or action_order.get("self_prankster_applied") is not True:
+        if isinstance(action_order, Mapping) and action_order.get("status") == "insufficient_context":
+            return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["self.prankster_applied"]}
+        return {"status": "allowed", "move_success_status": "allowed"}
+    if _metadata_value(metadata, "category") != "status":
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "prankster_category_evidence"}
+    relevance = _dark_type_prankster_target_relevance(metadata)
+    if relevance.get("status") != "opposing_single":
+        return relevance
+    membership = classify_current_type_dark_membership(context, side="opponent")
+    if membership == "unknown":
+        return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["opponent.current_type"]}
+    if membership == "malformed":
+        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "current_type_context"}
+    if membership == "known_does_not_contain_dark":
+        return {"status": "allowed", "move_success_status": "allowed"}
+    return {
+        "status": "blocked", "move_success_status": "blocked", "block_reason": "dark_type_prankster_immunity",
+        "priority_block_source": "dark_type_prankster_immunity", "priority_block_sources": ["dark_type_prankster_immunity"],
+        "target_type_authority_used": "known_contains_dark", "dark_type_prankster_immunity_blocked": True,
+    }
+
+
 def _priority_block_gate(snapshot: Mapping[str, Any], metadata: Any, action_order: Any) -> dict[str, Any] | None:
-    """Merge independent Psychic Terrain and defender-ability priority-block sources."""
-    sources = [source for source in (_psychic_terrain_priority_source(snapshot, metadata, action_order), _priority_blocking_ability_source(snapshot, metadata, action_order)) if isinstance(source, Mapping)]
+    """Merge independent Terrain, defender-ability, and Dark-Prankster block sources."""
+    sources = [source for source in (
+        _psychic_terrain_priority_source(snapshot, metadata, action_order),
+        _priority_blocking_ability_source(snapshot, metadata, action_order),
+        _dark_type_prankster_source(snapshot, metadata, action_order),
+    ) if isinstance(source, Mapping)]
     blocked = [source for source in sources if source.get("status") == "blocked"]
     if blocked:
         result = deepcopy(dict(blocked[0]))
@@ -575,7 +624,7 @@ def _priority_block_gate(snapshot: Mapping[str, Any], metadata: Any, action_orde
             if isinstance(name, str) and name not in source_names:
                 source_names.append(name)
             for key, value in source.items():
-                if key.endswith("_priority_blocked") or key in {"defender_ability_authority_used", "priority_block_source"}:
+                if key.endswith("_priority_blocked") or key in {"defender_ability_authority_used", "target_type_authority_used", "priority_block_source"}:
                     result[key] = deepcopy(value)
         result["priority_block_sources"] = source_names
         return result
