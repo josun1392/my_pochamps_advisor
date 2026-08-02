@@ -567,6 +567,10 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
             order = "마비로 감소한 스피드를 반영하면 후공함"
         elif action_order.get("reason") == "speed_advantage" and action_order.get("opponent_paralysis") == "paralyzed" and action_order.get("status") == "acts_first":
             order = "상대 마비를 반영해 먼저 행동함"
+        elif action_order.get("reason") == "speed_advantage" and action_order.get("self_speed_item_applied") == "choice-scarf" and action_order.get("status") == "acts_first":
+            order = "구애스카프의 스피드 보정을 반영해 먼저 행동함"
+        elif action_order.get("reason") == "speed_advantage" and action_order.get("self_speed_ability_applied") == "swift-swim" and action_order.get("weather_basis") == "rain" and action_order.get("status") == "acts_first":
+            order = "비와 쓱쓱 특성을 반영해 먼저 행동함"
         elif action_order.get("reason") == "speed_advantage" and action_order.get("trick_room") == "inactive":
             order = "트릭룸이 없어 보정 후 스피드가 빠른 쪽이 먼저 행동함"
     if order:

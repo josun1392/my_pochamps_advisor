@@ -13,6 +13,7 @@ from llm.advisor_battle_state_context import (
     normalize_user_confirmed_current_field_state,
     normalize_user_confirmed_current_stat_stage,
     normalize_user_confirmed_final_battle_stat,
+    normalize_user_confirmed_current_ability,
 )
 from llm.advisor_turn_snapshot import (
     build_snapshot_damage_input,
@@ -386,6 +387,32 @@ def _has_quick_feet(snapshot: Mapping[str, Any], side: str) -> bool:
     return isinstance(entries, list) and any(isinstance(entry, Mapping) and entry.get("side") == side and entry.get("ability") == "quick-feet" for entry in entries)
 
 
+def _known_speed_item(snapshot: Mapping[str, Any], side: str) -> str:
+    profiles = snapshot.get("item_profiles")
+    profile = profiles.get("my_active" if side == "self" else "opponent_active") if isinstance(profiles, Mapping) else None
+    if not isinstance(profile, Mapping): return "unknown"
+    status, source, item_id = profile.get("status"), profile.get("source"), profile.get("item_id")
+    if status in {"none", "absent"} and source == "user_input": return "none"
+    if status != "user_confirmed" or source != "user_input": return "unknown" if status in {None, "unknown", "system_default_none"} else "invalid"
+    return item_id if isinstance(item_id, str) and item_id else "invalid"
+
+
+def _known_speed_ability(snapshot: Mapping[str, Any], side: str) -> str:
+    context = snapshot.get("ability_context"); entries = context.get("current_abilities") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list): return "unknown"
+    matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
+    if len(matches) != 1: return "unknown" if not matches else "invalid"
+    try: return normalize_user_confirmed_current_ability(matches[0])["ability"]
+    except ValueError: return "invalid"
+
+
+def _known_speed_weather(snapshot: Mapping[str, Any]) -> str:
+    context = snapshot.get("field_state_context"); field = context.get("current_field") if isinstance(context, Mapping) else None
+    try: weather = normalize_user_confirmed_current_field_state(field)["weather"]
+    except ValueError: return "unknown"
+    return "sand" if weather == "sandstorm" else weather
+
+
 def _trusted_speed_stage(snapshot: Mapping[str, Any], side: str) -> int | None:
     context = snapshot.get("stat_stage_context")
     entries = context.get("current_stages") if isinstance(context, Mapping) else None
@@ -437,6 +464,10 @@ def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: 
     }
     if isinstance(snapshot.get("stat_stage_context"), Mapping):
         kwargs.update(self_speed_stage=_trusted_speed_stage(snapshot, "self"), opponent_speed_stage=_trusted_speed_stage(snapshot, "opponent"))
+    if isinstance(snapshot.get("item_profiles"), Mapping):
+        kwargs.update(self_speed_item=_known_speed_item(snapshot, "self"), opponent_speed_item=_known_speed_item(snapshot, "opponent"))
+    if isinstance(snapshot.get("ability_context"), Mapping):
+        kwargs.update(self_speed_ability=_known_speed_ability(snapshot, "self"), opponent_speed_ability=_known_speed_ability(snapshot, "opponent"), weather=_known_speed_weather(snapshot))
     return evaluate_action_order(**kwargs)
 
 

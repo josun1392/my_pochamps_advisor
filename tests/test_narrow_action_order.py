@@ -197,6 +197,47 @@ def test_paralysis_unknown_malformed_and_quick_feet_fail_closed_only_when_needed
     assert priority["status"] == "acts_first" and "self_paralysis" not in priority
 
 
+def test_static_speed_item_and_weather_abilities_apply_after_paralysis_before_tailwind_and_trick_room():
+    scarf = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=100, opponent_final_speed=140, trick_room="inactive",
+        self_speed_item="choice-scarf", opponent_speed_item="none",
+        self_speed_ability="static", opponent_speed_ability="static", weather="none",
+    )
+    rain = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),
+        self_final_speed=90, opponent_final_speed=150, trick_room="active",
+        self_paralysis="not_paralyzed", opponent_paralysis="not_paralyzed",
+        self_speed_item="none", opponent_speed_item="none",
+        self_speed_ability="swift-swim", opponent_speed_ability="static", weather="rain",
+    )
+    assert scarf["status"] == "acts_first" and scarf["self_final_speed"] == 150 and scarf["self_speed_item_applied"] == "choice-scarf"
+    assert rain["status"] == "acts_second" and rain["self_final_speed"] == 180 and rain["self_speed_ability_applied"] == "swift-swim"
+
+
+def test_static_speed_modifier_unknown_and_unsupported_authority_fail_closed_but_priority_does_not_need_it():
+    unknown_item = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0), self_final_speed=100, opponent_final_speed=90,
+        trick_room="inactive", self_speed_item="unknown", opponent_speed_item="none", self_speed_ability="static", opponent_speed_ability="static", weather="none",
+    )
+    unknown_weather = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0), self_final_speed=100, opponent_final_speed=90,
+        trick_room="inactive", self_speed_item="none", opponent_speed_item="none", self_speed_ability="swift-swim", opponent_speed_ability="static", weather="unknown",
+    )
+    unsupported = evaluate_action_order(
+        self_action=_action("tackle", 0), opponent_action=_action("scratch", 0), self_final_speed=100, opponent_final_speed=90,
+        trick_room="inactive", self_speed_item="none", opponent_speed_item="none", self_speed_ability="surge-surfer", opponent_speed_ability="static", weather="rain",
+    )
+    priority = evaluate_action_order(
+        self_action=_action("quick-attack", 1), opponent_action=_action("scratch", 0), self_final_speed=None, opponent_final_speed=None,
+        self_speed_item="unknown", opponent_speed_item="unknown", self_speed_ability="unknown", opponent_speed_ability="unknown", weather="unknown",
+    )
+    assert unknown_item["missing_inputs"] == ["self_speed_item"]
+    assert unknown_weather["missing_inputs"] == ["weather"]
+    assert unsupported["unsupported_reason"] == "speed_ability_modifier"
+    assert priority["status"] == "acts_first" and "self_speed_item" not in priority
+
+
 def test_explicit_speed_stage_authority_adjusts_equal_priority_speed_only():
     result = evaluate_action_order(
         self_action=_action("tackle", 0), opponent_action=_action("scratch", 0),

@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 from llm.advisor_battle_state_context import calculate_stage_adjusted_stat
-from advisor.damage.q12 import Q12_ONE
+from advisor.damage.q12 import Q12_ONE, apply_damage_modifier
+from advisor.damage.items import get_item
+from advisor.damage.item_modifiers import speed_stat_item_mod
+from advisor.damage.abilities import get_ability
+from advisor.damage.ability_modifiers import speed_stat_ability_mod
 from advisor.damage.status_effects import paralysis_spe_modifier
 
 
@@ -14,6 +18,10 @@ _STAGE_AUTHORITY_NOT_SUPPLIED = object()
 _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED = object()
 _TAILWIND_AUTHORITY_NOT_SUPPLIED = object()
 _PARALYSIS_AUTHORITY_NOT_SUPPLIED = object()
+_SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED = object()
+_SUPPORTED_SPEED_ABILITIES = frozenset({"swift-swim", "chlorophyll", "sand-rush", "slush-rush"})
+_UNSUPPORTED_SPEED_ABILITIES = frozenset({"surge-surfer", "unburden", "speed-boost", "slow-start", "protosynthesis", "quark-drive"})
+_UNSUPPORTED_SPEED_ITEMS = frozenset({"iron-ball", "macho-brace", "power-anklet", "power-band", "power-belt", "power-bracer", "power-lens", "power-weight", "lagging-tail", "full-incense", "quick-claw", "custap-berry"})
 
 
 def _action(value: Mapping[str, Any] | None, side: str) -> tuple[dict[str, Any] | None, str | None]:
@@ -49,6 +57,11 @@ def evaluate_action_order(
     opponent_paralysis_speed_ability_unsupported: bool = False,
     self_speed_stage: Any = _STAGE_AUTHORITY_NOT_SUPPLIED,
     opponent_speed_stage: Any = _STAGE_AUTHORITY_NOT_SUPPLIED,
+    self_speed_item: Any = _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED,
+    opponent_speed_item: Any = _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED,
+    self_speed_ability: Any = _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED,
+    opponent_speed_ability: Any = _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED,
+    weather: Any = _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED,
 ) -> dict[str, Any]:
     """Resolve a known action pair using only trusted final Speed and field state."""
     self_reference, self_error = _action(self_action, "self")
@@ -132,6 +145,50 @@ def evaluate_action_order(
         opponent_final_speed = (opponent_final_speed * paralysis_spe_modifier("paralysis", "static")) // Q12_ONE
     if "paralyzed" in {self_paralysis_state, opponent_paralysis_state}:
         result["paralysis_speed_adjustment_applied"] = True
+    item_states = {"self": "omitted" if self_speed_item is _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED else self_speed_item, "opponent": "omitted" if opponent_speed_item is _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED else opponent_speed_item}
+    for side, value in item_states.items():
+        if value in {"unknown", None}:
+            result["missing_inputs"] = [f"{side}_speed_item"]
+            return result
+        if not isinstance(value, str) or value == "invalid":
+            result.update(status="unsupported_mechanic", unsupported_reason="speed_item_context")
+            return result
+        if value in _UNSUPPORTED_SPEED_ITEMS:
+            result.update(status="unsupported_mechanic", unsupported_reason="speed_item_modifier")
+            return result
+    ability_states = {"self": "omitted" if self_speed_ability is _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED else self_speed_ability, "opponent": "omitted" if opponent_speed_ability is _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED else opponent_speed_ability}
+    weather_state = "omitted" if weather is _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED else weather
+    if weather_state not in {"omitted", "none", "rain", "sun", "sand", "snow", "unknown"}:
+        result.update(status="unsupported_mechanic", unsupported_reason="weather_speed_context")
+        return result
+    for side, value in ability_states.items():
+        if value in _UNSUPPORTED_SPEED_ABILITIES:
+            result.update(status="unsupported_mechanic", unsupported_reason="speed_ability_modifier")
+            return result
+        if value == "invalid":
+            result.update(status="unsupported_mechanic", unsupported_reason="speed_ability_context")
+            return result
+        if value in {"unknown", None} and weather_state not in {"omitted", "none"}:
+            result["missing_inputs"] = [f"{side}_speed_ability"]
+            return result
+    if weather_state == "unknown" and any(value in _SUPPORTED_SPEED_ABILITIES for value in ability_states.values()):
+        result["missing_inputs"] = ["weather"]
+        return result
+    for side, item_id in item_states.items():
+        if item_id == "choice-scarf":
+            modifier = speed_stat_item_mod(get_item(item_id), "")
+            if side == "self": self_final_speed = apply_damage_modifier(self_final_speed, modifier)
+            else: opponent_final_speed = apply_damage_modifier(opponent_final_speed, modifier)
+            result[f"{side}_speed_item_applied"] = "choice-scarf"
+    for side, ability_id in ability_states.items():
+        if ability_id in _SUPPORTED_SPEED_ABILITIES and weather_state not in {"omitted", "unknown", "none"}:
+            modifier = speed_stat_ability_mod(get_ability(ability_id), weather_state, False, "none")
+            if modifier != Q12_ONE:
+                if side == "self": self_final_speed = apply_damage_modifier(self_final_speed, modifier)
+                else: opponent_final_speed = apply_damage_modifier(opponent_final_speed, modifier)
+                result[f"{side}_speed_ability_applied"] = ability_id
+    if weather_state not in {"omitted", "unknown"}:
+        result["weather_basis"] = weather_state
     if "invalid" in {result["self_tailwind"], result["opponent_tailwind"]}:
         result.update(status="unsupported_mechanic", unsupported_reason="tailwind_context")
         return result
