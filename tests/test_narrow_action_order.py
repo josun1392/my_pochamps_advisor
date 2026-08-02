@@ -837,6 +837,43 @@ def test_dark_type_prankster_authority_fails_closed_and_complete_sources_short_c
     assert no_usable["status"] == "no_selectable_candidates"
 
 
+def test_priority_move_success_closure_keeps_ordered_sources_and_current_type_omission_distinct():
+    repository = {
+        "status": {"category": "status", "target": "selected-pokemon", "priority": 0},
+        "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0},
+    }
+    complete = evaluate_move_candidate(
+        slot_index=0,
+        move="status",
+        battle_snapshot=_dark_prankster_snapshot(
+            opponent_types=["dark", "ghost"], opponent_ability="armor-tail", terrain="psychic", grounded="known_grounded",
+        ),
+        repositories=repository,
+    )
+    omitted = evaluate_move_candidate(
+        slot_index=0,
+        move="status",
+        battle_snapshot=_dark_prankster_snapshot(opponent_types=None, opponent_ability="static"),
+        repositories=repository,
+    )
+    explicit_unknown = evaluate_move_candidate(
+        slot_index=0,
+        move="status",
+        battle_snapshot=_dark_prankster_snapshot(opponent_types="unknown", opponent_ability="static"),
+        repositories=repository,
+    )
+
+    assert complete["availability"] == "unavailable"
+    assert complete["action_order"]["self_prankster_applied"] is True
+    assert complete["move_success"]["priority_block_sources"] == [
+        "psychic_terrain_priority", "armor_tail_priority", "dark_type_prankster_immunity",
+    ]
+    assert complete["damage"] == {"status": "unavailable", "reason": "psychic_terrain_priority"}
+    assert omitted["move_success"]["move_success_status"] == "allowed"
+    assert explicit_unknown["availability"] == "unavailable"
+    assert explicit_unknown["move_success"]["missing_inputs"] == ["opponent.current_type"]
+
+
 def test_presentation_uses_bounded_trick_room_action_order_text_only_for_selected_candidate():
     presentation = {
         "status": "resolved", "recommended_move": "tackle", "recommended_slot_index": 0,

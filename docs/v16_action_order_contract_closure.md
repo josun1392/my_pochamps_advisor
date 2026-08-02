@@ -1,4 +1,4 @@
-# Action-order contract closure
+# Priority generation and move-success contract closure
 
 ## Supported scope
 
@@ -18,6 +18,21 @@ The native action-order evaluator supports canonical move priority, trusted curr
 10. For a tie, hand off unchanged to final Speed, stages, paralysis, static Speed modifiers, Tailwind, comparison, Trick Room, then `speed_tie`.
 
 The implementation reuses the existing stage, paralysis, Q12 item, and Q12 ability helpers. Final Speed is the trusted pre-battle-order-modifier value; no base-stat, EV, IV, nature, or provider inference is used.
+
+## Priority move-success sequence
+
+Candidate evaluation keeps action order and move success separate and fixed in this order:
+
+1. Bind candidate identity, move metadata, and acting-side authority.
+2. Derive base priority and apply Prankster, Gale Wings, and Triage once each.
+3. Resolve action order; only an effective-priority tie enters the existing Speed chain.
+4. Classify canonical target scope.
+5. Independently evaluate Psychic Terrain, defender-side priority-blocking ability, and Dark-type Prankster immunity.
+6. Merge complete block sources in deterministic order: Psychic Terrain, defender ability, then Dark-type Prankster immunity.
+7. Mark a candidate selectable only when it has no complete block and its existing mechanics are usable.
+8. Preserve damage/status evidence only for allowed candidates, pass the exact selectable set to the provider, and attach only selected server-owned evidence to presentation.
+
+A blocked move retains its action-order and priority evidence, but it does not claim damage, KO, fixed-damage success, status success, healing consequence, or any state mutation.
 
 ## Authority and lifecycle
 
@@ -51,14 +66,26 @@ The candidate layer separately applies narrow move-success gates after action or
 
 Known ungrounded targets, nonpositive priority, and self/ally/field targets are allowed by these gates only; that is not a general success guarantee. Unknown relevant terrain, defender ability, target scope, groundedness, or effective priority is fail-closed; malformed authority and complex/spread targets are unsupported. A complete block from either source short-circuits an unknown in the other source. When both apply, the candidate stays blocked with ordered source evidence (Psychic Terrain first) and a single bounded presentation. Omitted blocking-ability authority preserves the Psychic-Terrain-only narrow evaluator behavior. Psychic Terrain's damage boost remains separate from every move-success gate.
 
+Dark-type Prankster immunity is a third, independent source. It is considered only when the same candidate already carries server-owned `self_prankster_applied` evidence for a status move with canonical opposing-single scope. The defender's request-start `current_type_context` must classify as `known_contains_dark`; pure and dual Dark types both qualify. It never follows merely from positive priority, so canonical positive-priority, Gale Wings, and Triage moves are outside this source. Current type is target/defender-owned, never falls back to species/base type, and remains distinct across omitted, explicit unknown, known non-Dark, and malformed values. A complete Terrain or defender-ability block similarly short-circuits unknown current type, while a complete Dark block short-circuits unknown Terrain or defender ability.
+
+| Source | Required defender-side authority | Block condition | Non-applicable without inference |
+| --- | --- | --- | --- |
+| Psychic Terrain | trusted current terrain and target groundedness | Psychic Terrain + positive priority + opposing-single + grounded target | known ungrounded target, nonpositive priority, or non-opposing scope |
+| Queenly Majesty / Dazzling / Armor Tail | trusted current defender ability | supported ability + positive priority + opposing-single | known non-blocking ability, nonpositive priority, or non-opposing scope |
+| Dark-type Prankster immunity | trusted current target type | actual Prankster-applied status action + opposing-single + Dark target | known non-Dark target, non-applied Prankster, or non-opposing scope |
+
+For every source, explicit unknown is `insufficient_context` only when that source remains relevant and no other complete source has already blocked. Malformed, conflicting, complex-target, or known unsupported relevant authority is `unsupported_mechanic`. Omitted standalone authority retains the prior narrow-helper behavior rather than being converted to explicit unknown.
+
 ## Provider boundary
 
 The provider returns only recommendation status, selected candidate identity, and a bounded explanation code. It cannot supply or change ability, category/type, HP, healing/drain metadata, base/effective priority, Speed, stages, paralysis, item, weather, Tailwind, Trick Room, modifiers, or action order. A no-usable-candidate cycle makes zero provider calls.
 
+It also cannot supply or change terrain, groundedness, current type, target scope, a priority block source, move-success status, candidate usability, or damage/status evidence. The application owns candidate-local source evidence and exposes only the selected candidate's bounded result/presentation evidence.
+
 ## Unsupported inventory
 
-Quick Feet, Unburden, Speed Boost, Surge Surfer, Slow Start, Protosynthesis, Quark Drive, Booster Energy, Iron Ball, Macho Brace, Power items, Lagging Tail, Full Incense, Quick Claw, Custap Berry, Stall, Mycelium Might, conditional/dual-purpose healing moves without explicit positive numeric metadata, weather/Tailwind/Trick Room duration, full-paralysis probability, and Choice-lock strategy remain outside this evaluator. Prankster's Dark-target move-success rule, ability suppression, Triage healing consequences, and all Gale Wings HP mutation/approximation are also excluded. Psychic Terrain and the three supported defender abilities support only direct opposing-single priority blocking; spread/partial target resolution remains unsupported. Known relevant unsupported mechanics fail closed rather than being treated as no effect.
+Quick Feet, Unburden, Speed Boost, Surge Surfer, Slow Start, Protosynthesis, Quark Drive, Booster Energy, Iron Ball, Macho Brace, Power items, Lagging Tail, Full Incense, Quick Claw, Custap Berry, Stall, Mycelium Might, conditional/dual-purpose healing moves without explicit positive numeric metadata, weather/Tailwind/Trick Room duration, full-paralysis probability, and Choice-lock strategy remain outside this evaluator. Ability suppression, Neutralizing Gas, Mold Breaker interactions, Terastallization and all type mutation, Protect, accuracy/evasion, ally redirection, and spread/partial target resolution are also excluded. Psychic Terrain and the three supported defender abilities support only direct opposing-single priority blocking. Known relevant unsupported mechanics fail closed rather than being treated as no effect.
 
 ## Grounding coverage and next step
 
-Sanitized actual-grounding fixtures cover Prankster, Gale Wings, Triage, the Psychic Terrain priority-block gate, and the defender priority-blocking pair. The ability pair fixes an Armor Tail-blocked candidate outside the provider-selectable set, then verifies that a complete Psychic Terrain source still blocks when the defender ability is explicit unknown. Offline coverage additionally fixes Queenly Majesty, Dazzling, target-side ownership, source short-circuiting, and non-selectable candidate behavior. The provider may select only from the remaining rankable controls; no fixture converts an unknown authority to allowed or blocked. Their offline/fake-provider contracts remain regression coverage for the minimal provider boundary. Further work should be a separate bounded proposal for one unsupported priority-blocking or move-success mechanic, rather than expanding this contract implicitly.
+Sanitized actual-grounding fixtures cover Prankster, Gale Wings, Triage, the Psychic Terrain priority-block gate, the defender priority-blocking abilities, and Dark-type Prankster immunity. Each pair uses a blocked or insufficient candidate plus a usable control, proving that the provider can see only the exact selectable control set. Offline coverage additionally fixes Queenly Majesty, Dazzling, target-side ownership, source ordering/short-circuiting, omitted-versus-explicit-unknown current type, species/current-type non-fallback, and non-selectable candidate behavior. No fixture converts an unknown authority to allowed or blocked, and no raw provider material is retained here. Further work should be a separate bounded proposal for an unsupported move-success mechanic, rather than expanding this contract implicitly.
