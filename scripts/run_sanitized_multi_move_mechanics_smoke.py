@@ -45,7 +45,8 @@ PRANKSTER_FIXTURES = ("supported-prankster-priority", "unknown-prankster-authori
 GALE_WINGS_FIXTURES = ("supported-gale-wings-priority", "unknown-gale-wings-hp-with-priority-control")
 TRIAGE_FIXTURES = ("supported-triage-priority", "unknown-triage-eligibility-with-priority-control")
 PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES = ("supported-psychic-terrain-priority-block", "unknown-groundedness-with-nonpriority-control")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES, TRIAGE_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES})
+PRIORITY_BLOCKING_ABILITY_FIXTURES = ("supported-priority-blocking-ability", "priority-block-short-circuit-with-unknown-secondary-source")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES, TRIAGE_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -165,12 +166,14 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "mystery-drain"}, {"move_id": "seismic-toss"}], {"mystery-drain": {"category": "physical", "power": 1, "type": "fighting", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "drain": 0, "healing": 0, "priority": 1}, "tackle": {"category": "physical", "power": 40, "type": "normal", "drain": 0, "healing": 0, "priority": 0}}
     if fixture_id in PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES:
         return [{"move_id": "quick-attack"}, {"move_id": "seismic-toss"}, {"move_id": "tackle"}], {"quick-attack": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
+    if fixture_id in PRIORITY_BLOCKING_ABILITY_FIXTURES:
+        return [{"move_id": "quick-attack"}, {"move_id": "seismic-toss"}, {"move_id": "night-shade"}], {"quick-attack": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 1}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "night-shade": {"category": "special", "type": "ghost", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES, *TRIAGE_FIXTURES, *PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES, *TRIAGE_FIXTURES, *PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -275,6 +278,11 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
     if fixture_id in PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES:
         battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "psychic", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
         battle["grounded_context"] = {"opponent": {"status": "known_grounded", "provenance": "user_confirmed_current"} if fixture_id == PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES[0] else {"status": "unknown", "provenance": "unknown"}}
+    if fixture_id in PRIORITY_BLOCKING_ABILITY_FIXTURES:
+        battle["ability_context"] = {"current_abilities": [_current_ability("armor-tail" if fixture_id == PRIORITY_BLOCKING_ABILITY_FIXTURES[0] else "unknown", side="opponent", pokemon="eevee", slot=1)]}
+        if fixture_id == PRIORITY_BLOCKING_ABILITY_FIXTURES[1]:
+            battle["field_state_context"] = {"current_field": {"weather": "none", "terrain": "psychic", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
+            battle["grounded_context"] = {"opponent": {"status": "known_grounded", "provenance": "user_confirmed_current"}}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -566,6 +574,14 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES[1]:
         incomplete, control, lower = rows
         return incomplete.get("move_success", {}).get("status") == "insufficient_context" and incomplete.get("move_success", {}).get("missing_inputs") == ["opponent.grounded"] and incomplete.get("availability") == "unavailable" and incomplete.get("damage", {}).get("status") == "unavailable" and "q12_damage" not in incomplete and control.get("move_success", {}).get("move_success_status") == "allowed" and control.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and lower.get("move_success", {}).get("move_success_status") == "allowed" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [None, 1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 1, "move": "seismic-toss"}, {"slot_index": 2, "move": "tackle"}]
+    if fixture_id == PRIORITY_BLOCKING_ABILITY_FIXTURES[0]:
+        blocked, control, lower = rows
+        success = blocked.get("move_success", {})
+        return success.get("move_success_status") == "blocked" and success.get("block_reason") == "priority_blocking_ability" and success.get("priority_block_source") == "armor_tail_priority" and success.get("armor_tail_priority_blocked") is True and success.get("psychic_terrain_priority_blocked") is not True and blocked.get("availability") == "unavailable" and blocked.get("damage", {}).get("status") == "unavailable" and "q12_damage" not in blocked and blocked.get("action_order", {}).get("status") == "acts_first" and control.get("move_success", {}).get("move_success_status") == "allowed" and control.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and lower.get("move_success", {}).get("move_success_status") == "allowed" and lower.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [None, 1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 1, "move": "seismic-toss"}, {"slot_index": 2, "move": "night-shade"}]
+    if fixture_id == PRIORITY_BLOCKING_ABILITY_FIXTURES[1]:
+        blocked, control, lower = rows
+        success = blocked.get("move_success", {})
+        return success.get("move_success_status") == "blocked" and success.get("block_reason") == "psychic_terrain_priority" and success.get("psychic_terrain_priority_blocked") is True and success.get("armor_tail_priority_blocked") is not True and blocked.get("availability") == "unavailable" and blocked.get("damage", {}).get("status") == "unavailable" and "q12_damage" not in blocked and control.get("move_success", {}).get("move_success_status") == "allowed" and control.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and lower.get("move_success", {}).get("move_success_status") == "allowed" and lower.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [None, 1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 1, "move": "seismic-toss"}, {"slot_index": 2, "move": "night-shade"}]
     return False
 
 
@@ -701,7 +717,7 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
         if fixture_id == TRIAGE_FIXTURES[0]:
             return isinstance(order, Mapping) and order.get("self_triage_applied") is True and "힐링시프트로 회복 기술의 우선도가 올라 먼저 행동함" in text and "triage" not in text and "effective_priority" not in text
         return isinstance(order, Mapping) and order.get("reason") == "priority_advantage" and "힐링시프트" not in text and "healing_move_authority" not in text
-    if fixture_id in PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES:
+    if fixture_id in {*PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES}:
         move_success = selected.get("move_success")
         return isinstance(move_success, Mapping) and move_success.get("move_success_status") == "allowed" and move_success.get("psychic_terrain_priority_blocked") is not True and "psychic_terrain" not in text and "priority_blocked" not in text
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
