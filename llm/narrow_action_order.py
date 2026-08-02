@@ -10,6 +10,7 @@ from llm.advisor_battle_state_context import calculate_stage_adjusted_stat
 _CONDITIONAL_PRIORITY_MOVES = frozenset({"grassy-glide"})
 _STAGE_AUTHORITY_NOT_SUPPLIED = object()
 _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED = object()
+_TAILWIND_AUTHORITY_NOT_SUPPLIED = object()
 
 
 def _action(value: Mapping[str, Any] | None, side: str) -> tuple[dict[str, Any] | None, str | None]:
@@ -33,6 +34,10 @@ def evaluate_action_order(
     opponent_final_speed: Any,
     trick_room: Any = _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED,
     trick_room_provenance: str | None = None,
+    self_tailwind: Any = _TAILWIND_AUTHORITY_NOT_SUPPLIED,
+    opponent_tailwind: Any = _TAILWIND_AUTHORITY_NOT_SUPPLIED,
+    self_tailwind_provenance: str | None = None,
+    opponent_tailwind_provenance: str | None = None,
     self_speed_stage: Any = _STAGE_AUTHORITY_NOT_SUPPLIED,
     opponent_speed_stage: Any = _STAGE_AUTHORITY_NOT_SUPPLIED,
 ) -> dict[str, Any]:
@@ -44,6 +49,10 @@ def evaluate_action_order(
         "opponent_action": opponent_reference,
         "trick_room": "inactive" if trick_room is _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED else trick_room if trick_room in {"active", "inactive", "unknown"} else "unknown",
         "trick_room_authority": "omitted" if trick_room is _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED else trick_room_provenance if trick_room_provenance in {"user_confirmed_current", "trusted_observed_current", "unknown"} else "unknown",
+        "self_tailwind": "inactive" if self_tailwind is _TAILWIND_AUTHORITY_NOT_SUPPLIED else self_tailwind if self_tailwind in {"active", "inactive", "unknown", "invalid"} else "invalid",
+        "opponent_tailwind": "inactive" if opponent_tailwind is _TAILWIND_AUTHORITY_NOT_SUPPLIED else opponent_tailwind if opponent_tailwind in {"active", "inactive", "unknown", "invalid"} else "invalid",
+        "self_tailwind_authority": "omitted" if self_tailwind is _TAILWIND_AUTHORITY_NOT_SUPPLIED else self_tailwind_provenance if self_tailwind_provenance in {"user_confirmed_current", "trusted_observed_current", "unknown"} else "unknown",
+        "opponent_tailwind_authority": "omitted" if opponent_tailwind is _TAILWIND_AUTHORITY_NOT_SUPPLIED else opponent_tailwind_provenance if opponent_tailwind_provenance in {"user_confirmed_current", "trusted_observed_current", "unknown"} else "unknown",
         "authority": "canonical_move_metadata_and_trusted_runtime",
         "status": "insufficient_context",
         "missing_inputs": [],
@@ -93,6 +102,19 @@ def evaluate_action_order(
         self_final_speed = calculate_stage_adjusted_stat(self_final_speed, self_speed_stage)
         opponent_final_speed = calculate_stage_adjusted_stat(opponent_final_speed, opponent_speed_stage)
         result.update(self_speed_stage=self_speed_stage, opponent_speed_stage=opponent_speed_stage, speed_stage_adjustment_applied=True)
+    if "invalid" in {result["self_tailwind"], result["opponent_tailwind"]}:
+        result.update(status="unsupported_mechanic", unsupported_reason="tailwind_context")
+        return result
+    missing_tailwind = [name for name, value in (("self_tailwind", result["self_tailwind"]), ("opponent_tailwind", result["opponent_tailwind"])) if value == "unknown"]
+    if missing_tailwind:
+        result["missing_inputs"] = missing_tailwind
+        return result
+    if result["self_tailwind"] == "active":
+        self_final_speed *= 2
+    if result["opponent_tailwind"] == "active":
+        opponent_final_speed *= 2
+    if "active" in {result["self_tailwind"], result["opponent_tailwind"]}:
+        result["tailwind_adjustment_applied"] = True
     result.update(self_final_speed=self_final_speed, opponent_final_speed=opponent_final_speed)
     if self_final_speed == opponent_final_speed:
         result.update(status="speed_tie", reason="equal_priority_equal_speed", speed_comparison="equal")

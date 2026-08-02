@@ -301,6 +301,38 @@ def _known_trick_room(snapshot: Mapping[str, Any]) -> tuple[str, str]:
     return ("active" if "trick-room" in normalized["global_effects"] else "inactive"), "user_confirmed_current"
 
 
+def _known_tailwind(snapshot: Mapping[str, Any]) -> tuple[tuple[str, str], tuple[str, str]]:
+    context = snapshot.get("field_state_context")
+    declared = context.get("tailwind") if isinstance(context, Mapping) else None
+    if isinstance(declared, Mapping):
+        values = []
+        for side in ("self", "opponent"):
+            value = declared.get(side)
+            if not isinstance(value, Mapping):
+                values.append(("invalid", "unknown"))
+                continue
+            status, provenance = value.get("status"), value.get("provenance")
+            if status == "known_active" and provenance in {"user_confirmed_current", "trusted_observed_current"}:
+                values.append(("active", provenance))
+            elif status == "known_inactive" and provenance in {"user_confirmed_current", "trusted_observed_current"}:
+                values.append(("inactive", provenance))
+            elif status == "unknown" and provenance == "unknown":
+                values.append(("unknown", "unknown"))
+            else:
+                values.append(("invalid", "unknown"))
+        return values[0], values[1]
+    field = context.get("current_field") if isinstance(context, Mapping) else None
+    try:
+        normalized = normalize_user_confirmed_current_field_state(field)
+    except ValueError:
+        return ("unknown", "unknown"), ("unknown", "unknown")
+    effects = {(entry["side"], entry["effect"]) for entry in normalized["side_effects"]}
+    return (
+        ("active" if ("self", "tailwind") in effects else "inactive", "user_confirmed_current"),
+        ("active" if ("opponent", "tailwind") in effects else "inactive", "user_confirmed_current"),
+    )
+
+
 def _trusted_speed_stage(snapshot: Mapping[str, Any], side: str) -> int | None:
     context = snapshot.get("stat_stage_context")
     entries = context.get("current_stages") if isinstance(context, Mapping) else None
@@ -330,6 +362,7 @@ def _canonical_opponent_action(snapshot: Mapping[str, Any], repositories: Any) -
 
 def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: Any, repositories: Any) -> dict[str, Any]:
     trick_room, trick_room_provenance = _known_trick_room(snapshot)
+    (self_tailwind, self_tailwind_provenance), (opponent_tailwind, opponent_tailwind_provenance) = _known_tailwind(snapshot)
     kwargs = {
         "self_action": {"move_id": move, "priority": _metadata_value(metadata, "priority")},
         "opponent_action": _canonical_opponent_action(snapshot, repositories),
@@ -337,6 +370,10 @@ def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: 
         "opponent_final_speed": _trusted_final_speed(snapshot, "opponent"),
         "trick_room": trick_room,
         "trick_room_provenance": trick_room_provenance,
+        "self_tailwind": self_tailwind,
+        "opponent_tailwind": opponent_tailwind,
+        "self_tailwind_provenance": self_tailwind_provenance,
+        "opponent_tailwind_provenance": opponent_tailwind_provenance,
     }
     if isinstance(snapshot.get("stat_stage_context"), Mapping):
         kwargs.update(self_speed_stage=_trusted_speed_stage(snapshot, "self"), opponent_speed_stage=_trusted_speed_stage(snapshot, "opponent"))
