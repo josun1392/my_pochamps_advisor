@@ -40,3 +40,11 @@ The deterministic adapter composes its category ordinal with the existing base r
 `partial-known-confirmed-threat-ranking` and `partial-known-neutral-no-safety-reward` are the approved sanitized provider fixtures. Each has a partial trusted opponent moveset with three unresolved slots. Preflight owns candidate IDs, selectability, base rank, threat tier, final deterministic rank, and provider-payload redaction. The provider remains limited to its existing minimal selection response; raw threat summaries, tiers, opponent moves, and pair evidence remain excluded.
 
 The approved `gemini-2.5-flash` round passed both fixtures in order with two total calls. Retry, fallback, and repair counts were all zero. The first fixture confirmed the application-owned confirmed-danger penalty; the second confirmed that partial neutral evidence receives no safety reward. Only fixture status and call counts were retained; no prompt/payload text or provider response was retained.
+
+## End-to-end contract closure
+
+The canonical authority chain is: trusted identity/session-bound `known_move_context` → frozen active-opponent action candidates → opponent-to-self mechanics evidence → self/opponent pairs → per-self known-threat summary → categorical tier → existing base rank → stable order → provider minimal selection. Upstream ownership and lifecycle contracts remain canonical in `known_move_context_design.md`, `opponent_known_move_action_candidate_design.md`, `self_vs_opponent_pairwise_comparison_design.md`, and `known_opponent_threat_aggregation_design.md`.
+
+The three grounding commits (`7f5e8f3`, `8f6c089`, and `fcfcac2`) only stabilized preemption-aware tier projection, its sanitized smoke runner, and fixture documentation. They did not alter provider schema, selectability, unknown-move modeling, probability ranking, or the partial-known positive-only policy.
+
+Still unsupported: unknown-opponent move synthesis, move-choice probabilities, meta/species inference, scalar or probability-weighted threat scoring, expected outcomes, accuracy/critical/residual/recovery-aware threat, opponent switches, switch ranking, and multi-turn outcome trees. Future presentation, switch architecture, or new battle authorities require separate policy work.
