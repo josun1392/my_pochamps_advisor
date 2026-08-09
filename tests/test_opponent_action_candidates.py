@@ -21,4 +21,6 @@ def test_prepared_cycle_keeps_opponent_candidates_internal_and_provider_request_
  repo={"tackle":{"move_id":"tackle","category":"physical","priority":0,"power":40,"type":"normal","target":"selected-pokemon"},"earthquake":{"move_id":"earthquake","category":"physical","priority":0,"power":100,"type":"ground","target":"selected-pokemon"}}
  prepared=prepare_ui_recommendation_cycle(selected_moves=[{"move_id":"tackle"}],battle_input=battle,move_repository=repo)
  assert prepared["evidence_bundle"]["opponent_action_candidates"]["known_candidate_count"]==1
- assert "opponent_action_candidates" not in repr(build_provider_recommendation_payload(prepared_cycle=prepared))
+ assert prepared["evidence_bundle"]["self_opponent_pairs"]["pair_count"]==1
+ payload=build_provider_recommendation_payload(prepared_cycle=prepared)
+ assert "opponent_action_candidates" not in repr(payload) and "self_opponent_pairs" not in repr(payload)

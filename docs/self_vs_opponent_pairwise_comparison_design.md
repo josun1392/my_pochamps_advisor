@@ -2,7 +2,7 @@
 
 ## Scope
 
-This is a design-only, application-owned contract. A pair is one frozen self recommendation candidate and one frozen trusted opponent action candidate. It combines existing evidence read-only; it does not choose an opponent move, aggregate threats, alter self ranking, model unknown move slots, or change provider/UI contracts.
+This is an implemented, application-owned internal contract. `advisor_pairwise_evaluator.py` creates one pair from each frozen self recommendation candidate and frozen trusted opponent action evaluation. It combines existing evidence read-only; it does not choose an opponent move, aggregate threats, alter self ranking, model unknown move slots, or change provider/UI contracts.
 
 ## Pair source, identity, and ordering
 
@@ -14,7 +14,7 @@ Opponent moveset state stays visible on every pair: unknown produces no pairs an
 
 The pair layer never recalculates Q12, direct mechanics, action order, move success, KO, or probability. It consumes self-candidate outgoing evidence (`self -> opponent`) and opponent-evaluator incoming evidence (`opponent -> self`). Self current HP is only the defender HP for the opponent action; opponent HP is only the defender HP for the self action. Move-success evidence remains independent on each side.
 
-Pairwise action order must call the existing action-order engine with the specific self and opponent actions. It may report self-first, opponent-first, speed tie, insufficient context, or unsupported mechanics. Priority differences avoid a Speed requirement; equal priorities retain the existing speed-stage, paralysis, item, ability, Tailwind, weather, and Trick Room chain. No aggregate "opponent goes first" conclusion exists.
+Pairwise action order calls the existing action-order helper with the specific frozen self move and frozen opponent move metadata. It may report self-first, opponent-first, speed tie, insufficient context, or unsupported mechanics. Priority differences avoid a Speed requirement; equal priorities retain the existing speed-stage, paralysis, item, ability, Tailwind, weather, and Trick Room chain. No aggregate "opponent goes first" conclusion exists.
 
 ## Deterministic preemption
 
@@ -34,7 +34,6 @@ Pair evidence is pair-local and detached: it cannot overwrite or mutate either s
 
 ## Future bounded consumers
 
-1. Implement pairwise read-only evaluator and exact existing action-order invocation.
-2. Define known-moveset aggregation while preserving partial-set uncertainty.
-3. Define any ranking or switch policy separately.
-4. Consider a probability outcome tree separately, without mixing it with deterministic preemption.
+1. Define known-moveset aggregation while preserving partial-set uncertainty.
+2. Define any ranking or switch policy separately.
+3. Consider a probability outcome tree separately, without mixing it with deterministic preemption.

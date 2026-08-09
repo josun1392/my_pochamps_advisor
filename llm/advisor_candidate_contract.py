@@ -27,6 +27,7 @@ from llm.advisor_turn_snapshot import (
 from llm.advisor_q12_snapshot_adapter import invoke_existing_q12_from_snapshot
 from llm.advisor_opponent_action_candidates import build_opponent_action_candidates
 from llm.advisor_opponent_action_evaluator import evaluate_opponent_action_candidates
+from llm.advisor_pairwise_evaluator import evaluate_self_opponent_pairs
 from llm.advisor_direct_mechanics import NATIVE_DIRECT_MECHANICS_SOURCES, evaluate_direct_damage_mechanics
 from llm.narrow_action_order import evaluate_action_order
 from llm.move_consequence_evidence import evaluate_move_consequence_evidence
@@ -1801,7 +1802,12 @@ def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_inp
         opponent_candidates = build_opponent_action_candidates(
             turn_snapshot=request_turn_snapshot, move_repository=move_repository, species_repository=species_repository,
         )
-        prepared["evidence_bundle"]["opponent_action_candidates"] = evaluate_opponent_action_candidates(opponent_candidates)
+        opponent_evaluation = evaluate_opponent_action_candidates(opponent_candidates)
+        prepared["evidence_bundle"]["opponent_action_candidates"] = opponent_evaluation
+        prepared["evidence_bundle"]["self_opponent_pairs"] = evaluate_self_opponent_pairs(
+            self_candidates=prepared["candidates"], opponent_evaluation=opponent_evaluation,
+            turn_snapshot=request_turn_snapshot, repositories=move_repository,
+        )
     return prepared
 
 
