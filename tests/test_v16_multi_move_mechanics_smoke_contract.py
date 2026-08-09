@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, CURRENT_TYPE_Q12_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, CURRENT_TYPE_Q12_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, KO_INTERPRETATION_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -33,6 +33,15 @@ def test_multi_candidate_grounding_fixtures_preserve_isolated_mechanics_and_acti
     assert any(row["action_order"]["status"] == "acts_first" for row in complete)
     mixed = _prepared(GROUNDING_FIXTURES[1])["recommendation_request"]["candidate_comparisons"]
     assert [row["mechanics_result"]["status"] for row in mixed] == ["known", "insufficient_context", "unsupported_mechanic"]
+
+
+def test_ko_fixture_pair_keeps_server_owned_labels_and_unknown_hp_selectable():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=KO_INTERPRETATION_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    known, unknown = (_prepared(fixture)["recommendation_request"]["candidate_comparisons"] for fixture in KO_INTERPRETATION_FIXTURES)
+    assert known[0]["mechanics_result"]["ko_interpretation"]["primary_ko_label"] == "possible_ohko"
+    assert unknown[0]["mechanics_result"]["ko_interpretation"]["ko_supportability"] == "insufficient_context"
+    assert unknown[0]["eligibility"] != "not_selectable"
 
 
 def test_accuracy_fixture_pair_preserves_numeric_and_always_hit_distinction():

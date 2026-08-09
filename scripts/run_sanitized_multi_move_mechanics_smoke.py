@@ -48,7 +48,8 @@ PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES = ("supported-psychic-terrain-priority-b
 PRIORITY_BLOCKING_ABILITY_FIXTURES = ("supported-priority-blocking-ability", "priority-block-short-circuit-with-unknown-secondary-source")
 DARK_TYPE_PRANKSTER_FIXTURES = ("supported-dark-type-prankster-immunity", "unknown-current-type-with-nonprankster-control")
 CURRENT_TYPE_Q12_FIXTURES = ("supported-current-type-q12-override", "unknown-current-type-with-fixed-control")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES, TRIAGE_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, CURRENT_TYPE_Q12_FIXTURES})
+KO_INTERPRETATION_FIXTURES = ("supported-q12-ko-interpretation", "unknown-ko-hp-with-damage-supported-candidate")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES, TRIAGE_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, CURRENT_TYPE_Q12_FIXTURES, KO_INTERPRETATION_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -174,12 +175,14 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "taunt"}, {"move_id": "seismic-toss"}, {"move_id": "night-shade"}], {"taunt": {"category": "status", "target": "selected-pokemon", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "night-shade": {"category": "special", "type": "ghost", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
     if fixture_id in CURRENT_TYPE_Q12_FIXTURES:
         return [{"move_id": "flamethrower"}, {"move_id": "seismic-toss"}], {"flamethrower": {"category": "special", "power": 90, "type": "fire", "target": "selected-pokemon", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
+    if fixture_id in KO_INTERPRETATION_FIXTURES:
+        return [{"move_id": "slam"}, {"move_id": "seismic-toss"}], {"slam": {"category": "physical", "power": 100, "type": "normal", "target": "selected-pokemon", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES, *TRIAGE_FIXTURES, *PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES, *DARK_TYPE_PRANKSTER_FIXTURES, *CURRENT_TYPE_Q12_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES, *TRIAGE_FIXTURES, *PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES, *DARK_TYPE_PRANKSTER_FIXTURES, *CURRENT_TYPE_Q12_FIXTURES, *KO_INTERPRETATION_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -311,6 +314,10 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
                 {"side": "self", "state": "unknown", "status": "unknown", "source": "unknown", "authority_provenance": "unknown", "confidence": "unknown"},
                 {"side": "opponent", "state": "known", "types": ["grass", "steel"], "status": "user_confirmed", "source": "user_confirmed_current_type", "authority_provenance": "user_confirmed_current", "confidence": "known", "provenance": _provenance("opponent", 1, "eevee", source="user_confirmed_current_type")},
             ]}
+    if fixture_id == KO_INTERPRETATION_FIXTURES[0]:
+        battle["current_hp_context"] = {"current_hp": [_current_hp("self", 100, 100), _current_hp("opponent", 60, 100)]}
+    if fixture_id == KO_INTERPRETATION_FIXTURES[1]:
+        battle["current_hp_context"] = {"current_hp": [_current_hp("self", 100, 100), {"side": "opponent", "state": "unknown"}]}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
 
@@ -624,6 +631,13 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == CURRENT_TYPE_Q12_FIXTURES[1]:
         incomplete, control = rows
         return incomplete.get("mechanics_result", {}).get("status") == "insufficient_context" and incomplete.get("mechanics_result", {}).get("missing_inputs") == ["attacker.current_type"] and incomplete.get("availability") == "unavailable" and incomplete.get("damage", {}).get("status") == "unavailable" and "q12_damage" not in incomplete and control.get("mechanics_result", {}).get("damage_model") == "level_based_fixed" and control.get("availability") == "partially_evaluable" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [None, 1] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 1, "move": "seismic-toss"}]
+    if fixture_id == KO_INTERPRETATION_FIXTURES[0]:
+        formula, control = rows
+        ko = formula.get("mechanics_result", {}).get("ko_interpretation", {})
+        return formula.get("mechanics_result", {}).get("status") == "known" and ko.get("ko_supportability") == "complete" and (ko.get("ohko_result"), ko.get("two_hko_result"), ko.get("three_hko_result"), ko.get("primary_ko_label")) == ("possible", "guaranteed", "guaranteed", "possible_ohko") and control.get("mechanics_result", {}).get("ko_interpretation", {}).get("primary_ko_label") == "guaranteed_2hko" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 0, "move": "slam"}, {"slot_index": 1, "move": "seismic-toss"}]
+    if fixture_id == KO_INTERPRETATION_FIXTURES[1]:
+        formula, control = rows
+        return formula.get("mechanics_result", {}).get("status") == "known" and formula.get("mechanics_result", {}).get("ko_interpretation") == {"ko_supportability": "insufficient_context", "missing_inputs": ["opponent.current_hp"]} and formula.get("availability") == "partially_evaluable" and "primary_ko_label" not in formula.get("mechanics_result", {}).get("ko_interpretation", {}) and control.get("availability") == "partially_evaluable" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 0, "move": "slam"}, {"slot_index": 1, "move": "seismic-toss"}]
     return False
 
 
@@ -670,7 +684,7 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
     if not isinstance(summary, Mapping) or summary.get("selected_action") != action:
         return False
     text = format_recommendation_presentation_text(presentation_model=presentation)
-    forbidden = ("candidate_comparisons", "raw_response", "mechanics_path", "numeric_scope", "multi_provider_", "canonical_effect", "target_scope", "role_tags", "canonical_ratio", "HP")
+    forbidden = ("candidate_comparisons", "raw_response", "mechanics_path", "numeric_scope", "multi_provider_", "canonical_effect", "target_scope", "role_tags", "canonical_ratio")
     if not isinstance(text, str) or any(item in text for item in forbidden) or "선택 행동:" not in text:
         return False
     mechanics = selected.get("mechanics_result")
@@ -759,6 +773,12 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
         if fixture_id == TRIAGE_FIXTURES[0]:
             return isinstance(order, Mapping) and order.get("self_triage_applied") is True and "힐링시프트로 회복 기술의 우선도가 올라 먼저 행동함" in text and "triage" not in text and "effective_priority" not in text
         return isinstance(order, Mapping) and order.get("reason") == "priority_advantage" and "힐링시프트" not in text and "healing_move_authority" not in text
+    if fixture_id == KO_INTERPRETATION_FIXTURES[0]:
+        ko = mechanics.get("ko_interpretation") if isinstance(mechanics, Mapping) else None
+        return isinstance(ko, Mapping) and ko.get("primary_ko_label") == "possible_ohko" and "난수 1타 가능" in text and "KO 확률" not in text and "%" not in text[text.find("KO 판정:"):]
+    if fixture_id == KO_INTERPRETATION_FIXTURES[1]:
+        ko = mechanics.get("ko_interpretation") if isinstance(mechanics, Mapping) else None
+        return isinstance(ko, Mapping) and ko.get("ko_supportability") == "insufficient_context" and "KO 판정:" in text and "1타" not in text[text.find("KO 판정:"):]
     if fixture_id in {*PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES, *DARK_TYPE_PRANKSTER_FIXTURES, *CURRENT_TYPE_Q12_FIXTURES}:
         move_success = selected.get("move_success")
         return isinstance(move_success, Mapping) and move_success.get("move_success_status") == "allowed" and move_success.get("psychic_terrain_priority_blocked") is not True and move_success.get("dark_type_prankster_immunity_blocked") is not True and "psychic_terrain" not in text and "priority_blocked" not in text and "current_type" not in text

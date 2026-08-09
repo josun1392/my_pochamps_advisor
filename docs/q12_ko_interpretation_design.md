@@ -43,3 +43,5 @@ Only selected-candidate evidence reaches presentation. The allowlist is limited 
 ## Next bounded work
 
 Actual-provider grounding, probability, accuracy, critical hits, residual effects, recovery, survival mechanics, and variable multi-hit totals remain intentionally unsupported and require separate authorization.
+
+The sanitized grounding pair covers a selected exact-HP formula candidate with a deterministic primary label and an explicit-unknown-HP formula candidate that remains selectable without a KO label. Provider output remains selection-only in both cases.
