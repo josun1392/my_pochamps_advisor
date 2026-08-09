@@ -6,7 +6,7 @@ from types import MappingProxyType
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
-_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted"}
+_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids"}
 
 
 def make_unknown_battle_fact():
@@ -37,6 +37,9 @@ def validate_battle_state_unknown_markers(state):
             if not isinstance(pokemon, dict):
                 return False
             if any(not _valid_fact_marker(pokemon.get(field)) for field in ("current_hp", "max_hp", "fainted", "condition", "known_item")):
+                return False
+            known_moves = pokemon.get("known_move_ids", [])
+            if not isinstance(known_moves, list) or len(known_moves) > 4 or any(not _canonical_move_id(move) for move in known_moves) or len(set(known_moves)) != len(known_moves):
                 return False
             if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_hp", "max_hp", "fainted", "condition", "known_item"}):
                 return False
@@ -209,7 +212,7 @@ def _value(event, name):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"apply_exact_hp_transition", "set_condition", "clear_condition", "consume_item", "remove_item", "mark_fainted"}:
+    if effect in {"apply_exact_hp_transition", "set_condition", "clear_condition", "consume_item", "remove_item", "mark_fainted", "record_known_move"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect == "switch_active":
         return isinstance(_value(event, "side"), str) and all(_value(event, key) is not None for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id"))
@@ -257,6 +260,15 @@ def _apply(state, event):
         if pokemon is None: return _conflict(event, "missing_faint_target")
         if pokemon.get("fainted") is True: return _conflict(event, "already_fainted")
         pokemon["fainted"] = True; _mark(pokemon, "fainted", event); return None
+    if effect == "record_known_move":
+        pokemon = _pokemon(state, event); move_id = _value(event, "canonical_move_id")
+        if pokemon is None or not _canonical_move_id(move_id): return _conflict(event, "invalid_canonical_move_id")
+        known_moves = pokemon.get("known_move_ids", [])
+        if not isinstance(known_moves, list) or len(set(known_moves)) != len(known_moves) or any(not _canonical_move_id(move) for move in known_moves):
+            return _conflict(event, "invalid_known_move_state")
+        if move_id in known_moves: return None
+        if len(known_moves) >= 4: return _conflict(event, "known_move_capacity_exceeded")
+        pokemon["known_move_ids"] = [*known_moves, move_id]; _mark(pokemon, "known_move_ids", event); return None
     if effect in {"set_condition", "clear_condition", "consume_item", "remove_item"}: return _pokemon_effect(state, event)
     if effect in {"start_weather", "end_weather", "start_terrain", "end_terrain"}: return _field_effect(state, event)
     if effect in {"start_side_condition", "end_side_condition"}: return _side_condition(state, event)
@@ -355,6 +367,7 @@ def _canonical_json(value):
 
 
 def _exact(value): return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+def _canonical_move_id(value): return isinstance(value, str) and bool(value) and value == value.strip() and value == value.lower() and " " not in value and "_" not in value
 def _conflict(event, reason): return {"observation_id": event["observation_id"], "reason": reason}
 def _step_ids(steps): return [x.get("observation_id") for x in steps if isinstance(x, dict)]
 def _projection_result(status, base, plan, rejected=None, conflicts=None): return {"status": status, "base_state": deepcopy(base) if isinstance(base, dict) else None, "projected_state": None, "applied_step_ids": [], "rejected_step_ids": rejected or [], "conflicts": deepcopy(conflicts or []), "limitations": ["dry_run_only", "no_runtime_state_mutation", "provider_budget_0"]}

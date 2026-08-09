@@ -7,8 +7,9 @@ from llm.advisor_replay_policy import build_replay_plan
 
 class ObservationReplayCoordinator:
     """Process-local coordinator; callers retain explicit apply authority."""
-    def __init__(self, store):
+    def __init__(self, store, *, move_repository=None):
         self._store = store
+        self._move_repository = move_repository
         self._applied = {}
 
     def preview(self, observation_snapshot):
@@ -29,7 +30,7 @@ class ObservationReplayCoordinator:
             elif prior == event: already.append(oid)
             else: conflicts.append({"observation_id": oid, "reason": "conflicting_applied_observation"})
         if conflicts: return _result("transition_invalid", read=read, conflicts=conflicts)
-        plan = build_replay_plan(read["state"], fresh)
+        plan = build_replay_plan(read["state"], fresh, canonical_move_resolver=self._resolve_canonical_move)
         if plan["status"] != "planned": return _result("transition_invalid", read=read, plan=plan, conflicts=plan.get("conflicts"))
         if not plan["ordered_steps"]:
             return _result("already_applied" if already else "no_eligible_observations", read=read, plan=plan, already=already)
@@ -58,6 +59,15 @@ class ObservationReplayCoordinator:
             return False
         self._applied[session_id] = deepcopy(ledger)
         return True
+
+    def _resolve_canonical_move(self, move_id):
+        repository = self._move_repository
+        if repository is None:
+            return None
+        try:
+            return repository.get(move_id) if hasattr(repository, "get") else repository[move_id]
+        except (KeyError, RuntimeError, TypeError, ValueError):
+            return None
 
 
 def _result(status, *, read=None, plan=None, execution=None, conflicts=None, already=None, applied=None, state=None):

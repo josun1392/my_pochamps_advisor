@@ -11,6 +11,7 @@ from llm.advisor_battle_state_context import (
     normalize_user_confirmed_final_battle_stat,
 )
 from llm.advisor_runtime_state_projection import normalize_runtime_advice_state_projection
+from llm.advisor_reducer_state_model import validate_battle_state_unknown_markers
 
 
 RICH_CURRENT_STATE_KEYS = (
@@ -1093,6 +1094,11 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
         if session_id is None:
             raise ValueError("invalid_runtime_advice_state")
         state["runtime_advice_state"] = normalize_runtime_advice_state_projection(runtime_advice_state, session_id)
+    known_move_context = battle_input.get("known_move_context")
+    if known_move_context is not None:
+        if session_id is None:
+            raise ValueError("invalid_known_move_context")
+        state["known_move_context"] = normalize_known_move_context_projection(known_move_context, battle_input=battle_input, session_id=session_id)
     if isinstance(observation_snapshot, Mapping) and observation_snapshot.get("status") == "ready":
         session = observation_snapshot.get("session_id")
         if isinstance(session, str) and session and session_id == session:
@@ -1101,6 +1107,47 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
     if context is not None:
         state["trusted_turn_context"] = context
     return state
+
+
+def build_known_move_context_projection(runtime_state: Mapping[str, Any]) -> dict[str, Any]:
+    """Project active identity-bound reducer facts for deterministic request use only."""
+    if not isinstance(runtime_state, Mapping) or not validate_battle_state_unknown_markers(dict(runtime_state)):
+        raise ValueError("invalid_known_move_context")
+    session_id = runtime_state.get("session_id")
+    if not isinstance(session_id, str) or not session_id:
+        raise ValueError("invalid_known_move_context")
+    result: dict[str, Any] = {"schema_version": "known-move-context-v1", "session_id": session_id}
+    for side, side_key in (("self", "self_side"), ("opponent", "opponent_side")):
+        side_state = runtime_state.get(side_key)
+        if not isinstance(side_state, Mapping):
+            raise ValueError("invalid_known_move_context")
+        slot_index = side_state.get("active_slot_index"); roster = side_state.get("pokemon")
+        pokemon = roster.get(slot_index) if isinstance(roster, Mapping) else None
+        pokemon_id = pokemon.get("pokemon_id") if isinstance(pokemon, Mapping) else None
+        moves = pokemon.get("known_move_ids", []) if isinstance(pokemon, Mapping) else None
+        if not isinstance(slot_index, int) or isinstance(slot_index, bool) or not isinstance(pokemon_id, str) or not pokemon_id or not isinstance(moves, list) or len(moves) > 4 or len(set(moves)) != len(moves) or any(not isinstance(move, str) or not move for move in moves):
+            raise ValueError("invalid_known_move_context")
+        state = "unknown" if not moves else "complete" if len(moves) == 4 else "partially_known"
+        result[side] = {"slot_index": slot_index, "pokemon_id": pokemon_id, "state": state, "known_move_ids": deepcopy(moves), "unknown_slot_count": 4 - len(moves)}
+    return result
+
+
+def normalize_known_move_context_projection(value: Any, *, battle_input: Mapping[str, Any], session_id: str) -> dict[str, Any]:
+    if not isinstance(value, Mapping) or value.get("schema_version") != "known-move-context-v1" or value.get("session_id") != session_id:
+        raise ValueError("invalid_known_move_context")
+    pokemon = _mapping_or_empty(battle_input.get("pokemon")); result = {"schema_version": "known-move-context-v1", "session_id": session_id}
+    for side, active_key in (("self", "my_active"), ("opponent", "opponent_active")):
+        entry = value.get(side); active = _mapping_or_empty(pokemon.get(active_key))
+        if not isinstance(entry, Mapping) or entry.get("slot_index") != _optional_int(active.get("slot_index")) or entry.get("pokemon_id") != _optional_str(active.get("name_en")):
+            raise ValueError("invalid_known_move_context")
+        moves = entry.get("known_move_ids"); state = entry.get("state")
+        if not isinstance(moves, list) or len(moves) > 4 or len(set(moves)) != len(moves) or any(not isinstance(move, str) or not move or move != move.lower() or " " in move or "_" in move for move in moves):
+            raise ValueError("invalid_known_move_context")
+        expected = "unknown" if not moves else "complete" if len(moves) == 4 else "partially_known"
+        if state != expected or entry.get("unknown_slot_count") != 4 - len(moves):
+            raise ValueError("invalid_known_move_context")
+        result[side] = {"slot_index": entry["slot_index"], "pokemon_id": entry["pokemon_id"], "state": state, "known_move_ids": deepcopy(moves), "unknown_slot_count": 4 - len(moves)}
+    return result
 
 
 def _normalize_trusted_turn_context(value: Mapping[str, Any] | None, session_id: str | None) -> dict[str, Any] | None:

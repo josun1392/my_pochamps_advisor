@@ -26,18 +26,18 @@ class ObservationReplayRuntime:
     remain outside this owner.
     """
 
-    def __init__(self, initial_state):
+    def __init__(self, initial_state, *, move_repository=None):
         self._store = BattleStateStore(initial_state)
         self._session_id = deepcopy(initial_state["session_id"])
-        self._coordinator = ObservationReplayCoordinator(self._store)
+        self._coordinator = ObservationReplayCoordinator(self._store, move_repository=move_repository)
         self._persistence = ObservationReplayPersistence()
 
     @classmethod
-    def create(cls, initial_state):
+    def create(cls, initial_state, *, move_repository=None):
         """Create a runtime only from a valid detached battle-state-v1 mapping."""
         if not _valid_initial_state(initial_state):
             return {"status": "invalid_initial_state", "runtime": None, "session_id": None}
-        runtime = cls(deepcopy(initial_state))
+        runtime = cls(deepcopy(initial_state), move_repository=move_repository)
         return {"status": "ready", "runtime": runtime, "session_id": runtime.session_id}
 
     @property

@@ -1761,7 +1761,11 @@ def build_ui_recommendation_snapshot_summary(*, battle_input: Mapping[str, Any],
     if isinstance(pokemon, Mapping):
         summary["pokemon"] = deepcopy(dict(pokemon))
     if turn_snapshot is not None:
-        summary["turn_snapshot"] = deepcopy(turn_snapshot.to_dict())
+        serialized_snapshot = deepcopy(turn_snapshot.to_dict())
+        current_state = serialized_snapshot.get("current_state")
+        if isinstance(current_state, dict):
+            current_state.pop("known_move_context", None)
+        summary["turn_snapshot"] = serialized_snapshot
     return summary
 
 
