@@ -21,11 +21,11 @@ def build_opponent_action_candidates(*, turn_snapshot: Any, move_repository: Any
         return _empty()
     state = entry.get("state")
     complete = state == "complete" and len(moves) == 4
-    session = _current_state_session_id(current)
+    session = context.get("session_id") if isinstance(context.get("session_id"), str) else _current_state_session_id(current)
     candidates = []
     for index, move_id in enumerate(moves):
         metadata = _resolve(move_repository, move_id)
-        candidate = {"candidate_id": f"opponent-action:{opponent['species_id']}:{move_id}:{index}", "role": "opponent_action", "acting_side": "opponent", "target_side": "self", "pokemon_identity": opponent["species_id"], "move_id": move_id, "move_identity_authority": "frozen_known_move_context", "moveset_state": state, "candidate_set_complete": complete, "metadata_supportability": "complete" if metadata is not None else "unsupported_mechanic"}
+        candidate = {"candidate_id": f"opponent-action:{session or 'unknown'}:{opponent['species_id']}:{move_id}:{index}", "role": "opponent_action", "acting_side": "opponent", "target_side": "self", "session_id": session, "pokemon_identity": opponent["species_id"], "move_id": move_id, "move_identity_authority": "frozen_known_move_context", "moveset_state": state, "candidate_set_complete": complete, "metadata_supportability": "complete" if metadata is not None else "unsupported_mechanic"}
         if metadata is not None:
             candidate["move_metadata"] = deepcopy(metadata)
             candidate["mechanics_snapshot"] = _reverse_snapshot(opponent, self_slot, current, session, move_id, index, metadata, species_repository)

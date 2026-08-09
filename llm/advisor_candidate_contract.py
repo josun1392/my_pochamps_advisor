@@ -25,6 +25,7 @@ from llm.advisor_turn_snapshot import (
     snapshot_deterministic_context,
 )
 from llm.advisor_q12_snapshot_adapter import invoke_existing_q12_from_snapshot
+from llm.advisor_opponent_action_candidates import build_opponent_action_candidates
 from llm.advisor_direct_mechanics import NATIVE_DIRECT_MECHANICS_SOURCES, evaluate_direct_damage_mechanics
 from llm.narrow_action_order import evaluate_action_order
 from llm.move_consequence_evidence import evaluate_move_consequence_evidence
@@ -1790,11 +1791,16 @@ def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_inp
         )
     except ValueError as error:
         return _cycle_result(status="invalid_snapshot", errors=[str(error)])
-    return prepare_recommendation_cycle(
+    prepared = prepare_recommendation_cycle(
         moves=moves, battle_snapshot=snapshot, repositories=move_repository,
         battle_snapshot_summary=summary, known_limitations=_ui_known_limitations(battle_input),
         turn_snapshot=request_turn_snapshot, species_repository=species_repository,
     )
+    if prepared.get("status") == "ready" and isinstance(prepared.get("evidence_bundle"), dict):
+        prepared["evidence_bundle"]["opponent_action_candidates"] = build_opponent_action_candidates(
+            turn_snapshot=request_turn_snapshot, move_repository=move_repository, species_repository=species_repository,
+        )
+    return prepared
 
 
 _PROVIDER_OUTBOUND_KEYS = (
