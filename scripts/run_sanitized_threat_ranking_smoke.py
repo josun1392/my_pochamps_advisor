@@ -4,7 +4,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from pathlib import Path
+import sys
 from typing import Any, Callable, Mapping, Sequence
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from llm.advisor_candidate_contract import build_provider_recommendation_payload, complete_recommendation_cycle, prepare_ui_recommendation_cycle, rank_direct_mechanics_candidates
 from llm.advisor_client import SAFE_PROVIDER_DIAGNOSTIC_CODES, sanitize_provider_failure_context
