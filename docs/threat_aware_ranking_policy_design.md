@@ -48,3 +48,5 @@ The canonical authority chain is: trusted identity/session-bound `known_move_con
 The three grounding commits (`7f5e8f3`, `8f6c089`, and `fcfcac2`) only stabilized preemption-aware tier projection, its sanitized smoke runner, and fixture documentation. They did not alter provider schema, selectability, unknown-move modeling, probability ranking, or the partial-known positive-only policy.
 
 Still unsupported: unknown-opponent move synthesis, move-choice probabilities, meta/species inference, scalar or probability-weighted threat scoring, expected outcomes, accuracy/critical/residual/recovery-aware threat, opponent switches, switch ranking, and multi-turn outcome trees. Future presentation, switch architecture, or new battle authorities require separate policy work.
+
+Threat-aware explanation presentation is specified separately in `threat_aware_ranking_presentation_design.md`; it remains application-owned and does not alter this ranking policy or the provider contract.
