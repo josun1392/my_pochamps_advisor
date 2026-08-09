@@ -487,7 +487,7 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
         lines.append(f"선택 근거: {explanation}")
     mechanics = evidence.get("mechanics_result")
     if isinstance(mechanics, Mapping) and mechanics.get("status") == "known":
-        damage, percent, ko = mechanics.get("damage_range"), mechanics.get("damage_percent_range"), mechanics.get("ko_result")
+        damage, percent = mechanics.get("damage_range"), mechanics.get("damage_percent_range")
         if mechanics.get("damage_model") == "level_based_fixed":
             lines.append("피해 방식: 사용자 레벨과 동일한 고정 피해")
             if mechanics.get("type_effectiveness") == 0:
@@ -504,8 +504,18 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
             lines.append(f"전체 피해 범위: {damage['minimum']}~{damage['maximum']}" if isinstance(hit_count, int) and hit_count > 1 else f"피해 범위: {damage['minimum']}~{damage['maximum']}")
         if isinstance(percent, Mapping) and isinstance(percent.get("minimum"), (int, float)) and isinstance(percent.get("maximum"), (int, float)):
             lines.append(f"피해 비율: {percent['minimum']}~{percent['maximum']}%")
-        if isinstance(ko, Mapping) and isinstance(ko.get("single_hit_probability"), (int, float)):
-            lines.append(f"1회 KO 확률: {ko['single_hit_probability'] * 100:g}%")
+        ko_interpretation = mechanics.get("ko_interpretation")
+        ko_labels = {
+            "guaranteed_ohko": "확정 1타", "possible_ohko": "난수 1타 가능",
+            "guaranteed_2hko": "확정 2타", "possible_2hko": "2타 가능",
+            "guaranteed_3hko": "확정 3타", "possible_3hko": "3타 가능",
+        }
+        if isinstance(ko_interpretation, Mapping):
+            label = ko_labels.get(ko_interpretation.get("primary_ko_label")) if ko_interpretation.get("ko_supportability") == "complete" else None
+            if label:
+                lines.append(f"KO 판정: {label}")
+            elif ko_interpretation.get("ko_supportability") == "insufficient_context":
+                lines.append("KO 판정: 현재 HP 정보가 부족해 몇 타인지 확정할 수 없음")
         modifier_labels = {
             "terrain_electric_boost": "일렉트릭필드로 전기 기술 피해 강화",
             "terrain_grassy_boost": "그래스필드로 풀 기술 피해 강화",

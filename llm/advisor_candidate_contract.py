@@ -28,6 +28,7 @@ from llm.advisor_q12_snapshot_adapter import invoke_existing_q12_from_snapshot
 from llm.advisor_direct_mechanics import NATIVE_DIRECT_MECHANICS_SOURCES, evaluate_direct_damage_mechanics
 from llm.narrow_action_order import evaluate_action_order
 from llm.move_consequence_evidence import evaluate_move_consequence_evidence
+from llm.q12_ko_interpretation import evaluate_q12_ko_interpretation
 
 CANDIDATE_STATUSES = frozenset({"resolved", "partial", "unavailable"})
 RECOMMENDATION_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate", "validation_failed"})
@@ -737,6 +738,14 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     else:
         q12_damage = {"status": "unavailable", "limitations": ["snapshot_q12_unavailable"]}
         mechanics_result = {"status": "insufficient_context", "missing_inputs": ["turn_snapshot"]}
+    if isinstance(mechanics_result, Mapping):
+        ko_interpretation = evaluate_q12_ko_interpretation(
+            mechanics_result=mechanics_result,
+            current_hp_context=snapshot.get("current_hp_context"),
+            defender_side="opponent",
+        )
+        if ko_interpretation is not None:
+            mechanics_result = {**mechanics_result, "ko_interpretation": ko_interpretation}
     context = _production_context(snapshot, selected_move)
     dynamic_move = _dynamic_summary(context)
     damage = _damage_summary(context)

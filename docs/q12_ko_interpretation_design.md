@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This is a design-only closure. It adds no production KO calculation, ranking input, provider field, or presentation behavior. Existing native direct mechanics already expose a server-owned total `damage_range`, `damage_percent_range`, and legacy `single_hit_probability`; this contract introduces no new probability model and does not reinterpret that existing probability field.
+This contract is implemented as a read-only candidate-local layer. It consumes the existing server-owned total `damage_range` after move success and damage supportability are resolved; it neither recalculates damage nor changes ranking, candidate usability, or provider output. Formula Q12, fixed-hit formula with an already exact total range, and level-based fixed damage are supported. Variable multi-hit and special fixed damage remain outside the slice.
 
 ## Authority inventory
 
@@ -28,8 +28,18 @@ KO labels consume exact current HP, not maximum HP or damage percentage. A perce
 
 This contract does not model accuracy, critical hits, roll probabilities, recovery, residual damage, hazards, status chip, Focus Sash, survival items, turn mutation, opponent action, or multi-turn simulation. It does not confuse a move's multi-hit count with turns-to-KO.
 
-## Future evidence and presentation
+## Evidence and presentation contract
 
-A later implementation may add candidate-local `ko_interpretation` evidence with `defender_hp_authority`, `damage_range_basis`, one/two/three-hit states, `primary_ko_label`, and `ko_supportability`. It must attach only the selected candidate's evidence to result/presentation and must not expose raw HP, provenance/session identifiers, internal paths, or an unverified probability. Allowed bounded Korean meanings are 확정 1타, 난수 1타 가능, 확정 2타, 2타 가능, 확정 3타, and 3타 가능; missing authority may state that the current HP is insufficient to determine the number of hits.
+The implementation adds candidate-local `ko_interpretation` evidence with `defender_hp_authority`, `ko_damage_range_basis`, one/two/three-hit states, `primary_ko_label`, and `ko_supportability`. It attaches only selected-candidate evidence to result/presentation and does not expose raw HP, provenance/session identifiers, internal paths, or probability. Allowed bounded Korean meanings are 확정 1타, 난수 1타 가능, 확정 2타, 2타 가능, 확정 3타, and 3타 가능; missing authority may state that the current HP is insufficient to determine the number of hits.
 
 Provider output remains the existing minimal selection contract. The provider does not create HP, damage range, KO state, KO probability, supportability, or KO evidence.
+
+## Implemented evidence and presentation
+
+Each supported candidate may carry `ko_interpretation` with `defender_hp_authority`, `ko_damage_range_basis`, the one/two/three-hit states, `primary_ko_label`, and `ko_supportability`. Omitted HP leaves that evidence absent for standalone compatibility; explicit unknown HP produces `insufficient_context`; malformed HP produces `unsupported_mechanic`; a fainted target is `not_applicable`.
+
+Only selected-candidate evidence reaches presentation. The allowlist is limited to guaranteed/possible 1HKO, 2HKO, and 3HKO wording; insufficient exact HP may state that the hit count cannot be determined. The UI does not display KO probability, raw HP, provenance/session identifiers, internal paths, or evidence from another candidate.
+
+## Next bounded work
+
+Actual-provider grounding, probability, accuracy, critical hits, residual effects, recovery, survival mechanics, and variable multi-hit totals remain intentionally unsupported and require separate authorization.

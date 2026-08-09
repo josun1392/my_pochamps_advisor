@@ -14,7 +14,8 @@ def test_panel_text_renders_only_validated_selected_candidate_summary():
     text = format_recommendation_presentation_text(presentation_model=_presentation())
     assert "선택 행동: slam" in text
     assert "선택 근거: 결정적 비교에서 가장 높은 후보입니다." in text
-    assert "피해 범위:" in text and "피해 비율:" in text and "1회 KO 확률:" in text
+    assert "피해 범위:" in text and "피해 비율:" in text
+    assert "1회 KO 확률:" not in text
     assert "candidate_comparisons" not in text and "raw_response" not in text
 
 
