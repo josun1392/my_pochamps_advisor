@@ -2,7 +2,7 @@
 
 ## Scope
 
-This is design-only. A future read-only reducer groups existing pairwise evidence by exactly one self candidate. It may summarize trusted *known* opponent actions but may not select a worst move, create a scalar threat score, rank self candidates, infer unknown moves, or change provider/presentation behavior.
+This is implemented as the internal `advisor_known_threat_reducer.py`. It groups existing frozen pairwise evidence by exactly one self candidate. It summarizes trusted *known* opponent actions but does not select a worst move, create a scalar threat score, rank self candidates, infer unknown moves, or change provider/presentation behavior.
 
 ## Known scope versus global scope
 
@@ -40,4 +40,4 @@ Threat summaries stay internal. They are excluded from provider payloads, rankin
 
 ## Next bounded work
 
-Implement the reducer only after preserving these names, tri-state negative semantics, raw-versus-executed separation, and provider/ranking isolation. Threat aggregation and ranking integration remain independent goals.
+Threat aggregation and ranking integration remain independent goals. Any ranking policy must separately receive T1 approval and preserve the known/global scope distinction, tri-state universal facts, raw-versus-executed separation, and provider isolation.

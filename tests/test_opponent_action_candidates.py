@@ -22,5 +22,6 @@ def test_prepared_cycle_keeps_opponent_candidates_internal_and_provider_request_
  prepared=prepare_ui_recommendation_cycle(selected_moves=[{"move_id":"tackle"}],battle_input=battle,move_repository=repo)
  assert prepared["evidence_bundle"]["opponent_action_candidates"]["known_candidate_count"]==1
  assert prepared["evidence_bundle"]["self_opponent_pairs"]["pair_count"]==1
+ assert len(prepared["evidence_bundle"]["known_opponent_threat_summaries"]["threat_summaries"])==1
  payload=build_provider_recommendation_payload(prepared_cycle=prepared)
- assert "opponent_action_candidates" not in repr(payload) and "self_opponent_pairs" not in repr(payload)
+ assert "opponent_action_candidates" not in repr(payload) and "self_opponent_pairs" not in repr(payload) and "known_opponent_threat_summaries" not in repr(payload)

@@ -19,7 +19,7 @@ def evaluate_self_opponent_pairs(*, self_candidates: Sequence[Mapping[str, Any]]
     complete = sum(pair["pair_mechanical_completeness"] is True for pair in pairs)
     insufficient = sum(pair["pair_mechanical_completeness"] is False and pair["pair_supportability"] == "insufficient_context" for pair in pairs)
     unsupported = sum(pair["pair_mechanical_completeness"] is False and pair["pair_supportability"] == "unsupported_mechanic" for pair in pairs)
-    return {"opponent_known_move_state": known_state, "opponent_candidate_set_complete": candidate_set_complete, "unknown_slots_remaining": unknown_slots, "pair_count": len(pairs), "mechanically_complete_pair_count": complete, "insufficient_pair_count": insufficient, "unsupported_pair_count": unsupported, "pairs": pairs}
+    return {"opponent_known_move_state": known_state, "known_candidate_count": len(opponent_rows) if isinstance(opponent_rows, list) else 0, "opponent_candidate_set_complete": candidate_set_complete, "unknown_slots_remaining": unknown_slots, "pair_count": len(pairs), "mechanically_complete_pair_count": complete, "insufficient_pair_count": insufficient, "unsupported_pair_count": unsupported, "pairs": pairs}
 
 
 def _evaluate_pair(self_candidate: Mapping[str, Any], opponent: Mapping[str, Any], *, turn_snapshot: Any, repositories: Any) -> dict[str, Any]:
@@ -35,7 +35,7 @@ def _evaluate_pair(self_candidate: Mapping[str, Any], opponent: Mapping[str, Any
     self_preemption, opponent_preemption = _preemption(order, self_success, opponent_success, self_mechanics, opponent_mechanics)
     layers = [order.get("status"), self_success.get("status"), opponent_success.get("status"), _layer_status(self_mechanics), _layer_status(opponent_mechanics)]
     supportability = "unsupported_mechanic" if "unsupported_mechanic" in layers else "insufficient_context" if "insufficient_context" in layers else "complete"
-    return {**identity, "action_order_result": deepcopy(order), "action_order_supportability": supportability if order.get("status") in {"insufficient_context", "unsupported_mechanic"} else "complete", "self_move_success": deepcopy(self_success), "opponent_move_success": deepcopy(opponent_success), "self_damage_supportability": _layer_status(self_mechanics), "opponent_damage_supportability": _layer_status(opponent_mechanics), "self_ko_supportability": _ko_status(self_mechanics), "opponent_ko_supportability": _ko_status(opponent_mechanics), "self_action_preemption_status": self_preemption, "opponent_action_preemption_status": opponent_preemption, "pair_supportability": supportability, "pair_mechanical_completeness": supportability == "complete"}
+    return {**identity, "action_order_result": deepcopy(order), "action_order_supportability": supportability if order.get("status") in {"insufficient_context", "unsupported_mechanic"} else "complete", "self_move_success": deepcopy(self_success), "opponent_move_success": deepcopy(opponent_success), "self_damage_supportability": _layer_status(self_mechanics), "opponent_damage_supportability": _layer_status(opponent_mechanics), "self_ko_supportability": _ko_status(self_mechanics), "opponent_ko_supportability": _ko_status(opponent_mechanics), "self_ohko_result": _ohko_result(self_mechanics), "opponent_ohko_result": _ohko_result(opponent_mechanics), "self_action_preemption_status": self_preemption, "opponent_action_preemption_status": opponent_preemption, "pair_supportability": supportability, "pair_mechanical_completeness": supportability == "complete"}
 
 
 def _pair_action_order(self_candidate: Mapping[str, Any], opponent: Mapping[str, Any], *, turn_snapshot: Any, repositories: Any) -> dict[str, Any]:
@@ -89,6 +89,11 @@ def _layer_status(mechanics: Mapping[str, Any]) -> str:
 def _ko_status(mechanics: Mapping[str, Any]) -> str:
     value = mechanics.get("ko_interpretation")
     return value.get("ko_supportability", "not_applicable") if isinstance(value, Mapping) else "not_applicable"
+
+
+def _ohko_result(mechanics: Mapping[str, Any]) -> str | None:
+    value = mechanics.get("ko_interpretation")
+    return value.get("ohko_result") if isinstance(value, Mapping) and value.get("ko_supportability") == "complete" else None
 
 
 def _self_id(candidate: Mapping[str, Any]) -> str:
