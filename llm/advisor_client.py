@@ -681,6 +681,11 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
         shown = [labels[tag] for tag in facts["comparison_tags"] if tag in labels]
         if shown:
             lines.append(f"비교 정보: {', '.join(shown)}")
+    threat = selected.get("threat_ranking")
+    if isinstance(threat, Mapping) and threat.get("presentation_status") == "available" and isinstance(threat.get("text"), str):
+        lines.append(threat["text"])
+        if isinstance(threat.get("scope_note"), str):
+            lines.append(threat["scope_note"])
     return lines
 
 

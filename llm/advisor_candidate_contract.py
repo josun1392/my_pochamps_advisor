@@ -2210,6 +2210,13 @@ def build_recommendation_presentation_model(*, completed_cycle: Mapping[str, Any
             })
         except (TypeError, ValueError):
             return {**empty, "candidate_summaries": deepcopy(candidates), "errors": ["response_validation_failed"]}
+        from llm.advisor_threat_presentation import project_selected_threat_presentation
+        threat_presentation = project_selected_threat_presentation(
+            selected_candidate_id=f"self:{approved['recommended_slot_index']}:{approved['recommended_move']}",
+            evidence_bundle=completed_cycle.get("evidence_bundle") if isinstance(completed_cycle.get("evidence_bundle"), Mapping) else None,
+        )
+        if threat_presentation.get("presentation_status") == "available":
+            selected_candidate["threat_ranking"] = threat_presentation
     return {
         "status": approved["status"],
         "recommended_move": approved["recommended_move"],

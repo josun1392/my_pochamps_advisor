@@ -1,5 +1,9 @@
 # Threat-Aware Ranking Presentation Design
 
+## Implementation status
+
+Implemented in `llm/advisor_threat_presentation.py`. The selected-only projector consumes the frozen completion evidence bundle, validates the existing application-owned tier, and returns a detached bounded DTO. For danger tiers it chooses the first matching frozen pair as an explanation witness; it does not calculate damage, action order, KO, probability, or a second threat ordering. `build_recommendation_presentation_model(...)` attaches only an available DTO to the validated selected candidate, and the existing formatter appends at most one threat sentence plus one partial-set scope note. Neutral, missing, malformed, self-preempted-only, and incomplete safety evidence remain silent. Provider payloads and prompts remain unchanged.
+
 ## Existing presentation inventory
 
 `build_recommendation_presentation_model(...)` creates the validated selected-candidate model after response completion. `format_recommendation_presentation_text(...)` renders only that validated model. The provider response remains the three-field minimal selection contract: status, selected candidate ID, and bounded explanation code. Existing exact KO-probability formatting is selected-candidate evidence and remains separate from ranking cause.
