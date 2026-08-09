@@ -2,7 +2,7 @@
 
 ## Scope and inventory
 
-This is design-only: no opponent candidates, incoming damage, ranking, provider payload, or presentation changes. The candidate contract currently builds self recommendation candidates. `advisor_direct_mechanics` is attacker/defender-shaped and can consume reversed sides, but the current request snapshot adapter is self-action oriented; a future bounded side-reversal adapter is required. Existing action-order inputs already carry self/opponent speed and priority authority. `opponent_move_context` is legacy limited LLM context, not this authority.
+Frozen opponent action enumeration and an inert attacker/defender side-reversal mechanics snapshot are implemented. They are not connected to self recommendation ranking, provider payloads, incoming-damage presentation, or threat aggregation. `opponent_move_context` remains legacy limited LLM context, not this authority.
 
 ## Candidate source and identity
 
