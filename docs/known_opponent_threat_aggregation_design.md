@@ -38,6 +38,8 @@ Negative/universal facts require non-empty complete identity scope and complete 
 
 Threat summaries stay internal. They are excluded from provider payloads, ranking/selectability, UI text, and recommendation selection. Future ranking requires a separate T1-approved policy (for example a complete-set deterministic policy, a partial-set cautious policy, or annotations without ranking); this contract selects none.
 
+The selected partial-known positive-only ranking policy is documented in `threat_aware_ranking_policy_design.md`. It is not applied by this reducer.
+
 ## Next bounded work
 
 Threat aggregation and ranking integration remain independent goals. Any ranking policy must separately receive T1 approval and preserve the known/global scope distinction, tri-state universal facts, raw-versus-executed separation, and provider isolation.

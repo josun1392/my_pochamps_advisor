@@ -1,0 +1,36 @@
+# Threat-Aware Self Ranking Policy
+
+## T1 policy
+
+The policy is **partial-known positive-only**: confirmed danger may penalize; unknown safety may not reward. Threat evidence is an application-owned deterministic adjustment above existing base mechanics ranking. It does not change candidate usability, provider authority, unknown-slot modeling, or probability semantics.
+
+## Existing ranking integration point
+
+The existing direct-mechanics ranker orders only complete native direct-damage candidates by deterministic mechanics evidence and retains stable slot order as its tie break. Threat-aware ranking is a future lexicographic layer after existing eligibility and before that existing deterministic rank. Equal threat tiers preserve the existing base rank and existing stable candidate order.
+
+## Ordered categorical tiers
+
+Lower number is more adverse; these are categories, not a scalar score.
+
+1. `executed_guaranteed_ohko` — a known opponent action is allowed, non-preempted, and has executed guaranteed OHKO evidence.
+2. `unresolved_guaranteed_ohko_exposure` — a known raw guaranteed-OHKO capability exists but pair order/preemption does not prove deterministic execution. It is weaker than executed loss and is not a deterministic-loss claim.
+3. `executed_possible_ohko` — a known allowed, non-preempted possible OHKO exists.
+4. `neutral_no_positive_threat_evidence` — no approved positive danger fact is proven. **Neutral never means safe.**
+5. `complete_set_no_guaranteed_ohko` — only complete identity scope, complete mechanics, and `no_known_guaranteed_ohko=true` may grant this bounded safety tier.
+6. `complete_set_all_actions_preempted` — only the same complete scope plus `all_known_actions_preempted=true` may grant this stronger bounded tier.
+
+The final two tiers are unavailable for partial, unknown, or mechanically incomplete sets. No numeric KO probability breaks a category tie.
+
+## Partial, complete, and uncertainty behavior
+
+Unknown opponent moveset produces no threat adjustment. Partial set may penalize a self candidate for an executed guaranteed/possible threat or unresolved raw guaranteed-OHKO exposure. It may not reward absence of a known threat, lower known damage, no known priority, or all known actions preempted. Complete identity scope requires exactly four known moves, zero unknown slots, and complete threat mechanics before universal negative evidence enters the tier.
+
+Raw guaranteed capability is not ignored when order is unresolved, but is deliberately weaker than executed guaranteed threat. When self deterministically preempts an action, that action supplies raw information but no executed threat penalty. Exact by1/by2/by3 remains supplemental pair evidence: it creates no score, weighting, expected outcome, or tie break.
+
+## Boundaries
+
+Threat adjustment changes only ordering in a future implementation. It must not make a candidate nonselectable, delete it, alter recommendation status, add a provider field, choose an opponent move, aggregate unknown slots, or introduce switch candidates. Provider and presentation remain unchanged until separate contracts authorize them.
+
+## Future implementation prerequisites
+
+Implement only a deterministic adapter from known-threat summaries to the documented category keys, then compose that key with the existing base ranking tuple. Preserve summary scope/completeness fields for audit, but do not pass them to the provider. Any alternative policy—minimax, partial-set caution penalty, probability weighting, switch safety, or provider-facing explanation—requires a new T1 decision.
