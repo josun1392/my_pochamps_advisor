@@ -26,7 +26,7 @@ Each horizon is internal evidence. A primary user-facing label uses this fixed o
 
 KO labels consume exact current HP, not maximum HP or damage percentage. A percentage range is a separate presentation metric and cannot establish whether the target's current HP is crossed. Missing KO authority does not make an otherwise damage-supported candidate non-selectable. Move-success blocked candidates do not request HP, expose damage success, or expose KO labels; a secondary HP unknown cannot undo a complete block.
 
-This contract does not model accuracy, critical hits, roll probabilities, recovery, residual damage, hazards, status chip, Focus Sash, survival items, turn mutation, opponent action, or multi-turn simulation. It does not confuse a move's multi-hit count with turns-to-KO.
+This contract does not model accuracy, critical hits, recovery, residual damage, hazards, status chip, Focus Sash, survival items, turn mutation, opponent action, or multi-turn simulation. Exact Formula Q12 damage-roll probability is a separate implemented read-only layer documented in `q12_ko_probability_design.md`; it preserves this deterministic primary-label precedence and does not alter it. It does not confuse a move's multi-hit count with turns-to-KO.
 
 ## Evidence and presentation contract
 
@@ -38,12 +38,8 @@ Provider output remains the existing minimal selection contract. The provider do
 
 Each supported candidate may carry `ko_interpretation` with `defender_hp_authority`, `ko_damage_range_basis`, the one/two/three-hit states, `primary_ko_label`, and `ko_supportability`. Omitted HP leaves that evidence absent for standalone compatibility; explicit unknown HP produces `insufficient_context`; malformed HP produces `unsupported_mechanic`; a fainted target is `not_applicable`.
 
-Only selected-candidate evidence reaches presentation. The allowlist is limited to guaranteed/possible 1HKO, 2HKO, and 3HKO wording; insufficient exact HP may state that the hit count cannot be determined. The UI does not display KO probability, raw HP, provenance/session identifiers, internal paths, or evidence from another candidate.
+Only selected-candidate evidence reaches presentation. The allowlist is limited to guaranteed/possible 1HKO, 2HKO, and 3HKO wording plus the separate selected-only exact damage-roll probability wording defined in `q12_ko_probability_design.md`; insufficient exact HP may state that the hit count cannot be determined. The UI does not display raw HP, provenance/session identifiers, internal paths, or evidence from another candidate.
 
 ## Next bounded work
 
-Actual-provider grounding, probability, accuracy, critical hits, residual effects, recovery, survival mechanics, and variable multi-hit totals remain intentionally unsupported and require separate authorization.
-
-Exact roll-probability design and its candidate-local PMF prerequisite are documented in `q12_ko_probability_design.md`.
-
-The sanitized grounding pair covers a selected exact-HP formula candidate with a deterministic primary label and an explicit-unknown-HP formula candidate that remains selectable without a KO label. Provider output remains selection-only in both cases.
+Accuracy, critical hits, residual effects, recovery, survival mechanics, and variable multi-hit totals remain intentionally unsupported. The sanitized deterministic and exact-probability grounding fixtures are listed in `q12_ko_probability_design.md`; provider output remains selection-only in every fixture.
