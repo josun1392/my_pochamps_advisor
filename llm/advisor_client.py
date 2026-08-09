@@ -470,6 +470,22 @@ def call_structured_recommendation_provider(*, provider_payload: Mapping[str, An
     return deepcopy(decoded), usage
 
 
+def _format_exact_ko_probability(probability: Mapping[str, Any]) -> str | None:
+    numerator, denominator = probability.get("numerator"), probability.get("denominator")
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in (numerator, denominator)) or denominator <= 0 or not 0 <= numerator <= denominator:
+        return None
+    if numerator == 0:
+        return "0%"
+    if numerator == denominator:
+        return "100%"
+    percentage = numerator * 100 / denominator
+    if percentage < 0.05:
+        return "<0.1%"
+    if percentage > 99.95:
+        return ">99.9%"
+    return f"{percentage:.1f}%"
+
+
 def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
     """Render only already-validated selected-candidate presentation fields."""
     if not isinstance(selected, Mapping):
@@ -516,6 +532,17 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
                 lines.append(f"KO 판정: {label}")
             elif ko_interpretation.get("ko_supportability") == "insufficient_context":
                 lines.append("KO 판정: 현재 HP 정보가 부족해 몇 타인지 확정할 수 없음")
+        ko_probability = mechanics.get("ko_probability")
+        if isinstance(ko_probability, Mapping) and ko_probability.get("ko_probability_supportability") == "complete":
+            horizon = {
+                "guaranteed_ohko": 1, "possible_ohko": 1,
+                "guaranteed_2hko": 2, "possible_2hko": 2,
+                "guaranteed_3hko": 3, "possible_3hko": 3,
+            }.get(ko_interpretation.get("primary_ko_label") if isinstance(ko_interpretation, Mapping) else None)
+            fraction = ko_probability.get(f"ko_by_{horizon}") if isinstance(horizon, int) else None
+            percentage = _format_exact_ko_probability(fraction) if isinstance(fraction, Mapping) else None
+            if percentage:
+                lines.append(f"피해 난수 기준 {percentage} 확률로 {horizon}회 안에 처치")
         modifier_labels = {
             "terrain_electric_boost": "일렉트릭필드로 전기 기술 피해 강화",
             "terrain_grassy_boost": "그래스필드로 풀 기술 피해 강화",

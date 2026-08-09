@@ -29,6 +29,7 @@ from llm.advisor_direct_mechanics import NATIVE_DIRECT_MECHANICS_SOURCES, evalua
 from llm.narrow_action_order import evaluate_action_order
 from llm.move_consequence_evidence import evaluate_move_consequence_evidence
 from llm.q12_ko_interpretation import evaluate_q12_ko_interpretation
+from llm.q12_ko_probability import evaluate_exact_q12_ko_probability
 
 CANDIDATE_STATUSES = frozenset({"resolved", "partial", "unavailable"})
 RECOMMENDATION_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate", "validation_failed"})
@@ -746,6 +747,14 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
         )
         if ko_interpretation is not None:
             mechanics_result = {**mechanics_result, "ko_interpretation": ko_interpretation}
+        ko_probability = evaluate_exact_q12_ko_probability(
+            mechanics_result=mechanics_result,
+            current_hp_context=snapshot.get("current_hp_context"),
+            defender_side="opponent",
+            ko_interpretation=ko_interpretation,
+        )
+        if ko_probability is not None:
+            mechanics_result = {**mechanics_result, "ko_probability": ko_probability}
     context = _production_context(snapshot, selected_move)
     dynamic_move = _dynamic_summary(context)
     damage = _damage_summary(context)
@@ -1128,8 +1137,11 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
             eligibility = _candidate_eligibility(normalized)
             provider_candidate = {key: value for key, value in normalized.items() if key != "q12_damage"}
             mechanics = provider_candidate.get("mechanics_result")
-            if isinstance(mechanics, Mapping) and "exact_damage_rolls" in mechanics:
-                provider_candidate["mechanics_result"] = {key: value for key, value in mechanics.items() if key != "exact_damage_rolls"}
+            if isinstance(mechanics, Mapping):
+                provider_candidate["mechanics_result"] = {
+                    key: value for key, value in mechanics.items()
+                    if key not in {"exact_damage_rolls", "ko_probability"}
+                }
             pair = _exact_pair(normalized, exact=False)
             row = {**deepcopy(provider_candidate), "eligibility": eligibility}
             comparison = ranked_mechanics.get((pair["slot_index"], pair["move"]))
@@ -1583,7 +1595,7 @@ def _bind_multi_provider_response(*, request: Mapping[str, Any], response: Mappi
     return {"recommendation_status": "resolved", "recommended_move": chosen["move"], "recommended_slot_index": selected, "primary_reasons": [{"kind": "mechanics", "claim": "deterministic ranking evidence"}], "risks": [], "alternatives": [], "grounding": {"schema_version": "grounding-v1", "confirmed_facts": [], "unknown_facts": [], "evidence_only": [], "conflicts": [], "conditional_dependencies": []}, "mechanics_acknowledgements": mechanics_acknowledgements, "ranking_acknowledgements": ranking_acknowledgements}
 
 
-def _attach_validated_multi_selection(*, request: Mapping[str, Any], result: Mapping[str, Any], explanation_code: str) -> dict[str, Any] | None:
+def _attach_validated_multi_selection(*, request: Mapping[str, Any], result: Mapping[str, Any], explanation_code: str, candidates: Sequence[Mapping[str, Any]]) -> dict[str, Any] | None:
     """Attach only the selected request-start candidate's deterministic evidence."""
     if result.get("status") != "resolved" or not isinstance(result.get("recommended_slot_index"), int):
         return None
@@ -1601,13 +1613,21 @@ def _attach_validated_multi_selection(*, request: Mapping[str, Any], result: Map
     action_order = selected.get("action_order")
     if action_order is not None and not isinstance(action_order, Mapping):
         return None
+    internal = next((candidate for candidate in candidates if isinstance(candidate, Mapping) and candidate.get("slot_index") == slot and candidate.get("move") == move), None)
+    internal_mechanics = internal.get("mechanics_result") if isinstance(internal, Mapping) else None
+    if isinstance(internal_mechanics, Mapping):
+        selected_mechanics = {
+            key: value for key, value in internal_mechanics.items() if key != "exact_damage_rolls"
+        }
+    else:
+        selected_mechanics = mechanics
     output = deepcopy(dict(result))
     output.update({
         "selected_candidate_id": slot,
         "selected_action": {"slot_index": slot, "move": move},
         "explanation_code": explanation_code,
         "selected_candidate_evidence": {
-            "mechanics_result": deepcopy(dict(mechanics)),
+            "mechanics_result": deepcopy(dict(selected_mechanics)),
             "action_order": deepcopy(dict(action_order)) if isinstance(action_order, Mapping) else None,
             "move_success": deepcopy(dict(selected["move_success"])) if isinstance(selected.get("move_success"), Mapping) else None,
             "accuracy_evidence": deepcopy(dict(selected["accuracy_evidence"])) if isinstance(selected.get("accuracy_evidence"), Mapping) else None,
@@ -1676,7 +1696,7 @@ def complete_recommendation_cycle(*, prepared_cycle: Mapping[str, Any], response
     if ranking_required:
         if not isinstance(explanation_code, str):
             return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["multi_provider_binding_invalid"])
-        enriched = _attach_validated_multi_selection(request=request, result=result, explanation_code=explanation_code)
+        enriched = _attach_validated_multi_selection(request=request, result=result, explanation_code=explanation_code, candidates=candidates)
         if enriched is None:
             return _cycle_result(status="response_validation_failed", candidates=candidates, evidence_bundle=evidence, recommendation_request=request, errors=["validated_selection_resolution_invalid"])
         result = enriched
@@ -2104,9 +2124,10 @@ def build_recommendation_presentation_model(*, completed_cycle: Mapping[str, Any
         if not isinstance(candidate, dict):
             continue
         mechanics = candidate.get("mechanics_result")
-        if isinstance(mechanics, Mapping) and "exact_damage_rolls" in mechanics:
+        if isinstance(mechanics, Mapping) and ("exact_damage_rolls" in mechanics or "ko_probability" in mechanics):
             candidate["mechanics_result"] = {
-                key: value for key, value in mechanics.items() if key != "exact_damage_rolls"
+                key: value for key, value in mechanics.items()
+                if key not in {"exact_damage_rolls", "ko_probability"}
             }
     try:
         candidates = serialize_recommendation_request(presentation_candidates)

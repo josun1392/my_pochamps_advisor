@@ -651,7 +651,7 @@ def _completed_candidate_evidence_isolated(*, payload: Mapping[str, Any], comple
         return False
     def provider_visible_mechanics(candidate: Mapping[str, Any]) -> Any:
         mechanics = candidate.get("mechanics_result")
-        return {key: value for key, value in mechanics.items() if key != "exact_damage_rolls"} if isinstance(mechanics, Mapping) else mechanics
+        return {key: value for key, value in mechanics.items() if key not in {"exact_damage_rolls", "ko_probability"}} if isinstance(mechanics, Mapping) else mechanics
     for row in rows:
         if not isinstance(row, Mapping):
             return False
@@ -778,7 +778,8 @@ def _presentation_contract_valid(*, fixture_id: str, completed: Mapping[str, Any
         return isinstance(order, Mapping) and order.get("reason") == "priority_advantage" and "힐링시프트" not in text and "healing_move_authority" not in text
     if fixture_id == KO_INTERPRETATION_FIXTURES[0]:
         ko = mechanics.get("ko_interpretation") if isinstance(mechanics, Mapping) else None
-        return isinstance(ko, Mapping) and ko.get("primary_ko_label") == "possible_ohko" and "난수 1타 가능" in text and "KO 확률" not in text and "%" not in text[text.find("KO 판정:"):]
+        probability = mechanics.get("ko_probability") if isinstance(mechanics, Mapping) else None
+        return isinstance(ko, Mapping) and ko.get("primary_ko_label") == "possible_ohko" and isinstance(probability, Mapping) and probability.get("ko_probability_supportability") == "complete" and "probability_model" not in text and "exact_damage_rolls" not in text
     if fixture_id == KO_INTERPRETATION_FIXTURES[1]:
         ko = mechanics.get("ko_interpretation") if isinstance(mechanics, Mapping) else None
         return isinstance(ko, Mapping) and ko.get("ko_supportability") == "insufficient_context" and "KO 판정:" in text and "1타" not in text[text.find("KO 판정:"):]
