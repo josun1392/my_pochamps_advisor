@@ -49,7 +49,8 @@ PRIORITY_BLOCKING_ABILITY_FIXTURES = ("supported-priority-blocking-ability", "pr
 DARK_TYPE_PRANKSTER_FIXTURES = ("supported-dark-type-prankster-immunity", "unknown-current-type-with-nonprankster-control")
 CURRENT_TYPE_Q12_FIXTURES = ("supported-current-type-q12-override", "unknown-current-type-with-fixed-control")
 KO_INTERPRETATION_FIXTURES = ("supported-q12-ko-interpretation", "unknown-ko-hp-with-damage-supported-candidate")
-_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES, TRIAGE_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, CURRENT_TYPE_Q12_FIXTURES, KO_INTERPRETATION_FIXTURES})
+EXACT_KO_PROBABILITY_FIXTURES = ("supported-exact-q12-ko-probability", "unknown-ko-probability-hp-with-formula-control")
+_ALLOWED_FIXTURE_SETS = frozenset({FIXTURES, GROUNDING_FIXTURES, ACCURACY_FIXTURES, STATUS_FIXTURES, CONSEQUENCE_FIXTURES, FIXED_HIT_FIXTURES, FIXED_DAMAGE_FIXTURES, MODIFIER_FIXTURES, ABILITY_FIXTURES, ITEM_FIXTURES, DEFENDER_ABILITY_FIXTURES, STAGE_FIXTURES, SPEED_STAGE_FIXTURES, ACCURACY_STAGE_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TAILWIND_FIXTURES, PARALYSIS_FIXTURES, STATIC_SPEED_FIXTURES, PRANKSTER_FIXTURES, GALE_WINGS_FIXTURES, TRIAGE_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, CURRENT_TYPE_Q12_FIXTURES, KO_INTERPRETATION_FIXTURES, EXACT_KO_PROBABILITY_FIXTURES})
 EXIT = {"ok": 0, "usage": 2, "credential": 3, "provider": 4, "parse": 5, "structural": 6, "semantic": 7, "redaction": 8, "blocked": 9}
 
 
@@ -175,14 +176,14 @@ def _fixture(fixture_id: str) -> tuple[list[dict[str, str]], dict[str, Any]]:
         return [{"move_id": "taunt"}, {"move_id": "seismic-toss"}, {"move_id": "night-shade"}], {"taunt": {"category": "status", "target": "selected-pokemon", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "night-shade": {"category": "special", "type": "ghost", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
     if fixture_id in CURRENT_TYPE_Q12_FIXTURES:
         return [{"move_id": "flamethrower"}, {"move_id": "seismic-toss"}], {"flamethrower": {"category": "special", "power": 90, "type": "fire", "target": "selected-pokemon", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
-    if fixture_id in KO_INTERPRETATION_FIXTURES:
+    if fixture_id in {*KO_INTERPRETATION_FIXTURES, *EXACT_KO_PROBABILITY_FIXTURES}:
         return [{"move_id": "slam"}, {"move_id": "seismic-toss"}], {"slam": {"category": "physical", "power": 100, "type": "normal", "target": "selected-pokemon", "priority": 0}, "seismic-toss": {"category": "physical", "type": "normal", "target": "selected-pokemon", "priority": 0}, "tackle": {"category": "physical", "power": 40, "type": "normal", "target": "selected-pokemon", "priority": 0}}
     raise ValueError("invalid_fixture")
 
 
 def _prepared(fixture_id: str) -> dict[str, Any]:
     moves, repository = _fixture(fixture_id)
-    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES, *TRIAGE_FIXTURES, *PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES, *DARK_TYPE_PRANKSTER_FIXTURES, *CURRENT_TYPE_Q12_FIXTURES, *KO_INTERPRETATION_FIXTURES})
+    battle = _battle(known_action_order=fixture_id in {*GROUNDING_FIXTURES, *ACCURACY_FIXTURES, *STATUS_FIXTURES, *CONSEQUENCE_FIXTURES, *FIXED_HIT_FIXTURES, *FIXED_DAMAGE_FIXTURES, *MODIFIER_FIXTURES, *ABILITY_FIXTURES, *ITEM_FIXTURES, *DEFENDER_ABILITY_FIXTURES, *STAGE_FIXTURES, *SPEED_STAGE_FIXTURES, *ACCURACY_STAGE_FIXTURES, *TERRAIN_FIXTURES, *TRICK_ROOM_FIXTURES, *TAILWIND_FIXTURES, *PARALYSIS_FIXTURES, *STATIC_SPEED_FIXTURES, *PRANKSTER_FIXTURES, *GALE_WINGS_FIXTURES, *TRIAGE_FIXTURES, *PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, *PRIORITY_BLOCKING_ABILITY_FIXTURES, *DARK_TYPE_PRANKSTER_FIXTURES, *CURRENT_TYPE_Q12_FIXTURES, *KO_INTERPRETATION_FIXTURES, *EXACT_KO_PROBABILITY_FIXTURES})
     if fixture_id == FIXED_DAMAGE_FIXTURES[0]:
         battle["direct_mechanics_context"]["defender"].update(current_hp=50, max_hp=200)
     if fixture_id == FIXED_DAMAGE_FIXTURES[1]:
@@ -314,9 +315,9 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
                 {"side": "self", "state": "unknown", "status": "unknown", "source": "unknown", "authority_provenance": "unknown", "confidence": "unknown"},
                 {"side": "opponent", "state": "known", "types": ["grass", "steel"], "status": "user_confirmed", "source": "user_confirmed_current_type", "authority_provenance": "user_confirmed_current", "confidence": "known", "provenance": _provenance("opponent", 1, "eevee", source="user_confirmed_current_type")},
             ]}
-    if fixture_id == KO_INTERPRETATION_FIXTURES[0]:
+    if fixture_id in {KO_INTERPRETATION_FIXTURES[0], EXACT_KO_PROBABILITY_FIXTURES[0]}:
         battle["current_hp_context"] = {"current_hp": [_current_hp("self", 100, 100), _current_hp("opponent", 60, 100)]}
-    if fixture_id == KO_INTERPRETATION_FIXTURES[1]:
+    if fixture_id in {KO_INTERPRETATION_FIXTURES[1], EXACT_KO_PROBABILITY_FIXTURES[1]}:
         battle["current_hp_context"] = {"current_hp": [_current_hp("self", 100, 100), {"side": "opponent", "state": "unknown"}]}
     battle["moves"]["my_available_moves"] = [{"slot_index": index, "move_id": item["move_id"]} for index, item in enumerate(moves)]
     return prepare_ui_recommendation_cycle(selected_moves=moves, battle_input=battle, move_repository=repository, species_repository=_Species())
@@ -638,7 +639,59 @@ def _fixture_contract_valid(fixture_id: str, payload: Mapping[str, Any]) -> bool
     if fixture_id == KO_INTERPRETATION_FIXTURES[1]:
         formula, control = rows
         return formula.get("mechanics_result", {}).get("status") == "known" and formula.get("mechanics_result", {}).get("ko_interpretation") == {"ko_supportability": "insufficient_context", "missing_inputs": ["opponent.current_hp"]} and formula.get("availability") == "partially_evaluable" and "primary_ko_label" not in formula.get("mechanics_result", {}).get("ko_interpretation", {}) and control.get("availability") == "partially_evaluable" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 0, "move": "slam"}, {"slot_index": 1, "move": "seismic-toss"}]
+    if fixture_id == EXACT_KO_PROBABILITY_FIXTURES[0]:
+        formula, control = rows
+        return formula.get("mechanics_result", {}).get("status") == "known" and formula.get("mechanics_result", {}).get("ko_interpretation", {}).get("primary_ko_label") == "possible_ohko" and formula.get("availability") == "partially_evaluable" and control.get("availability") == "partially_evaluable" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 0, "move": "slam"}, {"slot_index": 1, "move": "seismic-toss"}]
+    if fixture_id == EXACT_KO_PROBABILITY_FIXTURES[1]:
+        formula, control = rows
+        return formula.get("mechanics_result", {}).get("status") == "known" and formula.get("mechanics_result", {}).get("ko_interpretation", {}).get("ko_supportability") == "insufficient_context" and formula.get("availability") == "partially_evaluable" and control.get("availability") == "partially_evaluable" and [item.get("rank") if isinstance(item, Mapping) else None for item in comparisons] == [1, 2] and payload.get("selectable_candidate_exact_set") == [{"slot_index": 0, "move": "slam"}, {"slot_index": 1, "move": "seismic-toss"}]
     return False
+
+
+def _exact_probability_preflight_valid(*, fixture_id: str, prepared: Mapping[str, Any], payload: Mapping[str, Any]) -> bool:
+    """Validate exact probability authority before any provider call."""
+    if fixture_id not in EXACT_KO_PROBABILITY_FIXTURES:
+        return True
+    candidates = prepared.get("candidates")
+    rows = payload.get("candidate_comparisons")
+    if not isinstance(candidates, list) or not isinstance(rows, list) or len(candidates) != 2 or len(rows) != 2:
+        return False
+    formula, control = candidates
+    mechanics = formula.get("mechanics_result") if isinstance(formula, Mapping) else None
+    if not isinstance(mechanics, Mapping) or formula.get("availability") != "partially_evaluable" or rows[0].get("mechanics_comparison", {}).get("rank") != 1 or rows[1].get("mechanics_comparison", {}).get("rank") != 2:
+        return False
+    if "exact_damage_rolls" in json.dumps(payload, sort_keys=True) or "ko_probability" in json.dumps(payload, sort_keys=True):
+        return False
+    rolls = mechanics.get("exact_damage_rolls")
+    probability = mechanics.get("ko_probability")
+    if not isinstance(rolls, tuple) or len(rolls) != 16 or len(set(rolls)) == len(rolls) or not isinstance(probability, Mapping):
+        return False
+    damage = mechanics.get("damage_range")
+    if not isinstance(damage, Mapping) or (min(rolls), max(rolls)) != (damage.get("minimum"), damage.get("maximum")):
+        return False
+    if fixture_id == EXACT_KO_PROBABILITY_FIXTURES[0]:
+        expected = {"ko_by_1": {"numerator": 3, "denominator": 4}, "ko_by_2": {"numerator": 1, "denominator": 1}, "ko_by_3": {"numerator": 1, "denominator": 1}}
+        return mechanics.get("ko_interpretation", {}).get("primary_ko_label") == "possible_ohko" and probability.get("ko_probability_supportability") == "complete" and all(probability.get(key) == value for key, value in expected.items()) and "ko_probability" not in control.get("mechanics_result", {})
+    return mechanics.get("ko_interpretation", {}).get("ko_supportability") == "insufficient_context" and probability == {"ko_probability_supportability": "insufficient_context", "missing_inputs": ["opponent.current_hp"]} and "ko_probability" not in control.get("mechanics_result", {})
+
+
+def _completed_exact_probability_valid(*, fixture_id: str, completed: Mapping[str, Any]) -> bool:
+    """Confirm selected-only probability evidence after minimal provider selection."""
+    if fixture_id not in EXACT_KO_PROBABILITY_FIXTURES:
+        return True
+    result = completed.get("recommendation_result")
+    if not isinstance(result, Mapping):
+        return False
+    selected = result.get("selected_candidate_evidence")
+    mechanics = selected.get("mechanics_result") if isinstance(selected, Mapping) else None
+    if not isinstance(mechanics, Mapping):
+        return False
+    probability = mechanics.get("ko_probability")
+    presentation = build_recommendation_presentation_model(completed_cycle=completed)
+    text = format_recommendation_presentation_text(presentation_model=presentation)
+    if fixture_id == EXACT_KO_PROBABILITY_FIXTURES[0]:
+        return isinstance(probability, Mapping) and probability.get("ko_probability_supportability") == "complete" and probability.get("ko_by_1") == {"numerator": 3, "denominator": 4} and "피해 난수 기준" in text and "probability_model" not in text and "exact_damage_rolls" not in text
+    return isinstance(probability, Mapping) and probability == {"ko_probability_supportability": "insufficient_context", "missing_inputs": ["opponent.current_hp"]} and "확률로" not in text
 
 
 def _completed_candidate_evidence_isolated(*, payload: Mapping[str, Any], completed: Mapping[str, Any]) -> bool:
@@ -832,6 +885,8 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
         payload = build_provider_recommendation_payload(prepared_cycle=prepared)
         if prepared.get("status") != "ready" or not isinstance(payload, Mapping) or "status" in payload or not _fixture_contract_valid(fixture_id, payload):
             return {"exit_code": EXIT["blocked"], "provider_calls": len(results), "fixture_id": fixture_id, "failure_category": "fixture_preparation_failure", "results": results}
+        if not _exact_probability_preflight_valid(fixture_id=fixture_id, prepared=prepared, payload=payload):
+            return {"exit_code": EXIT["blocked"], "provider_calls": len(results), "fixture_id": fixture_id, "failure_category": "probability_preflight_failure", "results": results}
         expected = _expected_rank_one(payload)
         if expected is None:
             return {"exit_code": EXIT["blocked"], "provider_calls": len(results), "fixture_id": fixture_id, "failure_category": "ranking_contract_failure", "results": results}
@@ -854,6 +909,8 @@ def run_smoke(*, actual: bool = False, model: str | None = None, fixtures: Seque
             return {"exit_code": EXIT["structural"] if category == "grounding_structural_failure" else EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": category, "diagnostic": next((error for error in errors if isinstance(error, str)), "validation_failed"), "results": results}
         if not _completed_candidate_evidence_isolated(payload=payload, completed=completed):
             return {"exit_code": EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "multi_candidate_evidence_mixed", "diagnostic": "multi_candidate_evidence_mixed", "results": results}
+        if not _completed_exact_probability_valid(fixture_id=fixture_id, completed=completed):
+            return {"exit_code": EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "probability_evidence_invalid", "diagnostic": "probability_evidence_invalid", "results": results}
         if not _presentation_contract_valid(fixture_id=fixture_id, completed=completed):
             return {"exit_code": EXIT["semantic"], "provider_calls": len(results) + 1, "fixture_id": fixture_id, "failure_category": "presentation_contract_invalid", "diagnostic": "presentation_contract_invalid", "results": results}
         recommendation = completed.get("recommendation_result")

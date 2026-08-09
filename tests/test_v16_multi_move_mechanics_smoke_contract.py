@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, CURRENT_TYPE_Q12_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, KO_INTERPRETATION_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, CURRENT_TYPE_Q12_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXACT_KO_PROBABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, KO_INTERPRETATION_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -42,6 +42,17 @@ def test_ko_fixture_pair_keeps_server_owned_labels_and_unknown_hp_selectable():
     assert known[0]["mechanics_result"]["ko_interpretation"]["primary_ko_label"] == "possible_ohko"
     assert unknown[0]["mechanics_result"]["ko_interpretation"]["ko_supportability"] == "insufficient_context"
     assert unknown[0]["eligibility"] != "not_selectable"
+
+
+def test_exact_probability_fixture_pair_preflights_fractions_and_keeps_unknown_hp_formula_selectable():
+    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=EXACT_KO_PROBABILITY_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
+    known, unknown = (_prepared(fixture) for fixture in EXACT_KO_PROBABILITY_FIXTURES)
+    probability = known["candidates"][0]["mechanics_result"]["ko_probability"]
+    assert probability["ko_by_1"] == {"numerator": 3, "denominator": 4}
+    assert probability["ko_by_2"] == probability["ko_by_3"] == {"numerator": 1, "denominator": 1}
+    assert unknown["candidates"][0]["mechanics_result"]["ko_probability"] == {"ko_probability_supportability": "insufficient_context", "missing_inputs": ["opponent.current_hp"]}
+    assert unknown["recommendation_request"]["candidate_comparisons"][0]["mechanics_comparison"]["rank"] == 1
 
 
 def test_accuracy_fixture_pair_preserves_numeric_and_always_hit_distinction():
