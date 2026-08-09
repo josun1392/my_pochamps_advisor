@@ -2,11 +2,11 @@
 
 ## T1 policy
 
-The policy is **partial-known positive-only**: confirmed danger may penalize; unknown safety may not reward. Threat evidence is an application-owned deterministic adjustment above existing base mechanics ranking. It does not change candidate usability, provider authority, unknown-slot modeling, or probability semantics.
+The policy is **partial-known positive-only** and is implemented by the internal `advisor_threat_ranking.py` projector: confirmed danger may penalize; unknown safety may not reward. Threat evidence is an application-owned deterministic adjustment above existing base mechanics ranking. It does not change candidate usability, provider authority, unknown-slot modeling, or probability semantics.
 
 ## Existing ranking integration point
 
-The existing direct-mechanics ranker orders only complete native direct-damage candidates by deterministic mechanics evidence and retains stable slot order as its tie break. Threat-aware ranking is a future lexicographic layer after existing eligibility and before that existing deterministic rank. Equal threat tiers preserve the existing base rank and existing stable candidate order.
+The existing direct-mechanics ranker orders only complete native direct-damage candidates by deterministic mechanics evidence and retains stable slot order as its tie break. Threat-aware ranking is now a lexicographic layer after existing eligibility and before that existing deterministic rank. Equal threat tiers preserve the existing base rank and existing stable candidate order. The internal request retains only the summary needed for validation; the provider payload continues to receive no threat summary or tier field.
 
 ## Ordered categorical tiers
 
@@ -33,4 +33,4 @@ Threat adjustment changes only ordering in a future implementation. It must not 
 
 ## Future implementation prerequisites
 
-Implement only a deterministic adapter from known-threat summaries to the documented category keys, then compose that key with the existing base ranking tuple. Preserve summary scope/completeness fields for audit, but do not pass them to the provider. Any alternative policy—minimax, partial-set caution penalty, probability weighting, switch safety, or provider-facing explanation—requires a new T1 decision.
+The deterministic adapter composes its category ordinal with the existing base ranking tuple. Preserve summary scope/completeness fields for audit, but do not pass them to the provider. Any alternative policy—minimax, partial-set caution penalty, probability weighting, switch safety, or provider-facing explanation—requires a new T1 decision.

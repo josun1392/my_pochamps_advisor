@@ -29,6 +29,7 @@ from llm.advisor_opponent_action_candidates import build_opponent_action_candida
 from llm.advisor_opponent_action_evaluator import evaluate_opponent_action_candidates
 from llm.advisor_pairwise_evaluator import evaluate_self_opponent_pairs
 from llm.advisor_known_threat_reducer import reduce_known_opponent_threats
+from llm.advisor_threat_ranking import project_threat_ranking_tier
 from llm.advisor_direct_mechanics import NATIVE_DIRECT_MECHANICS_SOURCES, evaluate_direct_damage_mechanics
 from llm.narrow_action_order import evaluate_action_order
 from llm.move_consequence_evidence import evaluate_move_consequence_evidence
@@ -885,7 +886,7 @@ def _direct_mechanics_comparison(candidate: Mapping[str, Any]) -> tuple[dict[str
     return {"comparison_status": "rankable", "rank": None, "comparison_reason": "deterministic_known_mechanics"}, key
 
 
-def rank_direct_mechanics_candidates(*, candidates: Sequence[Mapping[str, Any]]) -> dict[tuple[int, str], dict[str, Any]]:
+def rank_direct_mechanics_candidates(*, candidates: Sequence[Mapping[str, Any]], threat_summaries: Mapping[str, Any] | None = None) -> dict[tuple[int, str], dict[str, Any]]:
     """Classify and deterministically rank native direct-mechanics candidates.
 
     Only a complete native direct result is rankable.  Unknown, incomplete,
@@ -905,7 +906,9 @@ def rank_direct_mechanics_candidates(*, candidates: Sequence[Mapping[str, Any]])
         comparison, key = result
         comparisons[(slot, move)] = comparison
         if key is not None:
-            rankable.append((key, slot, move))
+            summary = threat_summaries.get(f"self:{slot}:{move}") if isinstance(threat_summaries, Mapping) else None
+            _tier_name, tier = project_threat_ranking_tier(summary)
+            rankable.append(((float(tier), *key), slot, move))
     rankable.sort(key=lambda item: (*item[0], -item[1]), reverse=True)
     only_rankable = len(rankable) == 1
     for rank, (_key, slot, move) in enumerate(rankable, start=1):
@@ -1093,7 +1096,8 @@ def _validate_request_contract(request: Mapping[str, Any]) -> None:
             expected_selectable.append(pair)
     if selectable != expected_selectable:
         raise ValueError("invalid recommendation request")
-    expected_mechanics_comparisons = rank_direct_mechanics_candidates(candidates=comparisons)
+    threat_summaries = request.get("internal_threat_summaries")
+    expected_mechanics_comparisons = rank_direct_mechanics_candidates(candidates=comparisons, threat_summaries=threat_summaries if isinstance(threat_summaries, Mapping) else None)
     for row in comparisons:
         pair = _exact_pair(row, exact=False)
         expected_comparison = expected_mechanics_comparisons.get((pair["slot_index"], pair["move"]))
@@ -1136,7 +1140,10 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
             # contract and never serializing a calculation input/provenance block.
             normalized_candidates.append(normalized)
             pairs.append(pair)
-        ranked_mechanics = rank_direct_mechanics_candidates(candidates=normalized_candidates)
+        raw_threats = evidence_bundle.get("known_opponent_threat_summaries")
+        summaries = raw_threats.get("threat_summaries") if isinstance(raw_threats, Mapping) else None
+        threat_summaries = {item["self_candidate_id"]: deepcopy(dict(item)) for item in summaries if isinstance(item, Mapping) and isinstance(item.get("self_candidate_id"), str)} if isinstance(summaries, list) else None
+        ranked_mechanics = rank_direct_mechanics_candidates(candidates=normalized_candidates, threat_summaries=threat_summaries)
         for normalized in normalized_candidates:
             eligibility = _candidate_eligibility(normalized)
             provider_candidate = {key: value for key, value in normalized.items() if key != "q12_damage"}
@@ -1171,6 +1178,8 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
         "known_limitations": deepcopy(limitations),
         "guardrails": deepcopy(_RECOMMENDATION_GUARDRAILS),
     }
+    if threat_summaries is not None:
+        request["internal_threat_summaries"] = deepcopy(threat_summaries)
     turn_snapshot = snapshot.get("turn_snapshot") if isinstance(snapshot, Mapping) else None
     current_state = turn_snapshot.get("current_state") if isinstance(turn_snapshot, Mapping) else None
     runtime = current_state.get("runtime_advice_state") if isinstance(current_state, Mapping) else None
@@ -1813,6 +1822,7 @@ def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_inp
         prepared["evidence_bundle"]["known_opponent_threat_summaries"] = reduce_known_opponent_threats(
             pair_set=pair_set, self_candidates=prepared["candidates"],
         )
+        prepared["recommendation_request"] = build_recommendation_request(evidence_bundle=prepared["evidence_bundle"])
     return prepared
 
 
