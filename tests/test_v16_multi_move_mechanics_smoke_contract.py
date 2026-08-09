@@ -602,7 +602,10 @@ def test_schema_is_minimal_and_native_evidence_remains_server_side():
     assert set(schema["properties"]) == {"recommendation_status", "selected_candidate_id", "explanation_code"}
     completed = __import__("llm.advisor_candidate_contract", fromlist=["complete_recommendation_cycle"]).complete_recommendation_cycle(prepared_cycle=prepared, response_payload=_response(payload))
     assert completed["status"] == "resolved"
-    assert completed["candidates"][0]["mechanics_result"] == payload["candidate_comparisons"][0]["mechanics_result"]
+    internal = completed["candidates"][0]["mechanics_result"]
+    provider_visible = payload["candidate_comparisons"][0]["mechanics_result"]
+    assert internal["exact_damage_rolls"] and "exact_damage_rolls" not in provider_visible
+    assert {key: value for key, value in internal.items() if key != "exact_damage_rolls"} == provider_visible
 
 
 def test_default_invalid_and_unavailable_paths_do_not_call_provider():

@@ -649,6 +649,9 @@ def _completed_candidate_evidence_isolated(*, payload: Mapping[str, Any], comple
     indexed = {(candidate.get("slot_index"), candidate.get("move")): candidate for candidate in candidates if isinstance(candidate, Mapping)}
     if len(indexed) != len(candidates):
         return False
+    def provider_visible_mechanics(candidate: Mapping[str, Any]) -> Any:
+        mechanics = candidate.get("mechanics_result")
+        return {key: value for key, value in mechanics.items() if key != "exact_damage_rolls"} if isinstance(mechanics, Mapping) else mechanics
     for row in rows:
         if not isinstance(row, Mapping):
             return False
@@ -658,14 +661,14 @@ def _completed_candidate_evidence_isolated(*, payload: Mapping[str, Any], comple
         if not isinstance(candidate, Mapping):
             return False
         if row.get("eligibility") == "not_selectable":
-            if candidate.get("mechanics_result") != row.get("mechanics_result") or candidate.get("action_order") != row.get("action_order") or candidate.get("move_success") != row.get("move_success"):
+            if provider_visible_mechanics(candidate) != row.get("mechanics_result") or candidate.get("action_order") != row.get("action_order") or candidate.get("move_success") != row.get("move_success"):
                 return False
             continue
         if not isinstance(facts, Mapping):
             return False
         if facts.get("candidate_id") != {"slot_index": pair[0], "move": pair[1]}:
             return False
-        if candidate.get("mechanics_result") != row.get("mechanics_result") or candidate.get("action_order") != row.get("action_order") or candidate.get("move_success") != row.get("move_success") or candidate.get("accuracy_evidence") != row.get("accuracy_evidence") or candidate.get("status_move_evidence") != row.get("status_move_evidence") or candidate.get("move_consequence_evidence") != row.get("move_consequence_evidence"):
+        if provider_visible_mechanics(candidate) != row.get("mechanics_result") or candidate.get("action_order") != row.get("action_order") or candidate.get("move_success") != row.get("move_success") or candidate.get("accuracy_evidence") != row.get("accuracy_evidence") or candidate.get("status_move_evidence") != row.get("status_move_evidence") or candidate.get("move_consequence_evidence") != row.get("move_consequence_evidence"):
             return False
     return True
 

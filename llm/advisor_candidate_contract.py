@@ -1127,6 +1127,9 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
         for normalized in normalized_candidates:
             eligibility = _candidate_eligibility(normalized)
             provider_candidate = {key: value for key, value in normalized.items() if key != "q12_damage"}
+            mechanics = provider_candidate.get("mechanics_result")
+            if isinstance(mechanics, Mapping) and "exact_damage_rolls" in mechanics:
+                provider_candidate["mechanics_result"] = {key: value for key, value in mechanics.items() if key != "exact_damage_rolls"}
             pair = _exact_pair(normalized, exact=False)
             row = {**deepcopy(provider_candidate), "eligibility": eligibility}
             comparison = ranked_mechanics.get((pair["slot_index"], pair["move"]))
@@ -2096,8 +2099,17 @@ def build_recommendation_presentation_model(*, completed_cycle: Mapping[str, Any
     }
     if not isinstance(completed_cycle, Mapping):
         return empty
+    presentation_candidates = deepcopy(list(completed_cycle.get("candidates", ())))
+    for candidate in presentation_candidates:
+        if not isinstance(candidate, dict):
+            continue
+        mechanics = candidate.get("mechanics_result")
+        if isinstance(mechanics, Mapping) and "exact_damage_rolls" in mechanics:
+            candidate["mechanics_result"] = {
+                key: value for key, value in mechanics.items() if key != "exact_damage_rolls"
+            }
     try:
-        candidates = serialize_recommendation_request(deepcopy(list(completed_cycle.get("candidates", ()))))
+        candidates = serialize_recommendation_request(presentation_candidates)
     except (TypeError, ValueError):
         return empty
     errors = completed_cycle.get("errors", ())

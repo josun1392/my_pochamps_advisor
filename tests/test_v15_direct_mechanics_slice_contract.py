@@ -174,8 +174,12 @@ def test_mechanics_result_reaches_provider_candidate_without_snapshot_or_engine_
     candidate = prepared["candidates"][0]
     assert candidate["mechanics_result"]["status"] == "known"
     provider_result = prepared["recommendation_request"]["candidate_comparisons"][0]["mechanics_result"]
-    assert provider_result == candidate["mechanics_result"]
+    assert candidate["mechanics_result"]["exact_damage_rolls"]
+    assert provider_result == {
+        key: value for key, value in candidate["mechanics_result"].items() if key != "exact_damage_rolls"
+    }
     assert "damage_rolls" not in provider_result
+    assert "exact_damage_rolls" not in provider_result
     assert "stat_provenance" not in provider_result
 
 

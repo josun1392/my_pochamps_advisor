@@ -198,7 +198,7 @@ def evaluate_direct_damage_mechanics(
     for _ in range(hit_count):
         total_counts = _convolve_roll_counts(total_counts, Counter(rolls))
     total_rolls = tuple(value for value, count in total_counts.items() for _ in range(count))
-    return {
+    result = {
         "status": "known", "move": move_id, "type_effectiveness": type_effectiveness_multiplier(move_type, tuple(defender["types"])),
         "hit_count": hit_count, "per_hit_damage_range": {"minimum": min(rolls), "maximum": max(rolls)},
         "damage_range": {"minimum": min(total_rolls), "maximum": max(total_rolls)},
@@ -210,6 +210,9 @@ def evaluate_direct_damage_mechanics(
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
         "type_damage_evidence": type_authorities["evidence"],
     }
+    if hit_count == 1:
+        result["exact_damage_rolls"] = tuple(rolls)
+    return result
 
 
 def _relevant_stage_context(*, current: Mapping[str, Any], category: Any) -> dict[str, Any]:
