@@ -32,6 +32,8 @@ Formula/formula pairs may reuse both damage and KO paths. Formula/status, status
 
 Pair evidence is pair-local and detached: it cannot overwrite or mutate either source candidate, and one pair cannot borrow another pair's damage, HP, KO, or probability evidence. The provider receives neither pairs nor pair summaries; it continues to select only existing self recommendation candidates. There is no presentation, threat label, provider schema change, or ranking/selectability effect.
 
+`known_opponent_threat_aggregation_design.md` defines the next read-only grouping layer. It must preserve partial-set uncertainty and separate raw KO capability from pair-executed threat; aggregation and ranking are intentionally separate.
+
 ## Future bounded consumers
 
 1. Define known-moveset aggregation while preserving partial-set uncertainty.
