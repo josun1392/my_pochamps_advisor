@@ -32,3 +32,6 @@ def test_probability_is_ignored_and_malformed_present_summary_fails_closed():
  assert first==second
  import pytest
  with pytest.raises(ValueError): rank_direct_mechanics_candidates(candidates=[candidate],threat_summaries={"self:0:move":{}})
+
+def test_raw_guaranteed_ohko_preempted_for_every_known_action_is_not_an_exposure_penalty():
+ assert project_threat_ranking_tier(_summary(known_guaranteed_ohko_capability_exists=True,all_known_actions_preempted="true"))[0]=="neutral_no_positive_threat_evidence"

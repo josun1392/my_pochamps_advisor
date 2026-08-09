@@ -34,3 +34,7 @@ Threat adjustment changes only ordering in a future implementation. It must not 
 ## Future implementation prerequisites
 
 The deterministic adapter composes its category ordinal with the existing base ranking tuple. Preserve summary scope/completeness fields for audit, but do not pass them to the provider. Any alternative policy—minimax, partial-set caution penalty, probability weighting, switch safety, or provider-facing explanation—requires a new T1 decision.
+
+## Actual-grounding inventory
+
+`partial-known-confirmed-threat-ranking` and `partial-known-neutral-no-safety-reward` are the approved sanitized provider fixtures. Each has a partial trusted opponent moveset with three unresolved slots. Preflight owns candidate IDs, selectability, base rank, threat tier, final deterministic rank, and provider-payload redaction. The provider remains limited to its existing minimal selection response; raw threat summaries, tiers, opponent moves, and pair evidence remain excluded. The approved run records only fixture status and call counts, with no retries, fallbacks, repairs, prompt/payload text, or provider response retained.

@@ -32,7 +32,7 @@ def project_threat_ranking_tier(summary: Mapping[str, Any] | None) -> tuple[str,
         raise ValueError("malformed_threat_summary")
     if summary["known_executed_guaranteed_ohko_threat_exists"] is True:
         return "executed_guaranteed_ohko", _TIERS["executed_guaranteed_ohko"]
-    if summary["known_guaranteed_ohko_capability_exists"] is True:
+    if summary["known_guaranteed_ohko_capability_exists"] is True and summary["all_known_actions_preempted"] != "true":
         return "unresolved_guaranteed_ohko_exposure", _TIERS["unresolved_guaranteed_ohko_exposure"]
     if summary["known_executed_possible_ohko_threat_exists"] is True:
         return "executed_possible_ohko", _TIERS["executed_possible_ohko"]
