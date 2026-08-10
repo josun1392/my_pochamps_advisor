@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_reducer_state_model import is_unknown_battle_fact, validate_battle_state_unknown_markers
+from llm.advisor_switch_permission import project_switch_permission_context, normalize_switch_permission_context
 
 
 SCHEMA_VERSION = "switch-candidate-context-v2"
@@ -41,7 +42,7 @@ def build_switch_candidate_context_projection(runtime_state: Mapping[str, Any]) 
         entries.append(entry)
     if active not in roster:
         raise ValueError("invalid_switch_candidate_context")
-    return {"schema_version": SCHEMA_VERSION, "session_id": session_id, "self_active_slot_index": active, "self_pokemon": entries}
+    return {"schema_version": SCHEMA_VERSION, "session_id": session_id, "self_active_slot_index": active, "self_pokemon": entries, "switch_permission_context": project_switch_permission_context(runtime_state)}
 
 
 def normalize_switch_candidate_context_projection(value: Any, *, battle_input: Mapping[str, Any], session_id: str) -> dict[str, Any]:
@@ -77,7 +78,8 @@ def normalize_switch_candidate_context_projection(value: Any, *, battle_input: M
     active_entry = next((entry for entry in result if entry["slot_index"] == active), None)
     if active_entry is None or active_entry["pokemon_id"] != ui_active.get("name_en"):
         raise ValueError("invalid_switch_candidate_context")
-    return {"schema_version": SCHEMA_VERSION, "session_id": session_id, "self_active_slot_index": active, "self_pokemon": sorted(result, key=lambda entry: entry["slot_index"])}
+    permission = normalize_switch_permission_context(value.get("switch_permission_context"), session_id=session_id, active_slot_index=active, active_pokemon_id=ui_active.get("name_en"))
+    return {"schema_version": SCHEMA_VERSION, "session_id": session_id, "self_active_slot_index": active, "self_pokemon": sorted(result, key=lambda entry: entry["slot_index"]), "switch_permission_context": permission}
 
 
 def _project_fact(value: Any) -> dict[str, Any]:
@@ -116,13 +118,18 @@ def build_switch_candidates(*, turn_snapshot: Any) -> list[dict[str, Any]]:
         slot, pokemon_id, fainted = entry.get("slot_index"), entry.get("pokemon_id"), entry.get("fainted")
         if not isinstance(slot, int) or isinstance(slot, bool) or not isinstance(pokemon_id, str) or not pokemon_id or not isinstance(fainted, Mapping):
             continue
-        availability, legality, reason = "complete", "unsupported_mechanic", "switch_legality_unsupported"
+        permission = context.get("switch_permission_context")
+        availability, legality, reason, selectable = "complete", "insufficient_context", "switch_legality_unknown", False
         if fainted.get("status") == "unknown":
             availability, legality, reason = "insufficient_context", "not_applicable", "target_availability_unknown"
         elif fainted.get("status") == "known" and fainted.get("value") is True:
             legality, reason = "not_applicable", "target_fainted"
         elif not (fainted.get("status") == "known" and fainted.get("value") is False):
             continue
+        elif isinstance(permission, Mapping) and permission.get("status") == "permitted" and permission.get("supportability") == "complete":
+            legality, reason, selectable = "complete", "switch_available", True
+        elif isinstance(permission, Mapping) and permission.get("status") == "blocked" and permission.get("supportability") == "complete":
+            legality, reason = "complete", "switch_blocked"
         candidates.append({
             "candidate_id": f"self-switch:{session}:{slot}:{pokemon_id}",
             "action_kind": "switch",
@@ -132,7 +139,7 @@ def build_switch_candidates(*, turn_snapshot: Any) -> list[dict[str, Any]]:
             "identity_supportability": "complete",
             "availability_supportability": availability,
             "legality_supportability": legality,
-            "selectable": False,
+            "selectable": selectable,
             "reason_code": reason,
         })
     return deepcopy(candidates)

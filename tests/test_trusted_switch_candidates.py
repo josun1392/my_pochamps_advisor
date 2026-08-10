@@ -39,11 +39,11 @@ def test_projection_enumerates_only_frozen_bench_in_slot_order_with_distinct_ses
     assert candidates[0]["candidate_id"] != other[0]["candidate_id"]
 
 
-def test_availability_tri_state_and_unsupported_prospective_legality_are_conservative():
+def test_availability_tri_state_and_unknown_prospective_legality_are_conservative():
     candidates = {row["target_pokemon_id"]: row for row in build_switch_candidates(turn_snapshot=_snapshot(build_switch_candidate_context_projection(_state())))}
     assert candidates["pikachu-b"]["availability_supportability"] == "complete"
-    assert candidates["pikachu-b"]["legality_supportability"] == "unsupported_mechanic"
-    assert candidates["pikachu-b"]["selectable"] is False and candidates["pikachu-b"]["reason_code"] == "switch_legality_unsupported"
+    assert candidates["pikachu-b"]["legality_supportability"] == "insufficient_context"
+    assert candidates["pikachu-b"]["selectable"] is False and candidates["pikachu-b"]["reason_code"] == "switch_legality_unknown"
     assert candidates["eevee"]["selectable"] is False and candidates["eevee"]["reason_code"] == "target_fainted"
     assert candidates["mew"]["availability_supportability"] == "insufficient_context"
     assert candidates["mew"]["selectable"] is False and candidates["mew"]["reason_code"] == "target_availability_unknown"

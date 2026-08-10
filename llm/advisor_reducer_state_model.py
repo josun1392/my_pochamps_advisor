@@ -6,7 +6,7 @@ from types import MappingProxyType
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
-_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids"}
+_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context"}
 
 
 def make_unknown_battle_fact():
@@ -31,7 +31,9 @@ def validate_battle_state_unknown_markers(state):
         roster = side.get("pokemon")
         if not isinstance(roster, dict):
             return False
-        if any(_contains_marker(value) for key, value in side.items() if key not in {"pokemon", "side_conditions"}):
+        if side_name == "self_side" and "switch_permission_context" in side and not _valid_switch_permission_context(state, side["switch_permission_context"]):
+            return False
+        if any(_contains_marker(value) for key, value in side.items() if key not in {"pokemon", "side_conditions", "switch_permission_context"}):
             return False
         for pokemon in roster.values():
             if not isinstance(pokemon, dict):
@@ -125,6 +127,8 @@ def project_atomic_transition(base_state, replay_plan, expected_session_id=None,
         conflict = _apply(projected, item)
         if conflict:
             return _projection_result("blocked_by_semantic_conflict", base, plan, rejected=_step_ids(steps), conflicts=[conflict])
+        if item["planned_effect"] != "set_switch_permission":
+            _invalidate_switch_permission(projected)
         applied.append(item["observation_id"])
     sequences = [item["observation_sequence"] for item in normalized]
     projected["last_applied_observation_sequence"] = max(sequences)
@@ -216,6 +220,8 @@ def _has_target_identity(event):
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect == "switch_active":
         return isinstance(_value(event, "side"), str) and all(_value(event, key) is not None for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id"))
+    if effect == "set_switch_permission":
+        return _value(event, "side") == "self" and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect in {"start_weather", "end_weather"}: return isinstance(_value(event, "weather"), str) and bool(_value(event, "weather"))
     if effect in {"start_terrain", "end_terrain"}: return isinstance(_value(event, "terrain"), str) and bool(_value(event, "terrain"))
     return isinstance(_value(event, "side"), str) and isinstance(_value(event, "side_condition") or _value(event, "effect"), str)
@@ -255,6 +261,7 @@ def _apply(state, event):
         if not _unknown(maximum) and _exact(maximum) and after > maximum: return _conflict(event, "hp_after_exceeds_max")
         pokemon["current_hp"] = after; _mark(pokemon, "current_hp", event); return None
     if effect == "switch_active": return _switch(state, event)
+    if effect == "set_switch_permission": return _set_switch_permission(state, event)
     if effect == "mark_fainted":
         pokemon = _pokemon(state, event)
         if pokemon is None: return _conflict(event, "missing_faint_target")
@@ -322,6 +329,47 @@ def _switch(state, event):
     if not isinstance(incoming, dict) or incoming.get("pokemon_id", incoming.get("name_en")) != in_id: return _conflict(event, "missing_switch_in_target")
     if incoming.get("fainted") is True: return _conflict(event, "switch_in_fainted")
     side["active_slot_index"] = in_slot; _mark(side, "active_slot_index", event); return None
+
+
+def _set_switch_permission(state, event):
+    side = _side(state, "self")
+    pokemon = _pokemon(state, event)
+    status = _value(event, "permission_status")
+    if side is None or pokemon is None or side.get("active_slot_index") != _value(event, "slot_index"):
+        return _conflict(event, "switch_permission_owner_mismatch")
+    if status not in {"permitted", "blocked"} or _value(event, "source") != "user_confirmed_current_switch_permission" or _value(event, "trust") != "user_confirmed_current":
+        return _conflict(event, "invalid_switch_permission_authority")
+    reason = _value(event, "block_reason")
+    if status == "permitted" and reason is not None:
+        return _conflict(event, "invalid_switch_permission_reason")
+    if status == "blocked" and reason not in (None, "trapped", "switch_lock", "other_confirmed_block"):
+        return _conflict(event, "invalid_switch_permission_reason")
+    context = {"schema_version": "switch-permission-context-v1", "session_id": state.get("session_id"), "side": "self", "active_slot_index": _value(event, "slot_index"), "active_pokemon_id": _value(event, "pokemon_id"), "status": status, "supportability": "complete", "source": "user_confirmed_current_switch_permission", "trust": "user_confirmed_current"}
+    if reason is not None: context["block_reason"] = reason
+    side["switch_permission_context"] = context
+    return None
+
+
+def _invalidate_switch_permission(state):
+    side = _side(state, "self")
+    roster = side.get("pokemon") if isinstance(side, dict) else None
+    slot = side.get("active_slot_index") if isinstance(side, dict) else None
+    active = roster.get(slot, roster.get(str(slot))) if isinstance(roster, dict) else None
+    pokemon_id = active.get("pokemon_id", active.get("name_en")) if isinstance(active, dict) else None
+    if isinstance(side, dict) and isinstance(slot, int) and not isinstance(slot, bool) and isinstance(pokemon_id, str) and pokemon_id:
+        side["switch_permission_context"] = {"schema_version": "switch-permission-context-v1", "session_id": state.get("session_id"), "side": "self", "active_slot_index": slot, "active_pokemon_id": pokemon_id, "status": "unknown", "supportability": "insufficient_context"}
+
+
+def _valid_switch_permission_context(state, value):
+    if not isinstance(value, dict): return False
+    side = state.get("self_side", {}); roster = side.get("pokemon", {}) if isinstance(side, dict) else {}
+    slot = side.get("active_slot_index") if isinstance(side, dict) else None
+    active = roster.get(slot, roster.get(str(slot))) if isinstance(roster, dict) else None
+    pid = active.get("pokemon_id", active.get("name_en")) if isinstance(active, dict) else None
+    common = {"schema_version": "switch-permission-context-v1", "session_id": state.get("session_id"), "side": "self", "active_slot_index": slot, "active_pokemon_id": pid}
+    if any(value.get(key) != expected for key, expected in common.items()): return False
+    if value.get("status") == "unknown": return set(value) == {*common, "status", "supportability"} and value.get("supportability") == "insufficient_context"
+    return value.get("status") in {"permitted", "blocked"} and value.get("supportability") == "complete" and value.get("source") == "user_confirmed_current_switch_permission" and value.get("trust") == "user_confirmed_current" and set(value) <= {*common, "status", "supportability", "source", "trust", "block_reason"}
 
 
 def _same_sequence_conflicts(steps):

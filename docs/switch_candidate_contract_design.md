@@ -28,7 +28,7 @@ The candidate layers are intentionally separate: identity supportability, availa
 
 Unknown never means healthy, available, legal, or absent. A nonselectable candidate is still an application-owned representation of a real target identity; it does not assert that the Pokemon fainted or otherwise became unavailable.
 
-Current implementation has no prospective restriction authority, so a known non-fainted target receives `legality_supportability=unsupported_mechanic`, `switch_legality_unsupported`, and `selectable=false`. This is intentionally not a trapping-default policy. A future supported legality path may be the only path that emits `switch_available`/`selectable=true`.
+Current implementation freezes a direct source-active `switch_permission_context` from trusted reducer authority. Missing/legacy/malformed permission is `insufficient_context`, `switch_legality_unknown`, and nonselectable; it is not a trapping-default policy. A trusted `permitted` authority can emit `switch_available`/`selectable=true`; trusted `blocked` emits `switch_blocked` and remains nonselectable. See `switch_permission_authority_design.md`.
 
 ## Prospective legality and historical events
 
