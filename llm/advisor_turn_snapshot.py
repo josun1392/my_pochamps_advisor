@@ -12,6 +12,7 @@ from llm.advisor_battle_state_context import (
 )
 from llm.advisor_runtime_state_projection import normalize_runtime_advice_state_projection
 from llm.advisor_reducer_state_model import validate_battle_state_unknown_markers
+from llm.advisor_switch_candidates import normalize_switch_candidate_context_projection
 
 
 RICH_CURRENT_STATE_KEYS = (
@@ -1099,6 +1100,13 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
         if session_id is None:
             raise ValueError("invalid_known_move_context")
         state["known_move_context"] = normalize_known_move_context_projection(known_move_context, battle_input=battle_input, session_id=session_id)
+    switch_candidate_context = battle_input.get("switch_candidate_context")
+    if switch_candidate_context is not None:
+        if session_id is None:
+            raise ValueError("invalid_switch_candidate_context")
+        state["switch_candidate_context"] = normalize_switch_candidate_context_projection(
+            switch_candidate_context, battle_input=battle_input, session_id=session_id,
+        )
     if isinstance(observation_snapshot, Mapping) and observation_snapshot.get("status") == "ready":
         session = observation_snapshot.get("session_id")
         if isinstance(session, str) and session and session_id == session:

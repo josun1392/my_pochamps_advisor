@@ -2,7 +2,9 @@
 
 ## Scope and existing inventory
 
-This is a design-only, application-owned foundation for future self-switch actions. `battle-state-v1` already stores a session-bound self roster under `self_side.pokemon`, keyed by team slot, with `pokemon_id`, `fainted`, HP, condition, and item as separate authorities; `self_side.active_slot_index` identifies the active member. Duplicate species therefore remain distinct slot/Pokemon identities. The existing reducer can record an observed switch and can mark a Pokemon fainted, while the request snapshot contract is detached and session-bound. None of those facilities currently generates prospective switch actions.
+The Conservative projection is implemented in `llm/advisor_switch_candidates.py`. `build_switch_candidate_context_projection(...)` projects only the private runtime self roster's identity and fainted authority; `normalize_switch_candidate_context_projection(...)` binds it to the request-start selected active identity; and `build_switch_candidates(...)` emits detached internal candidates from the frozen turn snapshot. `prepare_ui_recommendation_cycle(...)` stores that collection only in its internal evidence bundle as `switch_candidates`. Provider-facing snapshot summary explicitly removes the private context.
+
+`battle-state-v1` already stores a session-bound self roster under `self_side.pokemon`, keyed by team slot, with `pokemon_id`, `fainted`, HP, condition, and item as separate authorities; `self_side.active_slot_index` identifies the active member. Duplicate species therefore remain distinct slot/Pokemon identities. The existing reducer can record an observed switch and can mark a Pokemon fainted, while the request snapshot contract is detached and session-bound.
 
 `fainted` is dedicated tri-state authority: explicit `true`, explicit `false`, or canonical unknown. HP is separate; this contract adds no HP-to-fainted inference. A replayed historical switch event records that a switch was observed, not that the same target is currently legal to choose prospectively.
 
@@ -10,7 +12,7 @@ This is a design-only, application-owned foundation for future self-switch actio
 
 Every identity-known self roster entry other than the frozen active identity is a **potential switch target**. A potential target is represented even when it is not selectable. Empty or unassigned slots create neither target nor candidate; the active identity creates no switch-to-self action.
 
-A bounded future candidate has `action_kind=switch` and a deterministic identity conceptually formatted as `self-switch:{session}:{slot}:{pokemon-identity}`. It is separate from the existing self move namespace and never uses a fake move ID. Stable enumeration is canonical team-slot order, excluding active and empty slots; it conveys no rank, matchup, HP, species, or threat ordering.
+A bounded candidate has `action_kind=switch`, session ownership, target slot/Pokemon identity, identity/availability/legality supportability, `selectable`, and a bounded reason code. Its deterministic identity is `self-switch:{session}:{slot}:{pokemon-identity}`. It is separate from the existing self move namespace and never uses a fake move ID. Stable enumeration is canonical team-slot order, excluding active and empty slots; it conveys no rank, matchup, HP, species, or threat ordering.
 
 ## Availability and selectability
 
@@ -18,13 +20,15 @@ The candidate layers are intentionally separate: identity supportability, availa
 
 | Trusted target state | Potential target | Selectable | Canonical reason |
 | --- | --- | --- | --- |
-| identity + `fainted=false` + legality complete/allowed | yes | yes | `switch_available` |
+| identity + `fainted=false` + legality complete/allowed | yes | yes | `switch_available` (future supported path) |
 | identity + `fainted=true` | yes | no | `target_fainted` |
 | identity + fainted unknown | yes | no | `target_availability_unknown` |
 | availability complete + legality authority unknown | yes | no | `switch_legality_unknown` |
 | availability complete + no supported restriction mechanic | yes | no | `switch_legality_unsupported` |
 
 Unknown never means healthy, available, legal, or absent. A nonselectable candidate is still an application-owned representation of a real target identity; it does not assert that the Pokemon fainted or otherwise became unavailable.
+
+Current implementation has no prospective restriction authority, so a known non-fainted target receives `legality_supportability=unsupported_mechanic`, `switch_legality_unsupported`, and `selectable=false`. This is intentionally not a trapping-default policy. A future supported legality path may be the only path that emits `switch_available`/`selectable=true`.
 
 ## Prospective legality and historical events
 

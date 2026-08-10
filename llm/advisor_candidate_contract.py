@@ -30,6 +30,7 @@ from llm.advisor_opponent_action_evaluator import evaluate_opponent_action_candi
 from llm.advisor_pairwise_evaluator import evaluate_self_opponent_pairs
 from llm.advisor_known_threat_reducer import reduce_known_opponent_threats
 from llm.advisor_threat_ranking import project_threat_ranking_tier
+from llm.advisor_switch_candidates import build_switch_candidates
 from llm.advisor_direct_mechanics import NATIVE_DIRECT_MECHANICS_SOURCES, evaluate_direct_damage_mechanics
 from llm.narrow_action_order import evaluate_action_order
 from llm.move_consequence_evidence import evaluate_move_consequence_evidence
@@ -1778,6 +1779,7 @@ def build_ui_recommendation_snapshot_summary(*, battle_input: Mapping[str, Any],
         current_state = serialized_snapshot.get("current_state")
         if isinstance(current_state, dict):
             current_state.pop("known_move_context", None)
+            current_state.pop("switch_candidate_context", None)
         summary["turn_snapshot"] = serialized_snapshot
     return summary
 
@@ -1809,6 +1811,7 @@ def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_inp
         turn_snapshot=request_turn_snapshot, species_repository=species_repository,
     )
     if prepared.get("status") == "ready" and isinstance(prepared.get("evidence_bundle"), dict):
+        prepared["evidence_bundle"]["switch_candidates"] = build_switch_candidates(turn_snapshot=request_turn_snapshot)
         opponent_candidates = build_opponent_action_candidates(
             turn_snapshot=request_turn_snapshot, move_repository=move_repository, species_repository=species_repository,
         )
