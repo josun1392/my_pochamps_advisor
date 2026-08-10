@@ -9,7 +9,7 @@ from llm.advisor_reducer_state_model import is_unknown_battle_fact, validate_bat
 
 SCHEMA_VERSION = "self-roster-mechanics-context-v1"
 _AUTHORITY_KEYS = (
-    "current_type_authority", "final_stat_authority", "ability_authority",
+    "current_type_authority", "base_stat_authority", "final_stat_authority", "ability_authority",
     "item_authority", "hp_authority", "fainted_authority", "persistent_condition_authority",
 )
 
@@ -80,6 +80,7 @@ def _base_record(session: str, slot: int, pokemon_id: str, pokemon: Mapping[str,
     return {
         "session_id": session, "side": "self", "slot_index": slot, "pokemon_id": pokemon_id,
         "current_type_authority": _unknown_authority(),
+        "base_stat_authority": _unknown_authority(),
         "final_stat_authority": _unknown_authority(),
         "ability_authority": _unknown_authority(),
         "item_authority": _fact_authority(pokemon.get("known_item")),
