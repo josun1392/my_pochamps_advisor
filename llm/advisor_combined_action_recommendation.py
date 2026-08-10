@@ -1,0 +1,106 @@
+"""Frozen application-owned action envelope before the move-only provider branch."""
+from __future__ import annotations
+
+from copy import deepcopy
+from typing import Any, Mapping, Sequence
+
+from llm.advisor_combined_action_selection import select_combined_self_action
+from llm.advisor_cross_action_danger import project_move_cross_action_danger, reduce_switch_cross_action_danger
+from llm.advisor_switch_incoming_evaluator import evaluate_switch_incoming_opponent_action
+from llm.advisor_switch_transition import project_authorized_switch_transition
+
+
+def build_combined_action_envelope(*, prepared_cycle: Mapping[str, Any]) -> dict[str, Any]:
+    """Select from one prepared frozen cycle; never construct provider input."""
+    evidence = prepared_cycle.get("evidence_bundle") if isinstance(prepared_cycle, Mapping) else None
+    snapshot = prepared_cycle.get("_combined_action_turn_snapshot") if isinstance(prepared_cycle, Mapping) else None
+    if snapshot is None and isinstance(evidence, Mapping): snapshot = evidence.get("turn_snapshot")
+    if not isinstance(evidence, Mapping) or snapshot is None:
+        return _failure("insufficient_context")
+    move_actions = _move_actions(evidence, prepared_cycle.get("candidates"))
+    switch_actions = _switch_actions(evidence, snapshot)
+    result = select_combined_self_action(move_actions=move_actions, switch_actions=switch_actions)
+    selected_id, kind = result.get("selected_candidate_id"), result.get("selected_action_kind")
+    if kind == "switch" and selected_id is not None:
+        candidate = next((row for row in evidence.get("switch_candidates", []) if isinstance(row, Mapping) and row.get("candidate_id") == selected_id), None)
+        if not isinstance(candidate, Mapping) or not _valid_switch(candidate):
+            return _failure("validation_failed")
+        return {"action_kind": "switch", "candidate_id": selected_id, "selection_status": "resolved", "selection_reason": result["selection_reason"], "supportability": result["selection_supportability"], "switch_candidate_id": selected_id, "target_pokemon_id": candidate["target_pokemon_id"], "target_slot_index": candidate["target_slot_index"], "tied_candidate_ids": [], "danger_tier": _tier_for(selected_id, switch_actions)}
+    if kind == "move" and isinstance(selected_id, str):
+        return {"action_kind": "move", "candidate_id": selected_id, "selection_status": "resolved", "selection_reason": result["selection_reason"], "supportability": result["selection_supportability"], "move_candidate_id": selected_id, "switch_candidate_id": None, "tied_candidate_ids": [], "danger_tier": _tier_for(selected_id, move_actions)}
+    if result.get("selection_supportability") == "unresolved_equal_switches":
+        return {"action_kind": None, "candidate_id": None, "selection_status": "unresolved_equal_switches", "selection_reason": "unresolved_switch_tie", "supportability": "unresolved_equal_switches", "move_candidate_id": None, "switch_candidate_id": None, "tied_candidate_ids": deepcopy(result.get("tied_candidate_ids", [])), "danger_tier": None}
+    return _failure(result.get("selection_reason", "no_selectable_action"))
+
+
+def build_combined_action_presentation(*, envelope: Mapping[str, Any]) -> dict[str, Any]:
+    """Return bounded deterministic non-move presentation only."""
+    if not isinstance(envelope, Mapping): return {"status": "validation_failed", "action_kind": None, "text": None}
+    if envelope.get("selection_status") == "resolved" and envelope.get("action_kind") == "switch":
+        target = envelope.get("target_pokemon_id")
+        if not isinstance(target, str) or not target: return {"status": "validation_failed", "action_kind": None, "text": None}
+        reason = envelope.get("selection_reason")
+        text = f"교체 추천: {target}"
+        if reason == "lower_cross_action_danger": text += "\n현재 확인된 정보에서는 교체 쪽의 즉시 KO 위험이 더 낮습니다."
+        elif reason in {"only_selectable_action", "lower_eligibility"}: text += "\n현재 확인된 정보에서 선택 가능한 교체 행동입니다."
+        return {"status": "resolved", "action_kind": "switch", "text": text, "envelope": deepcopy(dict(envelope))}
+    if envelope.get("selection_status") == "unresolved_equal_switches":
+        return {"status": "unresolved_equal_switches", "action_kind": None, "text": "교체 후보가 여러 개이며 현재 계산만으로 우선순위를 정할 수 없습니다.", "envelope": deepcopy(dict(envelope))}
+    return {"status": envelope.get("selection_status", "insufficient_context"), "action_kind": None, "text": None, "envelope": deepcopy(dict(envelope))}
+
+
+def _move_actions(evidence: Mapping[str, Any], candidates: Any) -> list[dict[str, Any]]:
+    summaries = evidence.get("known_opponent_threat_summaries", {}).get("threat_summaries", []) if isinstance(evidence.get("known_opponent_threat_summaries"), Mapping) else []
+    tiers = {row.get("self_candidate_id"): _move_threat_tier(row) for row in summaries if isinstance(row, Mapping)}
+    rows = candidates if isinstance(candidates, Sequence) and not isinstance(candidates, (str, bytes)) else []
+    result = []
+    for index, row in enumerate(rows):
+        if not isinstance(row, Mapping): continue
+        identifier = f"self:{row.get('slot_index')}:{row.get('move')}"
+        result.append(project_move_cross_action_danger(candidate_id=identifier, selectable=row.get("availability") == "available", threat_tier=tiers.get(identifier)) | {"native_move_rank": index})
+    return result
+
+
+def _move_threat_tier(summary: Mapping[str, Any]) -> str | None:
+    if summary.get("known_executed_guaranteed_ohko_threat_exists") is True: return "executed_guaranteed_ohko"
+    if summary.get("known_guaranteed_ohko_capability_exists") is True and summary.get("all_known_actions_preempted") != "true": return "unresolved_guaranteed_ohko_exposure"
+    if summary.get("known_executed_possible_ohko_threat_exists") is True: return "executed_possible_ohko"
+    return None
+
+
+def _switch_actions(evidence: Mapping[str, Any], snapshot: Any) -> list[dict[str, Any]]:
+    opponent = evidence.get("opponent_action_candidates", [])
+    opponent_rows = opponent if isinstance(opponent, list) else opponent.get("candidates", []) if isinstance(opponent, Mapping) else []
+    result = []
+    for candidate in evidence.get("switch_candidates", []):
+        if not isinstance(candidate, Mapping) or not _valid_switch(candidate): continue
+        incoming = []
+        for action in opponent_rows if isinstance(opponent_rows, list) else []:
+            transition = project_authorized_switch_transition(turn_snapshot=_snapshot_adapter(snapshot), switch_candidate=candidate, switch_authorized=True, opponent_action=action if isinstance(action, Mapping) else None)
+            incoming.append(evaluate_switch_incoming_opponent_action(transition=transition))
+        result.append(reduce_switch_cross_action_danger(switch_candidate_id=candidate["candidate_id"], selectable=candidate.get("selectable") is True, incoming_results=incoming))
+    return result
+
+
+def _valid_switch(candidate: Mapping[str, Any]) -> bool:
+    return isinstance(candidate.get("candidate_id"), str) and candidate.get("candidate_id", "").startswith("self-switch:") and candidate.get("action_kind") == "switch" and isinstance(candidate.get("target_pokemon_id"), str) and isinstance(candidate.get("target_slot_index"), int)
+
+
+def _snapshot_adapter(snapshot: Any) -> Any:
+    if isinstance(snapshot, Mapping):
+        return _SerializedSnapshot(snapshot)
+    return snapshot
+
+
+class _SerializedSnapshot:
+    def __init__(self, value: Mapping[str, Any]): self._value = deepcopy(dict(value))
+    def to_dict(self) -> dict[str, Any]: return deepcopy(self._value)
+
+
+def _tier_for(identifier: str, rows: Sequence[Mapping[str, Any]]) -> str | None:
+    row = next((item for item in rows if item.get("action_candidate_id") == identifier), None)
+    return row.get("cross_action_danger_tier") if isinstance(row, Mapping) else None
+
+
+def _failure(reason: str) -> dict[str, Any]:
+    return {"action_kind": None, "candidate_id": None, "selection_status": "no_selectable_action", "selection_reason": reason, "supportability": "insufficient_context", "move_candidate_id": None, "switch_candidate_id": None, "tied_candidate_ids": [], "danger_tier": None}

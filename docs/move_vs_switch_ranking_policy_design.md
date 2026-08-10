@@ -43,3 +43,8 @@ This remains internal-only: current Conservative switch candidates stay
 nonselectable, provider payloads remain move-only, and no presentation is
 changed. A later integration policy is still required for provider/UI exposure
 and for a strategic choice among equal-tier switches.
+
+`combined_action_recommendation_flow.md` now connects the application-owned
+selection envelope to the existing client: Move continues to its unchanged
+provider branch, while selected or unresolved Switch results stay deterministic
+and provider-free. Equal switch ties still require no artificial winner.

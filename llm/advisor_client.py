@@ -85,6 +85,7 @@ from llm.advisor_candidate_contract import (
     complete_recommendation_cycle,
     prepare_ui_recommendation_cycle,
 )
+from llm.advisor_combined_action_recommendation import build_combined_action_envelope, build_combined_action_presentation
 from scripts.spike_advisor import (
     DEFAULT_MODEL,
     build_prompt,
@@ -694,6 +695,10 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
 
 def format_recommendation_presentation_text(*, presentation_model: Mapping[str, Any]) -> str:
     """Format only validated presentation fields for the existing text panel."""
+    if isinstance(presentation_model, Mapping) and presentation_model.get("action_kind") == "switch" and isinstance(presentation_model.get("text"), str):
+        return presentation_model["text"]
+    if isinstance(presentation_model, Mapping) and presentation_model.get("status") == "unresolved_equal_switches" and isinstance(presentation_model.get("text"), str):
+        return presentation_model["text"]
     if not isinstance(presentation_model, Mapping):
         return "추천 응답 검증에 실패했습니다."
     status = presentation_model.get("status")
@@ -739,6 +744,10 @@ def run_structured_ui_recommendation(*, selected_moves: Any, battle_input: Mappi
     if prepared.get("status") != "ready":
         presentation = build_recommendation_presentation_model(completed_cycle={"status": "response_validation_failed", "candidates": prepared.get("candidates", []), "errors": ["preparation_not_ready"]})
         return {"status": "preparation_not_ready", "prepared_cycle": deepcopy(prepared), "completed_cycle": None, "presentation_model": presentation, "usage": {}, "errors": ["preparation_not_ready"]}
+    combined_action = build_combined_action_envelope(prepared_cycle=prepared)
+    if combined_action.get("action_kind") == "switch" or combined_action.get("selection_status") == "unresolved_equal_switches":
+        presentation = build_combined_action_presentation(envelope=combined_action)
+        return {"status": presentation["status"], "prepared_cycle": deepcopy(prepared), "completed_cycle": None, "combined_action": deepcopy(combined_action), "presentation_model": presentation, "usage": {}, "errors": []}
     payload = build_provider_recommendation_payload(prepared_cycle=prepared)
     if payload.get("status"):
         return {"status": "provider_response_validation_failed", "prepared_cycle": deepcopy(prepared), "completed_cycle": None, "presentation_model": build_recommendation_presentation_model(completed_cycle={"status": "response_validation_failed", "candidates": prepared.get("candidates", []), "errors": ["provider_response_validation_failed"]}), "usage": {}, "errors": ["provider_response_validation_failed"]}

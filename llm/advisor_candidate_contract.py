@@ -1812,6 +1812,9 @@ def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_inp
         turn_snapshot=request_turn_snapshot, species_repository=species_repository,
     )
     if prepared.get("status") == "ready" and isinstance(prepared.get("evidence_bundle"), dict):
+        # Private frozen handoff for application-owned combined selection.  The
+        # provider adapter explicitly ignores it and it is never serialized.
+        prepared["_combined_action_turn_snapshot"] = deepcopy(request_turn_snapshot.to_dict())
         prepared["evidence_bundle"]["switch_candidates"] = build_switch_candidates(turn_snapshot=request_turn_snapshot)
         opponent_candidates = build_opponent_action_candidates(
             turn_snapshot=request_turn_snapshot, move_repository=move_repository, species_repository=species_repository,
@@ -1843,7 +1846,7 @@ _MECHANICS_ACK_PROVIDER_RESPONSE_KEYS = (*_GROUNDED_PROVIDER_RESPONSE_KEYS, "mec
 _RANKING_ACK_PROVIDER_RESPONSE_KEYS = (*_MECHANICS_ACK_PROVIDER_RESPONSE_KEYS, "ranking_acknowledgements")
 _MULTI_PROVIDER_RESPONSE_KEYS = ("recommendation_status", "selected_candidate_id", "explanation_code")
 _PROVIDER_RESPONSE_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate"})
-_PREPARED_CYCLE_KEYS = frozenset({"status", "candidates", "evidence_bundle", "recommendation_request", "recommendation_result", "errors"})
+_PREPARED_CYCLE_KEYS = frozenset({"status", "candidates", "evidence_bundle", "recommendation_request", "recommendation_result", "errors", "_combined_action_turn_snapshot"})
 
 
 def _provider_adapter_failure(status: str, code: str) -> dict[str, Any]:
