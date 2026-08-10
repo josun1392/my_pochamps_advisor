@@ -682,7 +682,10 @@ def _format_validated_selected_candidate_summary(selected: Any) -> list[str]:
         if shown:
             lines.append(f"비교 정보: {', '.join(shown)}")
     threat = selected.get("threat_ranking")
-    if isinstance(threat, Mapping) and threat.get("presentation_status") == "available" and isinstance(threat.get("text"), str):
+    from llm.advisor_threat_presentation import is_valid_selected_threat_presentation
+    slot_index = action.get("slot_index")
+    selected_candidate_id = f"self:{slot_index}:{action['move']}" if isinstance(slot_index, int) else None
+    if isinstance(selected_candidate_id, str) and is_valid_selected_threat_presentation(value=threat, selected_candidate_id=selected_candidate_id):
         lines.append(threat["text"])
         if isinstance(threat.get("scope_note"), str):
             lines.append(threat["scope_note"])

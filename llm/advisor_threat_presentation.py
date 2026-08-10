@@ -15,6 +15,28 @@ _TIER_REASONS = {
 }
 
 
+def is_valid_selected_threat_presentation(*, value: Any, selected_candidate_id: str) -> bool:
+    """Reject forged or malformed DTOs at the formatter boundary without ranking work."""
+    if not isinstance(value, Mapping) or value.get("presentation_status") != "available":
+        return False
+    tier = value.get("threat_tier")
+    reason = _TIER_REASONS.get(tier)
+    if (
+        not isinstance(selected_candidate_id, str)
+        or value.get("selected_candidate_id") != selected_candidate_id
+        or reason is None
+        or value.get("adjustment_kind") != reason[0]
+        or value.get("reason_code") != reason[1]
+        or not isinstance(value.get("text"), str)
+        or not value["text"]
+        or not (isinstance(value.get("scope_note"), str) or value.get("scope_note") is None)
+    ):
+        return False
+    witness = value.get("witness_move_id")
+    danger = tier.startswith("executed_") or tier.startswith("unresolved_")
+    return isinstance(witness, str) and bool(witness) if danger else witness is None
+
+
 def project_selected_threat_presentation(
     *, selected_candidate_id: str, evidence_bundle: Mapping[str, Any] | None
 ) -> dict[str, Any]:

@@ -2,7 +2,21 @@
 
 ## Implementation status
 
-Implemented in `llm/advisor_threat_presentation.py`. The selected-only projector consumes the frozen completion evidence bundle, validates the existing application-owned tier, and returns a detached bounded DTO. For danger tiers it chooses the first matching frozen pair as an explanation witness; it does not calculate damage, action order, KO, probability, or a second threat ordering. `build_recommendation_presentation_model(...)` attaches only an available DTO to the validated selected candidate, and the existing formatter appends at most one threat sentence plus one partial-set scope note. Neutral, missing, malformed, self-preempted-only, and incomplete safety evidence remain silent. Provider payloads and prompts remain unchanged.
+Implemented in `llm/advisor_threat_presentation.py`. The selected-only projector consumes the frozen completion evidence bundle, validates the existing application-owned tier, and returns a detached bounded DTO. For danger tiers it chooses the first matching frozen pair as an explanation witness; it does not calculate damage, action order, KO, probability, or a second threat ordering. `build_recommendation_presentation_model(...)` attaches only an available DTO to the validated selected candidate, and the existing formatter validates that DTO against the selected action before appending at most one threat sentence plus one partial-set scope note. Neutral, missing, malformed, self-preempted-only, and incomplete safety evidence remain silent. Provider payloads and prompts remain unchanged.
+
+## Closure status and end-to-end boundary
+
+The canonical downstream chain is trusted known opponent move authority, frozen opponent candidate, incoming mechanics, frozen pair evidence, known-threat summary, application-owned threat tier, eligibility, base rank and stable order, validated selected candidate, then this projector and formatter. The provider's minimal selection response neither creates nor changes any mechanics, tier, witness, ranking reason, or presentation text.
+
+The actual DTO is bounded to selected-candidate reference, tier, adjustment kind, application reason code, optional canonical move-ID display fallback, text, optional scope note, and availability status. It deliberately excludes session and pair IDs, full summaries, snapshots, provenance, roll arrays, and exact-probability fractions. Existing selected-candidate text already displays canonical move IDs, so the projector uses the same no-network ID fallback when no richer display metadata is passed into the bounded path.
+
+The six tier/reason mappings are one-to-one. Danger tiers choose the first matching frozen pair for the selected candidate only; no probability, damage maximum, alphabetic sort, provider prose, or other self candidate can affect the witness. Partial danger shows exactly one scope note; partial neutral and partial all-known-preempted remain silent. Complete-set rewards require four trusted moves, zero unknown slots, complete known-threat evaluation, and global completeness. A raw OHKO that is deterministically preempted is not rendered as executed or unresolved danger.
+
+Exact probability remains supplemental to the existing formatter and cannot select a tier, witness, or wording category. `blocked` remains a move-success mechanics state, while `preempted` is a queued action lost to a faster allowed guaranteed KO. Ties and unknown order use only unresolved wording, never a probabilistic speed claim.
+
+Existing actual ranking grounding remains the upstream validation: `partial-known-confirmed-threat-ranking` and `partial-known-neutral-no-safety-reward` passed together in round 1 using two approved calls with retry/fallback/repair at 0/0/0. This downstream closure performs no provider calls and verifies that no presentation authority returns to the provider.
+
+Unsupported presentation scope remains non-selected details, pair or candidate comparison UI, a full opponent panel, free-form LLM rewrites, tactical/switch advice, expected-value wording, unknown-move prediction, probability-weighted wording, and raw diagnostics.
 
 ## Existing presentation inventory
 
