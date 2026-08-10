@@ -7,11 +7,12 @@ from typing import Any, Mapping
 from llm.advisor_reducer_state_model import is_unknown_battle_fact, validate_battle_state_unknown_markers
 
 
-SCHEMA_VERSION = "switch-candidate-context-v1"
+SCHEMA_VERSION = "switch-candidate-context-v2"
+_TARGET_STATE_FACTS = ("current_hp", "max_hp", "condition", "known_item")
 
 
 def build_switch_candidate_context_projection(runtime_state: Mapping[str, Any]) -> dict[str, Any]:
-    """Project only session-bound self roster identity and fainted authority."""
+    """Project frozen roster identity and already-trusted target-owned facts."""
     if not isinstance(runtime_state, Mapping) or not validate_battle_state_unknown_markers(dict(runtime_state)):
         raise ValueError("invalid_switch_candidate_context")
     session_id, side = runtime_state.get("session_id"), runtime_state.get("self_side")
@@ -34,7 +35,10 @@ def build_switch_candidate_context_projection(runtime_state: Mapping[str, Any]) 
             fact = {"status": "known", "value": fainted}
         else:
             raise ValueError("invalid_switch_candidate_context")
-        entries.append({"slot_index": slot, "pokemon_id": pokemon_id, "fainted": fact})
+        entry = {"slot_index": slot, "pokemon_id": pokemon_id, "fainted": fact}
+        for key in _TARGET_STATE_FACTS:
+            entry[key] = _project_fact(pokemon.get(key))
+        entries.append(entry)
     if active not in roster:
         raise ValueError("invalid_switch_candidate_context")
     return {"schema_version": SCHEMA_VERSION, "session_id": session_id, "self_active_slot_index": active, "self_pokemon": entries}
@@ -66,11 +70,30 @@ def normalize_switch_candidate_context_projection(value: Any, *, battle_input: M
             fact = {"status": "known", "value": fainted["value"]}
         else:
             raise ValueError("invalid_switch_candidate_context")
-        slots.add(slot); result.append({"slot_index": slot, "pokemon_id": pokemon_id, "fainted": fact})
+        normalized = {"slot_index": slot, "pokemon_id": pokemon_id, "fainted": fact}
+        for key in _TARGET_STATE_FACTS:
+            normalized[key] = _normalize_fact(entry.get(key))
+        slots.add(slot); result.append(normalized)
     active_entry = next((entry for entry in result if entry["slot_index"] == active), None)
     if active_entry is None or active_entry["pokemon_id"] != ui_active.get("name_en"):
         raise ValueError("invalid_switch_candidate_context")
     return {"schema_version": SCHEMA_VERSION, "session_id": session_id, "self_active_slot_index": active, "self_pokemon": sorted(result, key=lambda entry: entry["slot_index"])}
+
+
+def _project_fact(value: Any) -> dict[str, Any]:
+    if is_unknown_battle_fact(value):
+        return {"status": "unknown"}
+    return {"status": "known", "value": deepcopy(value)}
+
+
+def _normalize_fact(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping) or set(value) not in ({"status"}, {"status", "value"}):
+        raise ValueError("invalid_switch_candidate_context")
+    if value.get("status") == "unknown" and set(value) == {"status"}:
+        return {"status": "unknown"}
+    if value.get("status") == "known" and set(value) == {"status", "value"}:
+        return {"status": "known", "value": deepcopy(value["value"])}
+    raise ValueError("invalid_switch_candidate_context")
 
 
 def build_switch_candidates(*, turn_snapshot: Any) -> list[dict[str, Any]]:

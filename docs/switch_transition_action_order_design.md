@@ -10,6 +10,31 @@ Thus a successful, already-legal manual switch executes before opponent priority
 
 Opponent switch actions do not yet exist, so switch-vs-switch is `unsupported_mechanic`; no Speed, Trick Room, or simultaneous-order policy is implied.
 
+## Implementation status
+
+Implemented in `llm/advisor_switch_transition.py` as
+`project_authorized_switch_transition`.  The adapter accepts only a frozen,
+structurally valid `self-switch:` candidate plus an explicit
+`switch_authorized=True` handoff from a future prospective-legality layer.
+That handoff does not mutate or promote the existing Conservative candidate:
+its current `selectable`, reason, and legality supportability remain unchanged.
+
+For a supported opponent move, the adapter emits `self_switch_first` with
+complete order supportability and marks move priority and Speed ordering as
+`not_applicable`.  It deliberately does not import or call the mature
+move-vs-move action-order path.  The output is detached and contains the new
+active identity, the target's currently projected roster-owned HP, condition,
+item, and fainted facts, the unchanged roster, preserved frozen side/shared context when present, and
+unsupported markers for stat-stage, volatile, and entry-effect transition
+mechanics.  Current type and ability are not yet present in the frozen roster
+handoff and are not inferred.
+
+Standard frozen opponent `selected-pokemon` actions receive a detached
+`redirected_target` for the switched-in target.  Other target shapes leave the
+structural transition intact but report unsupported redirection.  The adapter
+does not run incoming damage, KO, probability, threat, ranking, provider, or
+presentation code.
+
 ## Dedicated first evaluator boundary
 
 The existing pairwise evaluator remains move candidate × opponent move candidate. A future dedicated `advisor_switch_transition.py`-style adapter will consume one self switch action and one known opponent move without rewriting the closed move pairwise path. It will expose action kind, action-class precedence, order supportability, switch execution status, opponent queued status, transition supportability, and target-redirection supportability. It does not use move-success terminology for switch legality.
