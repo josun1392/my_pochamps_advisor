@@ -2,9 +2,9 @@
 
 ## Status and purpose
 
-This is a design and contract-test prerequisite for evaluating an opponent move
-after an authorized manual switch.  It adds no reducer, snapshot, evaluator,
-provider, ranking, or UI behavior.  Its purpose is to prevent an active
+This contract is implemented as a private request-start projection for future
+switch evaluation.  It adds no reducer, evaluator, provider, ranking, or UI
+behavior.  Its purpose is to prevent an active
 Pokémon's authority from being reinterpreted as authority for a bench target.
 
 The source-of-truth rule is:
@@ -14,6 +14,21 @@ The source-of-truth rule is:
 An active mechanics view is only a projection of that record for the active
 identity.  It is not a second owner and cannot be copied from A to B during a
 switch.
+
+## Implementation status
+
+`llm/advisor_roster_mechanics.py` provides
+`build_self_roster_mechanics_context_projection(...)`, strict request handoff
+normalization, and `active_self_roster_mechanics_view(...)`.  Runtime roster
+identity/HP/fainted/condition/item facts seed bounded records.  Type, final
+stats, and ability remain unknown unless an already identity-bound supplied
+record validates against the same session, side, slot, and Pokémon ID.  This
+is deliberate: active-only contexts are never promoted to a bench record.
+
+`advisor_turn_snapshot.py` freezes an optional private
+`self_roster_mechanics_context`, excludes it from provider-facing snapshot
+summaries, and `advisor_switch_transition.py` carries only the selected B
+record as detached `target_roster_mechanics`.  No incoming evaluator is called.
 
 ## Existing authority inventory
 

@@ -13,6 +13,7 @@ from llm.advisor_battle_state_context import (
 from llm.advisor_runtime_state_projection import normalize_runtime_advice_state_projection
 from llm.advisor_reducer_state_model import validate_battle_state_unknown_markers
 from llm.advisor_switch_candidates import normalize_switch_candidate_context_projection
+from llm.advisor_roster_mechanics import normalize_self_roster_mechanics_context_projection
 
 
 RICH_CURRENT_STATE_KEYS = (
@@ -1106,6 +1107,15 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
             raise ValueError("invalid_switch_candidate_context")
         state["switch_candidate_context"] = normalize_switch_candidate_context_projection(
             switch_candidate_context, battle_input=battle_input, session_id=session_id,
+        )
+    roster_mechanics_context = battle_input.get("self_roster_mechanics_context")
+    if roster_mechanics_context is not None:
+        active = _mapping_or_empty(_mapping_or_empty(battle_input.get("pokemon")).get("my_active"))
+        slot, pokemon_id = _optional_int(active.get("slot_index")), _optional_str(active.get("name_en"))
+        if session_id is None or slot is None or pokemon_id is None:
+            raise ValueError("invalid_roster_mechanics_context")
+        state["self_roster_mechanics_context"] = normalize_self_roster_mechanics_context_projection(
+            roster_mechanics_context, session_id=session_id, active_slot_index=slot, active_pokemon_id=pokemon_id,
         )
     if isinstance(observation_snapshot, Mapping) and observation_snapshot.get("status") == "ready":
         session = observation_snapshot.get("session_id")

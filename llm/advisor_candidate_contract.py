@@ -1780,6 +1780,7 @@ def build_ui_recommendation_snapshot_summary(*, battle_input: Mapping[str, Any],
         if isinstance(current_state, dict):
             current_state.pop("known_move_context", None)
             current_state.pop("switch_candidate_context", None)
+            current_state.pop("self_roster_mechanics_context", None)
         summary["turn_snapshot"] = serialized_snapshot
     return summary
 

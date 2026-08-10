@@ -39,6 +39,7 @@ def project_authorized_switch_transition(
             for key in ("current_hp", "max_hp", "condition", "known_item")
             if key in target
         },
+        "target_roster_mechanics": _target_roster_mechanics(current, session=context["session_id"], target=target),
         "self_roster": deepcopy(context["self_pokemon"]),
         "side_shared_authority": {
             key: deepcopy(current[key]) for key in _SIDE_SHARED_KEYS if key in current
@@ -156,3 +157,12 @@ def _unavailable(reason: str) -> dict[str, Any]:
         "target_redirection_supportability": "insufficient_context",
         "redirected_opponent_action": None,
     }
+
+
+def _target_roster_mechanics(current: Mapping[str, Any], *, session: str, target: Mapping[str, Any]) -> dict[str, Any] | None:
+    context = current.get("self_roster_mechanics_context")
+    entries = context.get("entries") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list) or context.get("session_id") != session or context.get("side") != "self":
+        return None
+    row = next((entry for entry in entries if isinstance(entry, Mapping) and entry.get("slot_index") == target.get("slot_index") and entry.get("pokemon_id") == target.get("pokemon_id") and entry.get("session_id") == session), None)
+    return deepcopy(dict(row)) if isinstance(row, Mapping) else None
