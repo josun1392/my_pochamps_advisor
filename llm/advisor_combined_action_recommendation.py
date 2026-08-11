@@ -7,7 +7,7 @@ from typing import Any, Mapping, Sequence
 from llm.advisor_combined_action_selection import select_combined_self_action
 from llm.advisor_cross_action_danger import project_move_cross_action_danger, reduce_switch_cross_action_danger
 from llm.advisor_switch_incoming_evaluator import evaluate_switch_incoming_opponent_action
-from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
+from llm.advisor_switch_entry_effects import evaluate_switch_entry_effects
 from llm.advisor_switch_transition import project_authorized_switch_transition
 from llm.advisor_shadow_tag_switch_block import aggregate_hard_blockers, derive_arena_trap_block, derive_magnet_pull_block, derive_shadow_tag_block, finalize_switch_candidates
 
@@ -83,7 +83,7 @@ def _switch_actions(evidence: Mapping[str, Any], snapshot: Any) -> list[dict[str
         post = entry_transition.get("post_switch_snapshot") if isinstance(entry_transition, Mapping) else None
         target = post.get("target_roster_mechanics") if isinstance(post, Mapping) else None
         hazards = post.get("switch_hazard_context") if isinstance(post, Mapping) else None
-        entry_hazard_result = evaluate_entry_hazards(hazards=hazards, target=target) if isinstance(target, Mapping) else None
+        entry_hazard_result = evaluate_switch_entry_effects(hazards=hazards, target=target) if isinstance(target, Mapping) else None
         # An entry KO is deterministic danger even if no opponent action was
         # supplied. Ordinary chip never creates a favorable ranking signal.
         if isinstance(entry_hazard_result, Mapping) and entry_hazard_result.get("status") == "complete" and entry_hazard_result.get("hazard_ko") is True:

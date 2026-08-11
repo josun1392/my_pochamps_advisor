@@ -10,6 +10,7 @@ from llm.advisor_roster_mechanics import (
 from llm.advisor_switch_candidates import build_switch_candidate_context_projection, build_switch_candidates
 from llm.advisor_switch_transition import project_authorized_switch_transition
 from llm.advisor_turn_snapshot import build_request_start_recommendation_snapshot
+from llm.advisor_prospective_entry_authority import build_prospective_entry_interactions, build_prospective_speed_stage
 
 
 def _state(session="roster-s"):
@@ -74,3 +75,14 @@ def test_snapshot_transition_handoff_and_provider_redaction_are_detached_and_do_
     assert candidate["selectable"] is False
     summary = build_ui_recommendation_snapshot_summary(battle_input={"pokemon": {}}, turn_snapshot=snapshot)
     assert "self_roster_mechanics_context" not in json.dumps(summary, sort_keys=True)
+
+
+def test_prospective_entry_authorities_are_bound_to_the_bench_identity_only():
+    state = _state()
+    state["self_side"]["pokemon"][1]["prospective_speed_stage_context"] = build_prospective_speed_stage(session_id="roster-s", side="self", slot_index=1, pokemon_id="pikachu-b", stage=2)
+    state["self_side"]["pokemon"][1]["prospective_entry_interactions_context"] = build_prospective_entry_interactions(session_id="roster-s", side="self", slot_index=1, pokemon_id="pikachu-b", toxic_spikes="applicable", sticky_web="blocked")
+    frozen = build_self_roster_mechanics_context_projection(state)
+    a, b = frozen["entries"]
+    assert a["prospective_speed_stage_authority"] == {"status": "unknown"}
+    assert b["prospective_speed_stage_authority"] == {"status": "known", "value": 2}
+    assert b["prospective_entry_interactions_authority"] == {"toxic_spikes": "applicable", "sticky_web": "blocked"}

@@ -18,7 +18,7 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], e
         return _hazard_ko(transition, target, action, hazard)
     if _known_value(target.get("fainted_authority")) is True:
         return _unavailable("target_already_fainted")
-    adapted_target = _target_after_hazards(target, hazard)
+    adapted_target = _target_after_entry_effects(target, hazard)
     adapted = _adapt_opponent_candidate(action, adapted_target)
     row = evaluate_opponent_action_candidate(adapted)
     return {
@@ -38,12 +38,18 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], e
     }
 
 
-def _target_after_hazards(target: Mapping[str, Any], hazard: Mapping[str, Any] | None) -> Mapping[str, Any]:
-    if not isinstance(hazard, Mapping) or hazard.get("status") != "complete" or not isinstance(hazard.get("post_hazard_hp"), int):
+def _target_after_entry_effects(target: Mapping[str, Any], hazard: Mapping[str, Any] | None) -> Mapping[str, Any]:
+    if not isinstance(hazard, Mapping):
         return target
     copy = deepcopy(dict(target)); hp = copy.get("hp_authority")
-    if isinstance(hp, Mapping) and hp.get("status") == "known":
+    if hazard.get("status") == "complete" and isinstance(hazard.get("post_hazard_hp"), int) and isinstance(hp, Mapping) and hp.get("status") == "known":
         copy["hp_authority"] = deepcopy(dict(hp)); copy["hp_authority"]["current_hp"] = hazard["post_hazard_hp"]
+    toxic = hazard.get("toxic_spikes_result")
+    if isinstance(toxic, Mapping) and toxic.get("status") == "complete" and toxic.get("post_condition") in {"poison", "toxic"}:
+        copy["persistent_condition_authority"] = {"status": "known", "value": toxic["post_condition"]}
+    sticky = hazard.get("sticky_web_result")
+    if isinstance(sticky, Mapping) and sticky.get("status") == "complete" and isinstance(sticky.get("speed_stage_after"), int):
+        copy["prospective_speed_stage_authority"] = {"status": "known", "value": sticky["speed_stage_after"]}
     return copy
 
 
@@ -102,7 +108,7 @@ def _adapt_opponent_candidate(action: Mapping[str, Any], target: Mapping[str, An
 
 def _replace_self_authority(current: dict[str, Any], target: Mapping[str, Any]) -> None:
     # Remove active A records before optionally supplying B-owned equivalents.
-    for key, list_key in (("ability_context", "current_abilities"), ("current_type_context", "current_types"), ("current_hp_context", "current_hp"), ("final_stat_context", "current_final_stats")):
+    for key, list_key in (("ability_context", "current_abilities"), ("current_type_context", "current_types"), ("current_hp_context", "current_hp"), ("final_stat_context", "current_final_stats"), ("condition_context", "current_conditions"), ("stat_stage_context", "current_stages")):
         context = current.get(key)
         if isinstance(context, Mapping):
             current[key] = {list_key: [deepcopy(entry) for entry in context.get(list_key, []) if isinstance(entry, Mapping) and entry.get("side") != "self"]}
@@ -111,6 +117,12 @@ def _replace_self_authority(current: dict[str, Any], target: Mapping[str, Any]) 
     hp = target.get("hp_authority")
     if isinstance(hp, Mapping) and hp.get("status") == "known" and hp.get("provenance") == "user_confirmed_current_hp":
         current.setdefault("current_hp_context", {"current_hp": []})["current_hp"].append({"side": "self", "current_hp": hp["current_hp"], "maximum_hp": hp["maximum_hp"], "status": "user_confirmed", "source": "user_confirmed_current_hp", "confidence": "known"})
+    condition = _known_value(target.get("persistent_condition_authority"))
+    if condition in {None, "none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}:
+        current.setdefault("condition_context", {"current_conditions": []})["current_conditions"].append({"side": "self", "condition_type": "none" if condition is None else condition, "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"})
+    speed_stage = _known_value(target.get("prospective_speed_stage_authority"))
+    if isinstance(speed_stage, int) and not isinstance(speed_stage, bool) and -6 <= speed_stage <= 6:
+        current.setdefault("stat_stage_context", {"current_stages": []})["current_stages"].append({"side": "self", "stat": "speed", "stage": speed_stage, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"})
 
 
 def _defender_provenance(target: Mapping[str, Any]) -> dict[str, Any]:

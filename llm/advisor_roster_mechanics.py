@@ -6,13 +6,14 @@ from typing import Any, Mapping, Sequence
 
 from llm.advisor_reducer_state_model import is_unknown_battle_fact, validate_battle_state_unknown_markers
 from llm.advisor_identity_groundedness import normalize_groundedness
+from llm.advisor_prospective_entry_authority import normalize_prospective_entry_interactions, normalize_prospective_speed_stage
 
 
 SCHEMA_VERSION = "self-roster-mechanics-context-v1"
 _AUTHORITY_KEYS = (
     "current_type_authority", "base_stat_authority", "final_stat_authority", "ability_authority",
     "item_authority", "hp_authority", "fainted_authority", "persistent_condition_authority",
-    "prospective_groundedness_authority",
+    "prospective_groundedness_authority", "prospective_speed_stage_authority", "prospective_entry_interactions_authority",
 )
 
 
@@ -102,6 +103,12 @@ def _base_record(session: str, slot: int, pokemon_id: str, pokemon: Mapping[str,
             slot=slot,
             pokemon_id=pokemon_id,
         ),
+        "prospective_speed_stage_authority": _prospective_speed_stage(
+            pokemon.get("prospective_speed_stage_context"), session=session, slot=slot, pokemon_id=pokemon_id,
+        ),
+        "prospective_entry_interactions_authority": _prospective_entry_interactions(
+            pokemon.get("prospective_entry_interactions_context"), session=session, slot=slot, pokemon_id=pokemon_id,
+        ),
     }
 
 
@@ -126,9 +133,15 @@ def _normalize_record(raw: Any, *, session_id: str) -> dict[str, Any]:
     slot, pokemon_id = raw.get("slot_index"), raw.get("pokemon_id")
     if not isinstance(slot, int) or isinstance(slot, bool) or slot < 0 or not isinstance(pokemon_id, str) or not pokemon_id:
         raise ValueError("invalid_roster_mechanics_context")
-    if set(raw) != {"session_id", "side", "slot_index", "pokemon_id", *_AUTHORITY_KEYS}:
+    required = {"session_id", "side", "slot_index", "pokemon_id", *_AUTHORITY_KEYS}
+    legacy = required - {"prospective_speed_stage_authority", "prospective_entry_interactions_authority"}
+    if set(raw) != required and set(raw) != legacy:
         raise ValueError("invalid_roster_mechanics_context")
-    return {"session_id": session_id, "side": "self", "slot_index": slot, "pokemon_id": pokemon_id, **{key: _normalize_authority(raw[key], key=key) for key in _AUTHORITY_KEYS}}
+    defaults = {
+        "prospective_speed_stage_authority": {"status": "unknown"},
+        "prospective_entry_interactions_authority": {"toxic_spikes": "unknown", "sticky_web": "unknown"},
+    }
+    return {"session_id": session_id, "side": "self", "slot_index": slot, "pokemon_id": pokemon_id, **{key: _normalize_authority(raw.get(key, defaults.get(key, {"status": "unknown"})), key=key) for key in _AUTHORITY_KEYS}}
 
 
 def _unknown_authority() -> dict[str, Any]:
@@ -144,6 +157,18 @@ def _normalize_authority(value: Any, *, key: str) -> dict[str, Any]:
         if not isinstance(value, Mapping) or value.get("status") not in {"grounded", "ungrounded", "unknown"}:
             raise ValueError("invalid_roster_mechanics_context")
         if set(value) != {"status"}:
+            raise ValueError("invalid_roster_mechanics_context")
+        return deepcopy(dict(value))
+    if key == "prospective_speed_stage_authority":
+        if not isinstance(value, Mapping) or value.get("status") not in {"known", "unknown"}:
+            raise ValueError("invalid_roster_mechanics_context")
+        if value.get("status") == "known" and set(value) == {"status", "value"} and isinstance(value.get("value"), int) and not isinstance(value.get("value"), bool) and -6 <= value["value"] <= 6:
+            return deepcopy(dict(value))
+        if value.get("status") == "unknown" and set(value) == {"status"}:
+            return deepcopy(dict(value))
+        raise ValueError("invalid_roster_mechanics_context")
+    if key == "prospective_entry_interactions_authority":
+        if not isinstance(value, Mapping) or set(value) != {"toxic_spikes", "sticky_web"} or value.get("toxic_spikes") not in {"applicable", "blocked", "unknown"} or value.get("sticky_web") not in {"applicable", "blocked", "unknown"}:
             raise ValueError("invalid_roster_mechanics_context")
         return deepcopy(dict(value))
     if not isinstance(value, Mapping) or value.get("status") not in {"known", "unknown", "unsupported_mechanic", "malformed", "omitted_legacy"}:
@@ -170,3 +195,13 @@ def _prospective_groundedness(value: Any, *, session: str, slot: int, pokemon_id
         value, session_id=session, side="self", slot_index=slot, pokemon_id=pokemon_id,
     )
     return {"status": normalized["status"]}
+
+
+def _prospective_speed_stage(value: Any, *, session: str, slot: int, pokemon_id: str) -> dict[str, Any]:
+    normalized = normalize_prospective_speed_stage(value, session_id=session, side="self", slot_index=slot, pokemon_id=pokemon_id)
+    return {"status": "known", "value": normalized["stage"]} if isinstance(normalized["stage"], int) else {"status": "unknown"}
+
+
+def _prospective_entry_interactions(value: Any, *, session: str, slot: int, pokemon_id: str) -> dict[str, Any]:
+    normalized = normalize_prospective_entry_interactions(value, session_id=session, side="self", slot_index=slot, pokemon_id=pokemon_id)
+    return {"toxic_spikes": normalized["toxic_spikes"], "sticky_web": normalized["sticky_web"]}

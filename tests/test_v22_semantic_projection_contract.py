@@ -69,3 +69,17 @@ def test_same_sequence_policy_session_and_idempotency():
     assert project_atomic_transition(already, replay, "s") == project_atomic_transition(already, replay, "s")
     assert project_atomic_transition(base(), plan(step("x", 1, "set_condition", **owner(), condition="burn")), "old")["status"] == "invalid_base_state"
     assert project_atomic_transition(base(), plan(step("missing", 1, "set_condition", condition="burn")), "s")["status"] == "invalid_replay_plan"
+
+
+def test_candidate_owned_entry_authorities_and_extended_hazards_project_exactly():
+    steps = [
+        step("speed", 1, "set_prospective_speed_stage", **owner("self", 1, "raichu"), speed_stage=2),
+        step("interactions", 2, "set_prospective_entry_interactions", **owner("self", 1, "raichu"), toxic_spikes_interaction="applicable", sticky_web_interaction="blocked"),
+        step("hazards", 3, "set_switch_hazards", side="self", stealth_rock="absent", spikes_layers=0, toxic_spikes_layers=2, sticky_web="present"),
+    ]
+    result = project_atomic_transition(base(), plan(*steps), "s")
+    assert result["status"] == "ready_with_projected_state"
+    target = result["projected_state"]["self_side"]["pokemon"][1]
+    assert target["prospective_speed_stage_context"]["stage"] == 2
+    assert target["prospective_entry_interactions_context"]["sticky_web"] == "blocked"
+    assert result["projected_state"]["switch_hazard_context"]["toxic_spikes_layers"] == 2

@@ -107,3 +107,30 @@ def test_entry_ko_reaches_switch_danger_even_without_an_opponent_action():
     from llm.advisor_combined_action_recommendation import _switch_actions
     rows = _switch_actions({"switch_candidates": [candidate], "opponent_action_candidates": []}, snapshot)
     assert rows[0]["cross_action_danger_tier"] == "executed_guaranteed_self_ko"
+
+
+def test_direct_incoming_uses_b_post_entry_condition_and_speed_stage_not_active_a_values():
+    from llm.advisor_switch_incoming_evaluator import _target_after_entry_effects
+    target = {
+        "hp_authority": {"status": "known", "current_hp": 100, "maximum_hp": 100, "provenance": "user_confirmed_current_hp"},
+        "persistent_condition_authority": {"status": "known", "value": None},
+        "prospective_speed_stage_authority": {"status": "known", "value": 2},
+    }
+    result = _target_after_entry_effects(target, {"status": "complete", "post_hazard_hp": 88, "toxic_spikes_result": {"status": "complete", "post_condition": "toxic"}, "sticky_web_result": {"status": "complete", "speed_stage_after": 1}})
+    assert result["hp_authority"]["current_hp"] == 88
+    assert result["persistent_condition_authority"] == {"status": "known", "value": "toxic"}
+    assert result["prospective_speed_stage_authority"] == {"status": "known", "value": 1}
+
+
+def test_direct_adapter_replaces_active_a_condition_and_speed_stage_with_b_records():
+    from llm.advisor_switch_incoming_evaluator import _adapt_opponent_candidate
+    action = _opponent()
+    action["mechanics_snapshot"]["battle_context"]["current_state"].update({
+        "condition_context": {"current_conditions": [{"side": "self", "condition_type": "burn", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]},
+        "stat_stage_context": {"current_stages": [{"side": "self", "stat": "speed", "stage": 4, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]},
+    })
+    target = {"session_id": "incoming-s", "slot_index": 1, "pokemon_id": "b", "persistent_condition_authority": {"status": "known", "value": "toxic"}, "prospective_speed_stage_authority": {"status": "known", "value": -1}, "ability_authority": {"status": "known", "value": "pressure"}, "hp_authority": {"status": "known", "current_hp": 80, "maximum_hp": 100, "provenance": "user_confirmed_current_hp"}}
+    adapted = _adapt_opponent_candidate(action, target)
+    current = adapted["mechanics_snapshot"]["battle_context"]["current_state"]
+    assert current["condition_context"]["current_conditions"] == [{"side": "self", "condition_type": "toxic", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]
+    assert current["stat_stage_context"]["current_stages"] == [{"side": "self", "stat": "speed", "stage": -1, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]

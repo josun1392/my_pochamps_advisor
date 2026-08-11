@@ -48,7 +48,8 @@ def evaluate_entry_hazards(*, hazards: Mapping[str, Any], target: Mapping[str, A
 
 
 def _hazard_values(hazards: Mapping[str, Any]) -> tuple[str | None, int | None]:
-    if not isinstance(hazards, Mapping) or set(hazards) != {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers"} or hazards.get("affected_side") != "self":
+    required = {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers"}
+    if not isinstance(hazards, Mapping) or not required.issubset(hazards) or hazards.get("schema_version") not in {"switch-hazard-context-v1", "switch-hazard-context-v2"} or hazards.get("affected_side") != "self":
         return None, None
     rock, spikes = hazards.get("stealth_rock"), hazards.get("spikes_layers")
     if rock not in {"present", "absent"} or spikes not in {*_SPIKES_DIVISORS, 0}:
