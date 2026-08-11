@@ -14,6 +14,7 @@ from llm.advisor_runtime_state_projection import normalize_runtime_advice_state_
 from llm.advisor_reducer_state_model import validate_battle_state_unknown_markers
 from llm.advisor_switch_candidates import normalize_switch_candidate_context_projection
 from llm.advisor_roster_mechanics import normalize_self_roster_mechanics_context_projection
+from llm.advisor_ability_interaction_authority import normalize_ability_interaction_authority
 
 
 RICH_CURRENT_STATE_KEYS = (
@@ -1116,6 +1117,18 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
             raise ValueError("invalid_roster_mechanics_context")
         state["self_roster_mechanics_context"] = normalize_self_roster_mechanics_context_projection(
             roster_mechanics_context, session_id=session_id, active_slot_index=slot, active_pokemon_id=pokemon_id,
+        )
+    ability_interaction_authority = battle_input.get("ability_interaction_authority")
+    if ability_interaction_authority is not None:
+        self_active = _mapping_or_empty(_mapping_or_empty(battle_input.get("pokemon")).get("my_active"))
+        opponent_active = _mapping_or_empty(_mapping_or_empty(battle_input.get("pokemon")).get("opponent_active"))
+        source = {"side": "opponent", "slot_index": _optional_int(opponent_active.get("slot_index")), "pokemon_id": _optional_str(opponent_active.get("name_en"))}
+        target = {"side": "self", "slot_index": _optional_int(self_active.get("slot_index")), "pokemon_id": _optional_str(self_active.get("name_en"))}
+        ability_id = ability_interaction_authority.get("ability_id") if isinstance(ability_interaction_authority, Mapping) else None
+        if session_id is None or not isinstance(ability_id, str) or not ability_id or None in {source["slot_index"], source["pokemon_id"], target["slot_index"], target["pokemon_id"]}:
+            raise ValueError("invalid_ability_interaction_authority")
+        state["ability_interaction_authority"] = normalize_ability_interaction_authority(
+            ability_interaction_authority, session_id=session_id, source=source, target=target, ability_id=ability_id,
         )
     if isinstance(observation_snapshot, Mapping) and observation_snapshot.get("status") == "ready":
         session = observation_snapshot.get("session_id")

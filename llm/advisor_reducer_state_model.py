@@ -6,7 +6,7 @@ from types import MappingProxyType
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
-_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context"}
+_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context"}
 
 
 def make_unknown_battle_fact():
@@ -129,6 +129,8 @@ def project_atomic_transition(base_state, replay_plan, expected_session_id=None,
             return _projection_result("blocked_by_semantic_conflict", base, plan, rejected=_step_ids(steps), conflicts=[conflict])
         if item["planned_effect"] != "set_switch_permission":
             _invalidate_switch_permission(projected)
+        if item["planned_effect"] not in {"set_ability_applicability", "set_ability_interaction"}:
+            _invalidate_ability_interaction_authorities(projected)
         applied.append(item["observation_id"])
     sequences = [item["observation_sequence"] for item in normalized]
     projected["last_applied_observation_sequence"] = max(sequences)
@@ -222,6 +224,10 @@ def _has_target_identity(event):
         return isinstance(_value(event, "side"), str) and all(_value(event, key) is not None for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id"))
     if effect in {"set_switch_permission", "clear_switch_permission"}:
         return _value(event, "side") == "self" and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
+    if effect in {"set_ability_applicability", "clear_ability_applicability"}:
+        return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "ability_id"), str) and bool(_value(event, "ability_id"))
+    if effect in {"set_ability_interaction", "clear_ability_interaction"}:
+        return _identity_values(event, "source_side", "source_slot_index", "source_pokemon_id") and _identity_values(event, "target_side", "target_slot_index", "target_pokemon_id")
     if effect in {"start_weather", "end_weather"}: return isinstance(_value(event, "weather"), str) and bool(_value(event, "weather"))
     if effect in {"start_terrain", "end_terrain"}: return isinstance(_value(event, "terrain"), str) and bool(_value(event, "terrain"))
     return isinstance(_value(event, "side"), str) and isinstance(_value(event, "side_condition") or _value(event, "effect"), str)
@@ -231,6 +237,18 @@ def _side(state, side):
     if side not in {"self", "opponent"}: return None
     value = state.get(f"{side}_side")
     return value if isinstance(value, dict) else None
+
+
+def _identity_values(event, side_key, slot_key, pokemon_key):
+    return _value(event, side_key) in {"self", "opponent"} and isinstance(_value(event, slot_key), int) and not isinstance(_value(event, slot_key), bool) and isinstance(_value(event, pokemon_key), str) and bool(_value(event, pokemon_key))
+
+
+def _active_identity_matches(state, side_name, slot, pokemon_id):
+    side = _side(state, side_name)
+    roster = side.get("pokemon") if isinstance(side, dict) else None
+    active = side.get("active_slot_index") if isinstance(side, dict) else None
+    pokemon = roster.get(slot, roster.get(str(slot))) if isinstance(roster, dict) else None
+    return active == slot and isinstance(pokemon, dict) and pokemon.get("pokemon_id", pokemon.get("name_en")) == pokemon_id
 
 
 def _pokemon(state, event):
@@ -263,6 +281,10 @@ def _apply(state, event):
     if effect == "switch_active": return _switch(state, event)
     if effect == "set_switch_permission": return _set_switch_permission(state, event)
     if effect == "clear_switch_permission": return _clear_switch_permission(state, event)
+    if effect == "set_ability_applicability": return _set_ability_applicability(state, event)
+    if effect == "clear_ability_applicability": return _clear_ability_applicability(state, event)
+    if effect == "set_ability_interaction": return _set_ability_interaction(state, event)
+    if effect == "clear_ability_interaction": return _clear_ability_interaction(state, event)
     if effect == "mark_fainted":
         pokemon = _pokemon(state, event)
         if pokemon is None: return _conflict(event, "missing_faint_target")
@@ -367,6 +389,56 @@ def _invalidate_switch_permission(state):
     pokemon_id = active.get("pokemon_id", active.get("name_en")) if isinstance(active, dict) else None
     if isinstance(side, dict) and isinstance(slot, int) and not isinstance(slot, bool) and isinstance(pokemon_id, str) and pokemon_id:
         side["switch_permission_context"] = {"schema_version": "switch-permission-context-v1", "session_id": state.get("session_id"), "side": "self", "active_slot_index": slot, "active_pokemon_id": pokemon_id, "status": "unknown", "supportability": "insufficient_context"}
+
+
+def _set_ability_applicability(state, event):
+    side, slot, pokemon_id = _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id")
+    status, ability_id = _value(event, "applicability_status"), _value(event, "ability_id")
+    if not _active_identity_matches(state, side, slot, pokemon_id) or status not in {"applicable", "not_applicable"}:
+        return _conflict(event, "invalid_ability_applicability_authority")
+    state["ability_applicability_context"] = {"schema_version": "ability-applicability-context-v1", "session_id": state.get("session_id"), "source": {"side": side, "slot_index": slot, "pokemon_id": pokemon_id}, "ability_id": ability_id, "status": status}
+    return None
+
+
+def _clear_ability_applicability(state, event):
+    side, slot, pokemon_id, ability_id = _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id"), _value(event, "ability_id")
+    if not _active_identity_matches(state, side, slot, pokemon_id):
+        return _conflict(event, "invalid_ability_applicability_authority")
+    state["ability_applicability_context"] = {"schema_version": "ability-applicability-context-v1", "session_id": state.get("session_id"), "source": {"side": side, "slot_index": slot, "pokemon_id": pokemon_id}, "ability_id": ability_id, "status": "unknown"}
+    return None
+
+
+def _set_ability_interaction(state, event):
+    source = (_value(event, "source_side"), _value(event, "source_slot_index"), _value(event, "source_pokemon_id"))
+    target = (_value(event, "target_side"), _value(event, "target_slot_index"), _value(event, "target_pokemon_id"))
+    status = _value(event, "interaction_status")
+    if source[0] == target[0] or not _active_identity_matches(state, *source) or not _active_identity_matches(state, *target) or status not in {"affecting", "not_affecting"}:
+        return _conflict(event, "invalid_ability_interaction_authority")
+    state["ability_interaction_context"] = {"schema_version": "ability-interaction-context-v1", "session_id": state.get("session_id"), "source": {"side": source[0], "slot_index": source[1], "pokemon_id": source[2]}, "target": {"side": target[0], "slot_index": target[1], "pokemon_id": target[2]}, "status": status}
+    return None
+
+
+def _clear_ability_interaction(state, event):
+    source = (_value(event, "source_side"), _value(event, "source_slot_index"), _value(event, "source_pokemon_id"))
+    target = (_value(event, "target_side"), _value(event, "target_slot_index"), _value(event, "target_pokemon_id"))
+    if source[0] == target[0] or not _active_identity_matches(state, *source) or not _active_identity_matches(state, *target):
+        return _conflict(event, "invalid_ability_interaction_authority")
+    state["ability_interaction_context"] = {"schema_version": "ability-interaction-context-v1", "session_id": state.get("session_id"), "source": {"side": source[0], "slot_index": source[1], "pokemon_id": source[2]}, "target": {"side": target[0], "slot_index": target[1], "pokemon_id": target[2]}, "status": "unknown"}
+    return None
+
+
+def _invalidate_ability_interaction_authorities(state):
+    """Conservatively drop positive authority when any unrelated state changes."""
+    applicability = state.get("ability_applicability_context")
+    if isinstance(applicability, dict):
+        source, ability_id = applicability.get("source"), applicability.get("ability_id")
+        if isinstance(source, dict) and isinstance(ability_id, str) and ability_id:
+            state["ability_applicability_context"] = {"schema_version": "ability-applicability-context-v1", "session_id": state.get("session_id"), "source": deepcopy(source), "ability_id": ability_id, "status": "unknown"}
+    interaction = state.get("ability_interaction_context")
+    if isinstance(interaction, dict):
+        source, target = interaction.get("source"), interaction.get("target")
+        if isinstance(source, dict) and isinstance(target, dict):
+            state["ability_interaction_context"] = {"schema_version": "ability-interaction-context-v1", "session_id": state.get("session_id"), "source": deepcopy(source), "target": deepcopy(target), "status": "unknown"}
 
 
 def _valid_switch_permission_context(state, value):
