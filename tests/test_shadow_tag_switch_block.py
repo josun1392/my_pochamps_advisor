@@ -1,4 +1,4 @@
-from llm.advisor_shadow_tag_switch_block import aggregate_hard_blockers, derive_magnet_pull_block, derive_shadow_tag_block, resolve_effective_switch_permission
+from llm.advisor_shadow_tag_switch_block import aggregate_hard_blockers, derive_arena_trap_block, derive_magnet_pull_block, derive_shadow_tag_block, resolve_effective_switch_permission
 
 AUTH={"session_id":"s","source":{"pokemon_id":"x"},"target":{"pokemon_id":"a"},"ability_id":"shadow-tag","applicability":"applicable","interaction":"affecting"}
 TYPE={"status":"known","types":["normal"]}; ITEM={"status":"known_absent","value":None}; ABILITY={"status":"known","value":"pressure"}
@@ -17,3 +17,8 @@ def test_magnet_pull_requires_steel_and_respects_ghost_shed_shell_and_aggregatio
     assert derive_magnet_pull_block(authority=authority,self_type={"status":"known","types":["steel","ghost"]},self_item=ITEM)["state"]=="exception_applies"
     assert derive_magnet_pull_block(authority=authority,self_type=steel,self_item={"status":"known","value":"shed-shell"})["state"]=="exception_applies"
     assert aggregate_hard_blockers({"state":"insufficient_context"},magnet)["state"]=="confirmed_blocked"
+
+def test_arena_trap_uses_only_exact_groundedness():
+    arena={**AUTH,"ability_id":"arena-trap"}
+    assert derive_arena_trap_block(authority=arena,groundedness={"status":"grounded"},self_type=TYPE,self_item=ITEM)["state"]=="confirmed_blocked"
+    assert derive_arena_trap_block(authority=arena,groundedness={"status":"unknown"},self_type=TYPE,self_item=ITEM)["state"]=="insufficient_context"

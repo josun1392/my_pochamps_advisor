@@ -35,6 +35,17 @@ def aggregate_hard_blockers(*blockers: Mapping[str, Any]) -> dict[str, Any]:
     return {"state": "confirmed_blocked", "blockers": confirmed} if confirmed else {"state": "not_established", "blockers": []}
 
 
+def derive_arena_trap_block(*, authority: Mapping[str, Any], groundedness: Mapping[str, Any], self_type: Mapping[str, Any], self_item: Mapping[str, Any]) -> dict[str, Any]:
+    """Block-only Arena Trap from exact frozen groundedness, never side context."""
+    if not isinstance(authority, Mapping) or authority.get("ability_id") != "arena-trap": return {"mechanic":"arena_trap","state":"not_established"}
+    if authority.get("applicability") != "applicable" or authority.get("interaction") != "affecting": return {"mechanic":"arena_trap","state":"insufficient_context"}
+    if not isinstance(groundedness, Mapping) or groundedness.get("status") != "grounded": return {"mechanic":"arena_trap","state":"not_established"} if isinstance(groundedness,Mapping) and groundedness.get("status")=="ungrounded" else {"mechanic":"arena_trap","state":"insufficient_context"}
+    types=self_type.get("types") if isinstance(self_type,Mapping) and self_type.get("status")=="known" else None
+    if not isinstance(types,Sequence) or isinstance(types,(str,bytes)) or not isinstance(self_item,Mapping) or self_item.get("status") not in {"known","known_absent"}: return {"mechanic":"arena_trap","state":"insufficient_context"}
+    if "ghost" in types or self_item.get("value")=="shed-shell": return {"mechanic":"arena_trap","state":"exception_applies"}
+    return {"mechanic":"arena_trap","state":"confirmed_blocked"}
+
+
 def resolve_effective_switch_permission(manual: Mapping[str, Any], blocker: Mapping[str, Any]) -> dict[str, str]:
     """Central manual-plus-hard-block precedence; mechanics never grant permission."""
     manual_status = manual.get("status") if isinstance(manual, Mapping) else "unknown"
