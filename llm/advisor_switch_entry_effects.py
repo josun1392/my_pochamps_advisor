@@ -10,7 +10,7 @@ from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
 _CONDITIONS = frozenset({None, "none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"})
 
 
-def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping[str, Any], intimidate_authority: Mapping[str, Any] | None = None, download_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping[str, Any], intimidate_authority: Mapping[str, Any] | None = None, download_authority: Mapping[str, Any] | None = None, trace_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Evaluate damage first, then supported status and Speed-stage entry effects.
 
     Each effect retains an independent supportability result.  This lets known
@@ -22,13 +22,15 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
     sticky = _evaluate_sticky_web(hazards=hazards, target=target)
     intimidate = _evaluate_intimidate(target=target, damage=damage, authority=intimidate_authority)
     download = _evaluate_download(target=target, damage=damage, authority=download_authority)
+    trace = _evaluate_trace(target=target, damage=damage, authority=trace_authority)
     return {
         **deepcopy(damage),
         "toxic_spikes_result": toxic,
         "sticky_web_result": sticky,
         "intimidate_result": intimidate,
         "download_result": download,
-        "entry_effects_supportability": "complete" if all(result.get("status") == "complete" for result in (damage, toxic, sticky, intimidate, download)) else "insufficient_context",
+        "trace_result": trace,
+        "entry_effects_supportability": "complete" if all(result.get("status") == "complete" for result in (damage, toxic, sticky, intimidate, download, trace)) else "insufficient_context",
     }
 
 
@@ -163,6 +165,27 @@ def _evaluate_download(*, target: Mapping[str, Any], damage: Mapping[str, Any], 
     return _complete(outcome, boosted_stat=stat, stage_before=before, stage_after=after, opponent_identity=deepcopy(dict(authority["target"])))
 
 
+def _evaluate_trace(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    ability = _authority(target, "ability_authority")
+    if not _known_authority(ability):
+        return _incomplete("candidate_ability_unknown")
+    if _known_value(ability) != "trace":
+        return _complete("not_applicable")
+    if damage.get("status") != "complete":
+        return _incomplete("prior_entry_hazards_incomplete")
+    if damage.get("hazard_ko") is True:
+        return _complete("not_activated_hazard_ko")
+    source = {"side": "self", "slot_index": target.get("slot_index"), "pokemon_id": target.get("pokemon_id")}
+    if not _valid_trace_authority(authority, session_id=target.get("session_id")) or authority.get("source") != source:
+        return _incomplete("trace_authority_unknown")
+    traceability = authority.get("traceability")
+    if traceability == "unknown":
+        return _incomplete("traceability_unknown")
+    if traceability == "untraceable":
+        return _complete("ability_untraceable", opponent_identity=deepcopy(dict(authority["target"])), target_ability=authority["target_ability"])
+    return _complete("ability_copied", copied_ability=authority["target_ability"], opponent_identity=deepcopy(dict(authority["target"])))
+
+
 def _hazard_value(hazards: Any, key: str, allowed: set[Any]) -> Any | None:
     required = {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web"}
     if not isinstance(hazards, Mapping) or set(hazards) != required or hazards.get("schema_version") != "switch-hazard-context-v2" or hazards.get("affected_side") != "self":
@@ -220,6 +243,11 @@ def _valid_intimidate_authority(value: Any, *, session_id: Any) -> bool:
 def _valid_download_authority(value: Any, *, session_id: Any) -> bool:
     required = {"schema_version", "session_id", "source", "target", "applicability", "target_defense", "target_special_defense"}
     return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-download-authority-v1" and value.get("session_id") == session_id and value.get("applicability") in {"applicable", "blocked", "unknown"} and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
+
+
+def _valid_trace_authority(value: Any, *, session_id: Any) -> bool:
+    required = {"schema_version", "session_id", "source", "target", "target_ability", "traceability"}
+    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-trace-authority-v1" and value.get("session_id") == session_id and value.get("traceability") in {"traceable", "untraceable", "unknown"} and isinstance(value.get("target_ability"), str) and bool(value["target_ability"]) and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
 
 
 def _complete(outcome: str, **details: Any) -> dict[str, Any]:

@@ -69,3 +69,16 @@ tie, it raises Special Attack. The canonical +6 clamp is used. Unknown
 applicability, defensive value, identity, or selected B stage remains
 incomplete. No base-stat/species fallback, boost reward, switch permission, or
 switch-native score is introduced.
+
+## Trace on switch-in
+
+After hazards prove B survives, exact B-owned `trace` ability authority can
+copy an opposing ability only through a frozen exact B-to-opposing-active Trace
+authority. It includes the opposing active's exact current ability and an
+explicit trusted `traceable`/`untraceable` mechanics result. A traceable
+ability is copied into a detached B-owned post-entry ability authority; the
+opponent's authority is never mutated or aliased. Unknown ability,
+traceability, or identity remains incomplete. An untraceable result is a
+deterministic no-copy outcome. Copied abilities receive downstream treatment
+only where already-supported mechanics recognize them; this adds no ability
+catalog, reward, permission, or switch-native score.

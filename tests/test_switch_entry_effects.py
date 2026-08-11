@@ -8,6 +8,7 @@ from llm.advisor_switch_entry_effects import evaluate_switch_entry_effects
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context, normalize_switch_hazard_context
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority, normalize_switch_entry_intimidate_authority
 from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority, normalize_switch_entry_download_authority
+from llm.advisor_switch_entry_trace_authority import build_switch_entry_trace_authority, normalize_switch_entry_trace_authority
 
 
 def _hazards(*, toxic=0, web="absent"):
@@ -118,3 +119,19 @@ def test_download_unknown_defenses_applicability_or_b_stage_stay_incomplete():
     authority = build_switch_entry_download_authority(session_id="entry-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, applicability="applicable", target_defense=90, target_special_defense=100)
     assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, download_authority=authority)["download_result"]["reason"] == "prospective_attack_stage_unknown"
     assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, download_authority={**authority, "applicability": "unknown"})["download_result"]["reason"] == "download_applicability_unknown"
+
+
+def test_trace_copies_only_exact_traceable_opposing_ability_into_b_owned_result():
+    target = _target(slot_index=1, pokemon_id="b", ability_authority={"status": "known", "value": "trace"})
+    authority = build_switch_entry_trace_authority(session_id="entry-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, target_ability="water-absorb", traceability="traceable")
+    copied = evaluate_switch_entry_effects(hazards=_hazards(), target=target, trace_authority=authority)["trace_result"]
+    assert copied == {"status": "complete", "outcome": "ability_copied", "copied_ability": "water-absorb", "opponent_identity": {"side": "opponent", "slot_index": 0, "pokemon_id": "x"}}
+    assert normalize_switch_entry_trace_authority(authority, session_id="entry-s", target={"side": "opponent", "slot_index": 0, "pokemon_id": "other"}) is None
+
+
+def test_trace_unknown_or_untraceable_ability_never_becomes_a_copy():
+    target = _target(slot_index=1, pokemon_id="b", ability_authority={"status": "known", "value": "trace"})
+    authority = build_switch_entry_trace_authority(session_id="entry-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, target_ability="multitype", traceability="untraceable")
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, trace_authority=authority)["trace_result"]["outcome"] == "ability_untraceable"
+    unknown = build_switch_entry_trace_authority(session_id="entry-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"})
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, trace_authority=unknown)["trace_result"]["reason"] == "traceability_unknown"

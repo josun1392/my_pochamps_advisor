@@ -56,6 +56,9 @@ def _target_after_entry_effects(target: Mapping[str, Any], hazard: Mapping[str, 
         if isinstance(stages, Mapping):
             copy["prospective_offensive_stages_authority"] = deepcopy(dict(stages))
             copy["prospective_offensive_stages_authority"][download["boosted_stat"]] = download["stage_after"]
+    trace = hazard.get("trace_result")
+    if isinstance(trace, Mapping) and trace.get("status") == "complete" and isinstance(trace.get("copied_ability"), str) and trace["copied_ability"]:
+        copy["ability_authority"] = {"status": "known", "value": trace["copied_ability"]}
     return copy
 
 

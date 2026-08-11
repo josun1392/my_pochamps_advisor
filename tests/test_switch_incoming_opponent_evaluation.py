@@ -123,6 +123,14 @@ def test_direct_incoming_uses_b_post_entry_condition_and_speed_stage_not_active_
     assert result["prospective_speed_stage_authority"] == {"status": "known", "value": 1}
 
 
+def test_direct_incoming_uses_b_owned_trace_copy_not_the_opponent_authority_object():
+    from llm.advisor_switch_incoming_evaluator import _target_after_entry_effects
+    target = {"ability_authority": {"status": "known", "value": "trace"}}
+    result = _target_after_entry_effects(target, {"trace_result": {"status": "complete", "copied_ability": "water-absorb"}})
+    assert result["ability_authority"] == {"status": "known", "value": "water-absorb"}
+    assert result["ability_authority"] is not target["ability_authority"]
+
+
 def test_direct_adapter_replaces_active_a_condition_and_speed_stage_with_b_records():
     from llm.advisor_switch_incoming_evaluator import _adapt_opponent_candidate
     action = _opponent()
