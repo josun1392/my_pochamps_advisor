@@ -140,6 +140,20 @@ def test_direct_adapter_uses_post_entry_weather_for_existing_weather_consumers()
     assert current["field_state_context"]["current_field"]["weather"] == "rain"
 
 
+def test_exact_full_hp_focus_sash_refines_only_supported_single_hit_guaranteed_ohko():
+    from llm.advisor_switch_incoming_evaluator import _apply_focus_sash_survival
+    damage = {"status": "known", "ko_interpretation": {"ko_supportability": "complete", "ohko_result": "guaranteed", "primary_ko_label": "guaranteed_ohko"}}
+    target = {"item_authority": {"status": "known", "value": "focus-sash"}, "hp_authority": {"status": "known", "current_hp": 100, "maximum_hp": 100}}
+    action = {"move_metadata": {"min_hits": 1, "max_hits": 1}}
+    result = _apply_focus_sash_survival(damage, target, action, {"status": "complete"})
+    assert result["ko_interpretation"]["primary_ko_label"] == "no_ko_within_supported_horizon"
+    assert result["ko_interpretation"]["focus_sash_survival"] == "applied"
+    assert _apply_focus_sash_survival(damage, target, {"move_metadata": {"min_hits": None, "max_hits": None}}, {"status": "complete"})["ko_interpretation"]["focus_sash_survival"] == "applied"
+    assert _apply_focus_sash_survival(damage, target, {"move_metadata": {"min_hits": 2, "max_hits": 2}}, {"status": "complete"})["ko_interpretation"]["primary_ko_label"] == "guaranteed_ohko"
+    assert _apply_focus_sash_survival(damage, {**target, "hp_authority": {**target["hp_authority"], "current_hp": 99}}, action, {"status": "complete"})["ko_interpretation"]["primary_ko_label"] == "guaranteed_ohko"
+    assert _apply_focus_sash_survival(damage, target, action, {"status": "incomplete"})["ko_interpretation"]["primary_ko_label"] == "guaranteed_ohko"
+
+
 def test_direct_adapter_replaces_active_a_condition_and_speed_stage_with_b_records():
     from llm.advisor_switch_incoming_evaluator import _adapt_opponent_candidate
     action = _opponent()

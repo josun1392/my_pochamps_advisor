@@ -95,3 +95,13 @@ post-entry standard weather replaces the direct incoming snapshot's existing
 field weather so existing weather-aware mechanics may consume it. No new
 weather engine, weather damage catalog, permission, reward, or switch-native
 score is created.
+
+## Focus Sash on switch-in
+
+The direct incoming adapter now recognizes an exact B-owned Focus Sash only
+after supported entry hazards prove B remains at exact full HP. For a supported
+single-hit incoming move with a proven guaranteed OHKO, it refines the existing
+KO evidence to no one-hit KO, allowing the established danger-only reduction to
+use that deterministic consequence. It does not change damage rolls or claim a
+full switch outcome. Unknown item/HP, entry damage, multi-hit moves, indirect
+damage, consumption, and later-turn survival remain outside this bounded slice.

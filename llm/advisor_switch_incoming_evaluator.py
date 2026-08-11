@@ -21,13 +21,14 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], e
     adapted_target = _target_after_entry_effects(target, hazard)
     adapted = _adapt_opponent_candidate(action, adapted_target, entry_effect_result=hazard)
     row = evaluate_opponent_action_candidate(adapted)
+    damage = _apply_focus_sash_survival(row.get("incoming_damage"), adapted_target, action, hazard)
     return {
         "switch_candidate_id": transition["self_action"]["candidate_id"],
         "target_pokemon_id": target["pokemon_id"], "target_slot_index": target["slot_index"],
         "opponent_candidate_id": action.get("candidate_id"),
         "direct_incoming_supportability": row.get("mechanical_evaluation_status"),
         "move_success_evidence": deepcopy(row.get("move_success")),
-        "damage_evidence": deepcopy(row.get("incoming_damage")),
+        "damage_evidence": damage,
         "q12_evidence": deepcopy(row.get("incoming_q12")),
         "entry_hazard_result": hazard,
         # Entry/exit mechanics are intentionally not executed.  Direct KO and
@@ -197,6 +198,24 @@ def _defender_provenance(target: Mapping[str, Any]) -> dict[str, Any]:
 
 def _known_value(authority: Any) -> Any:
     return authority.get("value") if isinstance(authority, Mapping) and authority.get("status") == "known" else None
+
+
+def _apply_focus_sash_survival(damage: Any, target: Mapping[str, Any], action: Mapping[str, Any], entry_effect_result: Mapping[str, Any] | None) -> Any:
+    """Refine only a proven single-hit guaranteed KO with exact B Focus Sash."""
+    result = deepcopy(dict(damage)) if isinstance(damage, Mapping) else damage
+    item, hp = _known_value(target.get("item_authority")), target.get("hp_authority")
+    metadata = action.get("move_metadata") if isinstance(action, Mapping) else None
+    ko = result.get("ko_interpretation") if isinstance(result, Mapping) else None
+    if item != "focus-sash" or not isinstance(hp, Mapping) or hp.get("status") != "known" or hp.get("current_hp") != hp.get("maximum_hp"):
+        return result
+    if not isinstance(entry_effect_result, Mapping) or entry_effect_result.get("status") != "complete":
+        return result
+    if not isinstance(metadata, Mapping) or metadata.get("min_hits") not in {None, 1} or metadata.get("max_hits") not in {None, 1}:
+        return result
+    if not isinstance(ko, Mapping) or ko.get("ko_supportability") != "complete" or ko.get("ohko_result") != "guaranteed":
+        return result
+    result["ko_interpretation"] = {**deepcopy(dict(ko)), "ohko_result": "no", "primary_ko_label": "no_ko_within_supported_horizon", "focus_sash_survival": "applied"}
+    return result
 
 
 def _unavailable(reason: str) -> dict[str, Any]:
