@@ -3,10 +3,11 @@ from copy import deepcopy
 from hashlib import sha256
 import json
 from types import MappingProxyType
+from llm.advisor_identity_groundedness import build_groundedness, normalize_groundedness
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
-_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context"}
+_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context"}
 
 
 def make_unknown_battle_fact():
@@ -131,6 +132,10 @@ def project_atomic_transition(base_state, replay_plan, expected_session_id=None,
             _invalidate_switch_permission(projected)
         if item["planned_effect"] not in {"set_ability_applicability", "set_ability_interaction"}:
             _invalidate_ability_interaction_authorities(projected)
+        if item["planned_effect"] not in {"set_identity_groundedness", "clear_identity_groundedness"}:
+            context=projected.get("identity_groundedness_context")
+            if isinstance(context, dict):
+                projected["identity_groundedness_context"]=normalize_groundedness(None,session_id=projected["session_id"],side=context.get("side"),slot_index=context.get("slot_index"),pokemon_id=context.get("pokemon_id"))
         applied.append(item["observation_id"])
     sequences = [item["observation_sequence"] for item in normalized]
     projected["last_applied_observation_sequence"] = max(sequences)
@@ -228,6 +233,7 @@ def _has_target_identity(event):
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "ability_id"), str) and bool(_value(event, "ability_id"))
     if effect in {"set_ability_interaction", "clear_ability_interaction"}:
         return _identity_values(event, "source_side", "source_slot_index", "source_pokemon_id") and _identity_values(event, "target_side", "target_slot_index", "target_pokemon_id")
+    if effect in {"set_identity_groundedness", "clear_identity_groundedness"}: return _identity_values(event,"side","slot_index","pokemon_id")
     if effect in {"start_weather", "end_weather"}: return isinstance(_value(event, "weather"), str) and bool(_value(event, "weather"))
     if effect in {"start_terrain", "end_terrain"}: return isinstance(_value(event, "terrain"), str) and bool(_value(event, "terrain"))
     return isinstance(_value(event, "side"), str) and isinstance(_value(event, "side_condition") or _value(event, "effect"), str)
@@ -285,6 +291,13 @@ def _apply(state, event):
     if effect == "clear_ability_applicability": return _clear_ability_applicability(state, event)
     if effect == "set_ability_interaction": return _set_ability_interaction(state, event)
     if effect == "clear_ability_interaction": return _clear_ability_interaction(state, event)
+    if effect in {"set_identity_groundedness","clear_identity_groundedness"}:
+        side,slot,pid=_value(event,"side"),_value(event,"slot_index"),_value(event,"pokemon_id")
+        if not _active_identity_matches(state,side,slot,pid): return _conflict(event,"invalid_identity_groundedness")
+        status="unknown" if effect.startswith("clear") else _value(event,"groundedness_status")
+        try: state["identity_groundedness_context"]=build_groundedness(session_id=state["session_id"],side=side,slot_index=slot,pokemon_id=pid,status=status)
+        except ValueError: return _conflict(event,"invalid_identity_groundedness")
+        return None
     if effect == "mark_fainted":
         pokemon = _pokemon(state, event)
         if pokemon is None: return _conflict(event, "missing_faint_target")

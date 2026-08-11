@@ -15,6 +15,7 @@ from llm.advisor_reducer_state_model import validate_battle_state_unknown_marker
 from llm.advisor_switch_candidates import normalize_switch_candidate_context_projection
 from llm.advisor_roster_mechanics import normalize_self_roster_mechanics_context_projection
 from llm.advisor_ability_interaction_authority import normalize_ability_interaction_authority
+from llm.advisor_identity_groundedness import normalize_groundedness
 
 
 RICH_CURRENT_STATE_KEYS = (
@@ -1130,6 +1131,12 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
         state["ability_interaction_authority"] = normalize_ability_interaction_authority(
             ability_interaction_authority, session_id=session_id, source=source, target=target, ability_id=ability_id,
         )
+    identity_groundedness = battle_input.get("identity_groundedness_context")
+    if identity_groundedness is not None:
+        self_active = _mapping_or_empty(_mapping_or_empty(battle_input.get("pokemon")).get("my_active"))
+        slot, pokemon_id = _optional_int(self_active.get("slot_index")), _optional_str(self_active.get("name_en"))
+        if session_id is None or slot is None or pokemon_id is None: raise ValueError("invalid_identity_groundedness")
+        state["identity_groundedness_context"] = normalize_groundedness(identity_groundedness,session_id=session_id,side="self",slot_index=slot,pokemon_id=pokemon_id)
     if isinstance(observation_snapshot, Mapping) and observation_snapshot.get("status") == "ready":
         session = observation_snapshot.get("session_id")
         if isinstance(session, str) and session and session_id == session:
