@@ -86,9 +86,10 @@ def _switch_actions(evidence: Mapping[str, Any], snapshot: Any) -> list[dict[str
         intimidate_authority = post.get("switch_entry_intimidate_authority") if isinstance(post, Mapping) else None
         download_authority = post.get("switch_entry_download_authority") if isinstance(post, Mapping) else None
         trace_authority = post.get("switch_entry_trace_authority") if isinstance(post, Mapping) else None
+        sturdy_authority = post.get("switch_entry_sturdy_authority") if isinstance(post, Mapping) else None
         shared = post.get("side_shared_authority") if isinstance(post, Mapping) else None
         field_state = shared.get("field_state_context") if isinstance(shared, Mapping) else None
-        entry_hazard_result = evaluate_switch_entry_effects(hazards=hazards, target=target, intimidate_authority=intimidate_authority, download_authority=download_authority, trace_authority=trace_authority, field_state_context=field_state) if isinstance(target, Mapping) else None
+        entry_hazard_result = evaluate_switch_entry_effects(hazards=hazards, target=target, intimidate_authority=intimidate_authority, download_authority=download_authority, trace_authority=trace_authority, sturdy_authority=sturdy_authority, field_state_context=field_state) if isinstance(target, Mapping) else None
         # An entry KO is deterministic danger even if no opponent action was
         # supplied. Ordinary chip never creates a favorable ranking signal.
         if isinstance(entry_hazard_result, Mapping) and entry_hazard_result.get("status") == "complete" and entry_hazard_result.get("hazard_ko") is True:

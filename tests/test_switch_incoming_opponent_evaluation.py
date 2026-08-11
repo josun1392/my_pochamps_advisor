@@ -8,6 +8,7 @@ from llm.advisor_switch_transition import project_authorized_switch_transition
 from llm.advisor_turn_snapshot import build_request_start_recommendation_snapshot
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority
+from llm.advisor_switch_entry_sturdy_authority import build_switch_entry_sturdy_authority
 
 
 def _stats(value): return {"hp": value, "attack": value, "defense": value, "special-attack": value, "special-defense": value, "speed": value}
@@ -22,7 +23,7 @@ def _state():
 
 def _snapshot(state, roster):
     switch = build_switch_candidate_context_projection(state)
-    return build_request_start_recommendation_snapshot({"current_state_session_id": state["session_id"], "switch_candidate_context": switch, "self_roster_mechanics_context": roster, "switch_hazard_context": state.get("switch_hazard_context"), "switch_entry_intimidate_authority": state.get("switch_entry_intimidate_authority"), "pokemon": {"my_active": {"name_en": "a", "slot_index": 0}, "opponent_active": {"name_en": "x", "slot_index": 0}}, "moves": {"my_available_moves": []}}, selectable_moves=())
+    return build_request_start_recommendation_snapshot({"current_state_session_id": state["session_id"], "switch_candidate_context": switch, "self_roster_mechanics_context": roster, "switch_hazard_context": state.get("switch_hazard_context"), "switch_entry_intimidate_authority": state.get("switch_entry_intimidate_authority"), "switch_entry_sturdy_authority": state.get("switch_entry_sturdy_authority"), "pokemon": {"my_active": {"name_en": "a", "slot_index": 0}, "opponent_active": {"name_en": "x", "slot_index": 0}}, "moves": {"my_available_moves": []}}, selectable_moves=())
 
 
 def _opponent(target="selected-pokemon", category="physical"):
@@ -152,6 +153,34 @@ def test_exact_full_hp_focus_sash_refines_only_supported_single_hit_guaranteed_o
     assert _apply_focus_sash_survival(damage, target, {"move_metadata": {"min_hits": 2, "max_hits": 2}}, {"status": "complete"})["ko_interpretation"]["primary_ko_label"] == "guaranteed_ohko"
     assert _apply_focus_sash_survival(damage, {**target, "hp_authority": {**target["hp_authority"], "current_hp": 99}}, action, {"status": "complete"})["ko_interpretation"]["primary_ko_label"] == "guaranteed_ohko"
     assert _apply_focus_sash_survival(damage, target, action, {"status": "incomplete"})["ko_interpretation"]["primary_ko_label"] == "guaranteed_ohko"
+
+
+def test_exact_sturdy_readiness_refines_only_matching_single_hit_guaranteed_ohko():
+    from llm.advisor_switch_incoming_evaluator import _apply_sturdy_survival
+    damage = {"status": "known", "ko_interpretation": {"ko_supportability": "complete", "ohko_result": "guaranteed", "primary_ko_label": "guaranteed_ohko"}}
+    action = _opponent()
+    effect = {"sturdy_result": {"status": "complete", "outcome": "survival_ready", "opponent_identity": {"side": "opponent", "slot_index": 0, "pokemon_id": "x"}}}
+    result = _apply_sturdy_survival(damage, {}, action, effect)
+    assert result["ko_interpretation"]["primary_ko_label"] == "no_ko_within_supported_horizon"
+    assert result["ko_interpretation"]["sturdy_survival"] == "applied"
+    assert _apply_sturdy_survival(damage, {}, action, {"sturdy_result": {**effect["sturdy_result"], "outcome": "ability_suppressed"}})["ko_interpretation"]["primary_ko_label"] == "guaranteed_ohko"
+    assert _apply_sturdy_survival(damage, {}, action, {"sturdy_result": {**effect["sturdy_result"], "opponent_identity": {"side": "opponent", "slot_index": 1, "pokemon_id": "other"}}})["ko_interpretation"]["primary_ko_label"] == "guaranteed_ohko"
+    action["move_metadata"]["min_hits"] = 2
+    assert _apply_sturdy_survival(damage, {}, action, effect)["ko_interpretation"]["primary_ko_label"] == "guaranteed_ohko"
+
+
+def test_frozen_transition_carries_identity_bound_sturdy_authority_to_entry_evaluation():
+    from llm.advisor_switch_entry_effects import evaluate_switch_entry_effects
+    state = _state()
+    state["switch_hazard_context"] = build_switch_hazard_context(session_id="incoming-s", affected_side="self", stealth_rock="absent", spikes_layers=0)
+    state["switch_entry_sturdy_authority"] = build_switch_entry_sturdy_authority(session_id="incoming-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, applicability="applicable")
+    records = deepcopy(build_self_roster_mechanics_context_projection(state)["entries"])
+    records[1].update({"current_type_authority": {"status": "known", "value": ["water"]}, "base_stat_authority": {"status": "known", "value": _stats(200)}, "final_stat_authority": {"status": "known", "value": _stats(200)}, "ability_authority": {"status": "known", "value": "sturdy"}, "item_authority": {"status": "known", "value": None}, "hp_authority": {"status": "known", "current_hp": 200, "maximum_hp": 200, "provenance": "user_confirmed_current_hp"}})
+    snapshot = _snapshot(state, build_self_roster_mechanics_context_projection(state, roster_mechanics_records=records))
+    transition = project_authorized_switch_transition(turn_snapshot=snapshot, switch_candidate=build_switch_candidates(turn_snapshot=snapshot)[0], switch_authorized=True, opponent_action=_opponent())
+    post = transition["post_switch_snapshot"]
+    result = evaluate_switch_entry_effects(hazards=post["switch_hazard_context"], target=post["target_roster_mechanics"], sturdy_authority=post["switch_entry_sturdy_authority"])
+    assert result["sturdy_result"]["outcome"] == "survival_ready"
 
 
 def test_direct_adapter_replaces_active_a_condition_and_speed_stage_with_b_records():

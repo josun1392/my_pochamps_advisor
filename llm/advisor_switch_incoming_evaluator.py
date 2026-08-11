@@ -22,6 +22,7 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], e
     adapted = _adapt_opponent_candidate(action, adapted_target, entry_effect_result=hazard)
     row = evaluate_opponent_action_candidate(adapted)
     damage = _apply_focus_sash_survival(row.get("incoming_damage"), adapted_target, action, hazard)
+    damage = _apply_sturdy_survival(damage, adapted_target, action, hazard)
     return {
         "switch_candidate_id": transition["self_action"]["candidate_id"],
         "target_pokemon_id": target["pokemon_id"], "target_slot_index": target["slot_index"],
@@ -216,6 +217,31 @@ def _apply_focus_sash_survival(damage: Any, target: Mapping[str, Any], action: M
         return result
     result["ko_interpretation"] = {**deepcopy(dict(ko)), "ohko_result": "no", "primary_ko_label": "no_ko_within_supported_horizon", "focus_sash_survival": "applied"}
     return result
+
+
+def _apply_sturdy_survival(damage: Any, target: Mapping[str, Any], action: Mapping[str, Any], entry_effect_result: Mapping[str, Any] | None) -> Any:
+    """Refine only a proven single-hit guaranteed KO after exact Sturdy readiness."""
+    result = deepcopy(dict(damage)) if isinstance(damage, Mapping) else damage
+    sturdy = entry_effect_result.get("sturdy_result") if isinstance(entry_effect_result, Mapping) else None
+    metadata = action.get("move_metadata") if isinstance(action, Mapping) else None
+    ko = result.get("ko_interpretation") if isinstance(result, Mapping) else None
+    opponent = sturdy.get("opponent_identity") if isinstance(sturdy, Mapping) else None
+    if not isinstance(sturdy, Mapping) or sturdy.get("status") != "complete" or sturdy.get("outcome") != "survival_ready":
+        return result
+    if not _same_opponent_action(action, opponent):
+        return result
+    if not isinstance(metadata, Mapping) or metadata.get("min_hits") not in {None, 1} or metadata.get("max_hits") not in {None, 1}:
+        return result
+    if not isinstance(ko, Mapping) or ko.get("ko_supportability") != "complete" or ko.get("ohko_result") != "guaranteed":
+        return result
+    result["ko_interpretation"] = {**deepcopy(dict(ko)), "ohko_result": "no", "primary_ko_label": "no_ko_within_supported_horizon", "sturdy_survival": "applied"}
+    return result
+
+
+def _same_opponent_action(action: Mapping[str, Any], opponent: Any) -> bool:
+    snapshot = action.get("mechanics_snapshot") if isinstance(action, Mapping) else None
+    attacker = snapshot.get("attacker") if isinstance(snapshot, Mapping) else None
+    return isinstance(opponent, Mapping) and opponent.get("side") == "opponent" and action.get("pokemon_identity") == opponent.get("pokemon_id") and isinstance(attacker, Mapping) and attacker.get("species_id") == opponent.get("pokemon_id") and attacker.get("slot_index") == opponent.get("slot_index")
 
 
 def _unavailable(reason: str) -> dict[str, Any]:

@@ -9,6 +9,7 @@ from llm.advisor_switch_hazard_authority import build_switch_hazard_context, nor
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority, normalize_switch_entry_intimidate_authority
 from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority, normalize_switch_entry_download_authority
 from llm.advisor_switch_entry_trace_authority import build_switch_entry_trace_authority, normalize_switch_entry_trace_authority
+from llm.advisor_switch_entry_sturdy_authority import build_switch_entry_sturdy_authority, normalize_switch_entry_sturdy_authority
 import pytest
 
 
@@ -136,6 +137,17 @@ def test_trace_unknown_or_untraceable_ability_never_becomes_a_copy():
     assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, trace_authority=authority)["trace_result"]["outcome"] == "ability_untraceable"
     unknown = build_switch_entry_trace_authority(session_id="entry-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"})
     assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, trace_authority=unknown)["trace_result"]["reason"] == "traceability_unknown"
+
+
+def test_sturdy_requires_exact_b_to_opponent_applicability_and_post_entry_full_hp():
+    target = _target(ability_authority={"status": "known", "value": "sturdy"}, hp_authority={"status": "known", "current_hp": 100, "maximum_hp": 100, "provenance": "user_confirmed_current_hp"})
+    authority = build_switch_entry_sturdy_authority(session_id="entry-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, applicability="applicable")
+    ready = evaluate_switch_entry_effects(hazards=_hazards(), target=target, sturdy_authority=authority)["sturdy_result"]
+    assert ready == {"status": "complete", "outcome": "survival_ready", "opponent_identity": {"side": "opponent", "slot_index": 0, "pokemon_id": "x"}}
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, sturdy_authority={**authority, "applicability": "suppressed"})["sturdy_result"]["outcome"] == "ability_suppressed"
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target={**target, "hp_authority": {**target["hp_authority"], "current_hp": 99}}, sturdy_authority=authority)["sturdy_result"]["outcome"] == "not_full_hp"
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=target)["sturdy_result"]["reason"] == "sturdy_interaction_unknown"
+    assert normalize_switch_entry_sturdy_authority(authority, session_id="entry-s", target={"side": "opponent", "slot_index": 0, "pokemon_id": "other"}) is None
 
 
 @pytest.mark.parametrize(("ability", "weather"), [("drizzle", "rain"), ("drought", "sun"), ("sand-stream", "sandstorm"), ("snow-warning", "snow")])

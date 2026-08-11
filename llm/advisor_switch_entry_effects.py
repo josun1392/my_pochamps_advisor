@@ -10,7 +10,7 @@ from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
 _CONDITIONS = frozenset({None, "none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"})
 
 
-def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping[str, Any], intimidate_authority: Mapping[str, Any] | None = None, download_authority: Mapping[str, Any] | None = None, trace_authority: Mapping[str, Any] | None = None, field_state_context: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping[str, Any], intimidate_authority: Mapping[str, Any] | None = None, download_authority: Mapping[str, Any] | None = None, trace_authority: Mapping[str, Any] | None = None, sturdy_authority: Mapping[str, Any] | None = None, field_state_context: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Evaluate damage first, then supported status and Speed-stage entry effects.
 
     Each effect retains an independent supportability result.  This lets known
@@ -23,6 +23,7 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
     intimidate = _evaluate_intimidate(target=target, damage=damage, authority=intimidate_authority)
     download = _evaluate_download(target=target, damage=damage, authority=download_authority)
     trace = _evaluate_trace(target=target, damage=damage, authority=trace_authority)
+    sturdy = _evaluate_sturdy(target=target, damage=damage, authority=sturdy_authority)
     weather = _evaluate_entry_weather(target=target, damage=damage, field_state_context=field_state_context)
     return {
         **deepcopy(damage),
@@ -31,8 +32,9 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
         "intimidate_result": intimidate,
         "download_result": download,
         "trace_result": trace,
+        "sturdy_result": sturdy,
         "weather_result": weather,
-        "entry_effects_supportability": "complete" if all(result.get("status") == "complete" for result in (damage, toxic, sticky, intimidate, download, trace, weather)) else "insufficient_context",
+        "entry_effects_supportability": "complete" if all(result.get("status") == "complete" for result in (damage, toxic, sticky, intimidate, download, trace, sturdy, weather)) else "insufficient_context",
     }
 
 
@@ -188,6 +190,34 @@ def _evaluate_trace(*, target: Mapping[str, Any], damage: Mapping[str, Any], aut
     return _complete("ability_copied", copied_ability=authority["target_ability"], opponent_identity=deepcopy(dict(authority["target"])))
 
 
+def _evaluate_sturdy(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    ability = _authority(target, "ability_authority")
+    if not _known_authority(ability):
+        return _incomplete("candidate_ability_unknown")
+    if _known_value(ability) != "sturdy":
+        return _complete("not_applicable")
+    if damage.get("status") != "complete":
+        return _incomplete("prior_entry_hazards_incomplete")
+    if damage.get("hazard_ko") is True:
+        return _complete("not_activated_hazard_ko")
+    hp = _authority(target, "hp_authority")
+    maximum = hp.get("maximum_hp") if isinstance(hp, Mapping) and hp.get("status") == "known" else None
+    after = damage.get("post_hazard_hp")
+    if not isinstance(maximum, int) or isinstance(maximum, bool) or maximum <= 0 or not isinstance(after, int) or isinstance(after, bool) or not 0 < after <= maximum:
+        return _incomplete("post_entry_hp_unknown")
+    if after != maximum:
+        return _complete("not_full_hp", post_entry_hp=after, maximum_hp=maximum)
+    source = {"side": "self", "slot_index": target.get("slot_index"), "pokemon_id": target.get("pokemon_id")}
+    if not _valid_sturdy_authority(authority, session_id=target.get("session_id")) or authority.get("source") != source:
+        return _incomplete("sturdy_interaction_unknown")
+    applicability = authority.get("applicability")
+    if applicability == "unknown":
+        return _incomplete("sturdy_interaction_unknown")
+    if applicability == "suppressed":
+        return _complete("ability_suppressed", opponent_identity=deepcopy(dict(authority["target"])))
+    return _complete("survival_ready", opponent_identity=deepcopy(dict(authority["target"])))
+
+
 def _evaluate_entry_weather(*, target: Mapping[str, Any], damage: Mapping[str, Any], field_state_context: Mapping[str, Any] | None) -> dict[str, Any]:
     ability = _authority(target, "ability_authority")
     if not _known_authority(ability):
@@ -268,6 +298,11 @@ def _valid_download_authority(value: Any, *, session_id: Any) -> bool:
 def _valid_trace_authority(value: Any, *, session_id: Any) -> bool:
     required = {"schema_version", "session_id", "source", "target", "target_ability", "traceability"}
     return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-trace-authority-v1" and value.get("session_id") == session_id and value.get("traceability") in {"traceable", "untraceable", "unknown"} and isinstance(value.get("target_ability"), str) and bool(value["target_ability"]) and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
+
+
+def _valid_sturdy_authority(value: Any, *, session_id: Any) -> bool:
+    required = {"schema_version", "session_id", "source", "target", "applicability"}
+    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-sturdy-authority-v1" and value.get("session_id") == session_id and value.get("applicability") in {"applicable", "suppressed", "unknown"} and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
 
 
 def _current_weather(value: Any) -> str | None:

@@ -48,6 +48,7 @@ def project_authorized_switch_transition(
         "switch_entry_intimidate_authority": deepcopy(current.get("switch_entry_intimidate_authority")),
         "switch_entry_download_authority": deepcopy(current.get("switch_entry_download_authority")),
         "switch_entry_trace_authority": deepcopy(current.get("switch_entry_trace_authority")),
+        "switch_entry_sturdy_authority": deepcopy(current.get("switch_entry_sturdy_authority")),
         "self_roster": deepcopy(context["self_pokemon"]),
         "side_shared_authority": {
             key: deepcopy(current[key]) for key in _SIDE_SHARED_KEYS if key in current

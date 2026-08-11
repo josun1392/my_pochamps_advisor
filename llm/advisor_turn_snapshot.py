@@ -20,6 +20,7 @@ from llm.advisor_switch_hazard_authority import normalize_switch_hazard_context
 from llm.advisor_switch_entry_intimidate_authority import normalize_switch_entry_intimidate_authority
 from llm.advisor_switch_entry_download_authority import normalize_switch_entry_download_authority
 from llm.advisor_switch_entry_trace_authority import normalize_switch_entry_trace_authority
+from llm.advisor_switch_entry_sturdy_authority import normalize_switch_entry_sturdy_authority
 
 
 RICH_CURRENT_STATE_KEYS = (
@@ -1172,6 +1173,15 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
         normalized = normalize_switch_entry_trace_authority(trace_authority, session_id=session_id, target=target)
         if normalized is not None:
             state["switch_entry_trace_authority"] = normalized
+    sturdy_authority = battle_input.get("switch_entry_sturdy_authority")
+    if sturdy_authority is not None:
+        opponent_active = _mapping_or_empty(_mapping_or_empty(battle_input.get("pokemon")).get("opponent_active"))
+        target = {"side": "opponent", "slot_index": _optional_int(opponent_active.get("slot_index")), "pokemon_id": _optional_str(opponent_active.get("name_en"))}
+        if session_id is None or None in {target["slot_index"], target["pokemon_id"]}:
+            raise ValueError("invalid_switch_entry_sturdy_authority")
+        normalized = normalize_switch_entry_sturdy_authority(sturdy_authority, session_id=session_id, target=target)
+        if normalized is not None:
+            state["switch_entry_sturdy_authority"] = normalized
     if isinstance(observation_snapshot, Mapping) and observation_snapshot.get("status") == "ready":
         session = observation_snapshot.get("session_id")
         if isinstance(session, str) and session and session_id == session:

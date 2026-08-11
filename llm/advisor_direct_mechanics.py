@@ -641,4 +641,4 @@ def _fixed_insufficient(missing: list[str]) -> dict[str, Any]:
 
 def _fixed_unsupported(reason: str) -> dict[str, Any]:
     return {"status": "unsupported_mechanic", "move": None, "damage_model": "level_based_fixed", "fixed_damage": None, "type_effectiveness": None, "damage_range": None, "damage_percent_range": None, "ko_result": None, "missing_inputs": [], "unsupported_reason": reason, "mechanics_source": "native_level_based_fixed_damage", "generation": None}
-_ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage"})
+_ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

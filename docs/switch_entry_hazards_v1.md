@@ -105,3 +105,13 @@ KO evidence to no one-hit KO, allowing the established danger-only reduction to
 use that deterministic consequence. It does not change damage rolls or claim a
 full switch outcome. Unknown item/HP, entry damage, multi-hit moves, indirect
 damage, consumption, and later-turn survival remain outside this bounded slice.
+
+## Sturdy on switch-in
+
+The switch pipeline now evaluates exact B-owned `sturdy` after hazards. It
+requires a detached, identity-bound B-to-current-opposing-active applicability
+authority, exact post-entry full HP, and a supported single-hit incoming move
+with a proven guaranteed OHKO. Only that combination refines the existing KO
+evidence to no one-hit KO; it does not alter raw damage or add a survival
+reward. Suppressed, unknown, stale, non-full-HP, multi-hit, indirect-damage,
+and later-turn cases remain outside the deterministic subset.
