@@ -82,3 +82,16 @@ traceability, or identity remains incomplete. An untraceable result is a
 deterministic no-copy outcome. Copied abilities receive downstream treatment
 only where already-supported mechanics recognize them; this adds no ability
 catalog, reward, permission, or switch-native score.
+
+## Weather-setting abilities on switch-in
+
+After hazards prove B survives, exact B-owned `drizzle`, `drought`,
+`sand-stream`, and `snow-warning` use the existing frozen
+`field_state_context.current_field.weather` authority. With an exact standard
+current weather (`none`, rain, sun, sandstorm, or snow), they respectively set
+rain, sun, sandstorm, or snow; an already matching weather is an explicit
+no-op. Missing weather and special/unsupported weather remain incomplete. The
+post-entry standard weather replaces the direct incoming snapshot's existing
+field weather so existing weather-aware mechanics may consume it. No new
+weather engine, weather damage catalog, permission, reward, or switch-native
+score is created.

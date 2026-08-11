@@ -9,6 +9,7 @@ from llm.advisor_switch_hazard_authority import build_switch_hazard_context, nor
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority, normalize_switch_entry_intimidate_authority
 from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority, normalize_switch_entry_download_authority
 from llm.advisor_switch_entry_trace_authority import build_switch_entry_trace_authority, normalize_switch_entry_trace_authority
+import pytest
 
 
 def _hazards(*, toxic=0, web="absent"):
@@ -135,3 +136,17 @@ def test_trace_unknown_or_untraceable_ability_never_becomes_a_copy():
     assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, trace_authority=authority)["trace_result"]["outcome"] == "ability_untraceable"
     unknown = build_switch_entry_trace_authority(session_id="entry-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"})
     assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, trace_authority=unknown)["trace_result"]["reason"] == "traceability_unknown"
+
+
+@pytest.mark.parametrize(("ability", "weather"), [("drizzle", "rain"), ("drought", "sun"), ("sand-stream", "sandstorm"), ("snow-warning", "snow")])
+def test_weather_entry_abilities_reuse_known_weather_transition(ability, weather):
+    target = _target(ability_authority={"status": "known", "value": ability})
+    result = evaluate_switch_entry_effects(hazards=_hazards(), target=target, field_state_context={"current_field": {"weather": "none"}})["weather_result"]
+    assert result == {"status": "complete", "outcome": "weather_set", "weather_before": "none", "weather_after": weather}
+
+
+def test_weather_entry_abilities_fail_closed_for_unknown_or_special_weather_and_noop_when_matching():
+    target = _target(ability_authority={"status": "known", "value": "drizzle"})
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, field_state_context=None)["weather_result"]["reason"] == "current_weather_unknown_or_unsupported"
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, field_state_context={"current_field": {"weather": "strong-winds"}})["weather_result"]["reason"] == "current_weather_unknown_or_unsupported"
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, field_state_context={"current_field": {"weather": "rain"}})["weather_result"]["outcome"] == "weather_already_active"

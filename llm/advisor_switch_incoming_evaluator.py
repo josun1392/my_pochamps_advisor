@@ -108,6 +108,7 @@ def _adapt_opponent_candidate(action: Mapping[str, Any], target: Mapping[str, An
     current = deepcopy(dict(battle.get("current_state"))) if isinstance(battle.get("current_state"), Mapping) else {}
     _replace_self_authority(current, target)
     _replace_opponent_attack_stage(current, action, entry_effect_result)
+    _replace_entry_weather(current, entry_effect_result)
     provenance = deepcopy(dict(battle.get("stat_provenance"))) if isinstance(battle.get("stat_provenance"), Mapping) else {}
     provenance["defender"] = _defender_provenance(target)
     snapshot["defender"] = {"species_id": target["pokemon_id"], "slot_index": target["slot_index"]}
@@ -167,6 +168,16 @@ def _matches_action_attacker(action: Mapping[str, Any], identity: Any) -> bool:
     snapshot = action.get("mechanics_snapshot") if isinstance(action, Mapping) else None
     attacker = snapshot.get("attacker") if isinstance(snapshot, Mapping) else None
     return isinstance(attacker, Mapping) and attacker.get("species_id") == identity.get("pokemon_id") and attacker.get("slot_index") == identity.get("slot_index")
+
+
+def _replace_entry_weather(current: dict[str, Any], entry_effect_result: Mapping[str, Any] | None) -> None:
+    result = entry_effect_result.get("weather_result") if isinstance(entry_effect_result, Mapping) else None
+    weather = result.get("weather_after") if isinstance(result, Mapping) else None
+    if isinstance(weather, str) and weather in {"rain", "sun", "sandstorm", "snow"}:
+        field = current.get("field_state_context")
+        current["field_state_context"] = deepcopy(dict(field)) if isinstance(field, Mapping) else {}
+        previous = field.get("current_field") if isinstance(field, Mapping) else None
+        current["field_state_context"]["current_field"] = {**(deepcopy(dict(previous)) if isinstance(previous, Mapping) else {}), "weather": weather}
 
 
 def _defender_provenance(target: Mapping[str, Any]) -> dict[str, Any]:

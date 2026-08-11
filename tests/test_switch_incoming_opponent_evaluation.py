@@ -131,6 +131,15 @@ def test_direct_incoming_uses_b_owned_trace_copy_not_the_opponent_authority_obje
     assert result["ability_authority"] is not target["ability_authority"]
 
 
+def test_direct_adapter_uses_post_entry_weather_for_existing_weather_consumers():
+    from llm.advisor_switch_incoming_evaluator import _adapt_opponent_candidate
+    action = _opponent()
+    action["mechanics_snapshot"]["battle_context"]["current_state"]["field_state_context"] = {"current_field": {"weather": "none"}}
+    target = {"session_id": "incoming-s", "slot_index": 1, "pokemon_id": "b"}
+    current = _adapt_opponent_candidate(action, target, entry_effect_result={"weather_result": {"status": "complete", "weather_after": "rain"}})["mechanics_snapshot"]["battle_context"]["current_state"]
+    assert current["field_state_context"]["current_field"]["weather"] == "rain"
+
+
 def test_direct_adapter_replaces_active_a_condition_and_speed_stage_with_b_records():
     from llm.advisor_switch_incoming_evaluator import _adapt_opponent_candidate
     action = _opponent()

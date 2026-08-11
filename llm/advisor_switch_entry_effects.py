@@ -10,7 +10,7 @@ from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
 _CONDITIONS = frozenset({None, "none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"})
 
 
-def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping[str, Any], intimidate_authority: Mapping[str, Any] | None = None, download_authority: Mapping[str, Any] | None = None, trace_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping[str, Any], intimidate_authority: Mapping[str, Any] | None = None, download_authority: Mapping[str, Any] | None = None, trace_authority: Mapping[str, Any] | None = None, field_state_context: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Evaluate damage first, then supported status and Speed-stage entry effects.
 
     Each effect retains an independent supportability result.  This lets known
@@ -23,6 +23,7 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
     intimidate = _evaluate_intimidate(target=target, damage=damage, authority=intimidate_authority)
     download = _evaluate_download(target=target, damage=damage, authority=download_authority)
     trace = _evaluate_trace(target=target, damage=damage, authority=trace_authority)
+    weather = _evaluate_entry_weather(target=target, damage=damage, field_state_context=field_state_context)
     return {
         **deepcopy(damage),
         "toxic_spikes_result": toxic,
@@ -30,7 +31,8 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
         "intimidate_result": intimidate,
         "download_result": download,
         "trace_result": trace,
-        "entry_effects_supportability": "complete" if all(result.get("status") == "complete" for result in (damage, toxic, sticky, intimidate, download, trace)) else "insufficient_context",
+        "weather_result": weather,
+        "entry_effects_supportability": "complete" if all(result.get("status") == "complete" for result in (damage, toxic, sticky, intimidate, download, trace, weather)) else "insufficient_context",
     }
 
 
@@ -186,6 +188,24 @@ def _evaluate_trace(*, target: Mapping[str, Any], damage: Mapping[str, Any], aut
     return _complete("ability_copied", copied_ability=authority["target_ability"], opponent_identity=deepcopy(dict(authority["target"])))
 
 
+def _evaluate_entry_weather(*, target: Mapping[str, Any], damage: Mapping[str, Any], field_state_context: Mapping[str, Any] | None) -> dict[str, Any]:
+    ability = _authority(target, "ability_authority")
+    if not _known_authority(ability):
+        return _incomplete("candidate_ability_unknown")
+    weather_by_ability = {"drizzle": "rain", "drought": "sun", "sand-stream": "sandstorm", "snow-warning": "snow"}
+    weather = weather_by_ability.get(_known_value(ability))
+    if weather is None:
+        return _complete("not_applicable")
+    if damage.get("status") != "complete":
+        return _incomplete("prior_entry_hazards_incomplete")
+    if damage.get("hazard_ko") is True:
+        return _complete("not_activated_hazard_ko")
+    before = _current_weather(field_state_context)
+    if before is None:
+        return _incomplete("current_weather_unknown_or_unsupported")
+    return _complete("weather_already_active" if before == weather else "weather_set", weather_before=before, weather_after=weather)
+
+
 def _hazard_value(hazards: Any, key: str, allowed: set[Any]) -> Any | None:
     required = {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web"}
     if not isinstance(hazards, Mapping) or set(hazards) != required or hazards.get("schema_version") != "switch-hazard-context-v2" or hazards.get("affected_side") != "self":
@@ -248,6 +268,12 @@ def _valid_download_authority(value: Any, *, session_id: Any) -> bool:
 def _valid_trace_authority(value: Any, *, session_id: Any) -> bool:
     required = {"schema_version", "session_id", "source", "target", "target_ability", "traceability"}
     return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-trace-authority-v1" and value.get("session_id") == session_id and value.get("traceability") in {"traceable", "untraceable", "unknown"} and isinstance(value.get("target_ability"), str) and bool(value["target_ability"]) and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
+
+
+def _current_weather(value: Any) -> str | None:
+    field = value.get("current_field") if isinstance(value, Mapping) else None
+    weather = field.get("weather") if isinstance(field, Mapping) else None
+    return weather if weather in {"none", "rain", "sun", "sandstorm", "snow"} else None
 
 
 def _complete(outcome: str, **details: Any) -> dict[str, Any]:
