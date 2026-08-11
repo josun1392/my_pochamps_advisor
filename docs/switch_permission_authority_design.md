@@ -39,3 +39,6 @@ Future trusted mechanics adapters may derive this direct authority from
 volatile traps, ability/item/type exceptions, and other switch restrictions.
 They must provide explicit current-active/session-bound evidence; until then,
 unknown stays nonselectable.
+
+`switch_permission_capture.md` documents the implemented explicit manual
+capture controller and its reducer/CAS lifecycle.
