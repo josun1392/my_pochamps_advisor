@@ -6,6 +6,12 @@ class _Snapshot:
     def to_dict(self): return {"current_state": {}}
 
 
+class _AuthoritySnapshot:
+    def __init__(self, *, type_value=("normal",), item_status="absent", ability="pressure", manual="permitted", applicability="applicable", interaction="affecting"):
+        self.value = {"current_state": {"ability_interaction_authority": {"session_id": "s", "source": {"side": "opponent", "slot_index": 0, "pokemon_id": "op"}, "target": {"side": "self", "slot_index": 0, "pokemon_id": "me"}, "ability_id": "shadow-tag", "applicability": applicability, "interaction": interaction}, "switch_candidate_context": {"switch_permission_context": {"status": manual}}, "current_type_context": {"current_types": [{"side": "self", "state": "known", "types": list(type_value)}]}, "ability_context": {"current_abilities": [{"side": "self", "ability": ability}]}}, "battle_state": {"active_player": {"item_status": item_status, "known_item_id": "shed-shell" if item_status == "user_confirmed" else None}}}
+    def to_dict(self): return self.value
+
+
 def _prepared(*, moves, switches):
     return {"candidates": moves, "evidence_bundle": {"turn_snapshot": _Snapshot(), "switch_candidates": switches, "known_opponent_threat_summaries": {"threat_summaries": []}, "opponent_action_candidates": []}}
 
@@ -34,3 +40,19 @@ def test_equal_switches_remain_unresolved_without_provider_presentation():
     envelope = build_combined_action_envelope(prepared_cycle=_prepared(moves=[], switches=switches))
     assert envelope["selection_status"] == "unresolved_equal_switches"
     assert build_combined_action_presentation(envelope=envelope)["status"] == "unresolved_equal_switches"
+
+
+def test_frozen_shadow_tag_finalization_blocks_or_preserves_exception_switches():
+    switch = {"candidate_id": "self-switch:s:1:b", "action_kind": "switch", "target_pokemon_id": "b", "target_slot_index": 1, "selectable": True, "availability_supportability": "complete", "reason_code": "switch_available"}
+    blocked = _prepared(moves=[], switches=[switch]); blocked["evidence_bundle"]["turn_snapshot"] = _AuthoritySnapshot()
+    assert build_combined_action_envelope(prepared_cycle=blocked)["selection_status"] == "no_selectable_action"
+    ghost = _prepared(moves=[], switches=[switch]); ghost["evidence_bundle"]["turn_snapshot"] = _AuthoritySnapshot(type_value=("ghost",))
+    assert build_combined_action_envelope(prepared_cycle=ghost)["action_kind"] == "switch"
+
+
+def test_frozen_unknown_preserves_manual_but_never_authorizes_unknown_manual_permission():
+    switch = {"candidate_id": "self-switch:s:1:b", "action_kind": "switch", "target_pokemon_id": "b", "target_slot_index": 1, "selectable": True, "availability_supportability": "complete", "reason_code": "switch_available"}
+    permitted = _prepared(moves=[], switches=[switch]); permitted["evidence_bundle"]["turn_snapshot"] = _AuthoritySnapshot(applicability="unknown")
+    assert build_combined_action_envelope(prepared_cycle=permitted)["action_kind"] == "switch"
+    unknown = _prepared(moves=[], switches=[switch]); unknown["evidence_bundle"]["turn_snapshot"] = _AuthoritySnapshot(applicability="unknown", manual="unknown")
+    assert build_combined_action_envelope(prepared_cycle=unknown)["selection_status"] == "no_selectable_action"

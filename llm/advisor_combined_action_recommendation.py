@@ -8,6 +8,7 @@ from llm.advisor_combined_action_selection import select_combined_self_action
 from llm.advisor_cross_action_danger import project_move_cross_action_danger, reduce_switch_cross_action_danger
 from llm.advisor_switch_incoming_evaluator import evaluate_switch_incoming_opponent_action
 from llm.advisor_switch_transition import project_authorized_switch_transition
+from llm.advisor_shadow_tag_switch_block import derive_shadow_tag_block, finalize_switch_candidates
 
 
 def build_combined_action_envelope(*, prepared_cycle: Mapping[str, Any]) -> dict[str, Any]:
@@ -17,6 +18,8 @@ def build_combined_action_envelope(*, prepared_cycle: Mapping[str, Any]) -> dict
     if snapshot is None and isinstance(evidence, Mapping): snapshot = evidence.get("turn_snapshot")
     if not isinstance(evidence, Mapping) or snapshot is None:
         return _failure("insufficient_context")
+    if isinstance(evidence, dict):
+        evidence["switch_candidates"] = _finalized_switch_candidates(evidence.get("switch_candidates", []), snapshot)
     move_actions = _move_actions(evidence, prepared_cycle.get("candidates"))
     switch_actions = _switch_actions(evidence, snapshot)
     result = select_combined_self_action(move_actions=move_actions, switch_actions=switch_actions)
@@ -80,6 +83,39 @@ def _switch_actions(evidence: Mapping[str, Any], snapshot: Any) -> list[dict[str
             incoming.append(evaluate_switch_incoming_opponent_action(transition=transition))
         result.append(reduce_switch_cross_action_danger(switch_candidate_id=candidate["candidate_id"], selectable=candidate.get("selectable") is True, incoming_results=incoming))
     return result
+
+
+def _finalized_switch_candidates(candidates: Any, snapshot: Any) -> list[dict[str, Any]]:
+    """Apply frozen-only Shadow Tag veto before any cross-action projection."""
+    rows = candidates if isinstance(candidates, Sequence) and not isinstance(candidates, (str, bytes)) else []
+    data = snapshot if isinstance(snapshot, Mapping) else snapshot.to_dict() if hasattr(snapshot, "to_dict") else {}
+    current = data.get("current_state") if isinstance(data, Mapping) else {}
+    battle = data.get("battle_state") if isinstance(data, Mapping) else {}
+    authority = current.get("ability_interaction_authority") if isinstance(current, Mapping) else None
+    # Legacy/foundation-free frozen requests retain their existing conservative
+    # candidate result; only a carried authority activates post-freeze finalization.
+    if not isinstance(authority, Mapping):
+        return [deepcopy(dict(row)) for row in rows if isinstance(row, Mapping)]
+    manual = current.get("switch_candidate_context", {}).get("switch_permission_context", {}) if isinstance(current, Mapping) else {}
+    player = battle.get("active_player", {}) if isinstance(battle, Mapping) else {}
+    item = {"status": "known" if player.get("item_status") == "user_confirmed" else "known_absent" if player.get("item_status") == "absent" else "unknown", "value": player.get("known_item_id")}
+    types = _current_types(current, "self")
+    ability = _current_ability(current, "self")
+    blocker = derive_shadow_tag_block(authority=authority or {}, self_type=types, self_item=item, self_ability=ability)
+    return finalize_switch_candidates(rows, manual_permission=manual, blocker=blocker)
+
+
+def _current_types(current: Mapping[str, Any], side: str) -> dict[str, Any]:
+    entries = current.get("current_type_context", {}).get("current_types", []) if isinstance(current, Mapping) else []
+    row = next((x for x in entries if isinstance(x, Mapping) and x.get("side") == side), None)
+    return {"status": "known", "types": row.get("types")} if isinstance(row, Mapping) and row.get("state") == "known" and isinstance(row.get("types"), list) else {"status": "unknown"}
+
+
+def _current_ability(current: Mapping[str, Any], side: str) -> dict[str, Any]:
+    entries = current.get("ability_context", {}).get("current_abilities", []) if isinstance(current, Mapping) else []
+    row = next((x for x in entries if isinstance(x, Mapping) and x.get("side") == side), None)
+    value = row.get("ability") if isinstance(row, Mapping) else None
+    return {"status": "known", "value": value} if isinstance(value, str) and value else {"status": "unknown"}
 
 
 def _valid_switch(candidate: Mapping[str, Any]) -> bool:
