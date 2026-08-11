@@ -19,7 +19,7 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], e
     if _known_value(target.get("fainted_authority")) is True:
         return _unavailable("target_already_fainted")
     adapted_target = _target_after_entry_effects(target, hazard)
-    adapted = _adapt_opponent_candidate(action, adapted_target)
+    adapted = _adapt_opponent_candidate(action, adapted_target, entry_effect_result=hazard)
     row = evaluate_opponent_action_candidate(adapted)
     return {
         "switch_candidate_id": transition["self_action"]["candidate_id"],
@@ -90,7 +90,7 @@ def _validate(transition: Mapping[str, Any]) -> tuple[Mapping[str, Any], Mapping
     return target, action
 
 
-def _adapt_opponent_candidate(action: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+def _adapt_opponent_candidate(action: Mapping[str, Any], target: Mapping[str, Any], *, entry_effect_result: Mapping[str, Any] | None = None) -> dict[str, Any]:
     candidate = deepcopy(dict(action)); snapshot = candidate.get("mechanics_snapshot")
     if not isinstance(snapshot, Mapping):
         return candidate
@@ -98,6 +98,7 @@ def _adapt_opponent_candidate(action: Mapping[str, Any], target: Mapping[str, An
     battle = deepcopy(dict(battle)) if isinstance(battle, Mapping) else {}
     current = deepcopy(dict(battle.get("current_state"))) if isinstance(battle.get("current_state"), Mapping) else {}
     _replace_self_authority(current, target)
+    _replace_opponent_attack_stage(current, action, entry_effect_result)
     provenance = deepcopy(dict(battle.get("stat_provenance"))) if isinstance(battle.get("stat_provenance"), Mapping) else {}
     provenance["defender"] = _defender_provenance(target)
     snapshot["defender"] = {"species_id": target["pokemon_id"], "slot_index": target["slot_index"]}
@@ -123,6 +124,34 @@ def _replace_self_authority(current: dict[str, Any], target: Mapping[str, Any]) 
     speed_stage = _known_value(target.get("prospective_speed_stage_authority"))
     if isinstance(speed_stage, int) and not isinstance(speed_stage, bool) and -6 <= speed_stage <= 6:
         current.setdefault("stat_stage_context", {"current_stages": []})["current_stages"].append({"side": "self", "stat": "speed", "stage": speed_stage, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"})
+
+
+def _replace_opponent_attack_stage(current: dict[str, Any], action: Mapping[str, Any], entry_effect_result: Mapping[str, Any] | None) -> None:
+    """Inject only an identity-matched post-Intimidate Attack stage.
+
+    The action snapshot remains the owner of the opponent move.  This replaces
+    its stale side-stage record only after the frozen entry result has already
+    proved the exact opposing active identity and clamped transition.
+    """
+    result = entry_effect_result.get("intimidate_result") if isinstance(entry_effect_result, Mapping) else None
+    identity = result.get("opponent_identity") if isinstance(result, Mapping) else None
+    stage = result.get("attack_stage_after") if isinstance(result, Mapping) else None
+    if not _matches_action_attacker(action, identity) or not isinstance(stage, int) or isinstance(stage, bool) or not -6 <= stage <= 6:
+        return
+    context = current.get("stat_stage_context")
+    entries = context.get("current_stages") if isinstance(context, Mapping) else []
+    if not isinstance(entries, list):
+        return
+    current["stat_stage_context"] = {"current_stages": [deepcopy(entry) for entry in entries if isinstance(entry, Mapping) and not (entry.get("side") == "opponent" and entry.get("stat") == "attack")]}
+    current["stat_stage_context"]["current_stages"].append({"side": "opponent", "stat": "attack", "stage": stage, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"})
+
+
+def _matches_action_attacker(action: Mapping[str, Any], identity: Any) -> bool:
+    if not isinstance(identity, Mapping) or identity.get("side") != "opponent":
+        return False
+    snapshot = action.get("mechanics_snapshot") if isinstance(action, Mapping) else None
+    attacker = snapshot.get("attacker") if isinstance(snapshot, Mapping) else None
+    return isinstance(attacker, Mapping) and attacker.get("species_id") == identity.get("pokemon_id") and attacker.get("slot_index") == identity.get("slot_index")
 
 
 def _defender_provenance(target: Mapping[str, Any]) -> dict[str, Any]:

@@ -6,10 +6,11 @@ from types import MappingProxyType
 from llm.advisor_identity_groundedness import build_groundedness, normalize_groundedness
 from llm.advisor_prospective_entry_authority import build_prospective_entry_interactions, build_prospective_speed_stage
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
+from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
-_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context"}
+_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority"}
 
 
 def make_unknown_battle_fact():
@@ -138,6 +139,8 @@ def project_atomic_transition(base_state, replay_plan, expected_session_id=None,
             context=projected.get("identity_groundedness_context")
             if isinstance(context, dict):
                 projected["identity_groundedness_context"]=normalize_groundedness(None,session_id=projected["session_id"],side=context.get("side"),slot_index=context.get("slot_index"),pokemon_id=context.get("pokemon_id"))
+        if item["planned_effect"] not in {"set_switch_entry_intimidate", "clear_switch_entry_intimidate"}:
+            projected.pop("switch_entry_intimidate_authority", None)
         applied.append(item["observation_id"])
     sequences = [item["observation_sequence"] for item in normalized]
     projected["last_applied_observation_sequence"] = max(sequences)
@@ -235,6 +238,8 @@ def _has_target_identity(event):
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "ability_id"), str) and bool(_value(event, "ability_id"))
     if effect in {"set_ability_interaction", "clear_ability_interaction"}:
         return _identity_values(event, "source_side", "source_slot_index", "source_pokemon_id") and _identity_values(event, "target_side", "target_slot_index", "target_pokemon_id")
+    if effect in {"set_switch_entry_intimidate", "clear_switch_entry_intimidate"}:
+        return _identity_values(event, "source_side", "source_slot_index", "source_pokemon_id") and _identity_values(event, "target_side", "target_slot_index", "target_pokemon_id")
     if effect in {"set_identity_groundedness", "clear_identity_groundedness"}: return _identity_values(event,"side","slot_index","pokemon_id")
     if effect in {"set_switch_hazards", "clear_switch_hazards"}: return _value(event,"side") in {"self","opponent"}
     if effect in {"start_weather", "end_weather"}: return isinstance(_value(event, "weather"), str) and bool(_value(event, "weather"))
@@ -294,6 +299,16 @@ def _apply(state, event):
     if effect == "clear_ability_applicability": return _clear_ability_applicability(state, event)
     if effect == "set_ability_interaction": return _set_ability_interaction(state, event)
     if effect == "clear_ability_interaction": return _clear_ability_interaction(state, event)
+    if effect in {"set_switch_entry_intimidate", "clear_switch_entry_intimidate"}:
+        source = {"side": _value(event, "source_side"), "slot_index": _value(event, "source_slot_index"), "pokemon_id": _value(event, "source_pokemon_id")}
+        target = {"side": _value(event, "target_side"), "slot_index": _value(event, "target_slot_index"), "pokemon_id": _value(event, "target_pokemon_id")}
+        if _pokemon(state, {"side": source["side"], "slot_index": source["slot_index"], "pokemon_id": source["pokemon_id"]}) is None or not _active_identity_matches(state, "opponent", target["slot_index"], target["pokemon_id"]):
+            return _conflict(event, "invalid_switch_entry_intimidate")
+        try:
+            state["switch_entry_intimidate_authority"] = build_switch_entry_intimidate_authority(session_id=state["session_id"], source=source, target=target, interaction="unknown" if effect.startswith("clear") else _value(event, "interaction"), target_attack_stage="unknown" if effect.startswith("clear") else _value(event, "target_attack_stage"))
+        except ValueError:
+            return _conflict(event, "invalid_switch_entry_intimidate")
+        return None
     if effect in {"set_identity_groundedness","clear_identity_groundedness"}:
         side,slot,pid=_value(event,"side"),_value(event,"slot_index"),_value(event,"pokemon_id")
         if not _active_identity_matches(state,side,slot,pid): return _conflict(event,"invalid_identity_groundedness")

@@ -6,6 +6,7 @@ from llm.advisor_prospective_entry_authority import (
 )
 from llm.advisor_switch_entry_effects import evaluate_switch_entry_effects
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context, normalize_switch_hazard_context
+from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority, normalize_switch_entry_intimidate_authority
 
 
 def _hazards(*, toxic=0, web="absent"):
@@ -14,6 +15,7 @@ def _hazards(*, toxic=0, web="absent"):
 
 def _target(**updates):
     target = {
+        "session_id": "entry-s", "side": "self", "slot_index": 1, "pokemon_id": "b",
         "hp_authority": {"status": "known", "current_hp": 100, "maximum_hp": 100, "provenance": "user_confirmed_current_hp"},
         "current_type_authority": {"status": "known", "value": ["normal"]},
         "item_authority": {"status": "known", "value": None},
@@ -74,3 +76,26 @@ def test_new_identity_authorities_and_hazard_v1_upgrade_fail_stale_records_close
     upgraded = normalize_switch_hazard_context(legacy, session_id="entry-s", affected_side="self")
     assert upgraded["schema_version"] == "switch-hazard-context-v2" and upgraded["toxic_spikes_layers"] == upgraded["sticky_web"] == "unknown"
     assert normalize_switch_hazard_context({**legacy, "session_id": "old"}, session_id="entry-s", affected_side="self")["stealth_rock"] == "unknown"
+
+
+def test_intimidate_requires_exact_b_opponent_interaction_and_uses_canonical_stage_clamp():
+    authority = build_switch_entry_intimidate_authority(
+        session_id="entry-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"},
+        target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, interaction="lowered", target_attack_stage=-6,
+    )
+    lowered = evaluate_switch_entry_effects(hazards=_hazards(), target=_target(slot_index=1, pokemon_id="b", ability_authority={"status": "known", "value": "intimidate"}), intimidate_authority=authority)
+    assert lowered["intimidate_result"] == {"status": "complete", "outcome": "attack_stage_minimum", "opponent_identity": {"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, "attack_stage_before": -6, "attack_stage_after": -6}
+    reversed_authority = {**authority, "interaction": "reversed", "target_attack_stage": 6}
+    reversed_result = evaluate_switch_entry_effects(hazards=_hazards(), target=_target(slot_index=1, pokemon_id="b", ability_authority={"status": "known", "value": "intimidate"}), intimidate_authority=reversed_authority)
+    assert reversed_result["intimidate_result"]["outcome"] == "attack_stage_maximum"
+    stale = {**authority, "source": {"side": "self", "slot_index": 0, "pokemon_id": "a"}}
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=_target(slot_index=1, pokemon_id="b", ability_authority={"status": "known", "value": "intimidate"}), intimidate_authority=stale)["intimidate_result"]["reason"] == "intimidate_interaction_unknown"
+    assert normalize_switch_entry_intimidate_authority(authority, session_id="entry-s", target={"side": "opponent", "slot_index": 0, "pokemon_id": "other"}) is None
+
+
+def test_intimidate_unknowns_and_hazard_ko_never_become_a_successful_drop():
+    target = _target(slot_index=1, pokemon_id="b", ability_authority={"status": "known", "value": "intimidate"})
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=target)["intimidate_result"]["reason"] == "intimidate_interaction_unknown"
+    ko_target = _target(slot_index=1, pokemon_id="b", ability_authority={"status": "known", "value": "intimidate"}, hp_authority={"status": "known", "current_hp": 1, "maximum_hp": 100, "provenance": "user_confirmed_current_hp"}, current_type_authority={"status": "known", "value": ["fire"]}, item_authority={"status": "known", "value": None})
+    ko_hazards = build_switch_hazard_context(session_id="entry-s", affected_side="self", stealth_rock="present", spikes_layers=0)
+    assert evaluate_switch_entry_effects(hazards=ko_hazards, target=ko_target)["intimidate_result"]["outcome"] == "not_activated_hazard_ko"

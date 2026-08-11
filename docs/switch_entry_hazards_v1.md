@@ -15,8 +15,8 @@ Exact Heavy-Duty Boots or Magic Guard proves zero supported Stealth Rock and
 Spikes damage. An unknown item or ability otherwise leaves the result
 incomplete. A deterministic entry KO, including without an opponent move
 candidate, feeds the existing danger tier. Ordinary hazard chip has no reward
-or new switch-native score. Toxic Spikes, Sticky Web, removal, entry abilities,
-and other entry effects remain unsupported.
+or new switch-native score. Removal and entry abilities other than the bounded
+Intimidate contract below remain unsupported.
 
 ## Toxic Spikes and Sticky Web
 
@@ -40,3 +40,20 @@ adapter replaces active-A condition and Speed-stage records with B's post-entry
 records, preventing identity leakage. No extra Speed model, chip reward,
 safety reward, or ranking score is introduced; currently these non-damaging
 effects do not add a danger tier by themselves.
+
+## Intimidate on switch-in
+
+After the supported hazard phase proves B survives, a B whose frozen ability is
+exactly `intimidate` may affect the opposing active only through a separate,
+frozen `switch-entry-intimidate-authority-v1` record. It binds B's exact
+identity, the exact opposing active identity, the opposing active's canonical
+pre-entry Attack stage, and an authoritative interaction outcome: `lowered`,
+`blocked`, or `reversed`. The existing -6..+6 stage clamp produces the post-
+entry Attack stage. Unknown ability, interaction, target identity, or stage is
+explicitly incomplete; no species-default immunity or ability behavior is
+inferred. A proven entry-hazard KO means Intimidate does not activate.
+
+The direct incoming adapter installs that post-entry Attack stage only if the
+frozen opponent move candidate names the same opposing identity. It creates no
+switch permission, chip/safety reward, or switch-native score; only an already
+supported deterministic incoming danger consequence can affect ranking.

@@ -7,6 +7,7 @@ from llm.advisor_switch_incoming_evaluator import evaluate_switch_incoming_oppon
 from llm.advisor_switch_transition import project_authorized_switch_transition
 from llm.advisor_turn_snapshot import build_request_start_recommendation_snapshot
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
+from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority
 
 
 def _stats(value): return {"hp": value, "attack": value, "defense": value, "special-attack": value, "special-defense": value, "speed": value}
@@ -21,7 +22,7 @@ def _state():
 
 def _snapshot(state, roster):
     switch = build_switch_candidate_context_projection(state)
-    return build_request_start_recommendation_snapshot({"current_state_session_id": state["session_id"], "switch_candidate_context": switch, "self_roster_mechanics_context": roster, "switch_hazard_context": state.get("switch_hazard_context"), "pokemon": {"my_active": {"name_en": "a", "slot_index": 0}, "opponent_active": {"name_en": "x", "slot_index": 0}}, "moves": {"my_available_moves": []}}, selectable_moves=())
+    return build_request_start_recommendation_snapshot({"current_state_session_id": state["session_id"], "switch_candidate_context": switch, "self_roster_mechanics_context": roster, "switch_hazard_context": state.get("switch_hazard_context"), "switch_entry_intimidate_authority": state.get("switch_entry_intimidate_authority"), "pokemon": {"my_active": {"name_en": "a", "slot_index": 0}, "opponent_active": {"name_en": "x", "slot_index": 0}}, "moves": {"my_available_moves": []}}, selectable_moves=())
 
 
 def _opponent(target="selected-pokemon", category="physical"):
@@ -134,3 +135,34 @@ def test_direct_adapter_replaces_active_a_condition_and_speed_stage_with_b_recor
     current = adapted["mechanics_snapshot"]["battle_context"]["current_state"]
     assert current["condition_context"]["current_conditions"] == [{"side": "self", "condition_type": "toxic", "status": "user_confirmed", "source": "user_confirmed_current_condition", "confidence": "known"}]
     assert current["stat_stage_context"]["current_stages"] == [{"side": "self", "stat": "speed", "stage": -1, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]
+
+
+def test_direct_adapter_replaces_only_exact_opposing_attack_stage_after_intimidate():
+    from llm.advisor_switch_incoming_evaluator import _adapt_opponent_candidate
+    action = _opponent()
+    action["mechanics_snapshot"]["battle_context"]["current_state"]["stat_stage_context"] = {"current_stages": [{"side": "opponent", "stat": "attack", "stage": 3, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]}
+    target = {"session_id": "incoming-s", "slot_index": 1, "pokemon_id": "b"}
+    effect = {"intimidate_result": {"status": "complete", "opponent_identity": {"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, "attack_stage_after": -1}}
+    current = _adapt_opponent_candidate(action, target, entry_effect_result=effect)["mechanics_snapshot"]["battle_context"]["current_state"]
+    assert current["stat_stage_context"]["current_stages"] == [{"side": "opponent", "stat": "attack", "stage": -1, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]
+    stale = {"intimidate_result": {"status": "complete", "opponent_identity": {"side": "opponent", "slot_index": 1, "pokemon_id": "other"}, "attack_stage_after": -1}}
+    unchanged = _adapt_opponent_candidate(action, target, entry_effect_result=stale)["mechanics_snapshot"]["battle_context"]["current_state"]
+    assert unchanged["stat_stage_context"]["current_stages"][0]["stage"] == 3
+
+
+def test_frozen_transition_carries_b_to_exact_opponent_intimidate_authority_before_direct_incoming():
+    from llm.advisor_switch_entry_effects import evaluate_switch_entry_effects
+    state = _state()
+    state["switch_hazard_context"] = build_switch_hazard_context(session_id="incoming-s", affected_side="self", stealth_rock="absent", spikes_layers=0)
+    state["switch_entry_intimidate_authority"] = build_switch_entry_intimidate_authority(session_id="incoming-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, interaction="lowered", target_attack_stage=0)
+    records = deepcopy(build_self_roster_mechanics_context_projection(state)["entries"])
+    records[1]["ability_authority"] = {"status": "known", "value": "intimidate"}
+    records[1]["item_authority"] = {"status": "known", "value": None}
+    roster = build_self_roster_mechanics_context_projection(state, roster_mechanics_records=records)
+    snapshot = _snapshot(state, roster); candidate = build_switch_candidates(turn_snapshot=snapshot)[0]
+    transition = project_authorized_switch_transition(turn_snapshot=snapshot, switch_candidate=candidate, switch_authorized=True, opponent_action=_opponent())
+    post = transition["post_switch_snapshot"]
+    effect = evaluate_switch_entry_effects(hazards=post["switch_hazard_context"], target=post["target_roster_mechanics"], intimidate_authority=post["switch_entry_intimidate_authority"])
+    assert effect["intimidate_result"]["attack_stage_after"] == -1
+    result = evaluate_switch_incoming_opponent_action(transition=transition, entry_hazard_result=effect)
+    assert result["entry_hazard_result"]["intimidate_result"]["attack_stage_after"] == -1

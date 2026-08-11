@@ -83,3 +83,19 @@ def test_candidate_owned_entry_authorities_and_extended_hazards_project_exactly(
     assert target["prospective_speed_stage_context"]["stage"] == 2
     assert target["prospective_entry_interactions_context"]["sticky_web"] == "blocked"
     assert result["projected_state"]["switch_hazard_context"]["toxic_spikes_layers"] == 2
+
+
+def test_intimidate_entry_authority_binds_b_to_the_exact_opposing_active_and_invalidates():
+    authority = step(
+        "intimidate", 1, "set_switch_entry_intimidate",
+        source_side="self", source_slot_index=1, source_pokemon_id="raichu",
+        target_side="opponent", target_slot_index=0, target_pokemon_id="eevee",
+        interaction="reversed", target_attack_stage=2,
+    )
+    result = project_atomic_transition(base(), plan(authority), "s")
+    assert result["status"] == "ready_with_projected_state"
+    assert result["projected_state"]["switch_entry_intimidate_authority"]["interaction"] == "reversed"
+    invalid = step("bad", 1, "set_switch_entry_intimidate", source_side="self", source_slot_index=1, source_pokemon_id="raichu", target_side="opponent", target_slot_index=1, target_pokemon_id="other", interaction="lowered", target_attack_stage=0)
+    assert project_atomic_transition(base(), plan(invalid), "s")["status"] == "blocked_by_semantic_conflict"
+    cleared = project_atomic_transition(base(), plan(authority, step("condition", 2, "set_condition", **owner(), condition="burn")), "s")
+    assert "switch_entry_intimidate_authority" not in cleared["projected_state"]
