@@ -17,6 +17,24 @@ def derive_shadow_tag_block(*, authority: Mapping[str, Any], self_type: Mapping[
     return {**base, "state": "confirmed_blocked"}
 
 
+def derive_magnet_pull_block(*, authority: Mapping[str, Any], self_type: Mapping[str, Any], self_item: Mapping[str, Any]) -> dict[str, Any]:
+    """Frozen, block-only Magnet Pull: Steel is required; Ghost/Shed Shell escape."""
+    base = {"mechanic": "magnet_pull", "session_id": authority.get("session_id") if isinstance(authority, Mapping) else None, "source": deepcopy(authority.get("source")) if isinstance(authority, Mapping) else None, "target": deepcopy(authority.get("target")) if isinstance(authority, Mapping) else None}
+    if not isinstance(authority, Mapping) or authority.get("ability_id") != "magnet-pull": return {**base, "state": "not_established"}
+    if authority.get("applicability") != "applicable" or authority.get("interaction") != "affecting": return {**base, "state": "insufficient_context"}
+    types = self_type.get("types") if isinstance(self_type, Mapping) and self_type.get("status") == "known" else None
+    if not isinstance(types, Sequence) or isinstance(types, (str, bytes)) or not isinstance(self_item, Mapping) or self_item.get("status") not in {"known", "known_absent"}: return {**base, "state": "insufficient_context"}
+    if "ghost" in types or self_item.get("value") == "shed-shell": return {**base, "state": "exception_applies"}
+    if "steel" not in types: return {**base, "state": "not_established"}
+    return {**base, "state": "confirmed_blocked"}
+
+
+def aggregate_hard_blockers(*blockers: Mapping[str, Any]) -> dict[str, Any]:
+    """Any confirmed frozen blocker vetoes manual permission; no scoring or allow result."""
+    confirmed = [deepcopy(dict(item)) for item in blockers if isinstance(item, Mapping) and item.get("state") == "confirmed_blocked"]
+    return {"state": "confirmed_blocked", "blockers": confirmed} if confirmed else {"state": "not_established", "blockers": []}
+
+
 def resolve_effective_switch_permission(manual: Mapping[str, Any], blocker: Mapping[str, Any]) -> dict[str, str]:
     """Central manual-plus-hard-block precedence; mechanics never grant permission."""
     manual_status = manual.get("status") if isinstance(manual, Mapping) else "unknown"

@@ -8,7 +8,7 @@ from llm.advisor_combined_action_selection import select_combined_self_action
 from llm.advisor_cross_action_danger import project_move_cross_action_danger, reduce_switch_cross_action_danger
 from llm.advisor_switch_incoming_evaluator import evaluate_switch_incoming_opponent_action
 from llm.advisor_switch_transition import project_authorized_switch_transition
-from llm.advisor_shadow_tag_switch_block import derive_shadow_tag_block, finalize_switch_candidates
+from llm.advisor_shadow_tag_switch_block import aggregate_hard_blockers, derive_magnet_pull_block, derive_shadow_tag_block, finalize_switch_candidates
 
 
 def build_combined_action_envelope(*, prepared_cycle: Mapping[str, Any]) -> dict[str, Any]:
@@ -101,7 +101,9 @@ def _finalized_switch_candidates(candidates: Any, snapshot: Any) -> list[dict[st
     item = {"status": "known" if player.get("item_status") == "user_confirmed" else "known_absent" if player.get("item_status") == "absent" else "unknown", "value": player.get("known_item_id")}
     types = _current_types(current, "self")
     ability = _current_ability(current, "self")
-    blocker = derive_shadow_tag_block(authority=authority or {}, self_type=types, self_item=item, self_ability=ability)
+    shadow = derive_shadow_tag_block(authority=authority or {}, self_type=types, self_item=item, self_ability=ability)
+    magnet = derive_magnet_pull_block(authority=authority or {}, self_type=types, self_item=item)
+    blocker = aggregate_hard_blockers(shadow, magnet)
     return finalize_switch_candidates(rows, manual_permission=manual, blocker=blocker)
 
 
