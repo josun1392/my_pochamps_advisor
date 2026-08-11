@@ -7,6 +7,7 @@ from typing import Any, Mapping, Sequence
 from llm.advisor_combined_action_selection import select_combined_self_action
 from llm.advisor_cross_action_danger import project_move_cross_action_danger, reduce_switch_cross_action_danger
 from llm.advisor_switch_incoming_evaluator import evaluate_switch_incoming_opponent_action
+from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
 from llm.advisor_switch_transition import project_authorized_switch_transition
 from llm.advisor_shadow_tag_switch_block import aggregate_hard_blockers, derive_arena_trap_block, derive_magnet_pull_block, derive_shadow_tag_block, finalize_switch_candidates
 
@@ -78,9 +79,22 @@ def _switch_actions(evidence: Mapping[str, Any], snapshot: Any) -> list[dict[str
     for candidate in evidence.get("switch_candidates", []):
         if not isinstance(candidate, Mapping) or not _valid_switch(candidate): continue
         incoming = []
+        entry_transition = project_authorized_switch_transition(turn_snapshot=_snapshot_adapter(snapshot), switch_candidate=candidate, switch_authorized=True)
+        post = entry_transition.get("post_switch_snapshot") if isinstance(entry_transition, Mapping) else None
+        target = post.get("target_roster_mechanics") if isinstance(post, Mapping) else None
+        hazards = post.get("switch_hazard_context") if isinstance(post, Mapping) else None
+        entry_hazard_result = evaluate_entry_hazards(hazards=hazards, target=target) if isinstance(target, Mapping) else None
+        # An entry KO is deterministic danger even if no opponent action was
+        # supplied. Ordinary chip never creates a favorable ranking signal.
+        if isinstance(entry_hazard_result, Mapping) and entry_hazard_result.get("status") == "complete" and entry_hazard_result.get("hazard_ko") is True:
+            incoming.append({"entry_hazard_result": entry_hazard_result, "full_switch_outcome_supportability": "unsupported_mechanic"})
         for action in opponent_rows if isinstance(opponent_rows, list) else []:
             transition = project_authorized_switch_transition(turn_snapshot=_snapshot_adapter(snapshot), switch_candidate=candidate, switch_authorized=True, opponent_action=action if isinstance(action, Mapping) else None)
-            incoming.append(evaluate_switch_incoming_opponent_action(transition=transition))
+            post = transition.get("post_switch_snapshot") if isinstance(transition, Mapping) else None
+            target = post.get("target_roster_mechanics") if isinstance(post, Mapping) else None
+            hazards = post.get("switch_hazard_context") if isinstance(post, Mapping) else None
+            hazard_result = entry_hazard_result if target is not None and hazards is not None else None
+            incoming.append(evaluate_switch_incoming_opponent_action(transition=transition, entry_hazard_result=hazard_result))
         result.append(reduce_switch_cross_action_danger(switch_candidate_id=candidate["candidate_id"], selectable=candidate.get("selectable") is True, incoming_results=incoming))
     return result
 

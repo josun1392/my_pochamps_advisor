@@ -40,6 +40,9 @@ def project_authorized_switch_transition(
             if key in target
         },
         "target_roster_mechanics": _target_roster_mechanics(current, session=context["session_id"], target=target),
+        # Side-owned hazards are frozen with the target roster record.  The
+        # evaluator never looks back into the live reducer after this point.
+        "switch_hazard_context": deepcopy(current.get("switch_hazard_context")),
         "self_roster": deepcopy(context["self_pokemon"]),
         "side_shared_authority": {
             key: deepcopy(current[key]) for key in _SIDE_SHARED_KEYS if key in current

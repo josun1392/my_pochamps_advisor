@@ -7,15 +7,19 @@ from typing import Any, Mapping
 from llm.advisor_opponent_action_evaluator import evaluate_opponent_action_candidate
 
 
-def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any]) -> dict[str, Any]:
+def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], entry_hazard_result: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Evaluate direct redirected move mechanics only; never a full switch outcome."""
     validated = _validate(transition)
     if validated is None:
         return _unavailable("invalid_switch_transition")
     target, action = validated
+    hazard = deepcopy(dict(entry_hazard_result)) if isinstance(entry_hazard_result, Mapping) else None
+    if isinstance(hazard, Mapping) and hazard.get("status") == "complete" and hazard.get("hazard_ko") is True:
+        return _hazard_ko(transition, target, action, hazard)
     if _known_value(target.get("fainted_authority")) is True:
         return _unavailable("target_already_fainted")
-    adapted = _adapt_opponent_candidate(action, target)
+    adapted_target = _target_after_hazards(target, hazard)
+    adapted = _adapt_opponent_candidate(action, adapted_target)
     row = evaluate_opponent_action_candidate(adapted)
     return {
         "switch_candidate_id": transition["self_action"]["candidate_id"],
@@ -25,11 +29,35 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any]) -
         "move_success_evidence": deepcopy(row.get("move_success")),
         "damage_evidence": deepcopy(row.get("incoming_damage")),
         "q12_evidence": deepcopy(row.get("incoming_q12")),
+        "entry_hazard_result": hazard,
         # Entry/exit mechanics are intentionally not executed.  Direct KO and
         # probability, if present in damage_evidence, are explicitly not a
         # complete switch-sequence survival claim.
         "full_switch_outcome_supportability": "unsupported_mechanic",
         "incompleteness_reasons": ["entry_effects_not_applied"],
+    }
+
+
+def _target_after_hazards(target: Mapping[str, Any], hazard: Mapping[str, Any] | None) -> Mapping[str, Any]:
+    if not isinstance(hazard, Mapping) or hazard.get("status") != "complete" or not isinstance(hazard.get("post_hazard_hp"), int):
+        return target
+    copy = deepcopy(dict(target)); hp = copy.get("hp_authority")
+    if isinstance(hp, Mapping) and hp.get("status") == "known":
+        copy["hp_authority"] = deepcopy(dict(hp)); copy["hp_authority"]["current_hp"] = hazard["post_hazard_hp"]
+    return copy
+
+
+def _hazard_ko(transition: Mapping[str, Any], target: Mapping[str, Any], action: Mapping[str, Any], hazard: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "switch_candidate_id": transition["self_action"]["candidate_id"],
+        "target_pokemon_id": target["pokemon_id"], "target_slot_index": target["slot_index"],
+        "opponent_candidate_id": action.get("candidate_id"),
+        "direct_incoming_supportability": "not_applicable",
+        "move_success_evidence": None,
+        "damage_evidence": None, "q12_evidence": None,
+        "entry_hazard_result": deepcopy(dict(hazard)),
+        "full_switch_outcome_supportability": "unsupported_mechanic",
+        "incompleteness_reasons": ["other_entry_effects_not_applied"],
     }
 
 
@@ -105,4 +133,4 @@ def _known_value(authority: Any) -> Any:
 
 
 def _unavailable(reason: str) -> dict[str, Any]:
-    return {"switch_candidate_id": None, "opponent_candidate_id": None, "direct_incoming_supportability": "insufficient_context", "move_success_evidence": None, "damage_evidence": None, "q12_evidence": None, "full_switch_outcome_supportability": "insufficient_context", "incompleteness_reasons": [reason]}
+    return {"switch_candidate_id": None, "opponent_candidate_id": None, "direct_incoming_supportability": "insufficient_context", "move_success_evidence": None, "damage_evidence": None, "q12_evidence": None, "entry_hazard_result": None, "full_switch_outcome_supportability": "insufficient_context", "incompleteness_reasons": [reason]}

@@ -12,6 +12,9 @@ def reduce_switch_cross_action_danger(*, switch_candidate_id: str, selectable: b
     rows = incoming_results if isinstance(incoming_results, Sequence) and not isinstance(incoming_results, (str, bytes)) else []
     tier = "neutral_no_positive_danger"
     for row in rows:
+        hazard = row.get("entry_hazard_result") if isinstance(row, Mapping) else None
+        if isinstance(hazard, Mapping) and hazard.get("status") == "complete" and hazard.get("hazard_ko") is True:
+            tier = "executed_guaranteed_self_ko"; break
         damage = row.get("damage_evidence") if isinstance(row, Mapping) else None
         ko = damage.get("ko_interpretation") if isinstance(damage, Mapping) else None
         label = ko.get("primary_ko_label") if isinstance(ko, Mapping) and ko.get("ko_supportability") == "complete" else None

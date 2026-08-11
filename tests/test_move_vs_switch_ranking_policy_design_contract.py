@@ -24,3 +24,10 @@ def test_switch_danger_and_ties_preserve_eligibility_without_cross_kind_policy()
     assert compare_cross_action_danger(move, neutral) == "tied_cross_kind_unresolved"
     assert compare_cross_action_danger(move, {**neutral, "selectable": False, "cross_action_danger_tier": "executed_guaranteed_self_ko"}) == "left_better_eligibility"
     assert compare_cross_action_danger(move, project_move_cross_action_danger(candidate_id="m2", selectable=True, threat_tier=None)) == "tied_same_kind_native_resolvable"
+
+
+def test_deterministic_hazard_ko_feeds_existing_danger_tier_without_chip_reward():
+    hazard_ko = {"damage_evidence": None, "entry_hazard_result": {"status": "complete", "hazard_ko": True}, "full_switch_outcome_supportability": "unsupported_mechanic"}
+    chip_only = {"damage_evidence": None, "entry_hazard_result": {"status": "complete", "hazard_ko": False}, "full_switch_outcome_supportability": "unsupported_mechanic"}
+    assert reduce_switch_cross_action_danger(switch_candidate_id="s", selectable=True, incoming_results=[hazard_ko])["cross_action_danger_tier"] == "executed_guaranteed_self_ko"
+    assert reduce_switch_cross_action_danger(switch_candidate_id="s", selectable=True, incoming_results=[chip_only])["cross_action_danger_tier"] == "neutral_no_positive_danger"

@@ -6,6 +6,7 @@ from llm.advisor_switch_candidates import build_switch_candidate_context_project
 from llm.advisor_switch_incoming_evaluator import evaluate_switch_incoming_opponent_action
 from llm.advisor_switch_transition import project_authorized_switch_transition
 from llm.advisor_turn_snapshot import build_request_start_recommendation_snapshot
+from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 
 
 def _stats(value): return {"hp": value, "attack": value, "defense": value, "special-attack": value, "special-defense": value, "speed": value}
@@ -20,7 +21,7 @@ def _state():
 
 def _snapshot(state, roster):
     switch = build_switch_candidate_context_projection(state)
-    return build_request_start_recommendation_snapshot({"current_state_session_id": state["session_id"], "switch_candidate_context": switch, "self_roster_mechanics_context": roster, "pokemon": {"my_active": {"name_en": "a", "slot_index": 0}, "opponent_active": {"name_en": "x", "slot_index": 0}}, "moves": {"my_available_moves": []}}, selectable_moves=())
+    return build_request_start_recommendation_snapshot({"current_state_session_id": state["session_id"], "switch_candidate_context": switch, "self_roster_mechanics_context": roster, "switch_hazard_context": state.get("switch_hazard_context"), "pokemon": {"my_active": {"name_en": "a", "slot_index": 0}, "opponent_active": {"name_en": "x", "slot_index": 0}}, "moves": {"my_available_moves": []}}, selectable_moves=())
 
 
 def _opponent(target="selected-pokemon", category="physical"):
@@ -64,3 +65,45 @@ def test_forged_or_mutated_result_isolated_and_conservative_candidate_is_unchang
     forged = deepcopy(transition); forged["post_switch_snapshot"]["target_roster_mechanics"]["pokemon_id"] = "a"
     assert evaluate_switch_incoming_opponent_action(transition=forged)["incompleteness_reasons"] == ["invalid_switch_transition"]
     assert snapshot.to_dict()["current_state"]["self_roster_mechanics_context"]["entries"][1]["pokemon_id"] == "b"
+
+
+def test_supported_hazard_chip_is_composed_before_direct_incoming_damage():
+    state = _state()
+    state["switch_hazard_context"] = build_switch_hazard_context(session_id="incoming-s", affected_side="self", stealth_rock="absent", spikes_layers=3)
+    state["self_side"]["pokemon"][1]["prospective_groundedness_context"] = {"schema_version": "identity-groundedness-v1", "session_id": "incoming-s", "side": "self", "slot_index": 1, "pokemon_id": "b", "status": "grounded"}
+    base = build_self_roster_mechanics_context_projection(state)
+    records = deepcopy(base["entries"])
+    b = records[1]
+    b["current_type_authority"] = {"status": "known", "value": ["water"]}
+    b["base_stat_authority"] = {"status": "known", "value": _stats(200)}
+    b["final_stat_authority"] = {"status": "known", "value": _stats(200)}
+    b["hp_authority"] = {"status": "known", "current_hp": 45, "maximum_hp": 200, "provenance": "user_confirmed_current_hp"}
+    b["item_authority"] = {"status": "known", "value": None}
+    b["ability_authority"] = {"status": "known", "value": "pressure"}
+    roster = build_self_roster_mechanics_context_projection(state, roster_mechanics_records=records)
+    snapshot = _snapshot(state, roster)
+    candidate = build_switch_candidates(turn_snapshot=snapshot)[0]
+    transition = project_authorized_switch_transition(turn_snapshot=snapshot, switch_candidate=candidate, switch_authorized=True, opponent_action=_opponent())
+    hazard = transition["post_switch_snapshot"]["switch_hazard_context"]
+    target = transition["post_switch_snapshot"]["target_roster_mechanics"]
+    from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
+    result = evaluate_switch_incoming_opponent_action(transition=transition, entry_hazard_result=evaluate_entry_hazards(hazards=hazard, target=target))
+    assert result["entry_hazard_result"]["damage"] == 50
+    assert result["entry_hazard_result"]["hazard_ko"] is True
+    assert result["direct_incoming_supportability"] == "not_applicable"
+
+
+def test_entry_ko_reaches_switch_danger_even_without_an_opponent_action():
+    state = _state()
+    state["switch_hazard_context"] = build_switch_hazard_context(session_id="incoming-s", affected_side="self", stealth_rock="absent", spikes_layers=3)
+    state["self_side"]["pokemon"][1]["prospective_groundedness_context"] = {"schema_version": "identity-groundedness-v1", "session_id": "incoming-s", "side": "self", "slot_index": 1, "pokemon_id": "b", "status": "grounded"}
+    base = build_self_roster_mechanics_context_projection(state)
+    records = deepcopy(base["entries"])
+    b = records[1]
+    b.update({"item_authority": {"status": "known", "value": None}, "ability_authority": {"status": "known", "value": "pressure"}, "hp_authority": {"status": "known", "current_hp": 40, "maximum_hp": 200, "provenance": "user_confirmed_current_hp"}})
+    roster = build_self_roster_mechanics_context_projection(state, roster_mechanics_records=records)
+    snapshot = _snapshot(state, roster)
+    candidate = build_switch_candidates(turn_snapshot=snapshot)[0]
+    from llm.advisor_combined_action_recommendation import _switch_actions
+    rows = _switch_actions({"switch_candidates": [candidate], "opponent_action_candidates": []}, snapshot)
+    assert rows[0]["cross_action_danger_tier"] == "executed_guaranteed_self_ko"

@@ -4,10 +4,11 @@ from hashlib import sha256
 import json
 from types import MappingProxyType
 from llm.advisor_identity_groundedness import build_groundedness, normalize_groundedness
+from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
-_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context"}
+_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context"}
 
 
 def make_unknown_battle_fact():
@@ -223,7 +224,7 @@ def _value(event, name):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"apply_exact_hp_transition", "set_condition", "clear_condition", "consume_item", "remove_item", "mark_fainted", "record_known_move"}:
+    if effect in {"apply_exact_hp_transition", "set_condition", "clear_condition", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect == "switch_active":
         return isinstance(_value(event, "side"), str) and all(_value(event, key) is not None for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id"))
@@ -234,6 +235,7 @@ def _has_target_identity(event):
     if effect in {"set_ability_interaction", "clear_ability_interaction"}:
         return _identity_values(event, "source_side", "source_slot_index", "source_pokemon_id") and _identity_values(event, "target_side", "target_slot_index", "target_pokemon_id")
     if effect in {"set_identity_groundedness", "clear_identity_groundedness"}: return _identity_values(event,"side","slot_index","pokemon_id")
+    if effect in {"set_switch_hazards", "clear_switch_hazards"}: return _value(event,"side") in {"self","opponent"}
     if effect in {"start_weather", "end_weather"}: return isinstance(_value(event, "weather"), str) and bool(_value(event, "weather"))
     if effect in {"start_terrain", "end_terrain"}: return isinstance(_value(event, "terrain"), str) and bool(_value(event, "terrain"))
     return isinstance(_value(event, "side"), str) and isinstance(_value(event, "side_condition") or _value(event, "effect"), str)
@@ -297,6 +299,24 @@ def _apply(state, event):
         status="unknown" if effect.startswith("clear") else _value(event,"groundedness_status")
         try: state["identity_groundedness_context"]=build_groundedness(session_id=state["session_id"],side=side,slot_index=slot,pokemon_id=pid,status=status)
         except ValueError: return _conflict(event,"invalid_identity_groundedness")
+        return None
+    if effect in {"set_prospective_groundedness", "clear_prospective_groundedness"}:
+        pokemon = _pokemon(state, event)
+        if pokemon is None:
+            return _conflict(event, "invalid_prospective_groundedness")
+        side, slot, pid = _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id")
+        status = "unknown" if effect.startswith("clear") else _value(event, "groundedness_status")
+        try:
+            pokemon["prospective_groundedness_context"] = build_groundedness(
+                session_id=state["session_id"], side=side, slot_index=slot, pokemon_id=pid, status=status,
+            )
+        except ValueError:
+            return _conflict(event, "invalid_prospective_groundedness")
+        return None
+    if effect in {"set_switch_hazards","clear_switch_hazards"}:
+        side=_value(event,"side")
+        try: state["switch_hazard_context"]=build_switch_hazard_context(session_id=state["session_id"],affected_side=side,stealth_rock="unknown" if effect.startswith("clear") else _value(event,"stealth_rock"),spikes_layers="unknown" if effect.startswith("clear") else _value(event,"spikes_layers"))
+        except ValueError: return _conflict(event,"invalid_switch_hazard_context")
         return None
     if effect == "mark_fainted":
         pokemon = _pokemon(state, event)

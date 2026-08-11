@@ -5,12 +5,14 @@ from copy import deepcopy
 from typing import Any, Mapping, Sequence
 
 from llm.advisor_reducer_state_model import is_unknown_battle_fact, validate_battle_state_unknown_markers
+from llm.advisor_identity_groundedness import normalize_groundedness
 
 
 SCHEMA_VERSION = "self-roster-mechanics-context-v1"
 _AUTHORITY_KEYS = (
     "current_type_authority", "base_stat_authority", "final_stat_authority", "ability_authority",
     "item_authority", "hp_authority", "fainted_authority", "persistent_condition_authority",
+    "prospective_groundedness_authority",
 )
 
 
@@ -92,6 +94,14 @@ def _base_record(session: str, slot: int, pokemon_id: str, pokemon: Mapping[str,
         },
         "fainted_authority": _fact_authority(pokemon.get("fainted")),
         "persistent_condition_authority": _fact_authority(pokemon.get("condition")),
+        # B-owned observation only.  Unknown is intentional; active A's
+        # groundedness is never projected into another roster identity.
+        "prospective_groundedness_authority": _prospective_groundedness(
+            pokemon.get("prospective_groundedness_context"),
+            session=session,
+            slot=slot,
+            pokemon_id=pokemon_id,
+        ),
     }
 
 
@@ -130,6 +140,12 @@ def _fact_authority(value: Any) -> dict[str, Any]:
 
 
 def _normalize_authority(value: Any, *, key: str) -> dict[str, Any]:
+    if key == "prospective_groundedness_authority":
+        if not isinstance(value, Mapping) or value.get("status") not in {"grounded", "ungrounded", "unknown"}:
+            raise ValueError("invalid_roster_mechanics_context")
+        if set(value) != {"status"}:
+            raise ValueError("invalid_roster_mechanics_context")
+        return deepcopy(dict(value))
     if not isinstance(value, Mapping) or value.get("status") not in {"known", "unknown", "unsupported_mechanic", "malformed", "omitted_legacy"}:
         raise ValueError("invalid_roster_mechanics_context")
     status = value["status"]
@@ -146,3 +162,11 @@ def _normalize_authority(value: Any, *, key: str) -> dict[str, Any]:
     elif set(value) != {"status"}:
         raise ValueError("invalid_roster_mechanics_context")
     return deepcopy(dict(value))
+
+
+def _prospective_groundedness(value: Any, *, session: str, slot: int, pokemon_id: str) -> dict[str, Any]:
+    """Project only a record owned by this exact prospective roster identity."""
+    normalized = normalize_groundedness(
+        value, session_id=session, side="self", slot_index=slot, pokemon_id=pokemon_id,
+    )
+    return {"status": normalized["status"]}
