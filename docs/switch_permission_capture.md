@@ -15,3 +15,13 @@ switch candidate and combined recommendation flow without provider schema
 changes. No UI control or external battle action is added here: the existing
 panel has no direct reducer-backed current-active-fact control, so this
 controller is the narrow integration seam for a future `교체 가능 여부` input.
+
+## UI control
+
+The advice panel now opens a compact `교체 가능 여부` dialog. Its visible choices
+are `모름`, `가능`, and `불가능`, mapping respectively to `unknown`, `permitted`,
+and `blocked`. Only the explicit `적용` action calls the capture controller;
+initial rendering and programmatic combo selection do not write authority.
+The dialog reads the current active owner at open time and failed/stale capture
+does not leave a requested value authoritative. Automatic restriction
+derivation remains future work.

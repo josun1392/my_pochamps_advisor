@@ -64,6 +64,8 @@ from ui.widgets.field_profile_dialog import FieldProfileDialog
 from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
 from ui.widgets.current_ability_dialog import CurrentAbilityDialog
+from ui.widgets.switch_permission_dialog import SwitchPermissionDialog
+from llm.advisor_switch_permission_capture import capture_switch_permission
 from ui.widgets.current_type_dialog import CurrentTypeDialog
 from ui.widgets.current_stat_stage_dialog import CurrentStatStageDialog
 from ui.widgets.current_field_state_dialog import CurrentFieldStateDialog
@@ -473,6 +475,7 @@ class MainWindow(QMainWindow):
             self._clear_current_condition_confirmations
         )
         self.center_column.llm_advice_panel.current_ability_requested.connect(self._open_current_ability_dialog)
+        self.center_column.llm_advice_panel.switch_permission_requested.connect(self._open_switch_permission_dialog)
         self.center_column.llm_advice_panel.current_ability_session_reset_requested.connect(
             self._clear_current_ability_confirmations
         )
@@ -639,6 +642,31 @@ class MainWindow(QMainWindow):
     def _clear_current_condition_confirmations(self) -> None:
         self._current_condition_confirmations = {}
         self._update_current_condition_summary()
+
+    @Slot()
+    def _open_switch_permission_dialog(self) -> None:
+        """Capture only an explicit dialog Apply for the current reducer owner."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        read = manager.read_state() if manager is not None and hasattr(manager, "read_state") else {}
+        state = read.get("state") if isinstance(read, dict) else None
+        side = state.get("self_side") if isinstance(state, dict) else None
+        roster = side.get("pokemon") if isinstance(side, dict) else None
+        slot = side.get("active_slot_index") if isinstance(side, dict) else None
+        active = roster.get(slot) if isinstance(roster, dict) and isinstance(slot, int) else None
+        context = side.get("switch_permission_context") if isinstance(side, dict) else None
+        permission = context.get("status") if isinstance(context, dict) else "unknown"
+        dialog = SwitchPermissionDialog(permission=permission if isinstance(permission, str) else "unknown", parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted or dialog.permission is None:
+            return
+        if not isinstance(state, dict) or not isinstance(active, dict) or not isinstance(slot, int):
+            return
+        result = capture_switch_permission(
+            store=getattr(manager, "_active_session", manager)._runtime._store if hasattr(getattr(manager, "_active_session", manager), "_runtime") else getattr(manager, "_store", None),
+            session_id=state.get("session_id", ""), active_slot_index=slot, active_pokemon_id=active.get("pokemon_id", ""),
+            permission=dialog.permission, observation_id=f"manual-switch-permission-{slot}", observation_sequence=(state.get("last_applied_observation_sequence") or 0) + 1,
+        )
+        if result.get("status") != "captured":
+            self.statusBar().showMessage("교체 가능 여부를 저장하지 못했습니다.")
 
     @Slot()
     def _open_current_ability_dialog(self) -> None:
