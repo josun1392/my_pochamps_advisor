@@ -50,6 +50,12 @@ def _target_after_entry_effects(target: Mapping[str, Any], hazard: Mapping[str, 
     sticky = hazard.get("sticky_web_result")
     if isinstance(sticky, Mapping) and sticky.get("status") == "complete" and isinstance(sticky.get("speed_stage_after"), int):
         copy["prospective_speed_stage_authority"] = {"status": "known", "value": sticky["speed_stage_after"]}
+    download = hazard.get("download_result")
+    if isinstance(download, Mapping) and download.get("status") == "complete" and download.get("boosted_stat") in {"attack", "special-attack"} and isinstance(download.get("stage_after"), int):
+        stages = copy.get("prospective_offensive_stages_authority")
+        if isinstance(stages, Mapping):
+            copy["prospective_offensive_stages_authority"] = deepcopy(dict(stages))
+            copy["prospective_offensive_stages_authority"][download["boosted_stat"]] = download["stage_after"]
     return copy
 
 
@@ -124,6 +130,12 @@ def _replace_self_authority(current: dict[str, Any], target: Mapping[str, Any]) 
     speed_stage = _known_value(target.get("prospective_speed_stage_authority"))
     if isinstance(speed_stage, int) and not isinstance(speed_stage, bool) and -6 <= speed_stage <= 6:
         current.setdefault("stat_stage_context", {"current_stages": []})["current_stages"].append({"side": "self", "stat": "speed", "stage": speed_stage, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"})
+    offensive_stages = target.get("prospective_offensive_stages_authority")
+    if isinstance(offensive_stages, Mapping):
+        for stat in ("attack", "special-attack"):
+            stage = offensive_stages.get(stat)
+            if isinstance(stage, int) and not isinstance(stage, bool) and -6 <= stage <= 6:
+                current.setdefault("stat_stage_context", {"current_stages": []})["current_stages"].append({"side": "self", "stat": stat, "stage": stage, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"})
 
 
 def _replace_opponent_attack_stage(current: dict[str, Any], action: Mapping[str, Any], entry_effect_result: Mapping[str, Any] | None) -> None:

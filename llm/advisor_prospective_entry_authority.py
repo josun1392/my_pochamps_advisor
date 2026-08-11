@@ -26,6 +26,24 @@ def normalize_prospective_speed_stage(value: Any, *, session_id: str, side: str,
     return deepcopy(expected) if set(value) == set(expected) and all(value[key] == expected[key] for key in expected) else unknown
 
 
+def build_prospective_offensive_stages(*, session_id: str, side: str, slot_index: int, pokemon_id: str, attack: int | str = "unknown", special_attack: int | str = "unknown") -> dict[str, Any]:
+    identity = _identity(session_id=session_id, side=side, slot_index=slot_index, pokemon_id=pokemon_id)
+    if any(stage != "unknown" and (not isinstance(stage, int) or isinstance(stage, bool) or not -6 <= stage <= 6) for stage in (attack, special_attack)):
+        raise ValueError("invalid_prospective_offensive_stages")
+    return deepcopy({"schema_version": "prospective-offensive-stages-v1", **identity, "attack": attack, "special_attack": special_attack})
+
+
+def normalize_prospective_offensive_stages(value: Any, *, session_id: str, side: str, slot_index: int, pokemon_id: str) -> dict[str, Any]:
+    unknown = build_prospective_offensive_stages(session_id=session_id, side=side, slot_index=slot_index, pokemon_id=pokemon_id)
+    if not isinstance(value, Mapping):
+        return unknown
+    try:
+        expected = build_prospective_offensive_stages(session_id=session_id, side=side, slot_index=slot_index, pokemon_id=pokemon_id, attack=value.get("attack"), special_attack=value.get("special_attack"))
+    except (TypeError, ValueError):
+        return unknown
+    return deepcopy(expected) if set(value) == set(expected) and all(value[key] == expected[key] for key in expected) else unknown
+
+
 def build_prospective_entry_interactions(*, session_id: str, side: str, slot_index: int, pokemon_id: str, toxic_spikes: str = "unknown", sticky_web: str = "unknown") -> dict[str, Any]:
     identity = _identity(session_id=session_id, side=side, slot_index=slot_index, pokemon_id=pokemon_id)
     if toxic_spikes not in _INTERACTION_STATUSES or sticky_web not in _INTERACTION_STATUSES:

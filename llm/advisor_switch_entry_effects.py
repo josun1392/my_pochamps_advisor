@@ -10,7 +10,7 @@ from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
 _CONDITIONS = frozenset({None, "none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"})
 
 
-def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping[str, Any], intimidate_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping[str, Any], intimidate_authority: Mapping[str, Any] | None = None, download_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Evaluate damage first, then supported status and Speed-stage entry effects.
 
     Each effect retains an independent supportability result.  This lets known
@@ -21,12 +21,14 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
     toxic = _evaluate_toxic_spikes(hazards=hazards, target=target)
     sticky = _evaluate_sticky_web(hazards=hazards, target=target)
     intimidate = _evaluate_intimidate(target=target, damage=damage, authority=intimidate_authority)
+    download = _evaluate_download(target=target, damage=damage, authority=download_authority)
     return {
         **deepcopy(damage),
         "toxic_spikes_result": toxic,
         "sticky_web_result": sticky,
         "intimidate_result": intimidate,
-        "entry_effects_supportability": "complete" if all(result.get("status") == "complete" for result in (damage, toxic, sticky, intimidate)) else "insufficient_context",
+        "download_result": download,
+        "entry_effects_supportability": "complete" if all(result.get("status") == "complete" for result in (damage, toxic, sticky, intimidate, download)) else "insufficient_context",
     }
 
 
@@ -131,6 +133,36 @@ def _evaluate_intimidate(*, target: Mapping[str, Any], damage: Mapping[str, Any]
     return _complete(outcome, opponent_identity=deepcopy(dict(opponent)), attack_stage_before=before, attack_stage_after=after)
 
 
+def _evaluate_download(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    ability = _authority(target, "ability_authority")
+    if not _known_authority(ability):
+        return _incomplete("candidate_ability_unknown")
+    if _known_value(ability) != "download":
+        return _complete("not_applicable")
+    if damage.get("status") != "complete":
+        return _incomplete("prior_entry_hazards_incomplete")
+    if damage.get("hazard_ko") is True:
+        return _complete("not_activated_hazard_ko")
+    source = {"side": "self", "slot_index": target.get("slot_index"), "pokemon_id": target.get("pokemon_id")}
+    if not _valid_download_authority(authority, session_id=target.get("session_id")) or authority.get("source") != source:
+        return _incomplete("download_authority_unknown")
+    if authority.get("applicability") == "unknown":
+        return _incomplete("download_applicability_unknown")
+    if authority.get("applicability") == "blocked":
+        return _complete("ability_suppressed")
+    defense, special_defense = authority.get("target_defense"), authority.get("target_special_defense")
+    if any(not isinstance(value, int) or isinstance(value, bool) or value <= 0 for value in (defense, special_defense)):
+        return _incomplete("opposing_defensive_stats_unknown")
+    stat = "attack" if defense < special_defense else "special-attack"
+    stages = _authority(target, "prospective_offensive_stages_authority")
+    before = stages.get(stat) if isinstance(stages, Mapping) else None
+    if not isinstance(before, int) or isinstance(before, bool) or not -6 <= before <= 6:
+        return _incomplete(f"prospective_{stat}_stage_unknown")
+    after = min(6, before + 1)
+    outcome = f"{stat}_stage_raised" if after > before else f"{stat}_stage_maximum"
+    return _complete(outcome, boosted_stat=stat, stage_before=before, stage_after=after, opponent_identity=deepcopy(dict(authority["target"])))
+
+
 def _hazard_value(hazards: Any, key: str, allowed: set[Any]) -> Any | None:
     required = {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web"}
     if not isinstance(hazards, Mapping) or set(hazards) != required or hazards.get("schema_version") != "switch-hazard-context-v2" or hazards.get("affected_side") != "self":
@@ -183,6 +215,11 @@ def _identity(value: Any, side: str) -> bool:
 def _valid_intimidate_authority(value: Any, *, session_id: Any) -> bool:
     required = {"schema_version", "session_id", "source", "target", "interaction", "target_attack_stage"}
     return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-intimidate-authority-v1" and value.get("session_id") == session_id and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
+
+
+def _valid_download_authority(value: Any, *, session_id: Any) -> bool:
+    required = {"schema_version", "session_id", "source", "target", "applicability", "target_defense", "target_special_defense"}
+    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-download-authority-v1" and value.get("session_id") == session_id and value.get("applicability") in {"applicable", "blocked", "unknown"} and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
 
 
 def _complete(outcome: str, **details: Any) -> dict[str, Any]:

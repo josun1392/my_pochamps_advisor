@@ -7,6 +7,7 @@ from llm.advisor_prospective_entry_authority import (
 from llm.advisor_switch_entry_effects import evaluate_switch_entry_effects
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context, normalize_switch_hazard_context
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority, normalize_switch_entry_intimidate_authority
+from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority, normalize_switch_entry_download_authority
 
 
 def _hazards(*, toxic=0, web="absent"):
@@ -99,3 +100,21 @@ def test_intimidate_unknowns_and_hazard_ko_never_become_a_successful_drop():
     ko_target = _target(slot_index=1, pokemon_id="b", ability_authority={"status": "known", "value": "intimidate"}, hp_authority={"status": "known", "current_hp": 1, "maximum_hp": 100, "provenance": "user_confirmed_current_hp"}, current_type_authority={"status": "known", "value": ["fire"]}, item_authority={"status": "known", "value": None})
     ko_hazards = build_switch_hazard_context(session_id="entry-s", affected_side="self", stealth_rock="present", spikes_layers=0)
     assert evaluate_switch_entry_effects(hazards=ko_hazards, target=ko_target)["intimidate_result"]["outcome"] == "not_activated_hazard_ko"
+
+
+def test_download_uses_exact_opposing_defenses_tie_rule_and_b_owned_stage():
+    target = _target(slot_index=1, pokemon_id="b", ability_authority={"status": "known", "value": "download"}, prospective_offensive_stages_authority={"attack": 0, "special-attack": 5})
+    authority = build_switch_entry_download_authority(session_id="entry-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, applicability="applicable", target_defense=90, target_special_defense=100)
+    physical = evaluate_switch_entry_effects(hazards=_hazards(), target=target, download_authority=authority)["download_result"]
+    assert physical == {"status": "complete", "outcome": "attack_stage_raised", "boosted_stat": "attack", "stage_before": 0, "stage_after": 1, "opponent_identity": {"side": "opponent", "slot_index": 0, "pokemon_id": "x"}}
+    tied = {**authority, "target_special_defense": 90}
+    special = evaluate_switch_entry_effects(hazards=_hazards(), target=target, download_authority=tied)["download_result"]
+    assert special["boosted_stat"] == "special-attack" and special["stage_after"] == 6
+    assert normalize_switch_entry_download_authority(authority, session_id="entry-s", target={"side": "opponent", "slot_index": 0, "pokemon_id": "other"}) is None
+
+
+def test_download_unknown_defenses_applicability_or_b_stage_stay_incomplete():
+    target = _target(slot_index=1, pokemon_id="b", ability_authority={"status": "known", "value": "download"}, prospective_offensive_stages_authority={"attack": "unknown", "special-attack": 0})
+    authority = build_switch_entry_download_authority(session_id="entry-s", source={"side": "self", "slot_index": 1, "pokemon_id": "b"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "x"}, applicability="applicable", target_defense=90, target_special_defense=100)
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, download_authority=authority)["download_result"]["reason"] == "prospective_attack_stage_unknown"
+    assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, download_authority={**authority, "applicability": "unknown"})["download_result"]["reason"] == "download_applicability_unknown"

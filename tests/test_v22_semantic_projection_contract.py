@@ -99,3 +99,12 @@ def test_intimidate_entry_authority_binds_b_to_the_exact_opposing_active_and_inv
     assert project_atomic_transition(base(), plan(invalid), "s")["status"] == "blocked_by_semantic_conflict"
     cleared = project_atomic_transition(base(), plan(authority, step("condition", 2, "set_condition", **owner(), condition="burn")), "s")
     assert "switch_entry_intimidate_authority" not in cleared["projected_state"]
+
+
+def test_download_entry_authority_and_b_owned_offensive_stages_project_exactly():
+    stages = step("stages", 1, "set_prospective_offensive_stages", **owner("self", 1, "raichu"), attack_stage=0, special_attack_stage=2)
+    download = step("download", 2, "set_switch_entry_download", source_side="self", source_slot_index=1, source_pokemon_id="raichu", target_side="opponent", target_slot_index=0, target_pokemon_id="eevee", applicability="applicable", target_defense=80, target_special_defense=100)
+    result = project_atomic_transition(base(), plan(stages, download), "s")
+    assert result["status"] == "ready_with_projected_state"
+    assert result["projected_state"]["self_side"]["pokemon"][1]["prospective_offensive_stages_context"]["special_attack"] == 2
+    assert result["projected_state"]["switch_entry_download_authority"]["target_special_defense"] == 100

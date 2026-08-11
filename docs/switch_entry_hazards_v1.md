@@ -57,3 +57,15 @@ The direct incoming adapter installs that post-entry Attack stage only if the
 frozen opponent move candidate names the same opposing identity. It creates no
 switch permission, chip/safety reward, or switch-native score; only an already
 supported deterministic incoming danger consequence can affect ranking.
+
+## Download on switch-in
+
+After hazards prove B survives, exact B-owned `download` ability authority may
+raise one B-owned prospective offensive stage only with a frozen exact B-to-
+opposing-active Download authority. That authority supplies ability
+applicability and the opposing active's exact Defense and Special Defense.
+Download raises Attack when Defense is lower; otherwise, including an exact
+tie, it raises Special Attack. The canonical +6 clamp is used. Unknown
+applicability, defensive value, identity, or selected B stage remains
+incomplete. No base-stat/species fallback, boost reward, switch permission, or
+switch-native score is introduced.
