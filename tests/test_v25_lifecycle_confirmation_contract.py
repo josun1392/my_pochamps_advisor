@@ -1,5 +1,5 @@
 from copy import deepcopy
-from llm.advisor_lifecycle_confirmation import CONDITION_APPLICATION_SOURCE, LifecycleConfirmationBoundary, FIXTURE_SOURCE, FIXTURE_TRUST, PRODUCTION_SOURCE, USER_TRUST
+from llm.advisor_lifecycle_confirmation import CONDITION_APPLICATION_SOURCE, STAT_STAGE_SOURCE, LifecycleConfirmationBoundary, FIXTURE_SOURCE, FIXTURE_TRUST, PRODUCTION_SOURCE, USER_TRUST
 
 def boundary(session="s"): return LifecycleConfirmationBoundary(session, {"self":{"slot_index":0,"pokemon_id":"pikachu"}, "opponent":{"slot_index":1,"pokemon_id":"eevee"}})
 def damage(**x): return {"damage_amount":10,"hp_unit":"exact",**x}
@@ -28,3 +28,9 @@ def test_production_condition_application_requires_exact_major_condition_and_own
  result=b.confirm(**args); assert result["status"]=="confirmed" and result["observation"]["reducer_eligibility"]=="candidate"
  assert b.confirm(**{**args,"payload":{"condition":"unknown"}})["status"]=="invalid_provenance"
  assert b.confirm(**{**args,"side":"self"})["status"]=="invalid_provenance"
+
+def test_production_absolute_stat_stage_requires_exact_supported_stage_and_owner():
+ b=boundary(); args=dict(event_kind="stat_stage_observed",payload={"stat":"attack","stage":-2},session_id="s",source=STAT_STAGE_SOURCE,trust=USER_TRUST,confirmed=True,side="opponent",slot_index=1,pokemon_id="eevee")
+ assert b.confirm(**args)["status"]=="confirmed"
+ assert b.confirm(**{**args,"payload":{"stat":"attack","stage":7}})["status"]=="invalid_provenance"
+ assert b.confirm(**{**args,"payload":{"stat":"unknown","stage":0}})["status"]=="invalid_provenance"

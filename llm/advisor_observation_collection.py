@@ -1,7 +1,7 @@
 """Private session-scoped canonical observation buffer."""
 from copy import deepcopy
 
-_KINDS={"direct_move_damage_observed","used_move_observed","exact_hp_transition_observed","pokemon_switch_observed","pokemon_faint_observed","condition_applied_observed"}
+_KINDS={"direct_move_damage_observed","used_move_observed","exact_hp_transition_observed","pokemon_switch_observed","pokemon_faint_observed","condition_applied_observed","stat_stage_observed"}
 class ObservationCollection:
  def __init__(self,session_id): self._session_id=session_id; self._items={}
  def add_confirmation_result(self,result):

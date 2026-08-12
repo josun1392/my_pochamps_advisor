@@ -11,6 +11,7 @@ from llm.advisor_candidate_contract import (
 )
 from llm.advisor_lifecycle_confirmation import (
     CONDITION_APPLICATION_SOURCE,
+    STAT_STAGE_SOURCE,
     LifecycleConfirmationBoundary,
     USED_MOVE_SOURCE,
     USER_TRUST,
@@ -118,6 +119,17 @@ def test_observed_condition_application_replays_to_exact_owner_state():
     state = store.read_snapshot()["state"]
     assert state["opponent_side"]["pokemon"][1]["condition"] == "burn"
     assert state["opponent_side"]["pokemon"][2]["condition"] is None
+
+
+def test_observed_absolute_stat_stage_replays_to_exact_owner_state():
+    store = BattleStateStore(_state()); boundary = LifecycleConfirmationBoundary("session-1", _owners()); collection = ObservationCollection("session-1")
+    coordinator = ObservationReplayCoordinator(store, move_repository=_MoveRepository(set()))
+    confirmed = boundary.confirm(event_kind="stat_stage_observed", payload={"stat": "speed", "stage": -1}, session_id="session-1", source=STAT_STAGE_SOURCE, trust=USER_TRUST, confirmed=True, side="opponent", slot_index=1, pokemon_id="garchomp")
+    assert confirmed["status"] == "confirmed" and collection.add_confirmation_result(confirmed)["status"] == "added"
+    assert _apply(coordinator, collection)["status"] == "applied"
+    state = store.read_snapshot()["state"]
+    assert state["opponent_side"]["pokemon"][1]["stat_stages"] == {"speed": -1}
+    assert "stat_stages" not in state["opponent_side"]["pokemon"][2]
 
 
 def _battle_input(context):
