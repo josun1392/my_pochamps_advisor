@@ -56,17 +56,15 @@ def _evaluate_first_status_residual(*, target: Mapping[str, Any], entry_effect_r
         condition, source = authority.get("value"), "trusted_current_status_first_end_of_turn"
     if condition in {None, "none", "paralysis", "sleep", "freeze"}:
         return {"status": "not_applicable"}
-    if condition == "toxic" and source != "toxic_spikes_first_end_of_turn":
-        return {"status": "insufficient_context", "reason": "toxic_counter_unknown"}
     if condition not in {"burn", "poison", "toxic"}:
         return {"status": "insufficient_context", "reason": "unsupported_current_condition"}
     ability = target.get("ability_authority")
     if not isinstance(ability, Mapping) or ability.get("status") != "known":
         return {"status": "insufficient_context", "reason": "ability_unknown"}
-    if ability.get("value") == "magic-guard":
-        return {"status": "complete", "source": source, "condition": condition, "residual_damage": 0, "outcome": "prevented_by_magic_guard", "guaranteed_ko": False}
-    if condition == "poison" and ability.get("value") == "poison-heal":
-        return {"status": "insufficient_context", "reason": "poison_heal_transition_unsupported"}
+    magic_guard = ability.get("value") == "magic-guard"
+    poison_heal = ability.get("value") == "poison-heal" and condition in {"poison", "toxic"}
+    if condition == "toxic" and source != "toxic_spikes_first_end_of_turn" and not (poison_heal or magic_guard):
+        return {"status": "insufficient_context", "reason": "toxic_counter_unknown"}
     hp = target.get("hp_authority")
     if not isinstance(hp, Mapping) or hp.get("status") != "known" or not isinstance(hp.get("current_hp"), int) or not isinstance(hp.get("maximum_hp"), int):
         return {"status": "insufficient_context", "reason": "post_entry_hp_unknown"}
@@ -79,6 +77,15 @@ def _evaluate_first_status_residual(*, target: Mapping[str, Any], entry_effect_r
     ko = damage.get("ko_interpretation")
     if isinstance(ko, Mapping) and ko.get("focus_sash_survival") == "applied" or isinstance(ko, Mapping) and ko.get("sturdy_survival") == "applied":
         return {"status": "insufficient_context", "reason": "survival_effect_post_hit_hp_unsupported"}
+    if minimum >= hp["current_hp"]:
+        return {"status": "not_applicable", "reason": "guaranteed_incoming_ko_before_end_of_turn"}
+    if magic_guard:
+        return {"status": "complete", "source": source, "condition": condition, "residual_damage": 0, "outcome": "prevented_by_magic_guard", "guaranteed_ko": False}
+    if poison_heal:
+        recovery = hp["maximum_hp"] // 8
+        post_hit_hp = hp["current_hp"] - minimum
+        resulting_hp = min(hp["maximum_hp"], post_hit_hp + recovery)
+        return {"status": "complete", "source": source, "condition": condition, "residual_recovery": recovery, "minimum_incoming_damage": minimum, "post_turn_minimum_hp": resulting_hp, "outcome": "recovered_by_poison_heal", "guaranteed_ko": False}
     chip = residual_damage_amount(ResidualSpec(condition, hp["maximum_hp"]), 1)
     resulting_hp = max(0, hp["current_hp"] - minimum - chip)
     return {"status": "complete", "source": source, "condition": condition, "residual_damage": chip, "minimum_incoming_damage": minimum, "post_turn_minimum_hp": resulting_hp, "guaranteed_ko": resulting_hp == 0}

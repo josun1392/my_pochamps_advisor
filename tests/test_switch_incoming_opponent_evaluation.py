@@ -147,6 +147,20 @@ def test_trusted_current_burn_and_poison_feed_the_same_first_residual_transition
     assert _evaluate_first_status_residual(target={"persistent_condition_authority": {"status": "known", "value": "burn"}, "ability_authority": {"status": "known", "value": "magic-guard"}, "hp_authority": {"status": "known", "current_hp": 20, "maximum_hp": 160}}, entry_effect_result=None, damage=damage)["outcome"] == "prevented_by_magic_guard"
 
 
+def test_poison_heal_is_a_bounded_post_hit_recovery_and_direct_ko_precedes_end_of_turn():
+    from llm.advisor_switch_incoming_evaluator import _evaluate_first_status_residual
+    poisoned = {"persistent_condition_authority": {"status": "known", "value": "poison"}, "ability_authority": {"status": "known", "value": "poison-heal"}, "hp_authority": {"status": "known", "current_hp": 30, "maximum_hp": 160}}
+    healed = _evaluate_first_status_residual(target=poisoned, entry_effect_result=None, damage={"damage_range": {"minimum": 10}})
+    assert healed == {"status": "complete", "source": "trusted_current_status_first_end_of_turn", "condition": "poison", "residual_recovery": 20, "minimum_incoming_damage": 10, "post_turn_minimum_hp": 40, "outcome": "recovered_by_poison_heal", "guaranteed_ko": False}
+    toxic = _evaluate_first_status_residual(target={**poisoned, "persistent_condition_authority": {"status": "known", "value": "toxic"}}, entry_effect_result=None, damage={"damage_range": {"minimum": 10}})
+    assert toxic["status"] == "complete" and toxic["condition"] == "toxic" and toxic["post_turn_minimum_hp"] == 40
+    direct_ko = _evaluate_first_status_residual(target=poisoned, entry_effect_result=None, damage={"damage_range": {"minimum": 30}})
+    assert direct_ko == {"status": "not_applicable", "reason": "guaranteed_incoming_ko_before_end_of_turn"}
+    magic_guard_ko = _evaluate_first_status_residual(target={**poisoned, "ability_authority": {"status": "known", "value": "magic-guard"}}, entry_effect_result=None, damage={"damage_range": {"minimum": 30}})
+    assert magic_guard_ko == {"status": "not_applicable", "reason": "guaranteed_incoming_ko_before_end_of_turn"}
+    assert _evaluate_first_status_residual(target={**poisoned, "ability_authority": {"status": "unknown"}}, entry_effect_result=None, damage={"damage_range": {"minimum": 10}})["reason"] == "ability_unknown"
+
+
 def test_direct_incoming_uses_b_owned_trace_copy_not_the_opponent_authority_object():
     from llm.advisor_switch_incoming_evaluator import _target_after_entry_effects
     target = {"ability_authority": {"status": "known", "value": "trace"}}
