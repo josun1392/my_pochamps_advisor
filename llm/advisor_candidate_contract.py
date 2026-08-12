@@ -451,6 +451,21 @@ def _known_speed_weather(snapshot: Mapping[str, Any]) -> str:
     return "sand" if weather == "sandstorm" else weather
 
 
+def _known_priority_terrain(snapshot: Mapping[str, Any]) -> str:
+    context = snapshot.get("field_state_context"); field = context.get("current_field") if isinstance(context, Mapping) else None
+    try: return normalize_user_confirmed_current_field_state(field)["terrain"]
+    except ValueError: return "unknown"
+
+
+def _known_groundedness(snapshot: Mapping[str, Any], side: str) -> str:
+    context = snapshot.get("grounded_context"); entry = context.get(side) if isinstance(context, Mapping) else None
+    if not isinstance(entry, Mapping): return "unknown"
+    if entry.get("provenance") != "user_confirmed_current": return "unknown" if entry.get("status") == "unknown" else "invalid"
+    if entry.get("status") == "known_grounded": return "grounded"
+    if entry.get("status") == "known_ungrounded": return "ungrounded"
+    return "invalid"
+
+
 def _trusted_speed_stage(snapshot: Mapping[str, Any], side: str) -> int | None:
     context = snapshot.get("stat_stage_context")
     entries = context.get("current_stages") if isinstance(context, Mapping) else None
@@ -700,6 +715,10 @@ def _action_order_evidence(snapshot: Mapping[str, Any], *, move: str, metadata: 
         kwargs.update(self_speed_ability=self_ability, opponent_speed_ability=opponent_ability, self_priority_ability=self_ability, opponent_priority_ability=opponent_ability, weather=_known_speed_weather(snapshot))
     if isinstance(snapshot.get("current_hp_context"), Mapping):
         kwargs.update(self_gale_wings_full_hp=_known_full_hp(snapshot, "self"), opponent_gale_wings_full_hp=_known_full_hp(snapshot, "opponent"))
+    if isinstance(snapshot.get("field_state_context"), Mapping):
+        kwargs["terrain"] = _known_priority_terrain(snapshot)
+    if isinstance(snapshot.get("grounded_context"), Mapping):
+        kwargs.update(self_grounded=_known_groundedness(snapshot, "self"), opponent_grounded=_known_groundedness(snapshot, "opponent"))
     return evaluate_action_order(**kwargs)
 
 

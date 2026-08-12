@@ -13,7 +13,7 @@ from advisor.damage.status_effects import paralysis_spe_modifier
 
 # These moves have a priority that depends on state outside this narrow slice.
 # Do not silently treat their canonical base priority as the final priority.
-_CONDITIONAL_PRIORITY_MOVES = frozenset({"grassy-glide"})
+_CONDITIONAL_PRIORITY_MOVES = frozenset()
 _STAGE_AUTHORITY_NOT_SUPPLIED = object()
 _TRICK_ROOM_AUTHORITY_NOT_SUPPLIED = object()
 _TAILWIND_AUTHORITY_NOT_SUPPLIED = object()
@@ -21,6 +21,8 @@ _PARALYSIS_AUTHORITY_NOT_SUPPLIED = object()
 _SPEED_MODIFIER_AUTHORITY_NOT_SUPPLIED = object()
 _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED = object()
 _GALE_WINGS_HP_AUTHORITY_NOT_SUPPLIED = object()
+_TERRAIN_AUTHORITY_NOT_SUPPLIED = object()
+_GROUNDED_AUTHORITY_NOT_SUPPLIED = object()
 _SUPPORTED_SPEED_ABILITIES = frozenset({"swift-swim", "chlorophyll", "sand-rush", "slush-rush"})
 _UNSUPPORTED_SPEED_ABILITIES = frozenset({"surge-surfer", "unburden", "speed-boost", "slow-start", "protosynthesis", "quark-drive"})
 _UNSUPPORTED_SPEED_ITEMS = frozenset({"iron-ball", "macho-brace", "power-anklet", "power-band", "power-belt", "power-bracer", "power-lens", "power-weight", "lagging-tail", "full-incense", "quick-claw", "custap-berry"})
@@ -76,6 +78,9 @@ def evaluate_action_order(
     opponent_priority_ability: Any = _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED,
     self_gale_wings_full_hp: Any = _GALE_WINGS_HP_AUTHORITY_NOT_SUPPLIED,
     opponent_gale_wings_full_hp: Any = _GALE_WINGS_HP_AUTHORITY_NOT_SUPPLIED,
+    terrain: Any = _TERRAIN_AUTHORITY_NOT_SUPPLIED,
+    self_grounded: Any = _GROUNDED_AUTHORITY_NOT_SUPPLIED,
+    opponent_grounded: Any = _GROUNDED_AUTHORITY_NOT_SUPPLIED,
 ) -> dict[str, Any]:
     """Resolve a known action pair using only trusted final Speed and field state."""
     self_reference, self_error = _action(self_action, "self")
@@ -104,6 +109,30 @@ def evaluate_action_order(
     assert self_reference is not None and opponent_reference is not None
     self_priority, opponent_priority = self_reference["priority"], opponent_reference["priority"]
     base_priorities = {"self": self_priority, "opponent": opponent_priority}
+    conditional_actions = {"self": self_reference, "opponent": opponent_reference}
+    if any(action["move_id"] == "grassy-glide" for action in conditional_actions.values()):
+        if terrain is _TERRAIN_AUTHORITY_NOT_SUPPLIED or terrain == "unknown":
+            result["missing_inputs"] = ["terrain"]
+            return result
+        if terrain not in {"none", "electric", "grassy", "misty", "psychic"}:
+            result.update(status="unsupported_mechanic", unsupported_reason="terrain_context")
+            return result
+        if terrain == "grassy":
+            grounded_states = {"self": self_grounded, "opponent": opponent_grounded}
+            for side, action in conditional_actions.items():
+                if action["move_id"] != "grassy-glide":
+                    continue
+                grounded = grounded_states[side]
+                if grounded is _GROUNDED_AUTHORITY_NOT_SUPPLIED or grounded == "unknown":
+                    result["missing_inputs"] = [f"{side}_grounded"]
+                    return result
+                if grounded not in {"grounded", "ungrounded"}:
+                    result.update(status="unsupported_mechanic", unsupported_reason="grounded_context")
+                    return result
+                if grounded == "grounded":
+                    if side == "self": self_priority += 1
+                    else: opponent_priority += 1
+                    result[f"{side}_grassy_glide_applied"] = True
     priority_abilities = {
         "self": "omitted" if self_priority_ability is _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED else self_priority_ability,
         "opponent": "omitted" if opponent_priority_ability is _PRIORITY_ABILITY_AUTHORITY_NOT_SUPPLIED else opponent_priority_ability,

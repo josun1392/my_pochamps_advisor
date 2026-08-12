@@ -528,13 +528,27 @@ def test_missing_authoritative_inputs_remain_insufficient(kwargs, expected):
     assert result["missing_inputs"] == [expected]
 
 
-def test_conditional_priority_is_explicitly_unsupported():
-    result = evaluate_action_order(
+def test_grassy_glide_uses_only_exact_terrain_and_same_side_groundedness():
+    grounded = evaluate_action_order(
         self_action=_action("grassy-glide", 0), opponent_action=_action("tackle", 0),
-        self_final_speed=100, opponent_final_speed=90, trick_room="inactive",
+        self_final_speed=None, opponent_final_speed=None, terrain="grassy", self_grounded="grounded",
     )
-    assert result["status"] == "unsupported_mechanic"
-    assert result["unsupported_reason"] == "conditional_priority_mechanic"
+    ungrounded = evaluate_action_order(
+        self_action=_action("grassy-glide", 0), opponent_action=_action("tackle", 0),
+        self_final_speed=100, opponent_final_speed=90, trick_room="inactive", terrain="grassy", self_grounded="ungrounded",
+    )
+    unknown_terrain = evaluate_action_order(
+        self_action=_action("grassy-glide", 0), opponent_action=_action("tackle", 0),
+        self_final_speed=100, opponent_final_speed=90, terrain="unknown", self_grounded="grounded",
+    )
+    unknown_grounded = evaluate_action_order(
+        self_action=_action("grassy-glide", 0), opponent_action=_action("tackle", 0),
+        self_final_speed=100, opponent_final_speed=90, terrain="grassy", self_grounded="unknown",
+    )
+    assert grounded["status"] == "acts_first" and grounded["self_grassy_glide_applied"] is True and grounded["self_priority"] == 1
+    assert ungrounded["status"] == "acts_first" and "self_grassy_glide_applied" not in ungrounded
+    assert unknown_terrain["missing_inputs"] == ["terrain"]
+    assert unknown_grounded["missing_inputs"] == ["self_grounded"]
 
 
 def _speed(side: str, value: int) -> dict[str, object]:
@@ -562,6 +576,16 @@ def test_candidate_payload_uses_canonical_priority_and_trusted_runtime_only():
     assert candidate["action_order"]["opponent_priority"] == 1
     request = build_recommendation_request(evidence_bundle=build_evidence_bundle(snapshot, [candidate], []))
     assert request["candidate_comparisons"][0]["action_order"] == candidate["action_order"]
+
+
+def test_candidate_binds_grassy_glide_to_current_field_and_self_groundedness_only():
+    field = {"current_field": {"weather": "none", "terrain": "grassy", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}}
+    base = {"final_stat_context": {"current_final_stats": [_speed("self", 80), _speed("opponent", 200)]}, "field_state_context": field, "opponent_selected_move": {"move_id": "scratch"}}
+    repository = {"grassy-glide": {"category": "physical", "power": 55, "type": "grass", "priority": 0}, "scratch": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}
+    grounded = evaluate_move_candidate(slot_index=0, move="grassy-glide", battle_snapshot={**base, "grounded_context": {"self": {"status": "known_grounded", "provenance": "user_confirmed_current"}}}, repositories=repository)
+    unknown = evaluate_move_candidate(slot_index=0, move="grassy-glide", battle_snapshot={**base, "grounded_context": {"self": {"status": "unknown", "provenance": "unknown"}}}, repositories=repository)
+    assert grounded["action_order"]["status"] == "acts_first" and grounded["action_order"]["self_grassy_glide_applied"] is True
+    assert unknown["action_order"]["missing_inputs"] == ["self_grounded"]
 
 
 def test_candidate_never_promotes_unknown_field_or_unresolved_opponent_metadata():

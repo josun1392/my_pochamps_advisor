@@ -170,3 +170,12 @@ supported neutral or resisted incoming attack to zero damage; a
 super-effective attack proceeds normally. Unknown ability/type authority and
 attacker bypass or suppression interactions not already supported by the direct
 evaluator remain incomplete rather than being treated as immunity.
+
+## Grassy Glide action order
+
+The narrow action-order evaluator now applies Grassy Glide's priority increase
+only when trusted current terrain is `grassy` and the acting side's own current
+groundedness is exact. It uses existing field and side-owned groundedness
+authority; unknown terrain or groundedness remains incomplete. Ungrounded
+Grassy Glide receives no priority increase. This changes only deterministic
+action-order evidence and creates no switch permission or strategic score.
