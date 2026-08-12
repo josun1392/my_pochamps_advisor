@@ -527,6 +527,8 @@ def test_static_defender_ability_modifiers_apply_only_to_matching_candidates():
     filter_super = _modifier_result(category="special", move_type="electric", weather="none", side_effects=[], defender_ability="filter", defender_types=["water"])
     solid_rock_super = _modifier_result(category="special", move_type="electric", weather="none", side_effects=[], defender_ability="solid-rock", defender_types=["water"])
     prism_armor_super = _modifier_result(category="special", move_type="electric", weather="none", side_effects=[], defender_ability="prism-armor", defender_types=["water"])
+    wonder_guard_neutral = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, defender_ability="wonder-guard")
+    wonder_guard_super = _modifier_result(category="special", move_type="electric", move_id="thunderbolt", power=60, defender_ability="wonder-guard", defender_types=["water"])
     filter_neutral = _modifier_result(category="special", weather="none", side_effects=[], defender_ability="filter")
     assert thick_fat["damage_range"]["maximum"] < fire_baseline["damage_range"]["maximum"]
     assert "defender_ability_thick_fat_reduction" in thick_fat["applied_damage_modifiers"]
@@ -539,6 +541,11 @@ def test_static_defender_ability_modifiers_apply_only_to_matching_candidates():
     assert "defender_ability_prism_armor_reduction" in prism_armor_super["applied_damage_modifiers"]
     assert solid_rock_super["damage_range"] == prism_armor_super["damage_range"]
     assert filter_neutral["applied_damage_modifiers"] == []
+    assert wonder_guard_neutral["damage_range"] == {"minimum": 0, "maximum": 0}
+    assert wonder_guard_neutral["ko_result"]["single_hit_probability"] == 0.0
+    assert wonder_guard_neutral["applied_damage_modifiers"] == ["defender_ability_wonder_guard_immunity"]
+    assert wonder_guard_super["damage_range"]["minimum"] > 0
+    assert wonder_guard_super["applied_damage_modifiers"] == []
 
 
 def test_static_attacker_type_effectiveness_abilities_use_exact_current_types():

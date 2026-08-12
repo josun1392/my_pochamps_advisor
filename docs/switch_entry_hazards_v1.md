@@ -161,3 +161,12 @@ super-effective damage-reduction phase. They apply only where trusted current
 typing proves the incoming attack is super-effective. Unknown ability or type
 authority remains incomplete. Attacker interactions not already supported by
 the direct evaluator, including ability-bypass authority, remain incomplete.
+
+## Wonder Guard
+
+The direct incoming path now consumes exact defender-owned `wonder-guard`
+through the canonical immunity check. With trusted current typing, it reduces a
+supported neutral or resisted incoming attack to zero damage; a
+super-effective attack proceeds normally. Unknown ability/type authority and
+attacker bypass or suppression interactions not already supported by the direct
+evaluator remain incomplete rather than being treated as immunity.
