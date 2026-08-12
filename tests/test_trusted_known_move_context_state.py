@@ -11,6 +11,7 @@ from llm.advisor_candidate_contract import (
 )
 from llm.advisor_lifecycle_confirmation import (
     CONDITION_APPLICATION_SOURCE,
+    HAZARD_STATE_SOURCE,
     STAT_STAGE_SOURCE,
     LifecycleConfirmationBoundary,
     USED_MOVE_SOURCE,
@@ -130,6 +131,16 @@ def test_observed_absolute_stat_stage_replays_to_exact_owner_state():
     state = store.read_snapshot()["state"]
     assert state["opponent_side"]["pokemon"][1]["stat_stages"] == {"speed": -1}
     assert "stat_stages" not in state["opponent_side"]["pokemon"][2]
+
+
+def test_observed_hazard_state_replaces_switch_authority_for_affected_side():
+    store = BattleStateStore(_state()); boundary = LifecycleConfirmationBoundary("session-1", _owners()); collection = ObservationCollection("session-1")
+    coordinator = ObservationReplayCoordinator(store, move_repository=_MoveRepository(set()))
+    payload = {"stealth_rock": "absent", "spikes_layers": 0, "toxic_spikes_layers": 0, "sticky_web": "absent"}
+    confirmed = boundary.confirm(event_kind="switch_hazards_observed", payload=payload, session_id="session-1", source=HAZARD_STATE_SOURCE, trust=USER_TRUST, confirmed=True, side="self")
+    assert confirmed["status"] == "confirmed" and collection.add_confirmation_result(confirmed)["status"] == "added"
+    assert _apply(coordinator, collection)["status"] == "applied"
+    assert store.read_snapshot()["state"]["switch_hazard_context"] == {"schema_version": "switch-hazard-context-v2", "session_id": "session-1", "affected_side": "self", **payload}
 
 
 def _battle_input(context):
