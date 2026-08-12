@@ -1,5 +1,5 @@
 from copy import deepcopy
-from llm.advisor_lifecycle_confirmation import LifecycleConfirmationBoundary, FIXTURE_SOURCE, FIXTURE_TRUST, PRODUCTION_SOURCE, USER_TRUST
+from llm.advisor_lifecycle_confirmation import CONDITION_APPLICATION_SOURCE, LifecycleConfirmationBoundary, FIXTURE_SOURCE, FIXTURE_TRUST, PRODUCTION_SOURCE, USER_TRUST
 
 def boundary(session="s"): return LifecycleConfirmationBoundary(session, {"self":{"slot_index":0,"pokemon_id":"pikachu"}, "opponent":{"slot_index":1,"pokemon_id":"eevee"}})
 def damage(**x): return {"damage_amount":10,"hp_unit":"exact",**x}
@@ -22,3 +22,9 @@ def test_duplicate_conflict_and_repeated_occurrence_do_not_misallocate():
  assert b.confirm(**args)["status"]=="duplicate"
  changed={**args,"payload":damage(damage_amount=11)}; assert b.confirm(**changed)["status"]=="conflicting_confirmation"
  assert b.confirm(**{**args,"observation_id":"y"})["observation"]["observation_sequence"]==2
+
+def test_production_condition_application_requires_exact_major_condition_and_owner():
+ b=boundary(); args=dict(event_kind="condition_applied_observed",payload={"condition":"burn"},session_id="s",source=CONDITION_APPLICATION_SOURCE,trust=USER_TRUST,confirmed=True,side="opponent",slot_index=1,pokemon_id="eevee",related_observation_id="used-move")
+ result=b.confirm(**args); assert result["status"]=="confirmed" and result["observation"]["reducer_eligibility"]=="candidate"
+ assert b.confirm(**{**args,"payload":{"condition":"unknown"}})["status"]=="invalid_provenance"
+ assert b.confirm(**{**args,"side":"self"})["status"]=="invalid_provenance"

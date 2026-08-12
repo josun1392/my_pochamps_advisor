@@ -9,5 +9,5 @@ def test_invalid_sequence_conflict_repeated_and_domain_preservation():
  c=ObservationCollection("s")
  for value in (None,0,-1,True,"1"): assert c.add_confirmation_result({"status":"confirmed","observation":{"observation_id":"bad", "observation_sequence":value,"event_kind":"used_move_observed","session_id":"s"}})["status"]=="invalid_observation"
  assert c.add_confirmation_result(r("a",1,"pokemon_switch_observed"))["status"]=="added";assert c.add_confirmation_result(r("a",2,"pokemon_switch_observed"))["status"]=="conflicting_confirmation"
- for index, kind in enumerate(("direct_move_damage_observed","used_move_observed","exact_hp_transition_observed","pokemon_switch_observed","pokemon_faint_observed"),2): assert c.add_confirmation_result(r(kind+str(index),index,kind))["status"]=="added"
- assert len(c.snapshot()["ordered_observations"])==6 and c.snapshot()==c.snapshot()
+ for index, kind in enumerate(("direct_move_damage_observed","used_move_observed","exact_hp_transition_observed","pokemon_switch_observed","pokemon_faint_observed","condition_applied_observed"),2): assert c.add_confirmation_result(r(kind+str(index),index,kind))["status"]=="added"
+ assert len(c.snapshot()["ordered_observations"])==7 and c.snapshot()==c.snapshot()

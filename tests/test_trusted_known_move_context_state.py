@@ -10,6 +10,7 @@ from llm.advisor_candidate_contract import (
     prepare_ui_recommendation_cycle,
 )
 from llm.advisor_lifecycle_confirmation import (
+    CONDITION_APPLICATION_SOURCE,
     LifecycleConfirmationBoundary,
     USED_MOVE_SOURCE,
     USER_TRUST,
@@ -106,6 +107,17 @@ def test_switch_back_keeps_each_pokemon_known_moves_and_new_session_starts_unkno
     state_after["opponent_side"]["active_slot_index"] = 2
     assert build_known_move_context_projection(state_after)["opponent"]["known_move_ids"] == ["wish"]
     assert build_known_move_context_projection(_state("session-2"))["opponent"]["state"] == "unknown"
+
+
+def test_observed_condition_application_replays_to_exact_owner_state():
+    store = BattleStateStore(_state()); boundary = LifecycleConfirmationBoundary("session-1", _owners()); collection = ObservationCollection("session-1")
+    coordinator = ObservationReplayCoordinator(store, move_repository=_MoveRepository(set()))
+    confirmed = boundary.confirm(event_kind="condition_applied_observed", payload={"condition": "burn"}, session_id="session-1", source=CONDITION_APPLICATION_SOURCE, trust=USER_TRUST, confirmed=True, side="opponent", slot_index=1, pokemon_id="garchomp", related_observation_id="move-1")
+    assert confirmed["status"] == "confirmed" and collection.add_confirmation_result(confirmed)["status"] == "added"
+    assert _apply(coordinator, collection)["status"] == "applied"
+    state = store.read_snapshot()["state"]
+    assert state["opponent_side"]["pokemon"][1]["condition"] == "burn"
+    assert state["opponent_side"]["pokemon"][2]["condition"] is None
 
 
 def _battle_input(context):
