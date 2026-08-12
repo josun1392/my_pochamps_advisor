@@ -15,6 +15,9 @@ def reduce_switch_cross_action_danger(*, switch_candidate_id: str, selectable: b
         hazard = row.get("entry_hazard_result") if isinstance(row, Mapping) else None
         if isinstance(hazard, Mapping) and hazard.get("status") == "complete" and hazard.get("hazard_ko") is True:
             tier = "executed_guaranteed_self_ko"; break
+        residual = row.get("post_turn_residual_evidence") if isinstance(row, Mapping) else None
+        if isinstance(residual, Mapping) and residual.get("status") == "complete" and residual.get("guaranteed_ko") is True:
+            tier = "executed_guaranteed_self_ko"; break
         damage = row.get("damage_evidence") if isinstance(row, Mapping) else None
         ko = damage.get("ko_interpretation") if isinstance(damage, Mapping) else None
         label = ko.get("primary_ko_label") if isinstance(ko, Mapping) and ko.get("ko_supportability") == "complete" else None

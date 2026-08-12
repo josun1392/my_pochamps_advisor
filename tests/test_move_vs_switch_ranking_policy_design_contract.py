@@ -31,3 +31,8 @@ def test_deterministic_hazard_ko_feeds_existing_danger_tier_without_chip_reward(
     chip_only = {"damage_evidence": None, "entry_hazard_result": {"status": "complete", "hazard_ko": False}, "full_switch_outcome_supportability": "unsupported_mechanic"}
     assert reduce_switch_cross_action_danger(switch_candidate_id="s", selectable=True, incoming_results=[hazard_ko])["cross_action_danger_tier"] == "executed_guaranteed_self_ko"
     assert reduce_switch_cross_action_danger(switch_candidate_id="s", selectable=True, incoming_results=[chip_only])["cross_action_danger_tier"] == "neutral_no_positive_danger"
+
+
+def test_proven_toxic_spikes_post_turn_ko_uses_existing_danger_tier_only():
+    row = {"damage_evidence": {"ko_interpretation": {"ko_supportability": "complete", "primary_ko_label": "no_ko"}}, "post_turn_residual_evidence": {"status": "complete", "guaranteed_ko": True}, "full_switch_outcome_supportability": "unsupported_mechanic"}
+    assert reduce_switch_cross_action_danger(switch_candidate_id="s", selectable=True, incoming_results=[row])["cross_action_danger_tier"] == "executed_guaranteed_self_ko"

@@ -4,6 +4,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 
+from advisor.probability.residual import ResidualSpec, residual_damage_amount
 from llm.advisor_opponent_action_evaluator import evaluate_opponent_action_candidate
 
 
@@ -23,6 +24,7 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], e
     row = evaluate_opponent_action_candidate(adapted)
     damage = _apply_focus_sash_survival(row.get("incoming_damage"), adapted_target, action, hazard)
     damage = _apply_sturdy_survival(damage, adapted_target, action, hazard)
+    residual = _evaluate_toxic_spikes_first_residual(target=adapted_target, entry_effect_result=hazard, damage=damage)
     return {
         "switch_candidate_id": transition["self_action"]["candidate_id"],
         "target_pokemon_id": target["pokemon_id"], "target_slot_index": target["slot_index"],
@@ -30,6 +32,7 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], e
         "direct_incoming_supportability": row.get("mechanical_evaluation_status"),
         "move_success_evidence": deepcopy(row.get("move_success")),
         "damage_evidence": damage,
+        "post_turn_residual_evidence": residual,
         "q12_evidence": deepcopy(row.get("incoming_q12")),
         "entry_hazard_result": hazard,
         # Entry/exit mechanics are intentionally not executed.  Direct KO and
@@ -38,6 +41,36 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], e
         "full_switch_outcome_supportability": "unsupported_mechanic",
         "incompleteness_reasons": ["entry_effects_not_applied"],
     }
+
+
+def _evaluate_toxic_spikes_first_residual(*, target: Mapping[str, Any], entry_effect_result: Mapping[str, Any] | None, damage: Any) -> dict[str, Any]:
+    """Prove only the first Toxic Spikes status chip after the redirected hit.
+
+    This is intentionally not a general end-of-turn engine: it consumes the
+    exact poison/toxic condition just applied by Toxic Spikes and one resolved
+    direct incoming damage range.  The first toxic tick is deterministic.
+    """
+    toxic = entry_effect_result.get("toxic_spikes_result") if isinstance(entry_effect_result, Mapping) else None
+    if not isinstance(toxic, Mapping) or toxic.get("status") != "complete" or toxic.get("outcome") != "status_applied":
+        return {"status": "not_applicable"}
+    condition = toxic.get("post_condition")
+    if condition not in {"poison", "toxic"}:
+        return {"status": "insufficient_context", "reason": "unsupported_post_entry_condition"}
+    hp = target.get("hp_authority")
+    if not isinstance(hp, Mapping) or hp.get("status") != "known" or not isinstance(hp.get("current_hp"), int) or not isinstance(hp.get("maximum_hp"), int):
+        return {"status": "insufficient_context", "reason": "post_entry_hp_unknown"}
+    if not isinstance(damage, Mapping):
+        return {"status": "insufficient_context", "reason": "incoming_damage_unknown"}
+    damage_range = damage.get("damage_range")
+    minimum = damage_range.get("minimum") if isinstance(damage_range, Mapping) else None
+    if not isinstance(minimum, int) or isinstance(minimum, bool) or minimum < 0:
+        return {"status": "insufficient_context", "reason": "incoming_damage_range_unknown"}
+    ko = damage.get("ko_interpretation")
+    if isinstance(ko, Mapping) and ko.get("focus_sash_survival") == "applied" or isinstance(ko, Mapping) and ko.get("sturdy_survival") == "applied":
+        return {"status": "insufficient_context", "reason": "survival_effect_post_hit_hp_unsupported"}
+    chip = residual_damage_amount(ResidualSpec(condition, hp["maximum_hp"]), 1)
+    resulting_hp = max(0, hp["current_hp"] - minimum - chip)
+    return {"status": "complete", "source": "toxic_spikes_first_end_of_turn", "condition": condition, "residual_damage": chip, "minimum_incoming_damage": minimum, "post_turn_minimum_hp": resulting_hp, "guaranteed_ko": resulting_hp == 0}
 
 
 def _target_after_entry_effects(target: Mapping[str, Any], hazard: Mapping[str, Any] | None) -> Mapping[str, Any]:

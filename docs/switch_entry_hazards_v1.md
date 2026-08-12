@@ -41,6 +41,19 @@ records, preventing identity leakage. No extra Speed model, chip reward,
 safety reward, or ranking score is introduced; currently these non-damaging
 effects do not add a danger tier by themselves.
 
+## Toxic Spikes first end-of-turn residual
+
+When a legal switch deterministically receives poison or toxic from Toxic
+Spikes, the switched-in incoming evaluator can additionally consume the first
+post-hit end-of-turn status tick. It uses B-owned exact post-entry HP, the
+existing canonical residual arithmetic (poison 1/8 max HP; first toxic tick
+1/16), and the resolved incoming move's minimum damage. Only a proven KO from
+that complete sequence enters the existing danger tier; ordinary residual chip
+does not reward or score a switch. Existing Focus Sash or Sturdy survival
+intervention, unknown HP/damage, pre-existing status, toxic escalation, other
+status sources, recovery, weather residuals, and wider end-of-turn ordering
+remain explicitly unsupported here.
+
 ## Intimidate on switch-in
 
 After the supported hazard phase proves B survives, a B whose frozen ability is
