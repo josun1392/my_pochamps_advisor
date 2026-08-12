@@ -247,6 +247,45 @@ def test_hex_and_venoshock_consume_exact_defender_condition_in_native_direct_dam
     assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "status_condition_power_context"
 
 
+def test_weather_ball_and_terrain_pulse_consume_trusted_field_and_groundedness():
+    def resolve(move, field, grounded=None):
+        battle = _battle()
+        battle["moves"]["my_available_moves"][0]["move_id"] = move
+        snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=(move,))
+        damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id=move, selectable_moves=(move,), move_metadata={"category": "special", "power": 50, "type": "normal"})
+        current = damage["battle_context"]["current_state"]
+        current["field_state_context"] = {"current_field": field}
+        if grounded is not None:
+            current["grounded_context"] = {"self": grounded}
+        return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+
+    sun = {"weather": "sun", "terrain": "none", "global_effects": [], "side_effects": [], "status": "user_confirmed", "source": "user_confirmed_current_field_state", "confidence": "known"}
+    electric = {**sun, "weather": "none", "terrain": "electric"}
+    weather_ball = resolve("weather-ball", sun)
+    grounded_pulse = resolve("terrain-pulse", electric, {"status": "known_grounded", "provenance": "user_confirmed_current"})
+    ungrounded_pulse = resolve("terrain-pulse", electric, {"status": "known_ungrounded", "provenance": "user_confirmed_current"})
+    assert weather_ball["status"] == grounded_pulse["status"] == ungrounded_pulse["status"] == "known"
+    assert weather_ball["dynamic_power_evidence"] == {
+        "status": "known", "mechanic": "environment_transformation", "move": "weather-ball",
+        "weather": "sun", "effective_type": "fire", "effective_power": 100, "transformed": True,
+        "rule": "weather-ball-current-weather", "missing_inputs": [],
+    }
+    assert grounded_pulse["dynamic_power_evidence"]["effective_type"] == "electric"
+    assert grounded_pulse["dynamic_power_evidence"]["effective_power"] == 100
+    assert ungrounded_pulse["dynamic_power_evidence"]["effective_type"] == "normal"
+    assert ungrounded_pulse["dynamic_power_evidence"]["effective_power"] == 50
+    assert "sun_fire_boost" in weather_ball["applied_damage_modifiers"]
+    assert "terrain_electric_boost" in grounded_pulse["applied_damage_modifiers"]
+    assert grounded_pulse["damage_range"]["maximum"] > ungrounded_pulse["damage_range"]["maximum"]
+
+    missing = resolve("terrain-pulse", electric)
+    assert missing["status"] == "insufficient_context" and "self.grounded" in missing["missing_inputs"]
+    unknown = resolve("weather-ball", {**sun, "weather": "unknown"})
+    assert unknown["status"] == "insufficient_context" and "field.weather" in unknown["missing_inputs"]
+    malformed = resolve("weather-ball", {"weather": "sun"})
+    assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "environment_transformation_context"
+
+
 def test_type_effectiveness_covers_super_effective_and_immunity():
     class Types:
         def get(self, name):

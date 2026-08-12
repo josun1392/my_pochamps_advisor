@@ -20,6 +20,7 @@ from llm.advisor_battle_state_context import (
     DYNAMIC_MOVE_ASSESSMENT_REGISTRY,
     calculate_stage_adjusted_stat,
     normalize_user_confirmed_current_condition,
+    normalize_user_confirmed_current_field_state,
     normalize_user_confirmed_current_stat_stage,
 )
 
@@ -50,6 +51,7 @@ STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-spe
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
 _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES = frozenset({"eruption", "water-spout", "dragon-energy"})
 _STATUS_CONDITION_POWER_DIRECT_MOVES = frozenset({"hex", "venoshock"})
+_ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES = frozenset({"weather-ball", "terrain-pulse"})
 ITEM_MODIFIER_TAGS = {
     "life-orb": "item_life_orb_boost",
     "choice-band": "item_choice_band_boost",
@@ -109,12 +111,13 @@ def evaluate_direct_damage_mechanics(
     category, power, move_type = move.get("category"), move.get("power"), move.get("type")
     if category == "status":
         return _unsupported("status_move")
-    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES}:
+    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES}:
         return _unsupported("dynamic_base_power")
     facade = _facade_power_context(current) if move_id == "facade" else None
     current_hp_power = _current_hp_proportional_power_context(move_id=move_id, direct_attacker=_mapping(direct.get("attacker"))) if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES else None
     brine_power = _brine_power_context(direct_defender=_mapping(direct.get("defender"))) if move_id == "brine" else None
     status_condition_power = _status_condition_power_context(move_id=move_id, current=current) if move_id in _STATUS_CONDITION_POWER_DIRECT_MOVES else None
+    environment_transformation = _environment_transformation_context(move_id=move_id, current=current) if move_id in _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES else None
     if move_id == "facade" and (category != "physical" or power != 70 or move_type != "normal"):
         return _unsupported("facade_metadata")
     expected_current_hp_metadata = {"eruption": "fire", "water-spout": "water", "dragon-energy": "dragon"}
@@ -125,6 +128,8 @@ def evaluate_direct_damage_mechanics(
     expected_status_condition_metadata = {"hex": "ghost", "venoshock": "poison"}
     if move_id in _STATUS_CONDITION_POWER_DIRECT_MOVES and (category != "special" or power != 65 or move_type != expected_status_condition_metadata[move_id]):
         return _unsupported("status_condition_power_metadata")
+    if move_id in _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES and (category != "special" or power != 50 or move_type != "normal"):
+        return _unsupported("environment_transformation_metadata")
     if isinstance(facade, Mapping):
         if facade.get("status") == "unsupported_mechanic":
             return _unsupported("facade_condition_context")
@@ -153,6 +158,13 @@ def evaluate_direct_damage_mechanics(
         missing.extend(status_condition_power.get("missing_inputs", []))
         if status_condition_power.get("status") == "known":
             power = status_condition_power["effective_power"]
+    if isinstance(environment_transformation, Mapping):
+        if environment_transformation.get("status") == "unsupported_mechanic":
+            return _unsupported("environment_transformation_context")
+        missing.extend(environment_transformation.get("missing_inputs", []))
+        if environment_transformation.get("status") == "known":
+            power = environment_transformation["effective_power"]
+            move_type = environment_transformation["effective_type"]
     minimum, maximum = move.get("min_hits"), move.get("max_hits")
     if minimum is None and maximum is None:
         hit_count = 1
@@ -296,6 +308,8 @@ def evaluate_direct_damage_mechanics(
         result["dynamic_power_evidence"] = deepcopy(dict(brine_power))
     if isinstance(status_condition_power, Mapping) and status_condition_power.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(status_condition_power))
+    if isinstance(environment_transformation, Mapping) and environment_transformation.get("status") == "known":
+        result["dynamic_power_evidence"] = deepcopy(dict(environment_transformation))
     if hit_count == 1:
         result["exact_damage_rolls"] = tuple(rolls)
     return result
@@ -738,6 +752,51 @@ def _status_condition_power_context(*, move_id: str, current: Mapping[str, Any])
         "defender_condition": condition, "condition_met": condition_met,
         "effective_power": 130 if condition_met else 65, "rule": rule,
         "missing_inputs": [],
+    }
+
+
+def _environment_transformation_context(*, move_id: str, current: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve field-changing move metadata from trusted current field authority."""
+    context = current.get("field_state_context")
+    field = context.get("current_field") if isinstance(context, Mapping) else None
+    missing_name = "field.weather" if move_id == "weather-ball" else "field.terrain"
+    if not isinstance(field, Mapping):
+        return {"status": "insufficient_context", "missing_inputs": [missing_name]}
+    if field.get("weather") == "unknown" or field.get("terrain") == "unknown":
+        return {"status": "insufficient_context", "missing_inputs": [missing_name]}
+    try:
+        normalized = normalize_user_confirmed_current_field_state(field)
+    except ValueError:
+        return {"status": "unsupported_mechanic", "missing_inputs": []}
+    if move_id == "weather-ball":
+        weather = normalized["weather"]
+        types = {"sun": "fire", "rain": "water", "sandstorm": "rock", "snow": "ice"}
+        transformed = weather in types
+        return {
+            "status": "known", "mechanic": "environment_transformation", "move": move_id,
+            "weather": weather, "effective_type": types.get(weather, "normal"),
+            "effective_power": 100 if transformed else 50, "transformed": transformed,
+            "rule": "weather-ball-current-weather", "missing_inputs": [],
+        }
+    terrain = normalized["terrain"]
+    if terrain == "none":
+        return {
+            "status": "known", "mechanic": "environment_transformation", "move": move_id,
+            "terrain": terrain, "grounded": None, "effective_type": "normal", "effective_power": 50,
+            "transformed": False, "rule": "terrain-pulse-current-terrain-and-groundedness", "missing_inputs": [],
+        }
+    grounded = _grounded_authority(current, "self")
+    if grounded is None:
+        return {"status": "insufficient_context", "missing_inputs": ["self.grounded"]}
+    if grounded == "invalid":
+        return {"status": "unsupported_mechanic", "missing_inputs": []}
+    types = {"electric": "electric", "grassy": "grass", "misty": "fairy", "psychic": "psychic"}
+    transformed = grounded is True
+    return {
+        "status": "known", "mechanic": "environment_transformation", "move": move_id,
+        "terrain": terrain, "grounded": grounded, "effective_type": types[terrain] if transformed else "normal",
+        "effective_power": 100 if transformed else 50, "transformed": transformed,
+        "rule": "terrain-pulse-current-terrain-and-groundedness", "missing_inputs": [],
     }
 
 
