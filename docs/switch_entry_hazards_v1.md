@@ -124,3 +124,11 @@ damage reduction. Their exact current HP and maximum HP are passed to that
 formula, so the reduction is absent below full HP. Unknown ability or HP, and
 attacker interaction/bypass mechanics not already supported by the direct
 evaluator, remain incomplete rather than being assumed favorable.
+
+## Assault Vest defense
+
+The trusted direct-damage path now consumes an exact defender-owned
+`assault-vest` through the existing canonical Special Defense item modifier.
+It applies only to supported special damage. Unknown defender item authority
+remains incomplete; species-, transform-, activation-, or consumption-dependent
+defensive items (including Eviolite) remain unsupported in this bounded slice.

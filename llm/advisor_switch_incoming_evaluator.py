@@ -184,6 +184,8 @@ def _replace_entry_weather(current: dict[str, Any], entry_effect_result: Mapping
 
 def _defender_provenance(target: Mapping[str, Any]) -> dict[str, Any]:
     types, base, final = (_known_value(target.get(key)) for key in ("current_type_authority", "base_stat_authority", "final_stat_authority"))
+    item_authority = target.get("item_authority")
+    item_known = _known_value(item_authority)
     type_known = isinstance(types, list) and all(isinstance(value, str) and value for value in types)
     stats = lambda value: isinstance(value, Mapping) and all(isinstance(value.get(key), int) and not isinstance(value.get(key), bool) and value[key] > 0 for key in ("hp", "attack", "defense", "special-attack", "special-defense", "speed"))
     return {
@@ -193,7 +195,7 @@ def _defender_provenance(target: Mapping[str, Any]) -> dict[str, Any]:
         "base_stats": {"available": stats(base), "value": deepcopy(base) if stats(base) else None},
         "final_stats": {"available": stats(final), "value": deepcopy(final) if stats(final) else None},
         "known_ability": {"available": isinstance(_known_value(target.get("ability_authority")), str), "value": _known_value(target.get("ability_authority"))},
-        "known_item": {"available": target.get("item_authority", {}).get("status") == "known", "value": _known_value(target.get("item_authority"))},
+        "known_item": {"available": isinstance(item_authority, Mapping) and item_authority.get("status") == "known", "status": "known" if isinstance(item_authority, Mapping) and item_authority.get("status") == "known" and isinstance(item_known, str) and item_known else "known_absent" if isinstance(item_authority, Mapping) and item_authority.get("status") == "known" and item_known is None else "unknown", "value": item_known, "profile_source": "frozen_candidate_item_authority"},
     }
 
 

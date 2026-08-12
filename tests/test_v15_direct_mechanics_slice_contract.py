@@ -42,7 +42,7 @@ def _direct_result(battle):
     return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
 
 
-def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_ability=None, defender_types=None, stages=None):
+def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_item=None, defender_ability=None, defender_types=None, stages=None):
     """Exercise only the frozen request-start modifier authority inputs."""
     battle = _battle()
     battle["moves"]["my_available_moves"][0]["move_id"] = move_id
@@ -78,6 +78,8 @@ def _modifier_result(*, category="physical", move_type="normal", move_id="tackle
     provenance = build_snapshot_stat_provenance(snapshot, species_repository=_Species())
     if defender_types is not None:
         provenance["defender"]["types"] = {"available": True, "value": defender_types}
+    if defender_item is not None:
+        provenance["defender"]["known_item"] = {"status": "known", "value": defender_item}
     return evaluate_direct_damage_mechanics(damage, stat_provenance=provenance, trusted_level=50)
 
 
@@ -390,6 +392,18 @@ def test_full_hp_defender_multiscale_and_shadow_shield_use_existing_formula_redu
     reduced_off = evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
     assert reduced_off["status"] == "known"
     assert reduced_off["damage_range"] == baseline["damage_range"]
+
+
+def test_exact_defender_assault_vest_reuses_canonical_special_defense_item_modifier():
+    special = _modifier_result(category="special", move_type="normal", move_id="swift", power=60)
+    vest = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, defender_item="assault-vest")
+    physical = _modifier_result(category="physical", move_type="normal", move_id="tackle", power=60, defender_item="assault-vest")
+    physical_baseline = _modifier_result(category="physical", move_type="normal", move_id="tackle", power=60)
+    assert vest["status"] == "known"
+    assert vest["applied_damage_modifiers"] == ["defender_item_assault_vest_special_defense"]
+    assert vest["damage_range"]["maximum"] < special["damage_range"]["maximum"]
+    assert physical["damage_range"] == physical_baseline["damage_range"]
+    assert _modifier_result(category="special", move_type="normal", move_id="swift", power=60, defender_item="eviolite")["unsupported_reason"] == "defender_item_modifier"
 
 
 def test_static_self_ability_boosts_use_canonical_move_conditions_only():

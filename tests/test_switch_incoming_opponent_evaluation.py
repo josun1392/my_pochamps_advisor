@@ -141,6 +141,12 @@ def test_direct_adapter_uses_post_entry_weather_for_existing_weather_consumers()
     assert current["field_state_context"]["current_field"]["weather"] == "rain"
 
 
+def test_direct_adapter_preserves_exact_b_owned_defender_item_authority():
+    from llm.advisor_switch_incoming_evaluator import _defender_provenance
+    target = {"session_id": "incoming-s", "slot_index": 1, "pokemon_id": "b", "item_authority": {"status": "known", "value": "assault-vest"}}
+    assert _defender_provenance(target)["known_item"] == {"available": True, "status": "known", "value": "assault-vest", "profile_source": "frozen_candidate_item_authority"}
+
+
 def test_exact_full_hp_focus_sash_refines_only_supported_single_hit_guaranteed_ohko():
     from llm.advisor_switch_incoming_evaluator import _apply_focus_sash_survival
     damage = {"status": "known", "ko_interpretation": {"ko_supportability": "complete", "ohko_result": "guaranteed", "primary_ko_label": "guaranteed_ohko"}}
