@@ -49,6 +49,7 @@ ABILITY_MODIFIER_TAGS = {
 STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band", "wise-glasses", "expert-belt"})
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
 _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES = frozenset({"eruption", "water-spout", "dragon-energy"})
+_STATUS_CONDITION_POWER_DIRECT_MOVES = frozenset({"hex", "venoshock"})
 ITEM_MODIFIER_TAGS = {
     "life-orb": "item_life_orb_boost",
     "choice-band": "item_choice_band_boost",
@@ -77,9 +78,9 @@ def evaluate_direct_damage_mechanics(
 ) -> dict[str, Any]:
     """Return bounded public mechanics evidence without inventing battle facts.
 
-    Only one normal, non-critical, single-hit damaging move is in scope. Facade
-    is the sole supported dynamic-power exception. The caller supplies its
-    existing frozen snapshot damage input and provenance.
+    Only one normal, non-critical, single-hit damaging move is in scope. The
+    supported dynamic-power exceptions consume only their exact frozen inputs.
+    The caller supplies its existing frozen snapshot damage input and provenance.
     `direct_mechanics_context` is deliberately explicit: omitted facts are
     reported as logical missing names instead of becoming defaults.
     """
@@ -108,11 +109,12 @@ def evaluate_direct_damage_mechanics(
     category, power, move_type = move.get("category"), move.get("power"), move.get("type")
     if category == "status":
         return _unsupported("status_move")
-    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", "brine", *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES}:
+    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES}:
         return _unsupported("dynamic_base_power")
     facade = _facade_power_context(current) if move_id == "facade" else None
     current_hp_power = _current_hp_proportional_power_context(move_id=move_id, direct_attacker=_mapping(direct.get("attacker"))) if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES else None
     brine_power = _brine_power_context(direct_defender=_mapping(direct.get("defender"))) if move_id == "brine" else None
+    status_condition_power = _status_condition_power_context(move_id=move_id, current=current) if move_id in _STATUS_CONDITION_POWER_DIRECT_MOVES else None
     if move_id == "facade" and (category != "physical" or power != 70 or move_type != "normal"):
         return _unsupported("facade_metadata")
     expected_current_hp_metadata = {"eruption": "fire", "water-spout": "water", "dragon-energy": "dragon"}
@@ -120,6 +122,9 @@ def evaluate_direct_damage_mechanics(
         return _unsupported("current_hp_proportional_metadata")
     if move_id == "brine" and (category != "special" or power != 65 or move_type != "water"):
         return _unsupported("brine_metadata")
+    expected_status_condition_metadata = {"hex": "ghost", "venoshock": "poison"}
+    if move_id in _STATUS_CONDITION_POWER_DIRECT_MOVES and (category != "special" or power != 65 or move_type != expected_status_condition_metadata[move_id]):
+        return _unsupported("status_condition_power_metadata")
     if isinstance(facade, Mapping):
         if facade.get("status") == "unsupported_mechanic":
             return _unsupported("facade_condition_context")
@@ -142,6 +147,12 @@ def evaluate_direct_damage_mechanics(
         missing.extend(brine_power.get("missing_inputs", []))
         if brine_power.get("status") == "known":
             power = brine_power["effective_power"]
+    if isinstance(status_condition_power, Mapping):
+        if status_condition_power.get("status") == "unsupported_mechanic":
+            return _unsupported("status_condition_power_context")
+        missing.extend(status_condition_power.get("missing_inputs", []))
+        if status_condition_power.get("status") == "known":
+            power = status_condition_power["effective_power"]
     minimum, maximum = move.get("min_hits"), move.get("max_hits")
     if minimum is None and maximum is None:
         hit_count = 1
@@ -283,6 +294,8 @@ def evaluate_direct_damage_mechanics(
         result["dynamic_power_evidence"] = deepcopy(dict(current_hp_power))
     if isinstance(brine_power, Mapping) and brine_power.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(brine_power))
+    if isinstance(status_condition_power, Mapping) and status_condition_power.get("status") == "known":
+        result["dynamic_power_evidence"] = deepcopy(dict(status_condition_power))
     if hit_count == 1:
         result["exact_damage_rolls"] = tuple(rolls)
     return result
@@ -702,6 +715,29 @@ def _brine_power_context(*, direct_defender: Mapping[str, Any]) -> dict[str, Any
         "defender_maximum_hp": maximum, "condition_met": condition_met,
         "effective_power": 130 if condition_met else 65,
         "rule": "opponent-half-hp-or-less-doubles-power", "missing_inputs": [],
+    }
+
+
+def _status_condition_power_context(*, move_id: str, current: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve Hex and Venoshock only from one exact defender-owned condition."""
+    context = current.get("condition_context")
+    entries = context.get("current_conditions") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        return {"status": "insufficient_context", "missing_inputs": ["defender.condition"]}
+    matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == "opponent"]
+    if len(matches) != 1:
+        return {"status": "insufficient_context", "missing_inputs": ["defender.condition"]}
+    try:
+        condition = normalize_user_confirmed_current_condition({key: value for key, value in matches[0].items() if key != "provenance"})["condition_type"]
+    except ValueError:
+        return {"status": "unsupported_mechanic", "missing_inputs": []}
+    condition_met = condition != "none" if move_id == "hex" else condition in {"poison", "toxic"}
+    rule = "defender-major-status-doubles-power" if move_id == "hex" else "defender-poison-doubles-power"
+    return {
+        "status": "known", "mechanic": "status_condition_power", "move": move_id,
+        "defender_condition": condition, "condition_met": condition_met,
+        "effective_power": 130 if condition_met else 65, "rule": rule,
+        "missing_inputs": [],
     }
 
 

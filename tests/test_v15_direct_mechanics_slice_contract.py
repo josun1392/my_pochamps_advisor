@@ -219,6 +219,34 @@ def test_brine_consumes_exact_defender_hp_in_native_direct_damage():
     assert at_half["damage_range"]["maximum"] > above_half["damage_range"]["maximum"]
 
 
+def test_hex_and_venoshock_consume_exact_defender_condition_in_native_direct_damage():
+    def condition(value):
+        return {
+            "side": "opponent", "condition_type": value, "status": "user_confirmed",
+            "source": "user_confirmed_current_condition", "confidence": "known",
+        }
+
+    hex_normal = _modifier_result(category="special", move_type="ghost", move_id="hex", power=65, conditions=[condition("none")], defender_types=["water"])
+    hex_burn = _modifier_result(category="special", move_type="ghost", move_id="hex", power=65, conditions=[condition("burn")], defender_types=["water"])
+    venoshock_burn = _modifier_result(category="special", move_type="poison", move_id="venoshock", power=65, conditions=[condition("burn")])
+    venoshock_poison = _modifier_result(category="special", move_type="poison", move_id="venoshock", power=65, conditions=[condition("poison")])
+    assert hex_normal["status"] == hex_burn["status"] == venoshock_burn["status"] == venoshock_poison["status"] == "known"
+    assert hex_normal["dynamic_power_evidence"]["effective_power"] == venoshock_burn["dynamic_power_evidence"]["effective_power"] == 65
+    assert hex_burn["dynamic_power_evidence"] == {
+        "status": "known", "mechanic": "status_condition_power", "move": "hex",
+        "defender_condition": "burn", "condition_met": True, "effective_power": 130,
+        "rule": "defender-major-status-doubles-power", "missing_inputs": [],
+    }
+    assert venoshock_poison["dynamic_power_evidence"]["effective_power"] == 130
+    assert hex_burn["damage_range"]["maximum"] > hex_normal["damage_range"]["maximum"]
+    assert venoshock_poison["damage_range"]["maximum"] > venoshock_burn["damage_range"]["maximum"]
+
+    missing = _modifier_result(category="special", move_type="ghost", move_id="hex", power=65)
+    assert missing["status"] == "insufficient_context" and "defender.condition" in missing["missing_inputs"]
+    malformed = _modifier_result(category="special", move_type="ghost", move_id="hex", power=65, conditions=[{"side": "opponent", "condition_type": "burn"}])
+    assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "status_condition_power_context"
+
+
 def test_type_effectiveness_covers_super_effective_and_immunity():
     class Types:
         def get(self, name):
