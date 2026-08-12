@@ -297,6 +297,7 @@ def _apply(state, event):
     if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery"}:
         pokemon = _pokemon(state, event); before, after = _value(event, "hp_before"), _value(event, "hp_after")
         if pokemon is None or not _exact(before) or not _exact(after) or (effect == "apply_exact_hp_transition" and before < after) or (effect == "apply_exact_hp_recovery" and after < before): return _conflict(event, "invalid_exact_hp_transition")
+        if pokemon.get("fainted") is True: return _conflict(event, "post_faint_hp_transition_unsupported")
         if effect == "apply_exact_hp_recovery" and (before == 0 or pokemon.get("fainted") is True): return _conflict(event, "recovery_after_faint_unsupported")
         current, maximum = pokemon.get("current_hp", "unknown"), pokemon.get("max_hp", "unknown")
         if current is not None and not _unknown(current) and current != before: return _conflict(event, "current_hp_mismatch")
@@ -393,6 +394,7 @@ def _apply(state, event):
         pokemon = _pokemon(state, event); stat, stage = _value(event, "stat"), _value(event, "stage")
         if pokemon is None or stat not in {"attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion"} or not isinstance(stage, int) or isinstance(stage, bool) or not -6 <= stage <= 6:
             return _conflict(event, "invalid_current_stat_stage")
+        if pokemon.get("fainted") is True: return _conflict(event, "post_faint_stat_stage_unsupported")
         stages = pokemon.get("stat_stages", {})
         if not isinstance(stages, dict) or any(key not in {"attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion"} or not isinstance(value, int) or isinstance(value, bool) or not -6 <= value <= 6 for key, value in stages.items()):
             return _conflict(event, "invalid_current_stat_stage_state")
@@ -415,6 +417,7 @@ def _apply(state, event):
 def _pokemon_effect(state, event):
     pokemon = _pokemon(state, event); effect = event["planned_effect"]
     if pokemon is None: return _conflict(event, "missing_pokemon_target")
+    if effect in {"set_condition", "clear_condition"} and pokemon.get("fainted") is True: return _conflict(event, "post_faint_condition_transition_unsupported")
     field, expected = ("condition", _value(event, "condition")) if "condition" in effect else ("known_item", _value(event, "item"))
     current = pokemon.get(field, "unknown")
     if not isinstance(expected, str) or not expected: return _conflict(event, "missing_effect_identity")

@@ -17,3 +17,6 @@ No move effect, hit, boost/drop delta, secondary chance, immunity, ability,
 item interaction, or unobserved stage is inferred. Stat resets, switching
 reset behavior, and automatic parsing of move effects remain outside this
 bounded transition.
+
+An explicit observed faint is terminal for later stat-stage transitions on
+that same identity; contradictory ordered replay is rejected atomically.

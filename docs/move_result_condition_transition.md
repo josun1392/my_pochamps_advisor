@@ -13,3 +13,6 @@ identity, so later snapshots can feed already-supported burn damage, status
 power, action-order, and first-residual consumers. Unknown conditions,
 condition removal, secondary-effect chance, immunities, ability/item effects,
 and multi-turn state remain outside this bounded transition.
+
+An explicit observed faint is terminal for later condition transitions on that
+same identity; replay rejects the contradictory ordered batch atomically.
