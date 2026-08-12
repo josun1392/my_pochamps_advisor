@@ -1,5 +1,5 @@
 from copy import deepcopy
-from llm.advisor_lifecycle_confirmation import CONDITION_APPLICATION_SOURCE, HAZARD_STATE_SOURCE, STAT_STAGE_SOURCE, LifecycleConfirmationBoundary, FIXTURE_SOURCE, FIXTURE_TRUST, PRODUCTION_SOURCE, USER_TRUST
+from llm.advisor_lifecycle_confirmation import CONDITION_APPLICATION_SOURCE, HAZARD_STATE_SOURCE, HP_RECOVERY_SOURCE, STAT_STAGE_SOURCE, LifecycleConfirmationBoundary, FIXTURE_SOURCE, FIXTURE_TRUST, PRODUCTION_SOURCE, USER_TRUST
 
 def boundary(session="s"): return LifecycleConfirmationBoundary(session, {"self":{"slot_index":0,"pokemon_id":"pikachu"}, "opponent":{"slot_index":1,"pokemon_id":"eevee"}})
 def damage(**x): return {"damage_amount":10,"hp_unit":"exact",**x}
@@ -40,3 +40,8 @@ def test_production_hazard_state_requires_complete_side_owned_replacement():
  assert b.confirm(**args)["status"]=="confirmed"
  assert b.confirm(**{**args,"payload":{**payload,"spikes_layers":4}})["status"]=="invalid_provenance"
  assert b.confirm(**{**args,"payload":{"stealth_rock":"absent"}})["status"]=="invalid_provenance"
+
+def test_production_exact_hp_recovery_requires_observed_increase_and_owner():
+ b=boundary(); args=dict(event_kind="exact_hp_recovery_observed",payload={"hp_before":40,"hp_after":70},session_id="s",source=HP_RECOVERY_SOURCE,trust=USER_TRUST,confirmed=True,side="self",slot_index=0,pokemon_id="pikachu")
+ assert b.confirm(**args)["status"]=="confirmed"
+ assert b.confirm(**{**args,"payload":{"hp_before":70,"hp_after":40}})["status"]=="invalid_provenance"

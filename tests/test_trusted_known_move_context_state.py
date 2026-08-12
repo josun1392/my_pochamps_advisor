@@ -12,6 +12,7 @@ from llm.advisor_candidate_contract import (
 from llm.advisor_lifecycle_confirmation import (
     CONDITION_APPLICATION_SOURCE,
     HAZARD_STATE_SOURCE,
+    HP_RECOVERY_SOURCE,
     STAT_STAGE_SOURCE,
     LifecycleConfirmationBoundary,
     USED_MOVE_SOURCE,
@@ -141,6 +142,15 @@ def test_observed_hazard_state_replaces_switch_authority_for_affected_side():
     assert confirmed["status"] == "confirmed" and collection.add_confirmation_result(confirmed)["status"] == "added"
     assert _apply(coordinator, collection)["status"] == "applied"
     assert store.read_snapshot()["state"]["switch_hazard_context"] == {"schema_version": "switch-hazard-context-v2", "session_id": "session-1", "affected_side": "self", **payload}
+
+
+def test_observed_exact_hp_recovery_replays_to_exact_owner_state():
+    store = BattleStateStore(_state()); boundary = LifecycleConfirmationBoundary("session-1", _owners()); collection = ObservationCollection("session-1")
+    coordinator = ObservationReplayCoordinator(store, move_repository=_MoveRepository(set()))
+    confirmed = boundary.confirm(event_kind="exact_hp_recovery_observed", payload={"hp_before": 80, "hp_after": 100}, session_id="session-1", source=HP_RECOVERY_SOURCE, trust=USER_TRUST, confirmed=True, side="self", slot_index=0, pokemon_id="pikachu")
+    assert confirmed["status"] == "confirmed" and collection.add_confirmation_result(confirmed)["status"] == "added"
+    assert _apply(coordinator, collection)["status"] == "applied"
+    assert store.read_snapshot()["state"]["self_side"]["pokemon"][0]["current_hp"] == 100
 
 
 def _battle_input(context):
