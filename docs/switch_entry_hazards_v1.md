@@ -179,3 +179,13 @@ groundedness is exact. It uses existing field and side-owned groundedness
 authority; unknown terrain or groundedness remains incomplete. Ungrounded
 Grassy Glide receives no priority increase. This changes only deterministic
 action-order evidence and creates no switch permission or strategic score.
+
+## Sandstorm and Snow defense
+
+The direct incoming path now consumes trusted `sandstorm` and `snow` weather
+through the canonical formula's defensive stat modifiers. Sandstorm raises a
+Rock-type defender's Special Defense against supported special attacks, while
+Snow raises an Ice-type defender's Defense against supported physical attacks.
+This also lets already-supported Sand Stream and Snow Warning post-entry
+weather flow into direct incoming evaluation. Unknown weather or current types,
+and weather suppression or other unsupported interactions, remain incomplete.

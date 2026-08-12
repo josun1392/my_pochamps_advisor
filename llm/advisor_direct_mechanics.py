@@ -128,7 +128,7 @@ def evaluate_direct_damage_mechanics(
         missing.append("attacker.level")
     direct_attacker = _mapping(direct.get("attacker"))
     direct_defender = _mapping(direct.get("defender"))
-    modifier = _modifier_context(current=current, direct=direct, category=category, move_type=move_type)
+    modifier = _modifier_context(current=current, direct=direct, category=category, move_type=move_type, defender_types=defender["types"] if defender is not None else ())
     ability_modifier = _attacker_ability_modifier_context(
         current=current, direct_attacker=direct_attacker, move_id=move_id, power=power,
         move_type=move_type, attacker_types=attacker["types"] if attacker is not None else (),
@@ -594,19 +594,23 @@ def _item_authority_is_explicit(stat_provenance: Mapping[str, Any], side: str) -
     return _mapping(_mapping(stat_provenance.get(side)).get("known_item")).get("status") in {"known", "known_absent"}
 
 
-def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], category: Any, move_type: Any) -> dict[str, Any]:
+def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str] = ()) -> dict[str, Any]:
     """Adapt only explicit request-start weather, burn, and target screens."""
     result = {"field": Field(is_doubles=False), "burn_mod_q12": Q12_ONE, "applied": [], "missing_inputs": [], "unsupported_reason": None, "weather_known": False, "burn_known": False, "terrain_known": False, "attacker_grounded": None, "defender_grounded": None}
     field_context = _mapping(current.get("field_state_context"))
     field_state = _mapping(field_context.get("current_field"))
     has_field_snapshot = isinstance(current.get("field_state_context"), Mapping)
     weather = field_state.get("weather")
-    if weather in {"none", "rain", "sun"}:
-        result["field"] = Field(weather=weather, is_doubles=False); result["weather_known"] = True
+    if weather in {"none", "rain", "sun", "sandstorm", "snow"}:
+        result["field"] = Field(weather="sand" if weather == "sandstorm" else weather, is_doubles=False); result["weather_known"] = True
         if move_type == "water" and weather == "rain": result["applied"].append("rain_water_boost")
         if move_type == "fire" and weather == "rain": result["applied"].append("rain_fire_reduction")
         if move_type == "fire" and weather == "sun": result["applied"].append("sun_fire_boost")
         if move_type == "water" and weather == "sun": result["applied"].append("sun_water_reduction")
+        if weather == "sandstorm" and category == "special" and "rock" in defender_types:
+            result["applied"].append("sandstorm_rock_special_defense_boost")
+        if weather == "snow" and category == "physical" and "ice" in defender_types:
+            result["applied"].append("snow_ice_defense_boost")
     elif weather in {None, "unknown"}:
         if move_type in {"water", "fire"}: result["missing_inputs"].append("field.weather")
     else: result["unsupported_reason"] = "weather_modifier"

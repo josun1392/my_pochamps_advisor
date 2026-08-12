@@ -307,6 +307,20 @@ def test_unknown_relevant_modifier_context_fails_closed_but_irrelevant_context_d
     assert neutral_weather["status"] == "known"
     assert unknown_burn["status"] == "insufficient_context" and "attacker.condition" in unknown_burn["missing_inputs"]
     assert special_unknown_burn["status"] == "known"
+
+
+def test_sandstorm_and_snow_reuse_canonical_defender_weather_stat_modifiers():
+    special_baseline = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, weather="none", side_effects=[], defender_types=["rock"])
+    sandstorm = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, weather="sandstorm", side_effects=[], defender_types=["rock"])
+    sandstorm_nonrock = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, weather="sandstorm", side_effects=[])
+    physical_baseline = _modifier_result(category="physical", move_type="normal", move_id="tackle", power=60, weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}], defender_types=["ice"])
+    snow = _modifier_result(category="physical", move_type="normal", move_id="tackle", power=60, weather="snow", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}], defender_types=["ice"])
+
+    assert sandstorm["damage_range"]["maximum"] < special_baseline["damage_range"]["maximum"]
+    assert sandstorm["applied_damage_modifiers"] == ["sandstorm_rock_special_defense_boost"]
+    assert sandstorm_nonrock["applied_damage_modifiers"] == []
+    assert snow["damage_range"]["maximum"] < physical_baseline["damage_range"]["maximum"]
+    assert snow["applied_damage_modifiers"] == ["snow_ice_defense_boost"]
     missing_physical_condition = _modifier_result(weather="none", side_effects=[])
     assert missing_physical_condition["status"] == "insufficient_context"
     assert "attacker.condition" in missing_physical_condition["missing_inputs"]
