@@ -536,6 +536,22 @@ def test_static_defender_ability_modifiers_apply_only_to_matching_candidates():
     assert filter_neutral["applied_damage_modifiers"] == []
 
 
+def test_static_attacker_type_effectiveness_abilities_use_exact_current_types():
+    baseline_stab = _modifier_result(category="special", move_type="normal", move_id="swift", power=60)
+    adaptability = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, ability="adaptability")
+    adaptability_mismatch = _modifier_result(category="special", move_type="psychic", move_id="psychic", power=60, ability="adaptability")
+    baseline_resisted = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, defender_types=["rock"])
+    tinted_lens = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, ability="tinted-lens", defender_types=["rock"])
+    tinted_lens_neutral = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, ability="tinted-lens")
+
+    assert adaptability["damage_range"]["maximum"] > baseline_stab["damage_range"]["maximum"]
+    assert adaptability["applied_damage_modifiers"] == ["ability_adaptability_stab_boost"]
+    assert adaptability_mismatch["applied_damage_modifiers"] == []
+    assert tinted_lens["damage_range"]["maximum"] > baseline_resisted["damage_range"]["maximum"]
+    assert tinted_lens["applied_damage_modifiers"] == ["ability_tinted_lens_not_very_effective_boost"]
+    assert tinted_lens_neutral["applied_damage_modifiers"] == []
+
+
 def test_relevant_trusted_stat_stages_adjust_formula_damage_without_affecting_fixed_damage():
     neutral = _modifier_result(stages=[("self", "attack", 0), ("opponent", "defense", 0)])
     boosted = _modifier_result(stages=[("self", "attack", 1), ("opponent", "defense", 0)])

@@ -29,13 +29,17 @@ UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS = frozenset({
     "natures-madness", "psywave", "ruination", "sheer-cold", "sonic-boom", "super-fang",
 })
 NATIVE_DIRECT_MECHANICS_SOURCES = frozenset({"native_q12_direct_damage", "native_level_based_fixed_damage"})
-STATIC_ATTACKER_BASE_POWER_ABILITIES = frozenset({"iron-fist", "strong-jaw", "mega-launcher", "technician"})
+STATIC_ATTACKER_DAMAGE_ABILITIES = frozenset({
+    "adaptability", "iron-fist", "strong-jaw", "mega-launcher", "technician", "tinted-lens",
+})
 STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({"thick-fat", "fur-coat", "ice-scales", "filter", "multiscale", "shadow-shield"})
 ABILITY_MODIFIER_TAGS = {
+    "adaptability": "ability_adaptability_stab_boost",
     "iron-fist": "ability_iron_fist_boost",
     "strong-jaw": "ability_strong_jaw_boost",
     "mega-launcher": "ability_mega_launcher_boost",
     "technician": "ability_technician_boost",
+    "tinted-lens": "ability_tinted_lens_not_very_effective_boost",
 }
 STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band"})
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
@@ -122,6 +126,8 @@ def evaluate_direct_damage_mechanics(
     modifier = _modifier_context(current=current, direct=direct, category=category, move_type=move_type)
     ability_modifier = _attacker_ability_modifier_context(
         current=current, direct_attacker=direct_attacker, move_id=move_id, power=power,
+        move_type=move_type, attacker_types=attacker["types"] if attacker is not None else (),
+        defender_types=defender["types"] if defender is not None else (),
     )
     item_modifier = _attacker_item_modifier_context(
         stat_provenance=stat_provenance, direct_attacker=direct_attacker, category=category,
@@ -379,8 +385,8 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
     return None
 
 
-def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_attacker: Mapping[str, Any], move_id: str, power: Any) -> dict[str, Any]:
-    """Resolve only request-start self ability IDs usable at the BP modifier step."""
+def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_attacker: Mapping[str, Any], move_id: str, power: Any, move_type: Any, attacker_types: tuple[str, ...] | list[str], defender_types: tuple[str, ...] | list[str]) -> dict[str, Any]:
+    """Resolve only static request-start attacker ability effects already owned by Q12."""
     result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None}
     context = current.get("ability_context")
     if not isinstance(context, Mapping):
@@ -407,8 +413,23 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
         return result
     if ability_id in _ACTION_ORDER_ONLY_ABILITIES:
         return result
-    if ability_id not in STATIC_ATTACKER_BASE_POWER_ABILITIES:
+    if ability_id not in STATIC_ATTACKER_DAMAGE_ABILITIES:
         result["unsupported_reason"] = "ability_modifier"
+        return result
+    effect = get_ability(ability_id)
+    if effect is None:
+        result["unsupported_reason"] = "ability_modifier"
+        return result
+    if ability_id == "adaptability":
+        if move_type in attacker_types:
+            result["ability_effect"] = effect
+            result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
+        return result
+    if ability_id == "tinted-lens":
+        effectiveness = type_effectiveness_multiplier(move_type, tuple(defender_types)) if _nonempty_str(move_type) else None
+        if effectiveness is not None and 0 < effectiveness < 1:
+            result["ability_effect"] = effect
+            result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
         return result
     if not _positive_int(power):
         result["missing_inputs"].append("selected_move_metadata")
@@ -419,8 +440,7 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
         return result
     flags = set(flags_by_move.get(move_id, ()))
     modifier = get_bp_ability_modifier(ability_id, base_power=power, move_flags=flags, move_id=move_id)
-    effect = get_ability(ability_id)
-    if effect is None or modifier == Q12_ONE:
+    if modifier == Q12_ONE:
         return result
     result["ability_effect"] = effect
     result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])

@@ -132,3 +132,13 @@ The trusted direct-damage path now consumes an exact defender-owned
 It applies only to supported special damage. Unknown defender item authority
 remains incomplete; species-, transform-, activation-, or consumption-dependent
 defensive items (including Eviolite) remain unsupported in this bounded slice.
+
+## Offensive type-effectiveness abilities
+
+The direct incoming path now consumes exact attacker-owned `adaptability` and
+`tinted-lens` through the canonical damage formula. Adaptability is applied
+only for a same-type attack, while Tinted Lens is applied only for a
+type-resisted, non-immune attack. Both require the existing trusted current
+attacker ability and current attacker/defender type authority; unknown ability
+or types remain incomplete. Other ability interactions, suppression, and
+unsupported attacker abilities remain outside this bounded slice.
