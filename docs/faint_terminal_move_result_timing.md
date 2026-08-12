@@ -1,11 +1,12 @@
 # Faint-terminal observed move-result timing
 
 The reducer now treats an explicitly observed faint as terminal for later
-same-identity HP, major-condition, and absolute stat-stage transitions in the
-ordered replay. A valid sequence remains exact HP reaching zero, followed by
-the explicit faint observation. Any later HP transition, condition result, or
-stat-stage result for that fainted owner conflicts atomically instead of
-leaving stale state for residual, damage, or action-order consumers.
+same-identity HP, major-condition, absolute stat-stage, known-move, and held
+item transitions in the ordered replay. A valid sequence remains exact HP
+reaching zero, followed by the explicit faint observation. Any later HP,
+condition, stat-stage, known-move, or item result for that fainted owner
+conflicts atomically instead of leaving stale state for residual, damage,
+legality, or action-order consumers.
 
 This is an ordering rule for already trusted observations; it does not infer a
 faint from damage, a move hit, a secondary effect, immunity, or a revival. It

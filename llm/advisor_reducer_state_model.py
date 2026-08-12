@@ -402,6 +402,7 @@ def _apply(state, event):
     if effect == "record_known_move":
         pokemon = _pokemon(state, event); move_id = _value(event, "canonical_move_id")
         if pokemon is None or not _canonical_move_id(move_id): return _conflict(event, "invalid_canonical_move_id")
+        if pokemon.get("fainted") is True: return _conflict(event, "post_faint_known_move_transition_unsupported")
         known_moves = pokemon.get("known_move_ids", [])
         if not isinstance(known_moves, list) or len(set(known_moves)) != len(known_moves) or any(not _canonical_move_id(move) for move in known_moves):
             return _conflict(event, "invalid_known_move_state")
@@ -418,6 +419,7 @@ def _pokemon_effect(state, event):
     pokemon = _pokemon(state, event); effect = event["planned_effect"]
     if pokemon is None: return _conflict(event, "missing_pokemon_target")
     if effect in {"set_condition", "clear_condition"} and pokemon.get("fainted") is True: return _conflict(event, "post_faint_condition_transition_unsupported")
+    if effect in {"consume_item", "remove_item"} and pokemon.get("fainted") is True: return _conflict(event, "post_faint_item_transition_unsupported")
     field, expected = ("condition", _value(event, "condition")) if "condition" in effect else ("known_item", _value(event, "item"))
     current = pokemon.get(field, "unknown")
     if not isinstance(expected, str) or not expected: return _conflict(event, "missing_effect_identity")

@@ -67,6 +67,33 @@ def test_faint_is_terminal_for_later_observed_hp_condition_and_stat_stage_result
         assert projected["projected_state"] is None and projected["applied_step_ids"] == []
 
 
+def test_faint_is_terminal_for_later_known_move_and_item_results():
+    zero = step("zero", 1, "apply_exact_hp_transition", **owner(), hp_before=80, hp_after=0)
+    faint = step("faint", 2, "mark_fainted", **owner())
+    post_faint = (
+        step("move", 3, "record_known_move", **owner(), canonical_move_id="tackle"),
+        step("consume", 3, "consume_item", **owner(), item="berry"),
+        step("remove", 3, "remove_item", **owner(), item="berry"),
+    )
+    for result in post_faint:
+        projected = project_atomic_transition(base(), plan(zero, faint, result), "s")
+        assert projected["status"] == "blocked_by_semantic_conflict"
+        assert projected["projected_state"] is None and projected["applied_step_ids"] == []
+    pre_faint = project_atomic_transition(
+        base(),
+        plan(
+            step("move", 1, "record_known_move", **owner(), canonical_move_id="tackle"),
+            step("consume", 2, "consume_item", **owner(), item="berry"),
+            step("zero", 3, "apply_exact_hp_transition", **owner(), hp_before=80, hp_after=0),
+            step("faint", 4, "mark_fainted", **owner()),
+        ),
+        "s",
+    )
+    assert pre_faint["status"] == "ready_with_projected_state"
+    pokemon = pre_faint["projected_state"]["self_side"]["pokemon"][0]
+    assert pokemon["known_move_ids"] == ["tackle"] and pokemon["known_item"] is None and pokemon["fainted"] is True
+
+
 def test_lifecycle_policies_condition_item_field_and_side_condition():
     steps = [step("set", 1, "set_condition", **owner(), condition="burn"), step("clear", 2, "clear_condition", **owner(), condition="burn"), step("item", 3, "consume_item", **owner(), item="berry"), step("weather", 4, "start_weather", weather="rain"), step("weather-end", 5, "end_weather", weather="rain"), step("terrain", 6, "start_terrain", terrain="electric"), step("terrain-end", 7, "end_terrain", terrain="electric"), step("side", 8, "start_side_condition", side="self", side_condition="reflect"), step("side-end", 9, "end_side_condition", side="self", side_condition="reflect")]
     result = project_atomic_transition(base(), plan(*steps), "s")
