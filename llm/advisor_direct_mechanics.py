@@ -108,15 +108,18 @@ def evaluate_direct_damage_mechanics(
     category, power, move_type = move.get("category"), move.get("power"), move.get("type")
     if category == "status":
         return _unsupported("status_move")
-    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES}:
+    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", "brine", *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES}:
         return _unsupported("dynamic_base_power")
     facade = _facade_power_context(current) if move_id == "facade" else None
     current_hp_power = _current_hp_proportional_power_context(move_id=move_id, direct_attacker=_mapping(direct.get("attacker"))) if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES else None
+    brine_power = _brine_power_context(direct_defender=_mapping(direct.get("defender"))) if move_id == "brine" else None
     if move_id == "facade" and (category != "physical" or power != 70 or move_type != "normal"):
         return _unsupported("facade_metadata")
     expected_current_hp_metadata = {"eruption": "fire", "water-spout": "water", "dragon-energy": "dragon"}
     if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES and (category != "special" or power != 150 or move_type != expected_current_hp_metadata[move_id]):
         return _unsupported("current_hp_proportional_metadata")
+    if move_id == "brine" and (category != "special" or power != 65 or move_type != "water"):
+        return _unsupported("brine_metadata")
     if isinstance(facade, Mapping):
         if facade.get("status") == "unsupported_mechanic":
             return _unsupported("facade_condition_context")
@@ -131,6 +134,14 @@ def evaluate_direct_damage_mechanics(
         missing.extend(current_hp_power.get("missing_inputs", []))
         if current_hp_power.get("status") == "known":
             power = current_hp_power["effective_power"]
+    if isinstance(brine_power, Mapping):
+        if brine_power.get("status") == "not_applicable":
+            return _unsupported("defender_already_fainted")
+        if brine_power.get("status") == "unsupported_mechanic":
+            return _unsupported("brine_hp_context")
+        missing.extend(brine_power.get("missing_inputs", []))
+        if brine_power.get("status") == "known":
+            power = brine_power["effective_power"]
     minimum, maximum = move.get("min_hits"), move.get("max_hits")
     if minimum is None and maximum is None:
         hit_count = 1
@@ -270,6 +281,8 @@ def evaluate_direct_damage_mechanics(
         result["dynamic_power_evidence"] = deepcopy(dict(facade))
     if isinstance(current_hp_power, Mapping) and current_hp_power.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(current_hp_power))
+    if isinstance(brine_power, Mapping) and brine_power.get("status") == "known":
+        result["dynamic_power_evidence"] = deepcopy(dict(brine_power))
     if hit_count == 1:
         result["exact_damage_rolls"] = tuple(rolls)
     return result
@@ -666,6 +679,29 @@ def _current_hp_proportional_power_context(*, move_id: Any, direct_attacker: Map
         "attacker_current_hp": current, "attacker_maximum_hp": maximum,
         "effective_power": max(1, 150 * current // maximum),
         "rule": "current-hp-proportional-150", "missing_inputs": [],
+    }
+
+
+def _brine_power_context(*, direct_defender: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve Brine only from exact defender-owned current and maximum HP."""
+    current, maximum = direct_defender.get("current_hp"), direct_defender.get("max_hp")
+    missing = []
+    if isinstance(current, bool) or not isinstance(current, int):
+        missing.append("defender.current_hp")
+    if isinstance(maximum, bool) or not isinstance(maximum, int):
+        missing.append("defender.max_hp")
+    if missing:
+        return {"status": "insufficient_context", "missing_inputs": missing}
+    if maximum <= 0 or current < 0 or current > maximum:
+        return {"status": "unsupported_mechanic", "missing_inputs": []}
+    if current == 0:
+        return {"status": "not_applicable", "missing_inputs": []}
+    condition_met = current * 2 <= maximum
+    return {
+        "status": "known", "mechanic": "brine", "defender_current_hp": current,
+        "defender_maximum_hp": maximum, "condition_met": condition_met,
+        "effective_power": 130 if condition_met else 65,
+        "rule": "opponent-half-hp-or-less-doubles-power", "missing_inputs": [],
     }
 
 

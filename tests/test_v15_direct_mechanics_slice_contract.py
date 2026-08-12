@@ -195,6 +195,30 @@ def test_current_hp_proportional_moves_consume_exact_attacker_hp_in_native_direc
     assert full["damage_range"]["maximum"] > half["damage_range"]["maximum"]
 
 
+def test_brine_consumes_exact_defender_hp_in_native_direct_damage():
+    def resolve(current_hp):
+        battle = _battle()
+        battle["moves"]["my_available_moves"][0]["move_id"] = "brine"
+        snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("brine",))
+        damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id="brine", selectable_moves=("brine",), move_metadata={"category": "special", "power": 65, "type": "water"})
+        current = damage["battle_context"]["current_state"]
+        current["direct_mechanics_context"]["defender"].update(current_hp=current_hp, max_hp=200)
+        current["field_state_context"] = {"current_field": {"weather": "none", "terrain": "none", "side_effects": []}}
+        return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+
+    above_half = resolve(101)
+    at_half = resolve(100)
+    below_half = resolve(99)
+    assert above_half["status"] == at_half["status"] == below_half["status"] == "known"
+    assert above_half["dynamic_power_evidence"] == {
+        "status": "known", "mechanic": "brine", "defender_current_hp": 101,
+        "defender_maximum_hp": 200, "condition_met": False, "effective_power": 65,
+        "rule": "opponent-half-hp-or-less-doubles-power", "missing_inputs": [],
+    }
+    assert at_half["dynamic_power_evidence"]["effective_power"] == below_half["dynamic_power_evidence"]["effective_power"] == 130
+    assert at_half["damage_range"]["maximum"] > above_half["damage_range"]["maximum"]
+
+
 def test_type_effectiveness_covers_super_effective_and_immunity():
     class Types:
         def get(self, name):
