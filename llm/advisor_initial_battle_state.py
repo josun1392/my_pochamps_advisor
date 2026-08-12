@@ -15,7 +15,7 @@ def create_unknown_bootstrap_battle_state(session_id, self_identity, opponent_id
         "session_id": session_id,
         "self_side": _side(self_id),
         "opponent_side": _side(opponent_id),
-        "field": {"weather": make_unknown_battle_fact(), "terrain": make_unknown_battle_fact()},
+        "field": {"weather": make_unknown_battle_fact(), "terrain": make_unknown_battle_fact(), "trick_room_status": make_unknown_battle_fact()},
         "last_applied_observation_sequence": None,
     }
     return {"status": "initial_state_ready", "session_id": session_id, "state": deepcopy(state)}

@@ -30,6 +30,7 @@ def build_runtime_advice_state_projection(runtime_state):
                 "self_side_conditions": _fact(runtime_state["self_side"]["side_conditions"], known_absence=True),
                 "opponent_side_conditions": _fact(runtime_state["opponent_side"]["side_conditions"], known_absence=True),
                 "tailwind": {"self": _observed_tailwind_fact(runtime_state["self_side"]), "opponent": _observed_tailwind_fact(runtime_state["opponent_side"])},
+                "trick_room": _observed_trick_room_fact(runtime_state["field"]),
                 "same_turn_events": _same_turn_events(runtime_state),
             },
         }
@@ -63,9 +64,9 @@ def normalize_runtime_advice_state_projection(value, expected_session_id):
         if not all(_valid_request_fact(active[name]) for name in ("current_hp", "max_hp", "fainted", "condition", "item")):
             raise ValueError("invalid_runtime_advice_state")
     field = value.get("field")
-    if not isinstance(field, dict) or set(field) != {"weather", "terrain", "self_side_conditions", "opponent_side_conditions", "tailwind", "same_turn_events"}:
+    if not isinstance(field, dict) or set(field) != {"weather", "terrain", "self_side_conditions", "opponent_side_conditions", "tailwind", "trick_room", "same_turn_events"}:
         raise ValueError("invalid_runtime_advice_state")
-    if not all(_valid_request_fact(field[name]) for name in ("weather", "terrain", "self_side_conditions", "opponent_side_conditions")) or not _valid_tailwind(field.get("tailwind")) or not _valid_same_turn_events(field.get("same_turn_events"), expected_session_id):
+    if not all(_valid_request_fact(field[name]) for name in ("weather", "terrain", "self_side_conditions", "opponent_side_conditions", "trick_room")) or not _valid_tailwind(field.get("tailwind")) or not _valid_same_turn_events(field.get("same_turn_events"), expected_session_id):
         raise ValueError("invalid_runtime_advice_state")
     return deepcopy(value)
 
@@ -95,6 +96,16 @@ def _observed_tailwind_fact(side):
     status = side.get("tailwind_status") if isinstance(side, dict) else None
     provenance = side.get("tailwind_status_provenance") if isinstance(side, dict) else None
     if not isinstance(provenance, dict) or provenance.get("event_kind") != "tailwind_side_condition_observed" or provenance.get("trust") != "user_confirmed_observation":
+        return {"status": "unknown"}
+    if status not in {"active", "inactive"}:
+        return {"status": "unknown"}
+    return {"status": "known", "value": status}
+
+
+def _observed_trick_room_fact(field):
+    status = field.get("trick_room_status") if isinstance(field, dict) else None
+    provenance = field.get("trick_room_status_provenance") if isinstance(field, dict) else None
+    if not isinstance(provenance, dict) or provenance.get("event_kind") != "trick_room_field_observed" or provenance.get("trust") != "user_confirmed_observation":
         return {"status": "unknown"}
     if status not in {"active", "inactive"}:
         return {"status": "unknown"}

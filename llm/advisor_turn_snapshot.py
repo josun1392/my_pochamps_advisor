@@ -1104,6 +1104,7 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
             raise ValueError("invalid_runtime_advice_state")
         state["runtime_advice_state"] = normalize_runtime_advice_state_projection(runtime_advice_state, session_id)
         _project_observed_tailwind_context(state, state["runtime_advice_state"])
+        _project_observed_trick_room_context(state, state["runtime_advice_state"])
     known_move_context = battle_input.get("known_move_context")
     if known_move_context is not None:
         if session_id is None:
@@ -1233,6 +1234,24 @@ def _project_observed_tailwind_context(state: dict[str, Any], runtime_advice_sta
     existing = state.get("field_state_context")
     context = deepcopy(dict(existing)) if isinstance(existing, Mapping) else {}
     context["tailwind"] = values
+    state["field_state_context"] = context
+
+
+def _project_observed_trick_room_context(state: dict[str, Any], runtime_advice_state: Mapping[str, Any]) -> None:
+    """Bridge only a confirmed global reducer field fact into action order."""
+    field = runtime_advice_state.get("field") if isinstance(runtime_advice_state, Mapping) else None
+    declared = field.get("trick_room") if isinstance(field, Mapping) else None
+    if not isinstance(declared, Mapping):
+        return
+    if declared.get("status") == "known" and declared.get("value") in {"active", "inactive"}:
+        value = {"status": f"known_{declared['value']}", "provenance": "trusted_observed_current"}
+    elif declared.get("status") == "unknown":
+        value = {"status": "unknown", "provenance": "unknown"}
+    else:
+        return
+    existing = state.get("field_state_context")
+    context = deepcopy(dict(existing)) if isinstance(existing, Mapping) else {}
+    context["trick_room"] = value
     state["field_state_context"] = context
 
 
