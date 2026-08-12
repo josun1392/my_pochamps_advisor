@@ -145,6 +145,30 @@ def test_incomplete_or_unsupported_direct_input_never_receives_defaults():
     assert result["unsupported_reason"] == "item_modifier"
 
 
+def test_facade_consumes_exact_attacker_condition_in_native_direct_damage():
+    condition = lambda value: {
+        "side": "self", "condition_type": value, "status": "user_confirmed",
+        "source": "user_confirmed_current_condition", "confidence": "known",
+    }
+    normal = _modifier_result(move_id="facade", power=70, conditions=[condition("none")])
+    burn = _modifier_result(move_id="facade", power=70, conditions=[condition("burn")])
+    poison = _modifier_result(move_id="facade", power=70, conditions=[condition("poison")])
+    assert normal["status"] == burn["status"] == poison["status"] == "known"
+    assert normal["dynamic_power_evidence"]["effective_power"] == 70
+    assert burn["dynamic_power_evidence"] == {
+        "status": "known", "mechanic": "facade", "attacker_condition": "burn",
+        "effective_power": 140, "burn_attack_reduction_ignored": True, "missing_inputs": [],
+    }
+    assert poison["dynamic_power_evidence"]["effective_power"] == 140
+    assert burn["damage_range"]["maximum"] == poison["damage_range"]["maximum"]
+    assert burn["damage_range"]["maximum"] > normal["damage_range"]["maximum"]
+
+    missing = _modifier_result(move_id="facade", power=70)
+    assert missing["status"] == "insufficient_context" and "attacker.condition" in missing["missing_inputs"]
+    malformed = _modifier_result(move_id="facade", power=70, conditions=[{"side": "self", "condition_type": "burn"}])
+    assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "facade_condition_context"
+
+
 def test_type_effectiveness_covers_super_effective_and_immunity():
     class Types:
         def get(self, name):

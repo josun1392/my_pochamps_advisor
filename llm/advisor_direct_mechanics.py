@@ -16,7 +16,12 @@ from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.types import type_effectiveness_multiplier
 from advisor.probability.single_hit import ko_chance_from_outcomes
-from llm.advisor_battle_state_context import DYNAMIC_MOVE_ASSESSMENT_REGISTRY, calculate_stage_adjusted_stat, normalize_user_confirmed_current_stat_stage
+from llm.advisor_battle_state_context import (
+    DYNAMIC_MOVE_ASSESSMENT_REGISTRY,
+    calculate_stage_adjusted_stat,
+    normalize_user_confirmed_current_condition,
+    normalize_user_confirmed_current_stat_stage,
+)
 
 
 _STAT_KEYS = ("hp", "attack", "defense", "special-attack", "special-defense", "speed")
@@ -71,10 +76,11 @@ def evaluate_direct_damage_mechanics(
 ) -> dict[str, Any]:
     """Return bounded public mechanics evidence without inventing battle facts.
 
-    Only one normal, non-critical, single-hit, non-dynamic damaging move is in
-    scope. The caller supplies its existing frozen snapshot damage input and
-    provenance. `direct_mechanics_context` is deliberately explicit: omitted
-    facts are reported as logical missing names instead of becoming defaults.
+    Only one normal, non-critical, single-hit damaging move is in scope. Facade
+    is the sole supported dynamic-power exception. The caller supplies its
+    existing frozen snapshot damage input and provenance.
+    `direct_mechanics_context` is deliberately explicit: omitted facts are
+    reported as logical missing names instead of becoming defaults.
     """
     missing: list[str] = []
     if not isinstance(snapshot_damage_input, Mapping) or not isinstance(stat_provenance, Mapping):
@@ -101,8 +107,17 @@ def evaluate_direct_damage_mechanics(
     category, power, move_type = move.get("category"), move.get("power"), move.get("type")
     if category == "status":
         return _unsupported("status_move")
-    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY:
+    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id != "facade":
         return _unsupported("dynamic_base_power")
+    facade = _facade_power_context(current) if move_id == "facade" else None
+    if move_id == "facade" and (category != "physical" or power != 70 or move_type != "normal"):
+        return _unsupported("facade_metadata")
+    if isinstance(facade, Mapping):
+        if facade.get("status") == "unsupported_mechanic":
+            return _unsupported("facade_condition_context")
+        missing.extend(facade.get("missing_inputs", []))
+        if facade.get("status") == "known":
+            power = facade["effective_power"]
     minimum, maximum = move.get("min_hits"), move.get("max_hits")
     if minimum is None and maximum is None:
         hit_count = 1
@@ -128,7 +143,11 @@ def evaluate_direct_damage_mechanics(
         missing.append("attacker.level")
     direct_attacker = _mapping(direct.get("attacker"))
     direct_defender = _mapping(direct.get("defender"))
-    modifier = _modifier_context(current=current, direct=direct, category=category, move_type=move_type, defender_types=defender["types"] if defender is not None else ())
+    modifier = _modifier_context(
+        current=current, direct=direct, category=category, move_type=move_type,
+        defender_types=defender["types"] if defender is not None else (),
+        ignore_burn_attack_reduction=bool(isinstance(facade, Mapping) and facade.get("burn_attack_reduction_ignored") is True),
+    )
     ability_modifier = _attacker_ability_modifier_context(
         current=current, direct_attacker=direct_attacker, move_id=move_id, power=power,
         move_type=move_type, attacker_types=attacker["types"] if attacker is not None else (),
@@ -234,6 +253,8 @@ def evaluate_direct_damage_mechanics(
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
         "type_damage_evidence": type_authorities["evidence"],
     }
+    if isinstance(facade, Mapping) and facade.get("status") == "known":
+        result["dynamic_power_evidence"] = deepcopy(dict(facade))
     if hit_count == 1:
         result["exact_damage_rolls"] = tuple(rolls)
     return result
@@ -594,7 +615,29 @@ def _item_authority_is_explicit(stat_provenance: Mapping[str, Any], side: str) -
     return _mapping(_mapping(stat_provenance.get(side)).get("known_item")).get("status") in {"known", "known_absent"}
 
 
-def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str] = ()) -> dict[str, Any]:
+def _facade_power_context(current: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve Facade only from one exact attacker-owned current condition."""
+    context = current.get("condition_context")
+    entries = context.get("current_conditions") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        return {"status": "insufficient_context", "missing_inputs": ["attacker.condition"]}
+    matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == "self"]
+    if len(matches) != 1:
+        return {"status": "insufficient_context", "missing_inputs": ["attacker.condition"]}
+    try:
+        condition = normalize_user_confirmed_current_condition({key: value for key, value in matches[0].items() if key != "provenance"})["condition_type"]
+    except ValueError:
+        return {"status": "unsupported_mechanic", "missing_inputs": []}
+    boosted = condition in {"burn", "poison", "toxic", "paralysis"}
+    return {
+        "status": "known", "mechanic": "facade", "attacker_condition": condition,
+        "effective_power": 140 if boosted else 70,
+        "burn_attack_reduction_ignored": condition == "burn",
+        "missing_inputs": [],
+    }
+
+
+def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str] = (), ignore_burn_attack_reduction: bool = False) -> dict[str, Any]:
     """Adapt only explicit request-start weather, burn, and target screens."""
     result = {"field": Field(is_doubles=False), "burn_mod_q12": Q12_ONE, "applied": [], "missing_inputs": [], "unsupported_reason": None, "weather_known": False, "burn_known": False, "terrain_known": False, "attacker_grounded": None, "defender_grounded": None}
     field_context = _mapping(current.get("field_state_context"))
@@ -639,7 +682,10 @@ def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], 
         own = [x for x in conditions if isinstance(x, Mapping) and x.get("side") == "self"]
         if category == "physical":
             if not own or own[0].get("condition_type") == "unknown": result["missing_inputs"].append("attacker.condition")
-            elif own[0].get("condition_type") == "burn": result["burn_mod_q12"] = M_HALF; result["applied"].append("burn_physical_reduction"); result["burn_known"] = True
+            elif own[0].get("condition_type") == "burn":
+                if not ignore_burn_attack_reduction:
+                    result["burn_mod_q12"] = M_HALF; result["applied"].append("burn_physical_reduction")
+                result["burn_known"] = True
             else: result["burn_known"] = True
     elif not has_field_snapshot and _mapping(direct.get("attacker")).get("status") == _KNOWN_ABSENT:
         result["burn_known"] = True
