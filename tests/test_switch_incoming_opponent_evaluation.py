@@ -126,14 +126,25 @@ def test_direct_incoming_uses_b_post_entry_condition_and_speed_stage_not_active_
 
 def test_toxic_spikes_first_residual_proves_only_complete_post_hit_ko():
     from llm.advisor_switch_incoming_evaluator import _evaluate_toxic_spikes_first_residual
-    target = {"hp_authority": {"status": "known", "current_hp": 30, "maximum_hp": 160}}
+    target = {"hp_authority": {"status": "known", "current_hp": 30, "maximum_hp": 160}, "ability_authority": {"status": "known", "value": "pressure"}}
     damage = {"damage_range": {"minimum": 10}, "ko_interpretation": {"ko_supportability": "complete", "primary_ko_label": "no_ko"}}
     result = _evaluate_toxic_spikes_first_residual(target=target, entry_effect_result={"toxic_spikes_result": {"status": "complete", "outcome": "status_applied", "post_condition": "poison"}}, damage=damage)
     assert result == {"status": "complete", "source": "toxic_spikes_first_end_of_turn", "condition": "poison", "residual_damage": 20, "minimum_incoming_damage": 10, "post_turn_minimum_hp": 0, "guaranteed_ko": True}
-    toxic = _evaluate_toxic_spikes_first_residual(target={"hp_authority": {"status": "known", "current_hp": 20, "maximum_hp": 160}}, entry_effect_result={"toxic_spikes_result": {"status": "complete", "outcome": "status_applied", "post_condition": "toxic"}}, damage={"damage_range": {"minimum": 0}})
+    toxic = _evaluate_toxic_spikes_first_residual(target={"hp_authority": {"status": "known", "current_hp": 20, "maximum_hp": 160}, "ability_authority": {"status": "known", "value": "pressure"}}, entry_effect_result={"toxic_spikes_result": {"status": "complete", "outcome": "status_applied", "post_condition": "toxic"}}, damage={"damage_range": {"minimum": 0}})
     assert toxic["residual_damage"] == 10 and toxic["guaranteed_ko"] is False
-    assert _evaluate_toxic_spikes_first_residual(target=target, entry_effect_result={"toxic_spikes_result": {"status": "complete", "outcome": "already_statused"}}, damage=damage)["status"] == "not_applicable"
+    assert _evaluate_toxic_spikes_first_residual(target=target, entry_effect_result={"toxic_spikes_result": {"status": "complete", "outcome": "already_statused"}}, damage=damage)["status"] == "insufficient_context"
     assert _evaluate_toxic_spikes_first_residual(target=target, entry_effect_result={"toxic_spikes_result": {"status": "complete", "outcome": "status_applied", "post_condition": "poison"}}, damage={"damage_range": {"minimum": 10}, "ko_interpretation": {"focus_sash_survival": "applied"}})["status"] == "insufficient_context"
+
+
+def test_trusted_current_burn_and_poison_feed_the_same_first_residual_transition():
+    from llm.advisor_switch_incoming_evaluator import _evaluate_first_status_residual
+    damage = {"damage_range": {"minimum": 10}}
+    burn = _evaluate_first_status_residual(target={"persistent_condition_authority": {"status": "known", "value": "burn"}, "ability_authority": {"status": "known", "value": "pressure"}, "hp_authority": {"status": "known", "current_hp": 20, "maximum_hp": 160}}, entry_effect_result=None, damage=damage)
+    assert burn["source"] == "trusted_current_status_first_end_of_turn" and burn["residual_damage"] == 10 and burn["guaranteed_ko"] is True
+    poison = _evaluate_first_status_residual(target={"persistent_condition_authority": {"status": "known", "value": "poison"}, "ability_authority": {"status": "known", "value": "pressure"}, "hp_authority": {"status": "known", "current_hp": 29, "maximum_hp": 160}}, entry_effect_result=None, damage=damage)
+    assert poison["residual_damage"] == 20 and poison["guaranteed_ko"] is True
+    assert _evaluate_first_status_residual(target={"persistent_condition_authority": {"status": "known", "value": "toxic"}, "ability_authority": {"status": "known", "value": "pressure"}, "hp_authority": {"status": "known", "current_hp": 29, "maximum_hp": 160}}, entry_effect_result=None, damage=damage)["reason"] == "toxic_counter_unknown"
+    assert _evaluate_first_status_residual(target={"persistent_condition_authority": {"status": "known", "value": "burn"}, "ability_authority": {"status": "known", "value": "magic-guard"}, "hp_authority": {"status": "known", "current_hp": 20, "maximum_hp": 160}}, entry_effect_result=None, damage=damage)["outcome"] == "prevented_by_magic_guard"
 
 
 def test_direct_incoming_uses_b_owned_trace_copy_not_the_opponent_authority_object():

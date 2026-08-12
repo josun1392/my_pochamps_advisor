@@ -24,7 +24,7 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], e
     row = evaluate_opponent_action_candidate(adapted)
     damage = _apply_focus_sash_survival(row.get("incoming_damage"), adapted_target, action, hazard)
     damage = _apply_sturdy_survival(damage, adapted_target, action, hazard)
-    residual = _evaluate_toxic_spikes_first_residual(target=adapted_target, entry_effect_result=hazard, damage=damage)
+    residual = _evaluate_first_status_residual(target=adapted_target, entry_effect_result=hazard, damage=damage)
     return {
         "switch_candidate_id": transition["self_action"]["candidate_id"],
         "target_pokemon_id": target["pokemon_id"], "target_slot_index": target["slot_index"],
@@ -43,19 +43,30 @@ def evaluate_switch_incoming_opponent_action(*, transition: Mapping[str, Any], e
     }
 
 
-def _evaluate_toxic_spikes_first_residual(*, target: Mapping[str, Any], entry_effect_result: Mapping[str, Any] | None, damage: Any) -> dict[str, Any]:
-    """Prove only the first Toxic Spikes status chip after the redirected hit.
-
-    This is intentionally not a general end-of-turn engine: it consumes the
-    exact poison/toxic condition just applied by Toxic Spikes and one resolved
-    direct incoming damage range.  The first toxic tick is deterministic.
-    """
+def _evaluate_first_status_residual(*, target: Mapping[str, Any], entry_effect_result: Mapping[str, Any] | None, damage: Any) -> dict[str, Any]:
+    """Prove one bounded post-hit status residual, never a general turn engine."""
     toxic = entry_effect_result.get("toxic_spikes_result") if isinstance(entry_effect_result, Mapping) else None
-    if not isinstance(toxic, Mapping) or toxic.get("status") != "complete" or toxic.get("outcome") != "status_applied":
+    entry_condition = toxic.get("post_condition") if isinstance(toxic, Mapping) and toxic.get("status") == "complete" and toxic.get("outcome") == "status_applied" else None
+    authority = target.get("persistent_condition_authority")
+    if entry_condition in {"poison", "toxic"}:
+        condition, source = entry_condition, "toxic_spikes_first_end_of_turn"
+    elif not isinstance(authority, Mapping) or authority.get("status") != "known":
+        return {"status": "insufficient_context", "reason": "current_condition_unknown"}
+    else:
+        condition, source = authority.get("value"), "trusted_current_status_first_end_of_turn"
+    if condition in {None, "none", "paralysis", "sleep", "freeze"}:
         return {"status": "not_applicable"}
-    condition = toxic.get("post_condition")
-    if condition not in {"poison", "toxic"}:
-        return {"status": "insufficient_context", "reason": "unsupported_post_entry_condition"}
+    if condition == "toxic" and source != "toxic_spikes_first_end_of_turn":
+        return {"status": "insufficient_context", "reason": "toxic_counter_unknown"}
+    if condition not in {"burn", "poison", "toxic"}:
+        return {"status": "insufficient_context", "reason": "unsupported_current_condition"}
+    ability = target.get("ability_authority")
+    if not isinstance(ability, Mapping) or ability.get("status") != "known":
+        return {"status": "insufficient_context", "reason": "ability_unknown"}
+    if ability.get("value") == "magic-guard":
+        return {"status": "complete", "source": source, "condition": condition, "residual_damage": 0, "outcome": "prevented_by_magic_guard", "guaranteed_ko": False}
+    if condition == "poison" and ability.get("value") == "poison-heal":
+        return {"status": "insufficient_context", "reason": "poison_heal_transition_unsupported"}
     hp = target.get("hp_authority")
     if not isinstance(hp, Mapping) or hp.get("status") != "known" or not isinstance(hp.get("current_hp"), int) or not isinstance(hp.get("maximum_hp"), int):
         return {"status": "insufficient_context", "reason": "post_entry_hp_unknown"}
@@ -70,7 +81,12 @@ def _evaluate_toxic_spikes_first_residual(*, target: Mapping[str, Any], entry_ef
         return {"status": "insufficient_context", "reason": "survival_effect_post_hit_hp_unsupported"}
     chip = residual_damage_amount(ResidualSpec(condition, hp["maximum_hp"]), 1)
     resulting_hp = max(0, hp["current_hp"] - minimum - chip)
-    return {"status": "complete", "source": "toxic_spikes_first_end_of_turn", "condition": condition, "residual_damage": chip, "minimum_incoming_damage": minimum, "post_turn_minimum_hp": resulting_hp, "guaranteed_ko": resulting_hp == 0}
+    return {"status": "complete", "source": source, "condition": condition, "residual_damage": chip, "minimum_incoming_damage": minimum, "post_turn_minimum_hp": resulting_hp, "guaranteed_ko": resulting_hp == 0}
+
+
+def _evaluate_toxic_spikes_first_residual(*, target: Mapping[str, Any], entry_effect_result: Mapping[str, Any] | None, damage: Any) -> dict[str, Any]:
+    """Compatibility seam for the original Toxic Spikes-only residual slice."""
+    return _evaluate_first_status_residual(target=target, entry_effect_result=entry_effect_result, damage=damage)
 
 
 def _target_after_entry_effects(target: Mapping[str, Any], hazard: Mapping[str, Any] | None) -> Mapping[str, Any]:

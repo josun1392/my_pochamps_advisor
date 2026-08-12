@@ -54,6 +54,14 @@ intervention, unknown HP/damage, pre-existing status, toxic escalation, other
 status sources, recovery, weather residuals, and wider end-of-turn ordering
 remain explicitly unsupported here.
 
+Trusted B-owned current burn and ordinary poison now reuse that same first
+post-hit transition, with their canonical 1/16 and 1/8 maximum-HP damage.
+Exact Magic Guard proves zero supported residual damage. Unknown condition,
+ability, HP, or incoming damage remains incomplete. Pre-existing toxic still
+requires an authoritative counter; Poison Heal, recovery, weather, Leech
+Seed, trapping, and other end-of-turn ordering remain outside this bounded
+slice.
+
 ## Intimidate on switch-in
 
 After the supported hazard phase proves B survives, a B whose frozen ability is
