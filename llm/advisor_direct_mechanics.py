@@ -48,6 +48,7 @@ ABILITY_MODIFIER_TAGS = {
 }
 STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band", "wise-glasses", "expert-belt"})
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
+_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES = frozenset({"eruption", "water-spout", "dragon-energy"})
 ITEM_MODIFIER_TAGS = {
     "life-orb": "item_life_orb_boost",
     "choice-band": "item_choice_band_boost",
@@ -107,17 +108,29 @@ def evaluate_direct_damage_mechanics(
     category, power, move_type = move.get("category"), move.get("power"), move.get("type")
     if category == "status":
         return _unsupported("status_move")
-    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id != "facade":
+    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES}:
         return _unsupported("dynamic_base_power")
     facade = _facade_power_context(current) if move_id == "facade" else None
+    current_hp_power = _current_hp_proportional_power_context(move_id=move_id, direct_attacker=_mapping(direct.get("attacker"))) if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES else None
     if move_id == "facade" and (category != "physical" or power != 70 or move_type != "normal"):
         return _unsupported("facade_metadata")
+    expected_current_hp_metadata = {"eruption": "fire", "water-spout": "water", "dragon-energy": "dragon"}
+    if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES and (category != "special" or power != 150 or move_type != expected_current_hp_metadata[move_id]):
+        return _unsupported("current_hp_proportional_metadata")
     if isinstance(facade, Mapping):
         if facade.get("status") == "unsupported_mechanic":
             return _unsupported("facade_condition_context")
         missing.extend(facade.get("missing_inputs", []))
         if facade.get("status") == "known":
             power = facade["effective_power"]
+    if isinstance(current_hp_power, Mapping):
+        if current_hp_power.get("status") == "not_applicable":
+            return _unsupported("attacker_already_fainted")
+        if current_hp_power.get("status") == "unsupported_mechanic":
+            return _unsupported("current_hp_proportional_hp_context")
+        missing.extend(current_hp_power.get("missing_inputs", []))
+        if current_hp_power.get("status") == "known":
+            power = current_hp_power["effective_power"]
     minimum, maximum = move.get("min_hits"), move.get("max_hits")
     if minimum is None and maximum is None:
         hit_count = 1
@@ -255,6 +268,8 @@ def evaluate_direct_damage_mechanics(
     }
     if isinstance(facade, Mapping) and facade.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(facade))
+    if isinstance(current_hp_power, Mapping) and current_hp_power.get("status") == "known":
+        result["dynamic_power_evidence"] = deepcopy(dict(current_hp_power))
     if hit_count == 1:
         result["exact_damage_rolls"] = tuple(rolls)
     return result
@@ -634,6 +649,23 @@ def _facade_power_context(current: Mapping[str, Any]) -> dict[str, Any]:
         "effective_power": 140 if boosted else 70,
         "burn_attack_reduction_ignored": condition == "burn",
         "missing_inputs": [],
+    }
+
+
+def _current_hp_proportional_power_context(*, move_id: Any, direct_attacker: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve only the three canonical 150-power current-HP moves."""
+    current, maximum = direct_attacker.get("current_hp"), direct_attacker.get("max_hp")
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in (current, maximum)):
+        return {"status": "insufficient_context", "missing_inputs": ["attacker.current_hp", "attacker.max_hp"]}
+    if maximum <= 0 or current < 0 or current > maximum:
+        return {"status": "unsupported_mechanic", "missing_inputs": []}
+    if current == 0:
+        return {"status": "not_applicable", "missing_inputs": []}
+    return {
+        "status": "known", "mechanic": "current_hp_proportional_power", "move": move_id,
+        "attacker_current_hp": current, "attacker_maximum_hp": maximum,
+        "effective_power": max(1, 150 * current // maximum),
+        "rule": "current-hp-proportional-150", "missing_inputs": [],
     }
 
 

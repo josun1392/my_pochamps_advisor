@@ -131,9 +131,9 @@ def test_incomplete_or_unsupported_direct_input_never_receives_defaults():
     assert result["unsupported_reason"] == "status_move"
 
     dynamic_battle = _battle()
-    dynamic_battle["moves"]["my_available_moves"][0]["move_id"] = "eruption"
-    dynamic = build_request_start_recommendation_snapshot(dynamic_battle, selectable_moves=("eruption",))
-    damage = build_snapshot_damage_input(dynamic, candidate_slot_index=0, candidate_move_id="eruption", selectable_moves=("eruption",), move_metadata={"category": "special", "power": 150, "type": "fire"})
+    dynamic_battle["moves"]["my_available_moves"][0]["move_id"] = "electro-ball"
+    dynamic = build_request_start_recommendation_snapshot(dynamic_battle, selectable_moves=("electro-ball",))
+    damage = build_snapshot_damage_input(dynamic, candidate_slot_index=0, candidate_move_id="electro-ball", selectable_moves=("electro-ball",), move_metadata={"category": "special", "power": 1, "type": "electric"})
     result = evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(dynamic, species_repository=_Species()), trusted_level=50)
     assert result["status"] == "unsupported_mechanic"
     assert result["unsupported_reason"] == "dynamic_base_power"
@@ -167,6 +167,32 @@ def test_facade_consumes_exact_attacker_condition_in_native_direct_damage():
     assert missing["status"] == "insufficient_context" and "attacker.condition" in missing["missing_inputs"]
     malformed = _modifier_result(move_id="facade", power=70, conditions=[{"side": "self", "condition_type": "burn"}])
     assert malformed["status"] == "unsupported_mechanic" and malformed["unsupported_reason"] == "facade_condition_context"
+
+
+def test_current_hp_proportional_moves_consume_exact_attacker_hp_in_native_direct_damage():
+    def resolve(move, type_, current_hp):
+        battle = _battle()
+        battle["moves"]["my_available_moves"][0]["move_id"] = move
+        snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=(move,))
+        damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id=move, selectable_moves=(move,), move_metadata={"category": "special", "power": 150, "type": type_})
+        current = damage["battle_context"]["current_state"]
+        current["direct_mechanics_context"]["attacker"].update(current_hp=current_hp, max_hp=100)
+        current["field_state_context"] = {"current_field": {"weather": "none", "terrain": "none", "side_effects": []}}
+        return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+
+    full = resolve("eruption", "fire", 100)
+    half = resolve("eruption", "fire", 50)
+    water = resolve("water-spout", "water", 50)
+    dragon = resolve("dragon-energy", "dragon", 50)
+    assert full["status"] == half["status"] == water["status"] == dragon["status"] == "known"
+    assert full["dynamic_power_evidence"]["effective_power"] == 150
+    assert half["dynamic_power_evidence"] == {
+        "status": "known", "mechanic": "current_hp_proportional_power", "move": "eruption",
+        "attacker_current_hp": 50, "attacker_maximum_hp": 100, "effective_power": 75,
+        "rule": "current-hp-proportional-150", "missing_inputs": [],
+    }
+    assert water["dynamic_power_evidence"]["effective_power"] == dragon["dynamic_power_evidence"]["effective_power"] == 75
+    assert full["damage_range"]["maximum"] > half["damage_range"]["maximum"]
 
 
 def test_type_effectiveness_covers_super_effective_and_immunity():
