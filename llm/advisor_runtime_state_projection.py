@@ -30,6 +30,7 @@ def build_runtime_advice_state_projection(runtime_state):
                 "self_side_conditions": _fact(runtime_state["self_side"]["side_conditions"], known_absence=True),
                 "opponent_side_conditions": _fact(runtime_state["opponent_side"]["side_conditions"], known_absence=True),
                 "tailwind": {"self": _observed_tailwind_fact(runtime_state["self_side"]), "opponent": _observed_tailwind_fact(runtime_state["opponent_side"])},
+                "same_turn_events": _same_turn_events(runtime_state),
             },
         }
         if not _json_safe(projected):
@@ -62,9 +63,9 @@ def normalize_runtime_advice_state_projection(value, expected_session_id):
         if not all(_valid_request_fact(active[name]) for name in ("current_hp", "max_hp", "fainted", "condition", "item")):
             raise ValueError("invalid_runtime_advice_state")
     field = value.get("field")
-    if not isinstance(field, dict) or set(field) != {"weather", "terrain", "self_side_conditions", "opponent_side_conditions", "tailwind"}:
+    if not isinstance(field, dict) or set(field) != {"weather", "terrain", "self_side_conditions", "opponent_side_conditions", "tailwind", "same_turn_events"}:
         raise ValueError("invalid_runtime_advice_state")
-    if not all(_valid_request_fact(field[name]) for name in ("weather", "terrain", "self_side_conditions", "opponent_side_conditions")) or not _valid_tailwind(field.get("tailwind")):
+    if not all(_valid_request_fact(field[name]) for name in ("weather", "terrain", "self_side_conditions", "opponent_side_conditions")) or not _valid_tailwind(field.get("tailwind")) or not _valid_same_turn_events(field.get("same_turn_events"), expected_session_id):
         raise ValueError("invalid_runtime_advice_state")
     return deepcopy(value)
 
@@ -105,6 +106,20 @@ def _valid_tailwind(value):
         _valid_request_fact(value[side]) and (value[side].get("status") != "known" or value[side].get("value") in {"active", "inactive"})
         for side in ("self", "opponent")
     )
+
+
+def _same_turn_events(state):
+    events = state.get("same_turn_event_context", []) if isinstance(state, dict) else []
+    if not isinstance(events, list): return []
+    return [deepcopy(event) for event in events if _valid_same_turn_event(event, state.get("session_id"))]
+
+
+def _valid_same_turn_events(value, session_id):
+    return isinstance(value, list) and all(_valid_same_turn_event(item, session_id) for item in value)
+
+
+def _valid_same_turn_event(value, session_id):
+    return isinstance(value, dict) and value.get("session_id") == session_id and value.get("predicate") in {"received_qualifying_direct_damage", "acted_earlier_this_turn", "lost_hp_this_turn"} and isinstance(value.get("occurred"), bool) and isinstance(value.get("turn_number"), int) and not isinstance(value.get("turn_number"), bool) and value["turn_number"] > 0 and all(isinstance(value.get(key), int) and not isinstance(value.get(key), bool) and value[key] >= 0 for key in ("slot_index", "target_slot_index")) and value.get("side") in {"self", "opponent"} and value.get("target_side") in {"self", "opponent"} and all(isinstance(value.get(key), str) and value[key] for key in ("pokemon_id", "target_pokemon_id")) and isinstance(value.get("provenance"), dict) and value["provenance"].get("event_kind") == "same_turn_event_observed" and value["provenance"].get("trust") == "user_confirmed_observation"
 
 
 def _valid_runtime_state(state):

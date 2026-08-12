@@ -1190,7 +1190,27 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
     context = _normalize_trusted_turn_context(trusted_turn_context, session_id)
     if context is not None:
         state["trusted_turn_context"] = context
+        _project_same_turn_event_context(state, context, battle_input)
     return state
+
+
+def _project_same_turn_event_context(state: dict[str, Any], trusted_turn_context: Mapping[str, Any], battle_input: Mapping[str, Any]) -> None:
+    """Project only current-turn, identity-matching reducer event observations."""
+    if trusted_turn_context.get("status") != "available": return
+    runtime = state.get("runtime_advice_state")
+    field = runtime.get("field") if isinstance(runtime, Mapping) else None
+    events = field.get("same_turn_events") if isinstance(field, Mapping) else None
+    source_pokemon = _mapping_or_empty(battle_input.get("pokemon"))
+    pokemon = {"self": _mapping_or_empty(source_pokemon.get("my_active")), "opponent": _mapping_or_empty(source_pokemon.get("opponent_active"))}
+    if not isinstance(events, list): return
+    current_turn = trusted_turn_context.get("turn_number")
+    matching = []
+    for event in events:
+        if not isinstance(event, Mapping) or event.get("turn_number") != current_turn: continue
+        subject = pokemon.get(event.get("side")); target = pokemon.get(event.get("target_side"))
+        if isinstance(subject, Mapping) and isinstance(target, Mapping) and event.get("slot_index") == _optional_int(subject.get("slot_index")) and event.get("pokemon_id") == _optional_str(subject.get("name_en")) and event.get("target_slot_index") == _optional_int(target.get("slot_index")) and event.get("target_pokemon_id") == _optional_str(target.get("name_en")):
+            matching.append(deepcopy(dict(event)))
+    state["turn_event_context"] = {"status": "known", "projection_source": "runtime_same_turn_event_projection", "session_id": trusted_turn_context["session_id"], "turn_number": current_turn, "events": matching}
 
 
 def _project_observed_tailwind_context(state: dict[str, Any], runtime_advice_state: Mapping[str, Any]) -> None:

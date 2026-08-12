@@ -11,7 +11,7 @@ from llm.advisor_switch_entry_download_authority import build_switch_entry_downl
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
-_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "set_observed_tailwind": "side.tailwind_status", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
+_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "set_observed_tailwind": "side.tailwind_status", "set_same_turn_event": "state.same_turn_event_context", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
 
 
 def make_unknown_battle_fact():
@@ -57,7 +57,9 @@ def validate_battle_state_unknown_markers(state):
         return False
     if any(_contains_marker(value) for key, value in field.items() if key not in {"weather", "terrain"}):
         return False
-    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field"})
+    events = state.get("same_turn_event_context", [])
+    if not isinstance(events, list) or any(not _valid_same_turn_event(event, state.get("session_id")) for event in events): return False
+    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "same_turn_event_context"})
 
 
 def _valid_fact_marker(value):
@@ -241,6 +243,8 @@ def _has_target_identity(event):
         return _value(event, "side") == "self" and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect == "set_observed_tailwind":
         return _value(event, "side") in {"self", "opponent"} and _value(event, "tailwind_status") in {"active", "inactive"}
+    if effect == "set_same_turn_event":
+        return _identity_values(event, "side", "slot_index", "pokemon_id") and _identity_values(event, "target_side", "target_slot_index", "target_pokemon_id") and _value(event, "predicate") in {"received_qualifying_direct_damage", "acted_earlier_this_turn", "lost_hp_this_turn"} and isinstance(_value(event, "occurred"), bool) and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
     if effect in {"set_ability_applicability", "clear_ability_applicability"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "ability_id"), str) and bool(_value(event, "ability_id"))
     if effect in {"set_ability_interaction", "clear_ability_interaction"}:
@@ -384,12 +388,16 @@ def _apply(state, event):
         return None
     if effect == "set_observed_tailwind":
         return _observed_tailwind(state, event)
+    if effect == "set_same_turn_event":
+        return _same_turn_event(state, event)
     if effect == "mark_fainted":
         pokemon = _pokemon(state, event)
         if pokemon is None: return _conflict(event, "missing_faint_target")
         if pokemon.get("fainted") is True: return _conflict(event, "already_fainted")
         if pokemon.get("current_hp") != 0: return _conflict(event, "faint_requires_exact_zero_hp")
-        pokemon["fainted"] = True; _mark(pokemon, "fainted", event); return None
+        pokemon["fainted"] = True; _mark(pokemon, "fainted", event)
+        _invalidate_same_turn_events(state, _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id"))
+        return None
     if effect == "set_current_stat_stage":
         pokemon = _pokemon(state, event); stat, stage = _value(event, "stat"), _value(event, "stage")
         if pokemon is None or stat not in {"attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion"} or not isinstance(stage, int) or isinstance(stage, bool) or not -6 <= stage <= 6:
@@ -413,6 +421,26 @@ def _apply(state, event):
     if effect in {"start_weather", "end_weather", "start_terrain", "end_terrain"}: return _field_effect(state, event)
     if effect in {"start_side_condition", "end_side_condition"}: return _side_condition(state, event)
     return _conflict(event, "unsupported_effect")
+
+
+def _valid_same_turn_event(value, session_id):
+    return isinstance(value, dict) and value.get("session_id") == session_id and value.get("predicate") in {"received_qualifying_direct_damage", "acted_earlier_this_turn", "lost_hp_this_turn"} and isinstance(value.get("occurred"), bool) and isinstance(value.get("turn_number"), int) and not isinstance(value.get("turn_number"), bool) and value["turn_number"] > 0 and all(_identity_values(value, *names) for names in (("side", "slot_index", "pokemon_id"), ("target_side", "target_slot_index", "target_pokemon_id"))) and isinstance(value.get("provenance"), dict)
+
+
+def _same_turn_event(state, event):
+    subject = {key: _value(event, key) for key in ("side", "slot_index", "pokemon_id")}
+    target = {key: _value(event, key) for key in ("target_side", "target_slot_index", "target_pokemon_id")}
+    if _pokemon(state, subject) is None or _pokemon(state, {"side": target["target_side"], "slot_index": target["target_slot_index"], "pokemon_id": target["target_pokemon_id"]}) is None:
+        return _conflict(event, "same_turn_event_identity_mismatch")
+    record = {"session_id": state["session_id"], "turn_number": _value(event, "turn_number"), "predicate": _value(event, "predicate"), "occurred": _value(event, "occurred"), **subject, **target, "provenance": _provenance(event) | {"event_kind": "same_turn_event_observed", "trust": _value(event, "trust")}}
+    events = state.setdefault("same_turn_event_context", [])
+    if not isinstance(events, list): return _conflict(event, "invalid_same_turn_event_state")
+    key = (record["turn_number"], record["predicate"], record["side"], record["slot_index"], record["pokemon_id"], record["target_side"], record["target_slot_index"], record["target_pokemon_id"])
+    existing = next((item for item in events if isinstance(item, dict) and (item.get("turn_number"), item.get("predicate"), item.get("side"), item.get("slot_index"), item.get("pokemon_id"), item.get("target_side"), item.get("target_slot_index"), item.get("target_pokemon_id")) == key), None)
+    if existing is not None:
+        return None if existing.get("occurred") == record["occurred"] else _conflict(event, "conflicting_same_turn_event")
+    events.append(record)
+    return None
 
 
 def _pokemon_effect(state, event):
@@ -479,7 +507,23 @@ def _switch(state, event):
     roster = side.get("pokemon", {}); incoming = roster.get(in_slot, roster.get(str(in_slot))) if isinstance(roster, dict) else None
     if not isinstance(incoming, dict) or incoming.get("pokemon_id", incoming.get("name_en")) != in_id: return _conflict(event, "missing_switch_in_target")
     if incoming.get("fainted") is True: return _conflict(event, "switch_in_fainted")
-    side["active_slot_index"] = in_slot; _mark(side, "active_slot_index", event); return None
+    side["active_slot_index"] = in_slot; _mark(side, "active_slot_index", event)
+    _invalidate_same_turn_events(state, _value(event, "side"), out_slot, out_id)
+    return None
+
+
+def _invalidate_same_turn_events(state, side, slot_index, pokemon_id):
+    """Discard facts whose identity owner has left supported current state."""
+    events = state.get("same_turn_event_context")
+    if not isinstance(events, list):
+        return
+    state["same_turn_event_context"] = [
+        event for event in events
+        if not (isinstance(event, dict) and (
+            (event.get("side"), event.get("slot_index"), event.get("pokemon_id")) == (side, slot_index, pokemon_id)
+            or (event.get("target_side"), event.get("target_slot_index"), event.get("target_pokemon_id")) == (side, slot_index, pokemon_id)
+        ))
+    ]
 
 
 def _set_switch_permission(state, event):

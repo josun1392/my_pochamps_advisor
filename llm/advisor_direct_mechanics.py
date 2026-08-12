@@ -52,6 +52,7 @@ STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
 _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES = frozenset({"eruption", "water-spout", "dragon-energy"})
 _STATUS_CONDITION_POWER_DIRECT_MOVES = frozenset({"hex", "venoshock"})
 _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES = frozenset({"weather-ball", "terrain-pulse"})
+_TURN_EVENT_POWER_DIRECT_MOVES = frozenset({"avalanche", "revenge", "payback", "assurance"})
 ITEM_MODIFIER_TAGS = {
     "life-orb": "item_life_orb_boost",
     "choice-band": "item_choice_band_boost",
@@ -111,13 +112,14 @@ def evaluate_direct_damage_mechanics(
     category, power, move_type = move.get("category"), move.get("power"), move.get("type")
     if category == "status":
         return _unsupported("status_move")
-    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES}:
+    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES, *_TURN_EVENT_POWER_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES}:
         return _unsupported("dynamic_base_power")
     facade = _facade_power_context(current) if move_id == "facade" else None
     current_hp_power = _current_hp_proportional_power_context(move_id=move_id, direct_attacker=_mapping(direct.get("attacker"))) if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES else None
     brine_power = _brine_power_context(direct_defender=_mapping(direct.get("defender"))) if move_id == "brine" else None
     status_condition_power = _status_condition_power_context(move_id=move_id, current=current) if move_id in _STATUS_CONDITION_POWER_DIRECT_MOVES else None
     environment_transformation = _environment_transformation_context(move_id=move_id, current=current) if move_id in _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES else None
+    turn_event_power = _turn_event_power_context(move_id=move_id, current=current) if move_id in _TURN_EVENT_POWER_DIRECT_MOVES else None
     if move_id == "facade" and (category != "physical" or power != 70 or move_type != "normal"):
         return _unsupported("facade_metadata")
     expected_current_hp_metadata = {"eruption": "fire", "water-spout": "water", "dragon-energy": "dragon"}
@@ -130,6 +132,9 @@ def evaluate_direct_damage_mechanics(
         return _unsupported("status_condition_power_metadata")
     if move_id in _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES and (category != "special" or power != 50 or move_type != "normal"):
         return _unsupported("environment_transformation_metadata")
+    expected_turn_event_metadata = {"avalanche": ("physical", 60, "ice"), "revenge": ("physical", 60, "fighting"), "payback": ("physical", 50, "dark"), "assurance": ("physical", 60, "dark")}
+    if move_id in _TURN_EVENT_POWER_DIRECT_MOVES and (category, power, move_type) != expected_turn_event_metadata[move_id]:
+        return _unsupported("turn_event_power_metadata")
     if isinstance(facade, Mapping):
         if facade.get("status") == "unsupported_mechanic":
             return _unsupported("facade_condition_context")
@@ -165,6 +170,12 @@ def evaluate_direct_damage_mechanics(
         if environment_transformation.get("status") == "known":
             power = environment_transformation["effective_power"]
             move_type = environment_transformation["effective_type"]
+    if isinstance(turn_event_power, Mapping):
+        if turn_event_power.get("status") == "unsupported_mechanic":
+            return _unsupported("turn_event_power_context")
+        missing.extend(turn_event_power.get("missing_inputs", []))
+        if turn_event_power.get("status") == "known":
+            power = turn_event_power["effective_power"]
     minimum, maximum = move.get("min_hits"), move.get("max_hits")
     if minimum is None and maximum is None:
         hit_count = 1
@@ -310,6 +321,8 @@ def evaluate_direct_damage_mechanics(
         result["dynamic_power_evidence"] = deepcopy(dict(status_condition_power))
     if isinstance(environment_transformation, Mapping) and environment_transformation.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(environment_transformation))
+    if isinstance(turn_event_power, Mapping) and turn_event_power.get("status") == "known":
+        result["dynamic_power_evidence"] = deepcopy(dict(turn_event_power))
     if hit_count == 1:
         result["exact_damage_rolls"] = tuple(rolls)
     return result
@@ -798,6 +811,29 @@ def _environment_transformation_context(*, move_id: str, current: Mapping[str, A
         "effective_power": 100 if transformed else 50, "transformed": transformed,
         "rule": "terrain-pulse-current-terrain-and-groundedness", "missing_inputs": [],
     }
+
+
+def _turn_event_power_context(*, move_id: str, current: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve only a matching trusted same-turn observation predicate."""
+    context = current.get("turn_event_context")
+    if not isinstance(context, Mapping) or context.get("status") != "known" or context.get("projection_source") != "runtime_same_turn_event_projection" or not isinstance(context.get("turn_number"), int) or isinstance(context.get("turn_number"), bool):
+        return {"status": "insufficient_context", "missing_inputs": ["same_turn_event"]}
+    events = context.get("events")
+    if not isinstance(events, list): return {"status": "unsupported_mechanic", "missing_inputs": []}
+    predicate = "received_qualifying_direct_damage" if move_id in {"avalanche", "revenge"} else "acted_earlier_this_turn" if move_id == "payback" else "lost_hp_this_turn"
+    expected_subject = "self" if move_id in {"avalanche", "revenge"} else "opponent"
+    expected_target = "opponent" if expected_subject == "self" else "self"
+    matches = [event for event in events if isinstance(event, Mapping) and event.get("session_id") == context.get("session_id") and event.get("turn_number") == context.get("turn_number") and event.get("predicate") == predicate and event.get("side") == expected_subject and event.get("target_side") == expected_target and isinstance(event.get("occurred"), bool) and _valid_same_turn_event_provenance(event.get("provenance"))]
+    if len(matches) != 1:
+        return {"status": "insufficient_context", "missing_inputs": ["same_turn_event"]}
+    occurred = matches[0]["occurred"]
+    base_power = 50 if move_id == "payback" else 60
+    rule = "received-target-direct-damage-this-turn-doubles-power" if move_id in {"avalanche", "revenge"} else "target-acted-earlier-this-turn-doubles-power" if move_id == "payback" else "target-lost-hp-this-turn-doubles-power"
+    return {"status": "known", "mechanic": "turn_event_power", "move": move_id, "predicate": predicate, "occurred": occurred, "effective_power": base_power * (2 if occurred else 1), "rule": rule, "missing_inputs": []}
+
+
+def _valid_same_turn_event_provenance(value: Any) -> bool:
+    return isinstance(value, Mapping) and value.get("event_kind") == "same_turn_event_observed" and value.get("trust") == "user_confirmed_observation"
 
 
 def _modifier_context(*, current: Mapping[str, Any], direct: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str] = (), ignore_burn_attack_reduction: bool = False) -> dict[str, Any]:
