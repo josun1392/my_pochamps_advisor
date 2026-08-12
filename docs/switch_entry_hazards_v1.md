@@ -142,3 +142,13 @@ type-resisted, non-immune attack. Both require the existing trusted current
 attacker ability and current attacker/defender type authority; unknown ability
 or types remain incomplete. Other ability interactions, suppression, and
 unsupported attacker abilities remain outside this bounded slice.
+
+## Offensive static items
+
+The same direct incoming path now consumes exact attacker-owned `wise-glasses`
+for supported special attacks and `expert-belt` for supported super-effective
+attacks. Both reuse the canonical item modifier phases and require the existing
+trusted item authority; Expert Belt additionally relies on the same trusted
+current defender type authority used for type effectiveness. Unknown items or
+types remain incomplete. Activation-, consumption-, species-, or other
+unsupported item interactions remain outside this bounded slice.

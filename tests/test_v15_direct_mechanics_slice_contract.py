@@ -488,7 +488,7 @@ def test_item_authority_fails_closed_for_default_unknown_and_unsupported_profile
     default = _modifier_result(item="system_default")
     no_item = _modifier_result(item="none")
     unsupported = _modifier_result(item="choice-scarf")
-    excluded = _modifier_result(item="wise-glasses")
+    excluded = _modifier_result(item="flame-plate")
     malformed = _modifier_result(item="not a canonical item")
     assert unknown["status"] == "insufficient_context" and unknown["missing_inputs"] == ["attacker.item"]
     assert default["status"] == "insufficient_context" and default["missing_inputs"] == ["attacker.item"]
@@ -550,6 +550,22 @@ def test_static_attacker_type_effectiveness_abilities_use_exact_current_types():
     assert tinted_lens["damage_range"]["maximum"] > baseline_resisted["damage_range"]["maximum"]
     assert tinted_lens["applied_damage_modifiers"] == ["ability_tinted_lens_not_very_effective_boost"]
     assert tinted_lens_neutral["applied_damage_modifiers"] == []
+
+
+def test_static_attacker_item_modifiers_use_exact_category_and_type_effectiveness():
+    baseline_special = _modifier_result(category="special", move_type="normal", move_id="swift", power=60)
+    wise_glasses = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, item="wise-glasses")
+    wise_glasses_physical = _modifier_result(category="physical", move_type="normal", move_id="tackle", power=60, item="wise-glasses")
+    baseline_super = _modifier_result(category="special", move_type="electric", move_id="thunderbolt", power=60, defender_types=["water"])
+    expert_belt = _modifier_result(category="special", move_type="electric", move_id="thunderbolt", power=60, item="expert-belt", defender_types=["water"])
+    expert_belt_neutral = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, item="expert-belt")
+
+    assert wise_glasses["damage_range"]["maximum"] > baseline_special["damage_range"]["maximum"]
+    assert wise_glasses["applied_damage_modifiers"] == ["item_wise_glasses_special_boost"]
+    assert wise_glasses_physical["applied_damage_modifiers"] == []
+    assert expert_belt["damage_range"]["maximum"] > baseline_super["damage_range"]["maximum"]
+    assert expert_belt["applied_damage_modifiers"] == ["item_expert_belt_super_effective_boost"]
+    assert expert_belt_neutral["applied_damage_modifiers"] == []
 
 
 def test_relevant_trusted_stat_stages_adjust_formula_damage_without_affecting_fixed_damage():

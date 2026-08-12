@@ -41,13 +41,15 @@ ABILITY_MODIFIER_TAGS = {
     "technician": "ability_technician_boost",
     "tinted-lens": "ability_tinted_lens_not_very_effective_boost",
 }
-STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band"})
+STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band", "wise-glasses", "expert-belt"})
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
 ITEM_MODIFIER_TAGS = {
     "life-orb": "item_life_orb_boost",
     "choice-band": "item_choice_band_boost",
     "choice-specs": "item_choice_specs_boost",
     "muscle-band": "item_muscle_band_boost",
+    "wise-glasses": "item_wise_glasses_special_boost",
+    "expert-belt": "item_expert_belt_super_effective_boost",
 }
 DEFENDER_ITEM_MODIFIER_TAGS = {"assault-vest": "defender_item_assault_vest_special_defense"}
 DEFENDER_ABILITY_MODIFIER_TAGS = {
@@ -131,6 +133,7 @@ def evaluate_direct_damage_mechanics(
     )
     item_modifier = _attacker_item_modifier_context(
         stat_provenance=stat_provenance, direct_attacker=direct_attacker, category=category,
+        move_type=move_type, defender_types=defender["types"] if defender is not None else (),
     )
     defender_item_modifier = _defender_item_modifier_context(
         stat_provenance=stat_provenance, direct_defender=direct_defender, category=category,
@@ -497,7 +500,7 @@ def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_def
     return result
 
 
-def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direct_attacker: Mapping[str, Any], category: Any) -> dict[str, Any]:
+def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direct_attacker: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str]) -> dict[str, Any]:
     """Resolve only a request-start, user-confirmed self held item.
 
     The profile source is retained by the frozen snapshot so a UI default is
@@ -530,10 +533,16 @@ def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
     if effect is None:
         result["unsupported_reason"] = "item_modifier"
         return result
+    if item_id == "expert-belt":
+        effectiveness = type_effectiveness_multiplier(move_type, tuple(defender_types)) if _nonempty_str(move_type) else None
+        if effectiveness is not None and effectiveness > 1:
+            result["item_effect"] = effect
+            result["applied"].append(ITEM_MODIFIER_TAGS[item_id])
+        return result
     applies = (
         item_id == "life-orb"
         or (item_id in {"choice-band", "muscle-band"} and category == "physical")
-        or (item_id == "choice-specs" and category == "special")
+        or (item_id in {"choice-specs", "wise-glasses"} and category == "special")
     )
     if not applies:
         return result
