@@ -44,6 +44,15 @@ def test_switch_faint_and_atomic_hp_faint_switch_chain():
     assert fainted_in["status"] == "blocked_by_semantic_conflict"
 
 
+def test_recovery_and_faint_require_canonical_hp_ordering():
+    recovery = step("heal", 1, "apply_exact_hp_recovery", **owner(), hp_before=80, hp_after=100)
+    late_faint = step("faint", 2, "mark_fainted", **owner())
+    assert project_atomic_transition(base(), plan(recovery, late_faint), "s")["status"] == "blocked_by_semantic_conflict"
+    zero = step("zero", 1, "apply_exact_hp_transition", **owner(), hp_before=80, hp_after=0)
+    revive = step("revive", 2, "apply_exact_hp_recovery", **owner(), hp_before=0, hp_after=50)
+    assert project_atomic_transition(base(), plan(zero, revive), "s")["status"] == "blocked_by_semantic_conflict"
+
+
 def test_lifecycle_policies_condition_item_field_and_side_condition():
     steps = [step("set", 1, "set_condition", **owner(), condition="burn"), step("clear", 2, "clear_condition", **owner(), condition="burn"), step("item", 3, "consume_item", **owner(), item="berry"), step("weather", 4, "start_weather", weather="rain"), step("weather-end", 5, "end_weather", weather="rain"), step("terrain", 6, "start_terrain", terrain="electric"), step("terrain-end", 7, "end_terrain", terrain="electric"), step("side", 8, "start_side_condition", side="self", side_condition="reflect"), step("side-end", 9, "end_side_condition", side="self", side_condition="reflect")]
     result = project_atomic_transition(base(), plan(*steps), "s")

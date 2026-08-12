@@ -293,6 +293,7 @@ def _apply(state, event):
     if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery"}:
         pokemon = _pokemon(state, event); before, after = _value(event, "hp_before"), _value(event, "hp_after")
         if pokemon is None or not _exact(before) or not _exact(after) or (effect == "apply_exact_hp_transition" and before < after) or (effect == "apply_exact_hp_recovery" and after < before): return _conflict(event, "invalid_exact_hp_transition")
+        if effect == "apply_exact_hp_recovery" and (before == 0 or pokemon.get("fainted") is True): return _conflict(event, "recovery_after_faint_unsupported")
         current, maximum = pokemon.get("current_hp", "unknown"), pokemon.get("max_hp", "unknown")
         if current is not None and not _unknown(current) and current != before: return _conflict(event, "current_hp_mismatch")
         if not _unknown(maximum) and _exact(maximum) and after > maximum: return _conflict(event, "hp_after_exceeds_max")
@@ -380,6 +381,7 @@ def _apply(state, event):
         pokemon = _pokemon(state, event)
         if pokemon is None: return _conflict(event, "missing_faint_target")
         if pokemon.get("fainted") is True: return _conflict(event, "already_fainted")
+        if pokemon.get("current_hp") != 0: return _conflict(event, "faint_requires_exact_zero_hp")
         pokemon["fainted"] = True; _mark(pokemon, "fainted", event); return None
     if effect == "set_current_stat_stage":
         pokemon = _pokemon(state, event); stat, stage = _value(event, "stat"), _value(event, "stage")

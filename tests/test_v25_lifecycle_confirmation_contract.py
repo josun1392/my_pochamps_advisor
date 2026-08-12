@@ -45,3 +45,4 @@ def test_production_exact_hp_recovery_requires_observed_increase_and_owner():
  b=boundary(); args=dict(event_kind="exact_hp_recovery_observed",payload={"hp_before":40,"hp_after":70},session_id="s",source=HP_RECOVERY_SOURCE,trust=USER_TRUST,confirmed=True,side="self",slot_index=0,pokemon_id="pikachu")
  assert b.confirm(**args)["status"]=="confirmed"
  assert b.confirm(**{**args,"payload":{"hp_before":70,"hp_after":40}})["status"]=="invalid_provenance"
+ assert b.confirm(**{**args,"payload":{"hp_before":0,"hp_after":40}})["status"]=="invalid_provenance"
