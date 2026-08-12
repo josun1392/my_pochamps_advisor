@@ -41,4 +41,5 @@ def _side(pokemon_id):
             "known_item": make_unknown_battle_fact(),
         }},
         "side_conditions": make_unknown_battle_fact(),
+        "tailwind_status": make_unknown_battle_fact(),
     }

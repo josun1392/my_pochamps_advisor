@@ -11,7 +11,7 @@ from llm.advisor_switch_entry_download_authority import build_switch_entry_downl
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
-_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
+_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "start_weather": "field.weather", "end_weather": "field.weather", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "set_observed_tailwind": "side.tailwind_status", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
 
 
 def make_unknown_battle_fact():
@@ -33,12 +33,14 @@ def validate_battle_state_unknown_markers(state):
             return False
         if not _valid_fact_marker(side.get("side_conditions")):
             return False
+        if "tailwind_status" in side and not _valid_fact_marker(side.get("tailwind_status")):
+            return False
         roster = side.get("pokemon")
         if not isinstance(roster, dict):
             return False
         if side_name == "self_side" and "switch_permission_context" in side and not _valid_switch_permission_context(state, side["switch_permission_context"]):
             return False
-        if any(_contains_marker(value) for key, value in side.items() if key not in {"pokemon", "side_conditions", "switch_permission_context"}):
+        if any(_contains_marker(value) for key, value in side.items() if key not in {"pokemon", "side_conditions", "tailwind_status", "switch_permission_context"}):
             return False
         for pokemon in roster.values():
             if not isinstance(pokemon, dict):
@@ -237,6 +239,8 @@ def _has_target_identity(event):
         return isinstance(_value(event, "side"), str) and all(_value(event, key) is not None for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id"))
     if effect in {"set_switch_permission", "clear_switch_permission"}:
         return _value(event, "side") == "self" and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
+    if effect == "set_observed_tailwind":
+        return _value(event, "side") in {"self", "opponent"} and _value(event, "tailwind_status") in {"active", "inactive"}
     if effect in {"set_ability_applicability", "clear_ability_applicability"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "ability_id"), str) and bool(_value(event, "ability_id"))
     if effect in {"set_ability_interaction", "clear_ability_interaction"}:
@@ -377,6 +381,8 @@ def _apply(state, event):
         try: state["switch_hazard_context"]=build_switch_hazard_context(session_id=state["session_id"],affected_side=side,stealth_rock="unknown" if effect.startswith("clear") else _value(event,"stealth_rock"),spikes_layers="unknown" if effect.startswith("clear") else _value(event,"spikes_layers"),toxic_spikes_layers="unknown" if effect.startswith("clear") else _value(event,"toxic_spikes_layers"),sticky_web="unknown" if effect.startswith("clear") else _value(event,"sticky_web"))
         except ValueError: return _conflict(event,"invalid_switch_hazard_context")
         return None
+    if effect == "set_observed_tailwind":
+        return _observed_tailwind(state, event)
     if effect == "mark_fainted":
         pokemon = _pokemon(state, event)
         if pokemon is None: return _conflict(event, "missing_faint_target")
@@ -442,6 +448,22 @@ def _side_condition(state, event):
     if start: conditions.append(effect); _mark(side, "side_conditions", event); return None
     if not start and effect in conditions: conditions.remove(effect); _mark(side, "side_conditions", event); return None
     return _conflict(event, "side_condition_missing_or_unknown")
+
+
+def _observed_tailwind(state, event):
+    side = _side(state, _value(event, "side")); status = _value(event, "tailwind_status")
+    if side is None or status not in {"active", "inactive"}: return _conflict(event, "invalid_observed_tailwind")
+    current = side.get("tailwind_status", "unknown")
+    if not (isinstance(current, str) and current in {"active", "inactive", "unknown"}) and not is_unknown_battle_fact(current): return _conflict(event, "invalid_observed_tailwind_state")
+    side["tailwind_status"] = status
+    side["tailwind_status_provenance"] = {**_provenance(event), "event_kind": event.get("event_kind")}
+    conditions = side.get("side_conditions")
+    if isinstance(conditions, list) and all(isinstance(value, str) for value in conditions):
+        present = "tailwind" in conditions
+        if status == "active" and not present: conditions.append("tailwind")
+        elif status == "inactive" and present: conditions.remove("tailwind")
+        _mark(side, "side_conditions", event)
+    return None
 
 
 def _switch(state, event):

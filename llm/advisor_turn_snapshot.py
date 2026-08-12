@@ -1103,6 +1103,7 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
         if session_id is None:
             raise ValueError("invalid_runtime_advice_state")
         state["runtime_advice_state"] = normalize_runtime_advice_state_projection(runtime_advice_state, session_id)
+        _project_observed_tailwind_context(state, state["runtime_advice_state"])
     known_move_context = battle_input.get("known_move_context")
     if known_move_context is not None:
         if session_id is None:
@@ -1190,6 +1191,29 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
     if context is not None:
         state["trusted_turn_context"] = context
     return state
+
+
+def _project_observed_tailwind_context(state: dict[str, Any], runtime_advice_state: Mapping[str, Any]) -> None:
+    """Bridge only confirmed reducer Tailwind facts into canonical action-order context."""
+    field = runtime_advice_state.get("field") if isinstance(runtime_advice_state, Mapping) else None
+    declared = field.get("tailwind") if isinstance(field, Mapping) else None
+    if not isinstance(declared, Mapping):
+        return
+    values = {}
+    for side in ("self", "opponent"):
+        fact = declared.get(side)
+        if not isinstance(fact, Mapping):
+            return
+        if fact.get("status") == "known" and fact.get("value") in {"active", "inactive"}:
+            values[side] = {"status": f"known_{fact['value']}", "provenance": "trusted_observed_current"}
+        elif fact.get("status") == "unknown":
+            values[side] = {"status": "unknown", "provenance": "unknown"}
+        else:
+            return
+    existing = state.get("field_state_context")
+    context = deepcopy(dict(existing)) if isinstance(existing, Mapping) else {}
+    context["tailwind"] = values
+    state["field_state_context"] = context
 
 
 def build_known_move_context_projection(runtime_state: Mapping[str, Any]) -> dict[str, Any]:

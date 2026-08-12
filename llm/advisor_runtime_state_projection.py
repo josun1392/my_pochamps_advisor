@@ -29,6 +29,7 @@ def build_runtime_advice_state_projection(runtime_state):
                 "terrain": _fact(runtime_state["field"]["terrain"], known_absence=True),
                 "self_side_conditions": _fact(runtime_state["self_side"]["side_conditions"], known_absence=True),
                 "opponent_side_conditions": _fact(runtime_state["opponent_side"]["side_conditions"], known_absence=True),
+                "tailwind": {"self": _observed_tailwind_fact(runtime_state["self_side"]), "opponent": _observed_tailwind_fact(runtime_state["opponent_side"])},
             },
         }
         if not _json_safe(projected):
@@ -61,9 +62,9 @@ def normalize_runtime_advice_state_projection(value, expected_session_id):
         if not all(_valid_request_fact(active[name]) for name in ("current_hp", "max_hp", "fainted", "condition", "item")):
             raise ValueError("invalid_runtime_advice_state")
     field = value.get("field")
-    if not isinstance(field, dict) or set(field) != {"weather", "terrain", "self_side_conditions", "opponent_side_conditions"}:
+    if not isinstance(field, dict) or set(field) != {"weather", "terrain", "self_side_conditions", "opponent_side_conditions", "tailwind"}:
         raise ValueError("invalid_runtime_advice_state")
-    if not all(_valid_request_fact(field[name]) for name in field):
+    if not all(_valid_request_fact(field[name]) for name in ("weather", "terrain", "self_side_conditions", "opponent_side_conditions")) or not _valid_tailwind(field.get("tailwind")):
         raise ValueError("invalid_runtime_advice_state")
     return deepcopy(value)
 
@@ -87,6 +88,23 @@ def _fact(value, *, known_absence=False):
     if known_absence and (value is None or value == []):
         return {"status": "known_absent"}
     return {"status": "known", "value": deepcopy(value)}
+
+
+def _observed_tailwind_fact(side):
+    status = side.get("tailwind_status") if isinstance(side, dict) else None
+    provenance = side.get("tailwind_status_provenance") if isinstance(side, dict) else None
+    if not isinstance(provenance, dict) or provenance.get("event_kind") != "tailwind_side_condition_observed" or provenance.get("trust") != "user_confirmed_observation":
+        return {"status": "unknown"}
+    if status not in {"active", "inactive"}:
+        return {"status": "unknown"}
+    return {"status": "known", "value": status}
+
+
+def _valid_tailwind(value):
+    return isinstance(value, dict) and set(value) == {"self", "opponent"} and all(
+        _valid_request_fact(value[side]) and (value[side].get("status") != "known" or value[side].get("value") in {"active", "inactive"})
+        for side in ("self", "opponent")
+    )
 
 
 def _valid_runtime_state(state):
