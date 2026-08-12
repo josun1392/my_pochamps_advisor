@@ -115,3 +115,12 @@ with a proven guaranteed OHKO. Only that combination refines the existing KO
 evidence to no one-hit KO; it does not alter raw damage or add a survival
 reward. Suppressed, unknown, stale, non-full-HP, multi-hit, indirect-damage,
 and later-turn cases remain outside the deterministic subset.
+
+## Full-HP defensive abilities
+
+The existing trusted direct-damage path now recognizes exact defender-owned
+`multiscale` and `shadow-shield`, reusing the canonical formula's full-HP
+damage reduction. Their exact current HP and maximum HP are passed to that
+formula, so the reduction is absent below full HP. Unknown ability or HP, and
+attacker interaction/bypass mechanics not already supported by the direct
+evaluator, remain incomplete rather than being assumed favorable.

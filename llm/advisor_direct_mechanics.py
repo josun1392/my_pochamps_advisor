@@ -30,7 +30,7 @@ UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS = frozenset({
 })
 NATIVE_DIRECT_MECHANICS_SOURCES = frozenset({"native_q12_direct_damage", "native_level_based_fixed_damage"})
 STATIC_ATTACKER_BASE_POWER_ABILITIES = frozenset({"iron-fist", "strong-jaw", "mega-launcher", "technician"})
-STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({"thick-fat", "fur-coat", "ice-scales", "filter"})
+STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({"thick-fat", "fur-coat", "ice-scales", "filter", "multiscale", "shadow-shield"})
 ABILITY_MODIFIER_TAGS = {
     "iron-fist": "ability_iron_fist_boost",
     "strong-jaw": "ability_strong_jaw_boost",
@@ -49,6 +49,8 @@ DEFENDER_ABILITY_MODIFIER_TAGS = {
     "fur-coat": "defender_ability_fur_coat_reduction",
     "ice-scales": "defender_ability_ice_scales_reduction",
     "filter": "defender_ability_filter_reduction",
+    "multiscale": "defender_ability_multiscale_reduction",
+    "shadow-shield": "defender_ability_shadow_shield_reduction",
 }
 
 
@@ -189,6 +191,7 @@ def evaluate_direct_damage_mechanics(
             attacker_ability=ability_modifier["ability_effect"],
             attacker_item=item_modifier["item_effect"],
             defender_ability=defender_ability_modifier["ability_effect"],
+            defender_hp_current=direct_defender["current_hp"], defender_hp_max=direct_defender["max_hp"],
         ))
     except (TypeError, ValueError, KeyError):
         return _unsupported("native_direct_damage")
@@ -456,6 +459,7 @@ def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_def
         or (ability_id == "fur-coat" and category == "physical")
         or (ability_id == "ice-scales" and category == "special")
         or (ability_id == "filter" and _nonempty_str(move_type) and type_effectiveness_multiplier(move_type, tuple(defender_types)) > 1)
+        or (ability_id in {"multiscale", "shadow-shield"})
     )
     if not applies:
         return result

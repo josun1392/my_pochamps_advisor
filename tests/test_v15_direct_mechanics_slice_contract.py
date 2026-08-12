@@ -371,6 +371,27 @@ def test_known_ability_exception_remains_unsupported_instead_of_applying_burn():
     assert result["unsupported_reason"] == "ability_modifier"
 
 
+def test_full_hp_defender_multiscale_and_shadow_shield_use_existing_formula_reduction():
+    baseline = _modifier_result(category="special", move_type="normal", move_id="swift", power=60)
+    multiscale = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, defender_ability="multiscale")
+    shadow_shield = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, defender_ability="shadow-shield")
+    assert multiscale["status"] == shadow_shield["status"] == "known"
+    assert multiscale["applied_damage_modifiers"] == ["defender_ability_multiscale_reduction"]
+    assert shadow_shield["applied_damage_modifiers"] == ["defender_ability_shadow_shield_reduction"]
+    assert multiscale["damage_range"]["maximum"] < baseline["damage_range"]["maximum"]
+    assert shadow_shield["damage_range"] == multiscale["damage_range"]
+
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = "swift"
+    battle["direct_mechanics_context"]["defender"].update(current_hp=99, max_hp=100)
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("swift",))
+    damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id="swift", selectable_moves=("swift",), move_metadata={"category": "special", "power": 60, "type": "normal"})
+    damage["battle_context"]["current_state"]["ability_context"] = {"current_abilities": [{"side": "opponent", "ability": "multiscale"}]}
+    reduced_off = evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+    assert reduced_off["status"] == "known"
+    assert reduced_off["damage_range"] == baseline["damage_range"]
+
+
 def test_static_self_ability_boosts_use_canonical_move_conditions_only():
     baseline = _modifier_result(move_id="mach-punch")
     iron_fist = _modifier_result(move_id="mach-punch", ability="iron-fist")
