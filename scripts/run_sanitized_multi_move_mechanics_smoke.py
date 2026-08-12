@@ -214,7 +214,7 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
         battle["trusted_level_context"]["current_levels"][0]["value"] = 1
         battle["ability_context"] = {"current_abilities": [_current_ability("fur-coat", side="opponent", pokemon="eevee", slot=1)]}
     if fixture_id == DEFENDER_ABILITY_FIXTURES[1]:
-        battle["ability_context"] = {"current_abilities": [_current_ability("solid-rock", side="opponent", pokemon="eevee", slot=1)]}
+        battle["ability_context"] = {"current_abilities": [_current_ability("grass-pelt", side="opponent", pokemon="eevee", slot=1)]}
     if fixture_id == STAGE_FIXTURES[0]:
         battle["trusted_level_context"]["current_levels"][0]["value"] = 1
         battle["stat_stage_context"] = {"current_stages": [_stage("self", "attack", 1), _stage("self", "special-attack", -1), _stage("opponent", "defense", 1), _stage("opponent", "special-defense", -1)]}
@@ -390,7 +390,7 @@ def offline_item_authority_variants() -> dict[str, Any]:
 def offline_defender_ability_authority_variants() -> dict[str, Any]:
     """Exercise target ability authority without turning it into no effect."""
     variants: dict[str, dict[str, Any]] = {}
-    for name, ability in (("unknown", "unknown"), ("malformed", "bad/ability"), ("unsupported", "solid-rock")):
+    for name, ability in (("unknown", "unknown"), ("malformed", "bad/ability"), ("unsupported", "grass-pelt")):
         battle = _battle(known_action_order=True)
         battle["ability_context"] = {"current_abilities": [_current_ability(ability, side="opponent", pokemon="eevee", slot=1)]}
         battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "tackle"}]
@@ -411,7 +411,7 @@ def offline_defender_ability_authority_variants() -> dict[str, Any]:
     prepared = _prepared(DEFENDER_ABILITY_FIXTURES[0])
     mismatch = complete_recommendation_cycle(prepared_cycle=prepared, response_payload={"recommendation_status": "resolved", "selected_candidate_id": 1, "explanation_code": "clear_ranked_winner"})
     no_usable = prepare_ui_recommendation_cycle(
-        selected_moves=[{"move_id": "tackle"}], battle_input={**_battle(known_action_order=True), "ability_context": {"current_abilities": [_current_ability("solid-rock", side="opponent", pokemon="eevee", slot=1)]}, "moves": {"my_available_moves": [{"slot_index": 0, "move_id": "tackle"}]}},
+        selected_moves=[{"move_id": "tackle"}], battle_input={**_battle(known_action_order=True), "ability_context": {"current_abilities": [_current_ability("grass-pelt", side="opponent", pokemon="eevee", slot=1)]}, "moves": {"my_available_moves": [{"slot_index": 0, "move_id": "tackle"}]}},
         move_repository={"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}}, species_repository=_Species(),
     )
     stale_rows = stale.get("recommendation_request", {}).get("candidate_comparisons", []) if isinstance(stale.get("recommendation_request"), Mapping) else []

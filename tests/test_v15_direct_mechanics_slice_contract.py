@@ -525,6 +525,8 @@ def test_static_defender_ability_modifiers_apply_only_to_matching_candidates():
     fur_coat_special = _modifier_result(category="special", weather="none", side_effects=[], defender_ability="fur-coat")
     ice_scales_special = _modifier_result(category="special", weather="none", side_effects=[], defender_ability="ice-scales")
     filter_super = _modifier_result(category="special", move_type="electric", weather="none", side_effects=[], defender_ability="filter", defender_types=["water"])
+    solid_rock_super = _modifier_result(category="special", move_type="electric", weather="none", side_effects=[], defender_ability="solid-rock", defender_types=["water"])
+    prism_armor_super = _modifier_result(category="special", move_type="electric", weather="none", side_effects=[], defender_ability="prism-armor", defender_types=["water"])
     filter_neutral = _modifier_result(category="special", weather="none", side_effects=[], defender_ability="filter")
     assert thick_fat["damage_range"]["maximum"] < fire_baseline["damage_range"]["maximum"]
     assert "defender_ability_thick_fat_reduction" in thick_fat["applied_damage_modifiers"]
@@ -533,6 +535,9 @@ def test_static_defender_ability_modifiers_apply_only_to_matching_candidates():
     assert fur_coat_special["applied_damage_modifiers"] == []
     assert "defender_ability_ice_scales_reduction" in ice_scales_special["applied_damage_modifiers"]
     assert "defender_ability_filter_reduction" in filter_super["applied_damage_modifiers"]
+    assert "defender_ability_solid_rock_reduction" in solid_rock_super["applied_damage_modifiers"]
+    assert "defender_ability_prism_armor_reduction" in prism_armor_super["applied_damage_modifiers"]
+    assert solid_rock_super["damage_range"] == prism_armor_super["damage_range"]
     assert filter_neutral["applied_damage_modifiers"] == []
 
 
@@ -585,7 +590,7 @@ def test_relevant_trusted_stat_stages_adjust_formula_damage_without_affecting_fi
 
 def test_defender_ability_authority_fails_closed_and_fixed_damage_does_not_require_it():
     unknown = _modifier_result(defender_ability="unknown")
-    unsupported = _modifier_result(defender_ability="solid-rock")
+    unsupported = _modifier_result(defender_ability="grass-pelt")
     malformed = _modifier_result(defender_ability="bad/ability")
     fixed_hit = _modifier_result(move_id="double-hit", min_hits=2, max_hits=2, conditions=[{"side": "self", "condition_type": "none"}], defender_ability="fur-coat")
     assert unknown["status"] == "insufficient_context" and unknown["missing_inputs"] == ["defender.ability"]

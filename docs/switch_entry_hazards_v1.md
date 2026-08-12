@@ -152,3 +152,12 @@ trusted item authority; Expert Belt additionally relies on the same trusted
 current defender type authority used for type effectiveness. Unknown items or
 types remain incomplete. Activation-, consumption-, species-, or other
 unsupported item interactions remain outside this bounded slice.
+
+## Super-effective defensive abilities
+
+The direct incoming path now consumes exact defender-owned `solid-rock` and
+`prism-armor` alongside its existing Filter support, reusing the canonical
+super-effective damage-reduction phase. They apply only where trusted current
+typing proves the incoming attack is super-effective. Unknown ability or type
+authority remains incomplete. Attacker interactions not already supported by
+the direct evaluator, including ability-bypass authority, remain incomplete.
