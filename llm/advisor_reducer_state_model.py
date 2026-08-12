@@ -67,7 +67,9 @@ def validate_battle_state_unknown_markers(state):
     if not isinstance(events, list) or any(not _valid_same_turn_event(event, state.get("session_id")) for event in events): return False
     phases = state.get("first_end_of_turn_context", [])
     if not isinstance(phases, list) or any(not _valid_first_end_of_turn_phase(phase, state.get("session_id")) for phase in phases): return False
-    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "same_turn_event_context", "first_end_of_turn_context"})
+    leftovers = state.get("leftovers_end_of_turn_context", [])
+    if not isinstance(leftovers, list) or any(not _valid_leftovers_end_of_turn_result(result, state.get("session_id")) for result in leftovers): return False
+    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context"})
 
 
 def _valid_fact_marker(value):
@@ -466,7 +468,38 @@ def _mark_first_end_of_turn_reached(state, event):
     if existing is not None:
         return None
     phases.append({"session_id": state["session_id"], "turn_number": turn_number, "provenance": _provenance(event) | {"event_kind": "first_end_of_turn_reached_observed", "trust": _value(event, "trust")}})
+    _apply_leftovers_end_of_turn_recovery(state, event)
     return None
+
+
+def _apply_leftovers_end_of_turn_recovery(state, event):
+    """Apply only exact held Leftovers for the living active owner at this phase."""
+    results = state.setdefault("leftovers_end_of_turn_context", [])
+    if not isinstance(results, list):
+        return
+    for side_name in ("self", "opponent"):
+        side = _side(state, side_name)
+        slot_index = side.get("active_slot_index") if isinstance(side, dict) else None
+        roster = side.get("pokemon") if isinstance(side, dict) else None
+        pokemon = roster.get(slot_index, roster.get(str(slot_index))) if isinstance(roster, dict) else None
+        if not isinstance(slot_index, int) or isinstance(slot_index, bool) or not isinstance(pokemon, dict):
+            continue
+        pokemon_id = pokemon.get("pokemon_id", pokemon.get("name_en"))
+        current_hp, maximum_hp = pokemon.get("current_hp"), pokemon.get("max_hp")
+        if pokemon.get("known_item") != "leftovers" or pokemon.get("fainted") is not False or not isinstance(pokemon_id, str) or not pokemon_id or not _exact(current_hp) or not _exact(maximum_hp) or maximum_hp < 1 or current_hp > maximum_hp:
+            continue
+        recovery = maximum_hp // 16 if current_hp < maximum_hp else 0
+        post_hp = min(maximum_hp, current_hp + recovery)
+        result = {"session_id": state["session_id"], "turn_number": _value(event, "turn_number"), "side": side_name, "slot_index": slot_index, "pokemon_id": pokemon_id, "item": "leftovers", "pre_hp": current_hp, "max_hp": maximum_hp, "recovery": recovery, "post_hp": post_hp, "outcome": "recovered" if recovery else "already_full_hp", "provenance": _provenance(event) | {"event_kind": "first_end_of_turn_reached_observed", "trust": _value(event, "trust")}}
+        results.append(result)
+        if post_hp != current_hp:
+            pokemon["current_hp"] = post_hp
+            _mark(pokemon, "current_hp", event)
+
+
+def _valid_leftovers_end_of_turn_result(value, session_id):
+    provenance = value.get("provenance") if isinstance(value, dict) else None
+    return isinstance(value, dict) and value.get("session_id") == session_id and value.get("item") == "leftovers" and value.get("side") in {"self", "opponent"} and isinstance(value.get("slot_index"), int) and not isinstance(value.get("slot_index"), bool) and value["slot_index"] >= 0 and isinstance(value.get("pokemon_id"), str) and bool(value["pokemon_id"]) and isinstance(value.get("turn_number"), int) and not isinstance(value.get("turn_number"), bool) and value["turn_number"] > 0 and all(isinstance(value.get(key), int) and not isinstance(value.get(key), bool) and value[key] >= 0 for key in ("pre_hp", "max_hp", "recovery", "post_hp")) and value["pre_hp"] <= value["max_hp"] and value["post_hp"] <= value["max_hp"] and value["post_hp"] == min(value["max_hp"], value["pre_hp"] + value["recovery"]) and value.get("outcome") in {"recovered", "already_full_hp"} and isinstance(provenance, dict) and provenance.get("event_kind") == "first_end_of_turn_reached_observed" and provenance.get("trust") == "user_confirmed_observation"
 
 
 def _same_turn_event(state, event):
