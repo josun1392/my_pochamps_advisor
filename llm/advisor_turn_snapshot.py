@@ -1192,6 +1192,7 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
     if context is not None:
         state["trusted_turn_context"] = context
         _project_same_turn_event_context(state, context, battle_input)
+        _project_first_end_of_turn_phase_context(state, context)
     return state
 
 
@@ -1212,6 +1213,23 @@ def _project_same_turn_event_context(state: dict[str, Any], trusted_turn_context
         if isinstance(subject, Mapping) and isinstance(target, Mapping) and event.get("slot_index") == _optional_int(subject.get("slot_index")) and event.get("pokemon_id") == _optional_str(subject.get("name_en")) and event.get("target_slot_index") == _optional_int(target.get("slot_index")) and event.get("target_pokemon_id") == _optional_str(target.get("name_en")):
             matching.append(deepcopy(dict(event)))
     state["turn_event_context"] = {"status": "known", "projection_source": "runtime_same_turn_event_projection", "session_id": trusted_turn_context["session_id"], "turn_number": current_turn, "events": matching}
+
+
+def _project_first_end_of_turn_phase_context(state: dict[str, Any], trusted_turn_context: Mapping[str, Any]) -> None:
+    """Expose only the explicit phase record matching the trusted current turn."""
+    runtime = state.get("runtime_advice_state")
+    field = runtime.get("field") if isinstance(runtime, Mapping) else None
+    phases = field.get("first_end_of_turn_phases") if isinstance(field, Mapping) else None
+    current_turn = trusted_turn_context.get("turn_number")
+    reached = isinstance(phases, list) and any(
+        isinstance(phase, Mapping) and phase.get("session_id") == trusted_turn_context.get("session_id") and phase.get("turn_number") == current_turn
+        for phase in phases
+    )
+    state["first_end_of_turn_phase_context"] = {
+        "status": "reached" if reached else "unknown",
+        "session_id": trusted_turn_context["session_id"], "turn_number": current_turn,
+        **({"projection_source": "runtime_first_end_of_turn_phase_projection"} if reached else {}),
+    }
 
 
 def _project_observed_tailwind_context(state: dict[str, Any], runtime_advice_state: Mapping[str, Any]) -> None:

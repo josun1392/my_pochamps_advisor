@@ -32,6 +32,7 @@ def build_runtime_advice_state_projection(runtime_state):
                 "tailwind": {"self": _observed_tailwind_fact(runtime_state["self_side"]), "opponent": _observed_tailwind_fact(runtime_state["opponent_side"])},
                 "trick_room": _observed_trick_room_fact(runtime_state["field"]),
                 "same_turn_events": _same_turn_events(runtime_state),
+                "first_end_of_turn_phases": _first_end_of_turn_phases(runtime_state),
             },
         }
         if not _json_safe(projected):
@@ -64,9 +65,9 @@ def normalize_runtime_advice_state_projection(value, expected_session_id):
         if not all(_valid_request_fact(active[name]) for name in ("current_hp", "max_hp", "fainted", "condition", "item")):
             raise ValueError("invalid_runtime_advice_state")
     field = value.get("field")
-    if not isinstance(field, dict) or set(field) != {"weather", "terrain", "self_side_conditions", "opponent_side_conditions", "tailwind", "trick_room", "same_turn_events"}:
+    if not isinstance(field, dict) or set(field) != {"weather", "terrain", "self_side_conditions", "opponent_side_conditions", "tailwind", "trick_room", "same_turn_events", "first_end_of_turn_phases"}:
         raise ValueError("invalid_runtime_advice_state")
-    if not all(_valid_request_fact(field[name]) for name in ("weather", "terrain", "self_side_conditions", "opponent_side_conditions", "trick_room")) or not _valid_tailwind(field.get("tailwind")) or not _valid_same_turn_events(field.get("same_turn_events"), expected_session_id):
+    if not all(_valid_request_fact(field[name]) for name in ("weather", "terrain", "self_side_conditions", "opponent_side_conditions", "trick_room")) or not _valid_tailwind(field.get("tailwind")) or not _valid_same_turn_events(field.get("same_turn_events"), expected_session_id) or not _valid_first_end_of_turn_phases(field.get("first_end_of_turn_phases"), expected_session_id):
         raise ValueError("invalid_runtime_advice_state")
     return deepcopy(value)
 
@@ -125,8 +126,23 @@ def _same_turn_events(state):
     return [deepcopy(event) for event in events if _valid_same_turn_event(event, state.get("session_id"))]
 
 
+def _first_end_of_turn_phases(state):
+    phases = state.get("first_end_of_turn_context", []) if isinstance(state, dict) else []
+    if not isinstance(phases, list): return []
+    return [deepcopy(phase) for phase in phases if _valid_first_end_of_turn_phase(phase, state.get("session_id"))]
+
+
 def _valid_same_turn_events(value, session_id):
     return isinstance(value, list) and all(_valid_same_turn_event(item, session_id) for item in value)
+
+
+def _valid_first_end_of_turn_phases(value, session_id):
+    return isinstance(value, list) and all(_valid_first_end_of_turn_phase(item, session_id) for item in value)
+
+
+def _valid_first_end_of_turn_phase(value, session_id):
+    provenance = value.get("provenance") if isinstance(value, dict) else None
+    return isinstance(value, dict) and value.get("session_id") == session_id and isinstance(value.get("turn_number"), int) and not isinstance(value.get("turn_number"), bool) and value["turn_number"] > 0 and isinstance(provenance, dict) and provenance.get("event_kind") == "first_end_of_turn_reached_observed" and provenance.get("trust") == "user_confirmed_observation"
 
 
 def _valid_same_turn_event(value, session_id):
