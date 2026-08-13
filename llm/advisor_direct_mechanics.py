@@ -18,6 +18,7 @@ from advisor.damage.types import type_effectiveness_multiplier
 from advisor.probability.single_hit import ko_chance_from_outcomes
 from llm.advisor_battle_state_context import (
     DYNAMIC_MOVE_ASSESSMENT_REGISTRY,
+    build_current_hp_based_power_assessment,
     calculate_stage_adjusted_stat,
     normalize_user_confirmed_current_condition,
     normalize_user_confirmed_current_field_state,
@@ -50,6 +51,7 @@ ABILITY_MODIFIER_TAGS = {
 STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band", "wise-glasses", "expert-belt"})
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
 _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES = frozenset({"eruption", "water-spout", "dragon-energy"})
+_CURRENT_HP_BRACKET_DIRECT_MOVES = frozenset({"flail", "reversal"})
 _STATUS_CONDITION_POWER_DIRECT_MOVES = frozenset({"hex", "venoshock"})
 _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES = frozenset({"weather-ball", "terrain-pulse"})
 _TURN_EVENT_POWER_DIRECT_MOVES = frozenset({"avalanche", "revenge", "payback", "assurance"})
@@ -114,10 +116,11 @@ def evaluate_direct_damage_mechanics(
     category, power, move_type = move.get("category"), move.get("power"), move.get("type")
     if category == "status":
         return _unsupported("status_move")
-    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES, *_TURN_EVENT_POWER_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES}:
+    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES, *_TURN_EVENT_POWER_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES, *_CURRENT_HP_BRACKET_DIRECT_MOVES}:
         return _unsupported("dynamic_base_power")
     facade = _facade_power_context(current) if move_id == "facade" else None
     current_hp_power = _current_hp_proportional_power_context(move_id=move_id, direct_attacker=_mapping(direct.get("attacker"))) if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES else None
+    current_hp_bracket_power = _current_hp_bracket_power_context(move_id=move_id, direct_attacker=_mapping(direct.get("attacker"))) if move_id in _CURRENT_HP_BRACKET_DIRECT_MOVES else None
     brine_power = _brine_power_context(direct_defender=_mapping(direct.get("defender"))) if move_id == "brine" else None
     status_condition_power = _status_condition_power_context(move_id=move_id, current=current) if move_id in _STATUS_CONDITION_POWER_DIRECT_MOVES else None
     environment_transformation = _environment_transformation_context(move_id=move_id, current=current) if move_id in _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES else None
@@ -127,6 +130,9 @@ def evaluate_direct_damage_mechanics(
     expected_current_hp_metadata = {"eruption": "fire", "water-spout": "water", "dragon-energy": "dragon"}
     if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES and (category != "special" or power != 150 or move_type != expected_current_hp_metadata[move_id]):
         return _unsupported("current_hp_proportional_metadata")
+    expected_current_hp_bracket_metadata = {"flail": "normal", "reversal": "fighting"}
+    if move_id in _CURRENT_HP_BRACKET_DIRECT_MOVES and (category != "physical" or power != 20 or move_type != expected_current_hp_bracket_metadata[move_id]):
+        return _unsupported("current_hp_bracket_metadata")
     if move_id == "brine" and (category != "special" or power != 65 or move_type != "water"):
         return _unsupported("brine_metadata")
     expected_status_condition_metadata = {"hex": "ghost", "venoshock": "poison"}
@@ -151,6 +157,14 @@ def evaluate_direct_damage_mechanics(
         missing.extend(current_hp_power.get("missing_inputs", []))
         if current_hp_power.get("status") == "known":
             power = current_hp_power["effective_power"]
+    if isinstance(current_hp_bracket_power, Mapping):
+        if current_hp_bracket_power.get("status") == "not_applicable":
+            return _unsupported("attacker_already_fainted")
+        if current_hp_bracket_power.get("status") == "unsupported_mechanic":
+            return _unsupported("current_hp_bracket_context")
+        missing.extend(current_hp_bracket_power.get("missing_inputs", []))
+        if current_hp_bracket_power.get("status") == "known":
+            power = current_hp_bracket_power["effective_power"]
     if isinstance(brine_power, Mapping):
         if brine_power.get("status") == "not_applicable":
             return _unsupported("defender_already_fainted")
@@ -318,6 +332,8 @@ def evaluate_direct_damage_mechanics(
         result["dynamic_power_evidence"] = deepcopy(dict(facade))
     if isinstance(current_hp_power, Mapping) and current_hp_power.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(current_hp_power))
+    if isinstance(current_hp_bracket_power, Mapping) and current_hp_bracket_power.get("status") == "known":
+        result["dynamic_power_evidence"] = deepcopy(dict(current_hp_bracket_power))
     if isinstance(brine_power, Mapping) and brine_power.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(brine_power))
     if isinstance(status_condition_power, Mapping) and status_condition_power.get("status") == "known":
@@ -750,6 +766,38 @@ def _current_hp_proportional_power_context(*, move_id: Any, direct_attacker: Map
         "effective_power": max(1, 150 * current // maximum),
         "rule": "current-hp-proportional-150", "missing_inputs": [],
     }
+
+
+def _current_hp_bracket_power_context(*, move_id: Any, direct_attacker: Mapping[str, Any]) -> dict[str, Any]:
+    """Adapt the canonical Flail/Reversal resolver to the direct-Q12 seam."""
+    current, maximum = direct_attacker.get("current_hp"), direct_attacker.get("max_hp")
+    missing = []
+    if isinstance(current, bool) or not isinstance(current, int):
+        missing.append("attacker.current_hp")
+    if isinstance(maximum, bool) or not isinstance(maximum, int):
+        missing.append("attacker.max_hp")
+    if missing:
+        return {"status": "insufficient_context", "missing_inputs": missing}
+    assessment = build_current_hp_based_power_assessment(
+        {"move_id": move_id},
+        {"current_hp": [{"side": "self", "current_hp": current, "maximum_hp": maximum}]},
+    )
+    if not isinstance(assessment, Mapping):
+        return {"status": "unsupported_mechanic", "missing_inputs": []}
+    if assessment.get("status") == "resolved":
+        return {
+            "status": "known", "mechanic": "current_hp_bracket_power", "move": move_id,
+            "attacker_current_hp": assessment["self_current_hp"], "attacker_maximum_hp": assessment["self_maximum_hp"],
+            "effective_power": assessment["effective_power"], "rule": assessment["rule"], "missing_inputs": [],
+        }
+    if assessment.get("status") == "not_applicable":
+        return {"status": "not_applicable", "missing_inputs": []}
+    reason = assessment.get("reason")
+    if reason == "missing_self_current_hp":
+        return {"status": "insufficient_context", "missing_inputs": ["attacker.current_hp"]}
+    if reason == "missing_self_maximum_hp":
+        return {"status": "insufficient_context", "missing_inputs": ["attacker.max_hp"]}
+    return {"status": "unsupported_mechanic", "missing_inputs": []}
 
 
 def _brine_power_context(*, direct_defender: Mapping[str, Any]) -> dict[str, Any]:
