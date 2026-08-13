@@ -1105,6 +1105,7 @@ def _extract_current_state_with_private_handoffs(battle_input: Mapping[str, Any]
         state["runtime_advice_state"] = normalize_runtime_advice_state_projection(runtime_advice_state, session_id)
         _project_observed_tailwind_context(state, state["runtime_advice_state"])
         _project_observed_trick_room_context(state, state["runtime_advice_state"])
+        _project_reducer_current_type_context(state, state["runtime_advice_state"], battle_input, session_id)
     known_move_context = battle_input.get("known_move_context")
     if known_move_context is not None:
         if session_id is None:
@@ -1271,6 +1272,40 @@ def _project_observed_trick_room_context(state: dict[str, Any], runtime_advice_s
     context = deepcopy(dict(existing)) if isinstance(existing, Mapping) else {}
     context["trick_room"] = value
     state["field_state_context"] = context
+
+
+def _project_reducer_current_type_context(state: dict[str, Any], runtime_advice_state: Mapping[str, Any], battle_input: Mapping[str, Any], session_id: str) -> None:
+    """Project known reducer-owned active types without borrowing slot history.
+
+    Unknown reducer facts intentionally do not overwrite a legacy detached type
+    handoff; a known reducer observation is the authoritative replacement for
+    that active identity.
+    """
+    pokemon = _mapping_or_empty(battle_input.get("pokemon"))
+    existing = state.get("current_type_context")
+    prior = existing.get("current_types") if isinstance(existing, Mapping) and isinstance(existing.get("current_types"), list) else []
+    replacements: dict[str, dict[str, Any]] = {}
+    for side, runtime_side, input_key in (("self", "self", "my_active"), ("opponent", "opponent", "opponent_active")):
+        active = runtime_advice_state.get(runtime_side, {}).get("active_pokemon") if isinstance(runtime_advice_state.get(runtime_side), Mapping) else None
+        input_active = _mapping_or_empty(pokemon.get(input_key))
+        fact = active.get("current_type") if isinstance(active, Mapping) else None
+        if not isinstance(fact, Mapping) or fact.get("status") != "known" or not isinstance(fact.get("value"), list):
+            continue
+        slot, pokemon_id = _optional_int(input_active.get("slot_index")), _optional_str(input_active.get("name_en"))
+        if slot is None or pokemon_id is None or active.get("pokemon_id") != pokemon_id:
+            continue
+        replacements[side] = {
+            "side": side, "state": "known", "types": deepcopy(fact["value"]),
+            "status": "user_confirmed", "source": "user_confirmed_current_type",
+            "authority_provenance": "user_confirmed_current",
+            "provenance": {"side": side, "slot_index": slot, "pokemon_id": pokemon_id, "session_id": session_id, "source": "user_confirmed_current_type", "trust": "user_confirmed_current"},
+        }
+    if not replacements:
+        return
+    retained = [entry for entry in prior if isinstance(entry, Mapping) and entry.get("side") not in replacements]
+    normalized = normalize_structured_current_type_confirmations(retained + list(replacements.values()), pokemon=pokemon, session_id=session_id)
+    if normalized:
+        state["current_type_context"] = {"current_types": normalized}
 
 
 def build_known_move_context_projection(runtime_state: Mapping[str, Any]) -> dict[str, Any]:

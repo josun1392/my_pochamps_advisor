@@ -10,3 +10,18 @@
 - `classify_current_type_dark_membership` is read-only and returns only `known_contains_dark`, `known_does_not_contain_dark`, `unknown`, or `malformed`.
 
 The minimal UI offers an explicit Unknown / Known exact type(s) control for self and opponent. This context is copied through the candidate adapter but removed from legacy provider payloads. A separate bounded move-success gate may use the read-only classifier for Dark-type Prankster immunity only when the server-owned `prankster_applied` evidence is present for an opposing-single status move. Formula Q12 candidates also use known current type as a side-owned override; explicit unknown is fail-closed and omitted context keeps legacy species compatibility. The Q12 resolver and Dark classifier share this frozen side/session ownership contract, while their consequences remain separate. See `current_type_damage_authority_design.md` for the damage authority closure and unsupported inventory. This does not add Terastallization, type mutation, or a general type-effect engine.
+
+## Reducer-owned observation projection
+
+Reducer bootstrap now records each Pokemon's `current_type` as explicit unknown.
+A trusted `current_type_observed` lifecycle confirmation can replace that fact
+only for its matching session, side, slot, Pokemon identity, and positive turn
+number. The result follows that roster identity into the detached runtime
+projection and frozen request context. A switched-in Pokemon therefore exposes
+its own observed type, or explicit unknown when it has none; it cannot inherit
+the outgoing Pokemon's authority. Later reducer updates cannot mutate an
+already-frozen request.
+
+This projection records explicit observations only. It does not infer typing
+from species/base data, moves, Terastallization, Protean/Libero, or any other
+type-changing mechanic.

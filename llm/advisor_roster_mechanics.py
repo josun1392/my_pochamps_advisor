@@ -44,6 +44,8 @@ def build_self_roster_mechanics_context_projection(
         record = _base_record(session, slot, pokemon_id, pokemon)
         if identity in supplied:
             record.update(supplied[identity])
+        if pokemon.get("current_type") is not None and not is_unknown_battle_fact(pokemon.get("current_type")):
+            record["current_type_authority"] = _fact_authority(pokemon.get("current_type"))
         entries.append(record)
     return {"schema_version": SCHEMA_VERSION, "session_id": session, "side": "self", "entries": entries}
 
@@ -82,7 +84,7 @@ def active_self_roster_mechanics_view(context: Mapping[str, Any], *, slot_index:
 def _base_record(session: str, slot: int, pokemon_id: str, pokemon: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "session_id": session, "side": "self", "slot_index": slot, "pokemon_id": pokemon_id,
-        "current_type_authority": _unknown_authority(),
+        "current_type_authority": _current_type_authority(pokemon.get("current_type")),
         "base_stat_authority": _unknown_authority(),
         "final_stat_authority": _unknown_authority(),
         "ability_authority": _unknown_authority(),
@@ -155,6 +157,10 @@ def _unknown_authority() -> dict[str, Any]:
 
 def _fact_authority(value: Any) -> dict[str, Any]:
     return _unknown_authority() if is_unknown_battle_fact(value) else {"status": "known", "value": deepcopy(value)}
+
+
+def _current_type_authority(value: Any) -> dict[str, Any]:
+    return _unknown_authority() if value is None or is_unknown_battle_fact(value) else {"status": "known", "value": deepcopy(value)}
 
 
 def _normalize_authority(value: Any, *, key: str) -> dict[str, Any]:
