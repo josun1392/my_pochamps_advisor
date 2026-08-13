@@ -76,7 +76,9 @@ def validate_battle_state_unknown_markers(state):
     if not isinstance(toxic_ticks, list) or any(not _valid_toxic_end_of_turn_result(result, state.get("session_id")) for result in toxic_ticks): return False
     sandstorm_ticks = state.get("sandstorm_end_of_turn_context", [])
     if not isinstance(sandstorm_ticks, list) or any(not _valid_sandstorm_end_of_turn_result(result, state.get("session_id")) for result in sandstorm_ticks): return False
-    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context"})
+    life_orb = state.get("life_orb_recoil_context", [])
+    if not isinstance(life_orb, list) or any(not _valid_life_orb_recoil_result(result, state.get("session_id")) for result in life_orb): return False
+    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context", "life_orb_recoil_context"})
 
 
 def _valid_fact_marker(value):
@@ -307,7 +309,7 @@ def _has_target_identity(event):
     if effect == "set_observed_trick_room":
         return _value(event, "trick_room_status") in {"active", "inactive"}
     if effect == "set_same_turn_event":
-        return _identity_values(event, "side", "slot_index", "pokemon_id") and _identity_values(event, "target_side", "target_slot_index", "target_pokemon_id") and _value(event, "predicate") in {"received_qualifying_direct_damage", "acted_earlier_this_turn", "lost_hp_this_turn"} and isinstance(_value(event, "occurred"), bool) and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
+        return _identity_values(event, "side", "slot_index", "pokemon_id") and _identity_values(event, "target_side", "target_slot_index", "target_pokemon_id") and (_value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id")) != (_value(event, "target_side"), _value(event, "target_slot_index"), _value(event, "target_pokemon_id")) and _value(event, "predicate") in {"received_qualifying_direct_damage", "acted_earlier_this_turn", "lost_hp_this_turn", "qualifying_direct_damage_dealt"} and isinstance(_value(event, "occurred"), bool) and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
     if effect == "mark_first_end_of_turn_reached":
         return isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
     if effect in {"set_ability_applicability", "clear_ability_applicability"}:
@@ -502,7 +504,7 @@ def _apply(state, event):
 
 
 def _valid_same_turn_event(value, session_id):
-    return isinstance(value, dict) and value.get("session_id") == session_id and value.get("predicate") in {"received_qualifying_direct_damage", "acted_earlier_this_turn", "lost_hp_this_turn"} and isinstance(value.get("occurred"), bool) and isinstance(value.get("turn_number"), int) and not isinstance(value.get("turn_number"), bool) and value["turn_number"] > 0 and all(_identity_values(value, *names) for names in (("side", "slot_index", "pokemon_id"), ("target_side", "target_slot_index", "target_pokemon_id"))) and isinstance(value.get("provenance"), dict)
+    return isinstance(value, dict) and value.get("session_id") == session_id and value.get("predicate") in {"received_qualifying_direct_damage", "acted_earlier_this_turn", "lost_hp_this_turn", "qualifying_direct_damage_dealt"} and isinstance(value.get("occurred"), bool) and isinstance(value.get("turn_number"), int) and not isinstance(value.get("turn_number"), bool) and value["turn_number"] > 0 and all(_identity_values(value, *names) for names in (("side", "slot_index", "pokemon_id"), ("target_side", "target_slot_index", "target_pokemon_id"))) and (value.get("side"), value.get("slot_index"), value.get("pokemon_id")) != (value.get("target_side"), value.get("target_slot_index"), value.get("target_pokemon_id")) and isinstance(value.get("provenance"), dict)
 
 
 def _valid_first_end_of_turn_phase(value, session_id):
@@ -843,6 +845,8 @@ def _same_turn_event(state, event):
     target = {key: _value(event, key) for key in ("target_side", "target_slot_index", "target_pokemon_id")}
     if _pokemon(state, subject) is None or _pokemon(state, {"side": target["target_side"], "slot_index": target["target_slot_index"], "pokemon_id": target["target_pokemon_id"]}) is None:
         return _conflict(event, "same_turn_event_identity_mismatch")
+    if _value(event, "predicate") == "qualifying_direct_damage_dealt" and (not _active_identity_matches(state, subject["side"], subject["slot_index"], subject["pokemon_id"]) or not _active_identity_matches(state, target["target_side"], target["target_slot_index"], target["target_pokemon_id"])):
+        return _conflict(event, "qualifying_damage_event_active_identity_mismatch")
     record = {"session_id": state["session_id"], "turn_number": _value(event, "turn_number"), "predicate": _value(event, "predicate"), "occurred": _value(event, "occurred"), **subject, **target, "provenance": _provenance(event) | {"event_kind": "same_turn_event_observed", "trust": _value(event, "trust")}}
     events = state.setdefault("same_turn_event_context", [])
     if not isinstance(events, list): return _conflict(event, "invalid_same_turn_event_state")
@@ -851,7 +855,72 @@ def _same_turn_event(state, event):
     if existing is not None:
         return None if existing.get("occurred") == record["occurred"] else _conflict(event, "conflicting_same_turn_event")
     events.append(record)
+    if record["predicate"] == "qualifying_direct_damage_dealt":
+        _apply_life_orb_recoil(state, event, record)
     return None
+
+
+def _apply_life_orb_recoil(state, event, record):
+    """Apply one observed qualifying-hit Life Orb consequence, never infer it."""
+    results = state.setdefault("life_orb_recoil_context", [])
+    if not isinstance(results, list):
+        return
+    owner = _pokemon(state, record)
+    base = {"session_id": state["session_id"], "turn_number": record["turn_number"], "side": record["side"], "slot_index": record["slot_index"], "pokemon_id": record["pokemon_id"], "target_side": record["target_side"], "target_slot_index": record["target_slot_index"], "target_pokemon_id": record["target_pokemon_id"], "item": "life-orb", "provenance": deepcopy(record["provenance"])}
+    if owner is None:
+        return
+    item = owner.get("known_item")
+    if is_unknown_battle_fact(item):
+        results.append(base | {"status": "incomplete", "reason": "current_item_unknown"})
+        return
+    if item != "life-orb":
+        return
+    if record["occurred"] is False:
+        results.append(base | {"status": "complete", "outcome": "not_triggered"})
+        return
+    hp, maximum = owner.get("current_hp"), owner.get("max_hp")
+    if not _exact(hp) or not _exact(maximum) or maximum < 1 or hp > maximum:
+        results.append(base | {"status": "incomplete", "reason": "hp_unknown"})
+        return
+    if owner.get("fainted") is True or hp == 0:
+        results.append(base | {"status": "complete", "outcome": "fainted_before_recoil", "pre_hp": hp, "max_hp": maximum, "recoil": 0, "post_hp": hp, "guaranteed_faint": hp == 0})
+        return
+    ability = owner.get("current_ability")
+    if not _trusted_current_ability(owner):
+        results.append(base | {"status": "incomplete", "reason": "current_ability_unknown"})
+        return
+    target = _pokemon(state, {"side": record["target_side"], "slot_index": record["target_slot_index"], "pokemon_id": record["target_pokemon_id"]})
+    target_ability = target.get("current_ability") if isinstance(target, dict) else None
+    target_known = isinstance(target, dict) and _trusted_current_ability(target)
+    if ability in {"magic-guard", "sheer-force"} and not target_known:
+        results.append(base | {"status": "incomplete", "reason": "target_current_ability_unknown"})
+        return
+    target_neutralizing_gas = target_ability == "neutralizing-gas"
+    if ability == "magic-guard" and not target_neutralizing_gas:
+        results.append(base | {"status": "complete", "outcome": "prevented_by_magic_guard", "pre_hp": hp, "max_hp": maximum, "recoil": 0, "post_hp": hp, "guaranteed_faint": False})
+        return
+    if ability == "sheer-force" and not target_neutralizing_gas:
+        results.append(base | {"status": "incomplete", "reason": "sheer_force_move_applicability_unknown"})
+        return
+    recoil = max(1, maximum // 10)
+    post_hp = max(0, hp - recoil)
+    owner["current_hp"] = post_hp
+    _mark(owner, "current_hp", event)
+    results.append(base | {"status": "complete", "outcome": "recoiled", "pre_hp": hp, "max_hp": maximum, "recoil": recoil, "post_hp": post_hp, "guaranteed_faint": post_hp == 0})
+
+
+def _valid_life_orb_recoil_result(value, session_id):
+    provenance = value.get("provenance") if isinstance(value, dict) else None
+    base = isinstance(value, dict) and value.get("session_id") == session_id and value.get("side") in {"self", "opponent"} and isinstance(value.get("slot_index"), int) and not isinstance(value.get("slot_index"), bool) and value["slot_index"] >= 0 and isinstance(value.get("pokemon_id"), str) and bool(value["pokemon_id"]) and value.get("target_side") in {"self", "opponent"} and isinstance(value.get("target_slot_index"), int) and not isinstance(value.get("target_slot_index"), bool) and value["target_slot_index"] >= 0 and isinstance(value.get("target_pokemon_id"), str) and bool(value["target_pokemon_id"]) and value.get("item") == "life-orb" and isinstance(value.get("turn_number"), int) and not isinstance(value.get("turn_number"), bool) and value["turn_number"] > 0 and isinstance(provenance, dict) and provenance.get("event_kind") == "same_turn_event_observed" and provenance.get("trust") == "user_confirmed_observation"
+    if not base:
+        return False
+    if value.get("status") == "incomplete":
+        return set(value) == {"session_id", "turn_number", "side", "slot_index", "pokemon_id", "target_side", "target_slot_index", "target_pokemon_id", "item", "provenance", "status", "reason"} and value.get("reason") in {"current_item_unknown", "hp_unknown", "current_ability_unknown", "target_current_ability_unknown", "sheer_force_move_applicability_unknown"}
+    if value.get("status") != "complete":
+        return False
+    if value.get("outcome") == "not_triggered":
+        return set(value) == {"session_id", "turn_number", "side", "slot_index", "pokemon_id", "target_side", "target_slot_index", "target_pokemon_id", "item", "provenance", "status", "outcome"}
+    return all(isinstance(value.get(key), int) and not isinstance(value.get(key), bool) and value[key] >= 0 for key in ("pre_hp", "max_hp", "recoil", "post_hp")) and value["max_hp"] >= 1 and value["pre_hp"] <= value["max_hp"] and value["post_hp"] == max(0, value["pre_hp"] - value["recoil"]) and value.get("outcome") in {"fainted_before_recoil", "prevented_by_magic_guard", "recoiled"} and value.get("guaranteed_faint") == (value["post_hp"] == 0)
 
 
 def _pokemon_effect(state, event):
