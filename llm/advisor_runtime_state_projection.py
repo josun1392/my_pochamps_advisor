@@ -58,13 +58,15 @@ def normalize_runtime_advice_state_projection(value, expected_session_id):
     for side in ("self", "opponent"):
         container = value.get(side)
         active = container.get("active_pokemon") if isinstance(container, dict) else None
-        if not isinstance(active, dict) or not {"pokemon_id", "current_hp", "max_hp", "fainted", "condition", "item"} <= set(active) or set(active) - {"pokemon_id", "current_hp", "max_hp", "fainted", "condition", "item", "current_type", "toxic_progression"}:
+        if not isinstance(active, dict) or not {"pokemon_id", "current_hp", "max_hp", "fainted", "condition", "item"} <= set(active) or set(active) - {"pokemon_id", "current_hp", "max_hp", "fainted", "condition", "item", "current_type", "current_ability", "toxic_progression"}:
             raise ValueError("invalid_runtime_advice_state")
         if not isinstance(active.get("pokemon_id"), str) or not active["pokemon_id"]:
             raise ValueError("invalid_runtime_advice_state")
         if not all(_valid_request_fact(active[name]) for name in ("current_hp", "max_hp", "fainted", "condition", "item")):
             raise ValueError("invalid_runtime_advice_state")
         if "current_type" in active and not _valid_current_type_fact(active["current_type"]):
+            raise ValueError("invalid_runtime_advice_state")
+        if "current_ability" in active and not _valid_current_ability_fact(active["current_ability"]):
             raise ValueError("invalid_runtime_advice_state")
         if "toxic_progression" in active and not _valid_toxic_progression_fact(active["toxic_progression"]):
             raise ValueError("invalid_runtime_advice_state")
@@ -87,6 +89,7 @@ def _active_pokemon(state, side_name):
         "condition": _fact(active["condition"], known_absence=True),
         "item": _fact(active["known_item"], known_absence=True),
         "current_type": _current_type_fact(active.get("current_type")),
+        "current_ability": _current_ability_fact(active.get("current_ability")),
         "toxic_progression": _toxic_progression_fact(active.get("toxic_progression")),
     }
 
@@ -105,6 +108,12 @@ def _current_type_fact(value):
     if not _valid_type_list(value):
         return {"status": "unknown"}
     return {"status": "known", "value": deepcopy(value)}
+
+
+def _current_ability_fact(value):
+    if is_unknown_battle_fact(value) or value is None or not isinstance(value, str) or not value:
+        return {"status": "unknown"}
+    return {"status": "known", "value": value}
 
 
 def _toxic_progression_fact(value):
@@ -202,6 +211,13 @@ def _valid_current_type_fact(value):
     return isinstance(value, dict) and (
         (set(value) == {"status"} and value.get("status") == "unknown")
         or (set(value) == {"status", "value"} and value.get("status") == "known" and _valid_type_list(value["value"]))
+    )
+
+
+def _valid_current_ability_fact(value):
+    return isinstance(value, dict) and (
+        (set(value) == {"status"} and value.get("status") == "unknown")
+        or (set(value) == {"status", "value"} and value.get("status") == "known" and isinstance(value.get("value"), str) and bool(value["value"]))
     )
 
 

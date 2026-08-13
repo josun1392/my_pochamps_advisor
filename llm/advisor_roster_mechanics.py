@@ -87,7 +87,7 @@ def _base_record(session: str, slot: int, pokemon_id: str, pokemon: Mapping[str,
         "current_type_authority": _current_type_authority(pokemon.get("current_type")),
         "base_stat_authority": _unknown_authority(),
         "final_stat_authority": _unknown_authority(),
-        "ability_authority": _unknown_authority(),
+        "ability_authority": _current_ability_authority(pokemon.get("current_ability")),
         "item_authority": _fact_authority(pokemon.get("known_item")),
         "hp_authority": {
             "status": "unknown" if is_unknown_battle_fact(pokemon.get("current_hp")) or is_unknown_battle_fact(pokemon.get("max_hp")) else "known",
@@ -163,6 +163,10 @@ def _fact_authority(value: Any) -> dict[str, Any]:
 
 
 def _current_type_authority(value: Any) -> dict[str, Any]:
+    return _unknown_authority() if value is None or is_unknown_battle_fact(value) else {"status": "known", "value": deepcopy(value)}
+
+
+def _current_ability_authority(value: Any) -> dict[str, Any]:
     return _unknown_authority() if value is None or is_unknown_battle_fact(value) else {"status": "known", "value": deepcopy(value)}
 
 
