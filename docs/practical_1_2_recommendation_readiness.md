@@ -10,3 +10,10 @@ panel opens that control. It never infers, fills, or mutates battle state; a
 new frozen, identity-checked runtime snapshot is prepared whenever readiness is
 checked. Unknown authority remains incomplete, and unsupported mechanics are
 shown separately without a fictitious input route.
+
+When a canonical material held-item gap is present, readiness prioritizes a
+shortcut to the existing active-side `ItemProfileDialog`. The shortcut records
+the session, slot, and Pokémon identity from the frozen readiness evaluation,
+then rejects a stale route before opening the dialog. Applying or cancelling
+continues to use the existing item-profile flow; no item state is inferred or
+written by readiness itself.

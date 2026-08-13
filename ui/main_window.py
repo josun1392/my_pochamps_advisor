@@ -423,6 +423,7 @@ class MainWindow(QMainWindow):
         self._current_final_stat_confirmations: dict[tuple[str, str], dict] = {}
         self._structured_final_stat_confirmations: dict[tuple[str, str], dict] = {}
         self._current_hp_confirmations: dict[str, dict] = {}
+        self._recommendation_readiness_owner: tuple[str, int, str] | None = None
         self._current_battle_format_confirmation: dict | None = None
         self._current_observed_damage_confirmation: dict[str, object] | None = None
         self._structured_observed_damage_confirmations: list[dict] = []
@@ -564,6 +565,7 @@ class MainWindow(QMainWindow):
         self._sync_move_search_candidates()
 
     def _on_pokemon_selected(self, en_id: str) -> None:
+        self._recommendation_readiness_owner = None
         self.center_column.llm_advice_panel.clear_recommendation_readiness()
         slot = self._active_slot()
         if slot is None:
@@ -583,6 +585,7 @@ class MainWindow(QMainWindow):
 
     @Slot(object)
     def _on_move_selected(self, move: MoveView) -> None:
+        self._recommendation_readiness_owner = None
         self.center_column.llm_advice_panel.clear_recommendation_readiness()
         slot = self._active_slot()
         if slot is None or slot.selected_move_index is None:
@@ -1458,6 +1461,10 @@ class MainWindow(QMainWindow):
             my_slot = self.selected_slots.get("team_my")
             if my_slot is None:
                 raise ValueError("missing selected Pokemon")
+            current_view = getattr(self._slot_panel("team_my", my_slot), "pokemon_view", None)
+            current_pokemon_id = getattr(current_view, "en", None)
+            if not isinstance(current_pokemon_id, str) or not current_pokemon_id:
+                raise ValueError("missing selected Pokemon identity")
             battle_input["runtime_advice_state"] = deepcopy(projection["runtime_advice_state"])
             battle_input = capture_ui_current_state_provenance(
                 deepcopy(battle_input),
@@ -1482,12 +1489,34 @@ class MainWindow(QMainWindow):
                 trusted_turn_context=self._trusted_turn_context_snapshot(),
             )
         except ValueError:
+            self._recommendation_readiness_owner = None
             panel.set_recommendation_readiness({"status": "unavailable"})
             return
+        self._recommendation_readiness_owner = (session_id, my_slot, current_pokemon_id)
         panel.set_recommendation_readiness(build_recommendation_readiness(prepared_cycle=prepared))
 
     @Slot(str)
     def _open_readiness_input(self, action: str) -> None:
+        if action == "current_item":
+            owner = getattr(self, "_recommendation_readiness_owner", None)
+            if not isinstance(owner, tuple) or len(owner) != 3:
+                self.center_column.llm_advice_panel.clear_recommendation_readiness()
+                return
+            session_id, slot_index, pokemon_id = owner
+            current_session = MainWindow._active_session_id(self)
+            panel = self._slot_panel("team_my", slot_index)
+            view = getattr(panel, "pokemon_view", None)
+            if (
+                current_session != session_id
+                or self.selected_slots.get("team_my") != slot_index
+                or getattr(view, "en", None) != pokemon_id
+            ):
+                self._recommendation_readiness_owner = None
+                self.center_column.llm_advice_panel.clear_recommendation_readiness()
+                return
+            self._on_item_profile_requested("team_my", slot_index)
+            self._check_structured_recommendation_readiness()
+            return
         routes = {
             "field_profile": self._open_field_profile_dialog,
             "current_hp": self._open_current_hp_dialog,

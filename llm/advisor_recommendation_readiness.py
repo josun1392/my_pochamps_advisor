@@ -15,7 +15,7 @@ _MISSING_FACTS = {
     "terrain": ("Terrain not confirmed", "current_field_state"),
     "grounded": ("Groundedness not confirmed", "current_field_state"),
     "ability": ("Current ability unknown", "current_ability"),
-    "item": ("Held item unknown", None),
+    "item": ("Held item unknown", "current_item"),
     "hazard": ("Hazard state not confirmed", "field_profile"),
     "toxic_progression": ("Toxic progression authority missing", None),
     "switch_permission": ("Switch permission needed", "switch_permission"),
@@ -60,6 +60,8 @@ def build_recommendation_readiness(*, prepared_cycle: Mapping[str, Any]) -> dict
                 if isinstance(reason, str) and reason not in seen_unsupported:
                     seen_unsupported.add(reason)
                     unsupported.append("This selected mechanic is not supported yet")
-    action = next((entry["action"] for entry in missing if entry["action"] is not None), None)
+    action = next((entry["action"] for entry in missing if entry["action"] == "current_item"), None)
+    if action is None:
+        action = next((entry["action"] for entry in missing if entry["action"] is not None), None)
     status = "ready" if not missing and not unsupported else "incomplete" if missing else "unsupported"
     return {"status": status, "missing": deepcopy(missing), "unsupported": unsupported, "action": action}

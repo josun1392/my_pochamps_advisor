@@ -39,7 +39,8 @@ def test_readiness_distinguishes_unsupported_and_ignores_irrelevant_unknown_stat
     item = build_recommendation_readiness(prepared_cycle=_prepared(
         {"mechanics_result": {"status": "insufficient_context", "missing_inputs": ["defender.item"]}},
     ))
-    assert item["missing"] == [{"path": "defender.item", "label": "Held item unknown", "action": None}]
+    assert item["missing"] == [{"path": "defender.item", "label": "Held item unknown", "action": "current_item"}]
+    assert item["action"] == "current_item"
 
 
 def test_panel_exposes_readiness_and_routes_only_existing_confirmation_actions():
@@ -61,3 +62,13 @@ def test_main_window_readiness_uses_frozen_preparation_without_a_provider_call()
     assert "prepare_ui_recommendation_cycle" in source
     assert "build_recommendation_readiness" in source
     assert "run_structured_ui_recommendation" not in source
+
+
+def test_item_shortcut_reuses_existing_item_profile_flow_with_identity_check():
+    source = inspect.getsource(MainWindow._open_readiness_input)
+    assert 'action == "current_item"' in source
+    assert 'self._on_item_profile_requested("team_my", slot_index)' in source
+    assert "current_session != session_id" in source
+    assert 'self.selected_slots.get("team_my") != slot_index' in source
+    assert "getattr(view, \"en\", None) != pokemon_id" in source
+    assert "self._check_structured_recommendation_readiness()" in source
