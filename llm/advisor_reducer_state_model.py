@@ -82,9 +82,11 @@ def validate_battle_state_unknown_markers(state):
     if not isinstance(ice_body, list) or any(not _valid_ice_body_end_of_turn_result(result, state.get("session_id")) for result in ice_body): return False
     solar_power = state.get("solar_power_end_of_turn_context", [])
     if not isinstance(solar_power, list) or any(not _valid_solar_power_end_of_turn_result(result, state.get("session_id")) for result in solar_power): return False
+    dry_skin = state.get("dry_skin_end_of_turn_context", [])
+    if not isinstance(dry_skin, list) or any(not _valid_dry_skin_end_of_turn_result(result, state.get("session_id")) for result in dry_skin): return False
     life_orb = state.get("life_orb_recoil_context", [])
     if not isinstance(life_orb, list) or any(not _valid_life_orb_recoil_result(result, state.get("session_id")) for result in life_orb): return False
-    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context", "rain_dish_end_of_turn_context", "ice_body_end_of_turn_context", "solar_power_end_of_turn_context", "life_orb_recoil_context"})
+    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context", "rain_dish_end_of_turn_context", "ice_body_end_of_turn_context", "solar_power_end_of_turn_context", "dry_skin_end_of_turn_context", "life_orb_recoil_context"})
 
 
 def _valid_fact_marker(value):
@@ -540,6 +542,7 @@ def _mark_first_end_of_turn_reached(state, event):
     _apply_rain_dish_end_of_turn(state, event)
     _apply_ice_body_end_of_turn(state, event)
     _apply_solar_power_end_of_turn(state, event)
+    _apply_dry_skin_end_of_turn(state, event)
     _apply_sandstorm_end_of_turn(state, event)
     return None
 
@@ -964,6 +967,75 @@ def _valid_solar_power_end_of_turn_result(value, session_id):
     if value.get("outcome") in {"suppressed_by_neutralizing_gas", "suppressed_by_weather_ability"}:
         return set(value) == {"session_id", "turn_number", "side", "slot_index", "pokemon_id", "ability", "weather", "provenance", "status", "outcome"}
     return all(isinstance(value.get(key), int) and not isinstance(value.get(key), bool) and value[key] >= 0 for key in ("pre_hp", "max_hp", "damage", "post_hp")) and value["max_hp"] >= 1 and value["pre_hp"] <= value["max_hp"] and value["post_hp"] == max(0, value["pre_hp"] - value["damage"]) and value["damage"] == value["max_hp"] // 8 and value.get("outcome") == "damaged" and value.get("guaranteed_ko") == (value["post_hp"] == 0)
+
+
+def _apply_dry_skin_end_of_turn(state, event):
+    """Resolve only exact Dry Skin Rain/Sun HP effects at the confirmed phase."""
+    results = state.setdefault("dry_skin_end_of_turn_context", [])
+    if not isinstance(results, list): return
+    weather = state.get("field", {}).get("weather") if isinstance(state.get("field"), dict) else None
+    provenance = state.get("field", {}).get("weather_provenance") if isinstance(state.get("field"), dict) else None
+    rows = _active_sandstorm_rows(state)
+    for row in rows:
+        pokemon = row["pokemon"]
+        if pokemon.get("fainted") is not False: continue
+        ability = pokemon.get("current_ability")
+        if ability != "dry-skin":
+            if is_unknown_battle_fact(ability) and _trusted_current_weather(weather, provenance) and weather in {"rain", "sun"}:
+                results.append(_dry_skin_base(state, event, row, weather) | {"status": "incomplete", "reason": "current_ability_unknown"})
+            continue
+        base = _dry_skin_base(state, event, row, weather)
+        if not _trusted_current_weather(weather, provenance):
+            results.append(base | {"status": "incomplete", "reason": "current_weather_unknown"}); continue
+        if weather not in {"rain", "sun"}: continue
+        if not _trusted_current_ability(pokemon) or any(not _trusted_current_ability(active["pokemon"]) for active in rows):
+            results.append(base | {"status": "incomplete", "reason": "current_ability_unknown"}); continue
+        abilities = {active["pokemon"]["current_ability"] for active in rows}
+        if "neutralizing-gas" in abilities:
+            results.append(base | {"status": "complete", "outcome": "suppressed_by_neutralizing_gas"}); continue
+        if abilities & {"cloud-nine", "air-lock"}:
+            results.append(base | {"status": "complete", "outcome": "suppressed_by_weather_ability"}); continue
+        if _dry_skin_has_order_dependency(state, row, event):
+            results.append(base | {"status": "incomplete", "reason": "same_owner_end_of_turn_order_unknown"}); continue
+        hp, maximum = pokemon.get("current_hp"), pokemon.get("max_hp")
+        if not _exact(hp) or not _exact(maximum) or maximum < 1 or hp > maximum:
+            results.append(base | {"status": "incomplete", "reason": "hp_unknown"}); continue
+        amount = maximum // 8
+        if weather == "rain":
+            recovery = amount if hp < maximum else 0; post_hp = min(maximum, hp + recovery)
+            result = base | {"status": "complete", "pre_hp": hp, "max_hp": maximum, "recovery": recovery, "post_hp": post_hp, "outcome": "recovered" if recovery else "already_full_hp", "guaranteed_ko": False}
+        else:
+            post_hp = max(0, hp - amount)
+            result = base | {"status": "complete", "pre_hp": hp, "max_hp": maximum, "damage": amount, "post_hp": post_hp, "outcome": "damaged", "guaranteed_ko": post_hp == 0}
+        results.append(result)
+        if post_hp != hp:
+            pokemon["current_hp"] = post_hp; _mark(pokemon, "current_hp", event)
+
+
+def _dry_skin_base(state, event, row, weather):
+    result_weather = weather if isinstance(weather, str) and weather in {"rain", "sun"} else "unknown"
+    return {"session_id": state["session_id"], "turn_number": _value(event, "turn_number"), "side": row["side"], "slot_index": row["slot_index"], "pokemon_id": row["pokemon_id"], "ability": "dry-skin", "weather": result_weather, "provenance": _provenance(event) | {"event_kind": "first_end_of_turn_reached_observed", "trust": _value(event, "trust")}}
+
+
+def _dry_skin_has_order_dependency(state, row, event):
+    turn, identity = _value(event, "turn_number"), (row["side"], row["slot_index"], row["pokemon_id"])
+    for key in ("leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context"):
+        for result in state.get(key, []) if isinstance(state.get(key), list) else []:
+            if isinstance(result, dict) and result.get("turn_number") == turn and (result.get("side"), result.get("slot_index"), result.get("pokemon_id")) == identity and result.get("post_hp") != result.get("pre_hp"): return True
+    return isinstance(row["pokemon"].get("condition"), str) and row["pokemon"]["condition"] in {"burn", "poison", "toxic"}
+
+
+def _valid_dry_skin_end_of_turn_result(value, session_id):
+    provenance = value.get("provenance") if isinstance(value, dict) else None
+    base = isinstance(value, dict) and value.get("session_id") == session_id and value.get("side") in {"self", "opponent"} and isinstance(value.get("slot_index"), int) and not isinstance(value.get("slot_index"), bool) and value["slot_index"] >= 0 and isinstance(value.get("pokemon_id"), str) and bool(value["pokemon_id"]) and value.get("ability") == "dry-skin" and value.get("weather") in {"rain", "sun", "unknown"} and isinstance(value.get("turn_number"), int) and not isinstance(value.get("turn_number"), bool) and value["turn_number"] > 0 and isinstance(provenance, dict) and provenance.get("event_kind") == "first_end_of_turn_reached_observed" and provenance.get("trust") == "user_confirmed_observation"
+    if not base: return False
+    if value.get("status") == "incomplete": return set(value) == {"session_id", "turn_number", "side", "slot_index", "pokemon_id", "ability", "weather", "provenance", "status", "reason"} and value.get("reason") in {"current_weather_unknown", "current_ability_unknown", "same_owner_end_of_turn_order_unknown", "hp_unknown"}
+    if value.get("status") != "complete": return False
+    if value.get("outcome") in {"suppressed_by_neutralizing_gas", "suppressed_by_weather_ability"}: return set(value) == {"session_id", "turn_number", "side", "slot_index", "pokemon_id", "ability", "weather", "provenance", "status", "outcome"}
+    numeric = all(isinstance(value.get(key), int) and not isinstance(value.get(key), bool) and value[key] >= 0 for key in ("pre_hp", "max_hp", "post_hp")) and value["max_hp"] >= 1 and value["pre_hp"] <= value["max_hp"] and isinstance(value.get("guaranteed_ko"), bool)
+    if not numeric: return False
+    if value["weather"] == "rain": return isinstance(value.get("recovery"), int) and not isinstance(value.get("recovery"), bool) and value["recovery"] >= 0 and value["post_hp"] == min(value["max_hp"], value["pre_hp"] + value["recovery"]) and value.get("outcome") in {"recovered", "already_full_hp"} and value["guaranteed_ko"] is False
+    return value["weather"] == "sun" and isinstance(value.get("damage"), int) and not isinstance(value.get("damage"), bool) and value["damage"] == value["max_hp"] // 8 and value["post_hp"] == max(0, value["pre_hp"] - value["damage"]) and value.get("outcome") == "damaged" and value["guaranteed_ko"] == (value["post_hp"] == 0)
 
 
 def _apply_sandstorm_end_of_turn(state, event):
