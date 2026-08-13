@@ -35,6 +35,13 @@ def _fact(path: str) -> tuple[str, str | None]:
 
 def build_recommendation_readiness(*, prepared_cycle: Mapping[str, Any]) -> dict[str, Any]:
     """Project canonical candidate incompleteness without evaluating new rules."""
+    if not isinstance(prepared_cycle, Mapping) or prepared_cycle.get("status") != "ready":
+        return {
+            "status": "unavailable",
+            "missing": [],
+            "unsupported": ["Recommendation context unavailable"],
+            "action": None,
+        }
     candidates = prepared_cycle.get("candidates") if isinstance(prepared_cycle, Mapping) else None
     if not isinstance(candidates, list):
         return {"status": "unavailable", "missing": [], "unsupported": ["Recommendation context unavailable"], "action": None}

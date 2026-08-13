@@ -59,6 +59,25 @@ def test_readiness_multi_gap_presentation_preserves_routes_until_each_canonical_
     assert panel._readiness_action is None
 
 
+def test_readiness_never_reports_ready_when_canonical_preparation_is_unavailable():
+    QApplication.instance() or QApplication([])
+    panel = LLMAdvicePanel()
+
+    readiness = build_recommendation_readiness(
+        prepared_cycle={"status": "invalid_snapshot", "candidates": [], "errors": ["sanitized"]},
+    )
+    panel.set_recommendation_readiness(readiness)
+
+    assert readiness == {
+        "status": "unavailable",
+        "missing": [],
+        "unsupported": ["Recommendation context unavailable"],
+        "action": None,
+    }
+    assert "unavailable" in panel.readiness_label.text().lower()
+    assert not panel.readiness_input_button.isVisible()
+
+
 def test_paired_hp_confirmation_applies_only_valid_active_owners_and_cancel_is_read_only(monkeypatch):
     owners = {
         "self": ("session", 0, "pikachu"),
