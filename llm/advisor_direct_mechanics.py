@@ -62,6 +62,8 @@ ITEM_MODIFIER_TAGS = {
     "expert-belt": "item_expert_belt_super_effective_boost",
 }
 DEFENDER_ITEM_MODIFIER_TAGS = {"assault-vest": "defender_item_assault_vest_special_defense"}
+DEFENDER_TYPE_RESIST_BERRY_TAG = "defender_item_type_resist_berry_reduction"
+DEFENDER_CHILAN_BERRY_TAG = "defender_item_chilan_berry_reduction"
 DEFENDER_ABILITY_MODIFIER_TAGS = {
     "thick-fat": "defender_ability_thick_fat_reduction",
     "fur-coat": "defender_ability_fur_coat_reduction",
@@ -217,6 +219,7 @@ def evaluate_direct_damage_mechanics(
     )
     defender_item_modifier = _defender_item_modifier_context(
         stat_provenance=stat_provenance, direct_defender=direct_defender, category=category,
+        move_type=move_type, defender_types=defender["types"] if defender is not None else (), hit_count=hit_count,
     )
     defender_ability_modifier = _defender_ability_modifier_context(
         current=current, direct_defender=direct_defender, category=category, move_type=move_type,
@@ -644,8 +647,16 @@ def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
     return result
 
 
-def _defender_item_modifier_context(*, stat_provenance: Mapping[str, Any], direct_defender: Mapping[str, Any], category: Any) -> dict[str, Any]:
-    """Resolve only exact defender-owned static item effects already owned by Q12."""
+def _defender_item_modifier_context(
+    *, stat_provenance: Mapping[str, Any], direct_defender: Mapping[str, Any], category: Any,
+    move_type: Any, defender_types: tuple[str, ...] | list[str], hit_count: int,
+) -> dict[str, Any]:
+    """Resolve exact defender-owned Q12 items for the one prospective direct hit.
+
+    A frozen exact held berry is current availability for this narrow evaluation;
+    no consumption is projected beyond the hit being calculated.  Matching
+    multi-hit berry triggers remain deliberately unsupported.
+    """
     result = {"item_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None}
     defender = _mapping(stat_provenance.get("defender"))
     item = _mapping(defender.get("known_item"))
@@ -666,11 +677,30 @@ def _defender_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
         result["missing_inputs"].append("defender.item")
         return result
     item_id = item["value"]
-    if item_id not in STATIC_DEFENDER_DAMAGE_ITEMS:
-        result["unsupported_reason"] = "defender_item_modifier"
-        return result
     effect = get_item(item_id)
     if effect is None:
+        result["unsupported_reason"] = "defender_item_modifier"
+        return result
+    if effect.kind == "type_resist_berry":
+        berry_type = effect.boosted_types[0] if len(effect.boosted_types) == 1 else None
+        effectiveness = type_effectiveness_multiplier(move_type, tuple(defender_types)) if _nonempty_str(move_type) else None
+        applies = (
+            isinstance(berry_type, str)
+            and move_type == berry_type
+            and effectiveness is not None
+            and (effectiveness > 0 if effect.always_resist else effectiveness > 1)
+        )
+        if not applies:
+            return result
+        if hit_count != 1:
+            result["unsupported_reason"] = "defender_type_resist_berry_multi_hit"
+            return result
+        result["item_effect"] = effect
+        result["applied"].append(
+            DEFENDER_CHILAN_BERRY_TAG if item_id == "chilan-berry" else DEFENDER_TYPE_RESIST_BERRY_TAG
+        )
+        return result
+    if item_id not in STATIC_DEFENDER_DAMAGE_ITEMS:
         result["unsupported_reason"] = "defender_item_modifier"
         return result
     if category == "special":

@@ -44,6 +44,26 @@ def test_reversed_direct_formula_reuses_opponent_offense_and_self_defense():
  assert row["incoming_damage"]["ko_interpretation"]["defender_hp_authority"]=="exact_current_hp"
 
 
+def test_exact_defender_resist_berry_reaches_incoming_ko_evidence():
+ def resolve(item):
+  candidate=_candidate(hp=50)
+  candidate["move_metadata"].update(power=100)
+  candidate["mechanics_snapshot"]["move"].update(power=100)
+  absent={"status":"known_absent"}; side={"ability":absent,"item":absent,"boosts":{"attack":0,"defense":0,"special-attack":0,"special-defense":0,"speed":0},"current_hp":100,"max_hp":100,"status":absent}
+  side["current_hp"] = 50
+  candidate["mechanics_snapshot"]["battle_context"]["current_state"]["direct_mechanics_context"]={"generation":"gen9","attacker":side,"defender":side,"field":{"weather":absent,"terrain":absent}}
+  candidate["mechanics_snapshot"]["battle_context"]["stat_provenance"]["attacker"]["known_item"]={"status":"known_absent","value":None}
+  candidate["mechanics_snapshot"]["battle_context"]["stat_provenance"]["defender"]["known_item"]={"status":"known_absent","value":None} if item is None else {"status":"known","value":item,"profile_source":"frozen_candidate_item_authority"}
+  return evaluate_opponent_action_candidates({"opponent_action_candidates":[candidate]})["opponent_action_evaluations"][0]["incoming_damage"]
+
+ baseline, chilan = resolve(None), resolve("chilan-berry")
+ assert baseline["status"] == chilan["status"] == "known"
+ assert chilan["damage_range"]["maximum"] < baseline["damage_range"]["maximum"]
+ assert chilan["ko_result"]["single_hit_probability"] < baseline["ko_result"]["single_hit_probability"]
+ assert chilan["applied_damage_modifiers"] == ["defender_item_chilan_berry_reduction"]
+ assert chilan["ko_interpretation"]["ko_supportability"] == "complete"
+
+
 def test_status_and_unsupported_metadata_remain_evaluated_identities_without_damage():
  status=_candidate("status")
  unsupported={"candidate_id":"x","metadata_supportability":"unsupported_mechanic"}

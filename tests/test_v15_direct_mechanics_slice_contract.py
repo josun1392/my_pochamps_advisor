@@ -42,7 +42,7 @@ def _direct_result(battle):
     return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
 
 
-def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_item=None, defender_ability=None, defender_types=None, stages=None):
+def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_item=None, defender_ability=None, defender_types=None, defender_current_hp=None, stages=None):
     """Exercise only the frozen request-start modifier authority inputs."""
     battle = _battle()
     battle["moves"]["my_available_moves"][0]["move_id"] = move_id
@@ -60,6 +60,8 @@ def _modifier_result(*, category="physical", move_type="normal", move_id="tackle
     if min_hits is not None: metadata.update(min_hits=min_hits, max_hits=max_hits)
     damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id=move_id, selectable_moves=(move_id,), move_metadata=metadata)
     current = damage["battle_context"]["current_state"]
+    if defender_current_hp is not None:
+        current["direct_mechanics_context"]["defender"]["current_hp"] = defender_current_hp
     if weather is not None or side_effects is not None:
         current["field_state_context"] = {"current_field": {"weather": weather, "side_effects": side_effects}}
     if conditions is not None:
@@ -79,7 +81,7 @@ def _modifier_result(*, category="physical", move_type="normal", move_id="tackle
     if defender_types is not None:
         provenance["defender"]["types"] = {"available": True, "value": defender_types}
     if defender_item is not None:
-        provenance["defender"]["known_item"] = {"status": "known", "value": defender_item}
+        provenance["defender"]["known_item"] = {"status": "unknown", "profile_source": "frozen_candidate_item_authority"} if defender_item == "unknown" else {"status": "known", "value": defender_item}
     return evaluate_direct_damage_mechanics(damage, stat_provenance=provenance, trusted_level=50)
 
 
@@ -733,6 +735,48 @@ def test_static_attacker_item_modifiers_use_exact_category_and_type_effectivenes
     assert expert_belt["damage_range"]["maximum"] > baseline_super["damage_range"]["maximum"]
     assert expert_belt["applied_damage_modifiers"] == ["item_expert_belt_super_effective_boost"]
     assert expert_belt_neutral["applied_damage_modifiers"] == []
+
+
+def test_defender_type_resist_berries_and_chilan_reduce_only_one_matching_direct_hit():
+    fire_baseline = _modifier_result(
+        move_id="tackle", category="special", move_type="fire", power=180, weather="none", side_effects=[], defender_types=["grass"], defender_current_hp=100,
+    )
+    occa = _modifier_result(
+        move_id="tackle", category="special", move_type="fire", power=180, weather="none", side_effects=[], defender_item="occa-berry", defender_types=["grass"], defender_current_hp=100,
+    )
+    occa_nonmatching = _modifier_result(
+        move_id="tackle", category="special", move_type="water", power=180, weather="none", side_effects=[], defender_item="occa-berry", defender_types=["grass"], defender_current_hp=100,
+    )
+    water_baseline = _modifier_result(
+        move_id="tackle", category="special", move_type="water", power=180, weather="none", side_effects=[], defender_types=["grass"], defender_current_hp=100,
+    )
+    chilan = _modifier_result(move_id="tackle", move_type="normal", power=180, defender_item="chilan-berry", defender_current_hp=50)
+    normal_baseline = _modifier_result(move_id="tackle", move_type="normal", power=180, defender_current_hp=50)
+
+    assert all(result["status"] == "known" for result in (fire_baseline, occa, occa_nonmatching, water_baseline, chilan, normal_baseline))
+    assert occa["damage_range"]["maximum"] < fire_baseline["damage_range"]["maximum"]
+    assert occa["ko_result"]["single_hit_probability"] < fire_baseline["ko_result"]["single_hit_probability"]
+    assert occa["applied_damage_modifiers"] == ["defender_item_type_resist_berry_reduction"]
+    assert occa_nonmatching["damage_range"] == water_baseline["damage_range"]
+    assert occa_nonmatching["applied_damage_modifiers"] == []
+    assert chilan["damage_range"]["maximum"] < normal_baseline["damage_range"]["maximum"]
+    assert chilan["applied_damage_modifiers"] == ["defender_item_chilan_berry_reduction"]
+
+
+def test_defender_resist_berry_preserves_unknown_and_complex_hit_boundaries():
+    unknown = _modifier_result(move_id="tackle", category="special", move_type="fire", power=100, weather="none", side_effects=[], defender_item="unknown", defender_types=["grass"])
+    multi_hit = _modifier_result(
+        move_id="tackle", category="special", move_type="fire", power=50, weather="none", side_effects=[], min_hits=2, max_hits=2,
+        defender_item="occa-berry", defender_types=["grass"],
+    )
+    unrelated = _modifier_result(move_id="tackle", category="special", move_type="fire", power=100, weather="none", side_effects=[], defender_item="leftovers", defender_types=["grass"])
+
+    assert unknown["status"] == "insufficient_context"
+    assert unknown["missing_inputs"] == ["defender.item"]
+    assert multi_hit["status"] == "unsupported_mechanic"
+    assert multi_hit["unsupported_reason"] == "defender_type_resist_berry_multi_hit"
+    assert unrelated["status"] == "unsupported_mechanic"
+    assert unrelated["unsupported_reason"] == "defender_item_modifier"
 
 
 def test_relevant_trusted_stat_stages_adjust_formula_damage_without_affecting_fixed_damage():
