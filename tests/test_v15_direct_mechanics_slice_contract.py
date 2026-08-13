@@ -3,11 +3,13 @@ from copy import deepcopy
 from llm.advisor_candidate_contract import build_recommendation_presentation_model, complete_recommendation_cycle, prepare_ui_recommendation_cycle
 from llm.advisor_client import format_recommendation_presentation_text
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
+from llm.advisor_recommendation_readiness import build_recommendation_readiness
 from llm.advisor_turn_snapshot import (
     BASE_STAT_KEYS,
     build_request_start_recommendation_snapshot,
     build_snapshot_damage_input,
     build_snapshot_stat_provenance,
+    capture_ui_current_state_provenance,
 )
 
 
@@ -145,6 +147,39 @@ def test_incomplete_or_unsupported_direct_input_never_receives_defaults():
     result = _direct_result(modifier)
     assert result["status"] == "unsupported_mechanic"
     assert result["unsupported_reason"] == "item_modifier"
+
+
+def test_ui_direct_mechanics_opt_in_projects_only_explicit_hp_and_keeps_item_unknown():
+    battle = _battle(direct=False)
+    battle["request_native_direct_mechanics"] = True
+    battle["current_hp_confirmations"] = [
+        {"side": "self", "current_hp": 90, "maximum_hp": 100, "status": "user_confirmed", "source": "user_confirmed_current_hp"},
+        {"side": "opponent", "current_hp": 80, "maximum_hp": 100, "status": "user_confirmed", "source": "user_confirmed_current_hp"},
+    ]
+
+    captured = capture_ui_current_state_provenance(battle, session_id="s")
+    direct = captured["direct_mechanics_context"]
+    assert direct["generation"] == "gen9"
+    assert direct["attacker"]["current_hp"] == 90
+    assert direct["defender"]["current_hp"] == 80
+    assert "item" not in direct["attacker"]
+
+    snapshot = build_request_start_recommendation_snapshot(captured, selectable_moves=("tackle",))
+    damage = build_snapshot_damage_input(
+        snapshot, candidate_slot_index=0, candidate_move_id="tackle",
+        selectable_moves=("tackle",), move_metadata={"category": "physical", "power": 40, "type": "normal"},
+    )
+    result = evaluate_direct_damage_mechanics(
+        damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50,
+    )
+    assert result["status"] == "insufficient_context"
+    assert result["mechanics_source"] == "native_q12_direct_damage"
+    assert "attacker.item" in result["missing_inputs"]
+    readiness = build_recommendation_readiness(
+        prepared_cycle={"status": "ready", "candidates": [{"mechanics_result": result}]}
+    )
+    assert {entry["path"] for entry in readiness["missing"]} >= {"attacker.item"}
+    assert readiness["action"] == "current_item"
 
 
 def test_facade_consumes_exact_attacker_condition_in_native_direct_damage():

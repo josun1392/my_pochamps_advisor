@@ -1491,6 +1491,7 @@ class MainWindow(QMainWindow):
                 include_current_hp_confirmations=True,
                 include_current_battle_format_confirmation=True,
                 include_observed_previous_damage_confirmation=True,
+                include_direct_mechanics_context=True,
             )
             if not MainWindow._runtime_projection_matches_battle_input(
                 projection["runtime_advice_state"], battle_input
@@ -1605,6 +1606,7 @@ class MainWindow(QMainWindow):
                 include_current_hp_confirmations=True,
                 include_current_battle_format_confirmation=True,
                 include_observed_previous_damage_confirmation=True,
+                include_direct_mechanics_context=True,
             )
             if not MainWindow._runtime_projection_matches_battle_input(
                 runtime_projection["runtime_advice_state"],
@@ -1818,6 +1820,7 @@ class MainWindow(QMainWindow):
         include_current_hp_confirmations: bool = False,
         include_current_battle_format_confirmation: bool = False,
         include_observed_previous_damage_confirmation: bool = False,
+        include_direct_mechanics_context: bool = False,
     ) -> dict:
         my_slot_index = self.selected_slots.get("team_my")
         opponent_slot_index = self.selected_slots.get("team_enemy")
@@ -1952,6 +1955,8 @@ class MainWindow(QMainWindow):
                     continue
             if entries:
                 battle_input["current_hp_confirmations"] = entries
+        if include_direct_mechanics_context:
+            battle_input["request_native_direct_mechanics"] = True
         return attach_opponent_known_move_damage_estimates(attach_selected_move_damage_estimate(battle_input))
 
     @staticmethod

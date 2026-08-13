@@ -6,7 +6,11 @@ from typing import Any, Mapping
 
 from core.turn_state import BattleState, PokemonBattleSlot, TurnInput, TurnSnapshot
 from llm.advisor_battle_state_context import (
+    build_current_condition_context_from_confirmations,
+    build_current_hp_context_from_confirmations,
+    build_current_stat_stage_context_from_confirmations,
     normalize_current_type_authority,
+    normalize_user_confirmed_current_field_state,
     normalize_user_confirmed_current_ability,
     normalize_user_confirmed_final_battle_stat,
 )
@@ -617,6 +621,7 @@ def capture_ui_current_state_provenance(
     dictionaries acquire internal provenance or event metadata.
     """
     captured = deepcopy(dict(battle_input))
+    _project_requested_direct_mechanics_context(captured)
     provenance_added = False
     pokemon = _mapping_or_empty(captured.get("pokemon"))
     for key in RICH_CURRENT_STATE_KEYS:
@@ -693,6 +698,70 @@ def capture_ui_current_state_provenance(
     if provenance_added:
         captured["current_state_session_id"] = session_id
     return captured
+
+
+def _project_requested_direct_mechanics_context(captured: dict[str, Any]) -> None:
+    """Request native direct mechanics only from explicit application confirmations."""
+    if captured.pop("request_native_direct_mechanics", None) is not True:
+        return
+
+    conditions = build_current_condition_context_from_confirmations(
+        captured.get("current_condition_confirmations")
+    )
+    if conditions is not None:
+        captured["condition_context"] = conditions
+    stages = build_current_stat_stage_context_from_confirmations(
+        captured.get("current_stat_stage_confirmations")
+    )
+    if stages is not None:
+        captured["stat_stage_context"] = stages
+    hp_context = build_current_hp_context_from_confirmations(
+        captured.get("current_hp_confirmations")
+    )
+    if hp_context is not None:
+        captured["current_hp_context"] = hp_context
+    field_confirmation = captured.get("current_field_state_confirmation")
+    if isinstance(field_confirmation, Mapping):
+        try:
+            captured["field_state_context"] = {
+                "current_field": normalize_user_confirmed_current_field_state(field_confirmation)
+            }
+        except ValueError:
+            pass
+
+    direct: dict[str, Any] = {
+        "generation": "gen9",
+        "attacker": {},
+        "defender": {},
+        "field": {},
+    }
+    for entry in hp_context.get("current_hp", ()) if isinstance(hp_context, Mapping) else ():
+        if not isinstance(entry, Mapping):
+            continue
+        side = entry.get("side")
+        current_hp, maximum_hp = entry.get("current_hp"), entry.get("maximum_hp")
+        if side not in {"self", "opponent"} or not isinstance(current_hp, int) or isinstance(current_hp, bool) or not isinstance(maximum_hp, int) or isinstance(maximum_hp, bool) or current_hp < 1 or maximum_hp < current_hp:
+            continue
+        target = direct["attacker" if side == "self" else "defender"]
+        target["current_hp"] = current_hp
+        target["max_hp"] = maximum_hp
+    for entry in conditions.get("current_conditions", ()) if isinstance(conditions, Mapping) else ():
+        if not isinstance(entry, Mapping) or entry.get("condition_type") != "none":
+            continue
+        side = entry.get("side")
+        if side in {"self", "opponent"}:
+            direct["attacker" if side == "self" else "defender"]["status"] = {"status": "known_absent"}
+    for side, target_key in (("self", "attacker"), ("opponent", "defender")):
+        stage_entries = stages.get("current_stages", ()) if isinstance(stages, Mapping) else ()
+        values = {
+            entry.get("stat"): entry.get("stage")
+            for entry in stage_entries
+            if isinstance(entry, Mapping) and entry.get("side") == side
+        }
+        boost_keys = ("attack", "defense", "special-attack", "special-defense", "speed")
+        if all(values.get(key) == 0 for key in boost_keys):
+            direct[target_key]["boosts"] = {key: 0 for key in boost_keys}
+    captured["direct_mechanics_context"] = direct
 
 
 def normalize_structured_observed_damage_confirmations(
