@@ -17,3 +17,9 @@ the session, slot, and Pokémon identity from the frozen readiness evaluation,
 then rejects a stale route before opening the dialog. Applying or cancelling
 continues to use the existing item-profile flow; no item state is inferred or
 written by readiness itself.
+
+The existing current-HP dialog can also record exact HP/max HP for both active
+sides in one session. Each side remains an independent explicit record. The UI
+captures the active session, slot, and Pokémon identity before opening; it
+applies only entries whose owner still matches and excludes owner-mismatched
+entries from later frozen requests. Unticked sides remain unchanged.

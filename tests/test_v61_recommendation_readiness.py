@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QApplication
 import inspect
+from types import SimpleNamespace
 
 from llm.advisor_recommendation_readiness import build_recommendation_readiness
 from ui.main_window import MainWindow
@@ -72,3 +73,27 @@ def test_item_shortcut_reuses_existing_item_profile_flow_with_identity_check():
     assert 'self.selected_slots.get("team_my") != slot_index' in source
     assert "getattr(view, \"en\", None) != pokemon_id" in source
     assert "self._check_structured_recommendation_readiness()" in source
+
+
+def test_paired_hp_apply_validates_each_owner_and_filters_stale_side_before_snapshot():
+    apply_source = inspect.getsource(MainWindow._open_current_hp_dialog)
+    payload_source = inspect.getsource(MainWindow._build_llm_battle_input)
+    assert "dialog.current_hp_confirmations" in apply_source
+    assert "owner != self._current_hp_owner_for_side(entry[\"side\"])" in apply_source
+    assert "owner != self._current_hp_owner_for_side(side)" in payload_source
+
+
+def test_hp_owner_identity_changes_when_a_replacement_occupies_the_same_side():
+    panels = {
+        ("team_my", 0): SimpleNamespace(pokemon_view=SimpleNamespace(en="pikachu")),
+        ("team_enemy", 1): SimpleNamespace(pokemon_view=SimpleNamespace(en="eevee")),
+    }
+    window = SimpleNamespace(
+        selected_slots={"team_my": 0, "team_enemy": 1},
+        _active_session_id=lambda: "s",
+        _slot_panel=lambda column, slot: panels[(column, slot)],
+    )
+    owner = MainWindow._current_hp_owner_for_side(window, "self")
+    panels[("team_my", 0)].pokemon_view = SimpleNamespace(en="raichu")
+    assert owner == ("s", 0, "pikachu")
+    assert MainWindow._current_hp_owner_for_side(window, "self") == ("s", 0, "raichu")

@@ -423,6 +423,7 @@ class MainWindow(QMainWindow):
         self._current_final_stat_confirmations: dict[tuple[str, str], dict] = {}
         self._structured_final_stat_confirmations: dict[tuple[str, str], dict] = {}
         self._current_hp_confirmations: dict[str, dict] = {}
+        self._current_hp_confirmation_owners: dict[str, tuple[str | None, int, str]] = {}
         self._recommendation_readiness_owner: tuple[str, int, str] | None = None
         self._current_battle_format_confirmation: dict | None = None
         self._current_observed_damage_confirmation: dict[str, object] | None = None
@@ -873,20 +874,46 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _open_current_hp_dialog(self) -> None:
+        owners = {side: self._current_hp_owner_for_side(side) for side in ("self", "opponent")}
         dialog = CurrentHPDialog(current_hp=getattr(self, "_current_hp_confirmations", {}), parent=self)
-        if dialog.exec() != QDialog.DialogCode.Accepted or dialog.current_hp_confirmation is None:
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        try:
-            entry = normalize_user_confirmed_current_hp(dialog.current_hp_confirmation)
-        except ValueError:
-            return
-        self._current_hp_confirmations[entry["side"]] = entry
-        self._update_current_hp_summary()
+        applied = False
+        for raw_entry in dialog.current_hp_confirmations:
+            try:
+                entry = normalize_user_confirmed_current_hp(raw_entry)
+            except ValueError:
+                continue
+            owner = owners.get(entry["side"])
+            if owner is None or owner != self._current_hp_owner_for_side(entry["side"]):
+                continue
+            self._current_hp_confirmations[entry["side"]] = entry
+            self._current_hp_confirmation_owners[entry["side"]] = owner
+            applied = True
+        if applied:
+            self._update_current_hp_summary()
+            if getattr(self, "_recommendation_readiness_owner", None) is not None:
+                self._check_structured_recommendation_readiness()
 
     @Slot()
     def _clear_current_hp_confirmations(self) -> None:
         self._current_hp_confirmations = {}
+        self._current_hp_confirmation_owners = {}
         self._update_current_hp_summary()
+
+    def _current_hp_owner_for_side(self, side: str) -> tuple[str | None, int, str] | None:
+        column = "team_my" if side == "self" else "team_enemy"
+        slot_index = self.selected_slots.get(column)
+        if not isinstance(slot_index, int):
+            return None
+        try:
+            view = getattr(self._slot_panel(column, slot_index), "pokemon_view", None)
+        except ValueError:
+            return None
+        pokemon_id = getattr(view, "en", None)
+        if not isinstance(pokemon_id, str) or not pokemon_id:
+            return None
+        return (self._active_session_id(), slot_index, pokemon_id)
 
     def _active_session_id(self) -> str | None:
         manager = getattr(self, "_observation_runtime_session_manager", None)
@@ -1087,6 +1114,7 @@ class MainWindow(QMainWindow):
         self._current_final_stat_confirmations = {}
         self._structured_final_stat_confirmations = {}
         self._current_hp_confirmations = {}
+        self._current_hp_confirmation_owners = {}
         self._current_observed_damage_confirmation = None
         self._structured_observed_damage_confirmations = []
         self._item_event_confirmations = []
@@ -1891,7 +1919,11 @@ class MainWindow(QMainWindow):
                 battle_input["current_final_stat_confirmations"] = entries
         if include_current_hp_confirmations:
             entries = []
-            for entry in getattr(self, "_current_hp_confirmations", {}).values():
+            owners = getattr(self, "_current_hp_confirmation_owners", {})
+            for side, entry in getattr(self, "_current_hp_confirmations", {}).items():
+                owner = owners.get(side) if isinstance(owners, dict) else None
+                if owner is not None and owner != self._current_hp_owner_for_side(side):
+                    continue
                 try:
                     entries.append(normalize_user_confirmed_current_hp(entry))
                 except ValueError:
