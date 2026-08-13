@@ -8,7 +8,7 @@ identity-bound to the active owner and updates canonical current HP, which then
 flows through the existing detached runtime and frozen-state projections.
 
 Unknown item/HP/fainted authority never activates recovery. This narrow rule
-does not cover Sitrus Berry, Black Sludge, passive recovery abilities, drain,
+does not cover Sitrus Berry, passive recovery abilities, drain,
 item consumption, toxic progression, delayed recovery, or a generic item
 engine. No additional suppression interaction is represented by the current
 trusted state, so this implementation does not infer one.
