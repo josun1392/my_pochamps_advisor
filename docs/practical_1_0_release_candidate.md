@@ -2,7 +2,7 @@
 
 **Status:** RELEASE-CANDIDATE READY
 **Baseline:** `4f3263b` (`test: add explanation integration scenarios`)
-**Offline validation:** 3553 passed, 2 deselected
+**Offline validation:** 3555 passed, 2 deselected
 
 Practical-1.0 is a trustworthy deterministic advisor for choosing between an
 available Move and a legal Switch from trusted current battle authority. It is
@@ -41,7 +41,10 @@ The release candidate is covered by three offline integration layers:
   UI-facing evidence visibility.
 
 The final release-candidate audit found no current-contract correctness blocker
-or outstanding T1 decision.
+or outstanding T1 decision. Provider-facing claim schemas keep internal native
+mechanics links out of generic explanations; direct-mechanics numeric claims
+are linked only by the application to already-trusted deterministic evidence.
+Unsupported numeric or mechanics claims remain rejected.
 
 ## Post-1.0 boundaries
 
@@ -53,6 +56,8 @@ provider-generated explanation quality.
 
 ## Next phase
 
-Recommended follow-up is final release packaging/versioning or a separately
-authorized bounded UI/environment smoke. Neither is implied by this
-deterministic release-candidate declaration, and no provider call is required.
+Recommended follow-up is a separately authorized bounded real-environment
+smoke using this hardened provider-facing contract, then final release
+declaration if that smoke is successful. Neither is implied by this
+deterministic release-candidate declaration, and no provider call is required
+for its offline validation.
