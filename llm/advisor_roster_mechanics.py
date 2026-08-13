@@ -12,7 +12,7 @@ from llm.advisor_prospective_entry_authority import normalize_prospective_entry_
 SCHEMA_VERSION = "self-roster-mechanics-context-v1"
 _AUTHORITY_KEYS = (
     "current_type_authority", "base_stat_authority", "final_stat_authority", "ability_authority",
-    "item_authority", "hp_authority", "fainted_authority", "persistent_condition_authority",
+    "item_authority", "hp_authority", "fainted_authority", "persistent_condition_authority", "toxic_progression_authority",
     "prospective_groundedness_authority", "prospective_speed_stage_authority", "prospective_offensive_stages_authority", "prospective_entry_interactions_authority",
 )
 
@@ -97,6 +97,7 @@ def _base_record(session: str, slot: int, pokemon_id: str, pokemon: Mapping[str,
         },
         "fainted_authority": _fact_authority(pokemon.get("fainted")),
         "persistent_condition_authority": _fact_authority(pokemon.get("condition")),
+        "toxic_progression_authority": _toxic_progression_authority(pokemon.get("toxic_progression")),
         # B-owned observation only.  Unknown is intentional; active A's
         # groundedness is never projected into another roster identity.
         "prospective_groundedness_authority": _prospective_groundedness(
@@ -141,12 +142,14 @@ def _normalize_record(raw: Any, *, session_id: str) -> dict[str, Any]:
     required = {"session_id", "side", "slot_index", "pokemon_id", *_AUTHORITY_KEYS}
     legacy = required - {"prospective_speed_stage_authority", "prospective_offensive_stages_authority", "prospective_entry_interactions_authority"}
     prior = required - {"prospective_offensive_stages_authority"}
-    if set(raw) != required and set(raw) != legacy and set(raw) != prior:
+    historical = (required, legacy, prior, required - {"toxic_progression_authority"}, legacy - {"toxic_progression_authority"}, prior - {"toxic_progression_authority"})
+    if not any(set(raw) == allowed for allowed in historical):
         raise ValueError("invalid_roster_mechanics_context")
     defaults = {
         "prospective_speed_stage_authority": {"status": "unknown"},
         "prospective_offensive_stages_authority": {"attack": "unknown", "special-attack": "unknown"},
         "prospective_entry_interactions_authority": {"toxic_spikes": "unknown", "sticky_web": "unknown"},
+        "toxic_progression_authority": {"status": "unknown"},
     }
     return {"session_id": session_id, "side": "self", "slot_index": slot, "pokemon_id": pokemon_id, **{key: _normalize_authority(raw.get(key, defaults.get(key, {"status": "unknown"})), key=key) for key in _AUTHORITY_KEYS}}
 
@@ -163,7 +166,18 @@ def _current_type_authority(value: Any) -> dict[str, Any]:
     return _unknown_authority() if value is None or is_unknown_battle_fact(value) else {"status": "known", "value": deepcopy(value)}
 
 
+def _toxic_progression_authority(value: Any) -> dict[str, Any]:
+    stage = value.get("next_stage") if isinstance(value, Mapping) else None
+    return {"status": "known", "value": {"next_stage": stage}} if isinstance(stage, int) and not isinstance(stage, bool) and 1 <= stage <= 15 else _unknown_authority()
+
+
 def _normalize_authority(value: Any, *, key: str) -> dict[str, Any]:
+    if key == "toxic_progression_authority":
+        if isinstance(value, Mapping) and set(value) == {"status"} and value.get("status") == "unknown":
+            return {"status": "unknown"}
+        if isinstance(value, Mapping) and set(value) == {"status", "value"} and value.get("status") == "known" and isinstance(value.get("value"), Mapping) and set(value["value"]) == {"next_stage"} and isinstance(value["value"].get("next_stage"), int) and not isinstance(value["value"]["next_stage"], bool) and 1 <= value["value"]["next_stage"] <= 15:
+            return deepcopy(dict(value))
+        raise ValueError("invalid_roster_mechanics_context")
     if key == "prospective_groundedness_authority":
         if not isinstance(value, Mapping) or value.get("status") not in {"grounded", "ungrounded", "unknown"}:
             raise ValueError("invalid_roster_mechanics_context")

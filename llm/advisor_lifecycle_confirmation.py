@@ -43,6 +43,7 @@ class LifecycleConfirmationBoundary:
         if event_kind == "same_turn_event_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "first_end_of_turn_reached_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "current_type_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
+        if event_kind == "condition_applied_observed" and payload.get("condition") == "toxic" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "same_turn_event_observed" and not _owner_matches(self._owners, payload.get("target_side"), payload.get("target_slot_index"), payload.get("target_pokemon_id")): return _result("invalid_provenance", "target_owner_mismatch", readiness)
         if event_kind in {"switch_hazards_observed", "tailwind_side_condition_observed"} and side not in {"self", "opponent"}: return _result("invalid_provenance", "side_owner_mismatch", readiness)
         oid = observation_id or f"{self._session_id}:obs:{self._next_sequence}"

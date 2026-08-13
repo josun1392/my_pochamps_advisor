@@ -63,8 +63,14 @@ def _evaluate_first_status_residual(*, target: Mapping[str, Any], entry_effect_r
         return {"status": "insufficient_context", "reason": "ability_unknown"}
     magic_guard = ability.get("value") == "magic-guard"
     poison_heal = ability.get("value") == "poison-heal" and condition in {"poison", "toxic"}
+    toxic_stage = 1
     if condition == "toxic" and source != "toxic_spikes_first_end_of_turn" and not (poison_heal or magic_guard):
-        return {"status": "insufficient_context", "reason": "toxic_counter_unknown"}
+        progression = target.get("toxic_progression_authority")
+        value = progression.get("value") if isinstance(progression, Mapping) and progression.get("status") == "known" else None
+        stage = value.get("next_stage") if isinstance(value, Mapping) else None
+        if not isinstance(stage, int) or isinstance(stage, bool) or not 1 <= stage <= 15:
+            return {"status": "insufficient_context", "reason": "toxic_counter_unknown"}
+        toxic_stage = stage
     hp = target.get("hp_authority")
     if not isinstance(hp, Mapping) or hp.get("status") != "known" or not isinstance(hp.get("current_hp"), int) or not isinstance(hp.get("maximum_hp"), int):
         return {"status": "insufficient_context", "reason": "post_entry_hp_unknown"}
@@ -86,9 +92,9 @@ def _evaluate_first_status_residual(*, target: Mapping[str, Any], entry_effect_r
         post_hit_hp = hp["current_hp"] - minimum
         resulting_hp = min(hp["maximum_hp"], post_hit_hp + recovery)
         return {"status": "complete", "source": source, "condition": condition, "residual_recovery": recovery, "minimum_incoming_damage": minimum, "post_turn_minimum_hp": resulting_hp, "outcome": "recovered_by_poison_heal", "guaranteed_ko": False}
-    chip = residual_damage_amount(ResidualSpec(condition, hp["maximum_hp"]), 1)
+    chip = residual_damage_amount(ResidualSpec(condition, hp["maximum_hp"]), toxic_stage)
     resulting_hp = max(0, hp["current_hp"] - minimum - chip)
-    return {"status": "complete", "source": source, "condition": condition, "residual_damage": chip, "minimum_incoming_damage": minimum, "post_turn_minimum_hp": resulting_hp, "guaranteed_ko": resulting_hp == 0}
+    return {"status": "complete", "source": source, "condition": condition, "residual_damage": chip, "minimum_incoming_damage": minimum, "post_turn_minimum_hp": resulting_hp, "guaranteed_ko": resulting_hp == 0, **({"toxic_stage": toxic_stage} if condition == "toxic" else {})}
 
 
 def _evaluate_toxic_spikes_first_residual(*, target: Mapping[str, Any], entry_effect_result: Mapping[str, Any] | None, damage: Any) -> dict[str, Any]:

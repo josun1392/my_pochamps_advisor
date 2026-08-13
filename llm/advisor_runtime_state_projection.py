@@ -58,13 +58,15 @@ def normalize_runtime_advice_state_projection(value, expected_session_id):
     for side in ("self", "opponent"):
         container = value.get(side)
         active = container.get("active_pokemon") if isinstance(container, dict) else None
-        if not isinstance(active, dict) or set(active) not in ({"pokemon_id", "current_hp", "max_hp", "fainted", "condition", "item"}, {"pokemon_id", "current_hp", "max_hp", "fainted", "condition", "item", "current_type"}):
+        if not isinstance(active, dict) or not {"pokemon_id", "current_hp", "max_hp", "fainted", "condition", "item"} <= set(active) or set(active) - {"pokemon_id", "current_hp", "max_hp", "fainted", "condition", "item", "current_type", "toxic_progression"}:
             raise ValueError("invalid_runtime_advice_state")
         if not isinstance(active.get("pokemon_id"), str) or not active["pokemon_id"]:
             raise ValueError("invalid_runtime_advice_state")
         if not all(_valid_request_fact(active[name]) for name in ("current_hp", "max_hp", "fainted", "condition", "item")):
             raise ValueError("invalid_runtime_advice_state")
         if "current_type" in active and not _valid_current_type_fact(active["current_type"]):
+            raise ValueError("invalid_runtime_advice_state")
+        if "toxic_progression" in active and not _valid_toxic_progression_fact(active["toxic_progression"]):
             raise ValueError("invalid_runtime_advice_state")
     field = value.get("field")
     if not isinstance(field, dict) or set(field) != {"weather", "terrain", "self_side_conditions", "opponent_side_conditions", "tailwind", "trick_room", "same_turn_events", "first_end_of_turn_phases"}:
@@ -85,6 +87,7 @@ def _active_pokemon(state, side_name):
         "condition": _fact(active["condition"], known_absence=True),
         "item": _fact(active["known_item"], known_absence=True),
         "current_type": _current_type_fact(active.get("current_type")),
+        "toxic_progression": _toxic_progression_fact(active.get("toxic_progression")),
     }
 
 
@@ -102,6 +105,15 @@ def _current_type_fact(value):
     if not _valid_type_list(value):
         return {"status": "unknown"}
     return {"status": "known", "value": deepcopy(value)}
+
+
+def _toxic_progression_fact(value):
+    if not isinstance(value, dict) or is_unknown_battle_fact(value):
+        return {"status": "unknown"}
+    stage = value.get("next_stage")
+    if not isinstance(stage, int) or isinstance(stage, bool) or not 1 <= stage <= 15:
+        return {"status": "unknown"}
+    return {"status": "known", "value": {"next_stage": stage}}
 
 
 def _observed_tailwind_fact(side):
@@ -191,6 +203,10 @@ def _valid_current_type_fact(value):
         (set(value) == {"status"} and value.get("status") == "unknown")
         or (set(value) == {"status", "value"} and value.get("status") == "known" and _valid_type_list(value["value"]))
     )
+
+
+def _valid_toxic_progression_fact(value):
+    return isinstance(value, dict) and ((set(value) == {"status"} and value.get("status") == "unknown") or (set(value) == {"status", "value"} and value.get("status") == "known" and isinstance(value.get("value"), dict) and set(value["value"]) == {"next_stage"} and isinstance(value["value"].get("next_stage"), int) and not isinstance(value["value"]["next_stage"], bool) and 1 <= value["value"]["next_stage"] <= 15))
 
 
 def _valid_type_list(value):

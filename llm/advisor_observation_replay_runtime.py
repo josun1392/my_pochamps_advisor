@@ -10,7 +10,7 @@ _ALLOWED_STATE_KEYS = {
     "state_version", "session_id", "self_side", "opponent_side", "field",
     "last_applied_observation_sequence", "q12", "ranking",
     "last_applied_batch_fingerprint", "source_replay_policy_version",
-    "last_commit_provenance", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context",
+    "last_commit_provenance", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context",
 }
 _REQUIRED_STATE_KEYS = {
     "state_version", "session_id", "self_side", "opponent_side", "field",

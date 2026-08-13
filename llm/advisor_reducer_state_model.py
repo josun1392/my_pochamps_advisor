@@ -46,12 +46,12 @@ def validate_battle_state_unknown_markers(state):
         for pokemon in roster.values():
             if not isinstance(pokemon, dict):
                 return False
-            if any(not _valid_fact_marker(pokemon.get(field)) for field in ("current_hp", "max_hp", "fainted", "condition", "known_item")) or not _valid_current_type_state(pokemon.get("current_type"), pokemon.get("current_type_provenance")):
+            if any(not _valid_fact_marker(pokemon.get(field)) for field in ("current_hp", "max_hp", "fainted", "condition", "known_item")) or not _valid_current_type_state(pokemon.get("current_type"), pokemon.get("current_type_provenance")) or not _valid_toxic_progression_state(pokemon.get("toxic_progression")):
                 return False
             known_moves = pokemon.get("known_move_ids", [])
             if not isinstance(known_moves, list) or len(known_moves) > 4 or any(not _canonical_move_id(move) for move in known_moves) or len(set(known_moves)) != len(known_moves):
                 return False
-            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "condition", "known_item"}):
+            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "toxic_progression", "condition", "known_item"}):
                 return False
     field = state.get("field")
     if not isinstance(field, dict) or not all(_valid_fact_marker(field.get(name)) for name in ("weather", "terrain")):
@@ -72,7 +72,9 @@ def validate_battle_state_unknown_markers(state):
     if not isinstance(leftovers, list) or any(not _valid_leftovers_end_of_turn_result(result, state.get("session_id")) for result in leftovers): return False
     black_sludge = state.get("black_sludge_end_of_turn_context", [])
     if not isinstance(black_sludge, list) or any(not _valid_black_sludge_end_of_turn_result(result, state.get("session_id")) for result in black_sludge): return False
-    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context"})
+    toxic_ticks = state.get("toxic_end_of_turn_context", [])
+    if not isinstance(toxic_ticks, list) or any(not _valid_toxic_end_of_turn_result(result, state.get("session_id")) for result in toxic_ticks): return False
+    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context"})
 
 
 def _valid_fact_marker(value):
@@ -93,6 +95,13 @@ def _valid_current_type_state(value, provenance):
     except ValueError:
         return False
     return isinstance(provenance, dict) and provenance.get("event_kind") == "current_type_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0
+
+
+def _valid_toxic_progression_state(value):
+    if value is None or is_unknown_battle_fact(value):
+        return True
+    provenance = value.get("provenance") if isinstance(value, dict) else None
+    return isinstance(value, dict) and set(value) == {"next_stage", "initialized_turn", "last_processed_turn", "condition_observation_id", "provenance"} and isinstance(value.get("next_stage"), int) and not isinstance(value.get("next_stage"), bool) and 1 <= value["next_stage"] <= 15 and isinstance(value.get("initialized_turn"), int) and not isinstance(value.get("initialized_turn"), bool) and value["initialized_turn"] > 0 and (value.get("last_processed_turn") is None or isinstance(value.get("last_processed_turn"), int) and not isinstance(value.get("last_processed_turn"), bool) and value["last_processed_turn"] >= value["initialized_turn"]) and isinstance(value.get("condition_observation_id"), str) and bool(value["condition_observation_id"]) and isinstance(provenance, dict) and provenance.get("event_kind") == "condition_applied_observed" and provenance.get("trust") == "user_confirmed_observation"
 
 
 def _contains_marker(value):
@@ -437,6 +446,7 @@ def _apply(state, event):
         if pokemon.get("fainted") is True: return _conflict(event, "already_fainted")
         if pokemon.get("current_hp") != 0: return _conflict(event, "faint_requires_exact_zero_hp")
         pokemon["fainted"] = True; _mark(pokemon, "fainted", event)
+        pokemon["toxic_progression"] = make_unknown_battle_fact()
         _invalidate_same_turn_events(state, _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id"))
         return None
     if effect == "set_current_stat_stage":
@@ -491,6 +501,7 @@ def _mark_first_end_of_turn_reached(state, event):
     phases.append({"session_id": state["session_id"], "turn_number": turn_number, "provenance": _provenance(event) | {"event_kind": "first_end_of_turn_reached_observed", "trust": _value(event, "trust")}})
     _apply_leftovers_end_of_turn_recovery(state, event)
     _apply_black_sludge_end_of_turn(state, event)
+    _apply_toxic_end_of_turn(state, event)
     return None
 
 
@@ -608,6 +619,41 @@ def _valid_black_sludge_end_of_turn_result(value, session_id):
     return isinstance(value.get("damage"), int) and not isinstance(value.get("damage"), bool) and value["damage"] >= 0 and value["post_hp"] == max(0, value["pre_hp"] - value["damage"]) and value.get("outcome") == "damaged" and value["guaranteed_ko"] == (value["post_hp"] == 0)
 
 
+def _apply_toxic_end_of_turn(state, event):
+    """Apply only an exact identity-owned next toxic stage at this phase."""
+    results = state.setdefault("toxic_end_of_turn_context", [])
+    if not isinstance(results, list):
+        return
+    turn_number = _value(event, "turn_number")
+    for side_name in ("self", "opponent"):
+        side = _side(state, side_name); slot = side.get("active_slot_index") if isinstance(side, dict) else None
+        roster = side.get("pokemon") if isinstance(side, dict) else None
+        pokemon = roster.get(slot, roster.get(str(slot))) if isinstance(roster, dict) else None
+        if not isinstance(slot, int) or isinstance(slot, bool) or not isinstance(pokemon, dict) or pokemon.get("condition") != "toxic" or pokemon.get("fainted") is not False:
+            continue
+        progress = pokemon.get("toxic_progression")
+        if not _valid_toxic_progression_state(progress):
+            continue
+        pid, hp, maximum = pokemon.get("pokemon_id", pokemon.get("name_en")), pokemon.get("current_hp"), pokemon.get("max_hp")
+        if not isinstance(pid, str) or not pid or not _exact(hp) or not _exact(maximum) or maximum < 1 or hp > maximum:
+            continue
+        stage, prior_turn = progress["next_stage"], progress["last_processed_turn"]
+        if progress["initialized_turn"] > turn_number or isinstance(prior_turn, int) and turn_number <= prior_turn:
+            continue
+        damage = (maximum * stage) // 16
+        post_hp = max(0, hp - damage)
+        result = {"session_id": state["session_id"], "turn_number": turn_number, "side": side_name, "slot_index": slot, "pokemon_id": pid, "condition": "toxic", "stage": stage, "pre_hp": hp, "max_hp": maximum, "damage": damage, "post_hp": post_hp, "guaranteed_ko": post_hp == 0, "provenance": _provenance(event) | {"event_kind": "first_end_of_turn_reached_observed", "trust": _value(event, "trust")}}
+        results.append(result)
+        pokemon["current_hp"] = post_hp
+        _mark(pokemon, "current_hp", event)
+        pokemon["toxic_progression"] = {**deepcopy(progress), "next_stage": min(stage + 1, 15), "last_processed_turn": turn_number}
+
+
+def _valid_toxic_end_of_turn_result(value, session_id):
+    provenance = value.get("provenance") if isinstance(value, dict) else None
+    return isinstance(value, dict) and value.get("session_id") == session_id and value.get("side") in {"self", "opponent"} and isinstance(value.get("slot_index"), int) and not isinstance(value.get("slot_index"), bool) and value["slot_index"] >= 0 and isinstance(value.get("pokemon_id"), str) and bool(value["pokemon_id"]) and value.get("condition") == "toxic" and all(isinstance(value.get(key), int) and not isinstance(value.get(key), bool) and value[key] >= 0 for key in ("turn_number", "stage", "pre_hp", "max_hp", "damage", "post_hp")) and 1 <= value["stage"] <= 15 and value["pre_hp"] <= value["max_hp"] and value["post_hp"] == max(0, value["pre_hp"] - value["damage"]) and value["damage"] == (value["max_hp"] * value["stage"]) // 16 and value.get("guaranteed_ko") == (value["post_hp"] == 0) and isinstance(provenance, dict) and provenance.get("event_kind") == "first_end_of_turn_reached_observed" and provenance.get("trust") == "user_confirmed_observation"
+
+
 def _same_turn_event(state, event):
     subject = {key: _value(event, key) for key in ("side", "slot_index", "pokemon_id")}
     target = {key: _value(event, key) for key in ("target_side", "target_slot_index", "target_pokemon_id")}
@@ -634,11 +680,30 @@ def _pokemon_effect(state, event):
     if not isinstance(expected, str) or not expected: return _conflict(event, "missing_effect_identity")
     if effect in {"set_condition", "consume_item", "remove_item"}:
         if current == expected and effect == "set_condition": return None
-        if (current is None or _unknown(current)) and effect == "set_condition": pokemon[field] = expected; _mark(pokemon, field, event); return None
-        if effect != "set_condition" and current == expected: pokemon[field] = None; _mark(pokemon, field, event); return None
+        if (current is None or _unknown(current)) and effect == "set_condition":
+            pokemon[field] = expected; _mark(pokemon, field, event); _initialize_toxic_progression(pokemon, event, expected); return None
+        if effect != "set_condition" and current == expected:
+            pokemon[field] = None; _mark(pokemon, field, event)
+            if field == "condition": pokemon["toxic_progression"] = make_unknown_battle_fact()
+            return None
         return _conflict(event, "known_value_mismatch_or_unknown")
-    if current == expected: pokemon[field] = None; _mark(pokemon, field, event); return None
+    if current == expected:
+        pokemon[field] = None; _mark(pokemon, field, event)
+        if field == "condition": pokemon["toxic_progression"] = make_unknown_battle_fact()
+        return None
     return _conflict(event, "condition_clear_requires_exact_known_match")
+
+
+def _initialize_toxic_progression(pokemon, event, condition):
+    """Only a trusted ordered newly applied toxic condition starts at stage one."""
+    if condition != "toxic":
+        pokemon["toxic_progression"] = make_unknown_battle_fact()
+        return
+    turn_number = _value(event, "turn_number")
+    if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1:
+        pokemon["toxic_progression"] = make_unknown_battle_fact()
+        return
+    pokemon["toxic_progression"] = {"next_stage": 1, "initialized_turn": turn_number, "last_processed_turn": None, "condition_observation_id": event["observation_id"], "provenance": _provenance(event) | {"event_kind": "condition_applied_observed", "trust": _value(event, "trust")}}
 
 
 def _field_effect(state, event):
@@ -701,6 +766,9 @@ def _switch(state, event):
     if not isinstance(incoming, dict) or incoming.get("pokemon_id", incoming.get("name_en")) != in_id: return _conflict(event, "missing_switch_in_target")
     if incoming.get("fainted") is True: return _conflict(event, "switch_in_fainted")
     side["active_slot_index"] = in_slot; _mark(side, "active_slot_index", event)
+    outgoing = roster.get(out_slot, roster.get(str(out_slot))) if isinstance(roster, dict) else None
+    if isinstance(outgoing, dict):
+        outgoing["toxic_progression"] = make_unknown_battle_fact()
     _invalidate_same_turn_events(state, _value(event, "side"), out_slot, out_id)
     return None
 
