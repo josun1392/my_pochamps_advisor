@@ -1,8 +1,8 @@
-# Practical 1.1 Release Candidate
+# Practical 1.1 Release Candidate (Superseded)
 
-**Status:** RELEASE-CANDIDATE READY
-**Package version:** `1.1.0`
-**Release baseline:** `9102380` (`test: add practical 1.1 integration scenarios`)
+**Status:** SUPERSEDED BY PRACTICAL-1.1 FINAL
+**Final record:** [`practical_1_1_final.md`](practical_1_1_final.md)
+**Baseline:** `9102380` (`test: add practical 1.1 integration scenarios`)
 **Offline validation:** 3631 passed, 2 deselected
 
 Practical 1.1 extends the Practical 1.0 deterministic Move-vs-Switch advisor
@@ -43,3 +43,9 @@ delayed or scheduled effects, weather duration, general turn simulation, and
 non-damage strategic utility scoring.
 
 Practical 1.1 does not claim exhaustive Pokemon simulator completeness.
+
+## Historical next phase
+
+The separately authorized bounded Practical-1.1 Flail smoke subsequently
+passed. The authoritative release status and post-1.1 boundary are recorded in
+the final release document.
