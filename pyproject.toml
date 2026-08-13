@@ -1,7 +1,7 @@
 [project]
 name = "pokemon-copilot"
-version = "0.1.0"
-description = "Pokemon battle copilot Phase 1 UI skeleton"
+version = "1.0.0"
+description = "Practical 1.0 deterministic Pokemon Move-vs-Switch advisor"
 requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.14.3",

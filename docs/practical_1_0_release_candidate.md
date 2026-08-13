@@ -1,6 +1,7 @@
-# Practical-1.0 Release Candidate
+# Practical-1.0 Release Candidate (Superseded)
 
-**Status:** RELEASE-CANDIDATE READY
+**Status:** SUPERSEDED BY PRACTICAL-1.0 FINAL
+**Final record:** [`practical_1_0_final.md`](practical_1_0_final.md)
 **Baseline:** `4f3263b` (`test: add explanation integration scenarios`)
 **Offline validation:** 3558 passed, 2 deselected
 
@@ -57,10 +58,8 @@ broad weather residuals, delayed effects, general turn simulation, exhaustive
 move/ability coverage, broad non-damage strategic scoring, and richer
 provider-generated explanation quality.
 
-## Next phase
+## Historical next phase
 
-Recommended follow-up is a separately authorized bounded real-environment
-smoke using this hardened provider-facing contract, then final release
-declaration if that smoke is successful. Neither is implied by this
-deterministic release-candidate declaration, and no provider call is required
-for its offline validation.
+The separately authorized bounded real-environment smoke subsequently passed.
+The authoritative release status and next-phase boundary are recorded in the
+final release document.
