@@ -31,3 +31,14 @@ canonical readiness projection: it neither prioritizes battle outcomes nor
 creates, infers, or mutates authority. One resolved route refreshes the full
 current selection, so only its resolved gap disappears while other material
 gaps remain visible.
+
+## Deterministic integration coverage
+
+The Practical 1.2 offline integration scenarios exercise the full bounded
+readiness workflow: canonical multi-gap projection and grouped presentation,
+existing confirmation routes, paired exact HP application, cancel and
+partial/stale-owner handling, and post-confirmation readiness refresh. They
+also verify that unavailable and unsupported reasons stay visible without a
+fictional route. The scenarios use sanitized fixtures only and do not create
+authority or mutate state except through the existing explicit confirmation
+paths.
