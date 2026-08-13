@@ -2209,7 +2209,7 @@ class MainWindow(QMainWindow):
 
 def _move_payload(move: MoveView, slot_index: int) -> dict:
     return {
-        "slot": slot_index,
+        "slot_index": slot_index,
         "move_id": move.move_id,
         "name_en": move.name_en,
         "name_ko": move.name_ko,

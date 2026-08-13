@@ -55,6 +55,7 @@ from llm.advisor_opponent_move_context import (
 )
 from llm.advisor_turn_events import build_optional_turn_pipeline_for_advice_payload
 from llm.advisor_turn_order_context import build_deterministic_turn_order_context
+from llm.advisor_turn_snapshot import build_request_start_recommendation_snapshot
 from tests.test_advisor_damage_estimate import (
     _battle_input,
     _bullet_seed,
@@ -4863,10 +4864,22 @@ def test_manual_move_payload_includes_only_user_confirmed_moves() -> None:
     selected_move = MainWindow._selected_move_payload(panel)
 
     assert [move["move_id"] for move in available_moves] == ["air-slash", "flamethrower"]
-    assert [move["slot"] for move in available_moves] == [1, 2]
+    assert [move["slot_index"] for move in available_moves] == [1, 2]
     assert selected_move is not None
     assert selected_move["move_id"] == "flamethrower"
-    assert selected_move["slot"] == 2
+    assert selected_move["slot_index"] == 2
+
+    snapshot = build_request_start_recommendation_snapshot(
+        {
+            "pokemon": {
+                "my_active": {"name_en": "charizard", "slot_index": 0},
+                "opponent_active": {"name_en": "garchomp", "slot_index": 0},
+            },
+            "moves": {"my_available_moves": available_moves},
+        },
+        selectable_moves=(None, "air-slash", "flamethrower", None),
+    )
+    assert snapshot.to_dict()["battle_state"]["active_player"]["species_id"] == "charizard"
 
 
 def test_ui_payload_attaches_selected_move_damage_estimate() -> None:
@@ -5353,7 +5366,7 @@ def test_opponent_selected_moves_become_known_moves() -> None:
     assert opponent_moves["status"] == "known_and_candidates"
     known_move = opponent_moves["known_moves"][0]
     assert len(opponent_moves["known_moves"]) == 1
-    assert known_move["slot"] == 0
+    assert known_move["slot_index"] == 0
     assert known_move["move_id"] == "earthquake"
     assert known_move["source"] == "user_confirmed"
     assert known_move["damage_estimate"]["status"] == "available_with_default_assumptions"
