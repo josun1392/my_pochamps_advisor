@@ -2,7 +2,7 @@
 
 **Status:** RELEASE-CANDIDATE READY
 **Baseline:** `4f3263b` (`test: add explanation integration scenarios`)
-**Offline validation:** 3555 passed, 2 deselected
+**Offline validation:** 3558 passed, 2 deselected
 
 Practical-1.0 is a trustworthy deterministic advisor for choosing between an
 available Move and a legal Switch from trusted current battle authority. It is
@@ -45,6 +45,9 @@ or outstanding T1 decision. Provider-facing claim schemas keep internal native
 mechanics links out of generic explanations; direct-mechanics numeric claims
 are linked only by the application to already-trusted deterministic evidence.
 Unsupported numeric or mechanics claims remain rejected.
+Generic structured claim schemas are also narrowed to the claim kinds backed by
+their selectable deterministic candidate evidence; semantic validation remains
+the rejection backstop for any unsupported claim that reaches it.
 
 ## Post-1.0 boundaries
 

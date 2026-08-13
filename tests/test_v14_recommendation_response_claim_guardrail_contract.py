@@ -16,7 +16,9 @@ def _response(reason):
     ({"kind": "damage", "claim": "resolved_damage_available"}, {}),
     ({"kind": "ko", "claim": "ko_available"}, {"damage": {"status": "resolved", "ko": "possible"}}),
     ({"kind": "hit_chance", "claim": "hit_available"}, {"hit_chance": {"status": "resolved"}}),
+    ({"kind": "hit_chance", "claim": "accuracy_available"}, {"accuracy_evidence": {"status": "known_accuracy"}}),
     ({"kind": "move_order", "claim": "order_available"}, {"move_order": {"status": "resolved"}}),
+    ({"kind": "move_order", "claim": "action_order_available"}, {"action_order": {"status": "acts_first"}}),
     ({"kind": "dynamic_mechanic", "claim": "dynamic_available"}, {"dynamic_move": {"status": "resolved"}}),
     ({"kind": "self_effect", "claim": "effect_available"}, {"self_effects": [{"kind": "heal"}]}),
 ])

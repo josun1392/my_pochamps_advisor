@@ -155,7 +155,7 @@ _STRUCTURED_SEMANTIC_GUIDANCE = (
     "Return only the declared JSON shape. A resolved recommendation must use a selectable exact move and slot pair. "
     "Ground reasons and risks in candidate comparisons, warnings, unavailable reasons, and known limitations. "
     "Never use partial_context for evidence already resolved; do not turn global limitations into candidate-specific missing evidence. "
-    "Use partial_context only for an actually unavailable or incomplete field. Each reason or risk must be exactly a kind/claim object: use only the supported claim kinds and a non-empty claim string. Alternatives require selectable exact move+slot pairs and reasons. "
+    "Use partial_context only for an actually unavailable or incomplete field. Each reason or risk must be exactly a kind/claim object: use only the supported claim kinds exposed by the response schema for currently available candidate evidence and a non-empty claim string. Return an empty list when no supported claim applies. Alternatives require selectable exact move+slot pairs and reasons. "
     "Do not invent EVs, IVs, nature, items, abilities, opponent moves, or final stats. Use insufficient_context when evidence is insufficient and no_usable_candidate when none is selectable. "
     "When runtime_advice_state is present it is authoritative current state: unknown is unobserved, not absent, false, zero, full HP, healthy, inactive, or empty; known_absent is confirmed absence; known with value is trusted current state. In that case include required grounding-v1 with schema_version plus confirmed_facts, unknown_facts, evidence_only, conflicts, and conditional_dependencies lists; every list entry requires a non-empty canonical provider-safe path. confirmed_facts and unknown_facts use authority runtime; evidence_only uses authority evidence or stale plus an allowed source; conflicts uses authority conflict plus an allowed source. A confirmed grounding entry must reproduce its runtime fact status and, for known facts, its exact runtime value. UI and unapplied observation evidence cannot override runtime known facts or resolve runtime unknown facts; conflicting stale UI evidence belongs only in evidence_only or conflicts, never in confirmed_facts. Never infer current battle facts from species metadata. State uncertainty or conditional dependence when needed, and never expose runtime_advice_state, fingerprint, CAS, reducer, ledger, session authority, request token, or thread identity."
     "When candidate_comparisons contains mechanics_result, treat it as authoritative deterministic evidence: do not recompute, change, or invent damage, percent, or KO values. For a single direct-mechanics candidate, return only a provider claim kind plus claim text: damage_value, damage_percent, ko_probability, value_free_mechanics, or partial_context. Never return mechanics_path, numeric_scope, a JSON pointer, or any native evidence address; the application resolves the selected candidate and claim kind to its canonical native evidence. A numeric claim kind must contain only its exact native values; do not calculate an average, midpoint, rounded derivative, new KO category, or mixed evidence. partial_context is only for insufficient_context and must use its bounded value-free statement. When mechanics_comparison is present, its comparison_status, rank, and fixed comparison_reason are deterministic: recommend its unique rank-1 candidate; do not reorder candidates, infer a rank for an unranked candidate, or create a scoring rationale not supplied there. For a multi-candidate mechanics comparison, return exactly one value-free ranking_acknowledgements object for every comparison row, copying only its slot_index, move, comparison_status, rank, and comparison_reason. Multi-candidate recommendation claims are value-free: include no damage, percent, KO, rank, score, or other number and no mechanics_path or numeric_scope; the deterministic selection and ranking_acknowledgements are the only provider-facing ranking references. This is mandatory: return exactly one mechanics_acknowledgements object for every candidate with mechanics_result, using only slot_index, move, canonical mechanics_path candidate_comparisons.<its slot index in the array>.mechanics_result, its exact status, and missing_inputs_path only when status is insufficient_context (otherwise null). mechanics_acknowledgements is value-free: never include mechanics values or duplicate this link in grounding.evidence_only."
@@ -310,10 +310,39 @@ def _direct_mechanics_statuses(*, provider_payload: Mapping[str, Any] | None) ->
     ] if isinstance(comparisons, list) else []
 
 
+def _generic_claim_kinds(*, provider_payload: Mapping[str, Any] | None) -> list[str] | None:
+    """Return only generic claim kinds backed by at least one selectable row."""
+    comparisons = provider_payload.get("candidate_comparisons") if isinstance(provider_payload, Mapping) else None
+    if not isinstance(comparisons, list):
+        return None
+    kinds: set[str] = set()
+    for candidate in comparisons:
+        if not isinstance(candidate, Mapping) or candidate.get("eligibility") == "not_selectable":
+            continue
+        damage = candidate.get("damage")
+        if isinstance(damage, Mapping) and damage.get("status") == "resolved":
+            kinds.add("damage")
+            if damage.get("ko") is not None:
+                kinds.add("ko")
+        if isinstance(candidate.get("hit_chance"), Mapping) or isinstance(candidate.get("accuracy_evidence"), Mapping):
+            kinds.add("hit_chance")
+        if isinstance(candidate.get("move_order"), Mapping) or isinstance(candidate.get("action_order"), Mapping):
+            kinds.add("move_order")
+        if isinstance(candidate.get("dynamic_move"), Mapping):
+            kinds.add("dynamic_mechanic")
+        if isinstance(candidate.get("self_effects"), list) and candidate["self_effects"]:
+            kinds.add("self_effect")
+    return sorted(kinds)
+
+
 def _claim_schema_for_provider_payload(*, provider_payload: Mapping[str, Any] | None) -> dict[str, Any]:
     """Bound the provider claim shape when every direct-mechanics result is incomplete."""
     schema = deepcopy(_STRUCTURED_CLAIM_SCHEMA)
     statuses = _direct_mechanics_statuses(provider_payload=provider_payload)
+    generic_kinds = _generic_claim_kinds(provider_payload=provider_payload)
+    if not statuses and generic_kinds:
+        schema["properties"]["kind"]["enum"] = generic_kinds
+        schema["properties"]["claim"]["description"] = "Use only the selected kind's available deterministic candidate evidence. Do not claim unsupported mechanics, numeric values, or native evidence links."
     if statuses and all(status == "known" for status in statuses):
         if provider_payload is not None and _payload_has_multi_mechanics_ranking(provider_payload):
             return {

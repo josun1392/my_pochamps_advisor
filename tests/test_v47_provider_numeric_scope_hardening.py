@@ -1,4 +1,4 @@
-from llm.advisor_candidate_contract import build_recommendation_request, complete_recommendation_cycle
+from llm.advisor_candidate_contract import build_recommendation_request, build_provider_recommendation_payload, complete_recommendation_cycle
 from llm.advisor_client import _structured_provider_schema
 
 
@@ -66,3 +66,24 @@ def test_generic_grounded_claim_passes_but_unprojected_numeric_linkage_stays_rej
     )
     assert invalid["status"] == "response_validation_failed"
     assert invalid["errors"] == ["mechanics_numeric_scope_invalid"]
+
+
+def test_generic_schema_exposes_only_available_claim_evidence_and_validator_keeps_rejection_backstop():
+    prepared = _prepared_cycle()
+    payload = build_provider_recommendation_payload(prepared_cycle=prepared)
+    schema = _structured_provider_schema(provider_payload=payload)
+    claim = schema["properties"]["primary_reasons"]["items"]
+    assert claim["properties"]["kind"]["enum"] == ["damage"]
+
+    valid = complete_recommendation_cycle(
+        prepared_cycle=prepared,
+        response_payload=_response(reason={"kind": "damage", "claim": "deterministic damage evidence"}),
+    )
+    assert valid["status"] == "resolved"
+
+    unsupported = complete_recommendation_cycle(
+        prepared_cycle=prepared,
+        response_payload=_response(reason={"kind": "ko", "claim": "deterministic KO evidence"}),
+    )
+    assert unsupported["status"] == "response_validation_failed"
+    assert unsupported["errors"] == ["claim_evidence_unavailable"]

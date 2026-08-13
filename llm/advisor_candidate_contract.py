@@ -1375,9 +1375,9 @@ def _validate_claim(reason: Any, candidate: Mapping[str, Any], *, mechanics_path
         raise ValueError("claim_evidence_unavailable")
     if kind == "ko" and (not isinstance(damage, Mapping) or "ko" not in damage or damage["ko"] is None) and not (mechanics_known and isinstance(mechanics.get("ko_result"), Mapping)):
         raise ValueError("claim_evidence_unavailable")
-    if kind == "hit_chance" and not isinstance(candidate.get("hit_chance"), Mapping):
+    if kind == "hit_chance" and not isinstance(candidate.get("hit_chance"), Mapping) and not isinstance(candidate.get("accuracy_evidence"), Mapping):
         raise ValueError("claim_evidence_unavailable")
-    if kind == "move_order" and not isinstance(candidate.get("move_order"), Mapping):
+    if kind == "move_order" and not isinstance(candidate.get("move_order"), Mapping) and not isinstance(candidate.get("action_order"), Mapping):
         raise ValueError("claim_evidence_unavailable")
     if kind == "dynamic_mechanic" and not isinstance(candidate.get("dynamic_move"), Mapping):
         raise ValueError("claim_evidence_unavailable")
