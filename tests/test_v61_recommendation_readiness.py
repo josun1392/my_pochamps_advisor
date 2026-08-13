@@ -44,6 +44,29 @@ def test_readiness_distinguishes_unsupported_and_ignores_irrelevant_unknown_stat
     assert item["action"] == "current_item"
 
 
+def test_readiness_projects_canonical_missing_inputs_from_nonselectable_candidates():
+    readiness = build_recommendation_readiness(prepared_cycle={
+        "status": "no_selectable_candidates",
+        "candidates": [{
+            "mechanics_result": {"status": "unavailable"},
+            "move_success": {
+                "status": "insufficient_context",
+                "missing_inputs": ["field.terrain", "attacker.item"],
+            },
+        }],
+    })
+
+    assert readiness == {
+        "status": "incomplete",
+        "missing": [
+            {"path": "field.terrain", "label": "Terrain not confirmed", "action": "current_field_state"},
+            {"path": "attacker.item", "label": "Held item unknown", "action": "current_item"},
+        ],
+        "unsupported": [],
+        "action": "current_item",
+    }
+
+
 def test_panel_exposes_readiness_and_routes_only_existing_confirmation_actions():
     QApplication.instance() or QApplication([])
     panel = LLMAdvicePanel()
@@ -92,6 +115,8 @@ def test_main_window_readiness_uses_frozen_preparation_without_a_provider_call()
     assert "prepare_ui_recommendation_cycle" in source
     assert "build_recommendation_readiness" in source
     assert "run_structured_ui_recommendation" not in source
+    assert "include_current_field_state_confirmation=True" in source
+    assert "include_current_hp_confirmations=True" in source
 
 
 def test_item_shortcut_reuses_existing_item_profile_flow_with_identity_check():

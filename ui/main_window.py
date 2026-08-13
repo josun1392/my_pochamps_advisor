@@ -1481,7 +1481,17 @@ class MainWindow(QMainWindow):
                 or projection.get("runtime_fingerprint") != runtime_snapshot.get("state_fingerprint")
             ):
                 raise ValueError("runtime projection unavailable")
-            battle_input = self._build_llm_battle_input()
+            battle_input = self._build_llm_battle_input(
+                include_item_event_confirmations=True,
+                include_current_condition_confirmations=True,
+                include_current_ability_confirmations=True,
+                include_current_stat_stage_confirmations=True,
+                include_current_field_state_confirmation=True,
+                include_current_final_stat_confirmations=True,
+                include_current_hp_confirmations=True,
+                include_current_battle_format_confirmation=True,
+                include_observed_previous_damage_confirmation=True,
+            )
             if not MainWindow._runtime_projection_matches_battle_input(
                 projection["runtime_advice_state"], battle_input
             ):
@@ -1585,7 +1595,17 @@ class MainWindow(QMainWindow):
                 or runtime_projection.get("runtime_fingerprint") != runtime_snapshot.get("state_fingerprint")
             ):
                 raise ValueError("runtime projection unavailable")
-            battle_input = self._build_llm_battle_input()
+            battle_input = self._build_llm_battle_input(
+                include_item_event_confirmations=True,
+                include_current_condition_confirmations=True,
+                include_current_ability_confirmations=True,
+                include_current_stat_stage_confirmations=True,
+                include_current_field_state_confirmation=True,
+                include_current_final_stat_confirmations=True,
+                include_current_hp_confirmations=True,
+                include_current_battle_format_confirmation=True,
+                include_observed_previous_damage_confirmation=True,
+            )
             if not MainWindow._runtime_projection_matches_battle_input(
                 runtime_projection["runtime_advice_state"],
                 battle_input,
