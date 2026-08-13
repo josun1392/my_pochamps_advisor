@@ -22,6 +22,8 @@ TURN_PIPELINE_STATUS_TEXT = (
 class LLMAdvicePanel(QFrame):
     advice_requested = Signal()
     structured_advice_requested = Signal()
+    recommendation_readiness_requested = Signal()
+    readiness_input_requested = Signal(str)
     field_profile_requested = Signal()
     item_event_requested = Signal()
     item_event_session_reset_requested = Signal()
@@ -64,6 +66,18 @@ class LLMAdvicePanel(QFrame):
         self.structured_request_button.clicked.connect(self.structured_advice_requested.emit)
         self.structured_request_button.setToolTip("후보 기술 전체를 비교하고 검증된 구조화 추천을 받습니다.")
         self.structured_request_button.setAccessibleName("구조화 추천 받기")
+        self.readiness_button = QPushButton("Check recommendation readiness")
+        self.readiness_button.setObjectName("recommendationReadinessButton")
+        self.readiness_button.setToolTip("Show only material trusted authority missing from the current deterministic recommendation.")
+        self.readiness_button.clicked.connect(self.recommendation_readiness_requested.emit)
+        self.readiness_label = QLabel("Recommendation readiness has not been checked.")
+        self.readiness_label.setObjectName("recommendationReadinessLabel")
+        self.readiness_label.setWordWrap(True)
+        self.readiness_input_button = QPushButton("Open needed input")
+        self.readiness_input_button.setObjectName("recommendationReadinessInputButton")
+        self.readiness_input_button.setVisible(False)
+        self.readiness_input_button.clicked.connect(self._request_readiness_input)
+        self._readiness_action: str | None = None
 
         self.field_profile_button = QPushButton("Field state")
         self.field_profile_button.setObjectName("fieldProfileButton")
@@ -173,6 +187,9 @@ class LLMAdvicePanel(QFrame):
 
         layout.addWidget(self.request_button)
         layout.addWidget(self.structured_request_button)
+        layout.addWidget(self.readiness_button)
+        layout.addWidget(self.readiness_label)
+        layout.addWidget(self.readiness_input_button)
         layout.addWidget(self.field_profile_button)
         layout.addWidget(self.item_event_button)
         layout.addWidget(self.clear_item_events_button)
@@ -247,6 +264,8 @@ class LLMAdvicePanel(QFrame):
     def set_running(self, is_running: bool) -> None:
         self.request_button.setDisabled(is_running)
         self.structured_request_button.setDisabled(is_running)
+        self.readiness_button.setDisabled(is_running)
+        self.readiness_input_button.setDisabled(is_running)
         self.field_profile_button.setDisabled(is_running)
         self.item_event_button.setDisabled(is_running)
         self.clear_item_events_button.setDisabled(is_running)
@@ -278,6 +297,35 @@ class LLMAdvicePanel(QFrame):
 
     def set_advice_text(self, text: str) -> None:
         self.output_edit.setPlainText(text)
+
+    def set_recommendation_readiness(self, readiness: dict) -> None:
+        status = readiness.get("status") if isinstance(readiness, dict) else "unavailable"
+        missing = readiness.get("missing") if isinstance(readiness, dict) else []
+        unsupported = readiness.get("unsupported") if isinstance(readiness, dict) else []
+        if status == "ready":
+            text = "Deterministic recommendation readiness: ready."
+        elif status == "incomplete":
+            labels = [entry.get("label") for entry in missing if isinstance(entry, dict) and isinstance(entry.get("label"), str)]
+            text = "Deterministic recommendation needs: " + "; ".join(labels)
+        elif status == "unsupported":
+            text = "Deterministic recommendation has an unsupported mechanic."
+        else:
+            text = "Recommendation readiness is unavailable for the current selection."
+        if unsupported and status != "unsupported":
+            text += " Some selected mechanics are unsupported."
+        self.readiness_label.setText(text)
+        action = readiness.get("action") if isinstance(readiness, dict) else None
+        self._readiness_action = action if isinstance(action, str) else None
+        self.readiness_input_button.setVisible(self._readiness_action is not None)
+
+    def clear_recommendation_readiness(self) -> None:
+        self._readiness_action = None
+        self.readiness_label.setText("Recommendation readiness has not been checked for this selection.")
+        self.readiness_input_button.setVisible(False)
+
+    def _request_readiness_input(self) -> None:
+        if self._readiness_action is not None:
+            self.readiness_input_requested.emit(self._readiness_action)
 
     def set_mode_advice_text(self, mode: str, text: str) -> None:
         heading = "[구조화 추천]" if mode == "structured" else "[기존 조언]"

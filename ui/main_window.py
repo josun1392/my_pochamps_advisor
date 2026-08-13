@@ -51,6 +51,8 @@ from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_sta
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from llm.advisor_runtime_state_projection import build_runtime_advice_state_projection
 from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
+from llm.advisor_candidate_contract import prepare_ui_recommendation_cycle
+from llm.advisor_recommendation_readiness import build_recommendation_readiness
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
@@ -463,6 +465,8 @@ class MainWindow(QMainWindow):
         self.center_column.move_search_box.move_selected.connect(self._on_move_selected)
         self.center_column.llm_advice_panel.advice_requested.connect(self._start_llm_advice)
         self.center_column.llm_advice_panel.structured_advice_requested.connect(self._start_structured_recommendation)
+        self.center_column.llm_advice_panel.recommendation_readiness_requested.connect(self._check_structured_recommendation_readiness)
+        self.center_column.llm_advice_panel.readiness_input_requested.connect(self._open_readiness_input)
         self.center_column.llm_advice_panel.field_profile_requested.connect(self._open_field_profile_dialog)
         self.center_column.llm_advice_panel.item_event_requested.connect(self._open_item_event_dialog)
         self.center_column.llm_advice_panel.item_event_session_reset_requested.connect(
@@ -560,6 +564,7 @@ class MainWindow(QMainWindow):
         self._sync_move_search_candidates()
 
     def _on_pokemon_selected(self, en_id: str) -> None:
+        self.center_column.llm_advice_panel.clear_recommendation_readiness()
         slot = self._active_slot()
         if slot is None:
             print("활성화된 포켓몬 슬롯이 없습니다.")
@@ -578,6 +583,7 @@ class MainWindow(QMainWindow):
 
     @Slot(object)
     def _on_move_selected(self, move: MoveView) -> None:
+        self.center_column.llm_advice_panel.clear_recommendation_readiness()
         slot = self._active_slot()
         if slot is None or slot.selected_move_index is None:
             self.statusBar().showMessage("Failed | Select a move slot first.")
@@ -1424,6 +1430,78 @@ class MainWindow(QMainWindow):
         if self._llm_worker is worker:
             self._llm_worker = None
         self._clear_current_advice_request("legacy", request_token)
+
+    @Slot()
+    def _check_structured_recommendation_readiness(self) -> None:
+        """Run the existing frozen deterministic preparation without a provider call."""
+        panel = self.center_column.llm_advice_panel
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            panel.set_recommendation_readiness({"status": "unavailable"})
+            return
+        try:
+            runtime_snapshot = manager.capture_runtime_state_snapshot(session_id)
+            projection = build_runtime_advice_state_projection(runtime_snapshot.get("state"))
+            if (
+                runtime_snapshot.get("status") != "runtime_snapshot_ready"
+                or projection.get("status") != "runtime_projection_ready"
+                or projection.get("session_id") != session_id
+                or projection.get("runtime_fingerprint") != runtime_snapshot.get("state_fingerprint")
+            ):
+                raise ValueError("runtime projection unavailable")
+            battle_input = self._build_llm_battle_input()
+            if not MainWindow._runtime_projection_matches_battle_input(
+                projection["runtime_advice_state"], battle_input
+            ):
+                raise ValueError("runtime identity mismatch")
+            my_slot = self.selected_slots.get("team_my")
+            if my_slot is None:
+                raise ValueError("missing selected Pokemon")
+            battle_input["runtime_advice_state"] = deepcopy(projection["runtime_advice_state"])
+            battle_input = capture_ui_current_state_provenance(
+                deepcopy(battle_input),
+                session_id=session_id,
+                observed_events=deepcopy(getattr(self, "_item_event_confirmations", [])),
+                final_stat_confirmations=deepcopy(list(getattr(self, "_structured_final_stat_confirmations", {}).values())),
+                ability_confirmations=deepcopy(list(getattr(self, "_structured_ability_confirmations", {}).values())),
+                current_type_confirmations=deepcopy([
+                    *list(getattr(self, "_structured_type_confirmations", {}).values()),
+                    *[entry for entry in getattr(self, "_current_type_confirmations", {}).values()
+                      if isinstance(entry, dict) and entry.get("state") == "unknown"],
+                ]),
+                observed_damage_confirmations=deepcopy(getattr(self, "_structured_observed_damage_confirmations", [])),
+            )
+            battle_input["current_state_session_id"] = session_id
+            prepared = prepare_ui_recommendation_cycle(
+                selected_moves=list(self._slot_panel("team_my", my_slot).selected_moves),
+                battle_input=battle_input,
+                move_repository=self.move_repo,
+                species_repository=self.repo,
+                observation_snapshot=manager.read_collection_snapshot(),
+                trusted_turn_context=self._trusted_turn_context_snapshot(),
+            )
+        except ValueError:
+            panel.set_recommendation_readiness({"status": "unavailable"})
+            return
+        panel.set_recommendation_readiness(build_recommendation_readiness(prepared_cycle=prepared))
+
+    @Slot(str)
+    def _open_readiness_input(self, action: str) -> None:
+        routes = {
+            "field_profile": self._open_field_profile_dialog,
+            "current_hp": self._open_current_hp_dialog,
+            "current_type": self._open_current_type_dialog,
+            "current_condition": self._open_current_condition_dialog,
+            "current_stat_stage": self._open_current_stat_stage_dialog,
+            "current_field_state": self._open_current_field_state_dialog,
+            "current_ability": self._open_current_ability_dialog,
+            "switch_permission": self._open_switch_permission_dialog,
+            "current_observed_damage": self._open_current_observed_damage_dialog,
+        }
+        handler = routes.get(action)
+        if handler is not None:
+            handler()
 
     @Slot()
     def _start_structured_recommendation(self) -> None:

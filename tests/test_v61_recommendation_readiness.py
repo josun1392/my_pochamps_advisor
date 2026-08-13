@@ -1,0 +1,63 @@
+from PySide6.QtWidgets import QApplication
+import inspect
+
+from llm.advisor_recommendation_readiness import build_recommendation_readiness
+from ui.main_window import MainWindow
+from ui.widgets.llm_advice_panel import LLMAdvicePanel
+
+
+def _prepared(*candidates):
+    return {"status": "ready", "candidates": list(candidates)}
+
+
+def test_readiness_projects_only_canonical_missing_inputs_and_known_routes():
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared(
+        {"mechanics_result": {"status": "insufficient_context", "missing_inputs": ["attacker.current_hp", "field.weather"]}, "action_order": {"status": "insufficient_context", "missing_inputs": ["opponent.grounded"]}},
+        {"mechanics_result": {"status": "insufficient_context", "missing_inputs": ["attacker.current_hp"]}},
+    ))
+    assert readiness["status"] == "incomplete"
+    assert readiness["missing"] == [
+        {"path": "attacker.current_hp", "label": "Current HP needed", "action": "current_hp"},
+        {"path": "field.weather", "label": "Weather not confirmed", "action": "current_field_state"},
+        {"path": "opponent.grounded", "label": "Groundedness not confirmed", "action": "current_field_state"},
+    ]
+    assert readiness["action"] == "current_hp"
+
+
+def test_readiness_distinguishes_unsupported_and_ignores_irrelevant_unknown_state():
+    ready = build_recommendation_readiness(prepared_cycle=_prepared(
+        {"mechanics_result": {"status": "known"}, "unavailable_reasons": ["unrelated_unknown"]},
+    ))
+    assert ready == {"status": "ready", "missing": [], "unsupported": [], "action": None}
+
+    unsupported = build_recommendation_readiness(prepared_cycle=_prepared(
+        {"mechanics_result": {"status": "unsupported_mechanic", "unsupported_reason": "status_move"}},
+    ))
+    assert unsupported["status"] == "unsupported"
+    assert unsupported["missing"] == []
+
+    item = build_recommendation_readiness(prepared_cycle=_prepared(
+        {"mechanics_result": {"status": "insufficient_context", "missing_inputs": ["defender.item"]}},
+    ))
+    assert item["missing"] == [{"path": "defender.item", "label": "Held item unknown", "action": None}]
+
+
+def test_panel_exposes_readiness_and_routes_only_existing_confirmation_actions():
+    QApplication.instance() or QApplication([])
+    panel = LLMAdvicePanel()
+    emitted: list[str] = []
+    panel.readiness_input_requested.connect(emitted.append)
+    panel.set_recommendation_readiness({"status": "incomplete", "missing": [{"label": "Current type needed", "action": "current_type"}], "unsupported": [], "action": "current_type"})
+    assert "Current type needed" in panel.readiness_label.text()
+    assert panel.readiness_input_button.isVisible() is False  # parent is not shown
+    panel._request_readiness_input()
+    assert emitted == ["current_type"]
+    panel.clear_recommendation_readiness()
+    assert "has not been checked" in panel.readiness_label.text()
+
+
+def test_main_window_readiness_uses_frozen_preparation_without_a_provider_call():
+    source = inspect.getsource(MainWindow._check_structured_recommendation_readiness)
+    assert "prepare_ui_recommendation_cycle" in source
+    assert "build_recommendation_readiness" in source
+    assert "run_structured_ui_recommendation" not in source
