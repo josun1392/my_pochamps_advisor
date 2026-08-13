@@ -1559,6 +1559,8 @@ class MainWindow(QMainWindow):
         handler = routes.get(action)
         if handler is not None:
             handler()
+            if getattr(self, "_recommendation_readiness_owner", None) is not None:
+                self._check_structured_recommendation_readiness()
 
     @Slot()
     def _start_structured_recommendation(self) -> None:

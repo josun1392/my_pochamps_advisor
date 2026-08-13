@@ -58,6 +58,35 @@ def test_panel_exposes_readiness_and_routes_only_existing_confirmation_actions()
     assert "has not been checked" in panel.readiness_label.text()
 
 
+def test_panel_groups_multiple_readiness_gaps_with_distinct_routes_and_unavailable_reasons():
+    QApplication.instance() or QApplication([])
+    panel = LLMAdvicePanel()
+    emitted: list[str] = []
+    panel.readiness_input_requested.connect(emitted.append)
+    panel.set_recommendation_readiness({
+        "status": "incomplete",
+        "missing": [
+            {"label": "Current HP needed", "action": "current_hp"},
+            {"label": "Held item unknown", "action": "current_item"},
+            {"label": "Toxic progression authority missing", "action": None},
+            {"label": "Current HP needed", "action": "current_hp"},
+        ],
+        "unsupported": ["This selected mechanic is not supported yet"],
+        "action": "current_item",
+    })
+    text = panel.readiness_label.text()
+    assert "Can confirm: Current HP needed; Held item unknown" in text
+    assert "Still unavailable: Toxic progression authority missing" in text
+    assert "Unsupported: This selected mechanic is not supported yet" in text
+    assert panel.readiness_input_button.text() == "Open: Current HP needed"
+    assert [button.text() for button in panel._readiness_extra_input_buttons] == ["Open: Held item unknown"]
+    panel._request_readiness_input()
+    panel._readiness_extra_input_buttons[0].click()
+    assert emitted == ["current_hp", "current_item"]
+    panel.clear_recommendation_readiness()
+    assert panel._readiness_extra_input_buttons == []
+
+
 def test_main_window_readiness_uses_frozen_preparation_without_a_provider_call():
     source = inspect.getsource(MainWindow._check_structured_recommendation_readiness)
     assert "prepare_ui_recommendation_cycle" in source
@@ -72,6 +101,13 @@ def test_item_shortcut_reuses_existing_item_profile_flow_with_identity_check():
     assert "current_session != session_id" in source
     assert 'self.selected_slots.get("team_my") != slot_index' in source
     assert "getattr(view, \"en\", None) != pokemon_id" in source
+    assert "self._check_structured_recommendation_readiness()" in source
+
+
+def test_existing_readiness_routes_refresh_the_current_canonical_projection():
+    source = inspect.getsource(MainWindow._open_readiness_input)
+    assert "handler()" in source
+    assert 'getattr(self, "_recommendation_readiness_owner", None) is not None' in source
     assert "self._check_structured_recommendation_readiness()" in source
 
 

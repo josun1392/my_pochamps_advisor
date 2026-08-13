@@ -23,3 +23,11 @@ sides in one session. Each side remains an independent explicit record. The UI
 captures the active session, slot, and Pokémon identity before opening; it
 applies only entries whose owner still matches and excludes owner-mismatched
 entries from later frozen requests. Unticked sides remain unchanged.
+
+When several material gaps apply at once, the panel groups them as explicit
+confirmation routes, authority that is still unavailable to capture, and
+unsupported mechanics. The grouping is a stable read-only presentation of the
+canonical readiness projection: it neither prioritizes battle outcomes nor
+creates, infers, or mutates authority. One resolved route refreshes the full
+current selection, so only its resolved gap disappears while other material
+gaps remain visible.

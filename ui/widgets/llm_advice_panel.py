@@ -78,6 +78,11 @@ class LLMAdvicePanel(QFrame):
         self.readiness_input_button.setVisible(False)
         self.readiness_input_button.clicked.connect(self._request_readiness_input)
         self._readiness_action: str | None = None
+        self._readiness_extra_input_buttons: list[QPushButton] = []
+        self.readiness_input_layout = QVBoxLayout()
+        self.readiness_input_layout.setContentsMargins(0, 0, 0, 0)
+        self.readiness_input_layout.setSpacing(4)
+        self.readiness_input_layout.addWidget(self.readiness_input_button)
 
         self.field_profile_button = QPushButton("Field state")
         self.field_profile_button.setObjectName("fieldProfileButton")
@@ -189,7 +194,7 @@ class LLMAdvicePanel(QFrame):
         layout.addWidget(self.structured_request_button)
         layout.addWidget(self.readiness_button)
         layout.addWidget(self.readiness_label)
-        layout.addWidget(self.readiness_input_button)
+        layout.addLayout(self.readiness_input_layout)
         layout.addWidget(self.field_profile_button)
         layout.addWidget(self.item_event_button)
         layout.addWidget(self.clear_item_events_button)
@@ -266,6 +271,8 @@ class LLMAdvicePanel(QFrame):
         self.structured_request_button.setDisabled(is_running)
         self.readiness_button.setDisabled(is_running)
         self.readiness_input_button.setDisabled(is_running)
+        for button in self._readiness_extra_input_buttons:
+            button.setDisabled(is_running)
         self.field_profile_button.setDisabled(is_running)
         self.item_event_button.setDisabled(is_running)
         self.clear_item_events_button.setDisabled(is_running)
@@ -302,26 +309,69 @@ class LLMAdvicePanel(QFrame):
         status = readiness.get("status") if isinstance(readiness, dict) else "unavailable"
         missing = readiness.get("missing") if isinstance(readiness, dict) else []
         unsupported = readiness.get("unsupported") if isinstance(readiness, dict) else []
+        actionable_labels: list[str] = []
+        unavailable_labels: list[str] = []
+        actions: list[tuple[str, str]] = []
+        seen_labels: set[str] = set()
+        seen_actions: set[str] = set()
+        for entry in missing if isinstance(missing, list) else []:
+            if not isinstance(entry, dict):
+                continue
+            label = entry.get("label")
+            action = entry.get("action")
+            if not isinstance(label, str) or label in seen_labels:
+                continue
+            seen_labels.add(label)
+            if isinstance(action, str):
+                actionable_labels.append(label)
+                if action not in seen_actions:
+                    seen_actions.add(action)
+                    actions.append((label, action))
+            else:
+                unavailable_labels.append(label)
+        unsupported_labels = list(dict.fromkeys(
+            entry for entry in unsupported if isinstance(entry, str)
+        ))
         if status == "ready":
             text = "Deterministic recommendation readiness: ready."
         elif status == "incomplete":
-            labels = [entry.get("label") for entry in missing if isinstance(entry, dict) and isinstance(entry.get("label"), str)]
-            text = "Deterministic recommendation needs: " + "; ".join(labels)
+            sections = ["Deterministic recommendation readiness: incomplete."]
+            if actionable_labels:
+                sections.append("Can confirm: " + "; ".join(actionable_labels))
+            if unavailable_labels:
+                sections.append("Still unavailable: " + "; ".join(unavailable_labels))
+            if unsupported_labels:
+                sections.append("Unsupported: " + "; ".join(unsupported_labels))
+            text = " ".join(sections)
         elif status == "unsupported":
             text = "Deterministic recommendation has an unsupported mechanic."
+            if unsupported_labels:
+                text += " Unsupported: " + "; ".join(unsupported_labels)
         else:
             text = "Recommendation readiness is unavailable for the current selection."
-        if unsupported and status != "unsupported":
-            text += " Some selected mechanics are unsupported."
         self.readiness_label.setText(text)
-        action = readiness.get("action") if isinstance(readiness, dict) else None
-        self._readiness_action = action if isinstance(action, str) else None
-        self.readiness_input_button.setVisible(self._readiness_action is not None)
+        self._set_readiness_actions(actions)
 
     def clear_recommendation_readiness(self) -> None:
-        self._readiness_action = None
+        self._set_readiness_actions([])
         self.readiness_label.setText("Recommendation readiness has not been checked for this selection.")
-        self.readiness_input_button.setVisible(False)
+
+    def _set_readiness_actions(self, actions: list[tuple[str, str]]) -> None:
+        for button in self._readiness_extra_input_buttons:
+            self.readiness_input_layout.removeWidget(button)
+            button.deleteLater()
+        self._readiness_extra_input_buttons = []
+        self._readiness_action = actions[0][1] if actions else None
+        self.readiness_input_button.setText(
+            f"Open: {actions[0][0]}" if actions else "Open needed input"
+        )
+        self.readiness_input_button.setVisible(bool(actions))
+        for label, action in actions[1:]:
+            button = QPushButton(f"Open: {label}")
+            button.setObjectName("recommendationReadinessExtraInputButton")
+            button.clicked.connect(lambda _checked=False, route=action: self.readiness_input_requested.emit(route))
+            self.readiness_input_layout.addWidget(button)
+            self._readiness_extra_input_buttons.append(button)
 
     def _request_readiness_input(self) -> None:
         if self._readiness_action is not None:
