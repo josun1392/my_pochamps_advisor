@@ -1,8 +1,8 @@
 # Practical-2.0 Deterministic Turn Engine Substrate Final
 
-**Status:** `PRACTICAL_2_0_DETERMINISTIC_SUBSTRATE_FINAL`  
-**Release baseline:** `f6674272b06c220ac7e3be86a1a192f9e96375aa`  
-**Final offline validation:** 3703 passed, 2 deselected  
+**Status:** `PRACTICAL_2_0_DETERMINISTIC_SUBSTRATE_FINAL`
+**Release baseline:** `f6674272b06c220ac7e3be86a1a192f9e96375aa`
+**Final offline validation:** 3703 passed, 2 deselected
 **Execution boundary:** explicit caller-owned actions only; no provider, network,
 desktop, or global automation is part of this milestone.
 
