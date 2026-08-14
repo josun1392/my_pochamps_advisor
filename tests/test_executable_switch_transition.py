@@ -13,7 +13,7 @@ def _branch():
 
 def _incoming(hp=80):
     absent = {"status": "known_absent"}; side = lambda current: {"ability": absent, "item": absent, "boosts": {"attack": 0, "defense": 0, "special-attack": 0, "special-defense": 0, "speed": 0}, "current_hp": current, "max_hp": 100, "status": absent}
-    return {"owner": _owner("self", 1, "incoming"), "provenance": "identity_bound_incoming_current_state_v1", "hp_authority": {"status": "known", "current_hp": hp, "maximum_hp": 100, "provenance": "incoming"}, "fainted_authority": {"status": "known", "value": False}, "current_state": {"current_state_session_id": "switch-exec", "current_hp_context": {"current_hp": [{"side": "self", "current_hp": hp, "maximum_hp": 100}, {"side": "opponent", "current_hp": 100, "maximum_hp": 100}]}, "direct_mechanics_context": {"generation": "gen9", "attacker": side(hp), "defender": side(100)}}}
+    return {"owner": _owner("self", 1, "incoming"), "provenance": "identity_bound_incoming_current_state_v1", "hp_authority": {"status": "known", "current_hp": hp, "maximum_hp": 100, "provenance": "incoming"}, "fainted_authority": {"status": "known", "value": False}, "current_state": {"current_state_session_id": "switch-exec", "current_hp_context": {"current_hp": [{"side": "self", "current_hp": hp, "maximum_hp": 100}, {"side": "opponent", "current_hp": 100, "maximum_hp": 100}]}, "condition_context": {"current_conditions": [{"side": "self", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition"}, {"side": "opponent", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition"}]}, "ability_context": {"current_abilities": [{"side": "self", "ability": "torrent", "status": "user_confirmed", "source": "user_confirmed_current_ability"}, {"side": "opponent", "ability": "blaze", "status": "user_confirmed", "source": "user_confirmed_current_ability"}]}, "stat_stage_context": {"current_stages": [{"side": "self", "stat": "speed", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]}, "direct_mechanics_context": {"generation": "gen9", "attacker": side(hp), "defender": side(100)}}}
 
 
 def _snapshot(*, rock="present", spikes=1, toxic=0, sticky="absent"):
@@ -64,3 +64,17 @@ def test_authorized_switch_target_must_match_materialized_incoming_owner():
         opponent_direct_evaluation_input=_descriptor(source),
     )
     assert result == {"status": "rejected", "reason": "switch_candidate_incoming_authority_mismatch"}
+
+
+def test_sticky_web_mutates_incoming_speed_only_and_handoff_preserves_it():
+    from llm.advisor_end_of_turn_preview import project_poison_end_of_turn
+    from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
+    branch = _branch(); source = fingerprint_transition_preview_state(branch)
+    result = execute_manual_switch_then_direct(source_branch=branch, source_branch_fingerprint=source, switch_snapshot=_snapshot(rock="absent", spikes=0, sticky="present"), switch_candidate=_candidate(), incoming_authority=_incoming(), opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source))
+    assert result["status"] == "resolved", result
+    stage = result["next_state"]["current_state"]["stat_stage_context"]["current_stages"][0]
+    assert stage["stage"] == -1 and result["post_entry_branch_fingerprint"] == result["direct_evaluation"]["branch_state_fingerprint"]
+    eot = project_poison_end_of_turn(pre_end_of_turn=result); assert eot["status"] == "resolved"
+    handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=eot); assert handoff["status"] == "resolved"
+    assert handoff["next_state"]["active"]["self"]["pokemon_id"] == "incoming"
+    assert handoff["next_state"]["current_state"]["stat_stage_context"]["current_stages"][0]["stage"] == -1
