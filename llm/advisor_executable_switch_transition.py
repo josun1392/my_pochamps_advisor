@@ -45,7 +45,7 @@ def execute_manual_switch_then_direct(
     hazards = post.get("switch_hazard_context") if isinstance(post, Mapping) else None
     if not isinstance(target, Mapping) or not isinstance(hazards, Mapping):
         return _result("incomplete", "switch_entry_authority")
-    entry = evaluate_switch_entry_effects(hazards=hazards, target=target, intimidate_authority=post.get("switch_entry_intimidate_authority"), field_state_context=post.get("side_shared_authority", {}).get("field_state_context") if isinstance(post.get("side_shared_authority"), Mapping) else None)
+    entry = evaluate_switch_entry_effects(hazards=hazards, target=target, intimidate_authority=post.get("switch_entry_intimidate_authority"), download_authority=post.get("switch_entry_download_authority"), field_state_context=post.get("side_shared_authority", {}).get("field_state_context") if isinstance(post.get("side_shared_authority"), Mapping) else None)
     if entry.get("entry_effects_supportability") != "complete" or entry.get("status") != "complete":
         return _result("incomplete", "switch_entry_authority")
     state = deepcopy(post_switch)
@@ -72,6 +72,17 @@ def execute_manual_switch_then_direct(
         trace.append({"sequence": 3, "event": "switch_entry_intimidate", "execution_status": "prevented", "provenance": "switch-entry-intimidate-authority-v1"})
     elif intimidate.get("outcome") != "not_applicable":
         return _result("unsupported", "intimidate_entry_outcome")
+    download = entry.get("download_result")
+    if not isinstance(download, Mapping) or download.get("status") != "complete":
+        return _result("incomplete", "download_entry_authority")
+    if download.get("outcome") in {"attack_stage_raised", "attack_stage_maximum", "special-attack_stage_raised", "special-attack_stage_maximum"}:
+        if not _materialized_self_has_ability(state, "download") or not _sync_self_offensive_stage(state, download.get("boosted_stat"), download.get("stage_before"), download.get("stage_after")):
+            return _result("incomplete", "incoming_exact_download_stage_authority")
+        trace.append({"sequence": len(trace) + 1, "event": "switch_entry_download", "execution_status": "executed", "source_owner": {key: active[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "target_owner": deepcopy(dict(download["opponent_identity"])), "boosted_stat": download["boosted_stat"], "stage_before": download["stage_before"], "stage_after": download["stage_after"], "provenance": "switch-entry-download-authority-v1"})
+    elif download.get("outcome") == "ability_suppressed":
+        trace.append({"sequence": len(trace) + 1, "event": "switch_entry_download", "execution_status": "prevented", "provenance": "switch-entry-download-authority-v1"})
+    elif download.get("outcome") != "not_applicable":
+        return _result("unsupported", "download_entry_outcome")
     sticky = entry.get("sticky_web_result")
     if not isinstance(sticky, Mapping) or sticky.get("status") != "complete":
         return _result("incomplete", "sticky_web_entry_authority")
@@ -140,6 +151,18 @@ def _sync_opponent_attack_stage(state: Mapping[str, Any], target: Any, before: A
     current = state.get("current_state") if isinstance(state, Mapping) else None
     rows = current.get("stat_stage_context", {}).get("current_stages") if isinstance(current, Mapping) else None
     match = next((row for row in rows if isinstance(row, dict) and row.get("side") == "opponent" and row.get("stat") == "attack" and row.get("status") == "user_confirmed" and row.get("source") == "user_confirmed_current_stat_stage" and row.get("confidence") == "known"), None) if isinstance(rows, list) else None
+    if match is None or match.get("stage") != before:
+        return False
+    match["stage"] = after
+    return True
+
+
+def _sync_self_offensive_stage(state: Mapping[str, Any], stat: Any, before: Any, after: Any) -> bool:
+    if stat not in {"attack", "special-attack"} or any(isinstance(value, bool) or not isinstance(value, int) or not -6 <= value <= 6 for value in (before, after)):
+        return False
+    current = state.get("current_state") if isinstance(state, Mapping) else None
+    rows = current.get("stat_stage_context", {}).get("current_stages") if isinstance(current, Mapping) else None
+    match = next((row for row in rows if isinstance(row, dict) and row.get("side") == "self" and row.get("stat") == stat and row.get("status") == "user_confirmed" and row.get("source") == "user_confirmed_current_stat_stage" and row.get("confidence") == "known"), None) if isinstance(rows, list) else None
     if match is None or match.get("stage") != before:
         return False
     match["stage"] = after

@@ -11,15 +11,16 @@ def _branch():
     return {"schema_version": "deterministic-transition-preview-v1", "active": {"self": {**_owner("self", 0, "outgoing"), "current_hp": 90, "max_hp": 100, "fainted": False}, "opponent": {**_owner("opponent", 0, "opponent"), "current_hp": 100, "max_hp": 100, "fainted": False}}, "current_state": {"current_state_session_id": "switch-exec", "outgoing": "must-not-leak"}}
 
 
-def _incoming(hp=80, ability="torrent", opponent_attack=0, opponent_ability="blaze"):
+def _incoming(hp=80, ability="torrent", opponent_attack=0, opponent_ability="blaze", attack=0, special_attack=0):
     absent = {"status": "known_absent"}; side = lambda current, attack=0: {"ability": absent, "item": absent, "boosts": {"attack": attack, "defense": 0, "special-attack": 0, "special-defense": 0, "speed": 0}, "current_hp": current, "max_hp": 100, "status": absent}
-    return {"owner": _owner("self", 1, "incoming"), "provenance": "identity_bound_incoming_current_state_v1", "hp_authority": {"status": "known", "current_hp": hp, "maximum_hp": 100, "provenance": "incoming"}, "fainted_authority": {"status": "known", "value": False}, "current_state": {"current_state_session_id": "switch-exec", "current_hp_context": {"current_hp": [{"side": "self", "current_hp": hp, "maximum_hp": 100}, {"side": "opponent", "current_hp": 100, "maximum_hp": 100}]}, "condition_context": {"current_conditions": [{"side": "self", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition"}, {"side": "opponent", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition"}]}, "ability_context": {"current_abilities": [{"side": "self", "ability": ability, "status": "user_confirmed", "source": "user_confirmed_current_ability"}, {"side": "opponent", "ability": opponent_ability, "status": "user_confirmed", "source": "user_confirmed_current_ability"}]}, "stat_stage_context": {"current_stages": [{"side": "self", "stat": "speed", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "self", "stat": "defense", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "opponent", "stat": "attack", "stage": opponent_attack, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]}, "direct_mechanics_context": {"generation": "gen9", "attacker": side(hp), "defender": side(100, opponent_attack), "field": {"weather": absent, "terrain": absent}}}}
+    return {"owner": _owner("self", 1, "incoming"), "provenance": "identity_bound_incoming_current_state_v1", "hp_authority": {"status": "known", "current_hp": hp, "maximum_hp": 100, "provenance": "incoming"}, "fainted_authority": {"status": "known", "value": False}, "current_state": {"current_state_session_id": "switch-exec", "current_hp_context": {"current_hp": [{"side": "self", "current_hp": hp, "maximum_hp": 100}, {"side": "opponent", "current_hp": 100, "maximum_hp": 100}]}, "condition_context": {"current_conditions": [{"side": "self", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition"}, {"side": "opponent", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition"}]}, "ability_context": {"current_abilities": [{"side": "self", "ability": ability, "status": "user_confirmed", "source": "user_confirmed_current_ability"}, {"side": "opponent", "ability": opponent_ability, "status": "user_confirmed", "source": "user_confirmed_current_ability"}]}, "stat_stage_context": {"current_stages": [{"side": "self", "stat": "speed", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "self", "stat": "defense", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "self", "stat": "attack", "stage": attack, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "self", "stat": "special-attack", "stage": special_attack, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "opponent", "stat": "attack", "stage": opponent_attack, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "opponent", "stat": "defense", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "opponent", "stat": "special-defense", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]}, "direct_mechanics_context": {"generation": "gen9", "attacker": side(hp), "defender": side(100, opponent_attack), "field": {"weather": absent, "terrain": absent}}}}
 
 
-def _snapshot(*, rock="present", spikes=1, toxic=0, sticky="absent", ability="torrent", intimidate=None):
-    target = {"session_id": "switch-exec", "side": "self", "slot_index": 1, "pokemon_id": "incoming", "hp_authority": {"status": "known", "current_hp": 80, "maximum_hp": 100, "provenance": "incoming"}, "item_authority": {"status": "known", "value": None}, "ability_authority": {"status": "known", "value": ability}, "current_type_authority": {"status": "known", "value": ["fire"]}, "prospective_groundedness_authority": {"status": "grounded"}, "persistent_condition_authority": {"status": "known", "value": "none"}, "prospective_entry_interactions_authority": {"toxic_spikes": "applicable", "sticky_web": "applicable"}, "prospective_speed_stage_authority": {"status": "known", "value": 0}, "prospective_offensive_stages_authority": {"attack": 0, "special-attack": 0}}
+def _snapshot(*, rock="present", spikes=1, toxic=0, sticky="absent", ability="torrent", intimidate=None, download=None, attack=0, special_attack=0):
+    target = {"session_id": "switch-exec", "side": "self", "slot_index": 1, "pokemon_id": "incoming", "hp_authority": {"status": "known", "current_hp": 80, "maximum_hp": 100, "provenance": "incoming"}, "item_authority": {"status": "known", "value": None}, "ability_authority": {"status": "known", "value": ability}, "current_type_authority": {"status": "known", "value": ["fire"]}, "prospective_groundedness_authority": {"status": "grounded"}, "persistent_condition_authority": {"status": "known", "value": "none"}, "prospective_entry_interactions_authority": {"toxic_spikes": "applicable", "sticky_web": "applicable"}, "prospective_speed_stage_authority": {"status": "known", "value": 0}, "prospective_offensive_stages_authority": {"attack": attack, "special-attack": special_attack}}
     state = {"switch_candidate_context": {"session_id": "switch-exec", "self_active_slot_index": 0, "self_pokemon": [{"slot_index": 0, "pokemon_id": "outgoing", "fainted": {"status": "known", "value": False}}, {"slot_index": 1, "pokemon_id": "incoming", "fainted": {"status": "known", "value": False}}]}, "self_roster_mechanics_context": {"session_id": "switch-exec", "side": "self", "entries": [target]}, "switch_hazard_context": {"schema_version": "switch-hazard-context-v2", "session_id": "switch-exec", "affected_side": "self", "stealth_rock": rock, "spikes_layers": spikes, "toxic_spikes_layers": toxic, "sticky_web": sticky}}
     if intimidate is not None: state["switch_entry_intimidate_authority"] = intimidate
+    if download is not None: state["switch_entry_download_authority"] = download
     return {"current_state": state}
 
 
@@ -136,6 +137,87 @@ def test_intimidate_missing_or_foreign_authority_fails_closed():
         source_branch=branch, source_branch_fingerprint=source,
         switch_snapshot=_snapshot(rock="absent", spikes=0, ability="intimidate", intimidate=foreign),
         switch_candidate=_candidate(), incoming_authority=_incoming(ability="intimidate"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert rejected == {"status": "incomplete", "reason": "switch_entry_authority"}
+
+
+def test_download_raises_exact_selected_offensive_stage_and_handoff_preserves_it():
+    from llm.advisor_end_of_turn_preview import project_poison_end_of_turn
+    from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
+    from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
+    from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority
+
+    branch = _branch(); source = fingerprint_transition_preview_state(branch)
+    authority = build_switch_entry_download_authority(
+        session_id="switch-exec", source={"side": "self", "slot_index": 1, "pokemon_id": "incoming"},
+        target={"side": "opponent", "slot_index": 0, "pokemon_id": "opponent"},
+        applicability="applicable", target_defense=90, target_special_defense=100,
+    )
+    result = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="download", download=authority),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="download"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert result["status"] == "resolved", result
+    stages = {(row["side"], row["stat"]): row["stage"] for row in result["next_state"]["current_state"]["stat_stage_context"]["current_stages"]}
+    assert stages[("self", "attack")] == 1 and stages[("self", "special-attack")] == 0
+    assert any(row["event"] == "switch_entry_download" and row["boosted_stat"] == "attack" for row in result["consequence_trace"])
+    physical = {"owner": _owner("self", 1, "incoming"), "move": {"move_id": "tackle", "slot_index": 1, "priority": 0, "category": "physical"}}
+    stats = {"hp": 100, "attack": 100, "defense": 100, "special-attack": 100, "special-defense": 100, "speed": 100}
+    descriptor = {"source_snapshot_fingerprint": source, "owner": physical["owner"], "move_metadata": {**physical["move"], "power": 40, "type": "normal"}, "stat_provenance": {"attacker": {"pokemon_identity": "incoming", "types": {"available": True, "value": ["fire"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}, "defender": {"pokemon_identity": "opponent", "types": {"available": True, "value": ["normal"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}}, "trusted_level": 50}
+    direct_state = deepcopy(result["next_state"]); direct_state["current_state"].pop("ability_context")
+    raised = evaluate_hypothetical_direct_mechanics(branch_state=direct_state, source_snapshot_fingerprint=source, action=physical, expected_owner=physical["owner"], direct_evaluation_input=descriptor)
+    neutral = deepcopy(direct_state); next(row for row in neutral["current_state"]["stat_stage_context"]["current_stages"] if row["side"] == "self" and row["stat"] == "attack")["stage"] = 0
+    baseline = evaluate_hypothetical_direct_mechanics(branch_state=neutral, source_snapshot_fingerprint=source, action=physical, expected_owner=physical["owner"], direct_evaluation_input=descriptor)
+    assert raised["status"] == baseline["status"] == "known"
+    assert raised["mechanics_result"]["damage_range"]["minimum"] > baseline["mechanics_result"]["damage_range"]["minimum"]
+    handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=project_poison_end_of_turn(pre_end_of_turn=result))
+    assert handoff["status"] == "resolved"
+    assert next(row for row in handoff["next_state"]["current_state"]["stat_stage_context"]["current_stages"] if row["side"] == "self" and row["stat"] == "attack")["stage"] == 1
+
+
+def test_download_tie_raises_special_attack_and_missing_or_foreign_authority_fails_closed():
+    from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
+    from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority
+
+    branch = _branch(); source = fingerprint_transition_preview_state(branch)
+    authority = build_switch_entry_download_authority(
+        session_id="switch-exec", source={"side": "self", "slot_index": 1, "pokemon_id": "incoming"},
+        target={"side": "opponent", "slot_index": 0, "pokemon_id": "opponent"},
+        applicability="applicable", target_defense=100, target_special_defense=100,
+    )
+    result = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="download", download=authority),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="download"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert result["status"] == "resolved", result
+    stages = {(row["side"], row["stat"]): row["stage"] for row in result["next_state"]["current_state"]["stat_stage_context"]["current_stages"]}
+    assert stages[("self", "attack")] == 0 and stages[("self", "special-attack")] == 1
+    special = {"owner": _owner("self", 1, "incoming"), "move": {"move_id": "tackle", "slot_index": 1, "priority": 0, "category": "special"}}
+    stats = {"hp": 100, "attack": 100, "defense": 100, "special-attack": 100, "special-defense": 100, "speed": 100}
+    descriptor = {"source_snapshot_fingerprint": source, "owner": special["owner"], "move_metadata": {**special["move"], "power": 40, "type": "normal"}, "stat_provenance": {"attacker": {"pokemon_identity": "incoming", "types": {"available": True, "value": ["fire"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}, "defender": {"pokemon_identity": "opponent", "types": {"available": True, "value": ["normal"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}}, "trusted_level": 50}
+    direct_state = deepcopy(result["next_state"]); direct_state["current_state"].pop("ability_context")
+    raised = evaluate_hypothetical_direct_mechanics(branch_state=direct_state, source_snapshot_fingerprint=source, action=special, expected_owner=special["owner"], direct_evaluation_input=descriptor)
+    neutral = deepcopy(direct_state); next(row for row in neutral["current_state"]["stat_stage_context"]["current_stages"] if row["side"] == "self" and row["stat"] == "special-attack")["stage"] = 0
+    baseline = evaluate_hypothetical_direct_mechanics(branch_state=neutral, source_snapshot_fingerprint=source, action=special, expected_owner=special["owner"], direct_evaluation_input=descriptor)
+    assert raised["status"] == baseline["status"] == "known"
+    assert raised["mechanics_result"]["damage_range"]["minimum"] > baseline["mechanics_result"]["damage_range"]["minimum"]
+    missing = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="download"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="download"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert missing == {"status": "incomplete", "reason": "switch_entry_authority"}
+    foreign = {**authority, "source": {"side": "self", "slot_index": 0, "pokemon_id": "outgoing"}}
+    rejected = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="download", download=foreign),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="download"),
         opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
     )
     assert rejected == {"status": "incomplete", "reason": "switch_entry_authority"}
