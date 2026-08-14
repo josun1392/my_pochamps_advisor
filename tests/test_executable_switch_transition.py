@@ -16,11 +16,12 @@ def _incoming(hp=80, ability="torrent", opponent_attack=0, opponent_ability="bla
     return {"owner": _owner("self", 1, "incoming"), "provenance": "identity_bound_incoming_current_state_v1", "hp_authority": {"status": "known", "current_hp": hp, "maximum_hp": 100, "provenance": "incoming"}, "fainted_authority": {"status": "known", "value": False}, "current_state": {"current_state_session_id": "switch-exec", "current_hp_context": {"current_hp": [{"side": "self", "current_hp": hp, "maximum_hp": 100}, {"side": "opponent", "current_hp": 100, "maximum_hp": 100}]}, "condition_context": {"current_conditions": [{"side": "self", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition"}, {"side": "opponent", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition"}]}, "ability_context": {"current_abilities": [{"side": "self", "ability": ability, "status": "user_confirmed", "source": "user_confirmed_current_ability"}, {"side": "opponent", "ability": opponent_ability, "status": "user_confirmed", "source": "user_confirmed_current_ability"}]}, "stat_stage_context": {"current_stages": [{"side": "self", "stat": "speed", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "self", "stat": "defense", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "self", "stat": "attack", "stage": attack, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "self", "stat": "special-attack", "stage": special_attack, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "opponent", "stat": "attack", "stage": opponent_attack, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "opponent", "stat": "defense", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}, {"side": "opponent", "stat": "special-defense", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]}, "direct_mechanics_context": {"generation": "gen9", "attacker": side(hp), "defender": side(100, opponent_attack), "field": {"weather": absent, "terrain": absent}}}}
 
 
-def _snapshot(*, rock="present", spikes=1, toxic=0, sticky="absent", ability="torrent", intimidate=None, download=None, attack=0, special_attack=0):
+def _snapshot(*, rock="present", spikes=1, toxic=0, sticky="absent", ability="torrent", intimidate=None, download=None, attack=0, special_attack=0, weather=None):
     target = {"session_id": "switch-exec", "side": "self", "slot_index": 1, "pokemon_id": "incoming", "hp_authority": {"status": "known", "current_hp": 80, "maximum_hp": 100, "provenance": "incoming"}, "item_authority": {"status": "known", "value": None}, "ability_authority": {"status": "known", "value": ability}, "current_type_authority": {"status": "known", "value": ["fire"]}, "prospective_groundedness_authority": {"status": "grounded"}, "persistent_condition_authority": {"status": "known", "value": "none"}, "prospective_entry_interactions_authority": {"toxic_spikes": "applicable", "sticky_web": "applicable"}, "prospective_speed_stage_authority": {"status": "known", "value": 0}, "prospective_offensive_stages_authority": {"attack": attack, "special-attack": special_attack}}
     state = {"switch_candidate_context": {"session_id": "switch-exec", "self_active_slot_index": 0, "self_pokemon": [{"slot_index": 0, "pokemon_id": "outgoing", "fainted": {"status": "known", "value": False}}, {"slot_index": 1, "pokemon_id": "incoming", "fainted": {"status": "known", "value": False}}]}, "self_roster_mechanics_context": {"session_id": "switch-exec", "side": "self", "entries": [target]}, "switch_hazard_context": {"schema_version": "switch-hazard-context-v2", "session_id": "switch-exec", "affected_side": "self", "stealth_rock": rock, "spikes_layers": spikes, "toxic_spikes_layers": toxic, "sticky_web": sticky}}
     if intimidate is not None: state["switch_entry_intimidate_authority"] = intimidate
     if download is not None: state["switch_entry_download_authority"] = download
+    if weather is not None: state["field_state_context"] = {"current_field": {"weather": weather, "side_effects": []}}
     return {"current_state": state}
 
 
@@ -71,6 +72,69 @@ def test_entry_hp_ko_stops_before_sticky_web_toxic_spikes_or_opponent_action():
     assert state["active"]["self"]["fainted"] is True
     assert state["current_state"]["stat_stage_context"]["current_stages"][0]["stage"] == 0
     assert "predicted_condition_context" not in state and "direct_evaluation" not in result
+
+
+def test_drizzle_projects_field_owned_rain_and_direct_mechanics_consumes_it_through_handoff():
+    from llm.advisor_end_of_turn_preview import project_poison_end_of_turn
+    from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
+    from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
+
+    branch = _branch(); before = deepcopy(branch); source = fingerprint_transition_preview_state(branch)
+    result = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="drizzle", weather="none"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="drizzle"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert result["status"] == "resolved", result
+    state = result["next_state"]
+    assert branch == before
+    assert state["branch_field_weather_context"]["weather"] == "rain"
+    assert state["branch_field_weather_context"]["scope"] == "battle_field"
+    assert state["current_state"]["field_state_context"]["current_field"]["weather"] == "rain"
+    assert any(row["event"] == "switch_entry_drizzle" and row["weather_before"] == "none" for row in result["consequence_trace"])
+
+    water = {"owner": _owner("self", 1, "incoming"), "move": {"move_id": "water-pulse", "slot_index": 1, "priority": 0, "category": "special"}}
+    stats = {"hp": 100, "attack": 100, "defense": 100, "special-attack": 100, "special-defense": 100, "speed": 100}
+    descriptor = {"source_snapshot_fingerprint": source, "owner": water["owner"], "move_metadata": {**water["move"], "power": 60, "type": "water"}, "stat_provenance": {"attacker": {"pokemon_identity": "incoming", "types": {"available": True, "value": ["water"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}, "defender": {"pokemon_identity": "opponent", "types": {"available": True, "value": ["normal"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}}, "trusted_level": 50}
+    rain_state = deepcopy(state); rain_state["current_state"].pop("ability_context")
+    rainy = evaluate_hypothetical_direct_mechanics(branch_state=rain_state, source_snapshot_fingerprint=source, action=water, expected_owner=water["owner"], direct_evaluation_input=descriptor)
+    neutral_state = deepcopy(rain_state); neutral_state["current_state"]["field_state_context"]["current_field"]["weather"] = "none"
+    neutral = evaluate_hypothetical_direct_mechanics(branch_state=neutral_state, source_snapshot_fingerprint=source, action=water, expected_owner=water["owner"], direct_evaluation_input=descriptor)
+    assert rainy["status"] == neutral["status"] == "known"
+    assert rainy["mechanics_result"]["damage_range"]["minimum"] > neutral["mechanics_result"]["damage_range"]["minimum"]
+    handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=project_poison_end_of_turn(pre_end_of_turn=result))
+    assert handoff["status"] == "resolved"
+    assert handoff["next_state"]["active"]["self"]["pokemon_id"] == "incoming"
+    assert handoff["next_state"]["branch_field_weather_context"]["weather"] == "rain"
+    turn_two = deepcopy(handoff["next_state"]); turn_two["current_state"].pop("ability_context")
+    continued = evaluate_hypothetical_direct_mechanics(branch_state=turn_two, source_snapshot_fingerprint=source, action=water, expected_owner=water["owner"], direct_evaluation_input=descriptor)
+    assert continued["status"] == "known"
+
+
+def test_drizzle_fails_closed_without_field_authority_and_entry_ko_prevents_trigger():
+    branch = _branch(); source = fingerprint_transition_preview_state(branch)
+    missing = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="drizzle"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="drizzle"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert missing == {"status": "incomplete", "reason": "switch_entry_authority"}
+    foreign = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="drizzle", weather="none"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="torrent"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert foreign == {"status": "unsupported", "reason": "weather_entry_outcome"}
+    ko = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(ability="drizzle", weather="none"), switch_candidate=_candidate(), incoming_authority=_incoming(hp=1, ability="drizzle"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert ko["reason"] == "replacement_required_after_entry_hazard_ko"
+    assert "branch_field_weather_context" not in ko["next_state"]
 
 
 def test_intimidate_mutates_only_exact_opponent_attack_stage_before_fresh_direct():
