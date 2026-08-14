@@ -64,7 +64,7 @@ def execute_manual_switch_then_direct(
     direct = project_exact_direct_action_on_branch(branch_state=state, source_snapshot_fingerprint=source_branch_fingerprint, action=opponent_action, candidate=candidate)
     if direct.get("status") != "resolved":
         return direct
-    return {"status": "resolved", "source_branch_fingerprint": source_branch_fingerprint, "post_switch_branch_fingerprint": post_switch_fp, "post_entry_branch_fingerprint": entry_fp, "resulting_branch_fingerprint": fingerprint_transition_preview_state(direct["next_state"]), "switch_transition": deepcopy(switch), "entry_effect_result": deepcopy(entry), "direct_evaluation": deepcopy(evaluated), "consequence_trace": trace + deepcopy(direct["consequence_trace"]), "next_state": deepcopy(direct["next_state"]), "boundary": {"phase": "pre_end_of_turn"}, "limitations": ["switch_first_only", "stealth_rock_and_spikes_only", "no_reducer_or_runtime_writeback"]}
+    return {"status": "resolved", "source_snapshot_fingerprint": source_branch_fingerprint, "source_branch_fingerprint": source_branch_fingerprint, "post_switch_branch_fingerprint": post_switch_fp, "post_entry_branch_fingerprint": entry_fp, "resulting_branch_fingerprint": fingerprint_transition_preview_state(direct["next_state"]), "switch_transition": deepcopy(switch), "entry_effect_result": deepcopy(entry), "direct_evaluation": deepcopy(evaluated), "consequence_trace": trace + deepcopy(direct["consequence_trace"]), "next_state": deepcopy(direct["next_state"]), "boundary": {"phase": "pre_end_of_turn"}, "limitations": ["switch_first_only", "stealth_rock_and_spikes_only", "no_reducer_or_runtime_writeback"]}
 
 
 def _sync_self_hp(state: Mapping[str, Any], hp: int, maximum: int) -> None:

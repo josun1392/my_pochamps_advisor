@@ -75,6 +75,17 @@ def _execute_turn(*, turn_snapshot: Mapping[str, Any], plan: Mapping[str, Any]) 
         return _result("rejected", "invalid_turn_plan")
     common = {key: plan.get(key) for key in ("self_action", "opponent_action", "self_candidate", "opponent_candidate", "action_order")}
     kind = plan.get("transition", "exact_direct")
+    if kind == "manual_switch_then_direct":
+        from llm.advisor_executable_switch_transition import execute_manual_switch_then_direct
+        return execute_manual_switch_then_direct(
+            source_branch=plan.get("source_branch"),
+            source_branch_fingerprint=plan.get("source_branch_fingerprint"),
+            switch_snapshot=plan.get("switch_snapshot"),
+            switch_candidate=plan.get("switch_candidate"),
+            incoming_authority=plan.get("incoming_authority"),
+            opponent_action=plan.get("opponent_action"),
+            opponent_direct_evaluation_input=plan.get("opponent_direct_evaluation_input"),
+        )
     if kind == "exact_direct":
         return project_exact_direct_damage_branch(turn_snapshot=turn_snapshot, **common, post_first_candidate=plan.get("post_first_candidate"), second_direct_evaluation_input=plan.get("second_direct_evaluation_input"))
     if kind == "self_stage_then_direct":
