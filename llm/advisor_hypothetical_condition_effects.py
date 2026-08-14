@@ -70,6 +70,15 @@ def apply_predicted_condition(branch_state: Mapping[str, Any], effect: Mapping[s
         "condition_type": effect["ailment"],
         "provenance": "turn_engine_predicted_move_poison",
     }
+    if effect["ailment"] == "toxic":
+        branch_state["predicted_toxic_lifecycle"] = {
+            "schema_version": "hypothetical-predictive-toxic-lifecycle-v1",
+            "source_snapshot_fingerprint": source_snapshot_fingerprint,
+            "branch_state_fingerprint": branch_state_fingerprint,
+            "owner": deepcopy(dict(effect["owner"])),
+            "current_stage": 1,
+            "provenance": "turn_engine_predicted_toxic_application",
+        }
 
 
 def overlay_predicted_condition_for_direct_mechanics(current_state: Mapping[str, Any], predicted: Any) -> dict[str, Any] | None:

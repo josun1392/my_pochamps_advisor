@@ -38,3 +38,25 @@ def test_stale_predicted_overlay_and_unsupported_poison_heal_do_not_project():
     stale = _branch(predicted=True); stale["source_snapshot_fingerprint"] = "other"
     assert project_poison_end_of_turn(pre_end_of_turn=stale) == {"status": "rejected", "reason": "stale_predicted_condition_overlay"}
     assert project_poison_end_of_turn(pre_end_of_turn=_branch(ability="poison-heal")) == {"status": "unsupported", "reason": "poison_heal_end_of_turn_not_in_slice"}
+
+
+def test_predicted_toxic_uses_stage_one_then_advances_branch_only_even_when_lethal():
+    source = _branch(condition="none", hp=100, maximum=160, predicted=True)
+    owner = source["next_state"]["active"]["self"]
+    source["next_state"]["predicted_condition_context"]["condition_type"] = "toxic"
+    source["next_state"]["predicted_toxic_lifecycle"] = {"schema_version": "hypothetical-predictive-toxic-lifecycle-v1", "source_snapshot_fingerprint": "source", "branch_state_fingerprint": "prior", "owner": {key: owner[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "current_stage": 1, "provenance": "turn_engine_predicted_toxic_application"}
+    before = deepcopy(source); result = project_poison_end_of_turn(pre_end_of_turn=source)
+    assert result["status"] == "resolved"
+    row = result["eot_consequence_trace"][0]
+    assert (row["toxic_stage"], row["damage"], row["post_hp"], row["resulting_toxic_stage"]) == (1, 10, 90, 2)
+    assert source == before and "toxic_progression" not in source["next_state"]["current_state"]
+    lethal = deepcopy(source); lethal["next_state"]["active"]["self"]["current_hp"] = 5; lethal["next_state"]["current_state"]["current_hp_context"]["current_hp"][0]["current_hp"] = 5
+    outcome = project_poison_end_of_turn(pre_end_of_turn=lethal)
+    assert outcome["next_state"]["active"]["self"]["fainted"] is True and outcome["next_state"]["predicted_toxic_lifecycle"]["current_stage"] == 2
+
+
+def test_toxic_lifecycle_mismatch_and_plain_toxic_remain_fail_closed():
+    source = _branch(condition="none", predicted=True); source["next_state"]["predicted_condition_context"]["condition_type"] = "toxic"
+    assert project_poison_end_of_turn(pre_end_of_turn=source) == {"status": "incomplete", "reason": "self.toxic_progression"}
+    source["next_state"]["predicted_toxic_lifecycle"] = {"schema_version": "hypothetical-predictive-toxic-lifecycle-v1", "source_snapshot_fingerprint": "source", "branch_state_fingerprint": "prior", "owner": {"session_id": "bad", "side": "self", "slot_index": 0, "pokemon_id": "pikachu"}, "current_stage": 1, "provenance": "turn_engine_predicted_toxic_application"}
+    assert project_poison_end_of_turn(pre_end_of_turn=source)["status"] == "rejected"
