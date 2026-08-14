@@ -8,6 +8,7 @@ from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 from llm.advisor_opponent_action_evaluator import _side_reversed_current_state
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_hypothetical_stage_effects import overlay_predicted_stage_for_direct_mechanics
+from llm.advisor_hypothetical_condition_effects import overlay_predicted_condition_for_direct_mechanics
 
 
 def evaluate_hypothetical_direct_mechanics(
@@ -57,6 +58,14 @@ def evaluate_hypothetical_direct_mechanics(
     calculator_current = overlay_predicted_stage_for_direct_mechanics(current, branch_state.get("predicted_stage_context"))
     if calculator_current is None:
         return _result("incomplete", "predicted_stage_authority", branch_fingerprint, missing_inputs=["predicted_stage_authority"])
+    predicted_condition = branch_state.get("predicted_condition_context")
+    if isinstance(predicted_condition, Mapping):
+        base_branch = deepcopy(dict(branch_state)); base_branch.pop("predicted_condition_context", None)
+        if predicted_condition.get("branch_state_fingerprint") != fingerprint_transition_preview_state(base_branch):
+            return _result("rejected", "predicted_condition_branch_mismatch", branch_fingerprint)
+    calculator_current = overlay_predicted_condition_for_direct_mechanics(calculator_current, predicted_condition)
+    if calculator_current is None:
+        return _result("incomplete", "predicted_condition_authority", branch_fingerprint, missing_inputs=["predicted_condition_authority"])
     oriented_current = calculator_current if expected_owner.get("side") == "self" else _side_reversed_current_state(calculator_current)
     damage_input = {
         "move": deepcopy(dict(descriptor_move)),

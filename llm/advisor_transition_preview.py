@@ -209,6 +209,57 @@ def project_self_stage_then_direct_branch(
     return _resolved(fingerprint, owners, action_order, trace, next_state, "self_stage_then_terminal_direct_ko" if direct["terminal"] else "self_stage_then_exact_direct_damage")
 
 
+def project_self_poison_then_direct_branch(
+    *, turn_snapshot: Any, self_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
+    self_candidate: Mapping[str, Any], opponent_candidate: Mapping[str, Any], action_order: Mapping[str, Any],
+    second_direct_evaluation_input: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project a supported immediate move-poison overlay before one direct action."""
+    snapshot = _serialize_snapshot(turn_snapshot)
+    if snapshot is None:
+        return _result("rejected", "invalid_frozen_snapshot")
+    fingerprint = _fingerprint(snapshot)
+    owners = _snapshot_owners(snapshot)
+    if fingerprint is None or owners is None:
+        return _result("rejected", "invalid_snapshot_ownership", fingerprint)
+    for action, candidate, owner in ((self_action, self_candidate, owners["self"]), (opponent_action, opponent_candidate, owners["opponent"])):
+        reason = _validate_action(action, expected=owner) or _validate_candidate_binding(candidate, action)
+        if reason is not None:
+            return _result("rejected", reason, fingerprint)
+    if _action_category(opponent_action) not in _DIRECT_CATEGORIES:
+        return _result("unsupported", "opponent_action_not_direct_damage", fingerprint)
+    if action_order.get("status") == "speed_tie":
+        return _result("incomplete", "speed_tie", fingerprint)
+    if action_order.get("status") != "acts_first":
+        return _result("incomplete", "self_poison_action_not_first", fingerprint)
+    if not _order_matches_actions(action_order, {"self": self_action, "opponent": opponent_action}):
+        return _result("rejected", "action_order_action_mismatch", fingerprint)
+    for side in ("self", "opponent"):
+        if _trusted_active_hp(snapshot, side) is None:
+            return _result("incomplete", f"{side}_exact_hp", fingerprint)
+    from llm.advisor_hypothetical_condition_effects import apply_predicted_condition, project_move_poison_condition
+    next_state = _initial_next_state(snapshot, owners)
+    effect = project_move_poison_condition(branch_state=next_state, action=self_action, expected_owner=owners["self"], target_owner=owners["opponent"])
+    if effect.get("status") != "resolved":
+        return _result(effect["status"], effect["reason"], fingerprint)
+    if effect.get("applicable") is not True:
+        return _result("unsupported", effect["reason"], fingerprint)
+    apply_predicted_condition(next_state, effect, source_snapshot_fingerprint=fingerprint, branch_state_fingerprint=_fingerprint(next_state))
+    from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
+    evaluated = evaluate_hypothetical_direct_mechanics(branch_state=next_state, source_snapshot_fingerprint=fingerprint, action=opponent_action, expected_owner=owners["opponent"], direct_evaluation_input=second_direct_evaluation_input)
+    if evaluated.get("status") != "known":
+        status = "unsupported" if evaluated.get("status") == "unsupported_mechanic" else "rejected" if evaluated.get("status") == "rejected" else "incomplete"
+        return _result(status, str(evaluated.get("reason") or "post_poison_direct_mechanics"), fingerprint, missing_inputs=evaluated.get("missing_inputs"))
+    direct = _apply_exact_direct_damage(state=next_state, actor_side="opponent", target_side="self", action=opponent_action, candidate={**deepcopy(dict(opponent_candidate)), "mechanics_result": deepcopy(evaluated["mechanics_result"])})
+    if direct["status"] != "resolved":
+        return _result(direct["status"], direct["reason"], fingerprint, missing_inputs=direct.get("missing_inputs"))
+    trace = [
+        {"sequence": 1, "actor_side": "self", "action": _public_action(self_action), "execution_status": "executed", "consequence": "predicted_move_poison_condition", "condition": effect["ailment"], "target": deepcopy(dict(owners["opponent"])), "provenance": "turn_engine_predicted_move_poison"},
+        _executed_trace(sequence=2, actor_side="opponent", action=opponent_action, target=owners["self"], outcome=direct),
+    ]
+    return _resolved(fingerprint, owners, action_order, trace, next_state, "self_poison_then_terminal_direct_ko" if direct["terminal"] else "self_poison_then_exact_direct_damage")
+
+
 def project_self_recovery_direct_branch(
     *,
     turn_snapshot: Any,
