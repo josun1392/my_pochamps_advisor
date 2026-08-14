@@ -456,11 +456,39 @@ def _initial_next_state(snapshot: Mapping[str, Any], owners: Mapping[str, Mappin
         if hp is None:
             raise ValueError("exact_hp_required_before_projection")
         active[side] = {**deepcopy(dict(owners[side])), "current_hp": hp["current_hp"], "max_hp": hp["max_hp"], "fainted": False}
-    return {
+    state = {
         "schema_version": "deterministic-transition-preview-v1",
         "active": active,
         "current_state": deepcopy(dict(snapshot.get("current_state", {}))),
     }
+    # A next-turn snapshot may carry branch-only predictive overlays through
+    # the explicit lifecycle handoff.  They remain overlays, never observed
+    # current-state facts, and are validated by their existing consumers.
+    overlays = snapshot.get("turn_engine_branch_overlays")
+    if isinstance(overlays, Mapping):
+        for key in ("predicted_stage_context", "predicted_condition_context", "predicted_toxic_lifecycle"):
+            if key in overlays:
+                state[key] = deepcopy(overlays[key])
+        # Handoff preserves predictive origin separately from the binding for
+        # this newly frozen turn.  Rebind only the detached overlay, never the
+        # reducer-observed condition record.
+        condition = state.get("predicted_condition_context")
+        if isinstance(condition, dict):
+            source = _fingerprint(snapshot)
+            if isinstance(source, str):
+                condition.setdefault("predictive_origin_source_snapshot_fingerprint", condition.get("source_snapshot_fingerprint"))
+                condition["source_snapshot_fingerprint"] = source
+                lifecycle = state.get("predicted_toxic_lifecycle")
+                if isinstance(lifecycle, dict):
+                    lifecycle.setdefault("predictive_origin_source_snapshot_fingerprint", lifecycle.get("source_snapshot_fingerprint"))
+                    lifecycle["source_snapshot_fingerprint"] = source
+                base = deepcopy(state)
+                base.pop("predicted_condition_context", None)
+                binding = _fingerprint(base)
+                condition["branch_state_fingerprint"] = binding
+                if isinstance(lifecycle, dict):
+                    lifecycle["branch_state_fingerprint"] = binding
+    return state
 
 
 def _apply_exact_direct_damage(*, state: Mapping[str, Any], actor_side: str, target_side: str, action: Mapping[str, Any], candidate: Any) -> dict[str, Any]:

@@ -41,7 +41,8 @@ def test_handoff_carries_persistent_state_and_excludes_completed_turn_evidence_d
     state = result["next_state"]
     assert state["active"]["self"]["current_hp"] == 60
     assert state["current_state"]["stat_stage_context"]["self"]["attack"] == 2
-    assert "direct_mechanics_context" not in state["current_state"] and "same_turn_event_context" not in state["current_state"] and "action_order" not in state
+    assert state["current_state"]["direct_mechanics_context"] == {"old": True}
+    assert "same_turn_event_context" not in state["current_state"] and "action_order" not in state
     assert eot == before and result["resulting_branch_fingerprint"] != eot["resulting_branch_fingerprint"]
 
 

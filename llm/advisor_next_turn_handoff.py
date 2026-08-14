@@ -13,7 +13,6 @@ _TURN_SCOPED_CURRENT_STATE_KEYS = frozenset({
     "action_order",
     "action_order_evidence",
     "candidate_evidence",
-    "direct_mechanics_context",
     "move_success_evidence",
     "same_turn_event_context",
     "selected_action",
