@@ -19424,3 +19424,17 @@ Maintained boundaries:
   outside ordinary defender modifiers. Only an applied candidate-local label
   reaches the selected result and presentation; no provider or network call is
   part of this offline slice.
+
+## Practical-2.0 deterministic Turn Engine substrate final
+
+- The explicit deterministic Turn Engine substrate is final for its approved
+  scope: detached direct transitions, predictive stage/recovery/poison/Toxic,
+  bounded EOT and handoff, two explicit turns, ordinary Protect, executable
+  manual switching, identity-bound incoming materialization, and detached
+  SR/Spikes/Sticky Web/Toxic Spikes entry execution.
+- The final switch-entry boundary is terminal-safe: SR/Spikes entry KO stops
+  later entry effects, opponent action, and replacement synthesis. Toxic
+  application lineage distinguishes immutable turn root from its later
+  application branch while retaining strict owner and stale-authority checks.
+- See `docs/practical_2_0_deterministic_substrate_final.md` for the complete
+  capability, authority, lifecycle, fail-closed, and deferred-scope inventory.
