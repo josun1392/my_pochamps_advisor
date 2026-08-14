@@ -45,7 +45,7 @@ def execute_manual_switch_then_direct(
     hazards = post.get("switch_hazard_context") if isinstance(post, Mapping) else None
     if not isinstance(target, Mapping) or not isinstance(hazards, Mapping):
         return _result("incomplete", "switch_entry_authority")
-    entry = evaluate_switch_entry_effects(hazards=hazards, target=target, field_state_context=post.get("side_shared_authority", {}).get("field_state_context") if isinstance(post.get("side_shared_authority"), Mapping) else None)
+    entry = evaluate_switch_entry_effects(hazards=hazards, target=target, intimidate_authority=post.get("switch_entry_intimidate_authority"), field_state_context=post.get("side_shared_authority", {}).get("field_state_context") if isinstance(post.get("side_shared_authority"), Mapping) else None)
     if entry.get("entry_effects_supportability") != "complete" or entry.get("status") != "complete":
         return _result("incomplete", "switch_entry_authority")
     state = deepcopy(post_switch)
@@ -61,6 +61,17 @@ def execute_manual_switch_then_direct(
     trace = [*materialized["materialization_trace"], {"sequence": 2, "event": "switch_entry_hazards", "execution_status": "executed", "damage": damage, "post_hp": active["current_hp"], "hazards": {"stealth_rock": hazards.get("stealth_rock"), "spikes_layers": hazards.get("spikes_layers"), "sticky_web": entry.get("sticky_web_result")}}]
     if active["fainted"]:
         return {"status": "unsupported", "reason": "replacement_required_after_entry_hazard_ko", "source_branch_fingerprint": source_branch_fingerprint, "post_switch_branch_fingerprint": post_switch_fp, "post_entry_branch_fingerprint": entry_fp, "next_state": state, "consequence_trace": trace, "boundary": {"phase": "pre_end_of_turn"}}
+    intimidate = entry.get("intimidate_result")
+    if not isinstance(intimidate, Mapping) or intimidate.get("status") != "complete":
+        return _result("incomplete", "intimidate_entry_authority")
+    if intimidate.get("outcome") in {"attack_stage_lowered", "attack_stage_minimum"}:
+        if not _materialized_self_has_ability(state, "intimidate") or not _sync_opponent_attack_stage(state, intimidate.get("opponent_identity"), intimidate.get("attack_stage_before"), intimidate.get("attack_stage_after")):
+            return _result("incomplete", "opponent_exact_attack_stage_authority")
+        trace.append({"sequence": 3, "event": "switch_entry_intimidate", "execution_status": "executed", "source_owner": {key: active[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "target_owner": deepcopy(dict(intimidate["opponent_identity"])), "attack_stage_before": intimidate["attack_stage_before"], "attack_stage_after": intimidate["attack_stage_after"], "provenance": "switch-entry-intimidate-authority-v1"})
+    elif intimidate.get("outcome") == "attack_drop_prevented":
+        trace.append({"sequence": 3, "event": "switch_entry_intimidate", "execution_status": "prevented", "provenance": "switch-entry-intimidate-authority-v1"})
+    elif intimidate.get("outcome") != "not_applicable":
+        return _result("unsupported", "intimidate_entry_outcome")
     sticky = entry.get("sticky_web_result")
     if not isinstance(sticky, Mapping) or sticky.get("status") != "complete":
         return _result("incomplete", "sticky_web_entry_authority")
@@ -87,7 +98,7 @@ def execute_manual_switch_then_direct(
     direct = project_exact_direct_action_on_branch(branch_state=state, source_snapshot_fingerprint=source_branch_fingerprint, action=opponent_action, candidate=candidate)
     if direct.get("status") != "resolved":
         return direct
-    return {"status": "resolved", "source_snapshot_fingerprint": source_branch_fingerprint, "source_branch_fingerprint": source_branch_fingerprint, "post_switch_branch_fingerprint": post_switch_fp, "post_entry_branch_fingerprint": entry_fp, "resulting_branch_fingerprint": fingerprint_transition_preview_state(direct["next_state"]), "switch_transition": deepcopy(switch), "entry_effect_result": deepcopy(entry), "direct_evaluation": deepcopy(evaluated), "consequence_trace": trace + deepcopy(direct["consequence_trace"]), "next_state": deepcopy(direct["next_state"]), "boundary": {"phase": "pre_end_of_turn"}, "limitations": ["switch_first_only", "stealth_rock_and_spikes_only", "no_reducer_or_runtime_writeback"]}
+    return {"status": "resolved", "source_snapshot_fingerprint": source_branch_fingerprint, "source_branch_fingerprint": source_branch_fingerprint, "post_switch_branch_fingerprint": post_switch_fp, "post_entry_branch_fingerprint": entry_fp, "resulting_branch_fingerprint": fingerprint_transition_preview_state(direct["next_state"]), "switch_transition": deepcopy(switch), "entry_effect_result": deepcopy(entry), "direct_evaluation": deepcopy(evaluated), "consequence_trace": trace + deepcopy(direct["consequence_trace"]), "next_state": deepcopy(direct["next_state"]), "boundary": {"phase": "pre_end_of_turn"}, "limitations": ["switch_first_only", "bounded_switch_entry_effects_only", "no_reducer_or_runtime_writeback"]}
 
 
 def _sync_self_hp(state: Mapping[str, Any], hp: int, maximum: int) -> None:
@@ -111,6 +122,27 @@ def _sync_self_speed_stage(state: Mapping[str, Any], stage: Any) -> bool:
     match["stage"] = stage
     attacker = current.get("direct_mechanics_context", {}).get("attacker") if isinstance(current, Mapping) and isinstance(current.get("direct_mechanics_context"), Mapping) else None
     if isinstance(attacker, dict) and isinstance(attacker.get("boosts"), dict): attacker["boosts"]["speed"] = stage
+    return True
+
+
+def _materialized_self_has_ability(state: Mapping[str, Any], ability: str) -> bool:
+    current = state.get("current_state") if isinstance(state, Mapping) else None
+    rows = current.get("ability_context", {}).get("current_abilities") if isinstance(current, Mapping) else None
+    return any(isinstance(row, Mapping) and row.get("side") == "self" and row.get("ability") == ability and row.get("status") == "user_confirmed" and row.get("source") == "user_confirmed_current_ability" for row in rows) if isinstance(rows, list) else False
+
+
+def _sync_opponent_attack_stage(state: Mapping[str, Any], target: Any, before: Any, after: Any) -> bool:
+    opponent = state.get("active", {}).get("opponent") if isinstance(state.get("active"), Mapping) else None
+    if not isinstance(opponent, Mapping) or not isinstance(target, Mapping) or any(opponent.get(key) != target.get(key) for key in ("side", "slot_index", "pokemon_id")):
+        return False
+    if any(isinstance(value, bool) or not isinstance(value, int) or not -6 <= value <= 6 for value in (before, after)):
+        return False
+    current = state.get("current_state") if isinstance(state, Mapping) else None
+    rows = current.get("stat_stage_context", {}).get("current_stages") if isinstance(current, Mapping) else None
+    match = next((row for row in rows if isinstance(row, dict) and row.get("side") == "opponent" and row.get("stat") == "attack" and row.get("status") == "user_confirmed" and row.get("source") == "user_confirmed_current_stat_stage" and row.get("confidence") == "known"), None) if isinstance(rows, list) else None
+    if match is None or match.get("stage") != before:
+        return False
+    match["stage"] = after
     return True
 
 
