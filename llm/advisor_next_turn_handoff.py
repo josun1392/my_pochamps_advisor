@@ -135,7 +135,7 @@ def _exclude_turn_scoped_authority(state: dict[str, Any]) -> list[str]:
                 excluded.append(key)
     # Prior executable action/evidence never crosses the lifecycle boundary,
     # even if a caller placed it at the branch top level.
-    for key in ("action_order", "consequence_trace", "selected_actions", "direct_mechanics_evidence"):
+    for key in ("action_order", "consequence_trace", "selected_actions", "direct_mechanics_evidence", "predicted_protection_context"):
         if key in state:
             state.pop(key)
             excluded.append(key)

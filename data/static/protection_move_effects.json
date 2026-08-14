@@ -1,0 +1,12 @@
+{
+  "schema_version": "canonical-protection-moves-v1",
+  "authority": "pokemon-showdown/data/moves.ts (ordinary Protect: target self, protection flag, stallingMove)",
+  "moves": {
+    "protect": {
+      "protects_self": true,
+      "blocks_supported_direct_damage": true,
+      "protection_kind": "ordinary_self_protection",
+      "has_additional_material_effects": false
+    }
+  }
+}
