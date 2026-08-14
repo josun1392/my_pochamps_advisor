@@ -54,6 +54,22 @@ def test_blocked_or_unsupported_entry_effects_fail_closed_without_materializing_
     assert toxic["status"] == "resolved" and toxic["next_state"]["predicted_condition_context"]["condition_type"] == "poison"
 
 
+def test_entry_hp_ko_stops_before_sticky_web_toxic_spikes_or_opponent_action():
+    branch = _branch(); source = fingerprint_transition_preview_state(branch)
+    result = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(toxic=2, sticky="present"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(hp=1),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert result["status"] == "unsupported"
+    assert result["reason"] == "replacement_required_after_entry_hazard_ko"
+    state = result["next_state"]
+    assert state["active"]["self"]["fainted"] is True
+    assert state["current_state"]["stat_stage_context"]["current_stages"][0]["stage"] == 0
+    assert "predicted_condition_context" not in state and "direct_evaluation" not in result
+
+
 def test_two_layer_toxic_spikes_keeps_application_lineage_through_eot_and_handoff():
     from llm.advisor_end_of_turn_preview import project_poison_end_of_turn
     from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start

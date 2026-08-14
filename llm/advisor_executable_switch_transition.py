@@ -57,6 +57,10 @@ def execute_manual_switch_then_direct(
     active["current_hp"] = max(0, active["current_hp"] - damage)
     active["fainted"] = active["current_hp"] == 0
     _sync_self_hp(state, active["current_hp"], active["max_hp"])
+    entry_fp = fingerprint_transition_preview_state(state)
+    trace = [*materialized["materialization_trace"], {"sequence": 2, "event": "switch_entry_hazards", "execution_status": "executed", "damage": damage, "post_hp": active["current_hp"], "hazards": {"stealth_rock": hazards.get("stealth_rock"), "spikes_layers": hazards.get("spikes_layers"), "sticky_web": entry.get("sticky_web_result")}}]
+    if active["fainted"]:
+        return {"status": "unsupported", "reason": "replacement_required_after_entry_hazard_ko", "source_branch_fingerprint": source_branch_fingerprint, "post_switch_branch_fingerprint": post_switch_fp, "post_entry_branch_fingerprint": entry_fp, "next_state": state, "consequence_trace": trace, "boundary": {"phase": "pre_end_of_turn"}}
     sticky = entry.get("sticky_web_result")
     if not isinstance(sticky, Mapping) or sticky.get("status") != "complete":
         return _result("incomplete", "sticky_web_entry_authority")
@@ -75,9 +79,6 @@ def execute_manual_switch_then_direct(
     else: return _result("unsupported", "toxic_spikes_entry_outcome")
     if changed.get("status") != "resolved": return changed
     state, entry_fp = changed["next_state"], changed["resulting_branch_fingerprint"]
-    trace = [*materialized["materialization_trace"], {"sequence": 2, "event": "switch_entry_hazards", "execution_status": "executed", "damage": damage, "post_hp": active["current_hp"], "hazards": {"stealth_rock": hazards.get("stealth_rock"), "spikes_layers": hazards.get("spikes_layers"), "sticky_web": sticky}}]
-    if active["fainted"]:
-        return {"status": "unsupported", "reason": "replacement_required_after_entry_hazard_ko", "source_branch_fingerprint": source_branch_fingerprint, "post_switch_branch_fingerprint": post_switch_fp, "post_entry_branch_fingerprint": entry_fp, "next_state": state, "consequence_trace": trace, "boundary": {"phase": "pre_end_of_turn"}}
     evaluated = evaluate_hypothetical_direct_mechanics(branch_state=state, source_snapshot_fingerprint=source_branch_fingerprint, action=opponent_action, expected_owner=state["active"]["opponent"], direct_evaluation_input=opponent_direct_evaluation_input)
     if evaluated.get("status") != "known" or evaluated.get("branch_state_fingerprint") != entry_fp:
         status = "unsupported" if evaluated.get("status") == "unsupported_mechanic" else "rejected" if evaluated.get("status") == "rejected" else "incomplete"
