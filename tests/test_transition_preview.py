@@ -4,7 +4,10 @@ from llm.advisor_transition_preview import (
     fingerprint_transition_preview_state,
     project_exact_direct_damage_branch,
     project_guaranteed_terminal_direct_ko_branch,
+    project_self_stage_then_direct_branch,
 )
+from llm.advisor_hypothetical_stage_effects import project_self_stage_change
+from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
 
 
 def _snapshot():
@@ -141,6 +144,23 @@ def _second_direct_input(*, owner, move, snapshot):
     }
 
 
+def _stage_action(*, stat="attack", move_id="swords-dance"):
+    action = _action("self", move_id, 0, priority=1, category="status")
+    action["move"].update(target="user", accuracy=None, stat_changes=[{"stat": stat, "change": 2}])
+    return action
+
+
+def _stage_snapshot(*, stage=0):
+    snapshot = _snapshot()
+    snapshot["current_state"]["stat_stage_context"] = {"current_stages": [
+        {"side": "self", "stat": "attack", "stage": stage, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"},
+        {"side": "self", "stat": "defense", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"},
+        {"side": "opponent", "stat": "attack", "stage": 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"},
+    ]}
+    snapshot["current_state"]["direct_mechanics_context"] = _fixed_direct_context()
+    return snapshot
+
+
 def test_exact_nonterminal_first_and_second_actions_apply_sequentially():
     self_action, opponent_action = _action("self", "thunderbolt", 0), _action("opponent", "flamethrower", 1)
     snapshot = _snapshot(); snapshot["current_state"]["current_hp_context"]["current_hp"][1]["current_hp"] = 100
@@ -242,3 +262,56 @@ def test_hypothetical_second_action_preserves_material_unknown_authority():
     )
     assert result["status"] == "incomplete"
     assert "attacker.ability" in result["missing_inputs"]
+
+
+def test_self_stage_action_mutates_only_detached_predicted_stage_overlay():
+    snapshot = _stage_snapshot()
+    before = deepcopy(snapshot)
+    self_action = _stage_action()
+    opponent_action = _action("opponent", "seismic-toss", 1, category="physical")
+    result = project_self_stage_then_direct_branch(
+        turn_snapshot=snapshot, self_action=self_action, opponent_action=opponent_action,
+        self_candidate=_candidate(self_action), opponent_candidate=_candidate(opponent_action), action_order=_order(self_action, opponent_action, "acts_first"),
+        second_direct_evaluation_input=_second_direct_input(owner=opponent_action["owner"], move=opponent_action["move"], snapshot=snapshot),
+    )
+    assert result["status"] == "resolved"
+    predicted = result["next_state"]["predicted_stage_context"]
+    assert (predicted["stat"], predicted["previous_stage"], predicted["delta"], predicted["projected_stage"]) == ("attack", 0, 2, 2)
+    assert snapshot == before
+    assert result["consequence_trace"][0]["consequence"] == "exact_self_stage_change"
+
+
+def test_self_stage_effect_caps_and_requires_exact_canonical_stage_authority():
+    action = _stage_action()
+    capped = project_self_stage_change(branch_state={"schema_version": "deterministic-transition-preview-v1", "current_state": _stage_snapshot(stage=6)["current_state"]}, action=action, expected_owner=action["owner"])
+    assert capped["status"] == "resolved" and capped["projected_stage"] == 6
+    unknown = _stage_snapshot(); unknown["current_state"].pop("stat_stage_context")
+    missing = project_self_stage_change(branch_state={"schema_version": "deterministic-transition-preview-v1", "current_state": unknown["current_state"]}, action=action, expected_owner=action["owner"])
+    assert missing == {"status": "incomplete", "reason": "self.attack_stage"}
+
+
+def test_stage_move_metadata_and_order_fail_closed():
+    action = _stage_action(); state = {"schema_version": "deterministic-transition-preview-v1", "current_state": _stage_snapshot()["current_state"]}
+    action["move"]["target"] = "selected-pokemon"
+    assert project_self_stage_change(branch_state=state, action=action, expected_owner=action["owner"])["status"] == "unsupported"
+    self_action = _stage_action(); opponent_action = _action("opponent", "seismic-toss", 1, category="physical")
+    assert project_self_stage_then_direct_branch(turn_snapshot=_stage_snapshot(), self_action=self_action, opponent_action=opponent_action, self_candidate=_candidate(self_action), opponent_candidate=_candidate(opponent_action), action_order=_order(self_action, opponent_action, "acts_second"), second_direct_evaluation_input=_second_direct_input(owner=opponent_action["owner"], move=opponent_action["move"], snapshot=_stage_snapshot()))["reason"] == "self_stage_action_not_first"
+
+
+def test_later_hypothetical_direct_mechanics_consumes_predicted_stage_overlay():
+    snapshot = _stage_snapshot()
+    self_action = _stage_action(stat="defense", move_id="iron-defense")
+    opponent_action = _action("opponent", "seismic-toss", 1, category="physical")
+    branch = project_self_stage_then_direct_branch(
+        turn_snapshot=snapshot, self_action=self_action, opponent_action=opponent_action,
+        self_candidate=_candidate(self_action), opponent_candidate=_candidate(opponent_action), action_order=_order(self_action, opponent_action, "acts_first"),
+        second_direct_evaluation_input=_second_direct_input(owner=opponent_action["owner"], move=opponent_action["move"], snapshot=snapshot),
+    )["next_state"]
+    tackle = _action("opponent", "tackle", 1, category="physical")
+    stats = {"hp": 100, "attack": 100, "defense": 100, "special-attack": 100, "special-defense": 100, "speed": 100}
+    direct = evaluate_hypothetical_direct_mechanics(
+        branch_state=branch, source_snapshot_fingerprint=fingerprint_transition_preview_state(snapshot), action=tackle, expected_owner=tackle["owner"],
+            direct_evaluation_input={"source_snapshot_fingerprint": fingerprint_transition_preview_state(snapshot), "owner": tackle["owner"], "move_metadata": {**tackle["move"], "power": 40, "type": "normal"}, "stat_provenance": {"attacker": {"pokemon_identity": "arcanine", "types": {"available": True, "value": ["normal"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}, "defender": {"pokemon_identity": "pikachu", "types": {"available": True, "value": ["normal"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}}, "trusted_level": 50},
+    )
+    assert direct["status"] == "known", direct
+    assert direct["mechanics_result"]["stat_stage_evidence"]["defensive_stage_value"] == 2

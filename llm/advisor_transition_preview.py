@@ -141,6 +141,74 @@ def project_exact_direct_damage_branch(
     return _resolved(fingerprint, owners, action_order, trace, next_state, reason)
 
 
+def project_self_stage_then_direct_branch(
+    *,
+    turn_snapshot: Any,
+    self_action: Mapping[str, Any],
+    opponent_action: Mapping[str, Any],
+    self_candidate: Mapping[str, Any],
+    opponent_candidate: Mapping[str, Any],
+    action_order: Mapping[str, Any],
+    second_direct_evaluation_input: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project one exact self-stage action followed by one direct opponent move."""
+    snapshot = _serialize_snapshot(turn_snapshot)
+    if snapshot is None:
+        return _result("rejected", "invalid_frozen_snapshot")
+    fingerprint = _fingerprint(snapshot)
+    if fingerprint is None:
+        return _result("rejected", "unserializable_frozen_snapshot")
+    owners = _snapshot_owners(snapshot)
+    if owners is None:
+        return _result("rejected", "invalid_snapshot_ownership", fingerprint)
+    actions = {"self": self_action, "opponent": opponent_action}
+    candidates = {"self": self_candidate, "opponent": opponent_candidate}
+    for side in ("self", "opponent"):
+        reason = _validate_action(actions[side], expected=owners[side])
+        if reason is not None:
+            return _result("rejected", reason, fingerprint)
+        reason = _validate_candidate_binding(candidates[side], actions[side])
+        if reason is not None:
+            return _result("rejected", reason, fingerprint)
+    if _action_category(opponent_action) not in _DIRECT_CATEGORIES:
+        return _result("unsupported", "opponent_action_not_direct_damage", fingerprint)
+    if action_order.get("status") == "speed_tie":
+        return _result("incomplete", "speed_tie", fingerprint)
+    if action_order.get("status") != "acts_first":
+        if action_order.get("status") == "unsupported_mechanic":
+            return _result("unsupported", str(action_order.get("unsupported_reason") or "action_order_unsupported"), fingerprint)
+        return _result("incomplete", "self_stage_action_not_first", fingerprint, missing_inputs=action_order.get("missing_inputs"))
+    if not _order_matches_actions(action_order, actions):
+        return _result("rejected", "action_order_action_mismatch", fingerprint)
+    for side in ("self", "opponent"):
+        if _trusted_active_hp(snapshot, side) is None:
+            return _result("incomplete", f"{side}_exact_hp", fingerprint)
+
+    from llm.advisor_hypothetical_stage_effects import apply_predicted_stage_change, project_self_stage_change
+    effect = project_self_stage_change(branch_state=_initial_next_state(snapshot, owners), action=self_action, expected_owner=owners["self"])
+    if effect["status"] != "resolved":
+        return _result(effect["status"], effect["reason"], fingerprint)
+    next_state = _initial_next_state(snapshot, owners)
+    apply_predicted_stage_change(next_state, effect)
+    from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
+    evaluated = evaluate_hypothetical_direct_mechanics(
+        branch_state=next_state, source_snapshot_fingerprint=fingerprint,
+        action=opponent_action, expected_owner=owners["opponent"], direct_evaluation_input=second_direct_evaluation_input,
+    )
+    if evaluated.get("status") != "known":
+        status = "unsupported" if evaluated.get("status") == "unsupported_mechanic" else "rejected" if evaluated.get("status") == "rejected" else "incomplete"
+        return _result(status, str(evaluated.get("reason") or "post_stage_direct_mechanics"), fingerprint, missing_inputs=evaluated.get("missing_inputs"))
+    second_candidate = {**deepcopy(dict(opponent_candidate)), "mechanics_result": deepcopy(evaluated["mechanics_result"])}
+    direct = _apply_exact_direct_damage(state=next_state, actor_side="opponent", target_side="self", action=opponent_action, candidate=second_candidate)
+    if direct["status"] != "resolved":
+        return _result(direct["status"], direct["reason"], fingerprint, missing_inputs=direct.get("missing_inputs"))
+    trace = [
+        {"sequence": 1, "actor_side": "self", "action": _public_action(self_action), "execution_status": "executed", "consequence": "exact_self_stage_change", "stat": effect["stat"], "previous_stage": effect["previous_stage"], "delta": effect["delta"], "projected_stage": effect["projected_stage"]},
+        _executed_trace(sequence=2, actor_side="opponent", action=opponent_action, target=owners["self"], outcome=direct),
+    ]
+    return _resolved(fingerprint, owners, action_order, trace, next_state, "self_stage_then_terminal_direct_ko" if direct["terminal"] else "self_stage_then_exact_direct_damage")
+
+
 def _serialize_snapshot(value: Any) -> dict[str, Any] | None:
     try:
         raw = value.to_dict() if hasattr(value, "to_dict") else value
