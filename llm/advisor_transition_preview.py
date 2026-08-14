@@ -1,7 +1,6 @@
 """Pure, fail-closed deterministic transition previews.
 
-This Practical 2.0 slice intentionally supports only a first-actor direct move
-whose existing native mechanics evidence proves a one-hit terminal KO.  It is
+This Practical 2.0 slice supports only exact direct-damage transitions.  It is
 not a reducer, a damage calculator, or a turn simulator.
 """
 from __future__ import annotations
@@ -25,11 +24,33 @@ def project_guaranteed_terminal_direct_ko_branch(
     opponent_candidate: Mapping[str, Any],
     action_order: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Project one exact terminal-KO branch from frozen, existing evidence.
+    """Compatibility entry point for the original terminal-only contract."""
+    return project_exact_direct_damage_branch(
+        turn_snapshot=turn_snapshot,
+        self_action=self_action,
+        opponent_action=opponent_action,
+        self_candidate=self_candidate,
+        opponent_candidate=opponent_candidate,
+        action_order=action_order,
+    )
 
-    ``self_candidate`` and ``opponent_candidate`` are already-produced
-    candidate/direct-mechanics evidence.  This adapter deliberately does not
-    recalculate mechanics or promote a damage range into an exact HP value.
+
+def project_exact_direct_damage_branch(
+    *,
+    turn_snapshot: Any,
+    self_action: Mapping[str, Any],
+    opponent_action: Mapping[str, Any],
+    self_candidate: Mapping[str, Any],
+    opponent_candidate: Mapping[str, Any],
+    action_order: Mapping[str, Any],
+    post_first_candidate: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Project up to two exact direct actions from frozen, existing evidence.
+
+    The optional ``post_first_candidate`` must be canonical direct-mechanics
+    evidence recomputed for the detached post-first state and carry its exact
+    ``branch_state_fingerprint``.  The adapter never reuses the original
+    second-action evidence after HP has changed.
     """
     snapshot = _serialize_snapshot(turn_snapshot)
     if snapshot is None:
@@ -64,69 +85,41 @@ def project_guaranteed_terminal_direct_ko_branch(
     if not _order_matches_actions(action_order, actions):
         return _result("rejected", "action_order_action_mismatch", fingerprint)
 
+    for side in ("self", "opponent"):
+        if _trusted_active_hp(snapshot, side) is None:
+            return _result("incomplete", f"{side}_exact_hp", fingerprint)
+    next_state = _initial_next_state(snapshot, owners)
     first_side = "self" if order_status == "acts_first" else "opponent"
-    target_side = "opponent" if first_side == "self" else "self"
-    mechanics = candidates[first_side].get("mechanics_result")
-    mechanics_status = mechanics.get("status") if isinstance(mechanics, Mapping) else None
-    if mechanics_status == "unsupported_mechanic":
-        return _result("unsupported", str(mechanics.get("unsupported_reason") or "direct_mechanics_unsupported"), fingerprint)
-    if mechanics_status != "known":
-        missing = mechanics.get("missing_inputs") if isinstance(mechanics, Mapping) else None
-        return _result("incomplete", "direct_mechanics", fingerprint, missing_inputs=missing)
-    if mechanics.get("mechanics_source") not in _NATIVE_SOURCES:
-        return _result("unsupported", "non_native_direct_mechanics", fingerprint)
-    if mechanics.get("hit_count") != 1:
-        return _result("unsupported", "multi_hit_uncertainty", fingerprint)
-    if not _certain_move_success(candidates[first_side]):
-        return _result("incomplete", "move_success_uncertain", fingerprint)
+    second_side = "opponent" if first_side == "self" else "self"
+    first = _apply_exact_direct_damage(
+        state=next_state, actor_side=first_side, target_side=second_side,
+        action=actions[first_side], candidate=candidates[first_side],
+    )
+    if first["status"] != "resolved":
+        return _result(first["status"], first["reason"], fingerprint, missing_inputs=first.get("missing_inputs"))
+    trace = [_executed_trace(sequence=1, actor_side=first_side, action=actions[first_side], target=owners[second_side], outcome=first)]
+    if first["terminal"]:
+        trace.append({"sequence": 2, "actor_side": second_side, "action": _public_action(actions[second_side]), "execution_status": "skipped", "reason": "actor_fainted_by_terminal_first_action"})
+        return _resolved(fingerprint, owners, action_order, trace, next_state, "guaranteed_terminal_direct_ko")
 
-    actor_hp = _trusted_active_hp(snapshot, first_side)
-    if actor_hp is None:
-        return _result("incomplete", f"{first_side}_exact_hp", fingerprint)
-    target_hp = _trusted_active_hp(snapshot, target_side)
-    if target_hp is None:
-        return _result("incomplete", f"{target_side}_exact_hp", fingerprint)
-    minimum_damage = _minimum_damage(mechanics)
-    ko = mechanics.get("ko_result")
-    if minimum_damage is None or not isinstance(ko, Mapping) or ko.get("status") != "resolved" or ko.get("single_hit_probability") != 1.0:
-        return _result("incomplete", "non_terminal_damage_range", fingerprint)
-    if minimum_damage < target_hp["current_hp"]:
-        return _result("incomplete", "non_terminal_damage_range", fingerprint)
-
-    next_state = _detached_next_state(snapshot, owners, target_side, target_hp)
-    trace = [
-        {
-            "sequence": 1,
-            "actor_side": first_side,
-            "action": _public_action(actions[first_side]),
-            "execution_status": "executed",
-            "consequence": "guaranteed_terminal_ko",
-            "target": deepcopy(owners[target_side]),
-            "damage_range": deepcopy(mechanics.get("damage_range")),
-        },
-        {
-            "sequence": 2,
-            "actor_side": target_side,
-            "action": _public_action(actions[target_side]),
-            "execution_status": "skipped",
-            "reason": "actor_fainted_by_terminal_first_action",
-        },
-    ]
-    return {
-        "status": "resolved",
-        "reason": "guaranteed_terminal_direct_ko",
-        "source_snapshot_fingerprint": fingerprint,
-        "source_ownership": deepcopy(owners),
-        "action_order": deepcopy(dict(action_order)),
-        "consequence_trace": trace,
-        "next_state": next_state,
-        "boundary": {"phase": "pre_end_of_turn", "end_of_turn": "not_entered"},
-        "limitations": [
-            "terminal_guaranteed_ko_only",
-            "no_reducer_or_runtime_writeback",
-            "no_item_consumption_or_end_of_turn_projection",
-        ],
-    }
+    if not isinstance(post_first_candidate, Mapping):
+        return _result("incomplete", "post_first_direct_mechanics_evidence", fingerprint)
+    expected_branch = _fingerprint(next_state)
+    if post_first_candidate.get("branch_state_fingerprint") != expected_branch:
+        return _result("rejected", "post_first_candidate_branch_mismatch", fingerprint)
+    second_candidate = post_first_candidate.get("candidate")
+    binding = _validate_candidate_binding(second_candidate, actions[second_side])
+    if binding is not None:
+        return _result("rejected", binding, fingerprint)
+    second = _apply_exact_direct_damage(
+        state=next_state, actor_side=second_side, target_side=first_side,
+        action=actions[second_side], candidate=second_candidate,
+    )
+    if second["status"] != "resolved":
+        return _result(second["status"], second["reason"], fingerprint, missing_inputs=second.get("missing_inputs"))
+    trace.append(_executed_trace(sequence=2, actor_side=second_side, action=actions[second_side], target=owners[first_side], outcome=second))
+    reason = "two_action_terminal_direct_ko" if second["terminal"] else "two_action_exact_direct_damage"
+    return _resolved(fingerprint, owners, action_order, trace, next_state, reason)
 
 
 def _serialize_snapshot(value: Any) -> dict[str, Any] | None:
@@ -221,22 +214,98 @@ def _trusted_active_hp(snapshot: Mapping[str, Any], side: str) -> dict[str, int]
     return {"current_hp": hp, "max_hp": maximum}
 
 
-def _minimum_damage(mechanics: Mapping[str, Any]) -> int | None:
+def _damage_bounds(mechanics: Mapping[str, Any]) -> tuple[int, int] | None:
     damage = mechanics.get("damage_range")
-    value = damage.get("minimum") if isinstance(damage, Mapping) else None
-    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+    if not isinstance(damage, Mapping):
+        return None
+    minimum, maximum = damage.get("minimum"), damage.get("maximum")
+    if any(isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in (minimum, maximum)) or minimum > maximum:
+        return None
+    return minimum, maximum
 
 
-def _detached_next_state(snapshot: Mapping[str, Any], owners: Mapping[str, Mapping[str, Any]], target_side: str, target_hp: Mapping[str, int]) -> dict[str, Any]:
+def _initial_next_state(snapshot: Mapping[str, Any], owners: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
     active: dict[str, dict[str, Any]] = {}
     for side in ("self", "opponent"):
         hp = _trusted_active_hp(snapshot, side)
-        assert hp is not None
+        if hp is None:
+            raise ValueError("exact_hp_required_before_projection")
         active[side] = {**deepcopy(dict(owners[side])), "current_hp": hp["current_hp"], "max_hp": hp["max_hp"], "fainted": False}
-    active[target_side]["current_hp"] = 0
-    active[target_side]["max_hp"] = target_hp["max_hp"]
-    active[target_side]["fainted"] = True
     return {"schema_version": "deterministic-transition-preview-v1", "active": active}
+
+
+def _apply_exact_direct_damage(*, state: Mapping[str, Any], actor_side: str, target_side: str, action: Mapping[str, Any], candidate: Any) -> dict[str, Any]:
+    active = state.get("active") if isinstance(state, Mapping) else None
+    actor = active.get(actor_side) if isinstance(active, Mapping) else None
+    target = active.get(target_side) if isinstance(active, Mapping) else None
+    if not isinstance(actor, Mapping) or not isinstance(target, dict) or actor.get("fainted") is not False or target.get("fainted") is not False:
+        return {"status": "incomplete", "reason": "active_execution_state"}
+    if _action_category(action) not in _DIRECT_CATEGORIES:
+        return {"status": "unsupported", "reason": "action_not_direct_damage"}
+    if not isinstance(candidate, Mapping):
+        return {"status": "rejected", "reason": "invalid_candidate_evidence"}
+    mechanics = candidate.get("mechanics_result")
+    mechanics_status = mechanics.get("status") if isinstance(mechanics, Mapping) else None
+    if mechanics_status == "unsupported_mechanic":
+        return {"status": "unsupported", "reason": str(mechanics.get("unsupported_reason") or "direct_mechanics_unsupported")}
+    if mechanics_status != "known":
+        return {"status": "incomplete", "reason": "direct_mechanics", "missing_inputs": mechanics.get("missing_inputs") if isinstance(mechanics, Mapping) else None}
+    if mechanics.get("mechanics_source") not in _NATIVE_SOURCES:
+        return {"status": "unsupported", "reason": "non_native_direct_mechanics"}
+    if mechanics.get("hit_count") != 1:
+        return {"status": "unsupported", "reason": "multi_hit_uncertainty"}
+    if not _certain_move_success(candidate):
+        return {"status": "incomplete", "reason": "move_success_uncertain"}
+    bounds = _damage_bounds(mechanics)
+    ko = mechanics.get("ko_result")
+    current_hp = target.get("current_hp")
+    if bounds is None or not isinstance(current_hp, int) or isinstance(current_hp, bool) or current_hp < 1 or not isinstance(ko, Mapping) or ko.get("status") != "resolved":
+        return {"status": "incomplete", "reason": "exact_damage_outcome"}
+    minimum, maximum = bounds
+    guaranteed_terminal = minimum >= current_hp and ko.get("single_hit_probability") == 1.0
+    if minimum != maximum and not guaranteed_terminal:
+        return {"status": "incomplete", "reason": "non_unique_damage_outcome"}
+    exact_damage = minimum if minimum == maximum else current_hp
+    post_hp = max(0, current_hp - exact_damage)
+    terminal = post_hp == 0
+    if terminal and not guaranteed_terminal and ko.get("single_hit_probability") != 1.0:
+        return {"status": "incomplete", "reason": "exact_terminal_ko_evidence"}
+    target["current_hp"] = post_hp
+    target["fainted"] = terminal
+    return {"status": "resolved", "terminal": terminal, "damage": exact_damage, "damage_range": deepcopy(dict(mechanics["damage_range"])), "post_hp": post_hp}
+
+
+def _executed_trace(*, sequence: int, actor_side: str, action: Mapping[str, Any], target: Mapping[str, Any], outcome: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "sequence": sequence,
+        "actor_side": actor_side,
+        "action": _public_action(action),
+        "execution_status": "executed",
+        "consequence": "guaranteed_terminal_ko" if outcome["terminal"] else "exact_nonterminal_direct_damage",
+        "target": deepcopy(dict(target)),
+        "damage": outcome["damage"],
+        "damage_range": deepcopy(outcome["damage_range"]),
+        "post_hp": outcome["post_hp"],
+    }
+
+
+def _resolved(fingerprint: str, owners: Mapping[str, Mapping[str, Any]], action_order: Mapping[str, Any], trace: list[dict[str, Any]], next_state: Mapping[str, Any], reason: str) -> dict[str, Any]:
+    return {
+        "status": "resolved",
+        "reason": reason,
+        "source_snapshot_fingerprint": fingerprint,
+        "source_ownership": deepcopy(dict(owners)),
+        "action_order": deepcopy(dict(action_order)),
+        "consequence_trace": deepcopy(trace),
+        "next_state": deepcopy(dict(next_state)),
+        "boundary": {"phase": "pre_end_of_turn", "end_of_turn": "not_entered"},
+        "limitations": [
+            "exact_direct_damage_only",
+            "post_first_evidence_must_be_branch_bound",
+            "no_reducer_or_runtime_writeback",
+            "no_item_consumption_or_end_of_turn_projection",
+        ],
+    }
 
 
 def _public_action(action: Mapping[str, Any]) -> dict[str, Any]:
@@ -249,6 +318,11 @@ def _fingerprint(snapshot: Mapping[str, Any]) -> str | None:
     except (TypeError, ValueError):
         return None
     return sha256(encoded).hexdigest()
+
+
+def fingerprint_transition_preview_state(state: Mapping[str, Any]) -> str | None:
+    """Return the canonical detached-state binding used for continuation evidence."""
+    return _fingerprint(state)
 
 
 def _result(status: str, reason: str, fingerprint: str | None = None, *, missing_inputs: Any = None) -> dict[str, Any]:
