@@ -88,6 +88,13 @@ def _execute_turn(*, turn_snapshot: Mapping[str, Any], plan: Mapping[str, Any]) 
             opponent_action=plan.get("opponent_action"),
             opponent_direct_evaluation_input=plan.get("opponent_direct_evaluation_input"),
         )
+    if kind == "ordinary_protect_then_direct":
+        from llm.advisor_hypothetical_protection_effects import project_protection_direct_transition
+        if not _manual_switch_source_matches_turn_snapshot(turn_snapshot, plan.get("source_branch")):
+            return _result("rejected", "protection_source_branch_mismatch")
+        result = project_protection_direct_transition(branch_state=plan["source_branch"], self_action=plan.get("self_action"), opponent_action=plan.get("opponent_action"), owner=plan.get("self_action", {}).get("owner"), success_authority=plan.get("protection_success_authority"), action_order=plan.get("action_order"))
+        if result.get("status") == "resolved": result["source_snapshot_fingerprint"] = fingerprint_transition_preview_state(turn_snapshot)
+        return result
     if kind == "exact_direct":
         return project_exact_direct_damage_branch(turn_snapshot=turn_snapshot, **common, post_first_candidate=plan.get("post_first_candidate"), second_direct_evaluation_input=plan.get("second_direct_evaluation_input"))
     if kind == "self_stage_then_direct":
