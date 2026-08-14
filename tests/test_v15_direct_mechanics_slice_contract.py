@@ -14,6 +14,7 @@ from llm.advisor_turn_snapshot import (
 from core.cache_manager import CacheManager
 from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository
+from core.pokemon_repository import PokemonRepository
 
 
 class _Species:
@@ -31,11 +32,11 @@ def _direct_context(*, generation="gen9"):
     return {"generation": generation, "attacker": deepcopy(side), "defender": deepcopy(side), "field": {"weather": absent, "terrain": absent}}
 
 
-def _battle(*, direct=True):
+def _battle(*, direct=True, self_pokemon="pikachu", opponent_pokemon="eevee", self_slot=0, opponent_slot=1):
     entries = []
-    for side, pokemon, slot in (("self", "pikachu", 0), ("opponent", "eevee", 1)):
+    for side, pokemon, slot in (("self", self_pokemon, self_slot), ("opponent", opponent_pokemon, opponent_slot)):
         entries.extend({"side": side, "stat": key, "value": 100 + index, "status": "user_confirmed", "source": "user_confirmed_final_battle_stat", "provenance": _provenance(side, slot, pokemon)} for index, key in enumerate(BASE_STAT_KEYS))
-    battle = {"current_state_session_id": "s", "pokemon": {"my_active": {"name_en": "pikachu", "slot_index": 0}, "opponent_active": {"name_en": "eevee", "slot_index": 1}}, "moves": {"my_available_moves": [{"slot_index": 0, "move_id": "tackle"}]}, "final_stat_context": {"current_final_stats": entries}, "trusted_level_context": {"current_levels": [{"side": "self", "value": 50, "provenance": {**_provenance("self", 0, "pikachu"), "source": "user_confirmed_current_level"}}]}}
+    battle = {"current_state_session_id": "s", "pokemon": {"my_active": {"name_en": self_pokemon, "slot_index": self_slot}, "opponent_active": {"name_en": opponent_pokemon, "slot_index": opponent_slot}}, "moves": {"my_available_moves": [{"slot_index": 0, "move_id": "tackle"}]}, "final_stat_context": {"current_final_stats": entries}, "trusted_level_context": {"current_levels": [{"side": "self", "value": 50, "provenance": {**_provenance("self", self_slot, self_pokemon), "source": "user_confirmed_current_level"}}]}}
     if direct:
         battle["direct_mechanics_context"] = _direct_context()
     return battle
@@ -208,6 +209,40 @@ def test_cached_thunderbolt_priority_reaches_native_q12_and_preserves_item_readi
     readiness = build_recommendation_readiness(prepared_cycle=prepared)
     assert {entry["path"] for entry in readiness["missing"]} >= {"attacker.item"}
     assert readiness["action"] == "current_item"
+
+
+def test_repository_backed_pikachu_arcanine_thunderbolt_fixture_reaches_item_readiness() -> None:
+    """Keep the production-cache smoke fixture identity-bound and deterministic."""
+    battle = _battle(opponent_pokemon="arcanine", opponent_slot=0)
+    battle["moves"]["my_available_moves"][0]["move_id"] = "thunderbolt"
+    battle["direct_mechanics_context"]["attacker"]["item"] = {"status": "unknown"}
+    cache, loader = CacheManager(), KoMappingLoader()
+
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "thunderbolt"}], battle_input=battle,
+        move_repository=MoveRepository(cache, loader), species_repository=PokemonRepository(cache, loader),
+    )
+    candidate = prepared["candidates"][0]
+
+    assert prepared["status"] == "ready"
+    assert candidate["status"] == "partial"
+    assert candidate["q12_damage"]["status"] == "resolved"
+    assert candidate["mechanics_result"]["missing_inputs"] == ["attacker.item"]
+    readiness = build_recommendation_readiness(prepared_cycle=prepared)
+    assert {entry["path"] for entry in readiness["missing"]} >= {"attacker.item"}
+    assert readiness["action"] == "current_item"
+
+    battle["pokemon"]["opponent_active"]["name_en"] = "eevee"
+    assert candidate["q12_damage"]["status"] == "resolved"
+
+    stale = _battle(opponent_pokemon="arcanine", opponent_slot=0)
+    stale["final_stat_context"]["current_final_stats"][-1]["provenance"]["pokemon_id"] = "eevee"
+    rejected = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "tackle"}], battle_input=stale,
+        move_repository={"tackle": {"category": "physical", "power": 40, "type": "normal", "priority": 0}},
+        species_repository=PokemonRepository(cache, loader),
+    )
+    assert rejected["candidates"][0]["q12_damage"]["status"] != "resolved"
 
 
 def test_facade_consumes_exact_attacker_condition_in_native_direct_damage():
