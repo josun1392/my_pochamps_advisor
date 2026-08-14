@@ -1,0 +1,35 @@
+{
+  "_fetched_at": "2026-08-14T01:09:53Z",
+  "accuracy": 100,
+  "damage_class": "special",
+  "effect_chance": 10,
+  "id": 85,
+  "meta": {
+    "ailment": "paralysis",
+    "category": "damage-ailment",
+    "drain": 0,
+    "healing": 0,
+    "max_hits": null,
+    "min_hits": null
+  },
+  "name": "thunderbolt",
+  "names": {
+    "de": "Donnerblitz",
+    "en": "Thunderbolt",
+    "es": "Rayo",
+    "es-419": "Atactrueno",
+    "fr": "Tonnerre",
+    "it": "Fulmine",
+    "ja": "１０まんボルト",
+    "ja-hrkt": "１０まんボルト",
+    "ko": "10만볼트",
+    "zh-hans": "十万伏特",
+    "zh-hant": "十萬伏特"
+  },
+  "power": 90,
+  "pp": 15,
+  "priority": 0,
+  "stat_changes": [],
+  "target": "selected-pokemon",
+  "type": "electric"
+}

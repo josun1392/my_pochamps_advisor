@@ -11,6 +11,9 @@ from llm.advisor_turn_snapshot import (
     build_snapshot_stat_provenance,
     capture_ui_current_state_provenance,
 )
+from core.cache_manager import CacheManager
+from core.ko_mapping_loader import KoMappingLoader
+from core.move_repository import MoveRepository
 
 
 class _Species:
@@ -178,6 +181,31 @@ def test_ui_direct_mechanics_opt_in_projects_only_explicit_hp_and_keeps_item_unk
     readiness = build_recommendation_readiness(
         prepared_cycle={"status": "ready", "candidates": [{"mechanics_result": result}]}
     )
+    assert {entry["path"] for entry in readiness["missing"]} >= {"attacker.item"}
+    assert readiness["action"] == "current_item"
+
+
+def test_cached_thunderbolt_priority_reaches_native_q12_and_preserves_item_readiness() -> None:
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = "thunderbolt"
+    battle["direct_mechanics_context"]["attacker"]["item"] = {"status": "unknown"}
+    repository = MoveRepository(CacheManager(), KoMappingLoader())
+
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "thunderbolt"}], battle_input=battle,
+        move_repository=repository, species_repository=_Species(),
+    )
+    candidate = prepared["candidates"][0]
+
+    assert repository.get("thunderbolt").priority == 0
+    assert candidate["status"] == "partial"
+    assert candidate["action_order"]["missing_inputs"] == ["opponent_action"]
+    assert "self_move_priority" not in candidate["action_order"]["missing_inputs"]
+    assert candidate["q12_damage"]["status"] == "resolved"
+    assert candidate["mechanics_result"]["status"] == "insufficient_context"
+    assert candidate["mechanics_result"]["mechanics_source"] == "native_q12_direct_damage"
+    assert candidate["mechanics_result"]["missing_inputs"] == ["attacker.item"]
+    readiness = build_recommendation_readiness(prepared_cycle=prepared)
     assert {entry["path"] for entry in readiness["missing"]} >= {"attacker.item"}
     assert readiness["action"] == "current_item"
 

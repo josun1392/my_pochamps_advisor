@@ -2243,6 +2243,7 @@ def _move_payload(move: MoveView, slot_index: int) -> dict:
         "power": move.power,
         "accuracy": move.accuracy,
         "pp": move.pp,
+        "priority": move.priority,
         "drain": move.drain,
         "min_hits": move.min_hits, "max_hits": move.max_hits,
         "healing": move.healing,

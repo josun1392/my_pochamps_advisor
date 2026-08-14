@@ -1,0 +1,35 @@
+{
+  "_fetched_at": "2026-08-14T01:09:53Z",
+  "accuracy": 100,
+  "damage_class": "physical",
+  "effect_chance": null,
+  "id": 98,
+  "meta": {
+    "ailment": "none",
+    "category": "damage",
+    "drain": 0,
+    "healing": 0,
+    "max_hits": null,
+    "min_hits": null
+  },
+  "name": "quick-attack",
+  "names": {
+    "de": "Ruckzuckhieb",
+    "en": "Quick Attack",
+    "es": "Ataque Rápido",
+    "es-419": "Ataque Rápido",
+    "fr": "Vive-Attaque",
+    "it": "Attacco Rapido",
+    "ja": "でんこうせっか",
+    "ja-hrkt": "でんこうせっか",
+    "ko": "전광석화",
+    "zh-hans": "电光一闪",
+    "zh-hant": "電光一閃"
+  },
+  "power": 40,
+  "pp": 30,
+  "priority": 1,
+  "stat_changes": [],
+  "target": "selected-pokemon",
+  "type": "normal"
+}

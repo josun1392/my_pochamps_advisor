@@ -18,6 +18,7 @@ class MoveView:
     power: int | None
     accuracy: int | None
     pp: int | None
+    priority: int | None = None
     drain: int | None = None
     min_hits: int | None = None
     max_hits: int | None = None
@@ -56,6 +57,7 @@ class MoveRepository:
             power=_optional_int(data.get("power")),
             accuracy=_optional_int(data.get("accuracy")),
             pp=_optional_int(data.get("pp")),
+            priority=_optional_int(data.get("priority")),
             drain=_optional_int(data.get("meta", {}).get("drain") if isinstance(data.get("meta"), dict) else None),
             min_hits=_optional_int(data.get("meta", {}).get("min_hits") if isinstance(data.get("meta"), dict) else None),
             max_hits=_optional_int(data.get("meta", {}).get("max_hits") if isinstance(data.get("meta"), dict) else None),
@@ -82,6 +84,7 @@ class MoveRepository:
             power=_optional_int(data.get("power")),
             accuracy=_optional_int(data.get("accuracy")),
             pp=_optional_int(data.get("pp")),
+            priority=_optional_int(data.get("priority")),
             drain=_optional_int(data.get("drain")),
             min_hits=_optional_int(data.get("min_hits")), max_hits=_optional_int(data.get("max_hits")),
             healing=_optional_int(data.get("healing")),

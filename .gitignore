@@ -32,7 +32,13 @@ data/cache/*
 !data/cache/pokeapi/
 data/cache/pokeapi/*
 !data/cache/pokeapi/.gitkeep
+!data/cache/pokeapi/moves/
+data/cache/pokeapi/moves/*
+!data/cache/pokeapi/moves/85.json
+!data/cache/pokeapi/moves/98.json
 data/meta/cache_index.json
+!data/meta/
+!data/meta/cache_index.json
 
 # Environment files
 .env
