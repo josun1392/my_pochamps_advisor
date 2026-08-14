@@ -4,10 +4,12 @@ from llm.advisor_transition_preview import (
     fingerprint_transition_preview_state,
     project_exact_direct_damage_branch,
     project_guaranteed_terminal_direct_ko_branch,
+    project_self_recovery_direct_branch,
     project_self_stage_then_direct_branch,
 )
 from llm.advisor_hypothetical_stage_effects import project_self_stage_change
 from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
+from llm.advisor_hypothetical_recovery_effects import project_self_recovery
 
 
 def _snapshot():
@@ -148,6 +150,25 @@ def _stage_action(*, stat="attack", move_id="swords-dance"):
     action = _action("self", move_id, 0, priority=1, category="status")
     action["move"].update(target="user", accuracy=None, stat_changes=[{"stat": stat, "change": 2}])
     return action
+
+
+def _recovery_action():
+    action = _action("self", "recover", 0, priority=1, category="status")
+    action["move"].update(target="user", accuracy=None, effect_category="heal", ailment="none", healing=50)
+    return action
+
+
+def _recovery_snapshot(*, self_hp=80):
+    snapshot = _snapshot()
+    snapshot["current_state"]["current_hp_context"]["current_hp"][0]["current_hp"] = self_hp
+    snapshot["current_state"]["direct_mechanics_context"] = _fixed_direct_context(self_hp=self_hp, opponent_hp=30)
+    return snapshot
+
+
+def _exact_candidate(action, damage):
+    candidate = _candidate(action, minimum=damage, probability=1.0)
+    candidate["mechanics_result"]["damage_range"]["maximum"] = damage
+    return candidate
 
 
 def _stage_snapshot(*, stage=0):
@@ -315,3 +336,58 @@ def test_later_hypothetical_direct_mechanics_consumes_predicted_stage_overlay():
     )
     assert direct["status"] == "known", direct
     assert direct["mechanics_result"]["stat_stage_evidence"]["defensive_stage_value"] == 2
+
+
+def test_self_recovery_projects_exact_detached_hp_and_caps_at_maximum():
+    snapshot = _recovery_snapshot(self_hp=80); before = deepcopy(snapshot)
+    recovery, opponent = _recovery_action(), _action("opponent", "seismic-toss", 1, category="physical")
+    result = project_self_recovery_direct_branch(
+        turn_snapshot=snapshot, self_action=recovery, opponent_action=opponent,
+        self_candidate=_candidate(recovery), opponent_candidate=_candidate(opponent), action_order=_order(recovery, opponent, "acts_first"),
+        opponent_direct_evaluation_input=_second_direct_input(owner=opponent["owner"], move=opponent["move"], snapshot=snapshot),
+    )
+    assert result["status"] == "resolved"
+    assert result["next_state"]["active"]["self"]["current_hp"] == 50
+    trace = result["consequence_trace"][0]
+    assert (trace["consequence"], trace["recovery"], trace["hp_before"], trace["post_hp"]) == ("exact_self_recovery", 20, 80, 100)
+    assert snapshot == before
+
+
+def test_opponent_first_exact_damage_then_recovery_uses_detached_post_damage_hp():
+    snapshot = _recovery_snapshot(self_hp=80)
+    recovery, opponent = _recovery_action(), _action("opponent", "flamethrower", 1)
+    result = project_self_recovery_direct_branch(
+        turn_snapshot=snapshot, self_action=recovery, opponent_action=opponent,
+        self_candidate=_candidate(recovery), opponent_candidate=_exact_candidate(opponent, 30), action_order=_order(recovery, opponent, "acts_second"),
+    )
+    assert result["status"] == "resolved"
+    assert result["next_state"]["active"]["self"]["current_hp"] == 100
+    assert result["consequence_trace"][1]["hp_before"] == 50
+    assert result["consequence_trace"][1]["recovery"] == 50
+
+
+def test_terminal_opponent_direct_damage_skips_self_recovery():
+    snapshot = _recovery_snapshot(self_hp=80)
+    recovery, opponent = _recovery_action(), _action("opponent", "flamethrower", 1)
+    result = project_self_recovery_direct_branch(
+        turn_snapshot=snapshot, self_action=recovery, opponent_action=opponent,
+        self_candidate=_candidate(recovery), opponent_candidate=_exact_candidate(opponent, 80), action_order=_order(recovery, opponent, "acts_second"),
+    )
+    assert result["status"] == "resolved" and result["next_state"]["active"]["self"]["fainted"] is True
+    assert result["consequence_trace"][1]["execution_status"] == "skipped"
+
+
+def test_self_recovery_requires_exact_authority_and_supported_metadata():
+    action = _recovery_action(); state = {"schema_version": "deterministic-transition-preview-v1", "active": {"self": {**action["owner"], "fainted": False}}, "current_state": _recovery_snapshot()["current_state"]}
+    assert project_self_recovery(branch_state=state, action=action, expected_owner=action["owner"])["status"] == "resolved"
+    odd = deepcopy(state); odd["current_state"]["current_hp_context"]["current_hp"][0].update(current_hp=1, maximum_hp=301)
+    odd_effect = project_self_recovery(branch_state=odd, action=action, expected_owner=action["owner"])
+    assert (odd_effect["recovery"], odd_effect["hp_after"]) == (150, 151)
+    missing = deepcopy(state); missing["current_state"]["current_hp_context"]["current_hp"] = missing["current_state"]["current_hp_context"]["current_hp"][1:]
+    assert project_self_recovery(branch_state=missing, action=action, expected_owner=action["owner"])["reason"] == "self_exact_hp"
+    invalid = deepcopy(action); invalid["move"].pop("healing")
+    assert project_self_recovery(branch_state=state, action=invalid, expected_owner=action["owner"])["reason"] == "self_recovery_effect_metadata"
+    secondary = deepcopy(action); secondary["move"]["stat_changes"] = [{"stat": "attack", "change": 1}]
+    assert project_self_recovery(branch_state=state, action=secondary, expected_owner=action["owner"])["reason"] == "self_recovery_secondary_effect"
+    stale = deepcopy(action); stale["owner"]["pokemon_id"] = "replacement"
+    assert project_self_recovery(branch_state=state, action=stale, expected_owner=action["owner"])["status"] == "rejected"

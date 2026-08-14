@@ -1,7 +1,7 @@
 """Pure, fail-closed deterministic transition previews.
 
-This Practical 2.0 slice supports only exact direct-damage transitions.  It is
-not a reducer, a damage calculator, or a turn simulator.
+This Practical 2.0 slice supports exact direct damage plus narrowly supported
+self-action effects.  It is not a reducer, a damage calculator, or a simulator.
 """
 from __future__ import annotations
 
@@ -209,6 +209,93 @@ def project_self_stage_then_direct_branch(
     return _resolved(fingerprint, owners, action_order, trace, next_state, "self_stage_then_terminal_direct_ko" if direct["terminal"] else "self_stage_then_exact_direct_damage")
 
 
+def project_self_recovery_direct_branch(
+    *,
+    turn_snapshot: Any,
+    self_action: Mapping[str, Any],
+    opponent_action: Mapping[str, Any],
+    self_candidate: Mapping[str, Any],
+    opponent_candidate: Mapping[str, Any],
+    action_order: Mapping[str, Any],
+    opponent_direct_evaluation_input: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Project one exact self recovery and one owned opponent direct action."""
+    snapshot = _serialize_snapshot(turn_snapshot)
+    if snapshot is None:
+        return _result("rejected", "invalid_frozen_snapshot")
+    fingerprint = _fingerprint(snapshot)
+    if fingerprint is None:
+        return _result("rejected", "unserializable_frozen_snapshot")
+    owners = _snapshot_owners(snapshot)
+    if owners is None:
+        return _result("rejected", "invalid_snapshot_ownership", fingerprint)
+    actions = {"self": self_action, "opponent": opponent_action}
+    candidates = {"self": self_candidate, "opponent": opponent_candidate}
+    for side in ("self", "opponent"):
+        reason = _validate_action(actions[side], expected=owners[side])
+        if reason is not None:
+            return _result("rejected", reason, fingerprint)
+        reason = _validate_candidate_binding(candidates[side], actions[side])
+        if reason is not None:
+            return _result("rejected", reason, fingerprint)
+    if _action_category(opponent_action) not in _DIRECT_CATEGORIES:
+        return _result("unsupported", "opponent_action_not_direct_damage", fingerprint)
+    order_status = action_order.get("status") if isinstance(action_order, Mapping) else None
+    if order_status == "speed_tie":
+        return _result("incomplete", "speed_tie", fingerprint)
+    if order_status == "unsupported_mechanic":
+        return _result("unsupported", str(action_order.get("unsupported_reason") or "action_order_unsupported"), fingerprint)
+    if order_status not in {"acts_first", "acts_second"}:
+        return _result("incomplete", "action_order", fingerprint, missing_inputs=action_order.get("missing_inputs") if isinstance(action_order, Mapping) else None)
+    if not _order_matches_actions(action_order, actions):
+        return _result("rejected", "action_order_action_mismatch", fingerprint)
+    for side in ("self", "opponent"):
+        if _trusted_active_hp(snapshot, side) is None:
+            return _result("incomplete", f"{side}_exact_hp", fingerprint)
+
+    from llm.advisor_hypothetical_recovery_effects import project_self_recovery
+    next_state = _initial_next_state(snapshot, owners)
+    trace: list[dict[str, Any]] = []
+    if order_status == "acts_second":
+        first = _apply_exact_direct_damage(state=next_state, actor_side="opponent", target_side="self", action=opponent_action, candidate=opponent_candidate)
+        if first["status"] != "resolved":
+            return _result(first["status"], first["reason"], fingerprint, missing_inputs=first.get("missing_inputs"))
+        trace.append(_executed_trace(sequence=1, actor_side="opponent", action=opponent_action, target=owners["self"], outcome=first))
+        if first["terminal"]:
+            trace.append({"sequence": 2, "actor_side": "self", "action": _public_action(self_action), "execution_status": "skipped", "reason": "actor_fainted_by_terminal_first_action"})
+            return _resolved(fingerprint, owners, action_order, trace, next_state, "guaranteed_terminal_direct_ko")
+        recovery = project_self_recovery(branch_state=next_state, action=self_action, expected_owner=owners["self"])
+        if recovery["status"] != "resolved":
+            return _result(recovery["status"], recovery["reason"], fingerprint)
+        _apply_exact_self_recovery(next_state, recovery)
+        trace.append(_recovery_trace(sequence=2, action=self_action, recovery=recovery))
+        return _resolved(fingerprint, owners, action_order, trace, next_state, "exact_direct_damage_then_self_recovery")
+
+    recovery = project_self_recovery(branch_state=next_state, action=self_action, expected_owner=owners["self"])
+    if recovery["status"] != "resolved":
+        return _result(recovery["status"], recovery["reason"], fingerprint)
+    _apply_exact_self_recovery(next_state, recovery)
+    trace.append(_recovery_trace(sequence=1, action=self_action, recovery=recovery))
+    if not isinstance(opponent_direct_evaluation_input, Mapping):
+        return _result("incomplete", "post_recovery_direct_mechanics_evidence", fingerprint)
+    from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
+    evaluated = evaluate_hypothetical_direct_mechanics(
+        branch_state=next_state, source_snapshot_fingerprint=fingerprint,
+        action=opponent_action, expected_owner=owners["opponent"], direct_evaluation_input=opponent_direct_evaluation_input,
+    )
+    if evaluated.get("status") != "known":
+        status = "unsupported" if evaluated.get("status") == "unsupported_mechanic" else "rejected" if evaluated.get("status") == "rejected" else "incomplete"
+        return _result(status, str(evaluated.get("reason") or "post_recovery_direct_mechanics"), fingerprint, missing_inputs=evaluated.get("missing_inputs"))
+    second = _apply_exact_direct_damage(
+        state=next_state, actor_side="opponent", target_side="self", action=opponent_action,
+        candidate={**deepcopy(dict(opponent_candidate)), "mechanics_result": deepcopy(evaluated["mechanics_result"])},
+    )
+    if second["status"] != "resolved":
+        return _result(second["status"], second["reason"], fingerprint, missing_inputs=second.get("missing_inputs"))
+    trace.append(_executed_trace(sequence=2, actor_side="opponent", action=opponent_action, target=owners["self"], outcome=second))
+    return _resolved(fingerprint, owners, action_order, trace, next_state, "self_recovery_then_terminal_direct_ko" if second["terminal"] else "self_recovery_then_exact_direct_damage")
+
+
 def _serialize_snapshot(value: Any) -> dict[str, Any] | None:
     try:
         raw = value.to_dict() if hasattr(value, "to_dict") else value
@@ -384,6 +471,30 @@ def _sync_branch_hp(state: Mapping[str, Any], *, target_side: str, current_hp: i
         if isinstance(side, dict):
             side["current_hp"] = current_hp
             side["max_hp"] = maximum_hp
+
+
+def _apply_exact_self_recovery(state: Mapping[str, Any], recovery: Mapping[str, Any]) -> None:
+    active = state.get("active") if isinstance(state, Mapping) else None
+    actor = active.get("self") if isinstance(active, Mapping) else None
+    if not isinstance(actor, dict) or actor.get("fainted") is not False:
+        raise ValueError("invalid_recovery_execution_state")
+    if actor.get("current_hp") != recovery.get("hp_before") or actor.get("max_hp") != recovery.get("max_hp"):
+        raise ValueError("recovery_hp_branch_mismatch")
+    actor["current_hp"] = recovery["hp_after"]
+    _sync_branch_hp(state, target_side="self", current_hp=recovery["hp_after"], maximum_hp=recovery["max_hp"])
+
+
+def _recovery_trace(*, sequence: int, action: Mapping[str, Any], recovery: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "sequence": sequence,
+        "actor_side": "self",
+        "action": _public_action(action),
+        "execution_status": "executed",
+        "consequence": "exact_self_recovery",
+        "recovery": recovery["recovery"],
+        "hp_before": recovery["hp_before"],
+        "post_hp": recovery["hp_after"],
+    }
 
 
 def _executed_trace(*, sequence: int, actor_side: str, action: Mapping[str, Any], target: Mapping[str, Any], outcome: Mapping[str, Any]) -> dict[str, Any]:
