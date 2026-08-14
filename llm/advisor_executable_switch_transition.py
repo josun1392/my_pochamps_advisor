@@ -31,6 +31,8 @@ def execute_manual_switch_then_direct(
     switch = project_authorized_switch_transition(turn_snapshot=_FrozenSnapshot(switch_snapshot), switch_candidate=switch_candidate, switch_authorized=True, opponent_action={"role": "opponent_action", "acting_side": "opponent", "target_side": "self", "move_id": opponent_action.get("move", {}).get("move_id"), "move_metadata": {"target": "selected-pokemon"}})
     if switch.get("supportability") != "complete" or switch.get("order_result") != "self_switch_first":
         return _result("unsupported", str(switch.get("unsupported_reason") or switch.get("reason") or "switch_order_unsupported"))
+    if not _incoming_matches_authorized_switch(switch, incoming_authority):
+        return _result("rejected", "switch_candidate_incoming_authority_mismatch")
     materialized = materialize_incoming_active_branch(source_branch=source_branch, source_branch_fingerprint=source_branch_fingerprint, incoming_authority=incoming_authority)
     if materialized.get("status") != "resolved":
         return materialized
@@ -77,6 +79,20 @@ def _sync_self_hp(state: Mapping[str, Any], hp: int, maximum: int) -> None:
     attacker = direct.get("attacker") if isinstance(direct, Mapping) else None
     if isinstance(attacker, dict):
         attacker["current_hp"], attacker["max_hp"] = hp, maximum
+
+
+def _incoming_matches_authorized_switch(switch: Mapping[str, Any], incoming_authority: Mapping[str, Any]) -> bool:
+    """Keep the finalized candidate and materialized identity inseparable."""
+    action = switch.get("self_action")
+    owner = incoming_authority.get("owner") if isinstance(incoming_authority, Mapping) else None
+    return (
+        isinstance(action, Mapping)
+        and isinstance(owner, Mapping)
+        and owner.get("session_id") == action.get("session_id")
+        and owner.get("side") == "self"
+        and owner.get("slot_index") == action.get("target_slot_index")
+        and owner.get("pokemon_id") == action.get("target_pokemon_id")
+    )
 
 
 def _result(status: str, reason: str) -> dict[str, Any]: return {"status": status, "reason": reason}

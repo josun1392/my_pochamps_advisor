@@ -86,3 +86,18 @@ def test_turn_two_requires_new_handoff_fingerprint_and_terminal_turn_one_stops()
     lethal = _plan(source, self_damage=100)
     stopped = execute_explicit_two_turn(starting_turn_snapshot=source, turn_one=lethal, turn_two={**first_plan, "start_branch_fingerprint": "unused"})
     assert stopped["status"] == "unsupported" and stopped["reason"] == "replacement_required_before_turn_two"
+
+
+def test_manual_switch_plan_cannot_execute_a_foreign_source_branch():
+    source = _snapshot()
+    foreign = _post_first(source, self_hp=100, opponent_hp=100)
+    foreign["active"]["self"].update(session_id="foreign-session", pokemon_id="foreign-self")
+    foreign["active"]["opponent"].update(session_id="foreign-session", pokemon_id="foreign-opponent")
+    result = execute_explicit_two_turn(
+        starting_turn_snapshot=source,
+        turn_one={"transition": "manual_switch_then_direct", "source_branch": foreign},
+        turn_two={},
+    )
+    assert result["status"] == "rejected"
+    assert result["reason"] == "manual_switch_source_branch_mismatch"
+    assert result["failed_stage"] == "turn_one_transition"

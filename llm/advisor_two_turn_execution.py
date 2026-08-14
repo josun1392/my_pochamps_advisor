@@ -77,6 +77,8 @@ def _execute_turn(*, turn_snapshot: Mapping[str, Any], plan: Mapping[str, Any]) 
     kind = plan.get("transition", "exact_direct")
     if kind == "manual_switch_then_direct":
         from llm.advisor_executable_switch_transition import execute_manual_switch_then_direct
+        if not _manual_switch_source_matches_turn_snapshot(turn_snapshot, plan.get("source_branch")):
+            return _result("rejected", "manual_switch_source_branch_mismatch")
         return execute_manual_switch_then_direct(
             source_branch=plan.get("source_branch"),
             source_branch_fingerprint=plan.get("source_branch_fingerprint"),
@@ -95,6 +97,34 @@ def _execute_turn(*, turn_snapshot: Mapping[str, Any], plan: Mapping[str, Any]) 
     if kind == "self_poison_then_direct":
         return project_self_poison_then_direct_branch(turn_snapshot=turn_snapshot, **common, second_direct_evaluation_input=plan.get("second_direct_evaluation_input"))
     return _result("unsupported", "turn_transition_not_in_slice")
+
+
+def _manual_switch_source_matches_turn_snapshot(turn_snapshot: Mapping[str, Any], source_branch: Any) -> bool:
+    """A switch plan may only execute from this turn's captured active state."""
+    battle = turn_snapshot.get("battle_state") if isinstance(turn_snapshot, Mapping) else None
+    current = turn_snapshot.get("current_state") if isinstance(turn_snapshot, Mapping) else None
+    active = source_branch.get("active") if isinstance(source_branch, Mapping) else None
+    if not isinstance(battle, Mapping) or not isinstance(current, Mapping) or not isinstance(active, Mapping):
+        return False
+    session = current.get("current_state_session_id")
+    if not isinstance(session, str) or not session:
+        return False
+    expected = {
+        "self": battle.get("active_player"),
+        "opponent": battle.get("active_opponent"),
+    }
+    for side, snapshot_active in expected.items():
+        branch_active = active.get(side)
+        if not isinstance(snapshot_active, Mapping) or not isinstance(branch_active, Mapping):
+            return False
+        if (
+            branch_active.get("session_id") != session
+            or branch_active.get("side") != side
+            or branch_active.get("slot_index") != snapshot_active.get("slot_index")
+            or branch_active.get("pokemon_id") != snapshot_active.get("species_id")
+        ):
+            return False
+    return True
 
 
 def _snapshot_from_next_turn_start(handoff: Mapping[str, Any]) -> dict[str, Any] | None:
