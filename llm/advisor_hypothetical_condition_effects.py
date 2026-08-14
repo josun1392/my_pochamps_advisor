@@ -92,7 +92,7 @@ def overlay_predicted_condition_for_direct_mechanics(current_state: Mapping[str,
     current = deepcopy(dict(current_state))
     if predicted is None:
         return current
-    if not isinstance(predicted, Mapping) or predicted.get("schema_version") != "hypothetical-move-poison-condition-v1" or predicted.get("provenance") != "turn_engine_predicted_move_poison":
+    if not isinstance(predicted, Mapping) or predicted.get("schema_version") != "hypothetical-move-poison-condition-v1" or predicted.get("provenance") not in {"turn_engine_predicted_move_poison", "turn_engine_predicted_toxic_spikes"}:
         return None
     owner, ailment = predicted.get("owner"), predicted.get("condition_type")
     if not isinstance(owner, Mapping) or owner.get("side") not in {"self", "opponent"} or ailment not in _POISON_AILMENTS:

@@ -51,7 +51,7 @@ def test_blocked_or_unsupported_entry_effects_fail_closed_without_materializing_
     blocked = execute_manual_switch_then_direct(source_branch=branch, source_branch_fingerprint=source, switch_snapshot=_snapshot(), switch_candidate=_candidate(False), incoming_authority=_incoming(), opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source))
     assert blocked == {"status": "incomplete", "reason": "switch_legality_unknown_or_blocked"}
     toxic = execute_manual_switch_then_direct(source_branch=branch, source_branch_fingerprint=source, switch_snapshot=_snapshot(toxic=1), switch_candidate=_candidate(), incoming_authority=_incoming(), opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source))
-    assert toxic == {"status": "unsupported", "reason": "unsupported_material_switch_entry_effect"}
+    assert toxic["status"] == "resolved" and toxic["next_state"]["predicted_condition_context"]["condition_type"] == "poison"
 
 
 def test_authorized_switch_target_must_match_materialized_incoming_owner():

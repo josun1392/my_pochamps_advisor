@@ -9,6 +9,8 @@ from llm.advisor_incoming_active_materialization import materialize_incoming_act
 from llm.advisor_switch_entry_effects import evaluate_switch_entry_effects
 from llm.advisor_switch_transition import project_authorized_switch_transition
 from llm.advisor_transition_preview import fingerprint_transition_preview_state, project_exact_direct_action_on_branch
+from llm.advisor_branch_hazard_context import project_side_hazards, remove_absorbed_toxic_spikes
+from llm.advisor_toxic_spikes_condition_adapter import apply_toxic_spikes_condition
 
 
 class _FrozenSnapshot:
@@ -43,12 +45,13 @@ def execute_manual_switch_then_direct(
     hazards = post.get("switch_hazard_context") if isinstance(post, Mapping) else None
     if not isinstance(target, Mapping) or not isinstance(hazards, Mapping):
         return _result("incomplete", "switch_entry_authority")
-    if hazards.get("toxic_spikes_layers") != 0:
-        return _result("unsupported", "unsupported_material_switch_entry_effect")
     entry = evaluate_switch_entry_effects(hazards=hazards, target=target, field_state_context=post.get("side_shared_authority", {}).get("field_state_context") if isinstance(post.get("side_shared_authority"), Mapping) else None)
     if entry.get("entry_effects_supportability") != "complete" or entry.get("status") != "complete":
         return _result("incomplete", "switch_entry_authority")
     state = deepcopy(post_switch)
+    projected = project_side_hazards(branch_state=state, source_fingerprint=post_switch_fp, frozen_hazards=hazards)
+    if projected.get("status") != "resolved": return projected
+    state = projected["next_state"]
     active = state["active"]["self"]
     damage = entry["damage"]
     active["current_hp"] = max(0, active["current_hp"] - damage)
@@ -60,7 +63,18 @@ def execute_manual_switch_then_direct(
     if sticky.get("outcome") in {"speed_stage_lowered", "speed_stage_minimum"}:
         if not _sync_self_speed_stage(state, sticky.get("speed_stage_after")):
             return _result("incomplete", "incoming_exact_speed_stage_authority")
+    toxic = entry.get("toxic_spikes_result")
     entry_fp = fingerprint_transition_preview_state(state)
+    if not isinstance(toxic, Mapping) or toxic.get("status") != "complete": return _result("incomplete", "toxic_spikes_entry_authority")
+    if toxic.get("outcome") == "absorbed":
+        changed = remove_absorbed_toxic_spikes(branch_state=state, source_fingerprint=entry_fp, absorption=toxic)
+    elif toxic.get("outcome") == "status_applied":
+        changed = apply_toxic_spikes_condition(branch_state=state, branch_fingerprint=entry_fp, owner=state["active"]["self"], evaluator_result=toxic)
+    elif toxic.get("outcome") in {"absent", "ungrounded", "status_immune", "already_statused", "prevented_by_heavy_duty_boots", "status_prevented"}:
+        changed = {"status": "resolved", "next_state": state, "resulting_branch_fingerprint": entry_fp}
+    else: return _result("unsupported", "toxic_spikes_entry_outcome")
+    if changed.get("status") != "resolved": return changed
+    state, entry_fp = changed["next_state"], changed["resulting_branch_fingerprint"]
     trace = [*materialized["materialization_trace"], {"sequence": 2, "event": "switch_entry_hazards", "execution_status": "executed", "damage": damage, "post_hp": active["current_hp"], "hazards": {"stealth_rock": hazards.get("stealth_rock"), "spikes_layers": hazards.get("spikes_layers"), "sticky_web": sticky}}]
     if active["fainted"]:
         return {"status": "unsupported", "reason": "replacement_required_after_entry_hazard_ko", "source_branch_fingerprint": source_branch_fingerprint, "post_switch_branch_fingerprint": post_switch_fp, "post_entry_branch_fingerprint": entry_fp, "next_state": state, "consequence_trace": trace, "boundary": {"phase": "pre_end_of_turn"}}
