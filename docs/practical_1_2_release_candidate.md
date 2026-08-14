@@ -1,6 +1,7 @@
-# Practical 1.2 Release Candidate
+# Practical 1.2 Release Candidate (Superseded)
 
-**Status:** RELEASE-CANDIDATE READY
+**Status:** SUPERSEDED BY PRACTICAL-1.2 FINAL
+**Final record:** [`practical_1_2_final.md`](practical_1_2_final.md)
 **Package version:** `1.2.0`
 **Release baseline:** `b4a4061` (`test: add practical 1.2 UI integration scenarios`)
 **Offline validation:** 3647 passed, 2 deselected
