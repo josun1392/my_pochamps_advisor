@@ -43,7 +43,7 @@ def execute_manual_switch_then_direct(
     hazards = post.get("switch_hazard_context") if isinstance(post, Mapping) else None
     if not isinstance(target, Mapping) or not isinstance(hazards, Mapping):
         return _result("incomplete", "switch_entry_authority")
-    if hazards.get("toxic_spikes_layers") != 0 or hazards.get("sticky_web") != "absent":
+    if hazards.get("toxic_spikes_layers") != 0:
         return _result("unsupported", "unsupported_material_switch_entry_effect")
     entry = evaluate_switch_entry_effects(hazards=hazards, target=target, field_state_context=post.get("side_shared_authority", {}).get("field_state_context") if isinstance(post.get("side_shared_authority"), Mapping) else None)
     if entry.get("entry_effects_supportability") != "complete" or entry.get("status") != "complete":
@@ -54,8 +54,14 @@ def execute_manual_switch_then_direct(
     active["current_hp"] = max(0, active["current_hp"] - damage)
     active["fainted"] = active["current_hp"] == 0
     _sync_self_hp(state, active["current_hp"], active["max_hp"])
+    sticky = entry.get("sticky_web_result")
+    if not isinstance(sticky, Mapping) or sticky.get("status") != "complete":
+        return _result("incomplete", "sticky_web_entry_authority")
+    if sticky.get("outcome") in {"speed_stage_lowered", "speed_stage_minimum"}:
+        if not _sync_self_speed_stage(state, sticky.get("speed_stage_after")):
+            return _result("incomplete", "incoming_exact_speed_stage_authority")
     entry_fp = fingerprint_transition_preview_state(state)
-    trace = [*materialized["materialization_trace"], {"sequence": 2, "event": "switch_entry_hazards", "execution_status": "executed", "damage": damage, "post_hp": active["current_hp"], "hazards": {"stealth_rock": hazards.get("stealth_rock"), "spikes_layers": hazards.get("spikes_layers")}}]
+    trace = [*materialized["materialization_trace"], {"sequence": 2, "event": "switch_entry_hazards", "execution_status": "executed", "damage": damage, "post_hp": active["current_hp"], "hazards": {"stealth_rock": hazards.get("stealth_rock"), "spikes_layers": hazards.get("spikes_layers"), "sticky_web": sticky}}]
     if active["fainted"]:
         return {"status": "unsupported", "reason": "replacement_required_after_entry_hazard_ko", "source_branch_fingerprint": source_branch_fingerprint, "post_switch_branch_fingerprint": post_switch_fp, "post_entry_branch_fingerprint": entry_fp, "next_state": state, "consequence_trace": trace, "boundary": {"phase": "pre_end_of_turn"}}
     evaluated = evaluate_hypothetical_direct_mechanics(branch_state=state, source_snapshot_fingerprint=source_branch_fingerprint, action=opponent_action, expected_owner=state["active"]["opponent"], direct_evaluation_input=opponent_direct_evaluation_input)
@@ -79,6 +85,18 @@ def _sync_self_hp(state: Mapping[str, Any], hp: int, maximum: int) -> None:
     attacker = direct.get("attacker") if isinstance(direct, Mapping) else None
     if isinstance(attacker, dict):
         attacker["current_hp"], attacker["max_hp"] = hp, maximum
+
+
+def _sync_self_speed_stage(state: Mapping[str, Any], stage: Any) -> bool:
+    if isinstance(stage, bool) or not isinstance(stage, int) or not -6 <= stage <= 6: return False
+    current = state.get("current_state") if isinstance(state, Mapping) else None
+    rows = current.get("stat_stage_context", {}).get("current_stages") if isinstance(current, Mapping) else None
+    match = next((row for row in rows if isinstance(row, dict) and row.get("side") == "self" and row.get("stat") == "speed" and row.get("status") == "user_confirmed" and row.get("source") == "user_confirmed_current_stat_stage" and row.get("confidence") == "known"), None) if isinstance(rows, list) else None
+    if match is None: return False
+    match["stage"] = stage
+    attacker = current.get("direct_mechanics_context", {}).get("attacker") if isinstance(current, Mapping) and isinstance(current.get("direct_mechanics_context"), Mapping) else None
+    if isinstance(attacker, dict) and isinstance(attacker.get("boosts"), dict): attacker["boosts"]["speed"] = stage
+    return True
 
 
 def _incoming_matches_authorized_switch(switch: Mapping[str, Any], incoming_authority: Mapping[str, Any]) -> bool:
