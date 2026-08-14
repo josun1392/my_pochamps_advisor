@@ -35,6 +35,33 @@ def project_guaranteed_terminal_direct_ko_branch(
     )
 
 
+def project_exact_direct_action_on_branch(
+    *, branch_state: Mapping[str, Any], source_snapshot_fingerprint: str, action: Mapping[str, Any], candidate: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Apply one existing exact direct result to a detached branch.
+
+    This is a thin continuation seam for a prior switch-first action, not a
+    second mechanics implementation or an action-order policy.
+    """
+    state = deepcopy(dict(branch_state)) if isinstance(branch_state, Mapping) else None
+    fingerprint = _fingerprint(state) if isinstance(state, Mapping) else None
+    if fingerprint is None or not isinstance(state.get("active"), Mapping):
+        return _result("rejected", "invalid_branch_state", source_snapshot_fingerprint)
+    actor = state["active"].get("opponent")
+    target = state["active"].get("self")
+    if not isinstance(actor, Mapping) or not isinstance(target, Mapping):
+        return _result("rejected", "invalid_branch_ownership", source_snapshot_fingerprint)
+    expected = {key: actor.get(key) for key in ("session_id", "side", "slot_index", "pokemon_id")}
+    reason = _validate_action(action, expected=expected) or _validate_candidate_binding(candidate, action)
+    if reason is not None:
+        return _result("rejected", reason, source_snapshot_fingerprint)
+    outcome = _apply_exact_direct_damage(state=state, actor_side="opponent", target_side="self", action=action, candidate=candidate)
+    if outcome["status"] != "resolved":
+        return _result(outcome["status"], outcome["reason"], source_snapshot_fingerprint, missing_inputs=outcome.get("missing_inputs"))
+    trace = [_executed_trace(sequence=1, actor_side="opponent", action=action, target={key: target[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, outcome=outcome)]
+    return _resolved(source_snapshot_fingerprint, {"self": {key: state["active"]["self"][key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "opponent": expected}, {"status": "self_switch_first"}, trace, state, "post_switch_terminal_direct_ko" if outcome["terminal"] else "post_switch_exact_direct_damage")
+
+
 def project_exact_direct_damage_branch(
     *,
     turn_snapshot: Any,
