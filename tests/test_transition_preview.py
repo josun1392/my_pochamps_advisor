@@ -111,13 +111,33 @@ def test_preview_does_not_promote_uncertain_or_out_of_slice_effects():
     assert _project(self_action=status_action, self_candidate=_candidate(status_action))["status"] == "unsupported"
 
 
-def _post_first_state(*, self_hp, opponent_hp):
-    return {
+def _post_first_state(*, self_hp, opponent_hp, snapshot=None):
+    state = {
         "schema_version": "deterministic-transition-preview-v1",
         "active": {
             "self": {"session_id": "turn-session", "side": "self", "slot_index": 0, "pokemon_id": "pikachu", "current_hp": self_hp, "max_hp": 100, "fainted": False},
             "opponent": {"session_id": "turn-session", "side": "opponent", "slot_index": 1, "pokemon_id": "arcanine", "current_hp": opponent_hp, "max_hp": 100, "fainted": False},
         },
+    }
+    state["current_state"] = deepcopy((snapshot or _snapshot())["current_state"])
+    for entry in state["current_state"]["current_hp_context"]["current_hp"]:
+        entry["current_hp"] = self_hp if entry["side"] == "self" else opponent_hp
+    return state
+
+
+def _fixed_direct_context(*, self_hp=80, opponent_hp=100):
+    absent = {"status": "known_absent"}
+    side = lambda hp: {"ability": absent, "item": absent, "boosts": {"attack": 0, "defense": 0, "special-attack": 0, "special-defense": 0, "speed": 0}, "current_hp": hp, "max_hp": 100, "status": absent}
+    return {"generation": "gen9", "attacker": side(self_hp), "defender": side(opponent_hp), "field": {"weather": absent, "terrain": absent}}
+
+
+def _second_direct_input(*, owner, move, snapshot):
+    return {
+        "source_snapshot_fingerprint": fingerprint_transition_preview_state(snapshot),
+        "owner": owner,
+        "move_metadata": deepcopy(move),
+        "stat_provenance": {"attacker": {"types": {"available": True, "value": ["normal"]}}, "defender": {"types": {"available": True, "value": ["normal"]}}},
+        "trusted_level": 50,
     }
 
 
@@ -129,7 +149,7 @@ def test_exact_nonterminal_first_and_second_actions_apply_sequentially():
     result = project_exact_direct_damage_branch(
         turn_snapshot=snapshot, self_action=self_action, opponent_action=opponent_action,
         self_candidate=first, opponent_candidate=_candidate(opponent_action), action_order=_order(self_action, opponent_action),
-        post_first_candidate={"branch_state_fingerprint": fingerprint_transition_preview_state(_post_first_state(self_hp=80, opponent_hp=58)), "candidate": second},
+        post_first_candidate={"branch_state_fingerprint": fingerprint_transition_preview_state(_post_first_state(self_hp=80, opponent_hp=58, snapshot=snapshot)), "candidate": second},
     )
     assert result["status"] == "resolved"
     assert result["reason"] == "two_action_exact_direct_damage"
@@ -146,7 +166,7 @@ def test_opponent_first_exact_nonterminal_damage_updates_self_exactly():
     result = project_exact_direct_damage_branch(
         turn_snapshot=snapshot, self_action=self_action, opponent_action=opponent_action,
         self_candidate=_candidate(self_action), opponent_candidate=first, action_order=_order(self_action, opponent_action, "acts_second"),
-        post_first_candidate={"branch_state_fingerprint": fingerprint_transition_preview_state(_post_first_state(self_hp=58, opponent_hp=30)), "candidate": second},
+        post_first_candidate={"branch_state_fingerprint": fingerprint_transition_preview_state(_post_first_state(self_hp=58, opponent_hp=30, snapshot=snapshot)), "candidate": second},
     )
     assert result["status"] == "resolved"
     assert result["next_state"]["active"]["self"]["current_hp"] == 58
@@ -161,7 +181,7 @@ def test_exact_nonterminal_then_branch_bound_terminal_second_action():
     result = project_exact_direct_damage_branch(
         turn_snapshot=snapshot, self_action=self_action, opponent_action=opponent_action,
         self_candidate=first, opponent_candidate=_candidate(opponent_action), action_order=_order(self_action, opponent_action),
-        post_first_candidate={"branch_state_fingerprint": fingerprint_transition_preview_state(_post_first_state(self_hp=80, opponent_hp=58)), "candidate": second},
+        post_first_candidate={"branch_state_fingerprint": fingerprint_transition_preview_state(_post_first_state(self_hp=80, opponent_hp=58, snapshot=snapshot)), "candidate": second},
     )
     assert result["status"] == "resolved"
     assert result["reason"] == "two_action_terminal_direct_ko"
@@ -176,3 +196,49 @@ def test_second_action_requires_evidence_bound_to_detached_first_state():
     assert project_exact_direct_damage_branch(turn_snapshot=snapshot, self_action=self_action, opponent_action=opponent_action, self_candidate=first, opponent_candidate=_candidate(opponent_action), action_order=_order(self_action, opponent_action))["reason"] == "post_first_direct_mechanics_evidence"
     stale = {"branch_state_fingerprint": "old-branch", "candidate": _candidate(opponent_action, minimum=10, probability=0.0)}
     assert project_exact_direct_damage_branch(turn_snapshot=snapshot, self_action=self_action, opponent_action=opponent_action, self_candidate=first, opponent_candidate=_candidate(opponent_action), action_order=_order(self_action, opponent_action), post_first_candidate=stale)["reason"] == "post_first_candidate_branch_mismatch"
+
+
+def test_second_action_native_mechanics_is_generated_from_detached_branch_state():
+    self_action = _action("self", "thunderbolt", 0)
+    opponent_action = _action("opponent", "seismic-toss", 1, category="physical")
+    snapshot = _snapshot(); snapshot["current_state"]["current_hp_context"]["current_hp"][1]["current_hp"] = 100
+    snapshot["current_state"]["direct_mechanics_context"] = _fixed_direct_context()
+    first = _candidate(self_action, minimum=42, probability=0.0); first["mechanics_result"]["damage_range"]["maximum"] = 42
+    result = project_exact_direct_damage_branch(
+        turn_snapshot=snapshot, self_action=self_action, opponent_action=opponent_action,
+        self_candidate=first, opponent_candidate=_candidate(opponent_action), action_order=_order(self_action, opponent_action),
+        second_direct_evaluation_input=_second_direct_input(owner=opponent_action["owner"], move=opponent_action["move"], snapshot=snapshot),
+    )
+    assert result["status"] == "resolved"
+    assert result["next_state"]["active"]["opponent"]["current_hp"] == 58
+    assert result["next_state"]["active"]["self"]["current_hp"] == 30
+    assert result["consequence_trace"][1]["damage"] == 50
+
+
+def test_hypothetical_second_action_rejects_stale_source_or_owner():
+    self_action = _action("self", "thunderbolt", 0)
+    opponent_action = _action("opponent", "seismic-toss", 1, category="physical")
+    snapshot = _snapshot(); snapshot["current_state"]["current_hp_context"]["current_hp"][1]["current_hp"] = 100
+    snapshot["current_state"]["direct_mechanics_context"] = _fixed_direct_context()
+    first = _candidate(self_action, minimum=42, probability=0.0); first["mechanics_result"]["damage_range"]["maximum"] = 42
+    descriptor = _second_direct_input(owner=opponent_action["owner"], move=opponent_action["move"], snapshot=snapshot)
+    descriptor["source_snapshot_fingerprint"] = "stale-source"
+    result = project_exact_direct_damage_branch(turn_snapshot=snapshot, self_action=self_action, opponent_action=opponent_action, self_candidate=first, opponent_candidate=_candidate(opponent_action), action_order=_order(self_action, opponent_action), second_direct_evaluation_input=descriptor)
+    assert result["status"] == "rejected"
+    assert result["reason"] == "source_snapshot_fingerprint_mismatch"
+
+
+def test_hypothetical_second_action_preserves_material_unknown_authority():
+    self_action = _action("self", "thunderbolt", 0)
+    opponent_action = _action("opponent", "seismic-toss", 1, category="physical")
+    snapshot = _snapshot(); snapshot["current_state"]["current_hp_context"]["current_hp"][1]["current_hp"] = 100
+    snapshot["current_state"]["direct_mechanics_context"] = _fixed_direct_context()
+    snapshot["current_state"]["direct_mechanics_context"]["defender"]["ability"] = {"status": "unknown"}
+    first = _candidate(self_action, minimum=42, probability=0.0); first["mechanics_result"]["damage_range"]["maximum"] = 42
+    result = project_exact_direct_damage_branch(
+        turn_snapshot=snapshot, self_action=self_action, opponent_action=opponent_action,
+        self_candidate=first, opponent_candidate=_candidate(opponent_action), action_order=_order(self_action, opponent_action),
+        second_direct_evaluation_input=_second_direct_input(owner=opponent_action["owner"], move=opponent_action["move"], snapshot=snapshot),
+    )
+    assert result["status"] == "incomplete"
+    assert "attacker.ability" in result["missing_inputs"]

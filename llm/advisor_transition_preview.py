@@ -44,6 +44,7 @@ def project_exact_direct_damage_branch(
     opponent_candidate: Mapping[str, Any],
     action_order: Mapping[str, Any],
     post_first_candidate: Mapping[str, Any] | None = None,
+    second_direct_evaluation_input: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Project up to two exact direct actions from frozen, existing evidence.
 
@@ -102,6 +103,24 @@ def project_exact_direct_damage_branch(
         trace.append({"sequence": 2, "actor_side": second_side, "action": _public_action(actions[second_side]), "execution_status": "skipped", "reason": "actor_fainted_by_terminal_first_action"})
         return _resolved(fingerprint, owners, action_order, trace, next_state, "guaranteed_terminal_direct_ko")
 
+    if post_first_candidate is not None and second_direct_evaluation_input is not None:
+        return _result("rejected", "competing_second_action_evidence", fingerprint)
+    if isinstance(second_direct_evaluation_input, Mapping):
+        from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
+        evaluated = evaluate_hypothetical_direct_mechanics(
+            branch_state=next_state,
+            source_snapshot_fingerprint=fingerprint,
+            action=actions[second_side],
+            expected_owner=owners[second_side],
+            direct_evaluation_input=second_direct_evaluation_input,
+        )
+        if evaluated.get("status") != "known":
+            status = "unsupported" if evaluated.get("status") == "unsupported_mechanic" else "rejected" if evaluated.get("status") == "rejected" else "incomplete"
+            return _result(status, str(evaluated.get("reason") or "post_first_direct_mechanics"), fingerprint, missing_inputs=evaluated.get("missing_inputs"))
+        post_first_candidate = {
+            "branch_state_fingerprint": evaluated["branch_state_fingerprint"],
+            "candidate": {**deepcopy(dict(candidates[second_side])), "mechanics_result": deepcopy(evaluated["mechanics_result"])},
+        }
     if not isinstance(post_first_candidate, Mapping):
         return _result("incomplete", "post_first_direct_mechanics_evidence", fingerprint)
     expected_branch = _fingerprint(next_state)
@@ -231,7 +250,11 @@ def _initial_next_state(snapshot: Mapping[str, Any], owners: Mapping[str, Mappin
         if hp is None:
             raise ValueError("exact_hp_required_before_projection")
         active[side] = {**deepcopy(dict(owners[side])), "current_hp": hp["current_hp"], "max_hp": hp["max_hp"], "fainted": False}
-    return {"schema_version": "deterministic-transition-preview-v1", "active": active}
+    return {
+        "schema_version": "deterministic-transition-preview-v1",
+        "active": active,
+        "current_state": deepcopy(dict(snapshot.get("current_state", {}))),
+    }
 
 
 def _apply_exact_direct_damage(*, state: Mapping[str, Any], actor_side: str, target_side: str, action: Mapping[str, Any], candidate: Any) -> dict[str, Any]:
@@ -272,7 +295,27 @@ def _apply_exact_direct_damage(*, state: Mapping[str, Any], actor_side: str, tar
         return {"status": "incomplete", "reason": "exact_terminal_ko_evidence"}
     target["current_hp"] = post_hp
     target["fainted"] = terminal
+    _sync_branch_hp(state, target_side=target_side, current_hp=post_hp, maximum_hp=target.get("max_hp"))
     return {"status": "resolved", "terminal": terminal, "damage": exact_damage, "damage_range": deepcopy(dict(mechanics["damage_range"])), "post_hp": post_hp}
+
+
+def _sync_branch_hp(state: Mapping[str, Any], *, target_side: str, current_hp: int, maximum_hp: Any) -> None:
+    current = state.get("current_state") if isinstance(state, Mapping) else None
+    if not isinstance(current, dict) or not isinstance(maximum_hp, int) or isinstance(maximum_hp, bool):
+        return
+    hp_context = current.get("current_hp_context")
+    entries = hp_context.get("current_hp") if isinstance(hp_context, Mapping) else None
+    if isinstance(entries, list):
+        for entry in entries:
+            if isinstance(entry, dict) and entry.get("side") == target_side:
+                entry["current_hp"] = current_hp
+                entry["maximum_hp"] = maximum_hp
+    direct = current.get("direct_mechanics_context")
+    if isinstance(direct, Mapping):
+        side = direct.get("attacker" if target_side == "self" else "defender")
+        if isinstance(side, dict):
+            side["current_hp"] = current_hp
+            side["max_hp"] = maximum_hp
 
 
 def _executed_trace(*, sequence: int, actor_side: str, action: Mapping[str, Any], target: Mapping[str, Any], outcome: Mapping[str, Any]) -> dict[str, Any]:
