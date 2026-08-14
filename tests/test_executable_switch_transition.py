@@ -54,6 +54,39 @@ def test_blocked_or_unsupported_entry_effects_fail_closed_without_materializing_
     assert toxic["status"] == "resolved" and toxic["next_state"]["predicted_condition_context"]["condition_type"] == "poison"
 
 
+def test_two_layer_toxic_spikes_keeps_application_lineage_through_eot_and_handoff():
+    from llm.advisor_end_of_turn_preview import project_poison_end_of_turn
+    from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
+
+    branch = _branch(); source = fingerprint_transition_preview_state(branch)
+    result = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, toxic=2),
+        switch_candidate=_candidate(), incoming_authority=_incoming(),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert result["status"] == "resolved", result
+    state = result["next_state"]
+    condition = state["predicted_condition_context"]
+    lifecycle = state["predicted_toxic_lifecycle"]
+    assert condition["condition_type"] == "toxic" and lifecycle["current_stage"] == 1
+    assert condition["source_snapshot_fingerprint"] == lifecycle["source_snapshot_fingerprint"] != source
+    assert result["post_entry_branch_fingerprint"] == result["direct_evaluation"]["branch_state_fingerprint"]
+
+    eot = project_poison_end_of_turn(pre_end_of_turn=result)
+    assert eot["status"] == "resolved", eot
+    assert eot["next_state"]["predicted_toxic_lifecycle"]["current_stage"] == 2
+    handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=eot)
+    assert handoff["status"] == "resolved", handoff
+    assert handoff["next_state"]["active"]["self"]["pokemon_id"] == "incoming"
+    assert handoff["next_state"]["predicted_condition_context"]["condition_type"] == "toxic"
+    assert handoff["next_state"]["predicted_toxic_lifecycle"]["current_stage"] == 2
+
+    foreign = deepcopy(result)
+    foreign["next_state"]["predicted_toxic_lifecycle"]["source_snapshot_fingerprint"] = "foreign-branch"
+    assert project_poison_end_of_turn(pre_end_of_turn=foreign) == {"status": "rejected", "reason": "stale_predicted_condition_overlay"}
+
+
 def test_authorized_switch_target_must_match_materialized_incoming_owner():
     branch = _branch(); source = fingerprint_transition_preview_state(branch)
     other = _incoming()

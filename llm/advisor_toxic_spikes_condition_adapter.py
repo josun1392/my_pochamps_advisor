@@ -10,7 +10,8 @@ def apply_toxic_spikes_condition(*, branch_state: Mapping[str, Any], branch_fing
     if not isinstance(active,Mapping) or any(active.get(k)!=owner.get(k) for k in ("session_id","side","slot_index","pokemon_id")): return _r("rejected","stale_or_foreign_toxic_spikes_owner")
     ailment=evaluator_result.get("post_condition") if isinstance(evaluator_result,Mapping) and evaluator_result.get("status")=="complete" and evaluator_result.get("outcome")=="status_applied" else None
     if ailment not in {"poison","toxic"}: return _r("incomplete","toxic_spikes_status_outcome")
-    state=deepcopy(dict(branch_state)); effect={"status":"resolved","applicable":True,"ailment":ailment,"owner":deepcopy(dict(owner))}
+    canonical_owner={key: owner[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}
+    state=deepcopy(dict(branch_state)); effect={"status":"resolved","applicable":True,"ailment":ailment,"owner":canonical_owner}
     apply_predicted_condition(state,effect,source_snapshot_fingerprint=branch_fingerprint,branch_state_fingerprint=fingerprint_transition_preview_state(state))
     state["predicted_condition_context"]["provenance"]="turn_engine_predicted_toxic_spikes"
     return {"status":"resolved","next_state":state,"resulting_branch_fingerprint":fingerprint_transition_preview_state(state)}

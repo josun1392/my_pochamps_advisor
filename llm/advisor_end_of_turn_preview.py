@@ -60,7 +60,9 @@ def project_poison_end_of_turn(*, pre_end_of_turn: Mapping[str, Any]) -> dict[st
 def _condition(state: Mapping[str, Any], side: str, source_snapshot_fp: Any, source_fp: str) -> str | dict[str, str]:
     predicted = state.get("predicted_condition_context")
     if isinstance(predicted, Mapping) and predicted.get("owner", {}).get("side") == side:
-        if predicted.get("source_snapshot_fingerprint") != source_snapshot_fp or predicted.get("branch_state_fingerprint") is None:
+        lifecycle = state.get("predicted_toxic_lifecycle")
+        valid_source = predicted.get("source_snapshot_fingerprint") == source_snapshot_fp or (isinstance(lifecycle, Mapping) and predicted.get("source_snapshot_fingerprint") == lifecycle.get("source_snapshot_fingerprint"))
+        if not valid_source or predicted.get("branch_state_fingerprint") is None:
             return _result("rejected", "stale_predicted_condition_overlay")
         # The overlay's original branch can legitimately precede later direct HP
         # consequences; ownership and source snapshot remain the safe bindings.
@@ -87,7 +89,7 @@ def _toxic_lifecycle(state: Mapping[str, Any], side: str, source_snapshot_finger
     condition = state.get("predicted_condition_context")
     if not isinstance(lifecycle, Mapping) or not isinstance(condition, Mapping):
         return _result("incomplete", f"{side}.toxic_progression")
-    if lifecycle.get("schema_version") != "hypothetical-predictive-toxic-lifecycle-v1" or lifecycle.get("provenance") != "turn_engine_predicted_toxic_application" or lifecycle.get("source_snapshot_fingerprint") != source_snapshot_fingerprint or lifecycle.get("owner") != condition.get("owner") or condition.get("condition_type") != "toxic":
+    if lifecycle.get("schema_version") != "hypothetical-predictive-toxic-lifecycle-v1" or lifecycle.get("provenance") != "turn_engine_predicted_toxic_application" or lifecycle.get("source_snapshot_fingerprint") != condition.get("source_snapshot_fingerprint") or lifecycle.get("owner") != condition.get("owner") or condition.get("condition_type") != "toxic":
         return _result("rejected", "stale_or_mismatched_predicted_toxic_lifecycle")
     stage = lifecycle.get("current_stage")
     if lifecycle.get("owner", {}).get("side") != side or isinstance(stage, bool) or not isinstance(stage, int) or not 1 <= stage <= 15:

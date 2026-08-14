@@ -60,7 +60,7 @@ def evaluate_hypothetical_direct_mechanics(
         return _result("incomplete", "predicted_stage_authority", branch_fingerprint, missing_inputs=["predicted_stage_authority"])
     predicted_condition = branch_state.get("predicted_condition_context")
     if isinstance(predicted_condition, Mapping):
-        base_branch = deepcopy(dict(branch_state)); base_branch.pop("predicted_condition_context", None)
+        base_branch = deepcopy(dict(branch_state)); base_branch.pop("predicted_condition_context", None); base_branch.pop("predicted_toxic_lifecycle", None)
         if predicted_condition.get("branch_state_fingerprint") != fingerprint_transition_preview_state(base_branch):
             return _result("rejected", "predicted_condition_branch_mismatch", branch_fingerprint)
     calculator_current = overlay_predicted_condition_for_direct_mechanics(calculator_current, predicted_condition)
