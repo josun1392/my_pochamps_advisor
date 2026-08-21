@@ -32,7 +32,7 @@ def execute_explicit_two_turn(
     first = _execute_turn(turn_snapshot=starting_turn_snapshot, plan=turn_one)
     if first.get("status") != "resolved":
         return _halt(first, "turn_one_transition")
-    first_eot = _project_bounded_eot(pre_end_of_turn=first, weather_event_target_order=turn_one.get("weather_event_target_order"))
+    first_eot = _project_bounded_eot(pre_end_of_turn=first, weather_event_target_order=turn_one.get("weather_event_target_order"), condition_event_target_order=turn_one.get("condition_event_target_order"))
     if first_eot.get("status") != "resolved":
         return _halt(first_eot, "turn_one_end_of_turn", turn_one=first)
     handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=first_eot)
@@ -53,7 +53,7 @@ def execute_explicit_two_turn(
     second = _execute_turn(turn_snapshot=second_snapshot, plan=turn_two)
     if second.get("status") != "resolved":
         return _halt(second, "turn_two_transition", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff)
-    second_eot = _project_bounded_eot(pre_end_of_turn=second, weather_event_target_order=turn_two.get("weather_event_target_order"))
+    second_eot = _project_bounded_eot(pre_end_of_turn=second, weather_event_target_order=turn_two.get("weather_event_target_order"), condition_event_target_order=turn_two.get("condition_event_target_order"))
     if second_eot.get("status") != "resolved":
         return _halt(second_eot, "turn_two_end_of_turn", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff, turn_two=second)
     return {
@@ -106,12 +106,15 @@ def _execute_turn(*, turn_snapshot: Mapping[str, Any], plan: Mapping[str, Any]) 
     return _result("unsupported", "turn_transition_not_in_slice")
 
 
-def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None = None, condition_event_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Dispatch a bounded EOT family or one exact-owner canonical composition."""
     state = pre_end_of_turn.get("next_state") if isinstance(pre_end_of_turn, Mapping) else None
     if weather_event_target_order is not None:
         from llm.advisor_per_owner_eot import project_cross_owner_weather_end_of_turn
-        return project_cross_owner_weather_end_of_turn(pre_end_of_turn=pre_end_of_turn, weather_event_target_order=weather_event_target_order)
+        return project_cross_owner_weather_end_of_turn(pre_end_of_turn=pre_end_of_turn, weather_event_target_order=weather_event_target_order, condition_event_target_order=condition_event_target_order)
+    if condition_event_target_order is not None:
+        from llm.advisor_per_owner_eot import project_cross_owner_condition_end_of_turn
+        return project_cross_owner_condition_end_of_turn(pre_end_of_turn=pre_end_of_turn, condition_event_target_order=condition_event_target_order)
     owner = _single_material_eot_owner(state)
     if owner is not None:
         from llm.advisor_per_owner_eot import project_per_owner_end_of_turn
@@ -135,6 +138,8 @@ def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any], weather_event_ta
     if _has_poison_heal_condition(state):
         from llm.advisor_poison_heal_end_of_turn import project_poison_heal_end_of_turn
         return project_poison_heal_end_of_turn(pre_end_of_turn=pre_end_of_turn)
+    if _material_condition_owner_count(state) > 1:
+        return _result("incomplete", "cross_owner_condition_order_unrepresented")
     return project_poison_end_of_turn(pre_end_of_turn=pre_end_of_turn)
 
 
@@ -184,6 +189,16 @@ def _has_poison_heal_condition(state: Mapping[str, Any]) -> bool:
     abilities = current.get("ability_context", {}).get("current_abilities") if isinstance(current, Mapping) and isinstance(current.get("ability_context"), Mapping) else None
     conditions = current.get("condition_context", {}).get("current_conditions") if isinstance(current, Mapping) and isinstance(current.get("condition_context"), Mapping) else None
     return isinstance(abilities, list) and isinstance(conditions, list) and any(isinstance(a, Mapping) and a.get("side") == c.get("side") and a.get("ability") == "poison-heal" and c.get("condition_type") in {"poison", "toxic"} for a in abilities for c in conditions if isinstance(c, Mapping))
+
+
+def _material_condition_owner_count(state: Mapping[str, Any] | None) -> int:
+    current = state.get("current_state") if isinstance(state, Mapping) else None
+    rows = current.get("condition_context", {}).get("current_conditions") if isinstance(current, Mapping) else None
+    sides = {row.get("side") for row in rows if isinstance(row, Mapping) and row.get("condition_type") in {"poison", "toxic"}} if isinstance(rows, list) else set()
+    predicted = state.get("predicted_condition_context") if isinstance(state, Mapping) else None
+    if isinstance(predicted, Mapping) and predicted.get("condition_type") in {"poison", "toxic"}:
+        sides.add(predicted.get("owner", {}).get("side"))
+    return len(sides & {"self", "opponent"})
 
 
 def _manual_switch_source_matches_turn_snapshot(turn_snapshot: Mapping[str, Any], source_branch: Any) -> bool:
