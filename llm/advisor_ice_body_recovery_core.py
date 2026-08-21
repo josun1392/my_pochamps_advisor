@@ -6,7 +6,12 @@ from typing import Any, Mapping
 
 def evaluate_ice_body_recovery(*, active_abilities: Mapping[str, str], target_side: str, current_hp: int, maximum_hp: int) -> dict[str, Any]:
     """Resolve only exact, already-authorized Ice Body recovery inputs."""
-    if target_side not in {"self", "opponent"} or not _abilities(active_abilities) or active_abilities[target_side] != "ice-body" or not _hp(current_hp, maximum_hp):
+    return evaluate_weather_recovery(active_abilities=active_abilities, target_side=target_side, required_ability="ice-body", current_hp=current_hp, maximum_hp=maximum_hp)
+
+
+def evaluate_weather_recovery(*, active_abilities: Mapping[str, str], target_side: str, required_ability: str, current_hp: int, maximum_hp: int) -> dict[str, Any]:
+    """Resolve the approved Ice Body/Rain Dish shared recovery primitive only."""
+    if target_side not in {"self", "opponent"} or required_ability not in {"ice-body", "rain-dish"} or not _abilities(active_abilities) or active_abilities[target_side] != required_ability or not _hp(current_hp, maximum_hp):
         return {"status": "incomplete", "reason": "canonical_ice_body_authority"}
     abilities = set(active_abilities.values())
     if "neutralizing-gas" in abilities:

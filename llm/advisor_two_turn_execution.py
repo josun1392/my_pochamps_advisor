@@ -113,17 +113,20 @@ def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any]) -> dict[str, Any
     if weather == "sandstorm":
         from llm.advisor_sandstorm_end_of_turn import project_sandstorm_end_of_turn
         return project_sandstorm_end_of_turn(pre_end_of_turn=pre_end_of_turn)
-    if weather == "snow" and _snow_has_ice_body_authority(state):
+    if weather == "snow" and _weather_has_active_ability(state, "ice-body"):
         from llm.advisor_ice_body_end_of_turn import project_ice_body_end_of_turn
         return project_ice_body_end_of_turn(pre_end_of_turn=pre_end_of_turn)
+    if weather == "rain" and _weather_has_active_ability(state, "rain-dish"):
+        from llm.advisor_rain_dish_end_of_turn import project_rain_dish_end_of_turn
+        return project_rain_dish_end_of_turn(pre_end_of_turn=pre_end_of_turn)
     return project_poison_end_of_turn(pre_end_of_turn=pre_end_of_turn)
 
 
-def _snow_has_ice_body_authority(state: Mapping[str, Any]) -> bool:
-    """Dispatch Snow only to the bounded adapter when Ice Body is explicitly present."""
+def _weather_has_active_ability(state: Mapping[str, Any], ability: str) -> bool:
+    """Dispatch an approved weather recovery only when its exact ability is present."""
     current = state.get("current_state") if isinstance(state, Mapping) else None
     rows = current.get("ability_context", {}).get("current_abilities") if isinstance(current, Mapping) and isinstance(current.get("ability_context"), Mapping) else None
-    return isinstance(rows, list) and any(isinstance(row, Mapping) and row.get("ability") == "ice-body" for row in rows)
+    return isinstance(rows, list) and any(isinstance(row, Mapping) and row.get("ability") == ability for row in rows)
 
 
 def _manual_switch_source_matches_turn_snapshot(turn_snapshot: Mapping[str, Any], source_branch: Any) -> bool:
