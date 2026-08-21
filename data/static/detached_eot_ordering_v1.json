@@ -8,6 +8,7 @@
     "item_residual_suborder": 4,
     "aqua_ring_residual_order": 6,
     "ingrain_residual_order": 7,
+    "leech_seed_residual_order": 8,
     "condition_residual_order": 9
   },
   "families": {
@@ -16,6 +17,7 @@
     "black_sludge": {"tier": 5, "ownership": "pokemon_item_residual", "terminal": "skip_later_same_owner", "provenance": "Pokemon Showdown data/items.ts Black Sludge.onResidualOrder=5,onResidualSubOrder=4"},
     "aqua_ring": {"tier": 6, "ownership": "pokemon_persistent_effect", "terminal": "skip_later_same_owner", "provenance": "Pokemon Showdown data/moves.ts Aqua Ring.onResidualOrder=6"},
     "ingrain": {"tier": 7, "ownership": "pokemon_persistent_effect", "terminal": "skip_later_same_owner", "provenance": "Pokemon Showdown data/moves.ts Ingrain.onResidualOrder=7"},
+    "leech_seed": {"tier": 8, "ownership": "pokemon_persistent_effect_linked_owner", "terminal": "skip_later_same_owner", "provenance": "Pokemon Showdown data/moves.ts Leech Seed.onResidualOrder=8; data/items.ts Big Root.onTryHeal; data/abilities.ts Liquid Ooze.onSourceTryHeal"},
     "poison": {"tier": 9, "ownership": "pokemon_condition", "terminal": "none"},
     "toxic": {"tier": 9, "ownership": "pokemon_condition_lifecycle", "terminal": "none"},
     "poison_heal_compound": {"tier": 9, "ownership": "intrinsic_condition_replacement", "terminal": "none"}

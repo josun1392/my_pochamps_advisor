@@ -32,7 +32,7 @@ def execute_explicit_two_turn(
     first = _execute_turn(turn_snapshot=starting_turn_snapshot, plan=turn_one)
     if first.get("status") != "resolved":
         return _halt(first, "turn_one_transition")
-    first_eot = _project_bounded_eot(pre_end_of_turn=first, weather_event_target_order=turn_one.get("weather_event_target_order"), leftovers_event_target_order=turn_one.get("leftovers_event_target_order"), aqua_ring_target_order=turn_one.get("aqua_ring_target_order"), ingrain_target_order=turn_one.get("ingrain_target_order"), condition_event_target_order=turn_one.get("condition_event_target_order"))
+    first_eot = _project_bounded_eot(pre_end_of_turn=first, weather_event_target_order=turn_one.get("weather_event_target_order"), leftovers_event_target_order=turn_one.get("leftovers_event_target_order"), aqua_ring_target_order=turn_one.get("aqua_ring_target_order"), ingrain_target_order=turn_one.get("ingrain_target_order"), leech_seed_target_order=turn_one.get("leech_seed_target_order"), condition_event_target_order=turn_one.get("condition_event_target_order"))
     if first_eot.get("status") != "resolved":
         return _halt(first_eot, "turn_one_end_of_turn", turn_one=first)
     handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=first_eot)
@@ -53,7 +53,7 @@ def execute_explicit_two_turn(
     second = _execute_turn(turn_snapshot=second_snapshot, plan=turn_two)
     if second.get("status") != "resolved":
         return _halt(second, "turn_two_transition", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff)
-    second_eot = _project_bounded_eot(pre_end_of_turn=second, weather_event_target_order=turn_two.get("weather_event_target_order"), leftovers_event_target_order=turn_two.get("leftovers_event_target_order"), aqua_ring_target_order=turn_two.get("aqua_ring_target_order"), ingrain_target_order=turn_two.get("ingrain_target_order"), condition_event_target_order=turn_two.get("condition_event_target_order"))
+    second_eot = _project_bounded_eot(pre_end_of_turn=second, weather_event_target_order=turn_two.get("weather_event_target_order"), leftovers_event_target_order=turn_two.get("leftovers_event_target_order"), aqua_ring_target_order=turn_two.get("aqua_ring_target_order"), ingrain_target_order=turn_two.get("ingrain_target_order"), leech_seed_target_order=turn_two.get("leech_seed_target_order"), condition_event_target_order=turn_two.get("condition_event_target_order"))
     if second_eot.get("status") != "resolved":
         return _halt(second_eot, "turn_two_end_of_turn", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff, turn_two=second)
     return {
@@ -106,12 +106,12 @@ def _execute_turn(*, turn_snapshot: Mapping[str, Any], plan: Mapping[str, Any]) 
     return _result("unsupported", "turn_transition_not_in_slice")
 
 
-def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None = None, leftovers_event_target_order: Mapping[str, Any] | None = None, aqua_ring_target_order: Mapping[str, Any] | None = None, ingrain_target_order: Mapping[str, Any] | None = None, condition_event_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None = None, leftovers_event_target_order: Mapping[str, Any] | None = None, aqua_ring_target_order: Mapping[str, Any] | None = None, ingrain_target_order: Mapping[str, Any] | None = None, leech_seed_target_order: Mapping[str, Any] | None = None, condition_event_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Dispatch a bounded EOT family or one exact-owner canonical composition."""
     state = pre_end_of_turn.get("next_state") if isinstance(pre_end_of_turn, Mapping) else None
     if weather_event_target_order is not None:
         from llm.advisor_per_owner_eot import project_cross_owner_weather_end_of_turn
-        return project_cross_owner_weather_end_of_turn(pre_end_of_turn=pre_end_of_turn, weather_event_target_order=weather_event_target_order, leftovers_event_target_order=leftovers_event_target_order, aqua_ring_target_order=aqua_ring_target_order, ingrain_target_order=ingrain_target_order, condition_event_target_order=condition_event_target_order)
+        return project_cross_owner_weather_end_of_turn(pre_end_of_turn=pre_end_of_turn, weather_event_target_order=weather_event_target_order, leftovers_event_target_order=leftovers_event_target_order, aqua_ring_target_order=aqua_ring_target_order, ingrain_target_order=ingrain_target_order, leech_seed_target_order=leech_seed_target_order, condition_event_target_order=condition_event_target_order)
     if leftovers_event_target_order is not None:
         from llm.advisor_per_owner_eot import project_cross_owner_leftovers_end_of_turn
         return project_cross_owner_leftovers_end_of_turn(pre_end_of_turn=pre_end_of_turn, leftovers_event_target_order=leftovers_event_target_order, condition_event_target_order=condition_event_target_order)

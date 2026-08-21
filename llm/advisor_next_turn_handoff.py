@@ -54,6 +54,9 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
     ingrain = state.get("ingrain_persistent_effect_context")
     if isinstance(ingrain, dict) and ingrain.get("schema_version") == "detached-ingrain-persistent-effect-v1":
         ingrain["source_branch_fingerprint"] = source_fp
+    leech_seed = state.get("leech_seed_persistent_effect_context")
+    if isinstance(leech_seed, dict) and leech_seed.get("schema_version") == "detached-leech-seed-persistent-effect-v1":
+        leech_seed["source_branch_fingerprint"] = source_fp
     # This metadata is branch provenance, not battle authority.  Its presence
     # intentionally creates a new fingerprint for the lifecycle boundary.
     state["turn_engine_lifecycle"] = {
