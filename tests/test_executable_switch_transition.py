@@ -137,6 +137,67 @@ def test_drizzle_fails_closed_without_field_authority_and_entry_ko_prevents_trig
     assert "branch_field_weather_context" not in ko["next_state"]
 
 
+def test_drought_replaces_known_rain_with_field_owned_sun_and_turn_two_direct_consumes_it():
+    from llm.advisor_end_of_turn_preview import project_poison_end_of_turn
+    from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
+    from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
+
+    branch = _branch(); before = deepcopy(branch); source = fingerprint_transition_preview_state(branch)
+    result = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="drought", weather="rain"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="drought"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert result["status"] == "resolved", result
+    state = result["next_state"]
+    assert branch == before
+    assert state["branch_field_weather_context"]["weather"] == "sun"
+    assert state["current_state"]["field_state_context"]["current_field"]["weather"] == "sun"
+    assert any(row["event"] == "switch_entry_drought" and row["weather_before"] == "rain" and row["weather_after"] == "sun" for row in result["consequence_trace"])
+
+    fire = {"owner": _owner("self", 1, "incoming"), "move": {"move_id": "flamethrower", "slot_index": 1, "priority": 0, "category": "special"}}
+    stats = {"hp": 100, "attack": 100, "defense": 100, "special-attack": 100, "special-defense": 100, "speed": 100}
+    descriptor = {"source_snapshot_fingerprint": source, "owner": fire["owner"], "move_metadata": {**fire["move"], "power": 90, "type": "fire"}, "stat_provenance": {"attacker": {"pokemon_identity": "incoming", "types": {"available": True, "value": ["fire"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}, "defender": {"pokemon_identity": "opponent", "types": {"available": True, "value": ["normal"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}}, "trusted_level": 50}
+    sunny_state = deepcopy(state); sunny_state["current_state"].pop("ability_context")
+    sunny = evaluate_hypothetical_direct_mechanics(branch_state=sunny_state, source_snapshot_fingerprint=source, action=fire, expected_owner=fire["owner"], direct_evaluation_input=descriptor)
+    neutral_state = deepcopy(sunny_state); neutral_state["current_state"]["field_state_context"]["current_field"]["weather"] = "none"
+    neutral = evaluate_hypothetical_direct_mechanics(branch_state=neutral_state, source_snapshot_fingerprint=source, action=fire, expected_owner=fire["owner"], direct_evaluation_input=descriptor)
+    assert sunny["status"] == neutral["status"] == "known"
+    assert sunny["mechanics_result"]["damage_range"]["minimum"] > neutral["mechanics_result"]["damage_range"]["minimum"]
+    handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=project_poison_end_of_turn(pre_end_of_turn=result))
+    assert handoff["status"] == "resolved"
+    assert handoff["next_state"]["branch_field_weather_context"]["weather"] == "sun"
+    turn_two = deepcopy(handoff["next_state"]); turn_two["current_state"].pop("ability_context")
+    continued = evaluate_hypothetical_direct_mechanics(branch_state=turn_two, source_snapshot_fingerprint=source, action=fire, expected_owner=fire["owner"], direct_evaluation_input=descriptor)
+    assert continued["status"] == "known"
+
+
+def test_drought_unknown_weather_mismatched_authority_and_entry_ko_fail_closed():
+    branch = _branch(); source = fingerprint_transition_preview_state(branch)
+    unknown = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="drought", weather="unknown"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="drought"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert unknown == {"status": "incomplete", "reason": "switch_entry_authority"}
+    mismatched = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="drought", weather="none"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="drizzle"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert mismatched == {"status": "unsupported", "reason": "weather_entry_outcome"}
+    ko = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(ability="drought", weather="none"), switch_candidate=_candidate(), incoming_authority=_incoming(hp=1, ability="drought"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert ko["reason"] == "replacement_required_after_entry_hazard_ko"
+    assert "branch_field_weather_context" not in ko["next_state"]
+
+
 def test_intimidate_mutates_only_exact_opponent_attack_stage_before_fresh_direct():
     from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
     from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority

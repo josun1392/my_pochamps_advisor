@@ -28,18 +28,18 @@ def project_field_weather(*, branch_state: Mapping[str, Any], source_fingerprint
     return {"status": "resolved", "next_state": state, "resulting_branch_fingerprint": fingerprint_transition_preview_state(state)}
 
 
-def set_drizzle_rain(*, branch_state: Mapping[str, Any], source_fingerprint: str, weather_result: Mapping[str, Any]) -> dict[str, Any]:
-    """Apply only an exact canonical Drizzle rain result to the projected field."""
+def apply_supported_switch_entry_weather(*, branch_state: Mapping[str, Any], source_fingerprint: str, weather_result: Mapping[str, Any]) -> dict[str, Any]:
+    """Apply an exact canonical Rain/Sun switch-entry result to the projected field."""
     if fingerprint_transition_preview_state(branch_state) != source_fingerprint:
         return _result("rejected", "stale_source_branch")
     context = branch_state.get("branch_field_weather_context")
     if not _valid_context(context, branch_state) or not isinstance(weather_result, Mapping):
         return _result("rejected", "invalid_field_weather_authority")
     before, after = weather_result.get("weather_before"), weather_result.get("weather_after")
-    if weather_result.get("status") != "complete" or weather_result.get("outcome") != "weather_set" or before != context.get("weather") or after != "rain":
-        return _result("rejected", "invalid_drizzle_weather_result")
+    if weather_result.get("status") != "complete" or weather_result.get("outcome") != "weather_set" or before != context.get("weather") or after not in {"rain", "sun"}:
+        return _result("rejected", "invalid_switch_entry_weather_result")
     state = deepcopy(dict(branch_state))
-    state["branch_field_weather_context"]["weather"] = "rain"
+    state["branch_field_weather_context"]["weather"] = after
     state["branch_field_weather_context"]["source_branch_fingerprint"] = source_fingerprint
     _sync_current_field_weather(state, state["current_state"].get("field_state_context"))
     return {"status": "resolved", "next_state": state, "resulting_branch_fingerprint": fingerprint_transition_preview_state(state)}

@@ -10,7 +10,7 @@ from llm.advisor_switch_entry_effects import evaluate_switch_entry_effects
 from llm.advisor_switch_transition import project_authorized_switch_transition
 from llm.advisor_transition_preview import fingerprint_transition_preview_state, project_exact_direct_action_on_branch
 from llm.advisor_branch_hazard_context import project_side_hazards, remove_absorbed_toxic_spikes
-from llm.advisor_branch_weather_context import project_field_weather, set_drizzle_rain
+from llm.advisor_branch_weather_context import apply_supported_switch_entry_weather, project_field_weather
 from llm.advisor_toxic_spikes_condition_adapter import apply_toxic_spikes_condition
 
 
@@ -88,17 +88,19 @@ def execute_manual_switch_then_direct(
     if not isinstance(weather, Mapping) or weather.get("status") != "complete":
         return _result("incomplete", "weather_entry_authority")
     if weather.get("outcome") in {"weather_set", "weather_already_active"}:
-        if weather.get("weather_after") != "rain" or not _materialized_self_has_ability(state, "drizzle"):
+        weather_after = weather.get("weather_after")
+        ability = {"rain": "drizzle", "sun": "drought"}.get(weather_after)
+        if ability is None or not _materialized_self_has_ability(state, ability):
             return _result("unsupported", "weather_entry_outcome")
         field_state = post.get("side_shared_authority", {}).get("field_state_context") if isinstance(post.get("side_shared_authority"), Mapping) else None
         projected_weather = project_field_weather(branch_state=state, source_fingerprint=fingerprint_transition_preview_state(state), frozen_field_state=field_state)
         if projected_weather.get("status") != "resolved": return projected_weather
         state = projected_weather["next_state"]
         if weather.get("outcome") == "weather_set":
-            changed_weather = set_drizzle_rain(branch_state=state, source_fingerprint=projected_weather["resulting_branch_fingerprint"], weather_result=weather)
+            changed_weather = apply_supported_switch_entry_weather(branch_state=state, source_fingerprint=projected_weather["resulting_branch_fingerprint"], weather_result=weather)
             if changed_weather.get("status") != "resolved": return changed_weather
             state = changed_weather["next_state"]
-        trace.append({"sequence": len(trace) + 1, "event": "switch_entry_drizzle", "execution_status": "executed" if weather.get("outcome") == "weather_set" else "already_active", "source_owner": {key: active[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "weather_before": weather["weather_before"], "weather_after": "rain", "provenance": "canonical_switch_entry_weather"})
+        trace.append({"sequence": len(trace) + 1, "event": f"switch_entry_{ability.replace('-', '_')}", "execution_status": "executed" if weather.get("outcome") == "weather_set" else "already_active", "source_owner": {key: active[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "weather_before": weather["weather_before"], "weather_after": weather_after, "provenance": "canonical_switch_entry_weather"})
     elif weather.get("outcome") != "not_applicable":
         return _result("unsupported", "weather_entry_outcome")
     sticky = entry.get("sticky_web_result")
