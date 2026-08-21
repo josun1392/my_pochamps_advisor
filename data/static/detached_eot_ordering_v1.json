@@ -1,12 +1,13 @@
 {
   "schema_version": "detached-eot-ordering-v1",
   "authority": {
-    "source": "Pokemon Showdown data/conditions.ts, data/abilities.ts, and data/items.ts",
+    "source": "Pokemon Showdown data/conditions.ts, data/abilities.ts, data/items.ts, and data/moves.ts",
     "captured_generation": "current",
     "weather_field_residual_order": 1,
     "item_residual_order": 5,
     "item_residual_suborder": 4,
     "aqua_ring_residual_order": 6,
+    "ingrain_residual_order": 7,
     "condition_residual_order": 9
   },
   "families": {
@@ -14,6 +15,7 @@
     "leftovers": {"tier": 5, "ownership": "pokemon_item_residual", "terminal": "skip_later_same_owner", "provenance": "Pokemon Showdown data/items.ts Leftovers.onResidualOrder=5,onResidualSubOrder=4"},
     "black_sludge": {"tier": 5, "ownership": "pokemon_item_residual", "terminal": "skip_later_same_owner", "provenance": "Pokemon Showdown data/items.ts Black Sludge.onResidualOrder=5,onResidualSubOrder=4"},
     "aqua_ring": {"tier": 6, "ownership": "pokemon_persistent_effect", "terminal": "skip_later_same_owner", "provenance": "Pokemon Showdown data/moves.ts Aqua Ring.onResidualOrder=6"},
+    "ingrain": {"tier": 7, "ownership": "pokemon_persistent_effect", "terminal": "skip_later_same_owner", "provenance": "Pokemon Showdown data/moves.ts Ingrain.onResidualOrder=7"},
     "poison": {"tier": 9, "ownership": "pokemon_condition", "terminal": "none"},
     "toxic": {"tier": 9, "ownership": "pokemon_condition_lifecycle", "terminal": "none"},
     "poison_heal_compound": {"tier": 9, "ownership": "intrinsic_condition_replacement", "terminal": "none"}

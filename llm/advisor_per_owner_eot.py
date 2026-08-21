@@ -20,6 +20,8 @@ from llm.advisor_black_sludge_end_of_turn import apply_owner_black_sludge_end_of
 from llm.advisor_leftovers_event_target_order import validate_item_residual_target_order
 from llm.advisor_aqua_ring_persistent_effect import aqua_ring_state, apply_owner_aqua_ring_end_of_turn
 from llm.advisor_aqua_ring_target_order import validate_aqua_ring_target_order
+from llm.advisor_ingrain_persistent_effect import apply_owner_ingrain_end_of_turn, ingrain_state
+from llm.advisor_ingrain_target_order import validate_ingrain_target_order
 
 
 _ORDERING_PATH = Path(__file__).parents[1] / "data" / "static" / "detached_eot_ordering_v1.json"
@@ -78,23 +80,31 @@ def project_per_owner_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], owner: 
             if aqua.get("status") != "resolved": return aqua
             trace.append({"sequence": len(trace) + 1, "tier": metadata["families"]["aqua_ring"]["tier"], "branch_fingerprint_consumed": leftovers_fp, **aqua["trace"]})
         aqua_fp = fingerprint_transition_preview_state(state)
+        ingrain_effect_state = ingrain_state(state, side, owners[side]) if "ingrain_persistent_effect_context" in state else "known_inactive"
+        if ingrain_effect_state == "unknown": return _result("incomplete", "ingrain_persistent_effect_unknown")
+        if ingrain_effect_state is None: return _result("rejected", "stale_or_invalid_ingrain_authority")
+        if not state["active"][side]["fainted"] and ingrain_effect_state == "known_active":
+            ingrain = apply_owner_ingrain_end_of_turn(state=state, side=side, owner=owners[side], source_branch_fingerprint=aqua_fp)
+            if ingrain.get("status") != "resolved": return ingrain
+            trace.append({"sequence": len(trace) + 1, "tier": metadata["families"]["ingrain"]["tier"], "branch_fingerprint_consumed": aqua_fp, **ingrain["trace"]})
+        ingrain_fp = fingerprint_transition_preview_state(state)
         if not state["active"][side]["fainted"]:
             condition = apply_owner_condition_end_of_turn(
                 state=state,
                 side=side,
                 source_snapshot_fingerprint=pre_end_of_turn.get("source_snapshot_fingerprint"),
-                source_branch_fingerprint=aqua_fp,
+                source_branch_fingerprint=ingrain_fp,
             )
             if condition.get("status") != "resolved":
                 return condition
             if isinstance(condition.get("trace"), Mapping):
                 row = deepcopy(condition["trace"])
                 family = "poison_heal_compound" if row["effect"] == "poison_heal_recovery" else row["condition"]
-                trace.append({"sequence": len(trace) + 1, "tier": metadata["families"][family]["tier"], "branch_fingerprint_consumed": aqua_fp, **row})
+                trace.append({"sequence": len(trace) + 1, "tier": metadata["families"][family]["tier"], "branch_fingerprint_consumed": ingrain_fp, **row})
         elif isinstance(tier_one.get("trace"), Mapping):
             trace.append({"sequence": len(trace) + 1, "tier": metadata["families"]["poison"]["tier"], "effect": "condition_phase", "owner": deepcopy(owners[side]), "execution_status": "skipped", "reason": "fainted_by_tier_one_weather"})
     result_fp = fingerprint_transition_preview_state(state)
-    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": source_fp, "resulting_branch_fingerprint": result_fp, "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"scope": "one_exact_owner", "tiers": [1, 5, 6, 9], "authority": metadata["authority"]["source"]}, "limitations": ["cross_owner_weather_order_unrepresented", "cross_owner_item_residual_order_unrepresented", "cross_owner_aqua_ring_order_unrepresented", "no_reducer_or_runtime_writeback"]}
+    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": source_fp, "resulting_branch_fingerprint": result_fp, "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"scope": "one_exact_owner", "tiers": [1, 5, 6, 7, 9], "authority": metadata["authority"]["source"]}, "limitations": ["cross_owner_weather_order_unrepresented", "cross_owner_item_residual_order_unrepresented", "cross_owner_aqua_ring_order_unrepresented", "cross_owner_ingrain_order_unrepresented", "no_reducer_or_runtime_writeback"]}
 
 
 def reject_cross_owner_weather_order(*, owners: list[Mapping[str, Any]]) -> dict[str, Any]:
@@ -102,7 +112,7 @@ def reject_cross_owner_weather_order(*, owners: list[Mapping[str, Any]]) -> dict
     return _result("incomplete", "cross_owner_weather_order_unrepresented") if len(owners) > 1 else _result("rejected", "exactly_one_owner_required")
 
 
-def project_cross_owner_weather_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None, condition_event_target_order: Mapping[str, Any] | None = None, leftovers_event_target_order: Mapping[str, Any] | None = None, aqua_ring_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def project_cross_owner_weather_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None, condition_event_target_order: Mapping[str, Any] | None = None, leftovers_event_target_order: Mapping[str, Any] | None = None, aqua_ring_target_order: Mapping[str, Any] | None = None, ingrain_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Execute one frozen canonical Weather plan, then an unambiguous tier-nine owner."""
     weather_phase = project_cross_owner_weather_phase(pre_end_of_turn=pre_end_of_turn, weather_event_target_order=weather_event_target_order)
     if weather_phase.get("status") != "resolved":
@@ -117,12 +127,15 @@ def project_cross_owner_weather_end_of_turn(*, pre_end_of_turn: Mapping[str, Any
     aqua = _apply_aqua_ring_phase(state=state, projection=aqua_ring_target_order)
     if aqua.get("status") != "resolved": return aqua
     for row in aqua["trace"]: trace.append({"sequence": len(trace) + 1, **row})
+    ingrain = _apply_ingrain_phase(state=state, projection=ingrain_target_order)
+    if ingrain.get("status") != "resolved": return ingrain
+    for row in ingrain["trace"]: trace.append({"sequence": len(trace) + 1, **row})
     condition = _apply_condition_phase(state=state, source_snapshot_fingerprint=pre_end_of_turn.get("source_snapshot_fingerprint"), projection=condition_event_target_order)
     if condition.get("status") != "resolved":
         return condition
     for row in condition["trace"]:
         trace.append({"sequence": len(trace) + 1, **row})
-    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": weather_phase["source_pre_end_of_turn_fingerprint"], "resulting_branch_fingerprint": fingerprint_transition_preview_state(state), "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"weather_target_order": deepcopy(weather_phase["ordering"]["weather_target_order"]), "item_residual_target_order": leftovers["ordering"]["leftovers_target_order"], "aqua_ring_target_order": aqua["ordering"]["aqua_ring_target_order"], "condition_target_order": condition["ordering"]["condition_target_order"], "tiers": [1, 5, 6, 9]}, "limitations": ["weather_target_order_projection_required", "cross_owner_item_residual_order_unrepresented", "cross_owner_aqua_ring_order_unrepresented", "cross_owner_condition_order_unrepresented", "no_reducer_or_runtime_writeback"]}
+    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": weather_phase["source_pre_end_of_turn_fingerprint"], "resulting_branch_fingerprint": fingerprint_transition_preview_state(state), "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"weather_target_order": deepcopy(weather_phase["ordering"]["weather_target_order"]), "item_residual_target_order": leftovers["ordering"]["leftovers_target_order"], "aqua_ring_target_order": aqua["ordering"]["aqua_ring_target_order"], "ingrain_target_order": ingrain["ordering"]["ingrain_target_order"], "condition_target_order": condition["ordering"]["condition_target_order"], "tiers": [1, 5, 6, 7, 9]}, "limitations": ["weather_target_order_projection_required", "cross_owner_item_residual_order_unrepresented", "cross_owner_aqua_ring_order_unrepresented", "cross_owner_ingrain_order_unrepresented", "cross_owner_condition_order_unrepresented", "no_reducer_or_runtime_writeback"]}
 
 
 def project_cross_owner_weather_phase(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -368,6 +381,34 @@ def _apply_aqua_ring_phase(*, state: dict[str, Any], projection: Mapping[str, An
     return {"status":"resolved","trace":trace,"ordering":{"aqua_ring_target_order":deepcopy(frozen) if frozen else "single_owner","tier":6}}
 
 
+def _apply_ingrain_phase(*, state: dict[str, Any], projection: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Apply only typed Ingrain tier-seven authority, never inferred absence."""
+    if "ingrain_persistent_effect_context" not in state:
+        return {"status": "resolved", "trace": [], "ordering": {"ingrain_target_order": "not_material", "tier": 7}}
+    source_fp, owners = fingerprint_transition_preview_state(state), _owners(state)
+    if source_fp is None or owners is None: return _result("rejected", "invalid_pre_ingrain_branch")
+    material = []
+    for side in ("self", "opponent"):
+        status = ingrain_state(state, side, owners[side])
+        if status is None: return _result("rejected", "stale_or_invalid_ingrain_authority")
+        if status == "unknown": return _result("incomplete", "ingrain_persistent_effect_unknown")
+        if status == "known_active" and not state["active"][side]["fainted"]: material.append(deepcopy(owners[side]))
+    if len(material) <= 1: plan, frozen = material, None
+    else:
+        validated = validate_ingrain_target_order(branch_state=state, source_branch_fingerprint=source_fp, material_owners=material, projection=projection)
+        if validated.get("status") != "resolved": return validated
+        frozen = validated["frozen_ingrain_plan"]; plan = frozen["ordered_active_owners"]
+    trace=[]
+    for owner in plan:
+        side = _exact_owner_side(owner, owners); consumed=fingerprint_transition_preview_state(state)
+        if side is None or consumed is None: return _result("rejected", "stale_or_foreign_ingrain_owner")
+        if state["active"][side]["fainted"]: continue
+        result=apply_owner_ingrain_end_of_turn(state=state, side=side, owner=owner, source_branch_fingerprint=consumed)
+        if result.get("status") != "resolved": return result
+        if result.get("trace") is not None: trace.append({"tier":7,"branch_fingerprint_consumed":consumed,**result["trace"]})
+    return {"status":"resolved","trace":trace,"ordering":{"ingrain_target_order":deepcopy(frozen) if frozen else "single_owner","tier":7}}
+
+
 def _exact_owner_side(owner: Mapping[str, Any] | None, owners: Mapping[str, Mapping[str, Any]]) -> str | None:
     if not isinstance(owner, Mapping):
         return None
@@ -379,7 +420,7 @@ def _ordering_metadata() -> dict[str, Any] | None:
         data = json.loads(_ORDERING_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    expected = {"weather": 1, "leftovers": 5, "black_sludge": 5, "aqua_ring": 6, "poison": 9, "toxic": 9, "poison_heal_compound": 9}
+    expected = {"weather": 1, "leftovers": 5, "black_sludge": 5, "aqua_ring": 6, "ingrain": 7, "poison": 9, "toxic": 9, "poison_heal_compound": 9}
     families = data.get("families") if isinstance(data, Mapping) else None
     if data.get("schema_version") != "detached-eot-ordering-v1" or not isinstance(families, Mapping) or any(not isinstance(families.get(name), Mapping) or families[name].get("tier") != tier for name, tier in expected.items()):
         return None
