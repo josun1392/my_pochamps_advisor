@@ -41,9 +41,19 @@ def project_poison_end_of_turn(*, pre_end_of_turn: Mapping[str, Any]) -> dict[st
         ability = _ability(state, side)
         if ability is None:
             return _result("incomplete", f"{side}.ability")
-        if ability == "poison-heal":
-            return _result("unsupported", "poison_heal_end_of_turn_not_in_slice")
         hp, maximum = active["current_hp"], active["max_hp"]
+        if ability == "poison-heal":
+            recovery = maximum // 8 if hp < maximum else 0
+            post = min(maximum, hp + recovery)
+            active["current_hp"] = post
+            _sync_hp(state, side, post, maximum)
+            row = {"sequence": len(trace) + 1, "effect": "poison_heal_recovery", "side": side, "owner": _owner(active), "condition": condition, "pre_hp": hp, "recovery": recovery, "post_hp": post, "execution_status": "executed", "reason": "canonical_poison_heal_replacement"}
+            if stage is not None:
+                lifecycle = state["predicted_toxic_lifecycle"]
+                lifecycle["current_stage"] = min(stage + 1, 15)
+                row.update(toxic_stage=stage, resulting_toxic_stage=lifecycle["current_stage"], lifecycle_provenance=lifecycle["provenance"])
+            trace.append(row)
+            continue
         damage = 0 if ability == "magic-guard" else residual_damage_amount(ResidualSpec(condition, maximum), stage or 1)
         post = max(0, hp - damage)
         active["current_hp"], active["fainted"] = post, post == 0

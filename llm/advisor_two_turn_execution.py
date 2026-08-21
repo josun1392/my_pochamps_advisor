@@ -125,6 +125,9 @@ def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any]) -> dict[str, Any
     if weather == "sun" and _weather_has_active_ability(state, "solar-power"):
         from llm.advisor_solar_power_end_of_turn import project_solar_power_end_of_turn
         return project_solar_power_end_of_turn(pre_end_of_turn=pre_end_of_turn)
+    if _has_poison_heal_condition(state):
+        from llm.advisor_poison_heal_end_of_turn import project_poison_heal_end_of_turn
+        return project_poison_heal_end_of_turn(pre_end_of_turn=pre_end_of_turn)
     return project_poison_end_of_turn(pre_end_of_turn=pre_end_of_turn)
 
 
@@ -133,6 +136,13 @@ def _weather_has_active_ability(state: Mapping[str, Any], ability: str) -> bool:
     current = state.get("current_state") if isinstance(state, Mapping) else None
     rows = current.get("ability_context", {}).get("current_abilities") if isinstance(current, Mapping) and isinstance(current.get("ability_context"), Mapping) else None
     return isinstance(rows, list) and any(isinstance(row, Mapping) and row.get("ability") == ability for row in rows)
+
+
+def _has_poison_heal_condition(state: Mapping[str, Any]) -> bool:
+    current = state.get("current_state") if isinstance(state, Mapping) else None
+    abilities = current.get("ability_context", {}).get("current_abilities") if isinstance(current, Mapping) and isinstance(current.get("ability_context"), Mapping) else None
+    conditions = current.get("condition_context", {}).get("current_conditions") if isinstance(current, Mapping) and isinstance(current.get("condition_context"), Mapping) else None
+    return isinstance(abilities, list) and isinstance(conditions, list) and any(isinstance(a, Mapping) and a.get("side") == c.get("side") and a.get("ability") == "poison-heal" and c.get("condition_type") in {"poison", "toxic"} for a in abilities for c in conditions if isinstance(c, Mapping))
 
 
 def _manual_switch_source_matches_turn_snapshot(turn_snapshot: Mapping[str, Any], source_branch: Any) -> bool:
