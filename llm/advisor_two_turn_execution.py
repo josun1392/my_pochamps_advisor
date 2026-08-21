@@ -32,7 +32,7 @@ def execute_explicit_two_turn(
     first = _execute_turn(turn_snapshot=starting_turn_snapshot, plan=turn_one)
     if first.get("status") != "resolved":
         return _halt(first, "turn_one_transition")
-    first_eot = _project_bounded_eot(pre_end_of_turn=first, weather_event_target_order=turn_one.get("weather_event_target_order"), condition_event_target_order=turn_one.get("condition_event_target_order"))
+    first_eot = _project_bounded_eot(pre_end_of_turn=first, weather_event_target_order=turn_one.get("weather_event_target_order"), leftovers_event_target_order=turn_one.get("leftovers_event_target_order"), condition_event_target_order=turn_one.get("condition_event_target_order"))
     if first_eot.get("status") != "resolved":
         return _halt(first_eot, "turn_one_end_of_turn", turn_one=first)
     handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=first_eot)
@@ -53,7 +53,7 @@ def execute_explicit_two_turn(
     second = _execute_turn(turn_snapshot=second_snapshot, plan=turn_two)
     if second.get("status") != "resolved":
         return _halt(second, "turn_two_transition", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff)
-    second_eot = _project_bounded_eot(pre_end_of_turn=second, weather_event_target_order=turn_two.get("weather_event_target_order"), condition_event_target_order=turn_two.get("condition_event_target_order"))
+    second_eot = _project_bounded_eot(pre_end_of_turn=second, weather_event_target_order=turn_two.get("weather_event_target_order"), leftovers_event_target_order=turn_two.get("leftovers_event_target_order"), condition_event_target_order=turn_two.get("condition_event_target_order"))
     if second_eot.get("status") != "resolved":
         return _halt(second_eot, "turn_two_end_of_turn", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff, turn_two=second)
     return {
@@ -106,12 +106,15 @@ def _execute_turn(*, turn_snapshot: Mapping[str, Any], plan: Mapping[str, Any]) 
     return _result("unsupported", "turn_transition_not_in_slice")
 
 
-def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None = None, condition_event_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None = None, leftovers_event_target_order: Mapping[str, Any] | None = None, condition_event_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Dispatch a bounded EOT family or one exact-owner canonical composition."""
     state = pre_end_of_turn.get("next_state") if isinstance(pre_end_of_turn, Mapping) else None
     if weather_event_target_order is not None:
         from llm.advisor_per_owner_eot import project_cross_owner_weather_end_of_turn
-        return project_cross_owner_weather_end_of_turn(pre_end_of_turn=pre_end_of_turn, weather_event_target_order=weather_event_target_order, condition_event_target_order=condition_event_target_order)
+        return project_cross_owner_weather_end_of_turn(pre_end_of_turn=pre_end_of_turn, weather_event_target_order=weather_event_target_order, leftovers_event_target_order=leftovers_event_target_order, condition_event_target_order=condition_event_target_order)
+    if leftovers_event_target_order is not None:
+        from llm.advisor_per_owner_eot import project_cross_owner_leftovers_end_of_turn
+        return project_cross_owner_leftovers_end_of_turn(pre_end_of_turn=pre_end_of_turn, leftovers_event_target_order=leftovers_event_target_order, condition_event_target_order=condition_event_target_order)
     if condition_event_target_order is not None:
         from llm.advisor_per_owner_eot import project_cross_owner_condition_end_of_turn
         return project_cross_owner_condition_end_of_turn(pre_end_of_turn=pre_end_of_turn, condition_event_target_order=condition_event_target_order)
@@ -155,7 +158,7 @@ def _single_material_eot_owner(state: Mapping[str, Any] | None) -> dict[str, Any
     predicted = state.get("predicted_condition_context")
     if not isinstance(active, Mapping) or not isinstance(abilities, list) or not isinstance(conditions, list):
         return None
-    material: dict[str, tuple[bool, bool]] = {}
+    material: dict[str, tuple[bool, bool, bool]] = {}
     for side in ("self", "opponent"):
         ability = next((row.get("ability") for row in abilities if isinstance(row, Mapping) and row.get("side") == side), None)
         condition = next((row.get("condition_type") for row in conditions if isinstance(row, Mapping) and row.get("side") == side), None)
@@ -163,13 +166,16 @@ def _single_material_eot_owner(state: Mapping[str, Any] | None) -> dict[str, Any
             condition = predicted.get("condition_type")
         weather_effect = (weather == "sandstorm" or (weather, ability) in {("snow", "ice-body"), ("rain", "rain-dish"), ("rain", "dry-skin"), ("sun", "solar-power")})
         condition_effect = condition in {"poison", "toxic"}
-        if weather_effect or condition_effect:
-            material[side] = (weather_effect, condition_effect)
+        direct = current.get("direct_mechanics_context") if isinstance(current, Mapping) else None
+        record = direct.get("attacker" if side == "self" else "defender") if isinstance(direct, Mapping) else None
+        item = record.get("item") if isinstance(record, Mapping) else None
+        leftovers_effect = isinstance(item, Mapping) and item.get("status") == "known" and item.get("value") == "leftovers"
+        if weather_effect or leftovers_effect or condition_effect:
+            material[side] = (weather_effect, leftovers_effect, condition_effect)
     if len(material) != 1:
         return None
     side, phases = next(iter(material.items()))
-    if phases != (True, True):
-        return None
+    if not any(phases): return None
     row = active.get(side)
     if not isinstance(row, Mapping):
         return None

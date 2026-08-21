@@ -1,13 +1,16 @@
 {
   "schema_version": "detached-eot-ordering-v1",
   "authority": {
-    "source": "Pokemon Showdown data/conditions.ts and data/abilities.ts",
+    "source": "Pokemon Showdown data/conditions.ts, data/abilities.ts, and data/items.ts",
     "captured_generation": "current",
     "weather_field_residual_order": 1,
+    "leftovers_residual_order": 5,
+    "leftovers_residual_suborder": 4,
     "condition_residual_order": 9
   },
   "families": {
     "weather": {"tier": 1, "ownership": "field_event_for_exact_owner", "terminal": "skip_later_same_owner"},
+    "leftovers": {"tier": 5, "ownership": "pokemon_item_residual", "terminal": "skip_later_same_owner", "provenance": "Pokemon Showdown data/items.ts Leftovers.onResidualOrder=5,onResidualSubOrder=4"},
     "poison": {"tier": 9, "ownership": "pokemon_condition", "terminal": "none"},
     "toxic": {"tier": 9, "ownership": "pokemon_condition_lifecycle", "terminal": "none"},
     "poison_heal_compound": {"tier": 9, "ownership": "intrinsic_condition_replacement", "terminal": "none"}

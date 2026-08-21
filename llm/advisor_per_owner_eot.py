@@ -15,6 +15,8 @@ from llm.advisor_solar_power_residual_core import evaluate_solar_power_residual
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_weather_event_target_order import validate_weather_event_target_order
 from llm.advisor_condition_event_target_order import validate_condition_event_target_order
+from llm.advisor_leftovers_end_of_turn import apply_owner_leftovers_end_of_turn
+from llm.advisor_leftovers_event_target_order import validate_leftovers_event_target_order
 
 
 _ORDERING_PATH = Path(__file__).parents[1] / "data" / "static" / "detached_eot_ordering_v1.json"
@@ -22,7 +24,7 @@ _WEATHER_ABILITIES = {"snow": ("ice-body", "ice_body"), "rain": ("rain-dish", "r
 
 
 def project_per_owner_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], owner: Mapping[str, Any] | None) -> dict[str, Any]:
-    """Compose tier 1 Weather then tier 9 condition for one exact active owner.
+    """Compose tiers 1 Weather, 5 Leftovers, then 9 condition for one owner.
 
     This deliberately refuses a multi-owner request: Showdown's within-Weather
     target ordering is not represented by the detached branch model.
@@ -55,23 +57,29 @@ def project_per_owner_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], owner: 
         if isinstance(tier_one.get("trace"), Mapping):
             trace.append({"sequence": 1, "tier": metadata["families"]["weather"]["tier"], "branch_fingerprint_consumed": source_fp, **tier_one["trace"]})
         tier_one_fp = fingerprint_transition_preview_state(state)
+        if not state["active"][side]["fainted"] and _item(state, side) == "leftovers":
+            leftovers = apply_owner_leftovers_end_of_turn(state=state, side=side, owner=owners[side], source_branch_fingerprint=tier_one_fp)
+            if leftovers.get("status") != "resolved":
+                return leftovers
+            trace.append({"sequence": len(trace) + 1, "tier": metadata["families"]["leftovers"]["tier"], "branch_fingerprint_consumed": tier_one_fp, **leftovers["trace"]})
+        leftovers_fp = fingerprint_transition_preview_state(state)
         if not state["active"][side]["fainted"]:
             condition = apply_owner_condition_end_of_turn(
                 state=state,
                 side=side,
                 source_snapshot_fingerprint=pre_end_of_turn.get("source_snapshot_fingerprint"),
-                source_branch_fingerprint=tier_one_fp,
+                source_branch_fingerprint=leftovers_fp,
             )
             if condition.get("status") != "resolved":
                 return condition
             if isinstance(condition.get("trace"), Mapping):
                 row = deepcopy(condition["trace"])
                 family = "poison_heal_compound" if row["effect"] == "poison_heal_recovery" else row["condition"]
-                trace.append({"sequence": len(trace) + 1, "tier": metadata["families"][family]["tier"], "branch_fingerprint_consumed": tier_one_fp, **row})
+                trace.append({"sequence": len(trace) + 1, "tier": metadata["families"][family]["tier"], "branch_fingerprint_consumed": leftovers_fp, **row})
         elif isinstance(tier_one.get("trace"), Mapping):
             trace.append({"sequence": len(trace) + 1, "tier": metadata["families"]["poison"]["tier"], "effect": "condition_phase", "owner": deepcopy(owners[side]), "execution_status": "skipped", "reason": "fainted_by_tier_one_weather"})
     result_fp = fingerprint_transition_preview_state(state)
-    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": source_fp, "resulting_branch_fingerprint": result_fp, "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"scope": "one_exact_owner", "tiers": [1, 9], "authority": metadata["authority"]["source"]}, "limitations": ["cross_owner_weather_order_unrepresented", "no_reducer_or_runtime_writeback"]}
+    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": source_fp, "resulting_branch_fingerprint": result_fp, "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"scope": "one_exact_owner", "tiers": [1, 5, 9], "authority": metadata["authority"]["source"]}, "limitations": ["cross_owner_weather_order_unrepresented", "cross_owner_leftovers_order_unrepresented", "no_reducer_or_runtime_writeback"]}
 
 
 def reject_cross_owner_weather_order(*, owners: list[Mapping[str, Any]]) -> dict[str, Any]:
@@ -79,19 +87,24 @@ def reject_cross_owner_weather_order(*, owners: list[Mapping[str, Any]]) -> dict
     return _result("incomplete", "cross_owner_weather_order_unrepresented") if len(owners) > 1 else _result("rejected", "exactly_one_owner_required")
 
 
-def project_cross_owner_weather_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None, condition_event_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def project_cross_owner_weather_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None, condition_event_target_order: Mapping[str, Any] | None = None, leftovers_event_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Execute one frozen canonical Weather plan, then an unambiguous tier-nine owner."""
     weather_phase = project_cross_owner_weather_phase(pre_end_of_turn=pre_end_of_turn, weather_event_target_order=weather_event_target_order)
     if weather_phase.get("status") != "resolved":
         return weather_phase
     state = deepcopy(dict(weather_phase["next_state"]))
     trace = deepcopy(weather_phase["eot_consequence_trace"])
+    leftovers = _apply_leftovers_phase(state=state, projection=leftovers_event_target_order)
+    if leftovers.get("status") != "resolved":
+        return leftovers
+    for row in leftovers["trace"]:
+        trace.append({"sequence": len(trace) + 1, **row})
     condition = _apply_condition_phase(state=state, source_snapshot_fingerprint=pre_end_of_turn.get("source_snapshot_fingerprint"), projection=condition_event_target_order)
     if condition.get("status") != "resolved":
         return condition
     for row in condition["trace"]:
         trace.append({"sequence": len(trace) + 1, **row})
-    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": weather_phase["source_pre_end_of_turn_fingerprint"], "resulting_branch_fingerprint": fingerprint_transition_preview_state(state), "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"weather_target_order": deepcopy(weather_phase["ordering"]["weather_target_order"]), "condition_target_order": condition["ordering"]["condition_target_order"], "tiers": [1, 9]}, "limitations": ["weather_target_order_projection_required", "cross_owner_condition_order_unrepresented", "no_reducer_or_runtime_writeback"]}
+    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": weather_phase["source_pre_end_of_turn_fingerprint"], "resulting_branch_fingerprint": fingerprint_transition_preview_state(state), "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"weather_target_order": deepcopy(weather_phase["ordering"]["weather_target_order"]), "leftovers_target_order": leftovers["ordering"]["leftovers_target_order"], "condition_target_order": condition["ordering"]["condition_target_order"], "tiers": [1, 5, 9]}, "limitations": ["weather_target_order_projection_required", "cross_owner_leftovers_order_unrepresented", "cross_owner_condition_order_unrepresented", "no_reducer_or_runtime_writeback"]}
 
 
 def project_cross_owner_weather_phase(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -145,6 +158,25 @@ def project_cross_owner_condition_end_of_turn(*, pre_end_of_turn: Mapping[str, A
     if phase.get("status") != "resolved":
         return phase
     return {"status": "resolved", "source_pre_end_of_turn_fingerprint": source_fp, "resulting_branch_fingerprint": fingerprint_transition_preview_state(state), "eot_consequence_trace": phase["trace"], "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": phase["ordering"], "limitations": ["condition_target_order_projection_required", "no_reducer_or_runtime_writeback"]}
+
+
+def project_cross_owner_leftovers_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], leftovers_event_target_order: Mapping[str, Any] | None, condition_event_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Execute tier-five Leftovers then the existing tier-nine condition phase."""
+    if not isinstance(pre_end_of_turn, Mapping) or pre_end_of_turn.get("status") != "resolved" or pre_end_of_turn.get("boundary", {}).get("phase") != "pre_end_of_turn":
+        return _result("rejected", "pre_end_of_turn_boundary_required")
+    source = pre_end_of_turn.get("next_state")
+    source_fp = fingerprint_transition_preview_state(source) if isinstance(source, Mapping) else None
+    if source_fp is None:
+        return _result("rejected", "invalid_pre_end_of_turn_branch")
+    state = deepcopy(dict(source))
+    leftovers = _apply_leftovers_phase(state=state, projection=leftovers_event_target_order)
+    if leftovers.get("status") != "resolved":
+        return leftovers
+    condition = _apply_condition_phase(state=state, source_snapshot_fingerprint=pre_end_of_turn.get("source_snapshot_fingerprint"), projection=condition_event_target_order)
+    if condition.get("status") != "resolved":
+        return condition
+    trace = [{"sequence": index + 1, **row} for index, row in enumerate([*leftovers["trace"], *condition["trace"]])]
+    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": source_fp, "resulting_branch_fingerprint": fingerprint_transition_preview_state(state), "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"leftovers_target_order": leftovers["ordering"]["leftovers_target_order"], "condition_target_order": condition["ordering"]["condition_target_order"], "tiers": [5, 9]}, "limitations": ["cross_owner_leftovers_order_unrepresented", "cross_owner_condition_order_unrepresented", "no_reducer_or_runtime_writeback"]}
 
 
 def _apply_weather_for_owner(*, state: dict[str, Any], side: str, weather: str, source_fingerprint: str, owner: Mapping[str, Any]) -> dict[str, Any]:
@@ -247,6 +279,45 @@ def _apply_condition_phase(*, state: dict[str, Any], source_snapshot_fingerprint
     return {"status": "resolved", "trace": trace, "ordering": {"condition_target_order": deepcopy(frozen) if frozen else "single_owner", "tier": 9}}
 
 
+def _apply_leftovers_phase(*, state: dict[str, Any], projection: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Apply the canonical tier-five item event from a frozen target plan."""
+    source_fp = fingerprint_transition_preview_state(state)
+    owners = _owners(state)
+    if source_fp is None or owners is None:
+        return _result("rejected", "invalid_pre_leftovers_branch")
+    material: list[dict[str, Any]] = []
+    for side in ("self", "opponent"):
+        item = _item(state, side)
+        if item is _UNKNOWN:
+            return _result("incomplete", "leftovers_current_item_authority")
+        if item == "leftovers" and not state["active"][side]["fainted"]:
+            material.append(deepcopy(owners[side]))
+    if len(material) <= 1:
+        plan, frozen = material, None
+    else:
+        validated = validate_leftovers_event_target_order(branch_state=state, source_branch_fingerprint=source_fp, material_owners=material, projection=projection)
+        if validated.get("status") != "resolved":
+            return validated
+        frozen = validated["frozen_leftovers_event_plan"]
+        plan = frozen["ordered_active_owners"]
+    trace: list[dict[str, Any]] = []
+    for planned_owner in plan:
+        side = _exact_owner_side(planned_owner, owners)
+        if side is None:
+            return _result("rejected", "stale_or_foreign_leftovers_event_target")
+        consumed = fingerprint_transition_preview_state(state)
+        if consumed is None:
+            return _result("rejected", "invalid_leftovers_event_branch_generation")
+        if state["active"][side]["fainted"]:
+            trace.append({"tier": 5, "effect": "leftovers_event", "owner": deepcopy(planned_owner), "branch_fingerprint_consumed": consumed, "execution_status": "skipped", "reason": "fainted_before_leftovers_event"})
+            continue
+        result = apply_owner_leftovers_end_of_turn(state=state, side=side, owner=planned_owner, source_branch_fingerprint=consumed)
+        if result.get("status") != "resolved":
+            return result
+        trace.append({"tier": 5, "branch_fingerprint_consumed": consumed, **result["trace"]})
+    return {"status": "resolved", "trace": trace, "ordering": {"leftovers_target_order": deepcopy(frozen) if frozen else "single_owner", "tier": 5}}
+
+
 def _exact_owner_side(owner: Mapping[str, Any] | None, owners: Mapping[str, Mapping[str, Any]]) -> str | None:
     if not isinstance(owner, Mapping):
         return None
@@ -258,7 +329,7 @@ def _ordering_metadata() -> dict[str, Any] | None:
         data = json.loads(_ORDERING_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    expected = {"weather": 1, "poison": 9, "toxic": 9, "poison_heal_compound": 9}
+    expected = {"weather": 1, "leftovers": 5, "poison": 9, "toxic": 9, "poison_heal_compound": 9}
     families = data.get("families") if isinstance(data, Mapping) else None
     if data.get("schema_version") != "detached-eot-ordering-v1" or not isinstance(families, Mapping) or any(not isinstance(families.get(name), Mapping) or families[name].get("tier") != tier for name, tier in expected.items()):
         return None
