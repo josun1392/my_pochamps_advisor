@@ -46,6 +46,11 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
         return _result("rejected", lifecycle_error)
 
     excluded = _exclude_turn_scoped_authority(state)
+    aqua_ring = state.get("aqua_ring_persistent_effect_context")
+    if isinstance(aqua_ring, dict) and aqua_ring.get("schema_version") == "detached-aqua-ring-persistent-effect-v1":
+        # The typed persistent effect remains with the same active owner, but
+        # its authority now originates at the completed EOT branch.
+        aqua_ring["source_branch_fingerprint"] = source_fp
     # This metadata is branch provenance, not battle authority.  Its presence
     # intentionally creates a new fingerprint for the lifecycle boundary.
     state["turn_engine_lifecycle"] = {

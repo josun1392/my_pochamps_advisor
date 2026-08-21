@@ -30,7 +30,7 @@ def test_aqua_ring_recovers_then_poison_consumes_current_hp_and_handoff_persists
     assert [(r["tier"],r["effect"]) for r in result["eot_consequence_trace"]] == [(5,"leftovers_recovery"),(6,"aqua_ring_recovery"),(9,"poison_residual")]
     assert [r["post_hp"] for r in result["eot_consequence_trace"]] == [56,62,50]
     handoff=handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=result)
-    assert handoff["status"] == "resolved" and handoff["next_state"]["aqua_ring_persistent_effect_context"]["states"][0]["state"] == "known_active"
+    assert handoff["status"] == "resolved" and handoff["next_state"]["aqua_ring_persistent_effect_context"]["states"][0]["state"] == "known_active" and handoff["next_state"]["aqua_ring_persistent_effect_context"]["source_branch_fingerprint"] == result["resulting_branch_fingerprint"]
 
 
 def test_aqua_ring_full_unknown_foreign_and_fainted_boundaries():
