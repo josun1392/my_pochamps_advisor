@@ -11,6 +11,7 @@ from llm.advisor_switch_entry_download_authority import build_switch_entry_downl
 from llm.advisor_battle_state_context import normalize_current_type_authority, normalize_user_confirmed_current_ability
 from llm.advisor_ice_body_recovery_core import evaluate_ice_body_recovery, evaluate_weather_recovery
 from llm.advisor_sandstorm_residual_core import evaluate_sandstorm_residual
+from llm.advisor_solar_power_residual_core import evaluate_solar_power_residual
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
@@ -914,13 +915,6 @@ def _apply_solar_power_end_of_turn(state, event):
         if any(not _trusted_current_ability(active["pokemon"]) for active in rows):
             results.append(base | {"status": "incomplete", "reason": "current_ability_unknown"})
             continue
-        ability_values = {active["pokemon"]["current_ability"] for active in rows}
-        if "neutralizing-gas" in ability_values:
-            results.append(base | {"status": "complete", "outcome": "suppressed_by_neutralizing_gas"})
-            continue
-        if ability_values & {"cloud-nine", "air-lock"}:
-            results.append(base | {"status": "complete", "outcome": "suppressed_by_weather_ability"})
-            continue
         if _solar_power_has_order_dependency(state, row, event):
             results.append(base | {"status": "incomplete", "reason": "same_owner_end_of_turn_order_unknown"})
             continue
@@ -928,11 +922,13 @@ def _apply_solar_power_end_of_turn(state, event):
         if not _exact(hp) or not _exact(maximum) or maximum < 1 or hp > maximum:
             results.append(base | {"status": "incomplete", "reason": "hp_unknown"})
             continue
-        damage = maximum // 8
-        post_hp = max(0, hp - damage)
-        results.append(base | {"status": "complete", "pre_hp": hp, "max_hp": maximum, "damage": damage, "post_hp": post_hp, "outcome": "damaged", "guaranteed_ko": post_hp == 0})
-        if post_hp != hp:
-            pokemon["current_hp"] = post_hp
+        abilities = {active["side"]: active["pokemon"]["current_ability"] for active in rows}
+        residual = evaluate_solar_power_residual(active_abilities=abilities, target_side=row["side"], current_hp=hp, maximum_hp=maximum)
+        if residual.get("status") != "complete":
+            results.append(base | {"status": "incomplete", "reason": "canonical_solar_power_authority"}); continue
+        results.append(base | residual)
+        if "post_hp" in residual and residual["post_hp"] != hp:
+            pokemon["current_hp"] = residual["post_hp"]
             _mark(pokemon, "current_hp", event)
 
 
