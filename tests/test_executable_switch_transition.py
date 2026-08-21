@@ -198,6 +198,34 @@ def test_drought_unknown_weather_mismatched_authority_and_entry_ko_fail_closed()
     assert "branch_field_weather_context" not in ko["next_state"]
 
 
+def test_sand_stream_weather_reaches_detached_sandstorm_eot_and_turn_two_handoff():
+    from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
+    from llm.advisor_sandstorm_end_of_turn import project_sandstorm_end_of_turn
+
+    def type_row(side, types):
+        return {"side": side, "state": "known", "types": types, "status": "user_confirmed", "source": "user_confirmed_current_type", "authority_provenance": "user_confirmed_current", "confidence": "known"}
+
+    branch = _branch(); source = fingerprint_transition_preview_state(branch)
+    incoming = _incoming(ability="sand-stream")
+    incoming["current_state"]["current_type_context"] = {"current_types": [type_row("self", ["normal"]), type_row("opponent", ["normal"])]}
+    result = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="sand-stream", weather="sun"),
+        switch_candidate=_candidate(), incoming_authority=incoming,
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert result["status"] == "resolved", result
+    assert result["next_state"]["branch_field_weather_context"]["weather"] == "sandstorm"
+    assert any(row["event"] == "switch_entry_sand_stream" for row in result["consequence_trace"])
+    eot = project_sandstorm_end_of_turn(pre_end_of_turn=result)
+    assert eot["status"] == "resolved", eot
+    assert eot["next_state"]["active"]["self"]["current_hp"] == result["next_state"]["active"]["self"]["current_hp"] - 6
+    handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=eot)
+    assert handoff["status"] == "resolved"
+    assert handoff["next_state"]["active"]["self"]["pokemon_id"] == "incoming"
+    assert handoff["next_state"]["branch_field_weather_context"]["weather"] == "sandstorm"
+
+
 def test_intimidate_mutates_only_exact_opponent_attack_stage_before_fresh_direct():
     from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
     from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority

@@ -29,14 +29,14 @@ def project_field_weather(*, branch_state: Mapping[str, Any], source_fingerprint
 
 
 def apply_supported_switch_entry_weather(*, branch_state: Mapping[str, Any], source_fingerprint: str, weather_result: Mapping[str, Any]) -> dict[str, Any]:
-    """Apply an exact canonical Rain/Sun switch-entry result to the projected field."""
+    """Apply an exact canonical Rain/Sun/Sandstorm switch-entry result to the projected field."""
     if fingerprint_transition_preview_state(branch_state) != source_fingerprint:
         return _result("rejected", "stale_source_branch")
     context = branch_state.get("branch_field_weather_context")
     if not _valid_context(context, branch_state) or not isinstance(weather_result, Mapping):
         return _result("rejected", "invalid_field_weather_authority")
     before, after = weather_result.get("weather_before"), weather_result.get("weather_after")
-    if weather_result.get("status") != "complete" or weather_result.get("outcome") != "weather_set" or before != context.get("weather") or after not in {"rain", "sun"}:
+    if weather_result.get("status") != "complete" or weather_result.get("outcome") != "weather_set" or before != context.get("weather") or after not in {"rain", "sun", "sandstorm"}:
         return _result("rejected", "invalid_switch_entry_weather_result")
     state = deepcopy(dict(branch_state))
     state["branch_field_weather_context"]["weather"] = after

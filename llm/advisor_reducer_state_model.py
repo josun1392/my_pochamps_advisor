@@ -9,6 +9,7 @@ from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority
 from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority
 from llm.advisor_battle_state_context import normalize_current_type_authority, normalize_user_confirmed_current_ability
+from llm.advisor_sandstorm_residual_core import evaluate_sandstorm_residual
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
@@ -1063,12 +1064,10 @@ def _apply_sandstorm_end_of_turn(state, event):
         if not _trusted_current_type(pokemon):
             results.append(base | {"status": "incomplete", "reason": "current_type_unknown"})
             continue
-        if {"rock", "ground", "steel"} & set(current_type):
-            results.append(_sandstorm_complete(base, current_type, pokemon, 0, "immune_by_type"))
-            continue
         item = pokemon.get("known_item")
-        if item == "safety-goggles":
-            results.append(_sandstorm_complete(base, current_type, pokemon, 0, "prevented_by_safety_goggles"))
+        early = evaluate_sandstorm_residual(current_type=current_type, item=item, active_abilities=abilities if all(isinstance(value, str) and value for value in abilities.values()) else {}, target_side=row["side"], current_hp=pokemon.get("current_hp"), maximum_hp=pokemon.get("max_hp"))
+        if early.get("status") == "complete" and early.get("outcome") in {"immune_by_type", "prevented_by_safety_goggles"}:
+            results.append(base | early)
             continue
         if any(not _trusted_current_ability(active["pokemon"]) for active in active_rows):
             results.append(base | {"status": "incomplete", "reason": "current_ability_unknown"})
@@ -1076,26 +1075,16 @@ def _apply_sandstorm_end_of_turn(state, event):
         if _unknown(item) or not (item is None or isinstance(item, str)):
             results.append(base | {"status": "incomplete", "reason": "current_item_unknown"})
             continue
-        ability_values = set(abilities.values())
-        weather_suppressed = "neutralizing-gas" not in ability_values and bool(ability_values & {"cloud-nine", "air-lock"})
-        ability_immune = "neutralizing-gas" not in ability_values and abilities[row["side"]] in {"magic-guard", "overcoat", "sand-force", "sand-rush", "sand-veil"}
-        if weather_suppressed:
-            results.append(_sandstorm_complete(base, current_type, pokemon, 0, "suppressed_by_ability"))
-            continue
-        if ability_immune:
-            results.append(_sandstorm_complete(base, current_type, pokemon, 0, "immune_by_ability"))
-            continue
         if _sandstorm_has_order_dependency(state, row, event):
             results.append(base | {"status": "incomplete", "reason": "same_owner_end_of_turn_order_unknown"})
             continue
-        hp, maximum = pokemon.get("current_hp"), pokemon.get("max_hp")
-        if not _exact(hp) or not _exact(maximum) or maximum < 1 or hp > maximum:
+        resolved = evaluate_sandstorm_residual(current_type=current_type, item=item, active_abilities=abilities, target_side=row["side"], current_hp=pokemon.get("current_hp"), maximum_hp=pokemon.get("max_hp"))
+        if resolved.get("status") != "complete":
             results.append(base | {"status": "incomplete", "reason": "hp_unknown"})
             continue
-        damage = maximum // 16
-        results.append(_sandstorm_complete(base, current_type, pokemon, damage, "damaged"))
-        if damage:
-            pokemon["current_hp"] = max(0, hp - damage)
+        results.append(base | resolved)
+        if resolved["residual_damage"]:
+            pokemon["current_hp"] = resolved["post_hp"]
             _mark(pokemon, "current_hp", event)
 
 
@@ -1125,14 +1114,6 @@ def _trusted_current_ability(pokemon):
 
 def _sandstorm_base(state, event, row):
     return {"session_id": state["session_id"], "turn_number": _value(event, "turn_number"), "side": row["side"], "slot_index": row["slot_index"], "pokemon_id": row["pokemon_id"], "weather": "sandstorm", "provenance": _provenance(event) | {"event_kind": "first_end_of_turn_reached_observed", "trust": _value(event, "trust")}}
-
-
-def _sandstorm_complete(base, current_type, pokemon, damage, outcome):
-    hp, maximum = pokemon.get("current_hp"), pokemon.get("max_hp")
-    if not _exact(hp) or not _exact(maximum) or maximum < 1 or hp > maximum:
-        return base | {"status": "incomplete", "reason": "hp_unknown"}
-    post_hp = max(0, hp - damage)
-    return base | {"status": "complete", "current_type": deepcopy(current_type), "pre_hp": hp, "max_hp": maximum, "residual_damage": damage, "post_hp": post_hp, "outcome": outcome, "guaranteed_ko": post_hp == 0}
 
 
 def _sandstorm_has_order_dependency(state, row, event):

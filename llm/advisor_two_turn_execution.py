@@ -32,7 +32,7 @@ def execute_explicit_two_turn(
     first = _execute_turn(turn_snapshot=starting_turn_snapshot, plan=turn_one)
     if first.get("status") != "resolved":
         return _halt(first, "turn_one_transition")
-    first_eot = project_poison_end_of_turn(pre_end_of_turn=first)
+    first_eot = _project_bounded_eot(pre_end_of_turn=first)
     if first_eot.get("status") != "resolved":
         return _halt(first_eot, "turn_one_end_of_turn", turn_one=first)
     handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=first_eot)
@@ -53,7 +53,7 @@ def execute_explicit_two_turn(
     second = _execute_turn(turn_snapshot=second_snapshot, plan=turn_two)
     if second.get("status") != "resolved":
         return _halt(second, "turn_two_transition", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff)
-    second_eot = project_poison_end_of_turn(pre_end_of_turn=second)
+    second_eot = _project_bounded_eot(pre_end_of_turn=second)
     if second_eot.get("status") != "resolved":
         return _halt(second_eot, "turn_two_end_of_turn", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff, turn_two=second)
     return {
@@ -104,6 +104,16 @@ def _execute_turn(*, turn_snapshot: Mapping[str, Any], plan: Mapping[str, Any]) 
     if kind == "self_poison_then_direct":
         return project_self_poison_then_direct_branch(turn_snapshot=turn_snapshot, **common, second_direct_evaluation_input=plan.get("second_direct_evaluation_input"))
     return _result("unsupported", "turn_transition_not_in_slice")
+
+
+def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any]) -> dict[str, Any]:
+    """Choose one already-approved EOT family; never order multiple residuals."""
+    state = pre_end_of_turn.get("next_state") if isinstance(pre_end_of_turn, Mapping) else None
+    weather = state.get("branch_field_weather_context", {}).get("weather") if isinstance(state, Mapping) and isinstance(state.get("branch_field_weather_context"), Mapping) else None
+    if weather == "sandstorm":
+        from llm.advisor_sandstorm_end_of_turn import project_sandstorm_end_of_turn
+        return project_sandstorm_end_of_turn(pre_end_of_turn=pre_end_of_turn)
+    return project_poison_end_of_turn(pre_end_of_turn=pre_end_of_turn)
 
 
 def _manual_switch_source_matches_turn_snapshot(turn_snapshot: Mapping[str, Any], source_branch: Any) -> bool:

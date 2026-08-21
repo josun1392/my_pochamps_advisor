@@ -40,5 +40,5 @@ def test_supported_switch_entry_weather_reuses_field_seam_for_drought_sun_only()
     assert sun["status"] == "resolved"
     assert sun["next_state"]["branch_field_weather_context"]["weather"] == "sun"
     assert sun["next_state"]["current_state"]["field_state_context"]["current_field"]["weather"] == "sun"
-    rejected = apply_supported_switch_entry_weather(branch_state=projected["next_state"], source_fingerprint=projected["resulting_branch_fingerprint"], weather_result={"status": "complete", "outcome": "weather_set", "weather_before": "rain", "weather_after": "sandstorm"})
+    rejected = apply_supported_switch_entry_weather(branch_state=projected["next_state"], source_fingerprint=projected["resulting_branch_fingerprint"], weather_result={"status": "complete", "outcome": "weather_set", "weather_before": "rain", "weather_after": "snow"})
     assert rejected == {"status": "rejected", "reason": "invalid_switch_entry_weather_result"}
