@@ -16,7 +16,8 @@ from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_weather_event_target_order import validate_weather_event_target_order
 from llm.advisor_condition_event_target_order import validate_condition_event_target_order
 from llm.advisor_leftovers_end_of_turn import apply_owner_leftovers_end_of_turn
-from llm.advisor_leftovers_event_target_order import validate_leftovers_event_target_order
+from llm.advisor_black_sludge_end_of_turn import apply_owner_black_sludge_end_of_turn
+from llm.advisor_leftovers_event_target_order import validate_item_residual_target_order
 
 
 _ORDERING_PATH = Path(__file__).parents[1] / "data" / "static" / "detached_eot_ordering_v1.json"
@@ -57,11 +58,15 @@ def project_per_owner_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], owner: 
         if isinstance(tier_one.get("trace"), Mapping):
             trace.append({"sequence": 1, "tier": metadata["families"]["weather"]["tier"], "branch_fingerprint_consumed": source_fp, **tier_one["trace"]})
         tier_one_fp = fingerprint_transition_preview_state(state)
-        if not state["active"][side]["fainted"] and _item(state, side) == "leftovers":
-            leftovers = apply_owner_leftovers_end_of_turn(state=state, side=side, owner=owners[side], source_branch_fingerprint=tier_one_fp)
-            if leftovers.get("status") != "resolved":
-                return leftovers
-            trace.append({"sequence": len(trace) + 1, "tier": metadata["families"]["leftovers"]["tier"], "branch_fingerprint_consumed": tier_one_fp, **leftovers["trace"]})
+        if not state["active"][side]["fainted"]:
+            item = _item(state, side)
+            item_adapter = apply_owner_leftovers_end_of_turn if item == "leftovers" else apply_owner_black_sludge_end_of_turn if item == "black-sludge" else None
+            if item_adapter is not None:
+                item_result = item_adapter(state=state, side=side, owner=owners[side], source_branch_fingerprint=tier_one_fp)
+                if item_result.get("status") != "resolved":
+                    return item_result
+                family = "leftovers" if item == "leftovers" else "black_sludge"
+                trace.append({"sequence": len(trace) + 1, "tier": metadata["families"][family]["tier"], "branch_fingerprint_consumed": tier_one_fp, **item_result["trace"]})
         leftovers_fp = fingerprint_transition_preview_state(state)
         if not state["active"][side]["fainted"]:
             condition = apply_owner_condition_end_of_turn(
@@ -94,7 +99,7 @@ def project_cross_owner_weather_end_of_turn(*, pre_end_of_turn: Mapping[str, Any
         return weather_phase
     state = deepcopy(dict(weather_phase["next_state"]))
     trace = deepcopy(weather_phase["eot_consequence_trace"])
-    leftovers = _apply_leftovers_phase(state=state, projection=leftovers_event_target_order)
+    leftovers = _apply_item_residual_phase(state=state, projection=leftovers_event_target_order)
     if leftovers.get("status") != "resolved":
         return leftovers
     for row in leftovers["trace"]:
@@ -169,7 +174,7 @@ def project_cross_owner_leftovers_end_of_turn(*, pre_end_of_turn: Mapping[str, A
     if source_fp is None:
         return _result("rejected", "invalid_pre_end_of_turn_branch")
     state = deepcopy(dict(source))
-    leftovers = _apply_leftovers_phase(state=state, projection=leftovers_event_target_order)
+    leftovers = _apply_item_residual_phase(state=state, projection=leftovers_event_target_order)
     if leftovers.get("status") != "resolved":
         return leftovers
     condition = _apply_condition_phase(state=state, source_snapshot_fingerprint=pre_end_of_turn.get("source_snapshot_fingerprint"), projection=condition_event_target_order)
@@ -279,39 +284,43 @@ def _apply_condition_phase(*, state: dict[str, Any], source_snapshot_fingerprint
     return {"status": "resolved", "trace": trace, "ordering": {"condition_target_order": deepcopy(frozen) if frozen else "single_owner", "tier": 9}}
 
 
-def _apply_leftovers_phase(*, state: dict[str, Any], projection: Mapping[str, Any] | None) -> dict[str, Any]:
-    """Apply the canonical tier-five item event from a frozen target plan."""
+def _apply_item_residual_phase(*, state: dict[str, Any], projection: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Apply supported canonical tier-five item residuals from one frozen plan."""
     source_fp = fingerprint_transition_preview_state(state)
     owners = _owners(state)
     if source_fp is None or owners is None:
-        return _result("rejected", "invalid_pre_leftovers_branch")
+        return _result("rejected", "invalid_pre_item_residual_branch")
     material: list[dict[str, Any]] = []
     for side in ("self", "opponent"):
         item = _item(state, side)
         if item is _UNKNOWN:
-            return _result("incomplete", "leftovers_current_item_authority")
-        if item == "leftovers" and not state["active"][side]["fainted"]:
+            return _result("incomplete", "item_residual_current_item_authority")
+        if item in {"leftovers", "black-sludge"} and not state["active"][side]["fainted"]:
             material.append(deepcopy(owners[side]))
     if len(material) <= 1:
         plan, frozen = material, None
     else:
-        validated = validate_leftovers_event_target_order(branch_state=state, source_branch_fingerprint=source_fp, material_owners=material, projection=projection)
+        validated = validate_item_residual_target_order(branch_state=state, source_branch_fingerprint=source_fp, material_owners=material, projection=projection)
         if validated.get("status") != "resolved":
             return validated
-        frozen = validated["frozen_leftovers_event_plan"]
+        frozen = validated["frozen_item_residual_plan"]
         plan = frozen["ordered_active_owners"]
     trace: list[dict[str, Any]] = []
     for planned_owner in plan:
         side = _exact_owner_side(planned_owner, owners)
         if side is None:
-            return _result("rejected", "stale_or_foreign_leftovers_event_target")
+            return _result("rejected", "stale_or_foreign_item_residual_target")
         consumed = fingerprint_transition_preview_state(state)
         if consumed is None:
-            return _result("rejected", "invalid_leftovers_event_branch_generation")
+            return _result("rejected", "invalid_item_residual_branch_generation")
         if state["active"][side]["fainted"]:
-            trace.append({"tier": 5, "effect": "leftovers_event", "owner": deepcopy(planned_owner), "branch_fingerprint_consumed": consumed, "execution_status": "skipped", "reason": "fainted_before_leftovers_event"})
+            trace.append({"tier": 5, "effect": "item_residual_event", "owner": deepcopy(planned_owner), "branch_fingerprint_consumed": consumed, "execution_status": "skipped", "reason": "fainted_before_item_residual_event"})
             continue
-        result = apply_owner_leftovers_end_of_turn(state=state, side=side, owner=planned_owner, source_branch_fingerprint=consumed)
+        item = _item(state, side)
+        adapter = apply_owner_leftovers_end_of_turn if item == "leftovers" else apply_owner_black_sludge_end_of_turn if item == "black-sludge" else None
+        if adapter is None:
+            return _result("rejected", "unsupported_item_residual_owner")
+        result = adapter(state=state, side=side, owner=planned_owner, source_branch_fingerprint=consumed)
         if result.get("status") != "resolved":
             return result
         trace.append({"tier": 5, "branch_fingerprint_consumed": consumed, **result["trace"]})
@@ -329,7 +338,7 @@ def _ordering_metadata() -> dict[str, Any] | None:
         data = json.loads(_ORDERING_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    expected = {"weather": 1, "leftovers": 5, "poison": 9, "toxic": 9, "poison_heal_compound": 9}
+    expected = {"weather": 1, "leftovers": 5, "black_sludge": 5, "poison": 9, "toxic": 9, "poison_heal_compound": 9}
     families = data.get("families") if isinstance(data, Mapping) else None
     if data.get("schema_version") != "detached-eot-ordering-v1" or not isinstance(families, Mapping) or any(not isinstance(families.get(name), Mapping) or families[name].get("tier") != tier for name, tier in expected.items()):
         return None
