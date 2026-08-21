@@ -107,8 +107,12 @@ def _execute_turn(*, turn_snapshot: Mapping[str, Any], plan: Mapping[str, Any]) 
 
 
 def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any]) -> dict[str, Any]:
-    """Choose one already-approved EOT family; never order multiple residuals."""
+    """Dispatch a bounded EOT family or one exact-owner canonical composition."""
     state = pre_end_of_turn.get("next_state") if isinstance(pre_end_of_turn, Mapping) else None
+    owner = _single_material_eot_owner(state)
+    if owner is not None:
+        from llm.advisor_per_owner_eot import project_per_owner_end_of_turn
+        return project_per_owner_end_of_turn(pre_end_of_turn=pre_end_of_turn, owner=owner)
     weather = state.get("branch_field_weather_context", {}).get("weather") if isinstance(state, Mapping) and isinstance(state.get("branch_field_weather_context"), Mapping) else None
     if weather == "sandstorm":
         from llm.advisor_sandstorm_end_of_turn import project_sandstorm_end_of_turn
@@ -129,6 +133,40 @@ def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any]) -> dict[str, Any
         from llm.advisor_poison_heal_end_of_turn import project_poison_heal_end_of_turn
         return project_poison_heal_end_of_turn(pre_end_of_turn=pre_end_of_turn)
     return project_poison_end_of_turn(pre_end_of_turn=pre_end_of_turn)
+
+
+def _single_material_eot_owner(state: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """Return one owner only when no omitted owner needs an EOT ordering decision."""
+    if not isinstance(state, Mapping):
+        return None
+    active = state.get("active")
+    current = state.get("current_state")
+    abilities = current.get("ability_context", {}).get("current_abilities") if isinstance(current, Mapping) else None
+    conditions = current.get("condition_context", {}).get("current_conditions") if isinstance(current, Mapping) else None
+    weather = state.get("branch_field_weather_context", {}).get("weather") if isinstance(state.get("branch_field_weather_context"), Mapping) else None
+    predicted = state.get("predicted_condition_context")
+    if not isinstance(active, Mapping) or not isinstance(abilities, list) or not isinstance(conditions, list):
+        return None
+    material: dict[str, tuple[bool, bool]] = {}
+    for side in ("self", "opponent"):
+        ability = next((row.get("ability") for row in abilities if isinstance(row, Mapping) and row.get("side") == side), None)
+        condition = next((row.get("condition_type") for row in conditions if isinstance(row, Mapping) and row.get("side") == side), None)
+        if isinstance(predicted, Mapping) and predicted.get("owner", {}).get("side") == side:
+            condition = predicted.get("condition_type")
+        weather_effect = (weather == "sandstorm" or (weather, ability) in {("snow", "ice-body"), ("rain", "rain-dish"), ("rain", "dry-skin"), ("sun", "solar-power")})
+        condition_effect = condition in {"poison", "toxic"}
+        if weather_effect or condition_effect:
+            material[side] = (weather_effect, condition_effect)
+    if len(material) != 1:
+        return None
+    side, phases = next(iter(material.items()))
+    if phases != (True, True):
+        return None
+    row = active.get(side)
+    if not isinstance(row, Mapping):
+        return None
+    owner = {key: row.get(key) for key in ("session_id", "side", "slot_index", "pokemon_id")}
+    return owner if isinstance(owner["session_id"], str) and isinstance(owner["slot_index"], int) and not isinstance(owner["slot_index"], bool) and isinstance(owner["pokemon_id"], str) else None
 
 
 def _weather_has_active_ability(state: Mapping[str, Any], ability: str) -> bool:

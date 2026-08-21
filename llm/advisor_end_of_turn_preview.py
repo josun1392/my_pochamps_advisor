@@ -19,52 +19,65 @@ def project_poison_end_of_turn(*, pre_end_of_turn: Mapping[str, Any]) -> dict[st
     state = deepcopy(dict(source))
     trace: list[dict[str, Any]] = []
     for side in ("self", "opponent"):
-        active = _active(state, side)
-        if active is None:
-            return _result("rejected", "invalid_active_owner")
-        if active["fainted"]:
-            continue
-        condition = _condition(state, side, pre_end_of_turn.get("source_snapshot_fingerprint"), source_fp)
-        if isinstance(condition, dict):
-            return _result(condition["status"], condition["reason"])
-        if condition == "none":
-            continue
-        if condition == "toxic":
-            toxic = _toxic_lifecycle(state, side, pre_end_of_turn.get("source_snapshot_fingerprint"))
-            if isinstance(toxic, dict) and toxic.get("status"):
-                return toxic
-            stage = toxic
-        elif condition == "poison":
-            stage = None
-        else:
-            continue
-        ability = _ability(state, side)
-        if ability is None:
-            return _result("incomplete", f"{side}.ability")
-        hp, maximum = active["current_hp"], active["max_hp"]
-        if ability == "poison-heal":
-            recovery = maximum // 8 if hp < maximum else 0
-            post = min(maximum, hp + recovery)
-            active["current_hp"] = post
-            _sync_hp(state, side, post, maximum)
-            row = {"sequence": len(trace) + 1, "effect": "poison_heal_recovery", "side": side, "owner": _owner(active), "condition": condition, "pre_hp": hp, "recovery": recovery, "post_hp": post, "execution_status": "executed", "reason": "canonical_poison_heal_replacement"}
-            if stage is not None:
-                lifecycle = state["predicted_toxic_lifecycle"]
-                lifecycle["current_stage"] = min(stage + 1, 15)
-                row.update(toxic_stage=stage, resulting_toxic_stage=lifecycle["current_stage"], lifecycle_provenance=lifecycle["provenance"])
-            trace.append(row)
-            continue
-        damage = 0 if ability == "magic-guard" else residual_damage_amount(ResidualSpec(condition, maximum), stage or 1)
-        post = max(0, hp - damage)
-        active["current_hp"], active["fainted"] = post, post == 0
+        outcome = apply_owner_condition_end_of_turn(
+            state=state,
+            side=side,
+            source_snapshot_fingerprint=pre_end_of_turn.get("source_snapshot_fingerprint"),
+            source_branch_fingerprint=source_fp,
+        )
+        if outcome.get("status") != "resolved":
+            return _result(outcome["status"], outcome["reason"])
+        if isinstance(outcome.get("trace"), Mapping):
+            trace.append({"sequence": len(trace) + 1, **outcome["trace"]})
+    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": source_fp, "resulting_branch_fingerprint": fingerprint_transition_preview_state(state), "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "limitations": ["poison_and_predicted_toxic_residual_only", "no_reducer_or_runtime_writeback"]}
+
+
+def apply_owner_condition_end_of_turn(*, state: dict[str, Any], side: str, source_snapshot_fingerprint: Any, source_branch_fingerprint: str) -> dict[str, Any]:
+    """Mutate one exact owner with the canonical poison/Toxic compound core."""
+    active = _active(state, side)
+    if active is None:
+        return _result("rejected", "invalid_active_owner")
+    if active["fainted"]:
+        return {"status": "resolved", "trace": None}
+    condition = _condition(state, side, source_snapshot_fingerprint, source_branch_fingerprint)
+    if isinstance(condition, dict):
+        return condition
+    if condition == "none":
+        return {"status": "resolved", "trace": None}
+    if condition == "toxic":
+        toxic = _toxic_lifecycle(state, side, source_snapshot_fingerprint)
+        if isinstance(toxic, dict) and toxic.get("status"):
+            return toxic
+        stage = toxic
+    elif condition == "poison":
+        stage = None
+    else:
+        return {"status": "resolved", "trace": None}
+    ability = _ability(state, side)
+    if ability is None:
+        return _result("incomplete", f"{side}.ability")
+    hp, maximum = active["current_hp"], active["max_hp"]
+    if ability == "poison-heal":
+        recovery = maximum // 8 if hp < maximum else 0
+        post = min(maximum, hp + recovery)
+        active["current_hp"] = post
         _sync_hp(state, side, post, maximum)
-        row = {"sequence": len(trace) + 1, "effect": f"{condition}_residual", "side": side, "owner": _owner(active), "condition": condition, "pre_hp": hp, "damage": damage, "post_hp": post, "execution_status": "prevented" if ability == "magic-guard" else "executed", "reason": "magic_guard" if ability == "magic-guard" else f"canonical_{condition}_residual"}
+        row: dict[str, Any] = {"effect": "poison_heal_recovery", "side": side, "owner": _owner(active), "condition": condition, "pre_hp": hp, "recovery": recovery, "post_hp": post, "execution_status": "executed", "reason": "canonical_poison_heal_replacement"}
         if stage is not None:
             lifecycle = state["predicted_toxic_lifecycle"]
             lifecycle["current_stage"] = min(stage + 1, 15)
             row.update(toxic_stage=stage, resulting_toxic_stage=lifecycle["current_stage"], lifecycle_provenance=lifecycle["provenance"])
-        trace.append(row)
-    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": source_fp, "resulting_branch_fingerprint": fingerprint_transition_preview_state(state), "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "limitations": ["poison_and_predicted_toxic_residual_only", "no_reducer_or_runtime_writeback"]}
+        return {"status": "resolved", "trace": row}
+    damage = 0 if ability == "magic-guard" else residual_damage_amount(ResidualSpec(condition, maximum), stage or 1)
+    post = max(0, hp - damage)
+    active["current_hp"], active["fainted"] = post, post == 0
+    _sync_hp(state, side, post, maximum)
+    row = {"effect": f"{condition}_residual", "side": side, "owner": _owner(active), "condition": condition, "pre_hp": hp, "damage": damage, "post_hp": post, "execution_status": "prevented" if ability == "magic-guard" else "executed", "reason": "magic_guard" if ability == "magic-guard" else f"canonical_{condition}_residual"}
+    if stage is not None:
+        lifecycle = state["predicted_toxic_lifecycle"]
+        lifecycle["current_stage"] = min(stage + 1, 15)
+        row.update(toxic_stage=stage, resulting_toxic_stage=lifecycle["current_stage"], lifecycle_provenance=lifecycle["provenance"])
+    return {"status": "resolved", "trace": row}
 
 
 def _condition(state: Mapping[str, Any], side: str, source_snapshot_fp: Any, source_fp: str) -> str | dict[str, str]:
