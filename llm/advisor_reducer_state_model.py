@@ -9,6 +9,7 @@ from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority
 from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority
 from llm.advisor_battle_state_context import normalize_current_type_authority, normalize_user_confirmed_current_ability
+from llm.advisor_ice_body_recovery_core import evaluate_ice_body_recovery
 from llm.advisor_sandstorm_residual_core import evaluate_sandstorm_residual
 
 STATE_MODEL_VERSION = "battle-state-v1"
@@ -843,13 +844,6 @@ def _apply_ice_body_end_of_turn(state, event):
         if any(not _trusted_current_ability(active["pokemon"]) for active in rows):
             results.append(base | {"status": "incomplete", "reason": "current_ability_unknown"})
             continue
-        ability_values = {active["pokemon"]["current_ability"] for active in rows}
-        if "neutralizing-gas" in ability_values:
-            results.append(base | {"status": "complete", "outcome": "suppressed_by_neutralizing_gas"})
-            continue
-        if ability_values & {"cloud-nine", "air-lock"}:
-            results.append(base | {"status": "complete", "outcome": "suppressed_by_weather_ability"})
-            continue
         if _ice_body_has_order_dependency(state, row, event):
             results.append(base | {"status": "incomplete", "reason": "same_owner_end_of_turn_order_unknown"})
             continue
@@ -857,11 +851,14 @@ def _apply_ice_body_end_of_turn(state, event):
         if not _exact(hp) or not _exact(maximum) or maximum < 1 or hp > maximum:
             results.append(base | {"status": "incomplete", "reason": "hp_unknown"})
             continue
-        recovery = maximum // 16 if hp < maximum else 0
-        post_hp = min(maximum, hp + recovery)
-        results.append(base | {"status": "complete", "pre_hp": hp, "max_hp": maximum, "recovery": recovery, "post_hp": post_hp, "outcome": "recovered" if recovery else "already_full_hp"})
-        if post_hp != hp:
-            pokemon["current_hp"] = post_hp
+        abilities = {active["side"]: active["pokemon"]["current_ability"] for active in rows}
+        recovery = evaluate_ice_body_recovery(active_abilities=abilities, target_side=row["side"], current_hp=hp, maximum_hp=maximum)
+        if recovery.get("status") != "complete":
+            results.append(base | {"status": "incomplete", "reason": "canonical_ice_body_authority"})
+            continue
+        results.append(base | recovery)
+        if "post_hp" in recovery and recovery["post_hp"] != hp:
+            pokemon["current_hp"] = recovery["post_hp"]
             _mark(pokemon, "current_hp", event)
 
 
