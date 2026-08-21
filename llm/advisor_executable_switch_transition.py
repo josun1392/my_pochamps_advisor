@@ -89,7 +89,7 @@ def execute_manual_switch_then_direct(
         return _result("incomplete", "weather_entry_authority")
     if weather.get("outcome") in {"weather_set", "weather_already_active"}:
         weather_after = weather.get("weather_after")
-        ability = {"rain": "drizzle", "sun": "drought", "sandstorm": "sand-stream"}.get(weather_after)
+        ability = {"rain": "drizzle", "sun": "drought", "sandstorm": "sand-stream", "snow": "snow-warning"}.get(weather_after)
         if ability is None or not _materialized_self_has_ability(state, ability):
             return _result("unsupported", "weather_entry_outcome")
         field_state = post.get("side_shared_authority", {}).get("field_state_context") if isinstance(post.get("side_shared_authority"), Mapping) else None

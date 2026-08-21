@@ -226,6 +226,68 @@ def test_sand_stream_weather_reaches_detached_sandstorm_eot_and_turn_two_handoff
     assert handoff["next_state"]["branch_field_weather_context"]["weather"] == "sandstorm"
 
 
+def test_snow_warning_replaces_known_sandstorm_without_hail_residual_and_turn_two_keeps_snow():
+    from llm.advisor_end_of_turn_preview import project_poison_end_of_turn
+    from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
+    from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
+
+    branch = _branch(); before = deepcopy(branch); source = fingerprint_transition_preview_state(branch)
+    result = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="snow-warning", weather="sandstorm"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="snow-warning"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert result["status"] == "resolved", result
+    state = result["next_state"]
+    assert branch == before
+    assert state["branch_field_weather_context"]["weather"] == "snow"
+    assert state["current_state"]["field_state_context"]["current_field"]["weather"] == "snow"
+    assert any(row["event"] == "switch_entry_snow_warning" and row["weather_before"] == "sandstorm" and row["weather_after"] == "snow" for row in result["consequence_trace"])
+    before_eot_hp = state["active"]["self"]["current_hp"]
+    eot = project_poison_end_of_turn(pre_end_of_turn=result)
+    assert eot["status"] == "resolved" and eot["next_state"]["active"]["self"]["current_hp"] == before_eot_hp
+    handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=eot)
+    assert handoff["status"] == "resolved"
+    assert handoff["next_state"]["active"]["self"]["pokemon_id"] == "incoming"
+    assert handoff["next_state"]["branch_field_weather_context"]["weather"] == "snow"
+
+    physical = {"owner": _owner("self", 1, "incoming"), "move": {"move_id": "tackle", "slot_index": 1, "priority": 0, "category": "physical"}}
+    stats = {"hp": 100, "attack": 100, "defense": 100, "special-attack": 100, "special-defense": 100, "speed": 100}
+    descriptor = {"source_snapshot_fingerprint": source, "owner": physical["owner"], "move_metadata": {**physical["move"], "power": 40, "type": "normal"}, "stat_provenance": {"attacker": {"pokemon_identity": "incoming", "types": {"available": True, "value": ["normal"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}, "defender": {"pokemon_identity": "opponent", "types": {"available": True, "value": ["ice"]}, "final_stats": {"available": True, "value": stats}, "known_item": {"status": "known_absent"}}}, "trusted_level": 50}
+    snow_state = deepcopy(handoff["next_state"]); snow_state["current_state"].pop("ability_context")
+    snowy = evaluate_hypothetical_direct_mechanics(branch_state=snow_state, source_snapshot_fingerprint=source, action=physical, expected_owner=physical["owner"], direct_evaluation_input=descriptor)
+    neutral_state = deepcopy(snow_state); neutral_state["current_state"]["field_state_context"]["current_field"]["weather"] = "none"
+    neutral = evaluate_hypothetical_direct_mechanics(branch_state=neutral_state, source_snapshot_fingerprint=source, action=physical, expected_owner=physical["owner"], direct_evaluation_input=descriptor)
+    assert snowy["status"] == neutral["status"] == "known"
+    assert snowy["mechanics_result"]["damage_range"]["maximum"] < neutral["mechanics_result"]["damage_range"]["maximum"]
+
+
+def test_snow_warning_unknown_weather_mismatched_authority_and_entry_ko_fail_closed():
+    branch = _branch(); source = fingerprint_transition_preview_state(branch)
+    unknown = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="snow-warning", weather="unknown"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="snow-warning"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert unknown == {"status": "incomplete", "reason": "switch_entry_authority"}
+    mismatched = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(rock="absent", spikes=0, ability="snow-warning", weather="none"),
+        switch_candidate=_candidate(), incoming_authority=_incoming(ability="drought"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert mismatched == {"status": "unsupported", "reason": "weather_entry_outcome"}
+    ko = execute_manual_switch_then_direct(
+        source_branch=branch, source_branch_fingerprint=source,
+        switch_snapshot=_snapshot(ability="snow-warning", weather="none"), switch_candidate=_candidate(), incoming_authority=_incoming(hp=1, ability="snow-warning"),
+        opponent_action=_opponent(), opponent_direct_evaluation_input=_descriptor(source),
+    )
+    assert ko["reason"] == "replacement_required_after_entry_hazard_ko"
+    assert "branch_field_weather_context" not in ko["next_state"]
+
+
 def test_intimidate_mutates_only_exact_opponent_attack_stage_before_fresh_direct():
     from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
     from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority

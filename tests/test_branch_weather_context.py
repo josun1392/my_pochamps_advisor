@@ -40,5 +40,14 @@ def test_supported_switch_entry_weather_reuses_field_seam_for_drought_sun_only()
     assert sun["status"] == "resolved"
     assert sun["next_state"]["branch_field_weather_context"]["weather"] == "sun"
     assert sun["next_state"]["current_state"]["field_state_context"]["current_field"]["weather"] == "sun"
-    rejected = apply_supported_switch_entry_weather(branch_state=projected["next_state"], source_fingerprint=projected["resulting_branch_fingerprint"], weather_result={"status": "complete", "outcome": "weather_set", "weather_before": "rain", "weather_after": "snow"})
+    rejected = apply_supported_switch_entry_weather(branch_state=projected["next_state"], source_fingerprint=projected["resulting_branch_fingerprint"], weather_result={"status": "complete", "outcome": "weather_set", "weather_before": "rain", "weather_after": "hail"})
     assert rejected == {"status": "rejected", "reason": "invalid_switch_entry_weather_result"}
+
+
+def test_supported_switch_entry_weather_reuses_same_field_seam_for_snow():
+    branch = _branch(); source = fingerprint_transition_preview_state(branch)
+    projected = project_field_weather(branch_state=branch, source_fingerprint=source, frozen_field_state={"current_field": {"weather": "sandstorm", "side_effects": []}})
+    snow = apply_supported_switch_entry_weather(branch_state=projected["next_state"], source_fingerprint=projected["resulting_branch_fingerprint"], weather_result={"status": "complete", "outcome": "weather_set", "weather_before": "sandstorm", "weather_after": "snow"})
+    assert snow["status"] == "resolved"
+    assert snow["next_state"]["branch_field_weather_context"]["weather"] == "snow"
+    assert snow["next_state"]["current_state"]["field_state_context"]["current_field"]["weather"] == "snow"
