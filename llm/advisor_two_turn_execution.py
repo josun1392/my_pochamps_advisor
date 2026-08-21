@@ -119,6 +119,9 @@ def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any]) -> dict[str, Any
     if weather == "rain" and _weather_has_active_ability(state, "rain-dish"):
         from llm.advisor_rain_dish_end_of_turn import project_rain_dish_end_of_turn
         return project_rain_dish_end_of_turn(pre_end_of_turn=pre_end_of_turn)
+    if weather == "rain" and _weather_has_active_ability(state, "dry-skin"):
+        from llm.advisor_dry_skin_end_of_turn import project_dry_skin_end_of_turn
+        return project_dry_skin_end_of_turn(pre_end_of_turn=pre_end_of_turn)
     return project_poison_end_of_turn(pre_end_of_turn=pre_end_of_turn)
 
 

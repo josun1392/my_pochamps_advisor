@@ -994,11 +994,15 @@ def _apply_dry_skin_end_of_turn(state, event):
         hp, maximum = pokemon.get("current_hp"), pokemon.get("max_hp")
         if not _exact(hp) or not _exact(maximum) or maximum < 1 or hp > maximum:
             results.append(base | {"status": "incomplete", "reason": "hp_unknown"}); continue
-        amount = maximum // 8
         if weather == "rain":
-            recovery = amount if hp < maximum else 0; post_hp = min(maximum, hp + recovery)
-            result = base | {"status": "complete", "pre_hp": hp, "max_hp": maximum, "recovery": recovery, "post_hp": post_hp, "outcome": "recovered" if recovery else "already_full_hp", "guaranteed_ko": False}
+            ability_by_side = {active["side"]: active["pokemon"]["current_ability"] for active in rows}
+            recovery_result = evaluate_weather_recovery(active_abilities=ability_by_side, target_side=row["side"], required_ability="dry-skin", current_hp=hp, maximum_hp=maximum)
+            if recovery_result.get("status") != "complete":
+                results.append(base | {"status": "incomplete", "reason": "canonical_dry_skin_authority"}); continue
+            post_hp = recovery_result.get("post_hp", hp)
+            result = base | recovery_result | ({"guaranteed_ko": False} if "post_hp" in recovery_result else {})
         else:
+            amount = maximum // 8
             post_hp = max(0, hp - amount)
             result = base | {"status": "complete", "pre_hp": hp, "max_hp": maximum, "damage": amount, "post_hp": post_hp, "outcome": "damaged", "guaranteed_ko": post_hp == 0}
         results.append(result)

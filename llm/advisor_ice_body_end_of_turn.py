@@ -28,7 +28,7 @@ def _project_weather_recovery_end_of_turn(*, pre_end_of_turn: Mapping[str, Any],
         return _result("rejected", "invalid_active_owner")
     if not _field_weather_authority(state, source_fp, owners["self"]["session_id"], weather):
         return _result("rejected", f"stale_or_invalid_branch_{weather}_authority")
-    if _requires_residual_ordering(state):
+    if _requires_residual_ordering(state, ability):
         return _result("incomplete", f"{label}_residual_ordering_unresolved")
     abilities = {side: _ability(state, side) for side in ("self", "opponent")}
     if any(value is None for value in abilities.values()):
@@ -72,7 +72,7 @@ def _field_weather_authority(state: Mapping[str, Any], source_fp: str, session: 
     return isinstance(context, Mapping) and set(context) == required and context.get("schema_version") == "detached-field-weather-v1" and context.get("session_id") == session and context.get("scope") == "battle_field" and isinstance(context.get("source_branch_fingerprint"), str) and bool(context["source_branch_fingerprint"]) and context.get("provenance") == "frozen_field_state_context" and context.get("weather") == weather and isinstance(field, Mapping) and field.get("weather") == weather and source_fp == fingerprint_transition_preview_state(state)
 
 
-def _requires_residual_ordering(state: Mapping[str, Any]) -> bool:
+def _requires_residual_ordering(state: Mapping[str, Any], required_ability: str) -> bool:
     predicted = state.get("predicted_condition_context")
     if isinstance(predicted, Mapping) and predicted.get("condition_type") in {"poison", "toxic"}:
         return True
@@ -81,7 +81,10 @@ def _requires_residual_ordering(state: Mapping[str, Any]) -> bool:
     if isinstance(rows, list) and any(isinstance(row, Mapping) and row.get("condition_type") in {"poison", "toxic"} for row in rows):
         return True
     sandstorm = state.get("sandstorm_end_of_turn_context")
-    return isinstance(sandstorm, list) and bool(sandstorm)
+    if isinstance(sandstorm, list) and bool(sandstorm):
+        return True
+    abilities = {side: _ability(state, side) for side in ("self", "opponent")}
+    return any(value in {"rain-dish", "dry-skin"} and value != required_ability for value in abilities.values())
 
 
 def _ability(state: Mapping[str, Any], side: str) -> str | None:
