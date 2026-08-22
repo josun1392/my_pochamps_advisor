@@ -6,6 +6,7 @@ from llm.advisor_bind_residual import bind_state
 from llm.advisor_ice_body_end_of_turn import _owners
 from llm.advisor_shadow_tag_switch_block import finalize_switch_candidates
 from llm.advisor_switch_permission import normalize_switch_permission_context
+from llm.advisor_sandstorm_end_of_turn import _UNKNOWN, _item, _types
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 
 def derive_bind_manual_switch_block(*, branch_state: Mapping[str, Any], source_branch_fingerprint: str, owner: Mapping[str, Any]) -> dict[str, Any]:
@@ -17,6 +18,12 @@ def derive_bind_manual_switch_block(*, branch_state: Mapping[str, Any], source_b
     # `partiallytrapped.onTrapPokemon` calls tryTrap only while the exact source remains active.
     source = state["source_owner"]
     if owners.get(source["side"]) != source or branch_state["active"][source["side"]].get("fainted"): return _resolved(owner, source_branch_fingerprint, "known_inactive", "not_established")
+    types = _types(branch_state, "self")
+    if types is None: return _result("incomplete", "bind_switch_current_type_authority")
+    if "ghost" in types: return _resolved(owner, source_branch_fingerprint, "known_active", "exception_applies")
+    item = _item(branch_state, "self")
+    if item is _UNKNOWN: return _result("incomplete", "bind_switch_current_item_authority")
+    if item == "shed-shell": return _resolved(owner, source_branch_fingerprint, "known_active", "exception_applies")
     return _resolved(owner, source_branch_fingerprint, "known_active", "confirmed_blocked")
 
 def finalize_bind_manual_switch_candidates(*, base_candidates: Sequence[Mapping[str, Any]], manual_permission: Mapping[str, Any], branch_state: Mapping[str, Any], source_branch_fingerprint: str, owner: Mapping[str, Any]) -> dict[str, Any]:
