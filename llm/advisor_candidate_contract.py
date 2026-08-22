@@ -1811,9 +1811,11 @@ def _ui_known_limitations(battle_input: Mapping[str, Any]) -> list[str]:
     return list(dict.fromkeys([*values, *_UI_RECOMMENDATION_LIMITATION_GUARDRAILS]))
 
 
-def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_input: Mapping[str, Any], move_repository: Any, species_repository: Any = None, observation_snapshot: Mapping[str, Any] | None = None, trusted_turn_context: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_input: Mapping[str, Any], move_repository: Any, species_repository: Any = None, observation_snapshot: Mapping[str, Any] | None = None, trusted_turn_context: Mapping[str, Any] | None = None, runtime_selection_capture: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Prepare an offline recommendation cycle from UI-shaped, trusted inputs."""
     try:
+        if runtime_selection_capture is not None and not _runtime_selection_capture_matches_battle_input(runtime_selection_capture, battle_input):
+            raise ValueError("runtime_selection_capture_battle_input_mismatch")
         moves = adapt_ui_move_slots(selected_moves=selected_moves)
         request_turn_snapshot = build_request_start_recommendation_snapshot(
             battle_input, selectable_moves=moves, observation_snapshot=observation_snapshot, trusted_turn_context=trusted_turn_context
@@ -1849,7 +1851,35 @@ def prepare_ui_recommendation_cycle(*, selected_moves: Sequence[Any], battle_inp
             pair_set=pair_set, self_candidates=prepared["candidates"],
         )
         prepared["recommendation_request"] = build_recommendation_request(evidence_bundle=prepared["evidence_bundle"])
+        if runtime_selection_capture is not None:
+            # This private handoff is created with the structured selection
+            # cycle, never inferred later by a UI consumer.  The detached
+            # strategy producer validates it against the frozen turn snapshot
+            # and the exact runtime D0 before it can become selection authority.
+            prepared["_runtime_d0_selection_capture"] = deepcopy(dict(runtime_selection_capture))
     return prepared
+
+
+def _runtime_selection_capture_matches_battle_input(capture: Mapping[str, Any], battle_input: Mapping[str, Any]) -> bool:
+    """Check the capture token against the same structured selection input.
+
+    The token is later checked again against the runtime D0.  This local check
+    prevents a caller from creating a prepared cycle for one active UI input
+    and attaching a capture from another active identity before the producer
+    has a chance to freeze it.
+    """
+    if not isinstance(capture, Mapping) or not isinstance(battle_input, Mapping):
+        return False
+    owner = capture.get("active_owner")
+    pokemon = battle_input.get("pokemon")
+    active = pokemon.get("my_active") if isinstance(pokemon, Mapping) else None
+    return (
+        capture.get("schema_version") == "runtime-d0-selection-capture-v1"
+        and isinstance(owner, Mapping) and capture.get("decision_owner") == owner
+        and owner.get("side") == "self" and capture.get("session_id") == battle_input.get("current_state_session_id")
+        and owner.get("slot_index") == active.get("slot_index") and owner.get("pokemon_id") == active.get("name_en")
+        if isinstance(active, Mapping) else False
+    )
 
 
 _PROVIDER_OUTBOUND_KEYS = (
@@ -1865,7 +1895,7 @@ _MECHANICS_ACK_PROVIDER_RESPONSE_KEYS = (*_GROUNDED_PROVIDER_RESPONSE_KEYS, "mec
 _RANKING_ACK_PROVIDER_RESPONSE_KEYS = (*_MECHANICS_ACK_PROVIDER_RESPONSE_KEYS, "ranking_acknowledgements")
 _MULTI_PROVIDER_RESPONSE_KEYS = ("recommendation_status", "selected_candidate_id", "explanation_code")
 _PROVIDER_RESPONSE_STATUSES = frozenset({"resolved", "insufficient_context", "no_usable_candidate"})
-_PREPARED_CYCLE_KEYS = frozenset({"status", "candidates", "evidence_bundle", "recommendation_request", "recommendation_result", "errors", "_combined_action_turn_snapshot"})
+_PREPARED_CYCLE_KEYS = frozenset({"status", "candidates", "evidence_bundle", "recommendation_request", "recommendation_result", "errors", "_combined_action_turn_snapshot", "_runtime_d0_selection_capture"})
 
 
 def _provider_adapter_failure(status: str, code: str) -> dict[str, Any]:
