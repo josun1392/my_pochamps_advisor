@@ -3,10 +3,16 @@ from copy import deepcopy
 
 from llm.advisor_forced_switch_execution import execute_allowed_forced_switch
 from llm.advisor_forced_switch_replacement import materialize_forced_switch_replacement_authority
-from llm.advisor_forced_switch_request import decide_forced_switch_cancellation
+from llm.advisor_forced_switch_request import decide_forced_switch_cancellation, materialize_forced_switch_request
+from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
 from llm.advisor_observed_damage_plus_phazing import materialize_observed_damage_plus_phazing_result
+from llm.advisor_per_owner_eot import project_per_owner_end_of_turn
+from llm.advisor_successful_action_effect import apply_successful_ingrain
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from tests.test_forced_switch_execution import _observed, _owner, _state
+from tests.test_ingrain_activation import _effect
+from tests.test_ingrain_detached_eot import _ingrain
+from tests.test_leftovers_end_of_turn import _pre
 
 
 def _result(state, *, move_id="dragon-tail", user_side="opponent", target_side="self", damage=20, drag_out="drag_out_requested", **changes):
@@ -82,6 +88,36 @@ def test_terminal_damage_suppresses_drag_out_and_rejects_stale_replay():
     assert _materialize(state, _result(state, damage=90, drag_out="drag_out_requested")) == {"status": "rejected", "reason": "drag_out_after_terminal_damage"}
 
 
+def test_both_moves_suppress_drag_out_after_a_ko_on_either_target_side():
+    for move_id, user_side, target_side, damage in (
+        ("dragon-tail", "opponent", "self", 90),
+        ("circle-throw", "self", "opponent", 100),
+    ):
+        state, _ = _state()
+        result = _materialize(state, _result(state, move_id=move_id, user_side=user_side, target_side=target_side, damage=damage, drag_out="not_applied"))
+        assert result["status"] == "resolved" and result["damage_application"]["target_fainted"] is True
+        assert "forced_switch_request" not in result
+
+
+def test_compound_f0_evidence_and_f1_request_are_stale_after_eot_and_handoff():
+    pre = _pre(self_hp=50, self_item=None, self_condition="none")
+    _ingrain(pre["next_state"], self_state="unknown")
+    applied = apply_successful_ingrain(branch_state=pre["next_state"], source_branch_fingerprint=fingerprint_transition_preview_state(pre["next_state"]), action_effect=_effect(pre["next_state"]))
+    state = applied["next_state"]
+    observation = _result(state)
+    compound = _materialize(state, observation)
+    request = compound["forced_switch_request"]
+    eot = project_per_owner_end_of_turn(pre_end_of_turn={"status": "resolved", "next_state": compound["next_state"], "boundary": {"phase": "pre_end_of_turn"}}, owner=_owner(compound["next_state"], "self"))
+    eot_state, eot_fp = eot["next_state"], eot["resulting_branch_fingerprint"]
+    assert materialize_observed_damage_plus_phazing_result(branch_state=eot_state, source_branch_fingerprint=eot_fp, observed_result=observation)["status"] == "rejected"
+    assert materialize_forced_switch_request(branch_state=eot_state, source_branch_fingerprint=eot_fp, observed_request=request)["status"] == "rejected"
+    turn_two = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=eot)["next_state"]
+    turn_two_fp = fingerprint_transition_preview_state(turn_two)
+    assert materialize_observed_damage_plus_phazing_result(branch_state=turn_two, source_branch_fingerprint=turn_two_fp, observed_result=observation)["status"] == "rejected"
+    assert materialize_forced_switch_request(branch_state=turn_two, source_branch_fingerprint=turn_two_fp, observed_request=request)["status"] == "rejected"
+    assert _materialize(turn_two)["status"] == "resolved"
+
+
 def test_only_exact_supported_applied_damage_plus_phazing_results_materialize():
     state, _ = _state(); base = _result(state)
     cases = [
@@ -92,3 +128,11 @@ def test_only_exact_supported_applied_damage_plus_phazing_results_materialize():
     cases.extend({**base, "damaging_hit_result": status} for status in ("failed", "blocked", "unresolved"))
     for candidate in cases:
         assert _materialize(state, candidate) == {"status": "rejected", "reason": "invalid_observed_damage_plus_phazing_result"}
+
+
+def test_missing_or_malformed_target_hp_authority_fails_closed_without_damage():
+    for field, value in (("current_hp", None), ("max_hp", None), ("current_hp", True)):
+        state, _ = _state()
+        state["active"]["self"][field] = value
+        result = _materialize(state)
+        assert result == {"status": "rejected", "reason": "invalid_observed_damage_plus_phazing_result"}

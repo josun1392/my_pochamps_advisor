@@ -111,6 +111,7 @@ def _valid_observation(value: Any, fingerprint: str, active: Mapping[str, Any]) 
         and value.get("session_id") == user["session_id"] == target["session_id"]
         and user["side"] != target["side"]
         and _current_owner(active, user) and _current_owner(active, target)
+        and _active_hp_is_exact(active[target["side"]])
         and active[user["side"]].get("fainted") is False and active[target["side"]].get("fainted") is False
     )
 
@@ -128,6 +129,15 @@ def _exact_owner(value: Any) -> bool:
 def _current_owner(active: Mapping[str, Any], owner: Mapping[str, Any]) -> bool:
     current = active.get(owner["side"])
     return isinstance(current, Mapping) and dict(owner) == {key: current.get(key) for key in _OWNER_KEYS}
+
+
+def _active_hp_is_exact(active: Mapping[str, Any]) -> bool:
+    hp, maximum = active.get("current_hp"), active.get("max_hp")
+    return (
+        isinstance(hp, int) and not isinstance(hp, bool)
+        and isinstance(maximum, int) and not isinstance(maximum, bool)
+        and maximum > 0 and 0 < hp <= maximum
+    )
 
 
 def _sync_hp(state: Mapping[str, Any], side: str, hp: int, maximum: int) -> None:
