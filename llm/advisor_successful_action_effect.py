@@ -1,4 +1,4 @@
-"""Narrow detached successful-action authority for Aqua Ring only."""
+"""Narrow detached successful-action authority for approved self-volatiles."""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -8,11 +8,28 @@ from llm.advisor_transition_preview import fingerprint_transition_preview_state
 
 
 _OWNERSHIP_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
-_PROVENANCE = "trusted_deterministic_aqua_ring_application"
 _REQUIRED_ACTION_EFFECT_KEYS = frozenset({
     "schema_version", "session_id", "source_branch_fingerprint", "user",
     "move_id", "target", "applied_effect", "execution_status", "provenance",
 })
+_EFFECTS = {
+    "aqua_ring": {
+        "move_id": "aqua-ring",
+        "applied_effect": "aqua_ring_persistent_self_volatile",
+        "action_provenance": "trusted_deterministic_aqua_ring_application",
+        "context_key": "aqua_ring_persistent_effect_context",
+        "context_schema": "detached-aqua-ring-persistent-effect-v1",
+        "context_provenance": "trusted_aqua_ring_persistent_effect_state",
+    },
+    "ingrain": {
+        "move_id": "ingrain",
+        "applied_effect": "ingrain_persistent_self_volatile",
+        "action_provenance": "trusted_deterministic_ingrain_application",
+        "context_key": "ingrain_persistent_effect_context",
+        "context_schema": "detached-ingrain-persistent-effect-v1",
+        "context_provenance": "trusted_ingrain_persistent_effect_state",
+    },
+}
 
 
 def apply_successful_aqua_ring(*, branch_state: Mapping[str, Any], source_branch_fingerprint: str, action_effect: Mapping[str, Any]) -> dict[str, Any]:
@@ -22,11 +39,31 @@ def apply_successful_aqua_ring(*, branch_state: Mapping[str, Any], source_branch
     to this seam. The supplied record must already prove the self effect was
     applied on this exact detached generation.
     """
+    return _apply_successful_persistent_effect(
+        family="aqua_ring",
+        branch_state=branch_state,
+        source_branch_fingerprint=source_branch_fingerprint,
+        action_effect=action_effect,
+    )
+
+
+def apply_successful_ingrain(*, branch_state: Mapping[str, Any], source_branch_fingerprint: str, action_effect: Mapping[str, Any]) -> dict[str, Any]:
+    """Apply one already-resolved Ingrain self-volatile action record."""
+    return _apply_successful_persistent_effect(
+        family="ingrain",
+        branch_state=branch_state,
+        source_branch_fingerprint=source_branch_fingerprint,
+        action_effect=action_effect,
+    )
+
+
+def _apply_successful_persistent_effect(*, family: str, branch_state: Mapping[str, Any], source_branch_fingerprint: str, action_effect: Mapping[str, Any]) -> dict[str, Any]:
+    effect = _EFFECTS[family]
     active = branch_state.get("active") if isinstance(branch_state, Mapping) else None
     if not isinstance(active, Mapping) or fingerprint_transition_preview_state(branch_state) != source_branch_fingerprint:
         return _result("rejected", "stale_or_invalid_action_branch")
-    if not _is_successful_aqua_ring_effect(action_effect):
-        return _result("incomplete", "aqua_ring_application_unproven")
+    if not _is_successful_persistent_effect(action_effect, effect):
+        return _result("incomplete", f"{family}_application_unproven")
 
     user = action_effect["user"]
     side = user["side"]
@@ -38,7 +75,7 @@ def apply_successful_aqua_ring(*, branch_state: Mapping[str, Any], source_branch
         or action_effect["source_branch_fingerprint"] != source_branch_fingerprint
         or active[side].get("fainted")
     ):
-        return _result("rejected", "stale_or_foreign_aqua_ring_application")
+        return _result("rejected", f"stale_or_foreign_{family}_application")
 
     bundle = branch_state.get("branch_persistent_effect_authority")
     if not isinstance(bundle, Mapping) or not isinstance(bundle.get("states"), list):
@@ -46,22 +83,24 @@ def apply_successful_aqua_ring(*, branch_state: Mapping[str, Any], source_branch
 
     state = deepcopy(dict(branch_state))
     rows = state["branch_persistent_effect_authority"]["states"]
-    matches = [
-        row for row in rows
-        if isinstance(row, dict) and row.get("family") == "aqua_ring" and row.get("owner") == dict(user)
-    ]
+    matches = [row for row in rows if isinstance(row, dict) and row.get("family") == family and row.get("owner") == dict(user)]
     if len(matches) != 1:
-        return _result("rejected", "invalid_aqua_ring_bundle_owner")
+        return _result("rejected", f"invalid_{family}_bundle_owner")
 
     # This is the sole approved promotion path. A repeat application replaces
     # the same row, so no additional persistent instance can be created.
     matches[0]["state"] = "known_active"
-    matches[0]["provenance"] = "successful_action_effect_aqua_ring_v1"
-    state["aqua_ring_persistent_effect_context"] = _aqua_ring_context(state, user, source_branch_fingerprint)
+    matches[0]["provenance"] = f"successful_action_effect_{family}_v1"
+    state[effect["context_key"]] = _persistent_effect_context(
+        state=state,
+        family=family,
+        user=user,
+        source_branch_fingerprint=source_branch_fingerprint,
+    )
 
     resulting_fingerprint = fingerprint_transition_preview_state(state)
     if resulting_fingerprint is None:
-        return _result("rejected", "unserializable_aqua_ring_application")
+        return _result("rejected", f"unserializable_{family}_application")
     return {
         "status": "resolved",
         "source_branch_fingerprint": source_branch_fingerprint,
@@ -69,15 +108,15 @@ def apply_successful_aqua_ring(*, branch_state: Mapping[str, Any], source_branch
         "next_state": state,
         "action_effect": deepcopy(dict(action_effect)),
         "trace": {
-            "effect": "aqua_ring_application",
+            "effect": f"{family}_application",
             "owner": deepcopy(dict(user)),
             "execution_status": "applied",
-            "provenance": "successful_action_effect_aqua_ring_v1",
+            "provenance": f"successful_action_effect_{family}_v1",
         },
     }
 
 
-def _is_successful_aqua_ring_effect(action_effect: Mapping[str, Any]) -> bool:
+def _is_successful_persistent_effect(action_effect: Mapping[str, Any], effect: Mapping[str, str]) -> bool:
     if not isinstance(action_effect, Mapping) or set(action_effect) != _REQUIRED_ACTION_EFFECT_KEYS:
         return False
     user = action_effect.get("user")
@@ -85,11 +124,11 @@ def _is_successful_aqua_ring_effect(action_effect: Mapping[str, Any]) -> bool:
         action_effect.get("schema_version") == "successful-action-effect-v1"
         and isinstance(user, Mapping)
         and set(user) == set(_OWNERSHIP_KEYS)
-        and action_effect.get("move_id") == "aqua-ring"
+        and action_effect.get("move_id") == effect["move_id"]
         and action_effect.get("target") == "self"
-        and action_effect.get("applied_effect") == "aqua_ring_persistent_self_volatile"
+        and action_effect.get("applied_effect") == effect["applied_effect"]
         and action_effect.get("execution_status") == "applied"
-        and action_effect.get("provenance") == _PROVENANCE
+        and action_effect.get("provenance") == effect["action_provenance"]
     )
 
 
@@ -97,19 +136,20 @@ def _owner(active: Mapping[str, Any]) -> dict[str, Any]:
     return {key: active.get(key) for key in _OWNERSHIP_KEYS}
 
 
-def _aqua_ring_context(state: Mapping[str, Any], user: Mapping[str, Any], source_branch_fingerprint: str) -> dict[str, Any]:
+def _persistent_effect_context(*, state: Mapping[str, Any], family: str, user: Mapping[str, Any], source_branch_fingerprint: str) -> dict[str, Any]:
+    effect = _EFFECTS[family]
     rows = state["branch_persistent_effect_authority"]["states"]
     owners = [_owner(state["active"][side]) for side in ("self", "opponent")]
     return {
-        "schema_version": "detached-aqua-ring-persistent-effect-v1",
+        "schema_version": effect["context_schema"],
         "session_id": user["session_id"],
         "source_branch_fingerprint": source_branch_fingerprint,
-        "provenance": "trusted_aqua_ring_persistent_effect_state",
+        "provenance": effect["context_provenance"],
         "states": [
             {
                 "owner": owner,
                 "state": "known_active" if owner == dict(user) else next(
-                    (row.get("state") for row in rows if row.get("family") == "aqua_ring" and row.get("owner") == owner),
+                    (row.get("state") for row in rows if row.get("family") == family and row.get("owner") == owner),
                     "unknown",
                 ),
             }
