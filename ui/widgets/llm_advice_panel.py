@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QPushButton, QTextEdit, QVBoxLayout
+from ui.strategy_explanation_presentation import present_strategy_explanation, render_strategy_explanation
 
 
 TURN_PIPELINE_HELP_TEXT = (
@@ -304,6 +305,12 @@ class LLMAdvicePanel(QFrame):
 
     def set_advice_text(self, text: str) -> None:
         self.output_edit.setPlainText(text)
+
+    def set_strategy_explanation(self, explanation: dict) -> dict:
+        """Present a precomputed strategy explanation without invoking strategy or providers."""
+        presentation = present_strategy_explanation(explanation=explanation)
+        self.output_edit.setPlainText(render_strategy_explanation(presentation=presentation))
+        return presentation
 
     def set_recommendation_readiness(self, readiness: dict) -> None:
         status = readiness.get("status") if isinstance(readiness, dict) else "unavailable"
