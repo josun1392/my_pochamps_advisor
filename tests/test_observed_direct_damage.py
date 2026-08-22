@@ -1,9 +1,15 @@
 """Trusted observed Water Gun results reuse the shared exact damage core."""
 from copy import deepcopy
 
+from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
 from llm.advisor_observed_direct_damage import materialize_observed_direct_damage_result
+from llm.advisor_per_owner_eot import project_per_owner_end_of_turn
+from llm.advisor_successful_action_effect import apply_successful_ingrain
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from tests.test_forced_switch_execution import _owner, _state
+from tests.test_ingrain_activation import _effect
+from tests.test_ingrain_detached_eot import _ingrain
+from tests.test_leftovers_end_of_turn import _pre
 
 
 def _result(state, *, user_side="self", target_side="opponent", damage=20, **changes):
@@ -46,6 +52,26 @@ def test_water_gun_ko_and_f0_replay_boundary_are_exact():
     assert materialize_observed_direct_damage_result(
         branch_state=result["next_state"], source_branch_fingerprint=result["resulting_branch_fingerprint"], observed_result=observation,
     )["status"] == "rejected"
+
+
+def test_direct_damage_evidence_is_stale_after_same_turn_eot_and_handoff_but_fresh_turn_two_is_valid():
+    pre = _pre(self_hp=50, self_item=None, self_condition="none")
+    _ingrain(pre["next_state"], self_state="unknown")
+    applied = apply_successful_ingrain(branch_state=pre["next_state"], source_branch_fingerprint=fingerprint_transition_preview_state(pre["next_state"]), action_effect=_effect(pre["next_state"]))
+    f0 = applied["next_state"]
+    observation = _result(f0)
+    f1 = _materialize(f0, observation)
+    f2 = deepcopy(f1["next_state"])
+    f2["active"]["self"]["current_hp"] -= 1
+    assert materialize_observed_direct_damage_result(branch_state=f2, source_branch_fingerprint=fingerprint_transition_preview_state(f2), observed_result=observation)["status"] == "rejected"
+
+    eot = project_per_owner_end_of_turn(pre_end_of_turn={"status": "resolved", "next_state": f1["next_state"], "boundary": {"phase": "pre_end_of_turn"}}, owner=_owner(f1["next_state"], "self"))
+    eot_state, eot_fp = eot["next_state"], eot["resulting_branch_fingerprint"]
+    assert materialize_observed_direct_damage_result(branch_state=eot_state, source_branch_fingerprint=eot_fp, observed_result=observation)["status"] == "rejected"
+    turn_two = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=eot)["next_state"]
+    turn_two_fp = fingerprint_transition_preview_state(turn_two)
+    assert materialize_observed_direct_damage_result(branch_state=turn_two, source_branch_fingerprint=turn_two_fp, observed_result=observation)["status"] == "rejected"
+    assert _materialize(turn_two)["status"] == "resolved"
 
 
 def test_only_exact_trusted_applied_water_gun_results_materialize():
