@@ -47,6 +47,10 @@ def test_predictive_adapter_routes_to_substitute_and_rejects_incomplete_or_histo
     resolved = materialize_predictive_fixed_damage_outcome(decision_state=state, decision_owner=_owner(state, "self"), candidate=candidate, predictive_authority=authority)
     target = resolved["outcome"]["outcome_state"]["active"]["opponent"]
     assert target["current_hp"] == 100 and resolved["outcome"]["outcome_state"]["substitute_state_context"]["states"][1]["substitute_hp"] == 10
+    broken_state = deepcopy(state); _tracked_substitute(broken_state, status="known_active", hp=40)
+    broken = materialize_predictive_fixed_damage_outcome(decision_state=broken_state, decision_owner=_owner(broken_state, "self"), candidate=_candidate(broken_state), predictive_authority=_authority(broken_state))
+    assert broken["outcome"]["outcome_state"]["active"]["opponent"]["current_hp"] == 100
+    assert broken["outcome"]["outcome_state"]["substitute_state_context"]["states"][1] == {"owner": _owner(broken_state, "opponent"), "state": "known_inactive", "substitute_hp": None}
     incomplete = {**authority, "completeness": "exact_incomplete"}
     assert materialize_predictive_fixed_damage_outcome(decision_state=state, decision_owner=_owner(state, "self"), candidate=candidate, predictive_authority=incomplete)["status"] == "incomplete"
     historical = {"schema_version": "observed-direct-damage-result-v1"}
