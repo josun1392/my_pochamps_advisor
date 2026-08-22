@@ -48,6 +48,35 @@ def apply_exact_observed_damage(
     }
 
 
+def apply_exact_observed_recoil(
+    *, branch_state: Mapping[str, Any], source_branch_fingerprint: str,
+    owner: Mapping[str, Any], recoil_amount: int,
+) -> dict[str, Any]:
+    """Apply an already-observed exact self-HP loss on one current F1 branch."""
+    active = branch_state.get("active") if isinstance(branch_state, Mapping) else None
+    if not isinstance(active, Mapping) or fingerprint_transition_preview_state(branch_state) != source_branch_fingerprint:
+        return _result("rejected", "stale_or_invalid_observed_recoil_branch")
+    if not (
+        exact_owner(owner) and isinstance(recoil_amount, int) and not isinstance(recoil_amount, bool) and recoil_amount > 0
+        and _current_owner(active, owner) and _active_hp_is_exact(active[owner["side"]])
+        and active[owner["side"]].get("fainted") is False
+    ):
+        return _result("rejected", "invalid_observed_recoil_authority")
+    state = deepcopy(dict(branch_state))
+    current = state["active"][owner["side"]]
+    post_hp = max(0, current["current_hp"] - recoil_amount)
+    current["current_hp"], current["fainted"] = post_hp, post_hp == 0
+    _sync_hp(state, owner["side"], post_hp, current["max_hp"])
+    fingerprint = fingerprint_transition_preview_state(state)
+    if fingerprint is None:
+        return _result("rejected", "unserializable_observed_recoil_branch")
+    return {"status": "resolved", "source_branch_fingerprint": source_branch_fingerprint,
+            "resulting_branch_fingerprint": fingerprint, "next_state": state,
+            "recoil_application": {"owner": deepcopy(dict(owner)), "recoil": recoil_amount,
+                                   "post_hp": post_hp, "owner_fainted": post_hp == 0},
+            "materialization": "pure_idempotent"}
+
+
 def exact_owner(value: Any) -> bool:
     return (
         isinstance(value, Mapping) and set(value) == set(OWNER_KEYS)
