@@ -44,7 +44,7 @@ def _owner(state: dict) -> dict:
     return {"session_id": state["session_id"], "side": "self", "slot_index": 0, "pokemon_id": "active"}
 
 
-def _selection_builder(*, selection_partial: bool = False, include_incomplete_switch: bool = False):
+def _selection_builder(*, selection_partial: bool = False, include_incomplete_switch: bool = False, move: str = "tackle"):
     def build(capture: dict, _runtime_snapshot: dict) -> dict:
         owner = capture["active_owner"]
         switches = [
@@ -58,7 +58,7 @@ def _selection_builder(*, selection_partial: bool = False, include_incomplete_sw
         return {
             "status": "ready", "_runtime_d0_selection_capture": deepcopy(capture),
             "_combined_action_turn_snapshot": {"battle_state": {"active_player": {"slot_index": owner["slot_index"], "species_id": owner["pokemon_id"]}}, "current_state": {"current_state_session_id": owner["session_id"]}},
-            "recommendation_request": {"candidate_comparisons": [{"move": "tackle", "eligibility": "eligible"}]},
+            "recommendation_request": {"candidate_comparisons": [{"move": move, "eligibility": "eligible"}]},
             "evidence_bundle": {"switch_candidates": switches},
         }
     return build
@@ -106,6 +106,19 @@ def test_runtime_bridge_preserves_partial_selection_and_incomplete_switch() -> N
     complete_candidates = {row["candidate_id"]: row for row in complete_selection["explanation"]["candidates"]}
     assert complete_candidates["manual_switch:unknown-bench"]["evidence_class"] == "incomplete"
     assert complete_candidates["manual_switch:unknown-bench"]["incomplete_reason"] == "incoming_state_unavailable"
+
+
+def test_runtime_bridge_keeps_live_seismic_toss_visible_when_runtime_predictive_fields_are_incomplete() -> None:
+    state = _state()
+    result = run_current_ui_detached_strategy(
+        runtime_session_manager=_RuntimeManager([_snapshot(state), _snapshot(state)]), captured_session_id=state["session_id"],
+        selection_cycle_builder=_selection_builder(move="seismic-toss"),
+    )
+
+    candidates = {row["candidate_id"]: row for row in result["explanation"]["candidates"]}
+    assert result["status"] == "resolved"
+    assert candidates["attack:seismic-toss"]["evidence_class"] == "incomplete"
+    assert candidates["attack:seismic-toss"]["incomplete_reason"] == "exact_damage_unknown"
 
 
 def test_runtime_bridge_rejects_stale_result_and_selection_d0_mismatch() -> None:

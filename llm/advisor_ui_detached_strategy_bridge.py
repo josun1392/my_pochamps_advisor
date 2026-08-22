@@ -11,6 +11,7 @@ from typing import Any, Callable, Mapping
 
 from llm.advisor_current_execution_authority import freeze_current_execution_authority
 from llm.advisor_detached_strategy_orchestration import run_detached_strategy_orchestration
+from llm.advisor_predictive_attack_authority import build_predictive_fixed_damage_attack_authority
 from llm.advisor_runtime_d0_selection_projection import (
     build_runtime_d0_selection_capture,
     freeze_runtime_d0_bound_selection_projection,
@@ -18,6 +19,7 @@ from llm.advisor_runtime_d0_selection_projection import (
 from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_incoming_current_state_authority,
     freeze_runtime_strategy_d0,
+    freeze_runtime_seismic_toss_predictive_input,
     freeze_runtime_strategy_selection_authority,
     resolve_runtime_strategy_decision_owner,
     resolve_runtime_incoming_owner,
@@ -77,9 +79,13 @@ def run_current_ui_detached_strategy(
     execution = freeze_current_execution_authority(selection_snapshot=selection, switch_incoming=incoming)
     if execution.get("status") != "resolved":
         return _result("rejected", execution.get("reason", "runtime_execution_authority_unavailable"))
+    predictive_attacks = _runtime_seismic_toss_authorities(
+        strategy_d0=d0, runtime_snapshot=capture, selection=selection,
+    )
     orchestration = run_detached_strategy_orchestration(
         decision_state=d0["strategy_state"], decision_owner=d0["decision_owner"],
         selection_snapshot=selection, execution_bundle=execution,
+        predictive_attacks=predictive_attacks,
     )
     if orchestration.get("status") == "rejected":
         return _result("rejected", orchestration.get("reason", "detached_orchestration_rejected"))
@@ -106,6 +112,33 @@ def _capture(manager: Any, session_id: str) -> Mapping[str, Any] | None:
         return None
     value = manager.capture_runtime_state_snapshot(session_id)
     return value if isinstance(value, Mapping) else None
+
+
+def _runtime_seismic_toss_authorities(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], selection: Mapping[str, Any],
+) -> dict[str, Mapping[str, Any]]:
+    """Supply only exact runtime-produced Seismic Toss authority to orchestration."""
+    target_side = "opponent" if strategy_d0["decision_owner"]["side"] == "self" else "self"
+    target = strategy_d0.get("active_owners", {}).get(target_side)
+    if not isinstance(target, Mapping):
+        return {}
+    resolved: dict[str, Mapping[str, Any]] = {}
+    for action in selection.get("actions", []):
+        if not isinstance(action, Mapping) or action.get("action_type") != "attack" or action.get("identity") != "seismic-toss":
+            continue
+        frozen = freeze_runtime_seismic_toss_predictive_input(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            attacker=strategy_d0["decision_owner"], target=target, move_id="seismic-toss",
+        )
+        if frozen.get("status") != "resolved":
+            continue
+        authority = build_predictive_fixed_damage_attack_authority(
+            branch_state=strategy_d0["strategy_state"], decision_owner=strategy_d0["decision_owner"],
+            target_owner=target, move_id="seismic-toss", predictive_input=frozen["predictive_input"],
+        )
+        if authority.get("status") == "resolved":
+            resolved[action["action_id"]] = authority
+    return resolved
 
 
 def _result(status: str, reason: str) -> dict[str, str]:

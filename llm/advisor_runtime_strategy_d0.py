@@ -19,6 +19,7 @@ from llm.advisor_reducer_state_model import (
     validate_battle_state_unknown_markers,
 )
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
+from llm.advisor_substitute import substitute_state
 
 
 SCHEMA = "deterministic-runtime-strategy-d0-v1"
@@ -76,6 +77,82 @@ def resolve_runtime_strategy_decision_owner(*, runtime_snapshot: Mapping[str, An
     if side not in {"self", "opponent"} or owners is None:
         return _result("rejected", "runtime_decision_owner_unavailable")
     return {"status": "resolved", "decision_owner": deepcopy(owners[side])}
+
+
+def freeze_runtime_seismic_toss_predictive_input(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], move_id: str,
+) -> dict[str, Any]:
+    """Freeze the strict current input consumed by predictive Seismic Toss.
+
+    This boundary deliberately reads only the reducer snapshot tied to D0.  The
+    current runtime schema does not own attacker level or Substitute state, so
+    those remain explicit incomplete authority rather than borrowing profile,
+    UI, or historical observation data.
+    """
+    if not _valid_d0(strategy_d0) or not _owner(attacker) or not _owner(target):
+        return _result("rejected", "invalid_strategy_d0_or_predictive_owner")
+    if move_id != "seismic-toss":
+        return _result("rejected", "unsupported_predictive_move")
+    owner = strategy_d0["decision_owner"]
+    active_owners = strategy_d0.get("active_owners")
+    if (
+        attacker != owner or not isinstance(active_owners, Mapping)
+        or active_owners.get(attacker["side"]) != dict(attacker)
+        or active_owners.get(target["side"]) != dict(target)
+        or attacker["side"] == target["side"]
+    ):
+        return _result("rejected", "runtime_predictive_identity_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    raw_target = _roster(state, target["side"]).get(target["slot_index"])
+    preview_target = strategy_d0["strategy_state"].get("active", {}).get(target["side"])
+    if not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_target, target) or not _exact_preview_hp(preview_target):
+        return _incomplete_seismic_toss_input(strategy_d0, attacker, target, "target_hp_unknown", target_type=None)
+    raw_attacker = _roster(state, attacker["side"]).get(attacker["slot_index"])
+    target_type = _runtime_current_type(raw_target)
+    level = _runtime_attacker_level(raw_attacker)
+    substitute = substitute_state(strategy_d0["strategy_state"], target)
+    missing = []
+    if level is None:
+        missing.append("attacker_level_runtime_untracked")
+    if target_type is None:
+        missing.append("target_type_unknown")
+    if substitute.get("state") in {"unknown", "legacy_untracked"}:
+        missing.append("substitute_state_unknown")
+    if missing:
+        return _incomplete_seismic_toss_input(
+            strategy_d0, attacker, target, missing[0], target_type=target_type,
+            missing_authority=missing,
+        )
+    predictive_input = {
+        "schema_version": "current-predictive-fixed-damage-input-v1",
+        "provenance": "trusted_current_predictive_fixed_damage_input_v1",
+        "session_id": strategy_d0["session_id"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "attacker": deepcopy(dict(attacker)),
+        "target": deepcopy(dict(target)),
+        "move_id": "seismic-toss",
+        "attacker_level_authority": {"status": "known", "value": level, "provenance": "runtime_battle_state_v1"},
+        "target_type_authority": {"status": "known", "value": deepcopy(target_type), "provenance": "runtime_battle_state_v1"},
+    }
+    return {
+        "status": "resolved",
+        "schema_version": "deterministic-runtime-seismic-toss-predictive-input-v1",
+        "session_id": strategy_d0["session_id"],
+        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move_id": "seismic-toss",
+        "predictive_input": predictive_input,
+        "target_hp_authority": {"status": "known", "current_hp": preview_target["current_hp"], "max_hp": preview_target["max_hp"]},
+        "target_type_authority": deepcopy(predictive_input["target_type_authority"]),
+        "substitute_authority": {"status": "known", "state": substitute["state"]},
+        "provenance": "runtime_battle_state_v1_seismic_toss_predictive_input_v1",
+    }
 
 
 def runtime_strategy_d0_freshness(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any]) -> dict[str, Any]:
@@ -358,6 +435,69 @@ def _incomplete_incoming(strategy_d0: Mapping[str, Any], incoming_owner: Mapping
         "reason": reason,
         "provenance": "runtime_roster_identity_boundary_v1",
     }
+
+
+def _incomplete_seismic_toss_input(
+    strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], reason: str,
+    *, target_type: list[str] | None, missing_authority: Sequence[str] | None = None,
+) -> dict[str, Any]:
+    """Describe known runtime facts without fabricating an invalid input schema."""
+    preview_target = strategy_d0["strategy_state"]["active"][target["side"]]
+    hp = (
+        {"status": "known", "current_hp": preview_target["current_hp"], "max_hp": preview_target["max_hp"]}
+        if _exact_preview_hp(preview_target) else {"status": "unknown"}
+    )
+    return {
+        "status": "incomplete",
+        "schema_version": "deterministic-runtime-seismic-toss-predictive-input-v1",
+        "session_id": strategy_d0["session_id"],
+        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "attacker": deepcopy(dict(attacker)),
+        "target": deepcopy(dict(target)),
+        "move_id": "seismic-toss",
+        "attacker_level_authority": {"status": "unknown", "reason": "attacker_level_runtime_untracked"},
+        "target_hp_authority": hp,
+        "target_type_authority": (
+            {"status": "known", "value": deepcopy(target_type), "provenance": "runtime_battle_state_v1"}
+            if target_type is not None else {"status": "unknown", "reason": "target_type_unknown"}
+        ),
+        "substitute_authority": {"status": "unknown", "reason": "runtime_substitute_untracked"},
+        "missing_authority": list(missing_authority or [reason]),
+        "reason": reason,
+        "provenance": "runtime_battle_state_v1_seismic_toss_predictive_input_boundary_v1",
+    }
+
+
+def _same_runtime_owner(value: Mapping[str, Any], owner: Mapping[str, Any]) -> bool:
+    return value.get("pokemon_id") == owner["pokemon_id"]
+
+
+def _exact_preview_hp(value: Any) -> bool:
+    return (
+        isinstance(value, Mapping)
+        and isinstance(value.get("current_hp"), int) and not isinstance(value.get("current_hp"), bool)
+        and isinstance(value.get("max_hp"), int) and not isinstance(value.get("max_hp"), bool)
+        and value["max_hp"] > 0 and 0 <= value["current_hp"] <= value["max_hp"]
+        and value.get("fainted") is (value["current_hp"] == 0)
+    )
+
+
+def _runtime_current_type(value: Mapping[str, Any]) -> list[str] | None:
+    current_type = value.get("current_type")
+    if (
+        isinstance(current_type, list) and bool(current_type)
+        and all(isinstance(item, str) and bool(item) for item in current_type)
+    ):
+        return deepcopy(current_type)
+    return None
+
+
+def _runtime_attacker_level(value: Any) -> int | None:
+    """Read a reducer-owned level only when the runtime schema provides one."""
+    level = value.get("level") if isinstance(value, Mapping) else None
+    return level if isinstance(level, int) and not isinstance(level, bool) and 1 <= level <= 100 else None
 
 
 def _selection_entries(entries: Any, identity_key: str) -> bool:
