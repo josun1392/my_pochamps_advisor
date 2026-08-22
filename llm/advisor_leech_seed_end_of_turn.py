@@ -29,8 +29,11 @@ def apply_owner_leech_seed_end_of_turn(*, state: dict[str, Any], side: str, owne
     if seed is None: return _result("rejected", "stale_or_invalid_leech_seed_authority")
     if seed["state"] == "unknown": return _result("incomplete", "leech_seed_persistent_effect_unknown")
     if seed["state"] == "known_inactive": return {"status": "resolved", "trace": None}
+    if seed["source_slot"]["side"] == side:
+        return _result("rejected", "invalid_leech_seed_source_slot_recipient")
     recipient_side = next((candidate for candidate, current in owners.items() if current["session_id"] == seed["source_slot"]["session_id"] and current["side"] == seed["source_slot"]["side"] and current["slot_index"] == seed["source_slot"]["slot_index"]), None)
-    if recipient_side is None: return _result("rejected", "leech_seed_source_slot_recipient_unresolved")
+    if recipient_side is None:
+        return {"status": "resolved", "trace": {"effect": "leech_seed", "owner": deepcopy(dict(owner)), "source_slot": deepcopy(dict(seed["source_slot"])), "execution_status": "skipped", "reason": "source_slot_recipient_absent", "provenance": "detached_branch_leech_seed_v1"}}
     target, recipient = state["active"][side], state["active"][recipient_side]
     if target["fainted"]: return _result("rejected", "leech_seed_fainted_seeded_owner")
     if recipient["fainted"]: return {"status": "resolved", "trace": {"effect": "leech_seed", "owner": deepcopy(dict(owner)), "recipient": deepcopy(owners[recipient_side]), "execution_status": "skipped", "reason": "source_slot_recipient_fainted", "provenance": "detached_branch_leech_seed_v1"}}
