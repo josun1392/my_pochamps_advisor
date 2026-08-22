@@ -52,6 +52,8 @@ def materialize_observed_damage_plus_phazing_result(
     terminal = applied["damage_application"]["target_fainted"]
     if terminal and observed_result["drag_out_result"] != "not_applied":
         return _result("rejected", "drag_out_after_terminal_damage")
+    if applied["damage_application"].get("target_hit_substitute") and observed_result["drag_out_result"] != "not_applied":
+        return _result("rejected", "drag_out_blocked_by_substitute")
     state, resulting_fingerprint = applied["next_state"], applied["resulting_branch_fingerprint"]
 
     result = {

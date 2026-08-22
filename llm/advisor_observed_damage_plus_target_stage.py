@@ -44,6 +44,8 @@ def materialize_observed_acid_spray(
             "observed_damage_plus_target_stage_result": deepcopy(dict(observed_result)),
             "target_stage": "not_applied",
         }
+    if damage["damage_application"].get("target_hit_substitute"):
+        return _result("rejected", "target_stage_blocked_by_substitute")
     if damage["damage_application"]["target_fainted"]:
         return _result("rejected", "target_stage_after_terminal_damage")
     authority = {

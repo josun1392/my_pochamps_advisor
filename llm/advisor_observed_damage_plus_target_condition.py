@@ -41,6 +41,8 @@ def materialize_observed_sludge_bomb(
             "observed_damage_plus_target_condition_result": deepcopy(dict(observed_result)),
             "target_condition": "not_applied",
         }
+    if damage["damage_application"].get("target_hit_substitute"):
+        return _result("rejected", "condition_blocked_by_substitute")
     if damage["damage_application"]["target_fainted"]:
         return _result("rejected", "condition_after_terminal_damage")
     if _existing_condition(f1, target) != "none":

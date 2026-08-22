@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
+from llm.advisor_substitute import rebind_substitute_after_switch
 
 
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
@@ -60,6 +61,7 @@ def materialize_incoming_active_branch(
             "provenance": "identity_bound_incoming_current_state_v1",
         },
     }
+    rebind_substitute_after_switch(source_branch=source_branch, state=state, outgoing_owner=_owner_dict(outgoing), incoming_owner=owner, source_branch_fingerprint=source_branch_fingerprint)
     result_fp = fingerprint_transition_preview_state(state)
     if result_fp is None:
         return _result("rejected", "unserializable_materialized_branch")

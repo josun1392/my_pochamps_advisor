@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
+from llm.advisor_substitute import route_exact_damage_to_substitute
 
 
 OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
@@ -24,6 +25,10 @@ def apply_exact_observed_damage(
         return _result("rejected", "stale_or_invalid_observed_damage_branch")
     if not _valid_damage_authority(active, user, target_owner, damage_amount):
         return _result("rejected", "invalid_observed_damage_authority")
+    substitute = route_exact_damage_to_substitute(branch_state=branch_state, target_owner=target_owner, damage_amount=damage_amount, source_branch_fingerprint=source_branch_fingerprint)
+    if substitute is not None:
+        if substitute.get("status") != "resolved": return substitute
+        return {**substitute, "damage_application": {"user": deepcopy(dict(user)), **substitute["damage_application"]}}
 
     state = deepcopy(dict(branch_state))
     current_target = state["active"][target_owner["side"]]
