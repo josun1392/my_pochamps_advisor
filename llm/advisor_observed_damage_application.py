@@ -95,6 +95,59 @@ def apply_exact_observed_drain_consequence(*, branch_state: Mapping[str, Any], s
     return {"status":"resolved","source_branch_fingerprint":source_branch_fingerprint,"resulting_branch_fingerprint":fingerprint,"next_state":state,"drain_application":{"owner":deepcopy(dict(owner)),"consequence":kind,"amount":amount,"post_hp":post,"owner_fainted":post==0},"materialization":"pure_idempotent"}
 
 
+def apply_exact_observed_self_stage_consequence(
+    *, branch_state: Mapping[str, Any], source_branch_fingerprint: str,
+    stage_authority: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Apply one exact F1-bound self-stage consequence to its active owner.
+
+    This consumes no move metadata and performs no secondary-effect resolution.
+    Its caller establishes the bounded move/result contract.
+    """
+    active = branch_state.get("active") if isinstance(branch_state, Mapping) else None
+    if (
+        not isinstance(active, Mapping)
+        or fingerprint_transition_preview_state(branch_state) != source_branch_fingerprint
+        or not isinstance(stage_authority, Mapping)
+    ):
+        return _result("rejected", "stale_or_invalid_observed_self_stage_branch")
+    owner, stat, delta = (
+        stage_authority.get("owner"),
+        stage_authority.get("stat"),
+        stage_authority.get("delta"),
+    )
+    if not (
+        exact_owner(owner)
+        and stage_authority.get("schema_version") == "observed-flame-charge-self-stage-authority-v1"
+        and stage_authority.get("provenance") == "trusted_observed_damage_plus_self_stage_result_v1"
+        and stage_authority.get("source_branch_fingerprint") == source_branch_fingerprint
+        and stat in {"attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion"}
+        and isinstance(delta, int) and not isinstance(delta, bool) and -6 <= delta <= 6 and delta != 0
+        and _current_owner(active, owner)
+        and active[owner["side"]].get("fainted") is False
+    ):
+        return _result("rejected", "invalid_observed_self_stage_authority")
+    state = deepcopy(dict(branch_state))
+    previous = _sync_stage(state, owner["side"], stat, delta)
+    if previous is None:
+        return _result("rejected", "invalid_observed_self_stage_authority")
+    projected = max(-6, min(6, previous + delta))
+    fingerprint = fingerprint_transition_preview_state(state)
+    if fingerprint is None:
+        return _result("rejected", "unserializable_observed_self_stage_branch")
+    return {
+        "status": "resolved",
+        "source_branch_fingerprint": source_branch_fingerprint,
+        "resulting_branch_fingerprint": fingerprint,
+        "next_state": state,
+        "self_stage_application": {
+            "owner": deepcopy(dict(owner)), "stat": stat, "previous_stage": previous,
+            "delta": delta, "projected_stage": projected,
+        },
+        "materialization": "pure_idempotent",
+    }
+
+
 def exact_owner(value: Any) -> bool:
     return (
         isinstance(value, Mapping) and set(value) == set(OWNER_KEYS)
@@ -145,6 +198,31 @@ def _sync_hp(state: Mapping[str, Any], side: str, hp: int, maximum: int) -> None
     combatant = direct.get(role) if isinstance(direct, Mapping) else None
     if isinstance(combatant, dict):
         combatant["current_hp"], combatant["max_hp"] = hp, maximum
+
+
+def _sync_stage(state: Mapping[str, Any], side: str, stat: str, delta: int) -> int | None:
+    current = state.get("current_state") if isinstance(state, Mapping) else None
+    rows = current.get("stat_stage_context", {}).get("current_stages") if isinstance(current, Mapping) else None
+    match = next((
+        row for row in rows
+        if isinstance(row, dict)
+        and row.get("side") == side and row.get("stat") == stat
+        and row.get("status") == "user_confirmed"
+        and row.get("source") == "user_confirmed_current_stat_stage"
+        and row.get("confidence") == "known"
+        and isinstance(row.get("stage"), int) and not isinstance(row.get("stage"), bool)
+        and -6 <= row["stage"] <= 6
+    ), None) if isinstance(rows, list) else None
+    if match is None:
+        return None
+    previous = match["stage"]
+    match["stage"] = max(-6, min(6, previous + delta))
+    direct = current.get("direct_mechanics_context") if isinstance(current, Mapping) else None
+    role = "attacker" if side == "self" else "defender"
+    combatant = direct.get(role) if isinstance(direct, Mapping) else None
+    if isinstance(combatant, dict) and isinstance(combatant.get("boosts"), dict):
+        combatant["boosts"][stat] = match["stage"]
+    return previous
 
 
 def _result(status: str, reason: str) -> dict[str, Any]:
