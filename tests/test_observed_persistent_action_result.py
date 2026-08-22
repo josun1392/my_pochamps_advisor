@@ -108,3 +108,24 @@ def test_observed_results_reject_unproven_wrong_or_foreign_authority():
     _seed(seed["next_state"], target_state="unknown")
     leech = _observed(seed["next_state"], "leech-seed", target_owner={**_owner_id(seed["next_state"], "self"), "pokemon_id": "foreign"})
     assert materialize_observed_persistent_action_result(branch_state=seed["next_state"], source_branch_fingerprint=fingerprint_transition_preview_state(seed["next_state"]), observed_result=leech)["status"] == "rejected"
+
+
+def test_observation_and_action_records_are_historical_after_eot_and_handoff_but_new_branch_observation_is_valid():
+    pre = _pre(self_hp=50, self_item=None, self_condition="none")
+    _aqua(pre["next_state"], self_state="unknown")
+    source = pre["next_state"]
+    source_fingerprint = fingerprint_transition_preview_state(source)
+    observation = _observed(source, "aqua-ring")
+    materialized = materialize_observed_persistent_action_result(branch_state=source, source_branch_fingerprint=source_fingerprint, observed_result=observation)
+    applied = _apply(source, "aqua-ring", materialized["successful_action_effect"])
+    eot = {"status": "resolved", "next_state": applied["next_state"], "boundary": {"phase": "pre_end_of_turn"}}
+    resolved = project_per_owner_end_of_turn(pre_end_of_turn=eot, owner=_owner_id(applied["next_state"], "self"))
+    handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch=resolved)
+
+    assert materialize_observed_persistent_action_result(branch_state=applied["next_state"], source_branch_fingerprint=source_fingerprint, observed_result=observation) == {"status": "rejected", "reason": "stale_or_invalid_observed_action_branch"}
+    assert materialize_observed_persistent_action_result(branch_state=handoff["next_state"], source_branch_fingerprint=source_fingerprint, observed_result=observation) == {"status": "rejected", "reason": "stale_or_invalid_observed_action_branch"}
+    assert apply_successful_aqua_ring(branch_state=handoff["next_state"], source_branch_fingerprint=source_fingerprint, action_effect=materialized["successful_action_effect"]) == {"status": "rejected", "reason": "stale_or_invalid_action_branch"}
+
+    fresh = _observed(handoff["next_state"], "aqua-ring")
+    next_materialized = materialize_observed_persistent_action_result(branch_state=handoff["next_state"], source_branch_fingerprint=fingerprint_transition_preview_state(handoff["next_state"]), observed_result=fresh)
+    assert next_materialized["status"] == "resolved"
