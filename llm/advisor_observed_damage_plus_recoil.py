@@ -31,12 +31,14 @@ def materialize_observed_brave_bird_recoil(*, branch_state: Mapping[str, Any], s
     f1, f1_fp = damage["next_state"], damage["resulting_branch_fingerprint"]
     if observed_result["recoil_result"] == "not_applied":
         return {**damage, "observed_damage_plus_recoil_result": deepcopy(dict(observed_result)), "f1_branch_fingerprint": f1_fp, "recoil": "not_applied", "secondary_effects": "out_of_scope"}
-    recoil = apply_exact_observed_recoil(branch_state=f1, source_branch_fingerprint=f1_fp, owner=user, recoil_amount=observed_result["recoil_amount"])
+    recoil_authority = {"schema_version": "observed-brave-bird-recoil-authority-v1", "source_branch_fingerprint": f1_fp,
+                        "owner": deepcopy(dict(user)), "recoil_amount": observed_result["recoil_amount"], "provenance": _PROVENANCE}
+    recoil = apply_exact_observed_recoil(branch_state=f1, source_branch_fingerprint=f1_fp, recoil_authority=recoil_authority)
     if recoil.get("status") != "resolved":
         return recoil
     return {"status": "resolved", "source_branch_fingerprint": source_branch_fingerprint,
             "f1_branch_fingerprint": f1_fp, "resulting_branch_fingerprint": recoil["resulting_branch_fingerprint"],
-            "next_state": recoil["next_state"], "observed_damage_plus_recoil_result": deepcopy(dict(observed_result)),
+            "next_state": recoil["next_state"], "observed_damage_plus_recoil_result": deepcopy(dict(observed_result)), "recoil_authority": recoil_authority,
             "damage_application": {**damage["damage_application"], "provenance": _PROVENANCE},
             "recoil_application": {**recoil["recoil_application"], "provenance": _PROVENANCE},
             "materialization": "pure_idempotent", "secondary_effects": "out_of_scope"}

@@ -50,14 +50,18 @@ def apply_exact_observed_damage(
 
 def apply_exact_observed_recoil(
     *, branch_state: Mapping[str, Any], source_branch_fingerprint: str,
-    owner: Mapping[str, Any], recoil_amount: int,
+    recoil_authority: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Apply an already-observed exact self-HP loss on one current F1 branch."""
     active = branch_state.get("active") if isinstance(branch_state, Mapping) else None
     if not isinstance(active, Mapping) or fingerprint_transition_preview_state(branch_state) != source_branch_fingerprint:
         return _result("rejected", "stale_or_invalid_observed_recoil_branch")
+    if not isinstance(recoil_authority, Mapping):
+        return _result("rejected", "invalid_observed_recoil_authority")
+    owner, recoil_amount = recoil_authority.get("owner"), recoil_authority.get("recoil_amount")
     if not (
         exact_owner(owner) and isinstance(recoil_amount, int) and not isinstance(recoil_amount, bool) and recoil_amount > 0
+        and recoil_authority.get("source_branch_fingerprint") == source_branch_fingerprint
         and _current_owner(active, owner) and _active_hp_is_exact(active[owner["side"]])
         and active[owner["side"]].get("fainted") is False
     ):
