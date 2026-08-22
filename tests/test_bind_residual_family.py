@@ -65,3 +65,12 @@ def test_bind_source_loss_ko_unknown_and_residual_ko_fail_closed():
     bad = _pre(self_hp=100, opponent_hp=100, self_item=None, opponent_item=None, self_condition="none", opponent_condition="none")["next_state"]
     bad["bind_residual_state_context"]={"schema_version":"detached-bind-residual-state-v1","session_id":"leftovers-eot","source_branch_fingerprint":"x","provenance":"trusted_observed_bind_result_v1","states":[{"target_owner":_owner_id(bad,"self"),"state":"unknown","source_owner":None,"remaining_turns":None}]}
     assert derive_bind_manual_switch_block(branch_state=bad, source_branch_fingerprint=fingerprint_transition_preview_state(bad), owner=_owner_id(bad,"self")) == {"status":"incomplete","reason":"bind_state_unknown"}
+
+
+def test_bind_composes_after_existing_condition_residual_on_current_hp():
+    pre = _pre(self_hp=100, opponent_hp=100, self_item=None, opponent_item=None, self_condition="none", opponent_condition="poison")
+    bound = _apply(pre["next_state"])["next_state"]
+    result = project_per_owner_end_of_turn(pre_end_of_turn={"status":"resolved","next_state":bound,"boundary":{"phase":"pre_end_of_turn"}}, owner=_owner_id(bound,"opponent"))
+    assert result["status"] == "resolved"
+    assert [(row["tier"], row["effect"]) for row in result["eot_consequence_trace"]] == [(9, "poison_residual"), (13, "bind_residual")]
+    assert result["next_state"]["active"]["opponent"]["current_hp"] == 76
