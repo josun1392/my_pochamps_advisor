@@ -4,6 +4,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 
+from llm.advisor_observed_damage_application import OWNER_KEYS, apply_exact_observed_damage, exact_owner
 from llm.advisor_observed_forced_switch_request import materialize_observed_forced_switch_request
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 
@@ -11,7 +12,6 @@ from llm.advisor_transition_preview import fingerprint_transition_preview_state
 OBSERVED_DAMAGE_PHAZING_SCHEMA_VERSION = "observed-damage-plus-phazing-result-v1"
 _PROVENANCE = "trusted_observed_damage_plus_phazing_result_v1"
 _REQUEST_PROVENANCE = "trusted_observed_forced_switch_request_v1"
-_OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _REQUIRED = frozenset({
     "schema_version", "session_id", "source_branch_fingerprint", "user", "target_owner",
     "move_id", "damage_amount", "damaging_hit_result", "drag_out_result", "provenance",
@@ -43,29 +43,23 @@ def materialize_observed_damage_plus_phazing_result(
         return _result("rejected", "invalid_observed_damage_plus_phazing_result")
 
     user, target = observed_result["user"], observed_result["target_owner"]
-    state = deepcopy(dict(branch_state))
-    current_target = state["active"][target["side"]]
-    post_hp = max(0, current_target["current_hp"] - observed_result["damage_amount"])
-    terminal = post_hp == 0
+    applied = apply_exact_observed_damage(
+        branch_state=branch_state, source_branch_fingerprint=source_branch_fingerprint,
+        user=user, target_owner=target, damage_amount=observed_result["damage_amount"],
+    )
+    if applied.get("status") != "resolved":
+        return applied
+    terminal = applied["damage_application"]["target_fainted"]
     if terminal and observed_result["drag_out_result"] != "not_applied":
         return _result("rejected", "drag_out_after_terminal_damage")
-    current_target["current_hp"] = post_hp
-    current_target["fainted"] = terminal
-    _sync_hp(state, target["side"], post_hp, current_target["max_hp"])
-    resulting_fingerprint = fingerprint_transition_preview_state(state)
-    if resulting_fingerprint is None:
-        return _result("rejected", "unserializable_damage_plus_phazing_branch")
+    state, resulting_fingerprint = applied["next_state"], applied["resulting_branch_fingerprint"]
 
     result = {
-        "status": "resolved",
-        "source_branch_fingerprint": source_branch_fingerprint,
-        "resulting_branch_fingerprint": resulting_fingerprint,
-        "next_state": state,
+        **applied,
         "observed_damage_plus_phazing_result": deepcopy(dict(observed_result)),
         "damage_application": {
             "user": deepcopy(dict(user)), "target_owner": deepcopy(dict(target)),
-            "damage": observed_result["damage_amount"], "post_hp": post_hp,
-            "target_fainted": terminal, "provenance": _PROVENANCE,
+            **applied["damage_application"], "provenance": _PROVENANCE,
         },
         "canonical_authority": deepcopy(_CANONICAL_AUTHORITY),
         "materialization": "pure_idempotent",
@@ -117,18 +111,12 @@ def _valid_observation(value: Any, fingerprint: str, active: Mapping[str, Any]) 
 
 
 def _exact_owner(value: Any) -> bool:
-    return (
-        isinstance(value, Mapping) and set(value) == set(_OWNER_KEYS)
-        and isinstance(value.get("session_id"), str) and bool(value["session_id"])
-        and value.get("side") in {"self", "opponent"}
-        and isinstance(value.get("slot_index"), int) and not isinstance(value["slot_index"], bool) and value["slot_index"] >= 0
-        and isinstance(value.get("pokemon_id"), str) and bool(value["pokemon_id"])
-    )
+    return exact_owner(value)
 
 
 def _current_owner(active: Mapping[str, Any], owner: Mapping[str, Any]) -> bool:
     current = active.get(owner["side"])
-    return isinstance(current, Mapping) and dict(owner) == {key: current.get(key) for key in _OWNER_KEYS}
+    return isinstance(current, Mapping) and dict(owner) == {key: current.get(key) for key in OWNER_KEYS}
 
 
 def _active_hp_is_exact(active: Mapping[str, Any]) -> bool:
@@ -138,22 +126,6 @@ def _active_hp_is_exact(active: Mapping[str, Any]) -> bool:
         and isinstance(maximum, int) and not isinstance(maximum, bool)
         and maximum > 0 and 0 < hp <= maximum
     )
-
-
-def _sync_hp(state: Mapping[str, Any], side: str, hp: int, maximum: int) -> None:
-    current = state.get("current_state") if isinstance(state, Mapping) else None
-    if not isinstance(current, dict):
-        return
-    rows = current.get("current_hp_context", {}).get("current_hp") if isinstance(current.get("current_hp_context"), Mapping) else None
-    if isinstance(rows, list):
-        for row in rows:
-            if isinstance(row, dict) and row.get("side") == side:
-                row["current_hp"], row["maximum_hp"] = hp, maximum
-    direct = current.get("direct_mechanics_context")
-    role = "attacker" if side == "self" else "defender"
-    combatant = direct.get(role) if isinstance(direct, Mapping) else None
-    if isinstance(combatant, dict):
-        combatant["current_hp"], combatant["max_hp"] = hp, maximum
 
 
 def _result(status: str, reason: str) -> dict[str, Any]:
