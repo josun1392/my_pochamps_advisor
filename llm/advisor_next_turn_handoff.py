@@ -60,6 +60,9 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
     persistent = state.get("branch_persistent_effect_authority")
     if isinstance(persistent, dict) and persistent.get("schema_version") == "branch-persistent-effect-authority-v1":
         persistent["source_branch_fingerprint"] = source_fp
+    binding = state.get("bind_residual_state_context")
+    if isinstance(binding, dict) and binding.get("schema_version") == "detached-bind-residual-state-v1":
+        binding["source_branch_fingerprint"] = source_fp
     # This metadata is branch provenance, not battle authority.  Its presence
     # intentionally creates a new fingerprint for the lifecycle boundary.
     state["turn_engine_lifecycle"] = {

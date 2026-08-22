@@ -25,6 +25,7 @@ from llm.advisor_ingrain_target_order import validate_ingrain_target_order
 from llm.advisor_leech_seed_end_of_turn import apply_owner_leech_seed_end_of_turn, leech_seed_state
 from llm.advisor_leech_seed_target_order import validate_leech_seed_target_order
 from llm.advisor_persistent_effect_authority import persistent_effect_state
+from llm.advisor_bind_residual import apply_owner_bind_end_of_turn, bind_state
 
 
 _ORDERING_PATH = Path(__file__).parents[1] / "data" / "static" / "detached_eot_ordering_v1.json"
@@ -117,10 +118,17 @@ def project_per_owner_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], owner: 
                 row = deepcopy(condition["trace"])
                 family = "poison_heal_compound" if row["effect"] == "poison_heal_recovery" else row["condition"]
                 trace.append({"sequence": len(trace) + 1, "tier": metadata["families"][family]["tier"], "branch_fingerprint_consumed": leech_fp, **row})
-        elif isinstance(tier_one.get("trace"), Mapping):
+        condition_fp = fingerprint_transition_preview_state(state)
+        binding = bind_state(state, owners[side])
+        if binding["state"] == "unknown": return _result("incomplete", "bind_state_unknown")
+        if not state["active"][side]["fainted"] and binding["state"] == "known_active":
+            bind = apply_owner_bind_end_of_turn(state=state, side=side, owner=owners[side], source_branch_fingerprint=condition_fp)
+            if bind.get("status") != "resolved": return bind
+            if isinstance(bind.get("trace"), Mapping): trace.append({"sequence": len(trace) + 1, "tier": metadata["families"]["bind"]["tier"], "branch_fingerprint_consumed":condition_fp, **bind["trace"]})
+        if state["active"][side]["fainted"] and isinstance(tier_one.get("trace"), Mapping):
             trace.append({"sequence": len(trace) + 1, "tier": metadata["families"]["poison"]["tier"], "effect": "condition_phase", "owner": deepcopy(owners[side]), "execution_status": "skipped", "reason": "fainted_by_tier_one_weather"})
     result_fp = fingerprint_transition_preview_state(state)
-    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": source_fp, "resulting_branch_fingerprint": result_fp, "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"scope": "one_exact_owner", "tiers": [1, 5, 6, 7, 8, 9], "authority": metadata["authority"]["source"]}, "limitations": ["cross_owner_weather_order_unrepresented", "cross_owner_item_residual_order_unrepresented", "cross_owner_aqua_ring_order_unrepresented", "cross_owner_ingrain_order_unrepresented", "cross_owner_leech_seed_order_unrepresented", "no_reducer_or_runtime_writeback"]}
+    return {"status": "resolved", "source_pre_end_of_turn_fingerprint": source_fp, "resulting_branch_fingerprint": result_fp, "eot_consequence_trace": trace, "next_state": state, "boundary": {"phase": "end_of_turn"}, "ordering": {"scope": "one_exact_owner", "tiers": [1, 5, 6, 7, 8, 9, 13], "authority": metadata["authority"]["source"]}, "limitations": ["cross_owner_weather_order_unrepresented", "cross_owner_item_residual_order_unrepresented", "cross_owner_aqua_ring_order_unrepresented", "cross_owner_ingrain_order_unrepresented", "cross_owner_leech_seed_order_unrepresented", "cross_owner_bind_order_unrepresented", "no_reducer_or_runtime_writeback"]}
 
 
 def reject_cross_owner_weather_order(*, owners: list[Mapping[str, Any]]) -> dict[str, Any]:
@@ -465,7 +473,7 @@ def _ordering_metadata() -> dict[str, Any] | None:
         data = json.loads(_ORDERING_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    expected = {"weather": 1, "leftovers": 5, "black_sludge": 5, "aqua_ring": 6, "ingrain": 7, "leech_seed": 8, "poison": 9, "toxic": 9, "poison_heal_compound": 9}
+    expected = {"weather": 1, "leftovers": 5, "black_sludge": 5, "aqua_ring": 6, "ingrain": 7, "leech_seed": 8, "poison": 9, "toxic": 9, "poison_heal_compound": 9, "bind": 13}
     families = data.get("families") if isinstance(data, Mapping) else None
     if data.get("schema_version") != "detached-eot-ordering-v1" or not isinstance(families, Mapping) or any(not isinstance(families.get(name), Mapping) or families[name].get("tier") != tier for name, tier in expected.items()):
         return None

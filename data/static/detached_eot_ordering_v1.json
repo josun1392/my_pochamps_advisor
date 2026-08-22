@@ -9,7 +9,8 @@
     "aqua_ring_residual_order": 6,
     "ingrain_residual_order": 7,
     "leech_seed_residual_order": 8,
-    "condition_residual_order": 9
+    "condition_residual_order": 9,
+    "bind_residual_order": 13
   },
   "families": {
     "weather": {"tier": 1, "ownership": "field_event_for_exact_owner", "terminal": "skip_later_same_owner"},
@@ -20,7 +21,8 @@
     "leech_seed": {"tier": 8, "ownership": "pokemon_persistent_effect_linked_owner", "terminal": "skip_later_same_owner", "provenance": "Pokemon Showdown data/moves.ts Leech Seed.onResidualOrder=8; data/items.ts Big Root.onTryHeal; data/abilities.ts Liquid Ooze.onSourceTryHeal"},
     "poison": {"tier": 9, "ownership": "pokemon_condition", "terminal": "none"},
     "toxic": {"tier": 9, "ownership": "pokemon_condition_lifecycle", "terminal": "none"},
-    "poison_heal_compound": {"tier": 9, "ownership": "intrinsic_condition_replacement", "terminal": "none"}
+    "poison_heal_compound": {"tier": 9, "ownership": "intrinsic_condition_replacement", "terminal": "none"},
+    "bind": {"tier": 13, "ownership": "target_bound_partial_trap", "terminal": "none", "provenance": "Pokemon Showdown data/conditions.ts partiallytrapped.onResidualOrder=13,onResidual"}
   },
   "limitations": ["cross_owner_weather_order_unrepresented", "only_supported_detached_families"]
 }
