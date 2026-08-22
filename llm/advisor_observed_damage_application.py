@@ -81,6 +81,20 @@ def apply_exact_observed_recoil(
             "materialization": "pure_idempotent"}
 
 
+def apply_exact_observed_drain_consequence(*, branch_state: Mapping[str, Any], source_branch_fingerprint: str, drain_authority: Mapping[str, Any]) -> dict[str, Any]:
+    """Apply a drain-family exact F1 consequence: healing or Liquid-Ooze damage."""
+    active = branch_state.get("active") if isinstance(branch_state, Mapping) else None
+    if not isinstance(active, Mapping) or fingerprint_transition_preview_state(branch_state) != source_branch_fingerprint or not isinstance(drain_authority, Mapping): return _result("rejected", "stale_or_invalid_observed_drain_branch")
+    owner, kind, amount = drain_authority.get("owner"), drain_authority.get("consequence"), drain_authority.get("amount")
+    if not (exact_owner(owner) and drain_authority.get("source_branch_fingerprint") == source_branch_fingerprint and kind in {"heal", "self_damage"} and isinstance(amount, int) and not isinstance(amount, bool) and amount > 0 and _current_owner(active, owner) and _active_hp_is_exact(active[owner["side"]]) and active[owner["side"]].get("fainted") is False): return _result("rejected", "invalid_observed_drain_authority")
+    state = deepcopy(dict(branch_state)); current = state["active"][owner["side"]]
+    post = min(current["max_hp"], current["current_hp"] + amount) if kind == "heal" else max(0, current["current_hp"] - amount)
+    current["current_hp"], current["fainted"] = post, post == 0; _sync_hp(state, owner["side"], post, current["max_hp"])
+    fingerprint = fingerprint_transition_preview_state(state)
+    if fingerprint is None: return _result("rejected", "unserializable_observed_drain_branch")
+    return {"status":"resolved","source_branch_fingerprint":source_branch_fingerprint,"resulting_branch_fingerprint":fingerprint,"next_state":state,"drain_application":{"owner":deepcopy(dict(owner)),"consequence":kind,"amount":amount,"post_hp":post,"owner_fainted":post==0},"materialization":"pure_idempotent"}
+
+
 def exact_owner(value: Any) -> bool:
     return (
         isinstance(value, Mapping) and set(value) == set(OWNER_KEYS)
