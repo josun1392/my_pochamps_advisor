@@ -24,6 +24,7 @@ from llm.advisor_ingrain_persistent_effect import apply_owner_ingrain_end_of_tur
 from llm.advisor_ingrain_target_order import validate_ingrain_target_order
 from llm.advisor_leech_seed_end_of_turn import apply_owner_leech_seed_end_of_turn, leech_seed_state
 from llm.advisor_leech_seed_target_order import validate_leech_seed_target_order
+from llm.advisor_persistent_effect_authority import persistent_effect_state
 
 
 _ORDERING_PATH = Path(__file__).parents[1] / "data" / "static" / "detached_eot_ordering_v1.json"
@@ -74,7 +75,9 @@ def project_per_owner_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], owner: 
                 family = "leftovers" if item == "leftovers" else "black_sludge"
                 trace.append({"sequence": len(trace) + 1, "tier": metadata["families"][family]["tier"], "branch_fingerprint_consumed": tier_one_fp, **item_result["trace"]})
         leftovers_fp = fingerprint_transition_preview_state(state)
-        aqua_state = aqua_ring_state(state, side, owners[side]) if "aqua_ring_persistent_effect_context" in state else "known_inactive"
+        aqua_authority = persistent_effect_state(state, "aqua_ring", side, owners[side])
+        if aqua_authority is None: return _result("incomplete", "persistent_effect_authority_unknown")
+        aqua_state = aqua_authority["state"]
         if aqua_state == "unknown": return _result("incomplete", "aqua_ring_persistent_effect_unknown")
         if aqua_state is None: return _result("rejected", "stale_or_invalid_aqua_ring_authority")
         if not state["active"][side]["fainted"] and aqua_state == "known_active":
@@ -82,7 +85,9 @@ def project_per_owner_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], owner: 
             if aqua.get("status") != "resolved": return aqua
             trace.append({"sequence": len(trace) + 1, "tier": metadata["families"]["aqua_ring"]["tier"], "branch_fingerprint_consumed": leftovers_fp, **aqua["trace"]})
         aqua_fp = fingerprint_transition_preview_state(state)
-        ingrain_effect_state = ingrain_state(state, side, owners[side]) if "ingrain_persistent_effect_context" in state else "known_inactive"
+        ingrain_authority = persistent_effect_state(state, "ingrain", side, owners[side])
+        if ingrain_authority is None: return _result("incomplete", "persistent_effect_authority_unknown")
+        ingrain_effect_state = ingrain_authority["state"]
         if ingrain_effect_state == "unknown": return _result("incomplete", "ingrain_persistent_effect_unknown")
         if ingrain_effect_state is None: return _result("rejected", "stale_or_invalid_ingrain_authority")
         if not state["active"][side]["fainted"] and ingrain_effect_state == "known_active":
@@ -90,7 +95,8 @@ def project_per_owner_end_of_turn(*, pre_end_of_turn: Mapping[str, Any], owner: 
             if ingrain.get("status") != "resolved": return ingrain
             trace.append({"sequence": len(trace) + 1, "tier": metadata["families"]["ingrain"]["tier"], "branch_fingerprint_consumed": aqua_fp, **ingrain["trace"]})
         ingrain_fp = fingerprint_transition_preview_state(state)
-        seed = leech_seed_state(state, side, owners[side]) if "leech_seed_persistent_effect_context" in state else {"state": "known_inactive"}
+        seed = persistent_effect_state(state, "leech_seed", side, owners[side])
+        if seed is None: return _result("incomplete", "persistent_effect_authority_unknown")
         if seed is None: return _result("rejected", "stale_or_invalid_leech_seed_authority")
         if seed["state"] == "unknown": return _result("incomplete", "leech_seed_persistent_effect_unknown")
         if not state["active"][side]["fainted"] and seed["state"] == "known_active":

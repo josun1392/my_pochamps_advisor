@@ -5,6 +5,7 @@ from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
 from llm.advisor_per_owner_eot import _apply_leech_seed_phase, project_per_owner_end_of_turn
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_incoming_active_materialization import materialize_incoming_active_branch
+from llm.advisor_persistent_effect_authority import materialize_persistent_effect_authority
 from tests.test_leftovers_end_of_turn import _owner_id, _pre
 
 def _seed(state, target="self", source="opponent", target_state="known_active"):
@@ -13,6 +14,8 @@ def _seed(state, target="self", source="opponent", target_state="known_active"):
     for side in ("self","opponent"):
         rows.append({"owner":owners[side],"state":target_state if side==target else "known_inactive", **({"source_slot":{"session_id":owners[source]["session_id"],"side":source,"slot_index":owners[source]["slot_index"]}} if side==target and target_state=="known_active" else {})})
     state["leech_seed_persistent_effect_context"]={"schema_version":"detached-leech-seed-persistent-effect-v1","session_id":owners[target]["session_id"],"source_branch_fingerprint":"trusted-pre-materialized-branch","provenance":"trusted_leech_seed_persistent_effect_state","states":rows}
+    states={side:{family:{"state":"known_inactive"} for family in ("aqua_ring","ingrain","leech_seed")} for side in ("self","opponent")}; states[target]["leech_seed"]={"state":target_state,"source_slot":rows[0 if target=="self" else 1].get("source_slot")}
+    state["branch_persistent_effect_authority"]=materialize_persistent_effect_authority(owners=owners,source_branch_fingerprint="trusted-pre-materialized-branch",states=states)
 
 def test_leech_seed_atomic_drain_heal_tier_eight_and_handoff():
     pre=_pre(self_hp=50,opponent_hp=40,self_item=None,opponent_item=None,self_condition="poison",opponent_condition="none"); _seed(pre["next_state"])

@@ -6,12 +6,15 @@ from llm.advisor_incoming_active_materialization import materialize_incoming_act
 from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
 from llm.advisor_per_owner_eot import project_cross_owner_weather_end_of_turn, project_per_owner_end_of_turn
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
+from llm.advisor_persistent_effect_authority import materialize_persistent_effect_authority
 from tests.test_leftovers_end_of_turn import _owner_id, _pre, _projection
 
 
 def _aqua(state, self_state="known_active", opponent_state="known_inactive"):
     owners = [_owner_id(state, side) for side in ("self", "opponent")]
     state["aqua_ring_persistent_effect_context"] = {"schema_version": "detached-aqua-ring-persistent-effect-v1", "session_id": owners[0]["session_id"], "source_branch_fingerprint": "trusted-pre-materialized-branch", "provenance": "trusted_aqua_ring_persistent_effect_state", "states": [{"owner": owners[0], "state": self_state}, {"owner": owners[1], "state": opponent_state}]}
+    states={side:{family:{"state":"known_inactive"} for family in ("aqua_ring","ingrain","leech_seed")} for side in ("self","opponent")}; states["self"]["aqua_ring"]={"state":self_state}; states["opponent"]["aqua_ring"]={"state":opponent_state}
+    state["branch_persistent_effect_authority"] = materialize_persistent_effect_authority(owners={"self":owners[0],"opponent":owners[1]},source_branch_fingerprint="trusted-pre-materialized-branch",states=states)
 
 
 def _weather_projection(pre):

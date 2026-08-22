@@ -109,6 +109,22 @@ def _execute_turn(*, turn_snapshot: Mapping[str, Any], plan: Mapping[str, Any]) 
 def _project_bounded_eot(*, pre_end_of_turn: Mapping[str, Any], weather_event_target_order: Mapping[str, Any] | None = None, leftovers_event_target_order: Mapping[str, Any] | None = None, aqua_ring_target_order: Mapping[str, Any] | None = None, ingrain_target_order: Mapping[str, Any] | None = None, leech_seed_target_order: Mapping[str, Any] | None = None, condition_event_target_order: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Dispatch a bounded EOT family or one exact-owner canonical composition."""
     state = pre_end_of_turn.get("next_state") if isinstance(pre_end_of_turn, Mapping) else None
+    # Weather-only detached adapters remain valid when no persistent-effect EOT
+    # authority is requested; persistent composition itself requires the bundle.
+    if weather_event_target_order is None and isinstance(state, Mapping) and "branch_persistent_effect_authority" not in state:
+        weather = state.get("branch_field_weather_context", {}).get("weather") if isinstance(state.get("branch_field_weather_context"), Mapping) else None
+        if weather == "snow" and _weather_has_active_ability(state, "ice-body"):
+            from llm.advisor_ice_body_end_of_turn import project_ice_body_end_of_turn
+            return project_ice_body_end_of_turn(pre_end_of_turn=pre_end_of_turn)
+        if weather == "rain" and _weather_has_active_ability(state, "rain-dish"):
+            from llm.advisor_rain_dish_end_of_turn import project_rain_dish_end_of_turn
+            return project_rain_dish_end_of_turn(pre_end_of_turn=pre_end_of_turn)
+        if weather == "rain" and _weather_has_active_ability(state, "dry-skin"):
+            from llm.advisor_dry_skin_end_of_turn import project_dry_skin_end_of_turn
+            return project_dry_skin_end_of_turn(pre_end_of_turn=pre_end_of_turn)
+        if weather == "sun" and _weather_has_active_ability(state, "solar-power"):
+            from llm.advisor_solar_power_end_of_turn import project_solar_power_end_of_turn
+            return project_solar_power_end_of_turn(pre_end_of_turn=pre_end_of_turn)
     if weather_event_target_order is not None:
         from llm.advisor_per_owner_eot import project_cross_owner_weather_end_of_turn
         return project_cross_owner_weather_end_of_turn(pre_end_of_turn=pre_end_of_turn, weather_event_target_order=weather_event_target_order, leftovers_event_target_order=leftovers_event_target_order, aqua_ring_target_order=aqua_ring_target_order, ingrain_target_order=ingrain_target_order, leech_seed_target_order=leech_seed_target_order, condition_event_target_order=condition_event_target_order)

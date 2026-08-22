@@ -7,6 +7,7 @@ from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
 from llm.advisor_per_owner_eot import project_cross_owner_weather_end_of_turn, project_per_owner_end_of_turn
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_two_turn_execution import _project_bounded_eot
+from llm.advisor_persistent_effect_authority import materialize_persistent_effect_authority
 
 
 def _owner(side, pokemon, hp=50):
@@ -20,6 +21,8 @@ def _pre(*, self_hp=50, opponent_hp=80, self_item="leftovers", opponent_item=Non
     field = project_field_weather(branch_state=state, source_fingerprint=root, frozen_field_state={"current_field": {"weather": "none", "side_effects": []}})
     if weather != "none":
         field = apply_supported_switch_entry_weather(branch_state=field["next_state"], source_fingerprint=field["resulting_branch_fingerprint"], weather_result={"status": "complete", "outcome": "weather_set", "weather_before": "none", "weather_after": weather})
+    owners={side:{key:field["next_state"]["active"][side][key] for key in ("session_id","side","slot_index","pokemon_id")} for side in ("self","opponent")}
+    field["next_state"]["branch_persistent_effect_authority"]=materialize_persistent_effect_authority(owners=owners,source_branch_fingerprint="trusted-explicit-inactive",states={side:{family:{"state":"known_inactive"} for family in ("aqua_ring","ingrain","leech_seed")} for side in ("self","opponent")})
     return {"status": "resolved", "source_snapshot_fingerprint": root, "next_state": field["next_state"], "boundary": {"phase": "pre_end_of_turn"}}
 
 
