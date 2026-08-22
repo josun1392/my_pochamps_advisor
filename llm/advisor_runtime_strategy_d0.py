@@ -210,6 +210,28 @@ def freeze_runtime_incoming_current_state_authority(
     }
 
 
+def resolve_runtime_incoming_owner(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], pokemon_id: str,
+) -> dict[str, Any]:
+    """Resolve one unique bench identity from the canonical runtime roster."""
+    if not _valid_d0(strategy_d0) or not isinstance(pokemon_id, str) or not pokemon_id:
+        return _result("rejected", "invalid_strategy_d0_or_incoming_identity")
+    fresh = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if fresh.get("status") != "current":
+        return _result("rejected", fresh.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    owner = strategy_d0["decision_owner"]
+    roster = _roster(state, owner["side"])
+    matches = [
+        {"session_id": owner["session_id"], "side": owner["side"], "slot_index": slot, "pokemon_id": pokemon_id}
+        for slot, row in roster.items()
+        if isinstance(slot, int) and not isinstance(slot, bool) and isinstance(row, Mapping) and row.get("pokemon_id") == pokemon_id
+    ]
+    if len(matches) != 1 or matches[0] == owner:
+        return _result("rejected", "foreign_or_ambiguous_runtime_incoming_identity")
+    return {"status": "resolved", "incoming_owner": matches[0]}
+
+
 def _runtime_snapshot(value: Any) -> tuple[dict[str, Any] | None, str | None, str | None]:
     if not isinstance(value, Mapping) or value.get("status") != "runtime_snapshot_ready":
         return None, None, None
