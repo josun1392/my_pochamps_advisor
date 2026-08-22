@@ -148,6 +148,59 @@ def apply_exact_observed_self_stage_consequence(
     }
 
 
+def apply_exact_observed_target_stage_consequence(
+    *, branch_state: Mapping[str, Any], source_branch_fingerprint: str,
+    stage_authority: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Apply Acid Spray's exact F1-bound target Special Defense drop only."""
+    active = branch_state.get("active") if isinstance(branch_state, Mapping) else None
+    if (
+        not isinstance(active, Mapping)
+        or fingerprint_transition_preview_state(branch_state) != source_branch_fingerprint
+        or not isinstance(stage_authority, Mapping)
+    ):
+        return _result("rejected", "stale_or_invalid_observed_target_stage_branch")
+    owner, stat, delta = (
+        stage_authority.get("owner"),
+        stage_authority.get("stat"),
+        stage_authority.get("delta"),
+    )
+    if not (
+        exact_owner(owner)
+        and stage_authority.get("schema_version") == "observed-acid-spray-target-stage-authority-v1"
+        and stage_authority.get("provenance") == "trusted_observed_damage_plus_target_stage_result_v1"
+        and stage_authority.get("source_branch_fingerprint") == source_branch_fingerprint
+        and stat == "special-defense" and delta == -2
+        and _current_owner(active, owner) and active[owner["side"]].get("fainted") is False
+    ):
+        return _result("rejected", "invalid_observed_target_stage_authority")
+    baseline = _exact_current_stage(branch_state, owner["side"], stat)
+    previous, consumes_overlay = _effective_target_stage(branch_state, owner, stat, baseline)
+    if previous is None:
+        return _result("rejected", "invalid_observed_target_stage_authority")
+    projected = max(-6, min(6, previous + delta))
+    if projected == previous:
+        return _result("rejected", "target_stage_already_at_bound")
+    state = deepcopy(dict(branch_state))
+    synced = _set_exact_stage(state, owner["side"], stat, projected)
+    if synced != baseline:
+        return _result("rejected", "invalid_observed_target_stage_authority")
+    if consumes_overlay:
+        state.pop("predicted_stage_context", None)
+    fingerprint = fingerprint_transition_preview_state(state)
+    if fingerprint is None:
+        return _result("rejected", "unserializable_observed_target_stage_branch")
+    return {
+        "status": "resolved", "source_branch_fingerprint": source_branch_fingerprint,
+        "resulting_branch_fingerprint": fingerprint, "next_state": state,
+        "target_stage_application": {
+            "owner": deepcopy(dict(owner)), "stat": stat, "previous_stage": previous,
+            "delta": delta, "projected_stage": projected,
+        },
+        "materialization": "pure_idempotent",
+    }
+
+
 def apply_exact_observed_life_orb_consequence(
     *, branch_state: Mapping[str, Any], source_branch_fingerprint: str,
     life_orb_authority: Mapping[str, Any],
@@ -264,6 +317,70 @@ def _sync_stage(state: Mapping[str, Any], side: str, stat: str, delta: int) -> i
     combatant = direct.get(role) if isinstance(direct, Mapping) else None
     if isinstance(combatant, dict) and isinstance(combatant.get("boosts"), dict):
         combatant["boosts"][stat] = match["stage"]
+    return previous
+
+
+def _exact_current_stage(state: Mapping[str, Any], side: str, stat: str) -> int | None:
+    current = state.get("current_state") if isinstance(state, Mapping) else None
+    rows = current.get("stat_stage_context", {}).get("current_stages") if isinstance(current, Mapping) else None
+    match = next((
+        row for row in rows
+        if isinstance(row, Mapping)
+        and row.get("side") == side and row.get("stat") == stat
+        and row.get("status") == "user_confirmed"
+        and row.get("source") == "user_confirmed_current_stat_stage"
+        and row.get("confidence") == "known"
+        and isinstance(row.get("stage"), int) and not isinstance(row.get("stage"), bool)
+        and -6 <= row["stage"] <= 6
+    ), None) if isinstance(rows, list) else None
+    return match["stage"] if match is not None else None
+
+
+def _effective_target_stage(
+    state: Mapping[str, Any], owner: Mapping[str, Any], stat: str, baseline: int | None,
+) -> tuple[int | None, bool]:
+    if baseline is None:
+        return None, False
+    overlay = state.get("predicted_stage_context") if isinstance(state, Mapping) else None
+    if overlay is None:
+        return baseline, False
+    if not isinstance(overlay, Mapping):
+        return None, False
+    if overlay.get("owner") != dict(owner) or overlay.get("stat") != stat:
+        return baseline, False
+    previous, delta, projected = overlay.get("previous_stage"), overlay.get("delta"), overlay.get("projected_stage")
+    if not (
+        overlay.get("schema_version") == "hypothetical-self-stage-v1"
+        and previous == baseline
+        and isinstance(delta, int) and not isinstance(delta, bool) and -6 <= delta <= 6
+        and isinstance(projected, int) and not isinstance(projected, bool) and -6 <= projected <= 6
+        and projected == max(-6, min(6, previous + delta))
+    ):
+        return None, False
+    return projected, True
+
+
+def _set_exact_stage(state: Mapping[str, Any], side: str, stat: str, stage: int) -> int | None:
+    current = state.get("current_state") if isinstance(state, Mapping) else None
+    rows = current.get("stat_stage_context", {}).get("current_stages") if isinstance(current, Mapping) else None
+    match = next((
+        row for row in rows
+        if isinstance(row, dict) and row.get("side") == side and row.get("stat") == stat
+        and row.get("status") == "user_confirmed"
+        and row.get("source") == "user_confirmed_current_stat_stage"
+        and row.get("confidence") == "known"
+        and isinstance(row.get("stage"), int) and not isinstance(row.get("stage"), bool)
+        and -6 <= row["stage"] <= 6
+    ), None) if isinstance(rows, list) else None
+    if match is None:
+        return None
+    previous = match["stage"]
+    match["stage"] = stage
+    direct = current.get("direct_mechanics_context") if isinstance(current, Mapping) else None
+    role = "attacker" if side == "self" else "defender"
+    combatant = direct.get(role) if isinstance(direct, Mapping) else None
+    if isinstance(combatant, dict) and isinstance(combatant.get("boosts"), dict):
+        combatant["boosts"][stat] = stage
     return previous
 
 
