@@ -26,27 +26,15 @@ def execute_allowed_self_forced_switch(
     replacement_authority: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Execute one allowed F0 self replacement; never chooses a replacement."""
-    if fingerprint_transition_preview_state(source_branch) != source_branch_fingerprint:
-        return _result("rejected", "stale_or_invalid_forced_switch_execution_branch")
-    request = materialize_forced_switch_request(branch_state=source_branch, source_branch_fingerprint=source_branch_fingerprint, observed_request=forced_switch_request)
-    if request.get("status") != "resolved": return request
-    outgoing = forced_switch_request.get("target_owner")
-    if not _valid_allowed_decision(cancellation_decision, source_branch_fingerprint, forced_switch_request, outgoing):
-        return _result("rejected", "forced_switch_execution_not_allowed")
-    if not _valid_authority(replacement_authority, source_branch_fingerprint, outgoing):
-        return _result("rejected", "stale_or_invalid_forced_switch_replacement_authority")
-    if outgoing.get("side") != "self":
-        return _result("unsupported", "opponent_forced_switch_execution_out_of_scope")
-    materialized = materialize_incoming_active_branch(
+    prepared = materialize_allowed_forced_replacement(
         source_branch=source_branch, source_branch_fingerprint=source_branch_fingerprint,
-        incoming_authority=replacement_authority["incoming_authority"],
-    )
-    if materialized.get("status") != "resolved": return materialized
-    prepared = _attach_forced_replacement_state(
-        materialized=materialized, source_branch_fingerprint=source_branch_fingerprint,
-        source_branch=source_branch, replacement_authority=replacement_authority,
+        forced_switch_request=forced_switch_request, cancellation_decision=cancellation_decision,
+        replacement_authority=replacement_authority,
     )
     if prepared.get("status") != "resolved": return prepared
+    outgoing = forced_switch_request["target_owner"]
+    if outgoing.get("side") != "self":
+        return _result("unsupported", "opponent_forced_switch_execution_out_of_scope")
     entry = execute_materialized_switch_entry(
         materialized_switch=prepared, entry_authority=replacement_authority["entry_authority"],
     )
@@ -65,19 +53,55 @@ def execute_allowed_self_forced_switch(
     }
 
 
+def materialize_allowed_forced_replacement(
+    *, source_branch: Mapping[str, Any], source_branch_fingerprint: str,
+    forced_switch_request: Mapping[str, Any], cancellation_decision: Mapping[str, Any],
+    replacement_authority: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Create one side-neutral post-replacement/pre-entry branch from F0 authority."""
+    if fingerprint_transition_preview_state(source_branch) != source_branch_fingerprint:
+        return _result("rejected", "stale_or_invalid_forced_switch_execution_branch")
+    request = materialize_forced_switch_request(branch_state=source_branch, source_branch_fingerprint=source_branch_fingerprint, observed_request=forced_switch_request)
+    if request.get("status") != "resolved": return request
+    outgoing = forced_switch_request.get("target_owner")
+    if not _valid_allowed_decision(cancellation_decision, source_branch_fingerprint, forced_switch_request, outgoing):
+        return _result("rejected", "forced_switch_execution_not_allowed")
+    if not _valid_authority(replacement_authority, source_branch_fingerprint, outgoing):
+        return _result("rejected", "stale_or_invalid_forced_switch_replacement_authority")
+    materialized = materialize_incoming_active_branch(
+        source_branch=source_branch, source_branch_fingerprint=source_branch_fingerprint,
+        incoming_authority=replacement_authority["incoming_authority"],
+    )
+    if materialized.get("status") != "resolved": return materialized
+    prepared = _attach_forced_replacement_state(
+        materialized=materialized, source_branch_fingerprint=source_branch_fingerprint,
+        source_branch=source_branch, replacement_authority=replacement_authority,
+    )
+    if prepared.get("status") != "resolved": return prepared
+    return {
+        "status": "resolved", "source_branch_fingerprint": source_branch_fingerprint,
+        "resulting_branch_fingerprint": prepared["resulting_branch_fingerprint"],
+        "next_state": prepared["next_state"], "materialization_trace": prepared["materialization_trace"],
+        "boundary": {"phase": "post_forced_switch_pre_entry"},
+        "limitations": ["replacement_already_resolved", "entry_execution_separate", "no_reducer_or_runtime_writeback"],
+    }
+
+
 def _attach_forced_replacement_state(*, materialized: Mapping[str, Any], source_branch_fingerprint: str, source_branch: Mapping[str, Any], replacement_authority: Mapping[str, Any]) -> dict[str, Any]:
     state = deepcopy(materialized["next_state"])
     incoming = replacement_authority["incoming_authority"]["owner"]
-    opponent = state["active"]["opponent"]
+    incoming_side = incoming["side"]
+    retained_side = "opponent" if incoming_side == "self" else "self"
+    retained = state["active"][retained_side]
     source_bundle = source_branch.get("branch_persistent_effect_authority")
     rows = source_bundle.get("states") if isinstance(source_bundle, Mapping) else None
     if not isinstance(rows, list): return _result("incomplete", "persistent_effect_authority_unknown")
-    states = {"self": replacement_authority["incoming_authority"]["persistent_effect_states"], "opponent": {}}
+    states = {incoming_side: replacement_authority["incoming_authority"]["persistent_effect_states"], retained_side: {}}
     for family in _FAMILIES:
-        match = [row for row in rows if isinstance(row, Mapping) and row.get("family") == family and row.get("owner") == _owner(opponent)]
+        match = [row for row in rows if isinstance(row, Mapping) and row.get("family") == family and row.get("owner") == _owner(retained)]
         if len(match) != 1 or match[0].get("state") not in {"known_active", "known_inactive", "unknown"}: return _result("rejected", "stale_or_invalid_opponent_persistent_effect_authority")
-        states["opponent"][family] = {key: deepcopy(match[0][key]) for key in ("state", "provenance", "source_slot") if key in match[0]}
-    owners = {"self": _owner(incoming), "opponent": _owner(opponent)}
+        states[retained_side][family] = {key: deepcopy(match[0][key]) for key in ("state", "provenance", "source_slot") if key in match[0]}
+    owners = {incoming_side: _owner(incoming), retained_side: _owner(retained)}
     state["branch_persistent_effect_authority"] = materialize_persistent_effect_authority(owners=owners, source_branch_fingerprint=source_branch_fingerprint, states=states)
     for family, (key, schema, provenance) in _CONTEXTS.items():
         context_rows = []

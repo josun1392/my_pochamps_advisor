@@ -1,4 +1,4 @@
-"""Bounded self-side forced replacement authority; no selection policy."""
+"""Bounded forced replacement authority; no selection policy."""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -25,7 +25,7 @@ def materialize_observed_forced_replacement_result(
     *, branch_state: Mapping[str, Any], source_branch_fingerprint: str,
     observed_replacement: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Purely validate one observed, already-resolved self-side replacement."""
+    """Purely validate one observed, already-resolved side-bound replacement."""
     if fingerprint_transition_preview_state(branch_state) != source_branch_fingerprint:
         return _result("rejected", "stale_or_invalid_observed_replacement_branch")
     if not _valid_observation(branch_state, source_branch_fingerprint, observed_replacement):
@@ -93,14 +93,15 @@ def _valid_observation(branch: Mapping[str, Any], fingerprint: str, value: Any) 
         or value.get("source_branch_fingerprint") != fingerprint
         or value.get("replacement_status") != "replacement_resolved"
         or value.get("provenance") != OBSERVED_PROVENANCE
-        or not isinstance(active.get("self"), Mapping)
-        or {key: active["self"].get(key) for key in _OWNER_KEYS} != dict(outgoing)
+        or outgoing.get("side") not in {"self", "opponent"}
+        or not isinstance(active.get(outgoing.get("side")), Mapping)
+        or {key: active[outgoing["side"]].get(key) for key in _OWNER_KEYS} != dict(outgoing)
         or not _owner(owner)
         or owner.get("session_id") != outgoing.get("session_id")
-        or owner.get("side") != "self"
+        or owner.get("side") != outgoing.get("side")
         or dict(owner) == dict(outgoing)
         or not _valid_incoming(incoming)
-        or not _valid_bench(value.get("outgoing_bench_authority"), outgoing, active["self"])
+        or not _valid_bench(value.get("outgoing_bench_authority"), outgoing, active[outgoing["side"]])
         or not _available_in_roster(branch, owner)
         or not _valid_entry_authority(value.get("entry_authority"), owner, outgoing["session_id"])
     ):
@@ -143,14 +144,14 @@ def _valid_bench(value: Any, owner: Mapping[str, Any], active: Mapping[str, Any]
 
 def _available_in_roster(branch: Mapping[str, Any], owner: Mapping[str, Any]) -> bool:
     current = branch.get("current_state") if isinstance(branch, Mapping) else None
-    roster = current.get("self_roster_mechanics_context") if isinstance(current, Mapping) else None
+    roster = current.get(f"{owner.get('side')}_roster_mechanics_context") if isinstance(current, Mapping) else None
     rows = roster.get("entries") if isinstance(roster, Mapping) else None
     match = next((row for row in rows if isinstance(row, Mapping) and all(row.get(key) == owner.get(key) for key in ("session_id", "side", "slot_index", "pokemon_id"))), None) if isinstance(rows, list) else None
     return isinstance(match, Mapping) and isinstance(match.get("fainted_authority"), Mapping) and match["fainted_authority"].get("status") == "known" and match["fainted_authority"].get("value") is False
 
 
 def _valid_entry_authority(value: Any, incoming: Mapping[str, Any], session: str) -> bool:
-    return isinstance(value, Mapping) and set(value) == {"hazards", "target_roster_mechanics", "intimidate_authority", "download_authority", "field_state_context", "provenance"} and value.get("provenance") == "trusted_forced_switch_entry_authority_v1" and isinstance(value.get("hazards"), Mapping) and isinstance(value.get("target_roster_mechanics"), Mapping) and value["target_roster_mechanics"].get("session_id") == session and value["target_roster_mechanics"].get("side") == "self" and value["target_roster_mechanics"].get("slot_index") == incoming.get("slot_index") and value["target_roster_mechanics"].get("pokemon_id") == incoming.get("pokemon_id")
+    return isinstance(value, Mapping) and set(value) == {"hazards", "target_roster_mechanics", "intimidate_authority", "download_authority", "field_state_context", "provenance"} and value.get("provenance") == "trusted_forced_switch_entry_authority_v1" and isinstance(value.get("hazards"), Mapping) and isinstance(value.get("target_roster_mechanics"), Mapping) and value["target_roster_mechanics"].get("session_id") == session and value["target_roster_mechanics"].get("side") == incoming.get("side") and value["target_roster_mechanics"].get("slot_index") == incoming.get("slot_index") and value["target_roster_mechanics"].get("pokemon_id") == incoming.get("pokemon_id") and value["hazards"].get("affected_side") == incoming.get("side")
 
 
 def _allowed_decision(value: Any, fingerprint: str, request: Mapping[str, Any], outgoing: Mapping[str, Any]) -> bool:

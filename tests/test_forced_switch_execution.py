@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from llm.advisor_forced_switch_execution import execute_allowed_self_forced_switch
+from llm.advisor_forced_switch_execution import execute_allowed_self_forced_switch, materialize_allowed_forced_replacement
 from llm.advisor_forced_switch_replacement import (
     materialize_forced_switch_replacement_authority,
     materialize_observed_forced_replacement_result,
@@ -102,3 +102,29 @@ def test_hazard_ko_is_terminal_without_second_replacement_and_active_ingrain_nev
     request, decision, authority = _authority(active)
     assert decision["decision"] == "cancelled"
     assert execute_allowed_self_forced_switch(source_branch=active, source_branch_fingerprint=fingerprint_transition_preview_state(active), forced_switch_request=request, cancellation_decision=decision, replacement_authority=authority) == {"status": "rejected", "reason": "forced_switch_execution_not_allowed"}
+
+
+def test_opponent_replacement_materializes_exact_owner_and_bench_but_entry_execution_remains_out_of_scope():
+    state, observed = _state()
+    outgoing = _owner(state, "opponent")
+    incoming = deepcopy(observed["incoming_authority"])
+    incoming["owner"] = {"session_id": outgoing["session_id"], "side": "opponent", "slot_index": 1, "pokemon_id": "opponent-incoming"}
+    target = deepcopy(observed["entry_authority"]["target_roster_mechanics"])
+    target.update(incoming["owner"]); target["fainted_authority"] = {"status": "known", "value": False}
+    state["current_state"]["opponent_roster_mechanics_context"] = {"session_id": outgoing["session_id"], "side": "opponent", "entries": [target]}
+    observed.update({
+        "outgoing_owner": outgoing, "session_id": outgoing["session_id"], "incoming_authority": incoming,
+        "outgoing_bench_authority": {**observed["outgoing_bench_authority"], "owner": outgoing, "hp_authority": {"status": "known", "current_hp": 100, "maximum_hp": 100}},
+        "entry_authority": {**observed["entry_authority"], "hazards": {**observed["entry_authority"]["hazards"], "affected_side": "opponent"}, "target_roster_mechanics": target},
+    })
+    fp = fingerprint_transition_preview_state(state)
+    observed["source_branch_fingerprint"] = fp
+    request = {"schema_version": "forced-switch-request-v1", "session_id": outgoing["session_id"], "source_branch_fingerprint": fp, "target_owner": outgoing, "request_kind": "drag_out", "provenance": "trusted_forced_switch_request_v1"}
+    decision = decide_forced_switch_cancellation(branch_state=state, source_branch_fingerprint=fp, forced_switch_request=request)
+    authority = materialize_forced_switch_replacement_authority(branch_state=state, source_branch_fingerprint=fp, forced_switch_request=request, cancellation_decision=decision, observed_replacement=observed)
+    result = materialize_allowed_forced_replacement(source_branch=state, source_branch_fingerprint=fp, forced_switch_request=request, cancellation_decision=decision, replacement_authority=authority)
+    assert authority["status"] == "resolved" and result["status"] == "resolved", authority
+    assert result["next_state"]["active"]["opponent"]["pokemon_id"] == "opponent-incoming"
+    assert result["next_state"]["active"]["self"] == state["active"]["self"]
+    assert result["next_state"]["forced_switch_bench_record"]["owner"] == outgoing
+    assert execute_allowed_self_forced_switch(source_branch=state, source_branch_fingerprint=fp, forced_switch_request=request, cancellation_decision=decision, replacement_authority=authority) == {"status": "unsupported", "reason": "opponent_forced_switch_execution_out_of_scope"}

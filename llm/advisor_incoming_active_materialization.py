@@ -13,7 +13,7 @@ _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 def materialize_incoming_active_branch(
     *, source_branch: Mapping[str, Any], source_branch_fingerprint: str, incoming_authority: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Replace self active only from a complete, identity-bound incoming authority.
+    """Replace one exact active from a complete, identity-bound incoming authority.
 
     ``incoming_authority.current_state`` is intentionally the ordinary
     current-state shape consumed by hypothetical direct mechanics.  It is a
@@ -24,9 +24,9 @@ def materialize_incoming_active_branch(
     if actual is None or actual != source_branch_fingerprint:
         return _result("rejected", "stale_or_invalid_source_branch_fingerprint")
     active = source_branch.get("active") if isinstance(source_branch, Mapping) else None
-    outgoing = active.get("self") if isinstance(active, Mapping) else None
-    opponent = active.get("opponent") if isinstance(active, Mapping) else None
-    if not _active(outgoing, "self") or not _active(opponent, "opponent"):
+    outgoing_self = active.get("self") if isinstance(active, Mapping) else None
+    outgoing_opponent = active.get("opponent") if isinstance(active, Mapping) else None
+    if not _active(outgoing_self, "self") or not _active(outgoing_opponent, "opponent"):
         return _result("rejected", "invalid_source_branch_ownership")
     if not isinstance(incoming_authority, Mapping) or incoming_authority.get("provenance") != "identity_bound_incoming_current_state_v1":
         return _result("rejected", "invalid_incoming_authority_provenance")
@@ -34,7 +34,11 @@ def materialize_incoming_active_branch(
     hp = incoming_authority.get("hp_authority")
     fainted = incoming_authority.get("fainted_authority")
     current = incoming_authority.get("current_state")
-    if not _owner(owner, session=outgoing["session_id"], side="self") or owner == _owner_dict(outgoing):
+    side = owner.get("side") if isinstance(owner, Mapping) else None
+    outgoing = active.get(side) if side in {"self", "opponent"} and isinstance(active, Mapping) else None
+    retained_side = "opponent" if side == "self" else "self"
+    retained = active.get(retained_side) if isinstance(active, Mapping) else None
+    if not _owner(owner, session=outgoing_self["session_id"], side=side) or not isinstance(outgoing, Mapping) or not isinstance(retained, Mapping) or owner == _owner_dict(outgoing):
         return _result("rejected", "stale_or_mismatched_incoming_owner")
     if not _known_hp(hp) or not isinstance(fainted, Mapping) or fainted.get("status") != "known" or not isinstance(fainted.get("value"), bool):
         return _result("incomplete", "incoming_exact_hp_or_fainted_authority")
@@ -43,15 +47,11 @@ def materialize_incoming_active_branch(
     if not isinstance(current, Mapping) or current.get("current_state_session_id") != owner["session_id"]:
         return _result("rejected", "invalid_incoming_current_state")
 
-    # Never copy the source's self-owned current state.  The caller supplies a
-    # separately frozen, incoming-owned canonical current state.  The opposing
-    # active is retained because it is not replaced by this switch.
+    # Never copy the source owner's current state. The caller supplies a
+    # separately frozen incoming state; only the exact opposing active remains.
     state = {
         "schema_version": "deterministic-transition-preview-v1",
-        "active": {
-            "self": {**deepcopy(dict(owner)), "current_hp": hp["current_hp"], "max_hp": hp["maximum_hp"], "fainted": fainted["value"]},
-            "opponent": deepcopy(dict(opponent)),
-        },
+        "active": {side: {**deepcopy(dict(owner)), "current_hp": hp["current_hp"], "max_hp": hp["maximum_hp"], "fainted": fainted["value"]}, retained_side: deepcopy(dict(retained))},
         "current_state": deepcopy(dict(current)),
         "incoming_active_materialization": {
             "schema_version": "detached-incoming-active-v1",
