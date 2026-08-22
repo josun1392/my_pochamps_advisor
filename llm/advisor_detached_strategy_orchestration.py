@@ -23,7 +23,7 @@ def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decisi
     outcome=materialize_predictive_fixed_damage_outcome(decision_state=decision_state,decision_owner=decision_owner,candidate=bound["candidate"],predictive_authority=attacks[cid])
     if outcome.get("status")=="complete":
      fact=guaranteed_facts_from_exact_outcome(decision_owner=decision_owner,outcome=outcome["outcome"]);evidence.append(_e(candidate,"exact_outcome",outcome=outcome["outcome"],facts=fact));facts.append(fact);continue
-  if cid=="attack:water-gun" and isinstance(water,Mapping):
+  if cid=="attack:water-gun" and all(isinstance(water.get(key),Mapping) for key in ("target_owner","snapshot_damage_input","stat_provenance")):
    interval=build_predictive_water_gun_interval(branch_state=decision_state,decision_owner=decision_owner,target_owner=water.get("target_owner"),snapshot_damage_input=water.get("snapshot_damage_input"),stat_provenance=water.get("stat_provenance"),trusted_level=water.get("trusted_level"))
    if interval.get("completeness")=="exact_complete":
     own=decision_state["active"][decision_owner["side"]]["current_hp"];fact=guaranteed_facts_from_water_gun_interval(candidate=candidate,interval=interval,own_current_hp=own);evidence.append(_e(candidate,"guaranteed_facts",interval=interval,facts=fact));facts.append(fact);continue
