@@ -44,7 +44,7 @@ def _evaluate_toxic_spikes(*, hazards: Mapping[str, Any], target: Mapping[str, A
         return _complete("prevented_by_heavy_duty_boots")
     if not _known_authority(item):
         return _incomplete("item_unknown")
-    layers = _hazard_value(hazards, "toxic_spikes_layers", {0, 1, 2})
+    layers = _hazard_value(hazards, target.get("side"), "toxic_spikes_layers", {0, 1, 2})
     if layers is None:
         return _incomplete("toxic_spikes_unknown")
     if layers == 0:
@@ -86,7 +86,7 @@ def _evaluate_sticky_web(*, hazards: Mapping[str, Any], target: Mapping[str, Any
         return _complete("prevented_by_heavy_duty_boots")
     if not _known_authority(item):
         return _incomplete("item_unknown")
-    present = _hazard_value(hazards, "sticky_web", {"present", "absent"})
+    present = _hazard_value(hazards, target.get("side"), "sticky_web", {"present", "absent"})
     if present is None:
         return _incomplete("sticky_web_unknown")
     if present == "absent":
@@ -121,11 +121,11 @@ def _evaluate_intimidate(*, target: Mapping[str, Any], damage: Mapping[str, Any]
         return _incomplete("prior_entry_hazards_incomplete")
     if damage.get("hazard_ko") is True:
         return _complete("not_activated_hazard_ko")
-    source = {"side": "self", "slot_index": target.get("slot_index"), "pokemon_id": target.get("pokemon_id")}
+    source = _source_identity(target)
     if not _valid_intimidate_authority(authority, session_id=target.get("session_id")) or authority.get("source") != source:
         return _incomplete("intimidate_interaction_unknown")
     opponent = authority.get("target")
-    if not _identity(opponent, "opponent"):
+    if not _identity(opponent, _opposing_side(target)):
         return _incomplete("opposing_active_unknown")
     interaction, before = authority.get("interaction"), authority.get("target_attack_stage")
     if interaction not in {"lowered", "blocked", "reversed"}:
@@ -149,7 +149,7 @@ def _evaluate_download(*, target: Mapping[str, Any], damage: Mapping[str, Any], 
         return _incomplete("prior_entry_hazards_incomplete")
     if damage.get("hazard_ko") is True:
         return _complete("not_activated_hazard_ko")
-    source = {"side": "self", "slot_index": target.get("slot_index"), "pokemon_id": target.get("pokemon_id")}
+    source = _source_identity(target)
     if not _valid_download_authority(authority, session_id=target.get("session_id")) or authority.get("source") != source:
         return _incomplete("download_authority_unknown")
     if authority.get("applicability") == "unknown":
@@ -179,7 +179,7 @@ def _evaluate_trace(*, target: Mapping[str, Any], damage: Mapping[str, Any], aut
         return _incomplete("prior_entry_hazards_incomplete")
     if damage.get("hazard_ko") is True:
         return _complete("not_activated_hazard_ko")
-    source = {"side": "self", "slot_index": target.get("slot_index"), "pokemon_id": target.get("pokemon_id")}
+    source = _source_identity(target)
     if not _valid_trace_authority(authority, session_id=target.get("session_id")) or authority.get("source") != source:
         return _incomplete("trace_authority_unknown")
     traceability = authority.get("traceability")
@@ -207,7 +207,7 @@ def _evaluate_sturdy(*, target: Mapping[str, Any], damage: Mapping[str, Any], au
         return _incomplete("post_entry_hp_unknown")
     if after != maximum:
         return _complete("not_full_hp", post_entry_hp=after, maximum_hp=maximum)
-    source = {"side": "self", "slot_index": target.get("slot_index"), "pokemon_id": target.get("pokemon_id")}
+    source = _source_identity(target)
     if not _valid_sturdy_authority(authority, session_id=target.get("session_id")) or authority.get("source") != source:
         return _incomplete("sturdy_interaction_unknown")
     applicability = authority.get("applicability")
@@ -236,9 +236,9 @@ def _evaluate_entry_weather(*, target: Mapping[str, Any], damage: Mapping[str, A
     return _complete("weather_already_active" if before == weather else "weather_set", weather_before=before, weather_after=weather)
 
 
-def _hazard_value(hazards: Any, key: str, allowed: set[Any]) -> Any | None:
+def _hazard_value(hazards: Any, target_side: Any, key: str, allowed: set[Any]) -> Any | None:
     required = {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web"}
-    if not isinstance(hazards, Mapping) or set(hazards) != required or hazards.get("schema_version") != "switch-hazard-context-v2" or hazards.get("affected_side") != "self":
+    if not isinstance(hazards, Mapping) or set(hazards) != required or hazards.get("schema_version") != "switch-hazard-context-v2" or target_side not in {"self", "opponent"} or hazards.get("affected_side") != target_side:
         return None
     value = hazards.get(key)
     return value if value in allowed else None
@@ -285,24 +285,37 @@ def _identity(value: Any, side: str) -> bool:
     return isinstance(value, Mapping) and value.get("side") == side and isinstance(value.get("slot_index"), int) and not isinstance(value.get("slot_index"), bool) and value["slot_index"] >= 0 and isinstance(value.get("pokemon_id"), str) and bool(value["pokemon_id"])
 
 
+def _source_identity(target: Mapping[str, Any]) -> dict[str, Any]:
+    return {"side": target.get("side"), "slot_index": target.get("slot_index"), "pokemon_id": target.get("pokemon_id")}
+
+
+def _opposing_side(target: Mapping[str, Any]) -> str | None:
+    return "opponent" if target.get("side") == "self" else "self" if target.get("side") == "opponent" else None
+
+
 def _valid_intimidate_authority(value: Any, *, session_id: Any) -> bool:
     required = {"schema_version", "session_id", "source", "target", "interaction", "target_attack_stage"}
-    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-intimidate-authority-v1" and value.get("session_id") == session_id and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
+    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-intimidate-authority-v1" and value.get("session_id") == session_id and _opposed_identities(value)
 
 
 def _valid_download_authority(value: Any, *, session_id: Any) -> bool:
     required = {"schema_version", "session_id", "source", "target", "applicability", "target_defense", "target_special_defense"}
-    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-download-authority-v1" and value.get("session_id") == session_id and value.get("applicability") in {"applicable", "blocked", "unknown"} and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
+    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-download-authority-v1" and value.get("session_id") == session_id and value.get("applicability") in {"applicable", "blocked", "unknown"} and _opposed_identities(value)
 
 
 def _valid_trace_authority(value: Any, *, session_id: Any) -> bool:
     required = {"schema_version", "session_id", "source", "target", "target_ability", "traceability"}
-    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-trace-authority-v1" and value.get("session_id") == session_id and value.get("traceability") in {"traceable", "untraceable", "unknown"} and isinstance(value.get("target_ability"), str) and bool(value["target_ability"]) and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
+    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-trace-authority-v1" and value.get("session_id") == session_id and value.get("traceability") in {"traceable", "untraceable", "unknown"} and isinstance(value.get("target_ability"), str) and bool(value["target_ability"]) and _opposed_identities(value)
 
 
 def _valid_sturdy_authority(value: Any, *, session_id: Any) -> bool:
     required = {"schema_version", "session_id", "source", "target", "applicability"}
-    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-sturdy-authority-v1" and value.get("session_id") == session_id and value.get("applicability") in {"applicable", "suppressed", "unknown"} and _identity(value.get("source"), "self") and _identity(value.get("target"), "opponent")
+    return isinstance(value, Mapping) and set(value) == required and value.get("schema_version") == "switch-entry-sturdy-authority-v1" and value.get("session_id") == session_id and value.get("applicability") in {"applicable", "suppressed", "unknown"} and _opposed_identities(value)
+
+
+def _opposed_identities(value: Mapping[str, Any]) -> bool:
+    source, target = value.get("source"), value.get("target")
+    return isinstance(source, Mapping) and isinstance(target, Mapping) and source.get("side") in {"self", "opponent"} and target.get("side") == ("opponent" if source.get("side") == "self" else "self") and _identity(source, source["side"]) and _identity(target, target["side"])
 
 
 def _current_weather(value: Any) -> str | None:

@@ -20,21 +20,18 @@ _CONTEXTS = {
 }
 
 
-def execute_allowed_self_forced_switch(
+def execute_allowed_forced_switch(
     *, source_branch: Mapping[str, Any], source_branch_fingerprint: str,
     forced_switch_request: Mapping[str, Any], cancellation_decision: Mapping[str, Any],
     replacement_authority: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Execute one allowed F0 self replacement; never chooses a replacement."""
+    """Execute one allowed F0 replacement through the shared entry lifecycle."""
     prepared = materialize_allowed_forced_replacement(
         source_branch=source_branch, source_branch_fingerprint=source_branch_fingerprint,
         forced_switch_request=forced_switch_request, cancellation_decision=cancellation_decision,
         replacement_authority=replacement_authority,
     )
     if prepared.get("status") != "resolved": return prepared
-    outgoing = forced_switch_request["target_owner"]
-    if outgoing.get("side") != "self":
-        return _result("unsupported", "opponent_forced_switch_execution_out_of_scope")
     entry = execute_materialized_switch_entry(
         materialized_switch=prepared, entry_authority=replacement_authority["entry_authority"],
     )
@@ -49,8 +46,19 @@ def execute_allowed_self_forced_switch(
         "next_state": entry["next_state"], "entry_effect_result": entry["entry_effect_result"],
         "consequence_trace": entry["consequence_trace"], "atomic_execution": True,
         "boundary": {"phase": "post_forced_switch_entry"},
-        "limitations": ["self_side_only", "replacement_already_resolved", "no_replacement_loop", "no_reducer_or_runtime_writeback"],
+        "limitations": ["replacement_already_resolved", "no_replacement_loop", "no_reducer_or_runtime_writeback"],
     }
+
+
+def execute_allowed_self_forced_switch(
+    *, source_branch: Mapping[str, Any], source_branch_fingerprint: str,
+    forced_switch_request: Mapping[str, Any], cancellation_decision: Mapping[str, Any],
+    replacement_authority: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Backward-compatible self-side entry point for the shared executor."""
+    if forced_switch_request.get("target_owner", {}).get("side") != "self":
+        return _result("unsupported", "self_side_forced_switch_required")
+    return execute_allowed_forced_switch(source_branch=source_branch, source_branch_fingerprint=source_branch_fingerprint, forced_switch_request=forced_switch_request, cancellation_decision=cancellation_decision, replacement_authority=replacement_authority)
 
 
 def materialize_allowed_forced_replacement(

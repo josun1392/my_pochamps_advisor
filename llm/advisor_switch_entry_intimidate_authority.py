@@ -17,7 +17,7 @@ def build_switch_entry_intimidate_authority(*, session_id: str, source: Mapping[
     cannot be applied to another opponent.
     """
     source_identity, target_identity = _identity(source), _identity(target)
-    if (not isinstance(session_id, str) or not session_id or source_identity["side"] != "self" or target_identity["side"] != "opponent" or interaction not in _OUTCOMES or (target_attack_stage != "unknown" and (not isinstance(target_attack_stage, int) or isinstance(target_attack_stage, bool) or not -6 <= target_attack_stage <= 6))):
+    if (not isinstance(session_id, str) or not session_id or target_identity["side"] != ("opponent" if source_identity["side"] == "self" else "self") or interaction not in _OUTCOMES or (target_attack_stage != "unknown" and (not isinstance(target_attack_stage, int) or isinstance(target_attack_stage, bool) or not -6 <= target_attack_stage <= 6))):
         raise ValueError("invalid_switch_entry_intimidate_authority")
     return deepcopy({"schema_version": SCHEMA_VERSION, "session_id": session_id, "source": source_identity, "target": target_identity, "interaction": interaction, "target_attack_stage": target_attack_stage})
 

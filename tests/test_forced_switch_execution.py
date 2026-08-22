@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from llm.advisor_forced_switch_execution import execute_allowed_self_forced_switch, materialize_allowed_forced_replacement
+from llm.advisor_forced_switch_execution import execute_allowed_forced_switch, execute_allowed_self_forced_switch, materialize_allowed_forced_replacement
 from llm.advisor_forced_switch_replacement import (
     materialize_forced_switch_replacement_authority,
     materialize_observed_forced_replacement_result,
@@ -104,7 +104,7 @@ def test_hazard_ko_is_terminal_without_second_replacement_and_active_ingrain_nev
     assert execute_allowed_self_forced_switch(source_branch=active, source_branch_fingerprint=fingerprint_transition_preview_state(active), forced_switch_request=request, cancellation_decision=decision, replacement_authority=authority) == {"status": "rejected", "reason": "forced_switch_execution_not_allowed"}
 
 
-def test_opponent_replacement_materializes_exact_owner_and_bench_but_entry_execution_remains_out_of_scope():
+def test_opponent_replacement_materializes_exact_owner_bench_and_shared_entry_execution():
     state, observed = _state()
     outgoing = _owner(state, "opponent")
     incoming = deepcopy(observed["incoming_authority"])
@@ -127,4 +127,6 @@ def test_opponent_replacement_materializes_exact_owner_and_bench_but_entry_execu
     assert result["next_state"]["active"]["opponent"]["pokemon_id"] == "opponent-incoming"
     assert result["next_state"]["active"]["self"] == state["active"]["self"]
     assert result["next_state"]["forced_switch_bench_record"]["owner"] == outgoing
-    assert execute_allowed_self_forced_switch(source_branch=state, source_branch_fingerprint=fp, forced_switch_request=request, cancellation_decision=decision, replacement_authority=authority) == {"status": "unsupported", "reason": "opponent_forced_switch_execution_out_of_scope"}
+    executed = execute_allowed_forced_switch(source_branch=state, source_branch_fingerprint=fp, forced_switch_request=request, cancellation_decision=decision, replacement_authority=authority)
+    assert executed["status"] == "resolved", executed
+    assert executed["next_state"]["active"]["opponent"]["pokemon_id"] == "opponent-incoming"

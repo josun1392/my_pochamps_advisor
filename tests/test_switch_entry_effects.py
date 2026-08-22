@@ -162,3 +162,24 @@ def test_weather_entry_abilities_fail_closed_for_unknown_or_special_weather_and_
     assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, field_state_context=None)["weather_result"]["reason"] == "current_weather_unknown_or_unsupported"
     assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, field_state_context={"current_field": {"weather": "strong-winds"}})["weather_result"]["reason"] == "current_weather_unknown_or_unsupported"
     assert evaluate_switch_entry_effects(hazards=_hazards(), target=target, field_state_context={"current_field": {"weather": "rain"}})["weather_result"]["outcome"] == "weather_already_active"
+
+
+def test_opponent_entry_uses_only_opponent_side_hazards_and_opposing_ability_targets():
+    target = _target(side="opponent", slot_index=1, pokemon_id="op-b", current_type_authority={"status": "known", "value": ["poison"]}, ability_authority={"status": "known", "value": "intimidate"})
+    hazards = build_switch_hazard_context(session_id="entry-s", affected_side="opponent", stealth_rock="present", spikes_layers=1, toxic_spikes_layers=2, sticky_web="present")
+    authority = build_switch_entry_intimidate_authority(session_id="entry-s", source={"side": "opponent", "slot_index": 1, "pokemon_id": "op-b"}, target={"side": "self", "slot_index": 0, "pokemon_id": "a"}, interaction="lowered", target_attack_stage=0)
+    result = evaluate_switch_entry_effects(hazards=hazards, target=target, intimidate_authority=authority)
+    assert result["damage"] == 24 and result["toxic_spikes_result"]["outcome"] == "absorbed"
+    assert result["sticky_web_result"]["outcome"] == "speed_stage_lowered"
+    assert result["intimidate_result"]["opponent_identity"]["side"] == "self"
+    wrong_side = evaluate_switch_entry_effects(hazards={**hazards, "affected_side": "self"}, target=target, intimidate_authority=authority)
+    assert wrong_side["status"] == "insufficient_context" and wrong_side["reason"] == "hazard_unknown"
+
+
+def test_opponent_download_and_weather_follow_exact_owner_and_field_authority():
+    target = _target(side="opponent", slot_index=1, pokemon_id="op-b", ability_authority={"status": "known", "value": "download"}, prospective_offensive_stages_authority={"attack": 0, "special-attack": 0})
+    hazards = build_switch_hazard_context(session_id="entry-s", affected_side="opponent", stealth_rock="absent", spikes_layers=0)
+    authority = build_switch_entry_download_authority(session_id="entry-s", source={"side": "opponent", "slot_index": 1, "pokemon_id": "op-b"}, target={"side": "self", "slot_index": 0, "pokemon_id": "a"}, applicability="applicable", target_defense=90, target_special_defense=100)
+    assert evaluate_switch_entry_effects(hazards=hazards, target=target, download_authority=authority)["download_result"]["boosted_stat"] == "attack"
+    weather_target = {**target, "ability_authority": {"status": "known", "value": "drizzle"}}
+    assert evaluate_switch_entry_effects(hazards=hazards, target=weather_target, field_state_context={"current_field": {"weather": "none"}})["weather_result"]["weather_after"] == "rain"

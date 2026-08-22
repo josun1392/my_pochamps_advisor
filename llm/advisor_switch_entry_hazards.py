@@ -26,7 +26,7 @@ def evaluate_entry_hazards(*, hazards: Mapping[str, Any], target: Mapping[str, A
     if not _valid_hp(hp):
         return _incomplete("hp_unknown")
 
-    rock, spikes = _hazard_values(hazards)
+    rock, spikes = _hazard_values(hazards, target_side=target.get("side", "self") if isinstance(target, Mapping) else None)
     if rock is None or spikes is None:
         return _incomplete("hazard_unknown")
 
@@ -47,9 +47,9 @@ def evaluate_entry_hazards(*, hazards: Mapping[str, Any], target: Mapping[str, A
     return _complete(damage=damage, hp=hp, reason=None)
 
 
-def _hazard_values(hazards: Mapping[str, Any]) -> tuple[str | None, int | None]:
+def _hazard_values(hazards: Mapping[str, Any], *, target_side: Any) -> tuple[str | None, int | None]:
     required = {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers"}
-    if not isinstance(hazards, Mapping) or not required.issubset(hazards) or hazards.get("schema_version") not in {"switch-hazard-context-v1", "switch-hazard-context-v2"} or hazards.get("affected_side") != "self":
+    if not isinstance(hazards, Mapping) or not required.issubset(hazards) or hazards.get("schema_version") not in {"switch-hazard-context-v1", "switch-hazard-context-v2"} or target_side not in {"self", "opponent"} or hazards.get("affected_side") != target_side:
         return None, None
     rock, spikes = hazards.get("stealth_rock"), hazards.get("spikes_layers")
     if rock not in {"present", "absent"} or spikes not in {*_SPIKES_DIVISORS, 0}:
