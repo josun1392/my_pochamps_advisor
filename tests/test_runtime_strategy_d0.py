@@ -6,6 +6,7 @@ from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_sta
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_incoming_authority_boundary,
+    freeze_runtime_incoming_current_state_authority,
     freeze_runtime_strategy_d0,
     freeze_runtime_strategy_selection_authority,
     runtime_strategy_d0_freshness,
@@ -121,11 +122,83 @@ def test_incoming_boundary_requires_current_runtime_d0_and_never_fabricates_exec
     stale = deepcopy(state)
     stale["last_applied_observation_sequence"] = 1
 
-    assert boundary["status"] == "resolved"
+    assert boundary["status"] == "incomplete"
     assert boundary["execution_readiness"] == "execution_incomplete"
-    assert boundary["reason"] == "runtime_incoming_current_state_adapter_unavailable"
+    assert boundary["reason"] == "incoming_hp_unknown"
     assert "authority" not in boundary
     assert freeze_runtime_incoming_authority_boundary(strategy_d0=d0, runtime_snapshot=_snapshot(stale), incoming_owner=incoming)["status"] == "rejected"
+
+
+def test_runtime_incoming_authority_freezes_known_roster_state_and_unblocks_existing_switch_materialization() -> None:
+    from llm.advisor_candidate_outcome_materialization import materialize_candidates
+    from llm.advisor_current_execution_authority import enrich_discovered_candidates, freeze_current_execution_authority
+    from llm.advisor_current_state_candidate_discovery import discover_candidates
+
+    state = _state()
+    state["self_side"]["pokemon"][0].update(current_hp=90, max_hp=100, fainted=False)
+    state["opponent_side"]["pokemon"][0].update(current_hp=80, max_hp=100, fainted=False)
+    state["self_side"]["pokemon"][1] = {
+        "pokemon_id": "bench", "current_hp": 55, "max_hp": 100, "fainted": False,
+        "condition": "burn", "known_item": {"knowledge": "unknown"},
+        "current_type": {"knowledge": "unknown"}, "current_ability": {"knowledge": "unknown"},
+        "toxic_progression": {"knowledge": "unknown"},
+    }
+    snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state))
+    incoming_owner = {"session_id": state["session_id"], "side": "self", "slot_index": 1, "pokemon_id": "bench"}
+    incoming = freeze_runtime_incoming_current_state_authority(strategy_d0=d0, runtime_snapshot=snapshot, incoming_owner=incoming_owner)
+    selection = freeze_runtime_strategy_selection_authority(strategy_d0=d0, selection_projection={
+        "session_id": state["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "decision_owner": _owner(state), "active_owner": _owner(state), "moves": [],
+        "switches": [{"pokemon_id": "bench", "selection": "selectable"}],
+    })
+    discovered = discover_candidates(snapshot=selection)["candidates"]
+    execution = freeze_current_execution_authority(selection_snapshot=selection, switch_incoming=[incoming])
+    enriched = enrich_discovered_candidates(selection_snapshot=selection, execution_bundle=execution, candidates=discovered)
+    materialized = materialize_candidates(decision_state=d0["strategy_state"], decision_owner=d0["decision_owner"], candidates=enriched["candidates"])
+
+    assert incoming["status"] == "resolved" and incoming["provenance"] == "identity_bound_incoming_current_state_v1"
+    assert incoming["hp_authority"] == {"status": "known", "current_hp": 55, "maximum_hp": 100, "provenance": "runtime_battle_state_v1"}
+    assert incoming["incoming_condition_authority"]["value"] == "burn"
+    assert incoming["incoming_item_authority"] == {"status": "unknown"}
+    assert incoming["incoming_substitute_authority"]["status"] == "unknown"
+    assert next(row for row in enriched["candidates"] if row["candidate_id"] == "manual_switch:bench")["execution_readiness"] == "current_predictive_execution_authority"
+    assert materialized["outcomes"][0]["status"] == "complete"
+    assert materialized["outcomes"][0]["outcome"]["outcome_state"]["active"]["self"]["pokemon_id"] == "bench"
+
+
+def test_runtime_incoming_authority_rejects_foreign_or_stale_identity_and_is_detached() -> None:
+    state = _state()
+    state["self_side"]["pokemon"][0].update(current_hp=100, max_hp=100, fainted=False)
+    state["opponent_side"]["pokemon"][0].update(current_hp=100, max_hp=100, fainted=False)
+    state["self_side"]["pokemon"][1] = {**deepcopy(state["self_side"]["pokemon"][0]), "pokemon_id": "bench", "current_hp": 60}
+    snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state))
+    incoming_owner = {"session_id": state["session_id"], "side": "self", "slot_index": 1, "pokemon_id": "bench"}
+    result = freeze_runtime_incoming_current_state_authority(strategy_d0=d0, runtime_snapshot=snapshot, incoming_owner=incoming_owner)
+    snapshot["state"]["self_side"]["pokemon"][1]["current_hp"] = 1
+    advanced = deepcopy(state); advanced["last_applied_observation_sequence"] = 1
+
+    assert result["hp_authority"]["current_hp"] == 60
+    assert freeze_runtime_incoming_current_state_authority(strategy_d0=d0, runtime_snapshot=_snapshot(advanced), incoming_owner=incoming_owner)["status"] == "rejected"
+    assert freeze_runtime_incoming_current_state_authority(strategy_d0=d0, runtime_snapshot=_snapshot(state), incoming_owner={**incoming_owner, "side": "opponent"})["status"] == "rejected"
+    assert freeze_runtime_incoming_current_state_authority(strategy_d0=d0, runtime_snapshot=_snapshot(state), incoming_owner=_owner(state))["status"] == "rejected"
+
+
+def test_runtime_incoming_authorities_are_independent_and_side_neutral() -> None:
+    state = _state()
+    for side in ("self", "opponent"):
+        state[f"{side}_side"]["pokemon"][0].update(current_hp=100, max_hp=100, fainted=False)
+    state["opponent_side"]["pokemon"][1] = {**deepcopy(state["opponent_side"]["pokemon"][0]), "pokemon_id": "opponent-bench", "current_hp": 40}
+    state["opponent_side"]["pokemon"][2] = {**deepcopy(state["opponent_side"]["pokemon"][0]), "pokemon_id": "unknown-bench", "current_hp": {"knowledge": "unknown"}, "max_hp": {"knowledge": "unknown"}, "fainted": {"knowledge": "unknown"}}
+    snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "opponent"))
+    ready_owner = {"session_id": state["session_id"], "side": "opponent", "slot_index": 1, "pokemon_id": "opponent-bench"}
+    incomplete_owner = {"session_id": state["session_id"], "side": "opponent", "slot_index": 2, "pokemon_id": "unknown-bench"}
+
+    ready = freeze_runtime_incoming_current_state_authority(strategy_d0=d0, runtime_snapshot=snapshot, incoming_owner=ready_owner)
+    incomplete = freeze_runtime_incoming_current_state_authority(strategy_d0=d0, runtime_snapshot=snapshot, incoming_owner=incomplete_owner)
+
+    assert ready["status"] == "resolved" and ready["owner"] == ready_owner
+    assert incomplete["status"] == "incomplete" and incomplete["reason"] == "incoming_hp_unknown"
+    assert ready["source_branch_fingerprint"] == d0["strategy_preview_fingerprint"]
 
 
 def test_detached_runtime_d0_can_flow_to_selection_execution_orchestration_and_explanation() -> None:

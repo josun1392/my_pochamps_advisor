@@ -120,13 +120,22 @@ def freeze_runtime_strategy_selection_authority(*, strategy_d0: Mapping[str, Any
 
 
 def freeze_runtime_incoming_authority_boundary(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], incoming_owner: Mapping[str, Any]) -> dict[str, Any]:
-    """Validate a runtime bench identity without fabricating strict incoming state.
+    """Compatibility boundary for the canonical runtime incoming producer."""
+    return freeze_runtime_incoming_current_state_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        incoming_owner=incoming_owner,
+    )
 
-    ``identity_bound_incoming_current_state_v1`` remains unavailable until a
-    dedicated runtime-owned converter can supply its complete current-state
-    shape (including material persistent and Substitute authority).  Returning
-    an explicit incomplete boundary keeps a selectable switch selectable while
-    preventing false execution readiness.
+
+def freeze_runtime_incoming_current_state_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], incoming_owner: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Freeze strict current incoming-switch authority from one runtime roster.
+
+    The reducer snapshot is the only source.  Exact HP and fainted authority
+    are required by the existing incoming-active materializer; other roster
+    facts are preserved as explicit known/unknown metadata and never defaulted
+    merely because a Pokemon is on the bench.
     """
     if not _valid_d0(strategy_d0) or not _owner(incoming_owner):
         return _result("rejected", "invalid_strategy_d0_or_incoming_owner")
@@ -141,18 +150,63 @@ def freeze_runtime_incoming_authority_boundary(*, strategy_d0: Mapping[str, Any]
     current = roster.get(incoming_owner.get("slot_index")) if isinstance(roster, Mapping) else None
     if not isinstance(current, Mapping) or current.get("pokemon_id") != incoming_owner.get("pokemon_id"):
         return _result("rejected", "incoming_owner_not_in_runtime_roster")
+    if sum(
+        isinstance(row, Mapping) and row.get("pokemon_id") == incoming_owner["pokemon_id"]
+        for row in roster.values()
+    ) != 1:
+        return _result("rejected", "ambiguous_runtime_incoming_identity")
+    hp, maximum, fainted = current.get("current_hp"), current.get("max_hp"), current.get("fainted")
+    if not _exact_hp(hp, maximum, fainted):
+        if is_unknown_battle_fact(hp) or is_unknown_battle_fact(maximum):
+            return _incomplete_incoming(strategy_d0, incoming_owner, "incoming_hp_unknown")
+        if is_unknown_battle_fact(fainted):
+            return _incomplete_incoming(strategy_d0, incoming_owner, "incoming_fainted_unknown")
+        return _incomplete_incoming(strategy_d0, incoming_owner, "incoming_state_incomplete")
+    if fainted:
+        return _incomplete_incoming(strategy_d0, incoming_owner, "incoming_fainted")
+    fields = _runtime_incoming_fields(current)
+    current_state = {
+        "current_state_session_id": owner["session_id"],
+        "current_hp_context": {"current_hp": [{
+            "side": owner["side"], "current_hp": hp, "maximum_hp": maximum,
+            "status": "runtime_current_authority", "source": "runtime_battle_state_v1",
+        }]},
+        "condition_context": {"current_conditions": [{
+            "side": owner["side"], "condition_type": fields["condition"].get("value", "unknown"),
+            "status": "runtime_current_authority" if fields["condition"]["status"] == "known" else "unknown",
+            "source": "runtime_battle_state_v1",
+        }]},
+        "runtime_incoming_current_state_authority": {
+            "schema_version": "runtime-incoming-current-state-fields-v1",
+            "owner": deepcopy(dict(incoming_owner)),
+            "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+            "strategy_preview_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+            "fields": deepcopy(fields),
+            "unknown_first": True,
+        },
+    }
     return {
         "status": "resolved",
-        "schema_version": "deterministic-runtime-incoming-authority-boundary-v1",
+        "schema_version": "identity-bound-incoming-current-state-v1",
         "session_id": owner["session_id"],
         "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
         "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
         "decision_owner": deepcopy(owner),
         "outgoing_owner": deepcopy(owner),
         "incoming_owner": deepcopy(dict(incoming_owner)),
-        "execution_readiness": "execution_incomplete",
-        "reason": "runtime_incoming_current_state_adapter_unavailable",
-        "provenance": "runtime_roster_identity_boundary_v1",
+        "owner": deepcopy(dict(incoming_owner)),
+        "hp_authority": {"status": "known", "current_hp": hp, "maximum_hp": maximum, "provenance": "runtime_battle_state_v1"},
+        "fainted_authority": {"status": "known", "value": False, "provenance": "runtime_battle_state_v1"},
+        "current_state": current_state,
+        "incoming_condition_authority": deepcopy(fields["condition"]),
+        "incoming_item_authority": deepcopy(fields["item"]),
+        "incoming_ability_authority": deepcopy(fields["ability"]),
+        "incoming_type_authority": deepcopy(fields["type"]),
+        "incoming_stage_authority": deepcopy(fields["stages"]),
+        "incoming_substitute_authority": {"status": "unknown", "reason": "runtime_substitute_untracked"},
+        "incoming_persistent_effect_authority": {"status": "unknown", "reason": "runtime_persistent_effects_untracked"},
+        "execution_readiness": "execution_ready",
+        "provenance": "identity_bound_incoming_current_state_v1",
     }
 
 
@@ -238,6 +292,41 @@ def _exact_hp(hp: Any, maximum: Any, fainted: Any) -> bool:
         and maximum > 0 and 0 <= hp <= maximum and isinstance(fainted, bool)
         and fainted is (hp == 0)
     )
+
+
+def _runtime_incoming_fields(pokemon: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    """Copy only runtime-owned incoming fields; absent/untracked stays unknown."""
+    return {
+        "condition": _known_runtime_field(pokemon.get("condition")),
+        "item": _known_runtime_field(pokemon.get("known_item")),
+        "ability": _known_runtime_field(pokemon.get("current_ability")),
+        "type": _known_runtime_field(pokemon.get("current_type")),
+        # The reducer only owns stages when a current stage record exists.  A
+        # missing record is deliberately not interpreted as a zero-stage bench.
+        "stages": _known_runtime_field(pokemon.get("stat_stages")),
+    }
+
+
+def _known_runtime_field(value: Any) -> dict[str, Any]:
+    if value is None or is_unknown_battle_fact(value):
+        return {"status": "unknown"}
+    return {"status": "known", "value": deepcopy(value), "provenance": "runtime_battle_state_v1"}
+
+
+def _incomplete_incoming(strategy_d0: Mapping[str, Any], incoming_owner: Mapping[str, Any], reason: str) -> dict[str, Any]:
+    return {
+        "status": "incomplete",
+        "schema_version": "deterministic-runtime-incoming-authority-boundary-v1",
+        "session_id": strategy_d0["session_id"],
+        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "outgoing_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "incoming_owner": deepcopy(dict(incoming_owner)),
+        "execution_readiness": "execution_incomplete",
+        "reason": reason,
+        "provenance": "runtime_roster_identity_boundary_v1",
+    }
 
 
 def _selection_entries(entries: Any, identity_key: str) -> bool:
