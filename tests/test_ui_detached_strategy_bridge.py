@@ -45,7 +45,7 @@ def _owner(state: dict) -> dict:
 
 
 def _selection_builder(*, selection_partial: bool = False, include_incomplete_switch: bool = False):
-    def build(capture: dict) -> dict:
+    def build(capture: dict, _runtime_snapshot: dict) -> dict:
         owner = capture["active_owner"]
         switches = [
             {"target_pokemon_id": "ready-bench", "selectable": True, "availability_supportability": "complete", "legality_supportability": "complete"},
@@ -69,7 +69,7 @@ def test_runtime_bridge_runs_switch_and_incomplete_attack_then_presents_without_
     before = deepcopy(manager._snapshots)
 
     result = run_current_ui_detached_strategy(
-        runtime_session_manager=manager, captured_session_id=state["session_id"], decision_owner=_owner(state),
+        runtime_session_manager=manager, captured_session_id=state["session_id"],
         selection_cycle_builder=_selection_builder(),
     )
     app = QApplication.instance() or QApplication([]); panel = LLMAdvicePanel(); emitted = []
@@ -116,7 +116,7 @@ def test_runtime_bridge_rejects_stale_result_and_selection_d0_mismatch() -> None
     )
     bad = run_current_ui_detached_strategy(
         runtime_session_manager=_RuntimeManager([_snapshot(state)] * 2), captured_session_id=state["session_id"],
-        decision_owner=_owner(state), selection_cycle_builder=lambda capture: {**_selection_builder()(capture), "_runtime_d0_selection_capture": {**capture, "source_runtime_fingerprint": "foreign"}},
+        decision_owner=_owner(state), selection_cycle_builder=lambda capture, snapshot: {**_selection_builder()(capture, snapshot), "_runtime_d0_selection_capture": {**capture, "source_runtime_fingerprint": "foreign"}},
     )
 
     assert stale == {"status": "stale", "schema_version": "ui-detached-strategy-bridge-result-v1", "reason": "runtime_state_changed_strategy_result_discarded"}
@@ -125,7 +125,7 @@ def test_runtime_bridge_rejects_stale_result_and_selection_d0_mismatch() -> None
 
 def test_runtime_bridge_handles_no_selectable_actions_without_provider() -> None:
     state = _state()
-    def no_actions(capture: dict) -> dict:
+    def no_actions(capture: dict, _runtime_snapshot: dict) -> dict:
         owner = capture["active_owner"]
         return {
             "status": "ready", "_runtime_d0_selection_capture": deepcopy(capture),

@@ -19,6 +19,7 @@ from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_incoming_current_state_authority,
     freeze_runtime_strategy_d0,
     freeze_runtime_strategy_selection_authority,
+    resolve_runtime_strategy_decision_owner,
     resolve_runtime_incoming_owner,
     runtime_strategy_d0_freshness,
 )
@@ -29,8 +30,8 @@ SCHEMA = "ui-detached-strategy-bridge-result-v1"
 
 
 def run_current_ui_detached_strategy(
-    *, runtime_session_manager: Any, captured_session_id: str, decision_owner: Mapping[str, Any],
-    selection_cycle_builder: Callable[[Mapping[str, Any]], Mapping[str, Any]],
+    *, runtime_session_manager: Any, captured_session_id: str, decision_owner: Mapping[str, Any] | None = None,
+    decision_side: str = "self", selection_cycle_builder: Callable[[Mapping[str, Any], Mapping[str, Any]], Mapping[str, Any]],
 ) -> dict[str, Any]:
     """Capture one runtime revision and return detached strategy explanation.
 
@@ -41,11 +42,16 @@ def run_current_ui_detached_strategy(
     capture = _capture(runtime_session_manager, captured_session_id)
     if capture is None:
         return _result("rejected", "runtime_snapshot_unavailable")
+    if decision_owner is None:
+        resolved_owner = resolve_runtime_strategy_decision_owner(runtime_snapshot=capture, side=decision_side)
+        if resolved_owner.get("status") != "resolved":
+            return _result("rejected", resolved_owner.get("reason", "runtime_decision_owner_unavailable"))
+        decision_owner = resolved_owner["decision_owner"]
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=capture, decision_owner=decision_owner)
     if d0.get("status") != "resolved":
         return _result("rejected", d0.get("reason", "runtime_d0_unavailable"))
     try:
-        prepared = selection_cycle_builder(build_runtime_d0_selection_capture(strategy_d0=d0))
+        prepared = selection_cycle_builder(build_runtime_d0_selection_capture(strategy_d0=d0), deepcopy(dict(capture)))
     except Exception:
         return _result("rejected", "selection_cycle_builder_failed")
     projection = freeze_runtime_d0_bound_selection_projection(strategy_d0=d0, prepared_cycle=prepared)

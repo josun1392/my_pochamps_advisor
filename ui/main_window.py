@@ -53,6 +53,8 @@ from llm.advisor_runtime_state_projection import build_runtime_advice_state_proj
 from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
 from llm.advisor_candidate_contract import prepare_ui_recommendation_cycle
 from llm.advisor_recommendation_readiness import build_recommendation_readiness
+from llm.advisor_switch_candidates import build_switch_candidate_context_projection
+from llm.advisor_ui_detached_strategy_bridge import run_current_ui_detached_strategy
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
@@ -467,6 +469,7 @@ class MainWindow(QMainWindow):
         self.center_column.move_search_box.move_selected.connect(self._on_move_selected)
         self.center_column.llm_advice_panel.advice_requested.connect(self._start_llm_advice)
         self.center_column.llm_advice_panel.structured_advice_requested.connect(self._start_structured_recommendation)
+        self.center_column.llm_advice_panel.deterministic_strategy_requested.connect(self._start_deterministic_strategy_analysis)
         self.center_column.llm_advice_panel.recommendation_readiness_requested.connect(self._check_structured_recommendation_readiness)
         self.center_column.llm_advice_panel.readiness_input_requested.connect(self._open_readiness_input)
         self.center_column.llm_advice_panel.field_profile_requested.connect(self._open_field_profile_dialog)
@@ -1461,6 +1464,48 @@ class MainWindow(QMainWindow):
         if self._llm_worker is worker:
             self._llm_worker = None
         self._clear_current_advice_request("legacy", request_token)
+
+    @Slot()
+    def _start_deterministic_strategy_analysis(self) -> None:
+        """Run the closed offline bridge; Gemini signals/workers stay untouched."""
+        panel = self.center_column.llm_advice_panel
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            panel.set_advice_text("전략 분석을 위한 현재 런타임 상태를 사용할 수 없습니다.")
+            self.statusBar().showMessage("전략 분석 실패: 현재 런타임 상태 없음")
+            return
+
+        def build_selection_cycle(capture: dict, runtime_snapshot: dict) -> dict:
+            my_slot_index = self.selected_slots.get("team_my")
+            if not isinstance(my_slot_index, int):
+                raise ValueError("missing selected Pokemon")
+            battle_input = self._build_llm_battle_input()
+            battle_input["current_state_session_id"] = session_id
+            battle_input["switch_candidate_context"] = build_switch_candidate_context_projection(runtime_snapshot["state"])
+            return prepare_ui_recommendation_cycle(
+                selected_moves=list(self._slot_panel("team_my", my_slot_index).selected_moves),
+                battle_input=battle_input,
+                move_repository=self.move_repo,
+                species_repository=self.repo,
+                observation_snapshot=manager.read_collection_snapshot(),
+                trusted_turn_context=self._trusted_turn_context_snapshot(),
+                runtime_selection_capture=capture,
+            )
+
+        result = run_current_ui_detached_strategy(
+            runtime_session_manager=manager, captured_session_id=session_id,
+            decision_side="self", selection_cycle_builder=build_selection_cycle,
+        )
+        if result.get("status") == "resolved":
+            panel.set_strategy_explanation(result["explanation"])
+            self.statusBar().showMessage("전략 분석 완료")
+        elif result.get("status") == "stale":
+            panel.set_advice_text("현재 상태가 변경되어 전략 분석 결과를 폐기했습니다.")
+            self.statusBar().showMessage("전략 분석 결과 폐기: 현재 상태 변경")
+        else:
+            panel.set_advice_text("전략 분석을 완료하지 못했습니다. 현재 권한 상태를 확인하세요.")
+            self.statusBar().showMessage("전략 분석 실패")
 
     @Slot()
     def _check_structured_recommendation_readiness(self) -> None:

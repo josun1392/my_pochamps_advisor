@@ -23,6 +23,7 @@ TURN_PIPELINE_STATUS_TEXT = (
 class LLMAdvicePanel(QFrame):
     advice_requested = Signal()
     structured_advice_requested = Signal()
+    deterministic_strategy_requested = Signal()
     recommendation_readiness_requested = Signal()
     readiness_input_requested = Signal(str)
     field_profile_requested = Signal()
@@ -67,6 +68,11 @@ class LLMAdvicePanel(QFrame):
         self.structured_request_button.clicked.connect(self.structured_advice_requested.emit)
         self.structured_request_button.setToolTip("후보 기술 전체를 비교하고 검증된 구조화 추천을 받습니다.")
         self.structured_request_button.setAccessibleName("구조화 추천 받기")
+        self.deterministic_strategy_button = QPushButton("전략 분석")
+        self.deterministic_strategy_button.setObjectName("deterministicStrategyButton")
+        self.deterministic_strategy_button.setToolTip("현재 런타임 권한으로 오프라인 결정론 전략 분석을 실행합니다. Gemini를 호출하지 않습니다.")
+        self.deterministic_strategy_button.setAccessibleName("전략 분석")
+        self.deterministic_strategy_button.clicked.connect(self.deterministic_strategy_requested.emit)
         self.readiness_button = QPushButton("Check recommendation readiness")
         self.readiness_button.setObjectName("recommendationReadinessButton")
         self.readiness_button.setToolTip("Show only material trusted authority missing from the current deterministic recommendation.")
@@ -193,6 +199,7 @@ class LLMAdvicePanel(QFrame):
 
         layout.addWidget(self.request_button)
         layout.addWidget(self.structured_request_button)
+        layout.addWidget(self.deterministic_strategy_button)
         layout.addWidget(self.readiness_button)
         layout.addWidget(self.readiness_label)
         layout.addLayout(self.readiness_input_layout)
@@ -270,6 +277,7 @@ class LLMAdvicePanel(QFrame):
     def set_running(self, is_running: bool) -> None:
         self.request_button.setDisabled(is_running)
         self.structured_request_button.setDisabled(is_running)
+        self.deterministic_strategy_button.setDisabled(is_running)
         self.readiness_button.setDisabled(is_running)
         self.readiness_input_button.setDisabled(is_running)
         for button in self._readiness_extra_input_buttons:

@@ -69,6 +69,15 @@ def freeze_runtime_strategy_d0(*, runtime_snapshot: Mapping[str, Any], decision_
     }
 
 
+def resolve_runtime_strategy_decision_owner(*, runtime_snapshot: Mapping[str, Any], side: str = "self") -> dict[str, Any]:
+    """Return the canonical active owner for one runtime side, if exact."""
+    state, session_id, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    owners = _active_owners(state, session_id) if state is not None and session_id is not None else None
+    if side not in {"self", "opponent"} or owners is None:
+        return _result("rejected", "runtime_decision_owner_unavailable")
+    return {"status": "resolved", "decision_owner": deepcopy(owners[side])}
+
+
 def runtime_strategy_d0_freshness(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any]) -> dict[str, Any]:
     """Check reducer-fingerprint freshness without inspecting UI state."""
     if not _valid_d0(strategy_d0):
