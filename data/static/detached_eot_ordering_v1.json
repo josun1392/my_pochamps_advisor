@@ -10,7 +10,8 @@
     "ingrain_residual_order": 7,
     "leech_seed_residual_order": 8,
     "condition_residual_order": 9,
-    "bind_residual_order": 13
+    "bind_residual_order": 13,
+    "perish_song_residual_order": 24
   },
   "families": {
     "weather": {"tier": 1, "ownership": "field_event_for_exact_owner", "terminal": "skip_later_same_owner"},
@@ -22,7 +23,8 @@
     "poison": {"tier": 9, "ownership": "pokemon_condition", "terminal": "none"},
     "toxic": {"tier": 9, "ownership": "pokemon_condition_lifecycle", "terminal": "none"},
     "poison_heal_compound": {"tier": 9, "ownership": "intrinsic_condition_replacement", "terminal": "none"},
-    "bind": {"tier": 13, "ownership": "target_bound_partial_trap", "terminal": "none", "provenance": "Pokemon Showdown data/conditions.ts partiallytrapped.onResidualOrder=13,onResidual"}
+    "bind": {"tier": 13, "ownership": "target_bound_partial_trap", "terminal": "none", "provenance": "Pokemon Showdown data/conditions.ts partiallytrapped.onResidualOrder=13,onResidual"},
+    "perish_song": {"tier": 24, "ownership": "multi_owner_perish_countdown", "terminal": "faint_at_zero", "provenance": "Pokemon Showdown data/moves.ts Perish Song.onResidualOrder=24,onEnd"}
   },
   "limitations": ["cross_owner_weather_order_unrepresented", "only_supported_detached_families"]
 }

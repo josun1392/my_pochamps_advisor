@@ -63,6 +63,9 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
     binding = state.get("bind_residual_state_context")
     if isinstance(binding, dict) and binding.get("schema_version") == "detached-bind-residual-state-v1":
         binding["source_branch_fingerprint"] = source_fp
+    perish = state.get("perish_song_state_context")
+    if isinstance(perish, dict) and perish.get("schema_version") == "detached-perish-song-state-v1":
+        perish["source_branch_fingerprint"] = source_fp
     # This metadata is branch provenance, not battle authority.  Its presence
     # intentionally creates a new fingerprint for the lifecycle boundary.
     state["turn_engine_lifecycle"] = {
