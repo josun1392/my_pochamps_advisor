@@ -75,6 +75,9 @@ def render_strategy_explanation(*, presentation: Mapping[str, Any]) -> str:
         details = candidate.get("fact_labels")
         if isinstance(details, list) and details:
             lines.append("  " + "; ".join(details))
+        uncertainty = candidate.get("uncertainty_labels")
+        if isinstance(uncertainty, list) and uncertainty:
+            lines.append("  " + "; ".join(uncertainty))
         reasons = candidate.get("reason_labels")
         if isinstance(reasons, list) and reasons:
             lines.append("  선호 근거: " + "; ".join(reasons))
@@ -98,6 +101,9 @@ def _candidate(candidate: Any, frontier: list[str]) -> dict[str, Any] | None:
     reasons = candidate.get("comparison_reasons")
     if reasons is not None and (not isinstance(reasons, list) or any(not isinstance(reason, str) for reason in reasons)):
         return None
+    uncertainty = candidate.get("hit_miss_uncertainty")
+    if uncertainty is not None and not _hit_miss_uncertainty(uncertainty, candidate_id):
+        return None
     return {
         "candidate_id": candidate_id,
         "label": _label(candidate_id, action_type),
@@ -108,9 +114,11 @@ def _candidate(candidate: Any, frontier: list[str]) -> dict[str, Any] | None:
         "dominated": bool(frontier) and candidate_id not in frontier,
         "guaranteed_facts": deepcopy(dict(facts)) if isinstance(facts, Mapping) else None,
         "interval": deepcopy(candidate.get("interval")) if isinstance(candidate.get("interval"), Mapping) else None,
+        "hit_miss_uncertainty": deepcopy(dict(uncertainty)) if isinstance(uncertainty, Mapping) else None,
         "incomplete_reason": candidate.get("incomplete_reason"),
         "provenance": candidate.get("provenance"),
         "fact_labels": _fact_labels(facts),
+        "uncertainty_labels": _uncertainty_labels(uncertainty),
         "reason_labels": [_reason_label(reason) for reason in reasons or []],
     }
 
@@ -156,6 +164,31 @@ def _fact_labels(facts: Any) -> list[str]:
     return labels
 
 
+def _hit_miss_uncertainty(value: Mapping[str, Any], candidate_id: str) -> bool:
+    return (
+        value.get("status") == "resolved"
+        and value.get("schema_version") == "deterministic-predictive-hit-miss-uncertainty-v1"
+        and value.get("candidate_id", f"attack:{value.get('move_id')}") == candidate_id
+        and isinstance(value.get("probability_percent"), int) and 0 <= value["probability_percent"] <= 100
+        and isinstance(value.get("branches"), (tuple, list)) and isinstance(value.get("guaranteed_facts"), Mapping)
+    )
+
+
+def _uncertainty_labels(value: Any) -> list[str]:
+    if not isinstance(value, Mapping):
+        return []
+    branches = value.get("branches")
+    names = [branch.get("branch") for branch in branches if isinstance(branch, Mapping)] if isinstance(branches, (tuple, list)) else []
+    probability = value.get("probability_percent")
+    if names == ["hit"]:
+        return ["명중 판정: 명중 전용"]
+    if names == ["miss"]:
+        return ["명중 판정: 실패 전용 (0%)"]
+    if names == ["hit", "miss"] and isinstance(probability, int):
+        return [f"명중 판정: 명중 {probability}% / 실패 {100 - probability}%"]
+    return []
+
+
 def _status_text(status: Any, frontier: Any) -> str:
     if status == "uniquely_preferred" and isinstance(frontier, list) and frontier:
         return "결정론적 전략 분석: 하나의 선호 후보가 있습니다."
@@ -172,6 +205,7 @@ def _evidence_label(evidence_class: Any) -> str:
     return {
         "exact_outcome": "정확 결과",
         "guaranteed_facts": "보장 사실",
+        "hit_miss_uncertainty": "명중/실패 분기",
         "incomplete": "불완전",
     }.get(evidence_class, "지원되지 않는 증거")
 

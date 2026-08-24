@@ -119,6 +119,45 @@ def test_water_gun_possible_ko_is_rendered_as_possible_not_guaranteed() -> None:
     assert "Water Gun [보장 사실]\n  상대 기절 보장" not in text
 
 
+def test_hit_miss_uncertainty_survives_explanation_presentation_and_rendering() -> None:
+    orchestration = _orchestration()
+    water = next(row for row in orchestration["candidates"] if row["candidate_id"] == "attack:water-gun")
+    water["evidence_class"] = "hit_miss_uncertainty"
+    water["facts"] = {"guaranteed_opponent_fainted": None, "possible_opponent_ko": True, "exact_own_hp": None}
+    water["uncertainty"] = {
+        "status": "resolved", "schema_version": "deterministic-predictive-hit-miss-uncertainty-v1",
+        "move_id": "water-gun", "probability_percent": 80, "raw_accuracy_threshold": 80,
+        "branches": ({"branch": "hit", "probability_percent": 80, "consequences": {"stage_effects": {"effects": ("speed+1",)}}}, {"branch": "miss", "probability_percent": 20, "consequences": {"target_damage": 0, "hit_triggered_stage_effects": None}}),
+        "guaranteed_facts": deepcopy(water["facts"]),
+    }
+    explanation = explain_detached_strategy(orchestration=orchestration)
+    presentation = present_strategy_explanation(explanation=explanation)
+    rendered = render_strategy_explanation(presentation=presentation)
+    row = next(item for item in presentation["candidates"] if item["candidate_id"] == "attack:water-gun")
+
+    explained = next(item for item in explanation["candidates"] if item["candidate_id"] == "attack:water-gun")
+    assert explained["hit_miss_uncertainty"] == water["uncertainty"]
+    assert row["hit_miss_uncertainty"] == water["uncertainty"]
+    assert row["guaranteed_facts"]["guaranteed_opponent_fainted"] is None
+    assert row["guaranteed_facts"]["possible_opponent_ko"] is True
+    assert row["uncertainty_labels"] == ["명중 판정: 명중 80% / 실패 20%"]
+    assert "Water Gun [명중/실패 분기]" in rendered
+    assert "상대 기절 가능" in rendered
+    assert "Water Gun [명중/실패 분기]\n  상대 기절 보장" not in rendered
+
+
+def test_hit_only_and_miss_only_uncertainty_labels_remain_structured() -> None:
+    for probability, branch, expected in ((100, "hit", "명중 전용"), (0, "miss", "실패 전용")):
+        explanation = _explanation()
+        candidate = next(row for row in explanation["candidates"] if row["candidate_id"] == "attack:water-gun")
+        candidate["evidence_class"] = "hit_miss_uncertainty"
+        candidate["hit_miss_uncertainty"] = None
+        candidate["hit_miss_uncertainty"] = {"status": "resolved", "schema_version": "deterministic-predictive-hit-miss-uncertainty-v1", "move_id": "water-gun", "probability_percent": probability, "branches": ({"branch": branch},), "guaranteed_facts": {}}
+        presentation = present_strategy_explanation(explanation=explanation)
+        row = next(item for item in presentation["candidates"] if item["candidate_id"] == "attack:water-gun")
+        assert expected in row["uncertainty_labels"][0]
+
+
 def test_malformed_or_inconsistent_explanation_rejects_without_repair() -> None:
     malformed = _explanation()
     malformed["decision_owner"]["session_id"] = "foreign-session"
