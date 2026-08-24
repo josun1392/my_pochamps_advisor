@@ -159,6 +159,82 @@ def freeze_runtime_seismic_toss_predictive_input(
     }
 
 
+def freeze_runtime_water_gun_predictive_input(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], move_id: str,
+) -> dict[str, Any]:
+    """Freeze only runtime-owned Water Gun authority for the native interval path.
+
+    This is deliberately a producer boundary, not a second snapshot builder or
+    damage calculator.  The existing native path requires D0-joined final-stat
+    provenance which the reducer does not yet own; until a canonical producer
+    exists this function returns explicit incomplete authority rather than
+    rebuilding recommendation snapshots or filling neutral mechanics values.
+    """
+    if not _valid_d0(strategy_d0) or not _owner(attacker) or not _owner(target):
+        return _result("rejected", "invalid_strategy_d0_or_predictive_owner")
+    if move_id != "water-gun":
+        return _result("rejected", "unsupported_predictive_move")
+    active = strategy_d0.get("active_owners")
+    if (
+        attacker != strategy_d0["decision_owner"] or not isinstance(active, Mapping)
+        or active.get(attacker["side"]) != dict(attacker)
+        or active.get(target["side"]) != dict(target) or attacker["side"] == target["side"]
+    ):
+        return _result("rejected", "runtime_predictive_identity_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    raw_attacker = _roster(state, attacker["side"]).get(attacker["slot_index"])
+    raw_target = _roster(state, target["side"]).get(target["slot_index"])
+    if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_attacker, attacker) or not _same_runtime_owner(raw_target, target):
+        return _result("rejected", "runtime_predictive_identity_mismatch")
+    preview_target = strategy_d0["strategy_state"].get("active", {}).get(target["side"])
+    substitute = substitute_state(strategy_d0["strategy_state"], target)
+    field_state = state.get("field") if isinstance(state.get("field"), Mapping) else {}
+    fields = {
+        "attacker_level": _known_authority(_runtime_attacker_level(raw_attacker)),
+        "attacker_final_special_attack": _unavailable_authority("runtime_final_special_attack_untracked"),
+        "target_final_special_defense": _unavailable_authority("runtime_final_special_defense_untracked"),
+        "attacker_current_type": _known_authority(_runtime_current_type(raw_attacker)),
+        "target_current_type": _known_authority(_runtime_current_type(raw_target)),
+        "attacker_special_attack_stage": _stage_authority(raw_attacker, "special-attack"),
+        "target_special_defense_stage": _stage_authority(raw_target, "special-defense"),
+        "target_hp": _known_authority(
+            {"current_hp": preview_target["current_hp"], "max_hp": preview_target["max_hp"]}
+            if _exact_preview_hp(preview_target) else None
+        ),
+        "attacker_item": _runtime_known_field(raw_attacker.get("known_item"), "runtime_item_unknown"),
+        "target_item": _runtime_known_field(raw_target.get("known_item"), "runtime_item_unknown"),
+        "attacker_ability": _runtime_known_field(raw_attacker.get("current_ability"), "runtime_ability_unknown"),
+        "target_ability": _runtime_known_field(raw_target.get("current_ability"), "runtime_ability_unknown"),
+        "weather": _runtime_known_field(field_state.get("weather"), "runtime_weather_unknown"),
+        "terrain": _runtime_known_field(field_state.get("terrain"), "runtime_terrain_unknown"),
+        "substitute": _substitute_authority(substitute),
+    }
+    missing = [
+        name for name, authority in fields.items()
+        if not isinstance(authority, Mapping) or authority.get("status") != "known"
+    ]
+    # The canonical snapshot builders additionally need a D0-bound structured
+    # final-stat provenance source; none is runtime-owned today.
+    missing.extend(["runtime_snapshot_damage_input_unavailable", "runtime_stat_provenance_unavailable"])
+    return {
+        "status": "incomplete",
+        "schema_version": "deterministic-runtime-water-gun-predictive-input-v1",
+        "session_id": strategy_d0["session_id"],
+        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"]),),
+        "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move_id": "water-gun",
+        "authority_fields": deepcopy(fields),
+        "missing_authority": missing,
+        "reason": missing[0] if missing else "runtime_snapshot_damage_input_unavailable",
+        "provenance": "runtime_battle_state_v1_water_gun_predictive_input_boundary_v1",
+    }
+
+
 def runtime_strategy_d0_freshness(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any]) -> dict[str, Any]:
     """Check reducer-fingerprint freshness without inspecting UI state."""
     if not _valid_d0(strategy_d0):
@@ -513,6 +589,38 @@ def _runtime_attacker_level(value: Any) -> int | None:
     """Read a reducer-owned level only when the runtime schema provides one."""
     level = value.get("current_level") if isinstance(value, Mapping) else None
     return level if isinstance(level, int) and not isinstance(level, bool) and 1 <= level <= 100 else None
+
+
+def _known_authority(value: Any) -> dict[str, Any]:
+    return (
+        {"status": "known", "value": deepcopy(value), "provenance": "runtime_battle_state_v1"}
+        if value is not None else {"status": "unknown"}
+    )
+
+
+def _unavailable_authority(reason: str) -> dict[str, Any]:
+    return {"status": "unknown", "reason": reason}
+
+
+def _runtime_known_field(value: Any, reason: str) -> dict[str, Any]:
+    if value is None or is_unknown_battle_fact(value):
+        return _unavailable_authority(reason)
+    return _known_authority(value)
+
+
+def _stage_authority(pokemon: Mapping[str, Any], stat: str) -> dict[str, Any]:
+    stages = pokemon.get("stat_stages")
+    value = stages.get(stat) if isinstance(stages, Mapping) else None
+    return _known_authority(value) if isinstance(value, int) and not isinstance(value, bool) and -6 <= value <= 6 else _unavailable_authority("runtime_stat_stage_unknown")
+
+
+def _substitute_authority(value: Mapping[str, Any]) -> dict[str, Any]:
+    if value.get("state") in {"known_inactive", "known_active"}:
+        result = {"status": "known", "state": value["state"], "provenance": "runtime_battle_state_v1"}
+        if value.get("state") == "known_active":
+            result["substitute_hp"] = value["substitute_hp"]
+        return result
+    return _unavailable_authority("runtime_substitute_unknown")
 
 
 def _selection_entries(entries: Any, identity_key: str) -> bool:
