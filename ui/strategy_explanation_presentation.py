@@ -119,10 +119,11 @@ def _candidate(candidate: Any, frontier: list[str]) -> dict[str, Any] | None:
         "interval": deepcopy(candidate.get("interval")) if isinstance(candidate.get("interval"), Mapping) else None,
         "hit_miss_uncertainty": deepcopy(dict(uncertainty)) if isinstance(uncertainty, Mapping) else None,
         "critical_hit_uncertainty": deepcopy(dict(critical)) if isinstance(critical, Mapping) else None,
+        "damage_roll_summaries": deepcopy(candidate.get("damage_roll_summaries", ())),
         "incomplete_reason": candidate.get("incomplete_reason"),
         "provenance": candidate.get("provenance"),
         "fact_labels": _fact_labels(facts),
-        "uncertainty_labels": [*_uncertainty_labels(uncertainty), *_critical_uncertainty_labels(critical)],
+        "uncertainty_labels": [*_uncertainty_labels(uncertainty), *_critical_uncertainty_labels(critical), *_roll_uncertainty_labels(candidate.get("damage_roll_summaries"))],
         "reason_labels": [_reason_label(reason) for reason in reasons or []],
     }
 
@@ -216,6 +217,14 @@ def _critical_uncertainty_labels(value: Any) -> list[str]:
     names = [branch.get("branch") for branch in branches if isinstance(branch, Mapping)]
     state = "비급소 전용" if names == ["non_critical"] else "급소 전용" if names == ["critical"] else "비급소/급소 분기" if names == ["non_critical", "critical"] else None
     return [f"명중 시 급소 판정: {numerator}/{denominator} ({state})"] if state else []
+def _roll_uncertainty_labels(values:Any)->list[str]:
+ if not isinstance(values,(tuple,list)):return []
+ labels=[]
+ for row in values:
+  if not isinstance(row,Mapping):continue
+  ko=row.get("ko_roll_count");path=row.get("branch_path")
+  if isinstance(ko,int) and isinstance(path,str):labels.append(f"{path} 피해 roll: KO {ko}/16" if ko not in {0,16} else f"{path} 피해 roll: {'KO 보장' if ko==16 else 'KO 불가'} (16/16)")
+ return labels
 
 
 def _status_text(status: Any, frontier: Any) -> str:
