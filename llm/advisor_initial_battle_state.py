@@ -35,6 +35,7 @@ def _side(pokemon_id):
         "pokemon": {0: {
             "pokemon_id": pokemon_id,
             "current_level": make_unknown_battle_fact(),
+            "current_final_stats": {},
             "current_hp": make_unknown_battle_fact(),
             "max_hp": make_unknown_battle_fact(),
             "fainted": make_unknown_battle_fact(),

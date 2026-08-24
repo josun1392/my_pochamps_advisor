@@ -195,8 +195,8 @@ def freeze_runtime_water_gun_predictive_input(
     field_state = state.get("field") if isinstance(state.get("field"), Mapping) else {}
     fields = {
         "attacker_level": _known_authority(_runtime_attacker_level(raw_attacker)),
-        "attacker_final_special_attack": _unavailable_authority("runtime_final_special_attack_untracked"),
-        "target_final_special_defense": _unavailable_authority("runtime_final_special_defense_untracked"),
+        "attacker_final_special_attack": _runtime_final_stat_field(raw_attacker, "special-attack"),
+        "target_final_special_defense": _runtime_final_stat_field(raw_target, "special-defense"),
         "attacker_current_type": _known_authority(_runtime_current_type(raw_attacker)),
         "target_current_type": _known_authority(_runtime_current_type(raw_target)),
         "attacker_special_attack_stage": _stage_authority(raw_attacker, "special-attack"),
@@ -213,26 +213,47 @@ def freeze_runtime_water_gun_predictive_input(
         "terrain": _runtime_known_field(field_state.get("terrain"), "runtime_terrain_unknown"),
         "substitute": _substitute_authority(substitute),
     }
-    missing = [
-        name for name, authority in fields.items()
-        if not isinstance(authority, Mapping) or authority.get("status") != "known"
-    ]
-    # The canonical snapshot builders additionally need a D0-bound structured
-    # final-stat provenance source; none is runtime-owned today.
+    missing = [name for name, authority in fields.items() if not isinstance(authority, Mapping) or authority.get("status") != "known"]
     missing.extend(["runtime_snapshot_damage_input_unavailable", "runtime_stat_provenance_unavailable"])
     return {
-        "status": "incomplete",
-        "schema_version": "deterministic-runtime-water-gun-predictive-input-v1",
-        "session_id": strategy_d0["session_id"],
-        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
-        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
-        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"]),),
+        "status": "incomplete", "schema_version": "deterministic-runtime-water-gun-predictive-input-v1",
+        "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
         "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move_id": "water-gun",
-        "authority_fields": deepcopy(fields),
-        "missing_authority": missing,
+        "authority_fields": deepcopy(fields), "missing_authority": missing,
         "reason": missing[0] if missing else "runtime_snapshot_damage_input_unavailable",
         "provenance": "runtime_battle_state_v1_water_gun_predictive_input_boundary_v1",
     }
+
+
+def freeze_runtime_final_combat_stat_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], owner: Mapping[str, Any], stat: str,
+) -> dict[str, Any]:
+    """Freeze one identity-bound, stage-unmodified final combat stat at D0."""
+    if not _valid_d0(strategy_d0) or not _owner(owner) or stat not in {"attack", "defense", "special-attack", "special-defense", "speed"}:
+        return _result("rejected", "invalid_runtime_final_combat_stat_request")
+    if not isinstance(strategy_d0.get("active_owners"), Mapping) or strategy_d0["active_owners"].get(owner["side"]) != dict(owner):
+        return _result("rejected", "runtime_final_combat_stat_identity_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    pokemon = _roster(state, owner["side"]).get(owner["slot_index"])
+    authority = _runtime_final_stat_field(pokemon, stat) if isinstance(pokemon, Mapping) and _same_runtime_owner(pokemon, owner) else _unavailable_authority("runtime_final_combat_stat_identity_unknown")
+    result = {
+        "status": "resolved" if authority.get("status") == "known" else "incomplete",
+        "schema_version": "runtime-final-combat-stat-authority-v1",
+        "session_id": strategy_d0["session_id"],
+        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "owner": deepcopy(dict(owner)), "stat": stat,
+        "final_stat_authority": deepcopy(authority),
+        "stage_authority": _stage_authority(pokemon, stat) if isinstance(pokemon, Mapping) else _unavailable_authority("runtime_stat_stage_unknown"),
+        "provenance": "runtime_battle_state_v1_final_combat_stat_authority_v1",
+    }
+    if result["status"] == "incomplete":
+        result["reason"] = authority.get("reason", "runtime_final_combat_stat_untracked")
+    return result
 
 
 def runtime_strategy_d0_freshness(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any]) -> dict[str, Any]:
@@ -438,6 +459,8 @@ def _preview_active(state: Mapping[str, Any], side: str, owner: Mapping[str, Any
     level = _runtime_attacker_level(raw)
     if level is not None:
         result["current_level"] = level
+    if isinstance(raw.get("current_final_stats"), Mapping) and raw["current_final_stats"]:
+        result["current_final_stats"] = deepcopy(dict(raw["current_final_stats"]))
     return result
 
 
@@ -460,7 +483,7 @@ def _fact_summary(value: Any) -> Any:
         return {
             key: _fact_summary(item)
             for key, item in value.items()
-            if key in {"current_level", "current_hp", "max_hp", "fainted", "condition", "known_item", "current_type", "current_ability", "stat_stages", "weather", "terrain", "side_conditions"}
+            if key in {"current_level", "current_final_stats", "current_hp", "max_hp", "fainted", "condition", "known_item", "current_type", "current_ability", "stat_stages", "weather", "terrain", "side_conditions"}
         }
     return deepcopy(value)
 
@@ -589,6 +612,14 @@ def _runtime_attacker_level(value: Any) -> int | None:
     """Read a reducer-owned level only when the runtime schema provides one."""
     level = value.get("current_level") if isinstance(value, Mapping) else None
     return level if isinstance(level, int) and not isinstance(level, bool) and 1 <= level <= 100 else None
+
+
+def _runtime_final_stat_field(pokemon: Any, stat: str) -> dict[str, Any]:
+    stats = pokemon.get("current_final_stats") if isinstance(pokemon, Mapping) else None
+    entry = stats.get(stat) if isinstance(stats, Mapping) else None
+    if not isinstance(entry, Mapping) or not isinstance(entry.get("value"), int) or isinstance(entry.get("value"), bool) or entry["value"] < 1 or not isinstance(entry.get("provenance"), Mapping):
+        return _unavailable_authority(f"runtime_final_{stat.replace('-', '_')}_untracked")
+    return {"status": "known", "value": entry["value"], "provenance": deepcopy(dict(entry["provenance"]))}
 
 
 def _known_authority(value: Any) -> dict[str, Any]:
