@@ -57,6 +57,11 @@ def rank_own_action_probability_aware_candidates(*, candidates: Sequence[Mapping
     for index, left in enumerate(candidates):
         for right in candidates[index + 1:]:
             comparison = compare_own_action_probability_aware_candidates(left=left, right=right)
+            comparison = {
+                **comparison,
+                "left_candidate_id": left["candidate_id"],
+                "right_candidate_id": right["candidate_id"],
+            }
             matrix.append(comparison)
             if comparison.get("status") != "resolved":
                 incomplete = True

@@ -8,7 +8,11 @@ def explain_detached_strategy(*,orchestration:Mapping[str,Any])->dict[str,Any]:
  if not isinstance(owner,Mapping) or orchestration.get("session_id")!=owner.get("session_id") or not isinstance(orchestration.get("decision_branch_fingerprint"),str) or not isinstance(candidates,list) or not isinstance(ranking,Mapping):return _r("rejected","inconsistent_orchestration_d0")
  frontier=ranking.get("preferred_frontier",[])
  if not isinstance(frontier,list) or any(not isinstance(x,str) for x in frontier):return _r("rejected","invalid_orchestration_ranking")
- reasons=_reasons(ranking);rows=[]
+ reasons=_reasons(ranking);probability_decisions=_probability_aware_decisions(ranking)
+ if probability_decisions is _INVALID:return _r("rejected","invalid_probability_aware_strategy_decision")
+ decisions_by_candidate={}
+ for decision in probability_decisions:decisions_by_candidate.setdefault(decision["selected_candidate_id"],[]).append(decision)
+ rows=[]
  for row in candidates:
   if not isinstance(row,Mapping) or not isinstance(row.get("candidate_id"),str):return _r("rejected","invalid_candidate_evidence")
   facts=row.get("facts") if isinstance(row.get("facts"),Mapping) else {}
@@ -23,14 +27,29 @@ def explain_detached_strategy(*,orchestration:Mapping[str,Any])->dict[str,Any]:
   if target_secondary is _INVALID:return _r("rejected","invalid_probabilistic_target_stage_effect_uncertainty_evidence")
   status_secondary=_thunderbolt_paralysis_summaries(uncertainty,row.get("candidate_id"))
   if status_secondary is _INVALID:return _r("rejected","invalid_thunderbolt_paralysis_uncertainty_evidence")
-  rows.append({"candidate_id":row["candidate_id"],"action_type":row.get("action_type"),"evidence_class":row.get("evidence_class"),"execution_readiness":row.get("execution_readiness"),"preferred_frontier_member":row["candidate_id"] in frontier,"comparison_reasons":reasons.get(row["candidate_id"],[]),"guaranteed_facts":deepcopy(dict(facts)) if facts else None,"interval":deepcopy(row.get("interval")) if isinstance(row.get("interval"),Mapping) else None,"hit_miss_uncertainty":uncertainty,"critical_hit_uncertainty":critical,"damage_roll_summaries":rolls,"probabilistic_self_stage_effect_summaries":secondary,"probabilistic_target_stage_effect_summaries":target_secondary,"thunderbolt_paralysis_summaries":status_secondary,"incomplete_reason":row.get("reason") if row.get("evidence_class")=="incomplete" else None,"provenance":row.get("provenance")})
+  rows.append({"candidate_id":row["candidate_id"],"action_type":row.get("action_type"),"evidence_class":row.get("evidence_class"),"execution_readiness":row.get("execution_readiness"),"preferred_frontier_member":row["candidate_id"] in frontier,"comparison_reasons":reasons.get(row["candidate_id"],[]),"probability_aware_decisions":deepcopy(decisions_by_candidate.get(row["candidate_id"],[])),"guaranteed_facts":deepcopy(dict(facts)) if facts else None,"interval":deepcopy(row.get("interval")) if isinstance(row.get("interval"),Mapping) else None,"hit_miss_uncertainty":uncertainty,"critical_hit_uncertainty":critical,"damage_roll_summaries":rolls,"probabilistic_self_stage_effect_summaries":secondary,"probabilistic_target_stage_effect_summaries":target_secondary,"thunderbolt_paralysis_summaries":status_secondary,"incomplete_reason":row.get("reason") if row.get("evidence_class")=="incomplete" else None,"provenance":row.get("provenance")})
  status="selection_incomplete" if orchestration.get("selection_completeness")!="complete" else ranking.get("status")
- return {"status":"resolved","schema_version":SCHEMA,"session_id":orchestration["session_id"],"decision_branch_fingerprint":orchestration["decision_branch_fingerprint"],"decision_owner":deepcopy(dict(owner)),"horizon":"immediate_action_consequence","overall_status":status,"preferred_frontier":sorted(frontier),"candidates":sorted(rows,key=lambda x:x["candidate_id"]),"comparison_matrix":deepcopy(ranking.get("pairwise_matrix",[])),"provenance":"detached_strategy_explanation_v1"}
+ return {"status":"resolved","schema_version":SCHEMA,"session_id":orchestration["session_id"],"decision_branch_fingerprint":orchestration["decision_branch_fingerprint"],"decision_owner":deepcopy(dict(owner)),"horizon":"immediate_action_consequence","overall_status":status,"preferred_frontier":sorted(frontier),"candidates":sorted(rows,key=lambda x:x["candidate_id"]),"comparison_matrix":deepcopy(ranking.get("pairwise_matrix",[])),"probability_aware_decisions":deepcopy(probability_decisions),"provenance":"detached_strategy_explanation_v1"}
 def _reasons(r):
  out={}
- for x in r.get("pairwise_matrix",[]) if isinstance(r.get("pairwise_matrix"),list) else []:
+ for x in r.get("pairwise_matrix",[]) if isinstance(r.get("pairwise_matrix"),(tuple,list)) else []:
   if isinstance(x,Mapping) and x.get("comparison")=="preferred" and isinstance(x.get("preferred_candidate"),str):out.setdefault(x["preferred_candidate"],[]).append(x.get("reason"))
  return out
+def _probability_aware_decisions(ranking):
+ decisions=[]
+ for value in ranking.get("pairwise_matrix",[]) if isinstance(ranking.get("pairwise_matrix"),(tuple,list)) else []:
+  if not isinstance(value,Mapping) or value.get("preference_source") not in {"target_ko_probability","self_faint_probability"}:continue
+  comparison=value.get("comparison");left=value.get("left_candidate_id");right=value.get("right_candidate_id");policy=value.get("probability_policy");guaranteed=value.get("guaranteed")
+  if comparison not in {"left_preferred","right_preferred"} or not isinstance(left,str) or not isinstance(right,str) or not isinstance(policy,Mapping) or policy.get("status")!="eligible" or not isinstance(guaranteed,Mapping) or guaranteed.get("comparison")!="tied_on_supported_facts":return _INVALID
+  metric="target_ko_probability" if value["preference_source"]=="target_ko_probability" else "self_faint_probability"
+  prefix="target_ko" if metric=="target_ko_probability" else "self_faint";selected_left=comparison=="left_preferred"
+  selected=left if selected_left else right;alternative=right if selected_left else left
+  selected_value=policy.get(f"{'left' if selected_left else 'right'}_{prefix}_probability");alternative_value=policy.get(f"{'right' if selected_left else 'left'}_{prefix}_probability")
+  if not _fraction(selected_value) or not _fraction(alternative_value) or not isinstance(policy.get("bindings"),Mapping):return _INVALID
+  decisions.append({"schema_version":"probability-aware-strategy-decision-explanation-v1","policy_version":value.get("schema_version"),"rule":"higher_target_ko_probability" if metric=="target_ko_probability" else "lower_self_faint_probability","selected_candidate_id":selected,"compared_candidate_id":alternative,"metric":metric,"selected_metric":deepcopy(dict(selected_value)),"alternative_metric":deepcopy(dict(alternative_value)),"guaranteed_comparison_tied":True,"guaranteed_comparison_reason":guaranteed.get("reason"),"bindings":deepcopy(dict(policy["bindings"]))})
+ return tuple(decisions)
+def _fraction(value):
+ return isinstance(value,Mapping) and isinstance(value.get("numerator"),int) and not isinstance(value.get("numerator"),bool) and isinstance(value.get("denominator"),int) and not isinstance(value.get("denominator"),bool) and value["denominator"]>0 and 0<=value["numerator"]<=value["denominator"]
 def _hit_miss_uncertainty(row):
  value=row.get("uncertainty") if isinstance(row,Mapping) else None
  if not isinstance(value,Mapping):return None

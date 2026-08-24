@@ -34,6 +34,9 @@ def present_strategy_explanation(*, explanation: Mapping[str, Any]) -> dict[str,
     ):
         return _rejected("inconsistent_strategy_explanation_d0")
     rendered_candidates = []
+    probability_decisions = explanation.get("probability_aware_decisions", ())
+    if not _probability_aware_decisions(probability_decisions):
+        return _rejected("invalid_probability_aware_strategy_decision")
     for candidate in candidates:
         row = _candidate(candidate, frontier)
         if row is None:
@@ -53,6 +56,7 @@ def present_strategy_explanation(*, explanation: Mapping[str, Any]) -> dict[str,
         "horizon_notice": "범위: 즉시 행동 결과만 (상대 행동 및 턴 종료 효과 제외)",
         "candidates": rendered_candidates,
         "comparison_matrix": deepcopy(explanation.get("comparison_matrix", [])),
+        "probability_aware_decisions": deepcopy(probability_decisions),
         "provenance": "detached_strategy_explanation_presentation_v1",
     }
 
@@ -116,6 +120,9 @@ def _candidate(candidate: Any, frontier: list[str]) -> dict[str, Any] | None:
     thunderbolt_status = candidate.get("thunderbolt_paralysis_summaries")
     if thunderbolt_status is not None and not _thunderbolt_paralysis_summaries(thunderbolt_status, candidate_id):
         return None
+    probability_decisions = candidate.get("probability_aware_decisions", ())
+    if not _probability_aware_decisions(probability_decisions) or any(decision.get("selected_candidate_id") != candidate_id for decision in probability_decisions):
+        return None
     return {
         "candidate_id": candidate_id,
         "label": _label(candidate_id, action_type),
@@ -132,11 +139,12 @@ def _candidate(candidate: Any, frontier: list[str]) -> dict[str, Any] | None:
         "probabilistic_self_stage_effect_summaries": deepcopy(secondaries) if isinstance(secondaries, (tuple, list)) else (),
         "probabilistic_target_stage_effect_summaries": deepcopy(target_secondaries) if isinstance(target_secondaries, (tuple, list)) else (),
         "thunderbolt_paralysis_summaries": deepcopy(thunderbolt_status) if isinstance(thunderbolt_status, (tuple, list)) else (),
+        "probability_aware_decisions": deepcopy(probability_decisions),
         "incomplete_reason": candidate.get("incomplete_reason"),
         "provenance": candidate.get("provenance"),
         "fact_labels": _fact_labels(facts),
         "uncertainty_labels": [*_uncertainty_labels(uncertainty), *_critical_uncertainty_labels(critical), *_roll_uncertainty_labels(candidate.get("damage_roll_summaries")), *_probabilistic_self_stage_effect_labels(secondaries), *_probabilistic_target_stage_effect_labels(target_secondaries), *_thunderbolt_paralysis_labels(thunderbolt_status)],
-        "reason_labels": [_reason_label(reason) for reason in reasons or []],
+        "reason_labels": [*_probability_decision_labels(probability_decisions), *[_reason_label(reason) for reason in reasons or []]],
     }
 
 
@@ -257,6 +265,29 @@ def _thunderbolt_paralysis_summaries(value: Any, candidate_id: str) -> bool:
     return True
 
 
+def _probability_aware_decisions(value: Any) -> bool:
+    if not isinstance(value, (tuple, list)):
+        return False
+    for decision in value:
+        if not isinstance(decision, Mapping):
+            return False
+        if decision.get("schema_version") != "probability-aware-strategy-decision-explanation-v1":
+            return False
+        if decision.get("rule") not in {"higher_target_ko_probability", "lower_self_faint_probability"}:
+            return False
+        if decision.get("metric") not in {"target_ko_probability", "self_faint_probability"}:
+            return False
+        if not isinstance(decision.get("selected_candidate_id"), str) or not isinstance(decision.get("compared_candidate_id"), str):
+            return False
+        if decision.get("guaranteed_comparison_tied") is not True or not isinstance(decision.get("bindings"), Mapping):
+            return False
+        for key in ("selected_metric", "alternative_metric"):
+            fraction = decision.get(key)
+            if not isinstance(fraction, Mapping) or not isinstance(fraction.get("numerator"), int) or isinstance(fraction.get("numerator"), bool) or not isinstance(fraction.get("denominator"), int) or isinstance(fraction.get("denominator"), bool) or fraction["denominator"] <= 0 or not 0 <= fraction["numerator"] <= fraction["denominator"]:
+                return False
+    return True
+
+
 def _uncertainty_labels(value: Any) -> list[str]:
     if not isinstance(value, Mapping):
         return []
@@ -351,6 +382,26 @@ def _thunderbolt_paralysis_labels(values: Any) -> list[str]:
             labels.append(f"{path} 생존 피해 roll의 상대 마비: 대타로 차단됨")
         elif "ineligible_or_suppressed" in blocked:
             labels.append(f"{path} 생존 피해 roll의 상대 마비: 적용 불가 또는 억제됨 (0/{denominator})")
+    return labels
+
+
+def _probability_decision_labels(values: Any) -> list[str]:
+    if not isinstance(values, (tuple, list)):
+        return []
+    labels = []
+    for decision in values:
+        if not isinstance(decision, Mapping):
+            continue
+        selected = decision.get("selected_metric")
+        alternative = decision.get("alternative_metric")
+        if not isinstance(selected, Mapping) or not isinstance(alternative, Mapping):
+            continue
+        selected_text = f"{selected.get('numerator')}/{selected.get('denominator')}"
+        alternative_text = f"{alternative.get('numerator')}/{alternative.get('denominator')}"
+        if decision.get("rule") == "higher_target_ko_probability":
+            labels.append(f"보장 결과가 같아 KO 확률이 더 높음 ({selected_text} 대 {alternative_text})")
+        elif decision.get("rule") == "lower_self_faint_probability":
+            labels.append(f"KO 확률이 같아 자기 기절 확률이 더 낮음 ({selected_text} 대 {alternative_text})")
     return labels
 def _roll_uncertainty_labels(values:Any)->list[str]:
  if not isinstance(values,(tuple,list)):return []
