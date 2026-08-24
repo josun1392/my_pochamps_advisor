@@ -19,6 +19,7 @@ from llm.advisor_current_stage_authority import (
 from llm.advisor_battle_state_context import build_deterministic_hit_chance_assessment
 from llm.advisor_ability_interaction_authority import normalize_ability_applicability_context
 from advisor.hit_modifier_capabilities import resolve_hit_modifier_capabilities
+from advisor.strict_hit_probability import assess_strict_deterministic_hit_probability
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 from llm.advisor_predictive_normal_formula_interval import normal_formula_eligibility
 from llm.advisor_reducer_state_model import (
@@ -165,6 +166,57 @@ def freeze_runtime_d0_hit_modifier_authority(
         "capability_resolution": deepcopy(capability), "strict_stage_authority": deepcopy(stage_authority),
         "provenance": "runtime_battle_state_v1_hit_modifier_authority_v1",
     }
+
+
+def build_runtime_d0_strict_hit_probability_assessment(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], selected_move: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Compose strict detached authorities into one exact accuracy assessment.
+
+    This is a D0 boundary only: all Gen 9 arithmetic remains in
+    :mod:`advisor.strict_hit_probability`, and no reducer field is mutated.
+    """
+    active = strategy_d0.get("active_owners") if isinstance(strategy_d0, Mapping) else None
+    if (
+        not _valid_d0(strategy_d0) or not _owner(attacker) or not _owner(target)
+        or attacker != strategy_d0["decision_owner"] or not isinstance(active, Mapping)
+        or active.get(attacker["side"]) != dict(attacker) or active.get(target["side"]) != dict(target)
+        or attacker["side"] == target["side"]
+    ):
+        return _result("rejected", "runtime_strict_hit_probability_identity_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    if not isinstance(selected_move, Mapping):
+        return _result("rejected", "invalid_hit_probability_move")
+    if selected_move.get("always_hit") is True:
+        result = assess_strict_deterministic_hit_probability(
+            move=selected_move, strict_stage_authority=None, modifier_authority=None,
+        )
+        if result.get("status") == "resolved":
+            result.update(
+                session_id=strategy_d0["session_id"],
+                source_runtime_fingerprint=strategy_d0["source_runtime_fingerprint"],
+                source_branch_fingerprint=strategy_d0["strategy_preview_fingerprint"],
+                attacker=deepcopy(dict(attacker)), target=deepcopy(dict(target)),
+                provenance="runtime_d0_strict_hit_probability_v1",
+            )
+        return result
+    move = _hit_modifier_move(selected_move)
+    if move is None:
+        return _result("rejected", "invalid_hit_probability_move")
+    modifier = freeze_runtime_d0_hit_modifier_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        attacker=attacker, target=target, move_metadata=move,
+    )
+    result = assess_strict_deterministic_hit_probability(
+        move=selected_move, strict_stage_authority=modifier.get("strict_stage_authority"),
+        modifier_authority=modifier,
+    )
+    if result.get("status") in {"resolved", "incomplete", "unsupported"}:
+        result["provenance"] = "runtime_d0_strict_hit_probability_v1"
+    return result
 
 
 def freeze_runtime_seismic_toss_predictive_input(

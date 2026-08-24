@@ -58,7 +58,7 @@ def resolve_hit_modifier_capabilities(*, move: Mapping[str, Any], source_authori
     factor = _hustle_factor()
     if factor is None:
         return {**base, "status": "unsupported", "reason": "hustle_catalog_rule_unavailable", "ledger": (_row("attacker_ability", "unsupported", rule_id=HUSTLE_RULE_ID),)}
-    return {**base, "status": "resolved", "ledger": (_row("attacker_ability", "applicable", rule_id=HUSTLE_RULE_ID, effect={"kind": "accuracy_multiplier_q12", **factor, "ordering": "after_accuracy_evasion_stages"}),)}
+    return {**base, "status": "resolved", "ledger": (_row("attacker_ability", "applicable", rule_id=HUSTLE_RULE_ID, effect={"kind": "accuracy_multiplier_q12", **factor, "ordering": "before_accuracy_evasion_stages"}),)}
 
 
 def _move(value: Any) -> dict[str, str] | None:

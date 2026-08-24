@@ -14,7 +14,7 @@ def test_hustle_physical_is_supported_and_applicable_with_lossless_factor():
     result=resolve_hit_modifier_capabilities(move=_move(),source_authority=_authority())
     effect=result["ledger"][0]["effect"]
     assert result["status"]=="resolved" and result["ledger"][0]["state"]=="applicable"
-    assert effect == {"kind":"accuracy_multiplier_q12","numerator":3277,"denominator":4096,"ordering":"after_accuracy_evasion_stages"}
+    assert effect == {"kind":"accuracy_multiplier_q12","numerator":3277,"denominator":4096,"ordering":"before_accuracy_evasion_stages"}
 
 
 def test_explicit_neutral_requires_exact_absence_or_catalog_condition():
