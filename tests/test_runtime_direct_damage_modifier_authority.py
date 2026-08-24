@@ -1,0 +1,91 @@
+"""Unknown-first modifier ownership through runtime D0 into the native evaluator."""
+from copy import deepcopy
+
+from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_lifecycle_confirmation import (
+    CURRENT_ABILITY_SOURCE, CURRENT_ITEM_SOURCE, CURRENT_SIDE_CONDITIONS_SOURCE,
+    CURRENT_TERRAIN_SOURCE, CURRENT_WEATHER_SOURCE, LifecycleConfirmationBoundary,
+    USER_TRUST,
+)
+from llm.advisor_reducer_state_model import project_atomic_transition, state_fingerprint
+from llm.advisor_replay_policy import build_replay_plan
+from llm.advisor_runtime_strategy_d0 import build_runtime_d0_native_damage_context, freeze_runtime_strategy_d0
+
+
+def _base() -> dict:
+    state = create_unknown_bootstrap_battle_state("modifiers", "attacker", "target")["state"]
+    for side, types in (("self", ["water"]), ("opponent", ["fire"])):
+        pokemon = state[f"{side}_side"]["pokemon"][0]
+        pokemon.update(current_hp=100, max_hp=120, fainted=False, current_level=50, condition="none", stat_stages={key: 0 for key in ("attack", "defense", "special-attack", "special-defense", "speed")})
+        pokemon["current_level_provenance"] = {"event_kind": "current_level_observed", "trust": USER_TRUST, "turn_number": 1}
+        pokemon["current_type"] = types
+        pokemon["current_type_provenance"] = {"event_kind": "current_type_observed", "trust": USER_TRUST, "turn_number": 1}
+        pokemon["current_final_stats"] = {stat: {"value": 90 + index, "provenance": {"event_kind": "current_final_combat_stat_observed", "trust": USER_TRUST, "turn_number": 1}} for index, stat in enumerate(("attack", "defense", "special-attack", "special-defense", "speed"))}
+    state["field"]["weather"] = "none"
+    state["field"]["weather_provenance"] = {"event_kind": "current_weather_observed", "trust": USER_TRUST, "turn_number": 1}
+    return state
+
+
+def _owner(state: dict, side: str) -> dict:
+    return {"session_id": state["session_id"], "side": side, "slot_index": 0, "pokemon_id": state[f"{side}_side"]["pokemon"][0]["pokemon_id"]}
+
+
+def _confirmations(state: dict, *, attacker_item: dict, target_item: dict, terrain: str = "none", sides: tuple[list[str], list[str]] = ([], [])) -> list[dict]:
+    owners = {side: {"slot_index": 0, "pokemon_id": _owner(state, side)["pokemon_id"]} for side in ("self", "opponent")}
+    boundary = LifecycleConfirmationBoundary(state["session_id"], owners)
+    values = [
+        boundary.confirm(event_kind="current_item_observed", payload=attacker_item, session_id=state["session_id"], source=CURRENT_ITEM_SOURCE, trust=USER_TRUST, confirmed=True, side="self", slot_index=0, pokemon_id="attacker", turn_number=2),
+        boundary.confirm(event_kind="current_item_observed", payload=target_item, session_id=state["session_id"], source=CURRENT_ITEM_SOURCE, trust=USER_TRUST, confirmed=True, side="opponent", slot_index=0, pokemon_id="target", turn_number=2),
+        boundary.confirm(event_kind="current_ability_observed", payload={"ability": "adaptability"}, session_id=state["session_id"], source=CURRENT_ABILITY_SOURCE, trust=USER_TRUST, confirmed=True, side="self", slot_index=0, pokemon_id="attacker", turn_number=2),
+        boundary.confirm(event_kind="current_ability_observed", payload={"ability": "ice-scales"}, session_id=state["session_id"], source=CURRENT_ABILITY_SOURCE, trust=USER_TRUST, confirmed=True, side="opponent", slot_index=0, pokemon_id="target", turn_number=2),
+        boundary.confirm(event_kind="current_terrain_observed", payload={"terrain": terrain}, session_id=state["session_id"], source=CURRENT_TERRAIN_SOURCE, trust=USER_TRUST, confirmed=True, turn_number=2),
+        boundary.confirm(event_kind="current_side_conditions_observed", payload={"side_conditions": sides[0]}, session_id=state["session_id"], source=CURRENT_SIDE_CONDITIONS_SOURCE, trust=USER_TRUST, confirmed=True, side="self", turn_number=2),
+        boundary.confirm(event_kind="current_side_conditions_observed", payload={"side_conditions": sides[1]}, session_id=state["session_id"], source=CURRENT_SIDE_CONDITIONS_SOURCE, trust=USER_TRUST, confirmed=True, side="opponent", turn_number=2),
+    ]
+    assert all(value["status"] == "confirmed" for value in values)
+    return [value["observation"] for value in values]
+
+
+def _apply(state: dict, events: list[dict]) -> dict:
+    projected = project_atomic_transition(state, build_replay_plan(state, events), state["session_id"])
+    assert projected["status"] == "ready_with_projected_state"
+    return projected["projected_state"]
+
+
+def _context(state: dict) -> dict:
+    snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    return build_runtime_d0_native_damage_context(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata={"move_id": "water-gun", "category": "special", "power": 40, "type": "water"})
+
+
+def test_known_item_absence_and_complete_modifier_authority_reach_native_water_gun() -> None:
+    state = _apply(_base(), _confirmations(_base(), attacker_item={"status": "known", "item": "life-orb"}, target_item={"status": "known_absent"}))
+    context = _context(state)
+    authority = context["modifier_authority"]
+    assert context["status"] == "resolved"
+    assert context["native_evaluation"]["exact_damage_rolls"] and len(context["native_evaluation"]["exact_damage_rolls"]) == 16
+    assert "item_life_orb_boost" in context["native_evaluation"]["applied_damage_modifiers"]
+    assert authority["attacker"]["item"]["status"] == "known"
+    assert authority["defender"]["item"]["status"] == "known_absent"
+    assert authority["field"]["terrain"] == {"status": "known", "value": "none"}
+    assert authority["defender"]["side_conditions"] == {"status": "known", "value": []}
+
+
+def test_unknown_item_and_partial_side_knowledge_stay_incomplete() -> None:
+    state = _apply(_base(), _confirmations(_base(), attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"})[:-1])
+    context = _context(state)
+    assert context["status"] == "incomplete"
+    assert "target_side_conditions" in context["missing_authority"]
+    unknown_item = _apply(_base(), _confirmations(_base(), attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"})[2:])
+    assert "attacker.item" in _context(unknown_item)["missing_authority"]
+
+
+def test_exact_side_condition_is_bound_and_source_mutation_is_detached() -> None:
+    state = _apply(_base(), _confirmations(_base(), attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"}, sides=([], ["light-screen"])))
+    context = _context(state)
+    # Screen presence reaches the native evaluator.  It correctly remains
+    # incomplete because runtime D0 does not yet own battle-format authority.
+    assert context["status"] == "incomplete"
+    assert "battle_format" in context["missing_authority"]
+    state["opponent_side"]["side_conditions"].clear()
+    assert context["modifier_authority"]["defender"]["side_conditions"]["value"] == ["light-screen"]

@@ -308,6 +308,10 @@ def build_runtime_d0_native_damage_context(
     preview_attacker, preview_target = preview.get(attacker["side"]), preview.get(target["side"])
     attacker_side = _native_runtime_side(raw_attacker, preview_attacker, attacker)
     target_side = _native_runtime_side(raw_target, preview_target, target)
+    modifier_authority = _runtime_direct_damage_modifier_authority(
+        state=state, attacker=attacker, target=target,
+        raw_attacker=raw_attacker, raw_target=raw_target,
+    )
     current = {
         "direct_mechanics_context": {
             "generation": "gen9",
@@ -347,6 +351,7 @@ def build_runtime_d0_native_damage_context(
         "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move_id": move["move_id"],
         "snapshot_damage_input": deepcopy(damage_input), "stat_provenance": deepcopy(provenance),
         "trusted_level": level, "native_evaluation": deepcopy(native), "missing_authority": missing,
+        "modifier_authority": deepcopy(modifier_authority),
         "provenance": "runtime_battle_state_v1_native_damage_context_v1",
     }
     if result["status"] != "resolved":
@@ -371,7 +376,7 @@ def _native_runtime_side(raw: Mapping[str, Any], preview: Any, owner: Mapping[st
         final_values["hp"] = preview["max_hp"]
     complete_stats = all(isinstance(final_values.get(key), int) and not isinstance(final_values[key], bool) and final_values[key] > 0 for key in _NATIVE_STAT_KEYS)
     current_type = _runtime_current_type(raw)
-    item = _native_item_authority(raw.get("known_item"))
+    item = _native_item_authority(raw.get("known_item"), raw.get("known_item_provenance"))
     return {
         "pokemon_identity": owner["pokemon_id"], "side": owner["side"], "slot_index": owner["slot_index"], "session_id": owner["session_id"],
         "types": _native_provenance_block(current_type, "runtime_current_type", "runtime_current", "current_type_unknown"),
@@ -392,9 +397,11 @@ def _runtime_known_string(value: Any) -> str | None:
     return value if isinstance(value, str) and bool(value) and not is_unknown_battle_fact(value) else None
 
 
-def _native_item_authority(value: Any) -> dict[str, Any]:
+def _native_item_authority(value: Any, provenance: Any = None) -> dict[str, Any]:
     if isinstance(value, str) and value and not is_unknown_battle_fact(value):
         return {"available": True, "status": "known", "value": value, "source": "runtime_current_item", "trust": "runtime_current", "reason": None, "profile_source": "runtime_battle_state_v1"}
+    if value is None and isinstance(provenance, Mapping) and provenance.get("event_kind") in {"current_item_observed", "item_consumption_observed", "item_removed_observed"}:
+        return {"available": True, "status": "known_absent", "value": None, "source": "runtime_current_item", "trust": "runtime_current", "reason": None, "profile_source": "runtime_battle_state_v1"}
     return {"available": False, "status": "unknown", "value": None, "source": "unknown", "trust": "unknown", "reason": "item_unknown", "profile_source": "runtime_battle_state_v1"}
 
 
@@ -411,10 +418,11 @@ def _native_direct_side(raw: Mapping[str, Any], preview: Any) -> dict[str, Any]:
     hp = preview if _exact_preview_hp(preview) else {}
     condition = _runtime_known_string(raw.get("condition"))
     ability = _runtime_known_string(raw.get("current_ability"))
-    item = _runtime_known_string(raw.get("known_item"))
+    item_authority = _native_item_authority(raw.get("known_item"), raw.get("known_item_provenance"))
+    item = item_authority.get("value")
     return {
         "ability": {"status": "known", "value": ability} if ability else {"status": "unknown"},
-        "item": {"status": "known", "value": item} if item else {"status": "unknown"},
+        "item": {"status": item_authority["status"], **({"value": item} if item_authority["status"] == "known" else {})},
         # This native legacy field remains a zero baseline only when the
         # separately-authoritative full stage map is exact; evaluator stage
         # application continues to happen only in its canonical stage path.
@@ -452,15 +460,46 @@ def _native_ability_entries(attacker: Mapping[str, Any], target: Mapping[str, An
 def _native_field_direct_context(state: Mapping[str, Any]) -> dict[str, Any]:
     field = state.get("field") if isinstance(state.get("field"), Mapping) else {}
     weather, terrain = field.get("weather"), field.get("terrain")
-    return {"weather": {"status": "known", "value": weather} if isinstance(weather, str) and not is_unknown_battle_fact(weather) else {"status": "unknown"}, "terrain": {"status": "known", "value": terrain} if isinstance(terrain, str) and not is_unknown_battle_fact(terrain) else {"status": "unknown"}}
+    return {"weather": {"status": "known", "value": weather} if _runtime_weather_exact(field) else {"status": "unknown"}, "terrain": {"status": "known", "value": terrain} if _runtime_terrain_exact(field) else {"status": "unknown"}}
 
 
 def _native_field_state(state: Mapping[str, Any]) -> dict[str, Any]:
     field = state.get("field") if isinstance(state.get("field"), Mapping) else {}
     weather, terrain = field.get("weather"), field.get("terrain")
-    # Reducer side-condition authority is not yet normalized into the native
-    # field list.  Keep it explicitly unknown rather than claiming no screens.
-    return {"weather": weather if isinstance(weather, str) and not is_unknown_battle_fact(weather) else "unknown", "terrain": terrain if isinstance(terrain, str) and not is_unknown_battle_fact(terrain) else "unknown", "side_effects": "unknown"}
+    return {"weather": weather if _runtime_weather_exact(field) else "unknown", "terrain": terrain if _runtime_terrain_exact(field) else "unknown", "side_effects": _native_side_effects(state)}
+
+
+def _runtime_weather_exact(field: Mapping[str, Any]) -> bool:
+    provenance = field.get("weather_provenance")
+    return isinstance(field.get("weather"), str) and isinstance(provenance, Mapping) and provenance.get("event_kind") == "current_weather_observed" and provenance.get("trust") == "user_confirmed_observation"
+
+
+def _runtime_terrain_exact(field: Mapping[str, Any]) -> bool:
+    provenance = field.get("terrain_provenance")
+    return isinstance(field.get("terrain"), str) and isinstance(provenance, Mapping) and provenance.get("event_kind") == "current_terrain_observed" and provenance.get("trust") == "user_confirmed_observation"
+
+
+def _native_side_effects(state: Mapping[str, Any]) -> list[dict[str, str]] | str:
+    rows: list[dict[str, str]] = []
+    for side_name in ("self", "opponent"):
+        side = state.get(f"{side_name}_side")
+        conditions = side.get("side_conditions") if isinstance(side, Mapping) else None
+        provenance = side.get("side_conditions_provenance") if isinstance(side, Mapping) else None
+        if not isinstance(conditions, list) or not isinstance(provenance, Mapping) or provenance.get("trust") != "user_confirmed_observation" or provenance.get("event_kind") not in {"current_side_conditions_observed", "side_condition_started_observed", "side_condition_ended_observed"}:
+            return "unknown"
+        rows.extend({"side": side_name, "effect": effect} for effect in conditions)
+    return rows
+
+
+def _runtime_direct_damage_modifier_authority(*, state: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], raw_attacker: Mapping[str, Any], raw_target: Mapping[str, Any]) -> dict[str, Any]:
+    """Reusable D0-bound authority inventory; values are consumed through native shapes."""
+    field = state.get("field") if isinstance(state.get("field"), Mapping) else {}
+    effects = _native_side_effects(state)
+    def side_conditions(side: str) -> dict[str, Any]:
+        value = state.get(f"{side}_side")
+        conditions = value.get("side_conditions") if isinstance(value, Mapping) else None
+        return {"status": "known", "value": deepcopy(conditions)} if isinstance(effects, list) and isinstance(conditions, list) else {"status": "unknown", "value": None}
+    return {"schema_version": "runtime-direct-damage-modifier-authority-v1", "attacker": {"owner": deepcopy(dict(attacker)), "item": _native_item_authority(raw_attacker.get("known_item"), raw_attacker.get("known_item_provenance")), "ability": _native_provenance_block(_runtime_known_string(raw_attacker.get("current_ability")), "runtime_current_ability", "runtime_current", "ability_unknown"), "side_conditions": side_conditions(attacker["side"])}, "defender": {"owner": deepcopy(dict(target)), "item": _native_item_authority(raw_target.get("known_item"), raw_target.get("known_item_provenance")), "ability": _native_provenance_block(_runtime_known_string(raw_target.get("current_ability")), "runtime_current_ability", "runtime_current", "ability_unknown"), "side_conditions": side_conditions(target["side"])}, "field": {"weather": {"status": "known", "value": field.get("weather")} if _runtime_weather_exact(field) else {"status": "unknown", "value": None}, "terrain": {"status": "known", "value": field.get("terrain")} if _runtime_terrain_exact(field) else {"status": "unknown", "value": None}}}
 
 
 def _runtime_native_context_for_water_gun(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
