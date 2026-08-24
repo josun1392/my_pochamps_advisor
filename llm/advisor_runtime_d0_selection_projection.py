@@ -13,6 +13,7 @@ from typing import Any, Mapping
 
 
 SCHEMA = "runtime-d0-bound-selection-projection-v1"
+MOVE_METADATA_SCHEMA = "runtime-d0-selectable-move-metadata-authority-v1"
 CAPTURE_SCHEMA = "runtime-d0-selection-capture-v1"
 _SELECTIONS = frozenset({"selectable", "not_selectable", "selection_unknown"})
 
@@ -51,7 +52,11 @@ def freeze_runtime_d0_bound_selection_projection(*, strategy_d0: Mapping[str, An
     try:
         request = _mapping(prepared_cycle.get("recommendation_request"))
         evidence = _mapping(prepared_cycle.get("evidence_bundle"))
-        moves = _freeze_move_selection(request.get("candidate_comparisons"))
+        comparisons = request.get("candidate_comparisons")
+        moves = _freeze_move_selection(comparisons)
+        move_metadata_authorities = _freeze_selectable_move_metadata_authorities(
+            rows=comparisons, candidates=evidence.get("candidates"), strategy_d0=strategy_d0,
+        )
         switches = _freeze_switch_selection(evidence.get("switch_candidates"))
     except ValueError as error:
         return _rejected(str(error))
@@ -63,6 +68,7 @@ def freeze_runtime_d0_bound_selection_projection(*, strategy_d0: Mapping[str, An
         "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
         "active_owner": deepcopy(dict(strategy_d0["decision_owner"])),
         "moves": moves,
+        "move_metadata_authorities": move_metadata_authorities,
         "switches": switches,
         "selection_completeness": "partial" if any(row["selection"] == "selection_unknown" for row in [*moves, *switches]) else "complete",
         "provenance": "prepared_recommendation_selection_cycle_bound_to_runtime_d0_v1",
@@ -92,6 +98,70 @@ def _freeze_move_selection(rows: Any) -> list[dict[str, str]]:
         identities.add(move)
         result.append({"move_id": move, "selection": selection})
     return sorted(result, key=lambda row: row["move_id"])
+
+
+def _freeze_selectable_move_metadata_authorities(
+    *, rows: Any, candidates: Any, strategy_d0: Mapping[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Bind repository-normalized candidate metadata without promoting UI data.
+
+    The prepared-cycle evidence is the only source accepted here.  A missing
+    internal canonical payload remains candidate-local ``incomplete`` rather
+    than changing selection legality or being backfilled from the UI bridge.
+    """
+    if not isinstance(rows, list):
+        raise ValueError("invalid_structured_move_selection")
+    evidence_by_key: dict[tuple[int, str], Mapping[str, Any]] = {}
+    if isinstance(candidates, list):
+        for candidate in candidates:
+            if not isinstance(candidate, Mapping):
+                continue
+            slot, move = candidate.get("slot_index"), candidate.get("move")
+            if isinstance(slot, int) and not isinstance(slot, bool) and isinstance(move, str) and move:
+                key = (slot, move)
+                if key in evidence_by_key:
+                    raise ValueError("duplicate_canonical_move_metadata_identity")
+                evidence_by_key[key] = candidate
+    result: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            raise ValueError("invalid_structured_move_selection")
+        move, slot = row.get("move"), row.get("slot_index")
+        if not isinstance(move, str) or not move:
+            raise ValueError("duplicate_or_invalid_move_selection_identity")
+        candidate = evidence_by_key.get((slot, move)) if isinstance(slot, int) and not isinstance(slot, bool) else None
+        result[move] = _move_metadata_authority(move=move, candidate=candidate, strategy_d0=strategy_d0)
+    return dict(sorted(result.items()))
+
+
+def _move_metadata_authority(*, move: str, candidate: Mapping[str, Any] | None, strategy_d0: Mapping[str, Any]) -> dict[str, Any]:
+    base = {
+        "schema_version": MOVE_METADATA_SCHEMA,
+        "candidate_id": f"attack:{move}", "move_id": move,
+        "session_id": strategy_d0["session_id"],
+        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "active_attacker": deepcopy(dict(strategy_d0["decision_owner"])),
+        "provenance": "prepared_cycle_repository_normalized_move_metadata_bound_to_runtime_d0_v1",
+    }
+    metadata = candidate.get("canonical_move_metadata") if isinstance(candidate, Mapping) else None
+    if not isinstance(metadata, Mapping):
+        return {"status": "incomplete", **base, "reason": "canonical_move_metadata_missing"}
+    normalized = deepcopy(dict(metadata))
+    if normalized.get("move_id") != move:
+        return {"status": "rejected", **base, "reason": "canonical_move_metadata_move_id_conflict"}
+    category, power, move_type = normalized.get("category"), normalized.get("power"), normalized.get("type")
+    if category not in {"physical", "special", "status"}:
+        return {"status": "unsupported", **base, "reason": "canonical_move_category_unsupported"}
+    if not isinstance(move_type, str) or not move_type:
+        return {"status": "incomplete", **base, "reason": "canonical_move_type_missing"}
+    if category in {"physical", "special"} and (not isinstance(power, int) or isinstance(power, bool) or power < 1):
+        return {"status": "incomplete", **base, "reason": "canonical_move_power_missing"}
+    always_hit, accuracy = normalized.get("always_hit"), normalized.get("accuracy")
+    if always_hit is not True and (not isinstance(accuracy, int) or isinstance(accuracy, bool) or not 1 <= accuracy <= 100):
+        return {"status": "incomplete", **base, "reason": "canonical_move_accuracy_missing"}
+    return {"status": "resolved", **base, "metadata": normalized}
 
 
 def _freeze_switch_selection(rows: Any) -> list[dict[str, str]]:

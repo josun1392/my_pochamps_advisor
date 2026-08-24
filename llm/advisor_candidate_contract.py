@@ -738,9 +738,10 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     move_success = _priority_block_gate(snapshot, metadata, action_order)
     if isinstance(move_success, Mapping) and move_success.get("status") in {"blocked", "insufficient_context", "unsupported_mechanic"}:
         return _psychic_terrain_unavailable_candidate(slot_index=slot_index, move=move, action_order=action_order, move_success=move_success)
+    canonical_move_metadata = _selected_move_from_metadata(move, metadata)
     if _metadata_value(metadata, "category") == "status":
-        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"action_order":action_order,"accuracy_evidence":_accuracy_evidence(metadata, snapshot),"status_move_evidence":_status_move_evidence(metadata),"move_consequence_evidence":evaluate_move_consequence_evidence(move_id=move, metadata=metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[], **({"move_success": move_success} if isinstance(move_success, Mapping) else {})}
-    selected_move = _selected_move_from_metadata(move, metadata)
+        return {"slot_index":slot_index,"move":move,"status":"partial","availability":"partially_evaluable","damage":{"status":"not_applicable"},"q12_damage":{"status":"unavailable","limitations":["status_move_not_damaging"]},"mechanics_result":{"status":"unsupported_mechanic","unsupported_reason":"status_move"},"action_order":action_order,"accuracy_evidence":_accuracy_evidence(metadata, snapshot),"status_move_evidence":_status_move_evidence(metadata),"move_consequence_evidence":evaluate_move_consequence_evidence(move_id=move, metadata=metadata),"self_effects":[],"dynamic_move":None,"warnings":["unsupported_non_damage_utility_ranking"],"unavailable_reasons":[],"canonical_move_metadata":canonical_move_metadata, **({"move_success": move_success} if isinstance(move_success, Mapping) else {})}
+    selected_move = canonical_move_metadata
     if turn_snapshot is not None:
         try:
             damage_input = build_snapshot_damage_input(
@@ -789,6 +790,9 @@ def evaluate_move_candidate(*, slot_index: int, move: Any, battle_snapshot: Mapp
     optional_outputs["accuracy_evidence"] = _accuracy_evidence(metadata, snapshot)
     optional_outputs["status_move_evidence"] = _status_move_evidence(metadata)
     optional_outputs["move_consequence_evidence"] = evaluate_move_consequence_evidence(move_id=move, metadata=metadata)
+    # Internal prepared-cycle authority only.  The provider payload deliberately
+    # removes this canonical source; runtime/D0 selection projection consumes it.
+    optional_outputs["canonical_move_metadata"] = deepcopy(selected_move)
     current_type_missing = (
         isinstance(mechanics_result, Mapping)
         and mechanics_result.get("status") == "insufficient_context"
@@ -1166,7 +1170,7 @@ def build_recommendation_request(*, evidence_bundle: Mapping[str, Any]) -> dict[
         ranked_mechanics = rank_direct_mechanics_candidates(candidates=normalized_candidates, threat_summaries=threat_summaries)
         for normalized in normalized_candidates:
             eligibility = _candidate_eligibility(normalized)
-            provider_candidate = {key: value for key, value in normalized.items() if key != "q12_damage"}
+            provider_candidate = {key: value for key, value in normalized.items() if key not in {"q12_damage", "canonical_move_metadata"}}
             mechanics = provider_candidate.get("mechanics_result")
             if isinstance(mechanics, Mapping):
                 provider_candidate["mechanics_result"] = {

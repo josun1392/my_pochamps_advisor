@@ -10,7 +10,9 @@ def freeze_current_action_authority(*,decision_state:Mapping[str,Any],decision_o
   if not isinstance(x,Mapping) or x.get("source_branch_fingerprint")!=fp or x.get("owner")!=dict(decision_owner) or x.get("selection") not in {"selectable","not_selectable","selection_unknown"}:raise ValueError
   ident=x.get("move_id") if kind=="attack" else x.get("pokemon_id")
   if not isinstance(ident,str):raise ValueError
-  return {"action_id":f"{kind}:{ident}","action_type":kind,"identity":ident,"selection":x["selection"],"execution_readiness":x.get("execution_readiness","execution_incomplete"),"execution_authority":deepcopy(x.get("execution_authority"))}
+  result={"action_id":f"{kind}:{ident}","action_type":kind,"identity":ident,"selection":x["selection"],"execution_readiness":x.get("execution_readiness","execution_incomplete"),"execution_authority":deepcopy(x.get("execution_authority"))}
+  if kind=="attack" and isinstance(x.get("move_metadata_authority"),Mapping):result["move_metadata_authority"]=deepcopy(x["move_metadata_authority"])
+  return result
  try: actions=[row(x,"attack") for x in moves]+[row(x,"manual_switch") for x in switches]
  except ValueError:return {"status":"rejected","reason":"stale_or_invalid_selection_projection"}
  if len({x["action_id"] for x in actions})!=len(actions):return {"status":"rejected","reason":"duplicate_action_identity"}

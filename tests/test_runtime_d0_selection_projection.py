@@ -11,6 +11,7 @@ from llm.advisor_runtime_d0_selection_projection import (
 from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_strategy_d0,
     freeze_runtime_strategy_selection_authority,
+    resolve_runtime_d0_selectable_move_metadata_authority,
 )
 
 
@@ -151,7 +152,7 @@ def test_capture_is_attached_while_the_existing_recommendation_cycle_is_prepared
 
     prepared = prepare_ui_recommendation_cycle(
         selected_moves=[{"move_id": "tackle"}], battle_input=battle,
-        move_repository={"tackle": {"category": "physical", "power": 40, "type": "normal"}},
+        move_repository={"tackle": {"category": "physical", "power": 40, "type": "normal", "accuracy": 100}},
         runtime_selection_capture=build_runtime_d0_selection_capture(strategy_d0=d0),
     )
     projection = freeze_runtime_d0_bound_selection_projection(strategy_d0=d0, prepared_cycle=prepared)
@@ -160,4 +161,54 @@ def test_capture_is_attached_while_the_existing_recommendation_cycle_is_prepared
     assert prepared["status"] == "ready"
     assert projection["status"] == "resolved"
     assert projection["moves"] == [{"move_id": "tackle", "selection": "selectable"}]
+    assert projection["move_metadata_authorities"]["tackle"]["status"] == "resolved"
+    assert {key: projection["move_metadata_authorities"]["tackle"]["metadata"][key] for key in ("move_id", "category", "power", "type", "accuracy")} == {
+        "move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100,
+    }
     assert "_runtime_d0_selection_capture" not in provider_payload
+    assert "canonical_move_metadata" not in provider_payload
+
+
+def test_selectable_move_metadata_is_canonical_private_and_bound_to_the_same_d0() -> None:
+    state = _state("metadata-authority")
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=_snapshot(state), decision_owner=_owner(state))
+    source = _prepared(d0, moves=[{"slot_index": 0, "move": "thunderbolt", "eligibility": "eligible"}])
+    source["evidence_bundle"]["candidates"] = [{
+        "slot_index": 0, "move": "thunderbolt",
+        "canonical_move_metadata": {
+            "move_id": "thunderbolt", "category": "special", "power": 90,
+            "type": "electric", "accuracy": 100, "effect_chance": 10,
+            "effect_category": "ailment", "ailment": "paralysis",
+        },
+    }]
+
+    projection = freeze_runtime_d0_bound_selection_projection(strategy_d0=d0, prepared_cycle=source)
+    selection = freeze_runtime_strategy_selection_authority(strategy_d0=d0, selection_projection=projection)
+    action = next(row for row in selection["actions"] if row["action_id"] == "attack:thunderbolt")
+    authority = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=d0, action=action)
+
+    assert authority["status"] == "resolved"
+    assert authority["metadata"]["effect_chance"] == 10
+    assert authority["metadata"]["type"] == "electric"
+    assert authority["candidate_id"] == "attack:thunderbolt"
+    assert "canonical_move_metadata" not in source["recommendation_request"]["candidate_comparisons"][0]
+
+
+def test_selectable_move_metadata_fails_closed_for_missing_conflicting_and_mismatched_candidates() -> None:
+    state = _state("metadata-fail-closed")
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=_snapshot(state), decision_owner=_owner(state))
+    source = _prepared(d0, moves=[{"slot_index": 0, "move": "tackle", "eligibility": "eligible"}])
+    missing = freeze_runtime_d0_bound_selection_projection(strategy_d0=d0, prepared_cycle=source)
+    assert missing["move_metadata_authorities"]["tackle"]["status"] == "incomplete"
+
+    conflict = _prepared(d0, moves=[{"slot_index": 0, "move": "tackle", "eligibility": "eligible"}])
+    conflict["evidence_bundle"]["candidates"] = [{"slot_index": 0, "move": "tackle", "canonical_move_metadata": {
+        "move_id": "foreign", "category": "physical", "power": 40, "type": "normal", "accuracy": 100,
+    }}]
+    projected = freeze_runtime_d0_bound_selection_projection(strategy_d0=d0, prepared_cycle=conflict)
+    assert projected["move_metadata_authorities"]["tackle"]["status"] == "rejected"
+
+    selection = freeze_runtime_strategy_selection_authority(strategy_d0=d0, selection_projection=projected)
+    action = next(row for row in selection["actions"] if row["action_id"] == "attack:tackle")
+    action["move_metadata_authority"]["source_runtime_fingerprint"] = "stale"
+    assert resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=d0, action=action)["reason"] == "selectable_move_metadata_authority_binding_mismatch"

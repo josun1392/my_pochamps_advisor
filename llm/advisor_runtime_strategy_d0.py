@@ -1241,8 +1241,16 @@ def freeze_runtime_strategy_selection_authority(*, strategy_d0: Mapping[str, Any
     if not _selection_entries(moves, "move_id") or not _selection_entries(switches, "pokemon_id"):
         return _result("rejected", "invalid_selection_projection_records")
     fingerprint = strategy_d0["strategy_preview_fingerprint"]
+    metadata_authorities = selection_projection.get("move_metadata_authorities")
+    if metadata_authorities is not None and not isinstance(metadata_authorities, Mapping):
+        return _result("rejected", "invalid_selectable_move_metadata_authorities")
     frozen_moves = [
-        {"owner": deepcopy(owner), "source_branch_fingerprint": fingerprint, "move_id": row["move_id"], "selection": row["selection"]}
+        {
+            "owner": deepcopy(owner), "source_branch_fingerprint": fingerprint,
+            "move_id": row["move_id"], "selection": row["selection"],
+            **({"move_metadata_authority": deepcopy(metadata_authorities.get(row["move_id"]))}
+               if isinstance(metadata_authorities, Mapping) and isinstance(metadata_authorities.get(row["move_id"]), Mapping) else {}),
+        }
         for row in moves
     ]
     frozen_switches = [
@@ -1253,6 +1261,37 @@ def freeze_runtime_strategy_selection_authority(*, strategy_d0: Mapping[str, Any
         decision_state=strategy_d0["strategy_state"], decision_owner=owner,
         moves=frozen_moves, switches=frozen_switches,
     )
+
+
+def resolve_runtime_d0_selectable_move_metadata_authority(
+    *, strategy_d0: Mapping[str, Any], action: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return one candidate's D0-bound canonical metadata without a raw lookup.
+
+    This is deliberately structural: predictive builders retain ownership of
+    mechanics and consume only the immutable ``metadata`` payload after the
+    candidate/action and D0 bindings have been validated here.
+    """
+    if not _valid_d0(strategy_d0) or not isinstance(action, Mapping):
+        return _result("rejected", "invalid_strategy_d0_or_action")
+    move = action.get("identity")
+    authority = action.get("move_metadata_authority")
+    if action.get("action_type") != "attack" or not isinstance(move, str) or not move or not isinstance(authority, Mapping):
+        return _result("rejected", "selectable_move_metadata_authority_missing")
+    expected = {
+        "candidate_id": action.get("action_id"), "move_id": move,
+        "session_id": strategy_d0["session_id"],
+        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": strategy_d0["decision_owner"],
+        "active_attacker": strategy_d0["decision_owner"],
+    }
+    if any(authority.get(key) != value for key, value in expected.items()):
+        return _result("rejected", "selectable_move_metadata_authority_binding_mismatch")
+    status = authority.get("status")
+    if status not in {"resolved", "incomplete", "unsupported", "rejected"}:
+        return _result("rejected", "invalid_selectable_move_metadata_authority_status")
+    return deepcopy(dict(authority))
 
 
 def freeze_runtime_incoming_authority_boundary(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], incoming_owner: Mapping[str, Any]) -> dict[str, Any]:
