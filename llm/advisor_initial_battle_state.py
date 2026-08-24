@@ -49,6 +49,7 @@ def _side(pokemon_id):
             "fainted": make_unknown_battle_fact(),
             "current_type": make_unknown_battle_fact(),
             "current_ability": make_unknown_battle_fact(),
+            "current_crit_volatiles": make_unknown_battle_fact(),
             "toxic_progression": make_unknown_battle_fact(),
             "condition": make_unknown_battle_fact(),
             "known_item": make_unknown_battle_fact(),

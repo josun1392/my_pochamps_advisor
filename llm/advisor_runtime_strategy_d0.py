@@ -16,6 +16,10 @@ from llm.advisor_current_stage_authority import (
     native_damage_stage_authority, project_current_stage_authority,
     strict_hit_stage_authority,
 )
+from llm.advisor_current_critical_state_authority import (
+    project_current_crit_volatile_authority,
+    project_current_lucky_chant_authority,
+)
 from llm.advisor_battle_state_context import build_deterministic_hit_chance_assessment
 from llm.advisor_ability_interaction_authority import normalize_ability_applicability_context
 from advisor.hit_modifier_capabilities import resolve_hit_modifier_capabilities
@@ -91,6 +95,22 @@ def freeze_runtime_strategy_d0(*, runtime_snapshot: Mapping[str, Any], decision_
             current_stages=_roster(state, side).get(owner["slot_index"], {}).get("stat_stages"),
         ) for side, owner in owners.items()
     }
+    result["current_critical_state_authority"] = {
+        "volatiles": {
+            side: project_current_crit_volatile_authority(
+                session_id=session_id, source_runtime_fingerprint=runtime_fingerprint,
+                source_branch_fingerprint=preview_fingerprint, owner=owner,
+                current_crit_volatiles=_runtime_crit_volatiles_exact(_roster(state, side).get(owner["slot_index"], {})),
+            ) for side, owner in owners.items()
+        },
+        "lucky_chant": {
+            side: project_current_lucky_chant_authority(
+                session_id=session_id, source_runtime_fingerprint=runtime_fingerprint,
+                source_branch_fingerprint=preview_fingerprint, side=side,
+                current_side_conditions=_runtime_side_conditions_exact(state.get(f"{side}_side")),
+            ) for side in owners
+        },
+    }
     return result
 
 
@@ -113,6 +133,29 @@ def freeze_runtime_current_stage_authority(*, strategy_d0: Mapping[str, Any], ru
     if not isinstance(authority, Mapping) or authority.get("owner") != dict(owner):
         return _result("rejected", "runtime_current_stage_authority_unavailable")
     return deepcopy(dict(authority))
+
+
+def freeze_runtime_current_critical_state_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> dict[str, Any]:
+    """Return one detached current crit-state view for the exact active owner."""
+    if not _valid_d0(strategy_d0) or not _owner(owner) or strategy_d0.get("active_owners", {}).get(owner.get("side")) != dict(owner):
+        return _result("rejected", "runtime_current_critical_state_identity_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    current = strategy_d0.get("current_critical_state_authority")
+    if not isinstance(current, Mapping):
+        return _result("rejected", "runtime_current_critical_state_authority_unavailable")
+    volatile = current.get("volatiles", {}).get(owner["side"]) if isinstance(current.get("volatiles"), Mapping) else None
+    lucky_chant = current.get("lucky_chant", {}).get(owner["side"]) if isinstance(current.get("lucky_chant"), Mapping) else None
+    if not isinstance(volatile, Mapping) or volatile.get("owner") != dict(owner) or not isinstance(lucky_chant, Mapping) or lucky_chant.get("side") != owner["side"]:
+        return _result("rejected", "runtime_current_critical_state_authority_unavailable")
+    return {
+        "status": "resolved", "schema_version": "runtime-current-critical-state-authority-v1",
+        "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "owner": deepcopy(dict(owner)),
+        "crit_volatiles": deepcopy(dict(volatile)), "lucky_chant": deepcopy(dict(lucky_chant)),
+        "provenance": "runtime_battle_state_v1_to_detached_current_critical_state_authority_v1",
+    }
 
 
 def build_runtime_d0_strict_hit_chance_assessment(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], selected_move: Mapping[str, Any]) -> dict[str, Any]:
@@ -596,6 +639,23 @@ def _native_provenance_block(value: Any, source: str, trust: str, reason: str) -
 
 def _runtime_known_string(value: Any) -> str | None:
     return value if isinstance(value, str) and bool(value) and not is_unknown_battle_fact(value) else None
+
+
+def _runtime_crit_volatiles_exact(raw: Any) -> list[str] | None:
+    values = raw.get("current_crit_volatiles") if isinstance(raw, Mapping) else None
+    provenance = raw.get("current_crit_volatiles_provenance") if isinstance(raw, Mapping) else None
+    allowed = {"focus-energy", "lansat", "dragon-cheer"}
+    if not isinstance(values, list) or len(values) != len(set(values)) or any(value not in allowed for value in values) or not isinstance(provenance, Mapping) or provenance.get("event_kind") != "current_crit_volatiles_observed" or provenance.get("trust") != "user_confirmed_observation":
+        return None
+    return values
+
+
+def _runtime_side_conditions_exact(raw: Any) -> list[str] | None:
+    values = raw.get("side_conditions") if isinstance(raw, Mapping) else None
+    provenance = raw.get("side_conditions_provenance") if isinstance(raw, Mapping) else None
+    if not isinstance(values, list) or not isinstance(provenance, Mapping) or provenance.get("trust") != "user_confirmed_observation" or provenance.get("event_kind") not in {"current_side_conditions_observed", "side_condition_started_observed", "side_condition_ended_observed"}:
+        return None
+    return values
 
 
 def _native_item_authority(value: Any, provenance: Any = None) -> dict[str, Any]:
