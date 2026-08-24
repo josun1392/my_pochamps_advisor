@@ -23,6 +23,7 @@ from llm.advisor_current_critical_state_authority import (
 from llm.advisor_battle_state_context import build_deterministic_hit_chance_assessment
 from llm.advisor_ability_interaction_authority import normalize_ability_applicability_context
 from advisor.hit_modifier_capabilities import resolve_hit_modifier_capabilities
+from advisor.critical_hit_capabilities import resolve_critical_hit_capabilities
 from advisor.strict_hit_probability import assess_strict_deterministic_hit_probability
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 from llm.advisor_predictive_normal_formula_interval import normal_formula_eligibility
@@ -155,6 +156,49 @@ def freeze_runtime_current_critical_state_authority(*, strategy_d0: Mapping[str,
         "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "owner": deepcopy(dict(owner)),
         "crit_volatiles": deepcopy(dict(volatile)), "lucky_chant": deepcopy(dict(lucky_chant)),
         "provenance": "runtime_battle_state_v1_to_detached_current_critical_state_authority_v1",
+    }
+
+
+def freeze_runtime_d0_critical_hit_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Bind exact current facts to the detached crit capability resolver."""
+    move_id = move_metadata.get("move_id") if isinstance(move_metadata, Mapping) else None
+    active = strategy_d0.get("active_owners") if isinstance(strategy_d0, Mapping) else None
+    if (
+        not _valid_d0(strategy_d0) or not isinstance(move_id, str) or not move_id
+        or not _owner(attacker) or not _owner(target) or attacker != strategy_d0["decision_owner"]
+        or not isinstance(active, Mapping) or active.get(attacker["side"]) != dict(attacker)
+        or active.get(target["side"]) != dict(target) or attacker["side"] == target["side"]
+    ):
+        return _result("rejected", "runtime_critical_hit_identity_or_move_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    raw_attacker = _roster(state, attacker["side"]).get(attacker["slot_index"])
+    raw_target = _roster(state, target["side"]).get(target["slot_index"])
+    if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_attacker, attacker) or not _same_runtime_owner(raw_target, target):
+        return _result("rejected", "runtime_critical_hit_identity_mismatch")
+    attacker_critical = freeze_runtime_current_critical_state_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=attacker)
+    target_critical = freeze_runtime_current_critical_state_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
+    sources = _runtime_critical_hit_sources(raw_attacker=raw_attacker, raw_target=raw_target)
+    capability = resolve_critical_hit_capabilities(
+        move={"move_id": move_id}, source_authority=sources,
+        critical_state_authority={"attacker": attacker_critical, "target": target_critical},
+    )
+    return {
+        "status": capability["status"], "schema_version": "runtime-d0-critical-hit-authority-v1",
+        "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move": {"move_id": move_id},
+        "source_authority": deepcopy(sources),
+        "current_critical_state_authority": {"attacker": deepcopy(attacker_critical), "target": deepcopy(target_critical)},
+        "capability_resolution": deepcopy(capability),
+        "provenance": "runtime_battle_state_v1_to_detached_critical_hit_authority_v1",
+        **({"reason": capability["reason"]} if capability.get("status") != "resolved" and isinstance(capability.get("reason"), str) else {}),
     }
 
 
@@ -612,6 +656,39 @@ def _runtime_hustle_ability_authority(*, state: Mapping[str, Any], raw_attacker:
         )
         result["applicability"] = {"status": normalized["status"]}
     return result
+
+
+def _runtime_critical_hit_sources(*, raw_attacker: Mapping[str, Any], raw_target: Mapping[str, Any]) -> dict[str, Any]:
+    """Project only resolver slots; omitted optional slots remain unknown there."""
+    return {
+        "attacker_ability": _runtime_critical_ability(raw_attacker),
+        "defender_ability": _runtime_critical_ability(raw_target),
+        "attacker_item": _runtime_critical_item(raw_attacker),
+        "target_condition": _runtime_critical_condition(raw_target),
+        "attacker_types": _runtime_critical_types(raw_attacker),
+    }
+
+
+def _runtime_critical_ability(raw: Mapping[str, Any]) -> dict[str, Any]:
+    value = _runtime_known_string(raw.get("current_ability"))
+    return {"status": "known", "value": value} if value is not None else {"status": "unknown"}
+
+
+def _runtime_critical_item(raw: Mapping[str, Any]) -> dict[str, Any]:
+    item = _native_item_authority(raw.get("known_item"), raw.get("known_item_provenance"))
+    return {"status": "known", "value": item["value"]} if item["status"] == "known" else {"status": item["status"]}
+
+
+def _runtime_critical_condition(raw: Mapping[str, Any]) -> dict[str, Any]:
+    value = _runtime_known_string(raw.get("condition"))
+    if value is None:
+        return {"status": "unknown"}
+    return {"status": "known_absent"} if value == "none" else {"status": "known", "value": value}
+
+
+def _runtime_critical_types(raw: Mapping[str, Any]) -> dict[str, Any]:
+    value = _runtime_current_type(raw)
+    return {"status": "known", "value": value} if value is not None else {"status": "unknown"}
 
 
 def _native_runtime_side(raw: Mapping[str, Any], preview: Any, owner: Mapping[str, Any], stage_map: Mapping[str, int] | None = None) -> dict[str, Any]:
