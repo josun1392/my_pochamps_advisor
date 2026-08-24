@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QApplication
 
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_reducer_state_model import state_fingerprint
+from llm.advisor_substitute import update_substitute_state_context
 from llm.advisor_ui_detached_strategy_bridge import run_current_ui_detached_strategy
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
 
@@ -119,6 +120,36 @@ def test_runtime_bridge_keeps_live_seismic_toss_visible_when_runtime_predictive_
     assert result["status"] == "resolved"
     assert candidates["attack:seismic-toss"]["evidence_class"] == "incomplete"
     assert candidates["attack:seismic-toss"]["incomplete_reason"] == "exact_damage_unknown"
+
+
+def test_runtime_bridge_routes_exact_runtime_seismic_toss_to_deterministic_presentation() -> None:
+    state = _state()
+    state["self_side"]["pokemon"][0].update(
+        current_level=50,
+        current_level_provenance={"event_kind": "current_level_observed", "trust": "user_confirmed_observation", "turn_number": 1},
+    )
+    target = state["opponent_side"]["pokemon"][0]
+    target.update(current_hp=42, max_hp=100, current_type=["water"])
+    target["current_type_provenance"] = {"event_kind": "current_type_observed", "trust": "user_confirmed_observation", "turn_number": 1}
+    opponent = {"session_id": state["session_id"], "side": "opponent", "slot_index": 0, "pokemon_id": "opponent"}
+    state["substitute_state_context"] = update_substitute_state_context(
+        context=None, session_id=state["session_id"], owner=opponent, state="known_inactive", substitute_hp=None,
+        provenance="runtime_observed_substitute_state_v1",
+    )
+    result = run_current_ui_detached_strategy(
+        runtime_session_manager=_RuntimeManager([_snapshot(state), _snapshot(state)]), captured_session_id=state["session_id"],
+        selection_cycle_builder=_selection_builder(move="seismic-toss"),
+    )
+    app = QApplication.instance() or QApplication([]); panel = LLMAdvicePanel(); emitted = []
+    panel.advice_requested.connect(lambda: emitted.append(True))
+    panel.set_strategy_explanation(result["explanation"])
+    candidates = {row["candidate_id"]: row for row in result["explanation"]["candidates"]}
+
+    assert result["status"] == "resolved"
+    assert candidates["attack:seismic-toss"]["evidence_class"] == "exact_outcome"
+    assert candidates["attack:seismic-toss"]["guaranteed_facts"]["guaranteed_opponent_fainted"] is True
+    assert "Seismic Toss" in panel.output_edit.toPlainText()
+    assert emitted == []
 
 
 def test_runtime_bridge_rejects_stale_result_and_selection_d0_mismatch() -> None:

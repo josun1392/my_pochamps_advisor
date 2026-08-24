@@ -41,6 +41,35 @@ def substitute_state(branch_state: Mapping[str, Any], owner: Mapping[str, Any]) 
     return {"state":"unknown"}
 
 
+def update_substitute_state_context(
+    *, context: Mapping[str, Any] | None, session_id: str, owner: Mapping[str, Any],
+    state: str, substitute_hp: int | None, provenance: str,
+) -> dict[str, Any] | None:
+    """Return one detached owner-bound Substitute context update.
+
+    Runtime reducers and detached branches share this state representation; this
+    helper only records already-known state and never calculates Substitute HP.
+    """
+    if not isinstance(session_id, str) or not session_id or not _exact_owner(owner):
+        return None
+    if state == "known_active":
+        if not isinstance(substitute_hp, int) or isinstance(substitute_hp, bool) or substitute_hp <= 0:
+            return None
+    elif state in {"known_inactive", "unknown"}:
+        if substitute_hp is not None:
+            return None
+    else:
+        return None
+    if isinstance(context, Mapping) and context.get("schema_version") == _SCHEMA and context.get("session_id") == session_id and isinstance(context.get("states"), list):
+        result = deepcopy(dict(context))
+    else:
+        result = {"schema_version": _SCHEMA, "session_id": session_id, "provenance": provenance, "states": []}
+    rows = result["states"]
+    rows[:] = [row for row in rows if not (isinstance(row, Mapping) and row.get("owner") == dict(owner))]
+    rows.append({"owner": deepcopy(dict(owner)), "state": state, "substitute_hp": substitute_hp})
+    return result
+
+
 def route_exact_damage_to_substitute(*, branch_state: Mapping[str, Any], target_owner: Mapping[str, Any], damage_amount: int, source_branch_fingerprint: str) -> dict[str, Any] | None:
     """Return an F0->F1 Substitute-only damage transition when state is tracked."""
     status = substitute_state(branch_state, target_owner)
@@ -61,9 +90,11 @@ def rebind_substitute_after_switch(*, source_branch: Mapping[str, Any], state: d
     if not isinstance(source_context, Mapping):
         state["substitute_state_context"] = source_context
         return
-    state["substitute_state_context"] = deepcopy(dict(source_context))
-    _set_substitute(state, outgoing_owner, "known_inactive", None, source_branch_fingerprint)
-    _set_substitute(state, incoming_owner, "unknown", None, source_branch_fingerprint)
+    context = update_substitute_state_context(context=source_context, session_id=outgoing_owner["session_id"], owner=outgoing_owner, state="known_inactive", substitute_hp=None, provenance=_PROVENANCE)
+    context = update_substitute_state_context(context=context, session_id=incoming_owner["session_id"], owner=incoming_owner, state="unknown", substitute_hp=None, provenance=_PROVENANCE)
+    if context is not None:
+        context["source_branch_fingerprint"] = source_branch_fingerprint
+        state["substitute_state_context"] = context
 
 
 def _set_substitute(state: dict[str, Any], owner: Mapping[str, Any], status: str, hp: int | None, source_fingerprint: str) -> None:

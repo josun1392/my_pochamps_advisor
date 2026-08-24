@@ -54,6 +54,10 @@ def freeze_runtime_strategy_d0(*, runtime_snapshot: Mapping[str, Any], decision_
             "runtime_strategy_d0_authority": _runtime_authority_summary(state),
         },
     }
+    # The canonical reducer representation already carries its own owner rows.
+    # Absence is intentionally preserved as legacy/untracked, not inactive.
+    if isinstance(state.get("substitute_state_context"), Mapping):
+        preview["substitute_state_context"] = deepcopy(dict(state["substitute_state_context"]))
     preview_fingerprint = fingerprint_transition_preview_state(preview)
     if not isinstance(preview_fingerprint, str):
         return _result("rejected", "unserializable_strategy_d0")
@@ -125,7 +129,7 @@ def freeze_runtime_seismic_toss_predictive_input(
     if missing:
         return _incomplete_seismic_toss_input(
             strategy_d0, attacker, target, missing[0], target_type=target_type,
-            missing_authority=missing,
+            missing_authority=missing, level=level, substitute=substitute,
         )
     predictive_input = {
         "schema_version": "current-predictive-fixed-damage-input-v1",
@@ -150,7 +154,7 @@ def freeze_runtime_seismic_toss_predictive_input(
         "predictive_input": predictive_input,
         "target_hp_authority": {"status": "known", "current_hp": preview_target["current_hp"], "max_hp": preview_target["max_hp"]},
         "target_type_authority": deepcopy(predictive_input["target_type_authority"]),
-        "substitute_authority": {"status": "known", "state": substitute["state"]},
+        "substitute_authority": {"status": "known", "state": substitute["state"], **({"substitute_hp": substitute["substitute_hp"]} if "substitute_hp" in substitute else {})},
         "provenance": "runtime_battle_state_v1_seismic_toss_predictive_input_v1",
     }
 
@@ -355,6 +359,9 @@ def _preview_active(state: Mapping[str, Any], side: str, owner: Mapping[str, Any
     hp, maximum, fainted = raw.get("current_hp"), raw.get("max_hp"), raw.get("fainted")
     if _exact_hp(hp, maximum, fainted):
         result.update(current_hp=hp, max_hp=maximum, fainted=fainted)
+    level = _runtime_attacker_level(raw)
+    if level is not None:
+        result["current_level"] = level
     return result
 
 
@@ -377,7 +384,7 @@ def _fact_summary(value: Any) -> Any:
         return {
             key: _fact_summary(item)
             for key, item in value.items()
-            if key in {"current_hp", "max_hp", "fainted", "condition", "known_item", "current_type", "current_ability", "stat_stages", "weather", "terrain", "side_conditions"}
+            if key in {"current_level", "current_hp", "max_hp", "fainted", "condition", "known_item", "current_type", "current_ability", "stat_stages", "weather", "terrain", "side_conditions"}
         }
     return deepcopy(value)
 
@@ -440,6 +447,7 @@ def _incomplete_incoming(strategy_d0: Mapping[str, Any], incoming_owner: Mapping
 def _incomplete_seismic_toss_input(
     strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], reason: str,
     *, target_type: list[str] | None, missing_authority: Sequence[str] | None = None,
+    level: int | None = None, substitute: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Describe known runtime facts without fabricating an invalid input schema."""
     preview_target = strategy_d0["strategy_state"]["active"][target["side"]]
@@ -457,13 +465,20 @@ def _incomplete_seismic_toss_input(
         "attacker": deepcopy(dict(attacker)),
         "target": deepcopy(dict(target)),
         "move_id": "seismic-toss",
-        "attacker_level_authority": {"status": "unknown", "reason": "attacker_level_runtime_untracked"},
+        "attacker_level_authority": (
+            {"status": "known", "value": level, "provenance": "runtime_battle_state_v1"}
+            if level is not None else {"status": "unknown", "reason": "attacker_level_runtime_untracked"}
+        ),
         "target_hp_authority": hp,
         "target_type_authority": (
             {"status": "known", "value": deepcopy(target_type), "provenance": "runtime_battle_state_v1"}
             if target_type is not None else {"status": "unknown", "reason": "target_type_unknown"}
         ),
-        "substitute_authority": {"status": "unknown", "reason": "runtime_substitute_untracked"},
+        "substitute_authority": (
+            {"status": "known", "state": substitute["state"], **({"substitute_hp": substitute["substitute_hp"]} if "substitute_hp" in substitute else {})}
+            if isinstance(substitute, Mapping) and substitute.get("state") not in {"unknown", "legacy_untracked"}
+            else {"status": "unknown", "reason": "runtime_substitute_untracked"}
+        ),
         "missing_authority": list(missing_authority or [reason]),
         "reason": reason,
         "provenance": "runtime_battle_state_v1_seismic_toss_predictive_input_boundary_v1",
@@ -496,7 +511,7 @@ def _runtime_current_type(value: Mapping[str, Any]) -> list[str] | None:
 
 def _runtime_attacker_level(value: Any) -> int | None:
     """Read a reducer-owned level only when the runtime schema provides one."""
-    level = value.get("level") if isinstance(value, Mapping) else None
+    level = value.get("current_level") if isinstance(value, Mapping) else None
     return level if isinstance(level, int) and not isinstance(level, bool) and 1 <= level <= 100 else None
 
 
