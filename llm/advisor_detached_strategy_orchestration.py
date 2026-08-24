@@ -8,16 +8,17 @@ from llm.advisor_predictive_normal_formula_interval import build_predictive_norm
 from llm.advisor_predictive_water_gun_interval import build_predictive_water_gun_interval
 from llm.advisor_predictive_normal_formula_post_hit import compose_predictive_normal_formula_post_hit
 from llm.advisor_predictive_deterministic_stage_effects import compose_predictive_deterministic_stage_effects
+from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
 from llm.advisor_guaranteed_fact_comparison import guaranteed_facts_from_exact_outcome, guaranteed_facts_from_normal_formula_interval, guaranteed_facts_from_water_gun_interval, rank_guaranteed_candidates
 
-def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decision_owner:Mapping[str,Any],selection_snapshot:Mapping[str,Any],execution_bundle:Mapping[str,Any],predictive_attacks:Mapping[str,Mapping[str,Any]]|None=None,water_gun_inputs:Mapping[str,Any]|None=None,normal_formula_inputs:Mapping[str,Mapping[str,Any]]|None=None,post_hit_inputs:Mapping[str,Mapping[str,Any]]|None=None)->dict[str,Any]:
+def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decision_owner:Mapping[str,Any],selection_snapshot:Mapping[str,Any],execution_bundle:Mapping[str,Any],predictive_attacks:Mapping[str,Mapping[str,Any]]|None=None,water_gun_inputs:Mapping[str,Any]|None=None,normal_formula_inputs:Mapping[str,Mapping[str,Any]]|None=None,post_hit_inputs:Mapping[str,Mapping[str,Any]]|None=None,hit_probability_authorities:Mapping[str,Mapping[str,Any]]|None=None)->dict[str,Any]:
  """Route independently supported candidates without becoming a state owner."""
  if not _d0(decision_owner,selection_snapshot,execution_bundle):return {"status":"rejected","reason":"orchestration_d0_mismatch"}
  discovered=discover_candidates(snapshot=selection_snapshot)
  if discovered.get("status")!="resolved":return discovered
  enriched=enrich_discovered_candidates(selection_snapshot=selection_snapshot,execution_bundle=execution_bundle,candidates=discovered["candidates"])
  if enriched.get("status")!="resolved":return enriched
- evidence=[]; facts=[]; attacks=predictive_attacks or {}; normal=dict(normal_formula_inputs or {}); post=dict(post_hit_inputs or {}); water=water_gun_inputs or {}; legacy_water="attack:water-gun" not in normal and isinstance(water,Mapping)
+ evidence=[]; facts=[]; attacks=predictive_attacks or {}; normal=dict(normal_formula_inputs or {}); post=dict(post_hit_inputs or {}); hit_probabilities=hit_probability_authorities or {}; water=water_gun_inputs or {}; legacy_water="attack:water-gun" not in normal and isinstance(water,Mapping)
  if legacy_water: normal["attack:water-gun"]=water
  for candidate in enriched["candidates"]:
   cid=candidate["candidate_id"]
@@ -38,6 +39,11 @@ def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decisi
      if composed.get("status")=="resolved": fact={**fact,"guaranteed_own_fainted":composed["guaranteed_attacker_faint"],"exact_own_hp":composed["attacker_post_hit_hp_values"][0] if len(composed["attacker_post_hit_hp_values"])==1 else None,"possible_own_faint":composed["possible_attacker_faint"],"post_hit":composed}
     stage=compose_predictive_deterministic_stage_effects(interval=interval,stage_effect_authority=normal_input.get("stage_effect_authority",{}),stat_provenance=normal_input.get("stat_provenance",{}))
     if stage.get("status")=="resolved": fact={**fact,"stage_effects":stage}
+    probability=hit_probabilities.get(cid)
+    if isinstance(probability,Mapping):
+     uncertainty=compose_predictive_hit_miss_uncertainty(candidate=candidate,strict_hit_probability=probability,hit_consequences={"interval":interval,"post_hit":fact.get("post_hit"),"stage_effects":fact.get("stage_effects"),"guaranteed_facts":fact},miss_baseline={"attacker_current_hp":own,"target_current_hp":decision_state["active"]["opponent" if decision_owner["side"]=="self" else "self"].get("current_hp")})
+     if uncertainty.get("status")=="resolved": evidence.append(_e(candidate,"hit_miss_uncertainty",uncertainty=uncertainty,facts=uncertainty["guaranteed_facts"]));facts.append(uncertainty["guaranteed_facts"]);continue
+     evidence.append(_e(candidate,"incomplete",reason=uncertainty.get("reason","strict_hit_probability_unavailable"),hit_probability=uncertainty));continue
     evidence.append(_e(candidate,"guaranteed_facts",interval=interval,facts=fact));facts.append(fact);continue
   if candidate["action_type"]=="manual_switch":
    outcome=materialize_candidates(decision_state=decision_state,decision_owner=decision_owner,candidates=[candidate])["outcomes"][0]

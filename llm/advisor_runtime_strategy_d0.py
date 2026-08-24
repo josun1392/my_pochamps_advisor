@@ -199,6 +199,7 @@ def build_runtime_d0_strict_hit_probability_assessment(
                 session_id=strategy_d0["session_id"],
                 source_runtime_fingerprint=strategy_d0["source_runtime_fingerprint"],
                 source_branch_fingerprint=strategy_d0["strategy_preview_fingerprint"],
+                decision_owner=deepcopy(dict(strategy_d0["decision_owner"])),
                 attacker=deepcopy(dict(attacker)), target=deepcopy(dict(target)),
                 provenance="runtime_d0_strict_hit_probability_v1",
             )
@@ -215,6 +216,7 @@ def build_runtime_d0_strict_hit_probability_assessment(
         modifier_authority=modifier,
     )
     if result.get("status") in {"resolved", "incomplete", "unsupported"}:
+        result["decision_owner"] = deepcopy(dict(strategy_d0["decision_owner"]))
         result["provenance"] = "runtime_d0_strict_hit_probability_v1"
     return result
 
