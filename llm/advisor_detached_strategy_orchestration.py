@@ -16,15 +16,16 @@ from llm.advisor_predictive_probabilistic_self_stage_effect_uncertainty import c
 from llm.advisor_predictive_probabilistic_target_stage_effect_uncertainty import compose_predictive_probabilistic_target_stage_effect_uncertainty
 from llm.advisor_predictive_thunderbolt_paralysis_uncertainty import compose_predictive_thunderbolt_paralysis_uncertainty
 from llm.advisor_guaranteed_fact_comparison import guaranteed_facts_from_exact_outcome, guaranteed_facts_from_normal_formula_interval, guaranteed_facts_from_water_gun_interval, rank_guaranteed_candidates
+from llm.advisor_probability_aware_strategy_evaluation import rank_own_action_probability_aware_candidates
 
-def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decision_owner:Mapping[str,Any],selection_snapshot:Mapping[str,Any],execution_bundle:Mapping[str,Any],predictive_attacks:Mapping[str,Mapping[str,Any]]|None=None,water_gun_inputs:Mapping[str,Any]|None=None,normal_formula_inputs:Mapping[str,Mapping[str,Any]]|None=None,post_hit_inputs:Mapping[str,Mapping[str,Any]]|None=None,hit_probability_authorities:Mapping[str,Mapping[str,Any]]|None=None,critical_hit_probability_authorities:Mapping[str,Mapping[str,Any]]|None=None,probabilistic_self_stage_effect_authorities:Mapping[str,Mapping[str,Any]]|None=None,probabilistic_target_stage_effect_authorities:Mapping[str,Mapping[str,Any]]|None=None,thunderbolt_paralysis_authorities:Mapping[str,Mapping[str,Any]]|None=None)->dict[str,Any]:
+def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decision_owner:Mapping[str,Any],selection_snapshot:Mapping[str,Any],execution_bundle:Mapping[str,Any],predictive_attacks:Mapping[str,Mapping[str,Any]]|None=None,water_gun_inputs:Mapping[str,Any]|None=None,normal_formula_inputs:Mapping[str,Mapping[str,Any]]|None=None,post_hit_inputs:Mapping[str,Mapping[str,Any]]|None=None,hit_probability_authorities:Mapping[str,Mapping[str,Any]]|None=None,critical_hit_probability_authorities:Mapping[str,Mapping[str,Any]]|None=None,probabilistic_self_stage_effect_authorities:Mapping[str,Mapping[str,Any]]|None=None,probabilistic_target_stage_effect_authorities:Mapping[str,Mapping[str,Any]]|None=None,thunderbolt_paralysis_authorities:Mapping[str,Mapping[str,Any]]|None=None,exact_outcome_ledgers:Mapping[str,Mapping[str,Any]]|None=None,descriptive_metrics:Mapping[str,Mapping[str,Any]]|None=None)->dict[str,Any]:
  """Route independently supported candidates without becoming a state owner."""
  if not _d0(decision_owner,selection_snapshot,execution_bundle):return {"status":"rejected","reason":"orchestration_d0_mismatch"}
  discovered=discover_candidates(snapshot=selection_snapshot)
  if discovered.get("status")!="resolved":return discovered
  enriched=enrich_discovered_candidates(selection_snapshot=selection_snapshot,execution_bundle=execution_bundle,candidates=discovered["candidates"])
  if enriched.get("status")!="resolved":return enriched
- evidence=[]; facts=[]; attacks=predictive_attacks or {}; normal=dict(normal_formula_inputs or {}); post=dict(post_hit_inputs or {}); hit_probabilities=hit_probability_authorities or {}; critical_probabilities=critical_hit_probability_authorities or {}; self_stage_probabilities=probabilistic_self_stage_effect_authorities or {}; target_stage_probabilities=probabilistic_target_stage_effect_authorities or {}; thunderbolt_status_probabilities=thunderbolt_paralysis_authorities or {}; water=water_gun_inputs or {}; legacy_water="attack:water-gun" not in normal and isinstance(water,Mapping)
+ evidence=[]; facts=[]; attacks=predictive_attacks or {}; normal=dict(normal_formula_inputs or {}); post=dict(post_hit_inputs or {}); hit_probabilities=hit_probability_authorities or {}; critical_probabilities=critical_hit_probability_authorities or {}; self_stage_probabilities=probabilistic_self_stage_effect_authorities or {}; target_stage_probabilities=probabilistic_target_stage_effect_authorities or {}; thunderbolt_status_probabilities=thunderbolt_paralysis_authorities or {}; ledgers=exact_outcome_ledgers; metrics=descriptive_metrics; water=water_gun_inputs or {}; legacy_water="attack:water-gun" not in normal and isinstance(water,Mapping)
  if legacy_water: normal["attack:water-gun"]=water
  for candidate in enriched["candidates"]:
   cid=candidate["candidate_id"]
@@ -76,9 +77,16 @@ def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decisi
    if outcome.get("status")=="complete":
     fact=guaranteed_facts_from_exact_outcome(decision_owner=decision_owner,outcome=outcome["outcome"]);evidence.append(_e(candidate,"exact_outcome",outcome=outcome["outcome"],facts=fact));facts.append(fact);continue
   evidence.append(_e(candidate,"incomplete",reason=candidate.get("execution_reason","observation_required")))
- ranking=rank_guaranteed_candidates(candidates=facts) if len(facts)>=2 else {"status":"incomplete_comparison_set","preferred_frontier":[x["candidate_id"] for x in evidence if x["evidence_class"]!="incomplete"],"reason":"fewer_than_two_comparable_candidates"}
+ ranking=_rank(facts,evidence,ledgers,metrics) if len(facts)>=2 else {"status":"incomplete_comparison_set","preferred_frontier":[x["candidate_id"] for x in evidence if x["evidence_class"]!="incomplete"],"reason":"fewer_than_two_comparable_candidates"}
  return {"schema_version":"deterministic-strategy-orchestration-result-v1","status":ranking["status"],"session_id":decision_owner["session_id"],"decision_branch_fingerprint":selection_snapshot["decision_branch_fingerprint"],"decision_owner":decision_owner,"selection_completeness":discovered["candidate_set_completeness"],"candidates":evidence,"ranking":ranking,"provenance":"detached_strategy_orchestration_v1"}
 def _e(c,kind,**extra):return {"schema_version":"deterministic-strategy-candidate-evidence-v1","candidate_id":c["candidate_id"],"action_type":c["action_type"],"evidence_class":kind,"execution_readiness":c.get("execution_readiness"),**extra}
+def _rank(facts,evidence,ledgers,metrics):
+ if ledgers is None and metrics is None:return rank_guaranteed_candidates(candidates=facts)
+ by_id={row.get("candidate_id"):row for row in evidence if isinstance(row,Mapping)}; records=[]
+ for fact in facts:
+  cid=fact.get("candidate_id") if isinstance(fact,Mapping) else None; row=by_id.get(cid,{})
+  records.append({"candidate_id":cid,"action_type":row.get("action_type",fact.get("action_type") if isinstance(fact,Mapping) else None),"guaranteed_facts":fact,"exact_outcome_ledger":ledgers.get(cid) if isinstance(ledgers,Mapping) else None,"descriptive_metrics":metrics.get(cid) if isinstance(metrics,Mapping) else None})
+ return rank_own_action_probability_aware_candidates(candidates=records)
 def _d0(o,s,e):return isinstance(o,Mapping) and all(s.get(k)==e.get(k) for k in ("session_id","decision_branch_fingerprint","decision_owner")) and s.get("decision_owner")==dict(o)
 def _normal_formula_facts(candidate,interval,own,post_input,normal_input,legacy_water=False,probabilistic_self_stage_effect_authority=None,probabilistic_target_stage_effect_authority=None,thunderbolt_paralysis_authority=None):
  fact=(guaranteed_facts_from_water_gun_interval if legacy_water else guaranteed_facts_from_normal_formula_interval)(candidate=candidate,interval=interval,own_current_hp=own)
