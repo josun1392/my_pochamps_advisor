@@ -3,6 +3,33 @@ from copy import deepcopy
 from typing import Any, Mapping
 from llm.advisor_observed_damage_application import apply_canonical_stage_delta
 
+
+def compose_predictive_self_stage_effect(*, interval: Mapping[str, Any], effect: Mapping[str, Any], current_stage: Mapping[str, Any]) -> dict[str, Any]:
+    """Materialize one detached self-stage overlay for a successful hit leaf.
+
+    This narrow helper shares the canonical stage-cap arithmetic with the
+    deterministic stage composer while leaving authority and probability
+    branching to its dedicated callers.
+    """
+    if not isinstance(interval, Mapping) or interval.get("completeness") != "exact_complete":
+        return _r("incomplete", "normal_formula_interval_incomplete")
+    if interval.get("target_routing") not in {"target", "substitute"}:
+        return _r("incomplete", "successful_damaging_hit_unavailable")
+    rolls = interval.get("exact_damage_rolls")
+    if not isinstance(rolls, tuple) or len(rolls) != 16 or any(not isinstance(value, int) or isinstance(value, bool) or value <= 0 for value in rolls):
+        return _r("incomplete", "successful_damaging_hit_unavailable")
+    stat, delta = effect.get("stat") if isinstance(effect, Mapping) else None, effect.get("delta") if isinstance(effect, Mapping) else None
+    before = current_stage.get("value") if isinstance(current_stage, Mapping) and current_stage.get("status") == "known" else None
+    if effect.get("owner") != "self" or not isinstance(stat, str) or not isinstance(delta, int) or isinstance(delta, bool) or not 1 <= delta <= 6:
+        return _r("rejected", "invalid_probabilistic_self_stage_effect")
+    if not isinstance(before, int) or isinstance(before, bool) or not -6 <= before <= 6:
+        return _r("incomplete", "self_stage_unknown")
+    return {
+        "status": "resolved", "schema_version": "predictive-self-stage-effect-composition-v1",
+        "effect": {"owner": "self", "stat": stat, "previous_stage": before, "delta": delta, "resulting_stage": apply_canonical_stage_delta(before, delta)},
+        "provenance": "canonical_predictive_stage_composition_v1",
+    }
+
 def compose_predictive_deterministic_stage_effects(*, interval: Mapping[str, Any], stage_effect_authority: Mapping[str, Any], stat_provenance: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(interval, Mapping) or interval.get("completeness") != "exact_complete": return _r("incomplete", "normal_formula_interval_incomplete")
     if not isinstance(stage_effect_authority, Mapping) or stage_effect_authority.get("move_id") != interval.get("move_id"): return _r("rejected", "stage_effect_move_binding_mismatch")
