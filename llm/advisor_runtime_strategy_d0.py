@@ -12,6 +12,11 @@ from copy import deepcopy
 from typing import Any, Mapping, Sequence
 
 from llm.advisor_current_action_authority import freeze_current_action_authority
+from llm.advisor_current_stage_authority import (
+    native_damage_stage_authority, project_current_stage_authority,
+    strict_hit_stage_authority,
+)
+from llm.advisor_battle_state_context import build_deterministic_hit_chance_assessment
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 from llm.advisor_predictive_normal_formula_interval import normal_formula_eligibility
 from llm.advisor_reducer_state_model import (
@@ -65,7 +70,7 @@ def freeze_runtime_strategy_d0(*, runtime_snapshot: Mapping[str, Any], decision_
     preview_fingerprint = fingerprint_transition_preview_state(preview)
     if not isinstance(preview_fingerprint, str):
         return _result("rejected", "unserializable_strategy_d0")
-    return {
+    result = {
         "status": "resolved",
         "schema_version": SCHEMA,
         "session_id": session_id,
@@ -76,6 +81,14 @@ def freeze_runtime_strategy_d0(*, runtime_snapshot: Mapping[str, Any], decision_
         "strategy_state": deepcopy(preview),
         "provenance": "runtime_battle_state_v1_to_detached_strategy_d0_v1",
     }
+    result["current_stage_authority"] = {
+        side: project_current_stage_authority(
+            session_id=session_id, source_runtime_fingerprint=runtime_fingerprint,
+            source_branch_fingerprint=preview_fingerprint, owner=owner,
+            current_stages=_roster(state, side).get(owner["slot_index"], {}).get("stat_stages"),
+        ) for side, owner in owners.items()
+    }
+    return result
 
 
 def resolve_runtime_strategy_decision_owner(*, runtime_snapshot: Mapping[str, Any], side: str = "self") -> dict[str, Any]:
@@ -85,6 +98,33 @@ def resolve_runtime_strategy_decision_owner(*, runtime_snapshot: Mapping[str, An
     if side not in {"self", "opponent"} or owners is None:
         return _result("rejected", "runtime_decision_owner_unavailable")
     return {"status": "resolved", "decision_owner": deepcopy(owners[side])}
+
+
+def freeze_runtime_current_stage_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the detached seven-stage authority for one exact active owner."""
+    if not _valid_d0(strategy_d0) or not _owner(owner) or strategy_d0.get("active_owners", {}).get(owner.get("side")) != dict(owner):
+        return _result("rejected", "runtime_current_stage_identity_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current": return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    authority = strategy_d0.get("current_stage_authority", {}).get(owner["side"])
+    if not isinstance(authority, Mapping) or authority.get("owner") != dict(owner):
+        return _result("rejected", "runtime_current_stage_authority_unavailable")
+    return deepcopy(dict(authority))
+
+
+def build_runtime_d0_strict_hit_chance_assessment(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], selected_move: Mapping[str, Any]) -> dict[str, Any]:
+    """Strict runtime boundary around the legacy neutral-default hit helper."""
+    if not _valid_d0(strategy_d0) or not _owner(attacker) or not _owner(target) or attacker != strategy_d0.get("decision_owner") or attacker.get("side") == target.get("side"):
+        return _result("rejected", "runtime_hit_stage_identity_mismatch")
+    if isinstance(selected_move, Mapping) and selected_move.get("always_hit") is True:
+        return {"status": "resolved", "schema_version": "runtime-d0-strict-hit-chance-v1", "stage_authority": {"status": "not_required", "reason": "move_always_hits"}, "assessment": build_deterministic_hit_chance_assessment(selected_move, None)}
+    attacker_authority = freeze_runtime_current_stage_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=attacker)
+    target_authority = freeze_runtime_current_stage_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
+    stages = strict_hit_stage_authority(attacker_authority=attacker_authority, target_authority=target_authority)
+    if stages.get("status") != "resolved":
+        return {"status": stages.get("status", "incomplete"), "schema_version": "runtime-d0-strict-hit-chance-v1", "reason": stages.get("reason", "hit_stage_authority_incomplete"), "missing_authority": deepcopy(stages.get("missing_authority", []))}
+    assessment = build_deterministic_hit_chance_assessment(selected_move, stages["stat_stage_context"])
+    return {"status": "resolved", "schema_version": "runtime-d0-strict-hit-chance-v1", "stage_authority": stages, "assessment": assessment}
 
 
 def freeze_runtime_seismic_toss_predictive_input(
@@ -343,10 +383,14 @@ def build_runtime_d0_native_damage_context(
     raw_target = _roster(state, target["side"]).get(target["slot_index"])
     if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_attacker, attacker) or not _same_runtime_owner(raw_target, target):
         return _native_context_result("rejected", "runtime_native_damage_identity_mismatch")
+    attacker_adapter = native_damage_stage_authority(strategy_d0.get("current_stage_authority", {}).get(attacker["side"], {}))
+    target_adapter = native_damage_stage_authority(strategy_d0.get("current_stage_authority", {}).get(target["side"], {}))
+    attacker_stages = attacker_adapter.get("stages") if attacker_adapter.get("status") == "resolved" else None
+    target_stages = target_adapter.get("stages") if target_adapter.get("status") == "resolved" else None
     preview = strategy_d0["strategy_state"].get("active", {})
     preview_attacker, preview_target = preview.get(attacker["side"]), preview.get(target["side"])
-    attacker_side = _native_runtime_side(raw_attacker, preview_attacker, attacker)
-    target_side = _native_runtime_side(raw_target, preview_target, target)
+    attacker_side = _native_runtime_side(raw_attacker, preview_attacker, attacker, attacker_stages)
+    target_side = _native_runtime_side(raw_target, preview_target, target, target_stages)
     modifier_authority = _runtime_direct_damage_modifier_authority(
         state=state, attacker=attacker, target=target,
         raw_attacker=raw_attacker, raw_target=raw_target,
@@ -354,12 +398,12 @@ def build_runtime_d0_native_damage_context(
     current = {
         "direct_mechanics_context": {
             "generation": "gen9",
-            "attacker": _native_direct_side(raw_attacker, preview_attacker),
-            "defender": _native_direct_side(raw_target, preview_target),
+            "attacker": _native_direct_side(raw_attacker, preview_attacker, attacker_stages),
+            "defender": _native_direct_side(raw_target, preview_target, target_stages),
             "field": _native_field_direct_context(state),
         },
         "current_type_context": {"current_types": _native_type_entries(raw_attacker, raw_target)},
-        "stat_stage_context": {"current_stages": _native_stage_entries(raw_attacker, raw_target)},
+        "stat_stage_context": {"current_stages": _native_stage_entries(attacker_stages, target_stages)},
         "field_state_context": {"current_field": _native_field_state(state)},
         "battle_format_context": _native_battle_format_context(state),
         "condition_context": {"current_conditions": _native_condition_entries(raw_attacker, raw_target)},
@@ -410,7 +454,7 @@ def _native_move_metadata(value: Mapping[str, Any]) -> dict[str, Any] | None:
     return deepcopy(dict(value))
 
 
-def _native_runtime_side(raw: Mapping[str, Any], preview: Any, owner: Mapping[str, Any]) -> dict[str, Any]:
+def _native_runtime_side(raw: Mapping[str, Any], preview: Any, owner: Mapping[str, Any], stage_map: Mapping[str, int] | None = None) -> dict[str, Any]:
     final_values = {stat: _runtime_final_stat_field(raw, stat).get("value") for stat in _NATIVE_STAGE_KEYS}
     if _exact_preview_hp(preview):
         final_values["hp"] = preview["max_hp"]
@@ -423,7 +467,7 @@ def _native_runtime_side(raw: Mapping[str, Any], preview: Any, owner: Mapping[st
         "type_authority": {"status": "known", "basis": "current_type_context", "reason": None} if current_type is not None else {"status": "unknown", "basis": "current_type_context", "reason": "current_type_unknown"},
         "base_stats": _native_provenance_block(None, "not_used_by_runtime_native_context", "unknown", "base_stats_not_runtime_authority"),
         "final_stats": _native_provenance_block(final_values if complete_stats else None, "runtime_final_combat_stat_authority_v1", "runtime_current", "final_stats_unavailable"),
-        "stat_stages": _native_provenance_block(_native_stage_map(raw), "runtime_current_stat_stage", "runtime_current", "stat_stages_unavailable"),
+        "stat_stages": _native_provenance_block(stage_map, "runtime_current_stat_stage", "runtime_current", "stat_stages_unavailable"),
         "known_ability": _native_provenance_block(_runtime_known_string(raw.get("current_ability")), "runtime_current_ability", "runtime_current", "ability_unknown"),
         "known_item": item,
     }
@@ -453,8 +497,7 @@ def _native_stage_map(raw: Mapping[str, Any]) -> dict[str, int] | None:
     return result if all(isinstance(value, int) and not isinstance(value, bool) and -6 <= value <= 6 for value in result.values()) else None
 
 
-def _native_direct_side(raw: Mapping[str, Any], preview: Any) -> dict[str, Any]:
-    stage_map = _native_stage_map(raw)
+def _native_direct_side(raw: Mapping[str, Any], preview: Any, stage_map: Mapping[str, int] | None = None) -> dict[str, Any]:
     hp = preview if _exact_preview_hp(preview) else {}
     condition = _runtime_known_string(raw.get("condition"))
     ability = _runtime_known_string(raw.get("current_ability"))
@@ -480,10 +523,9 @@ def _native_type_entries(attacker: Mapping[str, Any], target: Mapping[str, Any])
     return rows
 
 
-def _native_stage_entries(attacker: Mapping[str, Any], target: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _native_stage_entries(attacker: Mapping[str, int] | None, target: Mapping[str, int] | None) -> list[dict[str, Any]]:
     rows = []
-    for side, raw in (("self", attacker), ("opponent", target)):
-        stages = _native_stage_map(raw)
+    for side, stages in (("self", attacker), ("opponent", target)):
         if stages is not None:
             rows.extend({"side": side, "stat": stat, "stage": value, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"} for stat, value in stages.items())
     return rows
