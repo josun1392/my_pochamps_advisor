@@ -1,10 +1,11 @@
 """Identity-only, detached unknown bootstrap state factory."""
 from copy import deepcopy
 
+from llm.advisor_battle_state_context import normalize_user_confirmed_battle_format
 from llm.advisor_reducer_state_model import STATE_MODEL_VERSION, make_unknown_battle_fact
 
 
-def create_unknown_bootstrap_battle_state(session_id, self_identity, opponent_identity):
+def create_unknown_bootstrap_battle_state(session_id, self_identity, opponent_identity, *, battle_format=None):
     """Create battle-state-v1 without inferring unconfirmed battle facts."""
     self_id = _identity(self_identity)
     opponent_id = _identity(opponent_identity)
@@ -15,9 +16,16 @@ def create_unknown_bootstrap_battle_state(session_id, self_identity, opponent_id
         "session_id": session_id,
         "self_side": _side(self_id),
         "opponent_side": _side(opponent_id),
-        "field": {"weather": make_unknown_battle_fact(), "terrain": make_unknown_battle_fact(), "trick_room_status": make_unknown_battle_fact()},
+        "field": {"weather": make_unknown_battle_fact(), "terrain": make_unknown_battle_fact(), "battle_format": make_unknown_battle_fact(), "trick_room_status": make_unknown_battle_fact()},
         "last_applied_observation_sequence": None,
     }
+    if battle_format is not None:
+        try:
+            value = normalize_user_confirmed_battle_format(battle_format)
+        except ValueError:
+            return {"status": "invalid_initial_state", "session_id": session_id, "state": None}
+        state["field"]["battle_format"] = value["battle_format"]
+        state["field"]["battle_format_provenance"] = {"event_kind": "session_battle_format_initialized", "source": value["source"], "trust": "user_confirmed_observation"}
     return {"status": "initial_state_ready", "session_id": session_id, "state": deepcopy(state)}
 
 

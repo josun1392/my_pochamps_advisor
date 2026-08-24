@@ -16,7 +16,7 @@ from llm.advisor_substitute import update_substitute_state_context
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
-_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_current_type": "pokemon.current_type", "set_current_ability": "pokemon.current_ability", "set_current_item": "pokemon.known_item", "set_current_level": "pokemon.current_level", "set_current_final_combat_stat": "pokemon.current_final_stats", "set_current_substitute": "state.substitute_state_context", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "set_current_weather": "field.weather", "start_weather": "field.weather", "end_weather": "field.weather", "set_current_terrain": "field.terrain", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "set_current_side_conditions": "side.side_conditions", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "set_observed_tailwind": "side.tailwind_status", "set_observed_trick_room": "field.trick_room_status", "set_same_turn_event": "state.same_turn_event_context", "mark_first_end_of_turn_reached": "state.first_end_of_turn_context", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
+_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_current_type": "pokemon.current_type", "set_current_ability": "pokemon.current_ability", "set_current_item": "pokemon.known_item", "set_current_level": "pokemon.current_level", "set_current_final_combat_stat": "pokemon.current_final_stats", "set_current_substitute": "state.substitute_state_context", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "set_current_weather": "field.weather", "start_weather": "field.weather", "end_weather": "field.weather", "set_current_terrain": "field.terrain", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "set_current_battle_format": "field.battle_format", "set_current_side_conditions": "side.side_conditions", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "set_observed_tailwind": "side.tailwind_status", "set_observed_trick_room": "field.trick_room_status", "set_same_turn_event": "state.same_turn_event_context", "mark_first_end_of_turn_reached": "state.first_end_of_turn_context", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
 
 
 def make_unknown_battle_fact():
@@ -58,7 +58,7 @@ def validate_battle_state_unknown_markers(state):
             if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "toxic_progression", "condition"}):
                 return False
     field = state.get("field")
-    if not isinstance(field, dict) or not all(_valid_fact_marker(field.get(name)) for name in ("weather", "terrain")) or not _valid_current_weather_state(field.get("weather"), field.get("weather_provenance")) or not _valid_current_terrain_state(field.get("terrain"), field.get("terrain_provenance")):
+    if not isinstance(field, dict) or not all(_valid_fact_marker(field.get(name)) for name in ("weather", "terrain", "battle_format")) or not _valid_current_weather_state(field.get("weather"), field.get("weather_provenance")) or not _valid_current_terrain_state(field.get("terrain"), field.get("terrain_provenance")) or not _valid_current_battle_format_state(field.get("battle_format"), field.get("battle_format_provenance")):
         return False
     trick_room = field.get("trick_room_status", make_unknown_battle_fact())
     trick_room_provenance = field.get("trick_room_status_provenance")
@@ -66,7 +66,7 @@ def validate_battle_state_unknown_markers(state):
         return False
     if isinstance(trick_room, str) and trick_room in {"active", "inactive"} and not isinstance(trick_room_provenance, dict):
         return False
-    if any(_contains_marker(value) for key, value in field.items() if key not in {"weather", "weather_provenance", "terrain", "terrain_provenance", "trick_room_status", "trick_room_status_provenance"}):
+    if any(_contains_marker(value) for key, value in field.items() if key not in {"weather", "weather_provenance", "terrain", "terrain_provenance", "battle_format", "battle_format_provenance", "trick_room_status", "trick_room_status_provenance"}):
         return False
     events = state.get("same_turn_event_context", [])
     if not isinstance(events, list) or any(not _valid_same_turn_event(event, state.get("session_id")) for event in events): return False
@@ -180,6 +180,14 @@ def _valid_current_terrain_state(value, provenance):
     if provenance is None:
         return True
     return value in {"none", "electric", "grassy", "misty", "psychic"} and isinstance(provenance, dict) and provenance.get("event_kind") == "current_terrain_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0
+
+
+def _valid_current_battle_format_state(value, provenance):
+    if value is None or is_unknown_battle_fact(value):
+        return provenance is None
+    if value not in {"singles", "doubles"} or not isinstance(provenance, dict):
+        return False
+    return (provenance.get("event_kind") == "session_battle_format_initialized" and provenance.get("source") == "user_confirmed_battle_format" and provenance.get("trust") == "user_confirmed_observation") or (provenance.get("event_kind") == "current_battle_format_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0)
 
 
 def _valid_current_item_state(value, provenance):
@@ -392,6 +400,7 @@ def _has_target_identity(event):
     if effect in {"set_switch_hazards", "clear_switch_hazards"}: return _value(event,"side") in {"self","opponent"}
     if effect in {"set_current_weather", "start_weather", "end_weather"}: return isinstance(_value(event, "weather"), str) and _value(event, "weather") in {"none", "sun", "rain", "sandstorm", "snow"}
     if effect == "set_current_terrain": return _value(event, "terrain") in {"none", "electric", "grassy", "misty", "psychic"}
+    if effect == "set_current_battle_format": return _value(event, "battle_format") in {"singles", "doubles"}
     if effect == "set_current_side_conditions": return _value(event, "side") in {"self", "opponent"} and isinstance(_value(event, "side_conditions"), list)
     if effect in {"start_terrain", "end_terrain"}: return isinstance(_value(event, "terrain"), str) and bool(_value(event, "terrain"))
     return isinstance(_value(event, "side"), str) and isinstance(_value(event, "side_condition") or _value(event, "effect"), str)
@@ -455,6 +464,8 @@ def _apply(state, event):
         return _set_current_item(state, event)
     if effect == "set_current_terrain":
         return _set_current_terrain(state, event)
+    if effect == "set_current_battle_format":
+        return _set_current_battle_format(state, event)
     if effect == "set_current_side_conditions":
         return _set_current_side_conditions(state, event)
     if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery"}:
@@ -775,6 +786,19 @@ def _set_current_terrain(state, event):
         return _conflict(event, "stale_current_terrain_observation")
     field["terrain"] = terrain
     field["terrain_provenance"] = _provenance(event) | {"event_kind": "current_terrain_observed", "trust": _value(event, "trust"), "turn_number": turn_number}
+    return None
+
+
+def _set_current_battle_format(state, event):
+    """Capture session-stable format once; conflicting observations are rejected."""
+    field, value, turn_number = state.get("field"), _value(event, "battle_format"), _value(event, "turn_number")
+    if not isinstance(field, dict) or value not in {"singles", "doubles"} or not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1:
+        return _conflict(event, "invalid_current_battle_format")
+    current = field.get("battle_format")
+    if isinstance(current, str) and current != value:
+        return _conflict(event, "conflicting_session_battle_format")
+    field["battle_format"] = value
+    field["battle_format_provenance"] = _provenance(event) | {"event_kind": "current_battle_format_observed", "trust": _value(event, "trust"), "turn_number": turn_number}
     return None
 
 

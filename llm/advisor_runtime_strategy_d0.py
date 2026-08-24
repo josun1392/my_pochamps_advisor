@@ -322,6 +322,7 @@ def build_runtime_d0_native_damage_context(
         "current_type_context": {"current_types": _native_type_entries(raw_attacker, raw_target)},
         "stat_stage_context": {"current_stages": _native_stage_entries(raw_attacker, raw_target)},
         "field_state_context": {"current_field": _native_field_state(state)},
+        "battle_format_context": _native_battle_format_context(state),
         "condition_context": {"current_conditions": _native_condition_entries(raw_attacker, raw_target)},
         "ability_context": {"current_abilities": _native_ability_entries(raw_attacker, raw_target)},
     }
@@ -469,6 +470,14 @@ def _native_field_state(state: Mapping[str, Any]) -> dict[str, Any]:
     return {"weather": weather if _runtime_weather_exact(field) else "unknown", "terrain": terrain if _runtime_terrain_exact(field) else "unknown", "side_effects": _native_side_effects(state)}
 
 
+def _native_battle_format_context(state: Mapping[str, Any]) -> dict[str, Any]:
+    field = state.get("field") if isinstance(state.get("field"), Mapping) else {}
+    value = field.get("battle_format")
+    provenance = field.get("battle_format_provenance")
+    exact = isinstance(value, str) and isinstance(provenance, Mapping) and provenance.get("trust") == "user_confirmed_observation" and provenance.get("event_kind") in {"session_battle_format_initialized", "current_battle_format_observed"}
+    return {"current_battle_format": {"battle_format": value} if exact else {"battle_format": "unknown"}}
+
+
 def _runtime_weather_exact(field: Mapping[str, Any]) -> bool:
     provenance = field.get("weather_provenance")
     return isinstance(field.get("weather"), str) and isinstance(provenance, Mapping) and provenance.get("event_kind") == "current_weather_observed" and provenance.get("trust") == "user_confirmed_observation"
@@ -499,7 +508,8 @@ def _runtime_direct_damage_modifier_authority(*, state: Mapping[str, Any], attac
         value = state.get(f"{side}_side")
         conditions = value.get("side_conditions") if isinstance(value, Mapping) else None
         return {"status": "known", "value": deepcopy(conditions)} if isinstance(effects, list) and isinstance(conditions, list) else {"status": "unknown", "value": None}
-    return {"schema_version": "runtime-direct-damage-modifier-authority-v1", "attacker": {"owner": deepcopy(dict(attacker)), "item": _native_item_authority(raw_attacker.get("known_item"), raw_attacker.get("known_item_provenance")), "ability": _native_provenance_block(_runtime_known_string(raw_attacker.get("current_ability")), "runtime_current_ability", "runtime_current", "ability_unknown"), "side_conditions": side_conditions(attacker["side"])}, "defender": {"owner": deepcopy(dict(target)), "item": _native_item_authority(raw_target.get("known_item"), raw_target.get("known_item_provenance")), "ability": _native_provenance_block(_runtime_known_string(raw_target.get("current_ability")), "runtime_current_ability", "runtime_current", "ability_unknown"), "side_conditions": side_conditions(target["side"])}, "field": {"weather": {"status": "known", "value": field.get("weather")} if _runtime_weather_exact(field) else {"status": "unknown", "value": None}, "terrain": {"status": "known", "value": field.get("terrain")} if _runtime_terrain_exact(field) else {"status": "unknown", "value": None}}}
+    format_context = _native_battle_format_context(state)["current_battle_format"]
+    return {"schema_version": "runtime-direct-damage-modifier-authority-v1", "attacker": {"owner": deepcopy(dict(attacker)), "item": _native_item_authority(raw_attacker.get("known_item"), raw_attacker.get("known_item_provenance")), "ability": _native_provenance_block(_runtime_known_string(raw_attacker.get("current_ability")), "runtime_current_ability", "runtime_current", "ability_unknown"), "side_conditions": side_conditions(attacker["side"])}, "defender": {"owner": deepcopy(dict(target)), "item": _native_item_authority(raw_target.get("known_item"), raw_target.get("known_item_provenance")), "ability": _native_provenance_block(_runtime_known_string(raw_target.get("current_ability")), "runtime_current_ability", "runtime_current", "ability_unknown"), "side_conditions": side_conditions(target["side"])}, "field": {"weather": {"status": "known", "value": field.get("weather")} if _runtime_weather_exact(field) else {"status": "unknown", "value": None}, "terrain": {"status": "known", "value": field.get("terrain")} if _runtime_terrain_exact(field) else {"status": "unknown", "value": None}, "battle_format": {"status": "known", "value": format_context["battle_format"]} if format_context["battle_format"] in {"singles", "doubles"} else {"status": "unknown", "value": None}}}
 
 
 def _runtime_native_context_for_water_gun(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
@@ -740,7 +750,7 @@ def _fact_summary(value: Any) -> Any:
         return {
             key: _fact_summary(item)
             for key, item in value.items()
-            if key in {"current_level", "current_final_stats", "current_hp", "max_hp", "fainted", "condition", "known_item", "current_type", "current_ability", "stat_stages", "weather", "terrain", "side_conditions"}
+            if key in {"current_level", "current_final_stats", "current_hp", "max_hp", "fainted", "condition", "known_item", "current_type", "current_ability", "stat_stages", "weather", "terrain", "battle_format", "side_conditions"}
         }
     return deepcopy(value)
 

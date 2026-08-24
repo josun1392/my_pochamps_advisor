@@ -4,7 +4,7 @@ from copy import deepcopy
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_lifecycle_confirmation import (
     CURRENT_ABILITY_SOURCE, CURRENT_ITEM_SOURCE, CURRENT_SIDE_CONDITIONS_SOURCE,
-    CURRENT_TERRAIN_SOURCE, CURRENT_WEATHER_SOURCE, LifecycleConfirmationBoundary,
+    CURRENT_BATTLE_FORMAT_SOURCE, CURRENT_TERRAIN_SOURCE, CURRENT_WEATHER_SOURCE, LifecycleConfirmationBoundary,
     USER_TRUST,
 )
 from llm.advisor_reducer_state_model import project_atomic_transition, state_fingerprint
@@ -89,3 +89,34 @@ def test_exact_side_condition_is_bound_and_source_mutation_is_detached() -> None
     assert "battle_format" in context["missing_authority"]
     state["opponent_side"]["side_conditions"].clear()
     assert context["modifier_authority"]["defender"]["side_conditions"]["value"] == ["light-screen"]
+
+
+def test_session_bound_singles_format_resolves_screen_and_unknown_format_does_not() -> None:
+    events = _confirmations(_base(), attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"}, sides=([], ["light-screen"]))
+    state = _apply(_base(), events)
+    assert "battle_format" in _context(state)["missing_authority"]
+    boundary = LifecycleConfirmationBoundary(state["session_id"], {side: {"slot_index": 0, "pokemon_id": _owner(state, side)["pokemon_id"]} for side in ("self", "opponent")})
+    known = boundary.confirm(event_kind="current_battle_format_observed", payload={"battle_format": "singles"}, session_id=state["session_id"], source=CURRENT_BATTLE_FORMAT_SOURCE, trust=USER_TRUST, confirmed=True, turn_number=3)
+    resolved = _context(_apply(state, [known["observation"]]))
+    assert resolved["status"] == "resolved"
+    assert "light_screen_reduction" in resolved["native_evaluation"]["applied_damage_modifiers"]
+    assert resolved["modifier_authority"]["field"]["battle_format"] == {"status": "known", "value": "singles"}
+
+
+def test_doubles_format_is_exact_but_keeps_native_direct_evaluator_boundary() -> None:
+    state = _apply(_base(), _confirmations(_base(), attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"}, sides=([], ["light-screen"])))
+    boundary = LifecycleConfirmationBoundary(state["session_id"], {side: {"slot_index": 0, "pokemon_id": _owner(state, side)["pokemon_id"]} for side in ("self", "opponent")})
+    observed = boundary.confirm(event_kind="current_battle_format_observed", payload={"battle_format": "doubles"}, session_id=state["session_id"], source=CURRENT_BATTLE_FORMAT_SOURCE, trust=USER_TRUST, confirmed=True, turn_number=3)
+    context = _context(_apply(state, [observed["observation"]]))
+    assert context["status"] == "incomplete"
+    assert context["reason"] == "battle_format"
+
+
+def test_conflicting_format_is_rejected_and_new_session_is_unknown() -> None:
+    state = _base()
+    boundary = LifecycleConfirmationBoundary(state["session_id"], {side: {"slot_index": 0, "pokemon_id": _owner(state, side)["pokemon_id"]} for side in ("self", "opponent")})
+    singles = boundary.confirm(event_kind="current_battle_format_observed", payload={"battle_format": "singles"}, session_id=state["session_id"], source=CURRENT_BATTLE_FORMAT_SOURCE, trust=USER_TRUST, confirmed=True, turn_number=2)
+    state = _apply(state, [singles["observation"]])
+    doubles = boundary.confirm(event_kind="current_battle_format_observed", payload={"battle_format": "doubles"}, session_id=state["session_id"], source=CURRENT_BATTLE_FORMAT_SOURCE, trust=USER_TRUST, confirmed=True, turn_number=3)
+    assert project_atomic_transition(state, build_replay_plan(state, [doubles["observation"]]), state["session_id"])["status"] == "blocked_by_semantic_conflict"
+    assert create_unknown_bootstrap_battle_state("new-session", "attacker", "target")["state"]["field"]["battle_format"] == {"knowledge": "unknown"}
