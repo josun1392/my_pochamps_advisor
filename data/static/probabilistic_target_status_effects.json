@@ -1,0 +1,46 @@
+{
+  "schema_version": "probabilistic-target-status-effects-catalog-v1",
+  "source": "canonical-maintained-gen9-mechanics-catalog-v1",
+  "rules": [
+    {
+      "rule_id": "thunderbolt-target-paralysis-v1",
+      "move_id": "thunderbolt",
+      "category": "special",
+      "target_scope": "selected-pokemon",
+      "effect_chance": 10,
+      "effect": {
+        "owner": "target",
+        "condition": "paralysis"
+      },
+      "conditions": {
+        "requires_successful_damaging_hit": true,
+        "blocked_by_substitute": true,
+        "target_must_survive": true
+      },
+      "required_runtime_slots": [
+        "target.current_condition",
+        "target.current_types",
+        "attacker_ability",
+        "target_ability",
+        "target_item"
+      ],
+      "suppressor_slots": ["attacker_ability", "target_ability", "target_item"],
+      "attacker_ability_policy": {
+        "known_neutral": ["pressure"],
+        "suppresses": ["sheer-force"],
+        "unsupported": ["serene-grace"]
+      },
+      "target_ability_policy": {
+        "known_neutral": ["pressure"],
+        "suppresses": ["shield-dust"],
+        "unsupported": ["limber"]
+      },
+      "target_item_policy": {
+        "suppresses": ["covert-cloak"]
+      },
+      "target_type_policy": {
+        "ineligible": ["electric"]
+      }
+    }
+  ]
+}
