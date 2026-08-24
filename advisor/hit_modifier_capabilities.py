@@ -17,6 +17,10 @@ HUSTLE_RULE_ID = "hustle-physical-accuracy-penalty-v1"
 _MOVE_CATEGORIES = frozenset({"physical", "special", "status"})
 _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
 _APPLICABILITY = frozenset({"applicable", "not_applicable", "unknown"})
+# These identities have maintained Gen 9 semantics, but no accuracy effect.
+# Keeping this explicit is important: a known ability is not neutral merely
+# because the current resolver has no rule for it.
+_KNOWN_NEUTRAL_ABILITY_IDS = frozenset({"pressure"})
 
 
 def resolve_hit_modifier_capabilities(*, move: Mapping[str, Any], source_authority: Mapping[str, Any]) -> dict[str, Any]:
@@ -44,6 +48,8 @@ def resolve_hit_modifier_capabilities(*, move: Mapping[str, Any], source_authori
     if ability["status"] == "known_absent":
         return {**base, "status": "resolved", "ledger": (_row("attacker_ability", "known_neutral", reason="proven_ability_absent"),)}
     ability_id = ability["value"]
+    if ability_id in _KNOWN_NEUTRAL_ABILITY_IDS:
+        return {**base, "status": "resolved", "ledger": (_row("attacker_ability", "known_neutral", source_value=ability_id, reason="catalog_known_no_accuracy_effect"),)}
     if ability_id != "hustle":
         return {**base, "status": "unsupported", "reason": "attacker_ability_not_in_supported_hit_modifier_catalog", "ledger": (_row("attacker_ability", "unsupported", source_value=ability_id),)}
     if normalized_move["category"] != "physical":

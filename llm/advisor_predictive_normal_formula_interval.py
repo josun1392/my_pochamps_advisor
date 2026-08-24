@@ -37,7 +37,12 @@ def _base(fp,o,t,move_id,completeness,reason,native=None,is_critical=False):
  r={"status":"resolved","schema_version":"deterministic-predictive-normal-formula-interval-v1","session_id":o["session_id"],"source_branch_fingerprint":fp,"decision_owner":deepcopy(dict(o)),"attacker":deepcopy(dict(o)),"target":deepcopy(dict(t)),"move_id":move_id,"scope":{"hit":"assumed","critical":"critical_assumed" if is_critical else "non_critical_assumed","hit_count":1,"secondary_effect":"unmodeled"},"completeness":completeness,"reason":reason,"provenance":"current_predictive_normal_formula_interval_v1"}
  if native is not None:r["native_evaluator_result"]=deepcopy(dict(native))
  return r
-def _matches(d,p,o,t,move_id): return isinstance(d,Mapping) and isinstance(p,Mapping) and d.get("move",{}).get("move_id")==move_id and d.get("attacker",{}).get("session_id")==o.get("session_id") and d.get("defender",{}).get("session_id")==t.get("session_id") and d.get("attacker",{}).get("species_id")==o.get("pokemon_id") and d.get("defender",{}).get("species_id")==t.get("pokemon_id") and p.get("attacker",{}).get("pokemon_identity")==o.get("pokemon_id") and p.get("defender",{}).get("pokemon_identity")==t.get("pokemon_id")
+def _matches(d,p,o,t,move_id):
+ a=d.get("attacker",{}) if isinstance(d,Mapping) else {}; defender=d.get("defender",{}) if isinstance(d,Mapping) else {}
+ # Native runtime D0 contexts bind active Pokémon by ``pokemon_id``.  The
+ # pre-D0 compatibility input used ``species_id``; accept either identity
+ # spelling, never an unbound raw selection value.
+ return isinstance(d,Mapping) and isinstance(p,Mapping) and d.get("move",{}).get("move_id")==move_id and a.get("session_id")==o.get("session_id") and defender.get("session_id")==t.get("session_id") and (a.get("pokemon_id",a.get("species_id"))==o.get("pokemon_id")) and (defender.get("pokemon_id",defender.get("species_id"))==t.get("pokemon_id")) and p.get("attacker",{}).get("pokemon_identity")==o.get("pokemon_id") and p.get("defender",{}).get("pokemon_identity")==t.get("pokemon_id")
 def _owners(s,o,t):
  a=s.get("active",{}) if isinstance(s,Mapping) else {}; return o.get("side")!=t.get("side") and all(isinstance(x,Mapping) and dict(y)=={k:x.get(k) for k in ("session_id","side","slot_index","pokemon_id")} for x,y in ((a.get(o.get("side")),o),(a.get(t.get("side")),t)))
 def _r(status,reason): return {"status":status,"reason":reason}

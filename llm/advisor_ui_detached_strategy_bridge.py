@@ -11,16 +11,26 @@ from typing import Any, Callable, Mapping
 
 from llm.advisor_current_execution_authority import freeze_current_execution_authority
 from llm.advisor_detached_strategy_orchestration import run_detached_strategy_orchestration
+from llm.advisor_exact_outcome_descriptive_metrics import project_exact_outcome_descriptive_metrics
+from llm.advisor_exact_predictive_outcome_ledger import normalize_exact_predictive_outcome_ledger
 from llm.advisor_predictive_attack_authority import build_predictive_fixed_damage_attack_authority
 from llm.advisor_runtime_d0_selection_projection import (
     build_runtime_d0_selection_capture,
     freeze_runtime_d0_bound_selection_projection,
 )
 from llm.advisor_runtime_strategy_d0 import (
+    build_runtime_d0_native_damage_context,
+    build_runtime_d0_strict_critical_hit_probability_assessment,
+    build_runtime_d0_strict_hit_probability_assessment,
+    freeze_runtime_d0_probabilistic_self_stage_effect_authority,
+    freeze_runtime_d0_probabilistic_target_stage_effect_authority,
+    freeze_runtime_d0_thunderbolt_paralysis_authority,
     freeze_runtime_incoming_current_state_authority,
+    freeze_runtime_normal_formula_predictive_input,
     freeze_runtime_strategy_d0,
     freeze_runtime_seismic_toss_predictive_input,
     freeze_runtime_strategy_selection_authority,
+    resolve_runtime_d0_selectable_move_metadata_authority,
     resolve_runtime_strategy_decision_owner,
     resolve_runtime_incoming_owner,
     runtime_strategy_d0_freshness,
@@ -82,10 +92,23 @@ def run_current_ui_detached_strategy(
     predictive_attacks = _runtime_seismic_toss_authorities(
         strategy_d0=d0, runtime_snapshot=capture, selection=selection,
     )
-    orchestration = run_detached_strategy_orchestration(
+    live_attacks = _runtime_live_attack_authorities(
+        strategy_d0=d0, runtime_snapshot=capture, selection=selection,
+    )
+    provisional = run_detached_strategy_orchestration(
         decision_state=d0["strategy_state"], decision_owner=d0["decision_owner"],
         selection_snapshot=selection, execution_bundle=execution,
         predictive_attacks=predictive_attacks,
+        **live_attacks,
+    )
+    ledgers, metrics = _project_live_ledger_metrics(
+        strategy_d0=d0, orchestration=provisional, live_attacks=live_attacks,
+    )
+    orchestration = run_detached_strategy_orchestration(
+        decision_state=d0["strategy_state"], decision_owner=d0["decision_owner"],
+        selection_snapshot=selection, execution_bundle=execution,
+        predictive_attacks=predictive_attacks, exact_outcome_ledgers=ledgers,
+        descriptive_metrics=metrics, **live_attacks,
     )
     if orchestration.get("status") == "rejected":
         return _result("rejected", orchestration.get("reason", "detached_orchestration_rejected"))
@@ -102,6 +125,8 @@ def run_current_ui_detached_strategy(
         "decision_owner": deepcopy(dict(d0["decision_owner"])),
         "selection_completeness": deepcopy(selection["selection_completeness"]),
         "execution_coverage": deepcopy(execution["execution_coverage"]),
+        "exact_outcome_ledgers": deepcopy(ledgers),
+        "descriptive_metrics": deepcopy(metrics),
         "orchestration": deepcopy(orchestration), "explanation": deepcopy(explanation),
         "provenance": "runtime_d0_detached_strategy_ui_controller_bridge_v1",
     }
@@ -139,6 +164,142 @@ def _runtime_seismic_toss_authorities(
         if authority.get("status") == "resolved":
             resolved[action["action_id"]] = authority
     return resolved
+
+
+def _runtime_live_attack_authorities(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], selection: Mapping[str, Any],
+) -> dict[str, dict[str, Mapping[str, Any]]]:
+    """Build existing strict attack authorities from candidate-bound D0 metadata.
+
+    This is a structural projection only.  It never consults prepared UI data
+    or a move repository after selection metadata has been frozen at D0.
+    """
+    target_side = "opponent" if strategy_d0["decision_owner"]["side"] == "self" else "self"
+    target = strategy_d0.get("active_owners", {}).get(target_side)
+    if not isinstance(target, Mapping):
+        return {}
+    result: dict[str, dict[str, Mapping[str, Any]]] = {
+        "normal_formula_inputs": {}, "hit_probability_authorities": {},
+        "critical_hit_probability_authorities": {},
+        "probabilistic_self_stage_effect_authorities": {},
+        "probabilistic_target_stage_effect_authorities": {},
+        "thunderbolt_paralysis_authorities": {},
+    }
+    for action in selection.get("actions", []):
+        if not isinstance(action, Mapping) or action.get("action_type") != "attack":
+            continue
+        candidate_id = action.get("action_id")
+        metadata_authority = resolve_runtime_d0_selectable_move_metadata_authority(
+            strategy_d0=strategy_d0, action=action,
+        )
+        if not isinstance(candidate_id, str) or metadata_authority.get("status") != "resolved":
+            continue
+        metadata = metadata_authority.get("metadata")
+        if not isinstance(metadata, Mapping):
+            continue
+        native = build_runtime_d0_native_damage_context(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            attacker=strategy_d0["decision_owner"], target=target, move_metadata=metadata,
+        )
+        normal = freeze_runtime_normal_formula_predictive_input(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            attacker=strategy_d0["decision_owner"], target=target, move_metadata=metadata,
+            native_damage_context=native,
+        )
+        if normal.get("status") == "resolved":
+            result["normal_formula_inputs"][candidate_id] = normal
+        hit = build_runtime_d0_strict_hit_probability_assessment(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            attacker=strategy_d0["decision_owner"], target=target, selected_move=metadata,
+        )
+        result["hit_probability_authorities"][candidate_id] = hit
+        critical = build_runtime_d0_strict_critical_hit_probability_assessment(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            attacker=strategy_d0["decision_owner"], target=target, move_metadata=metadata,
+        )
+        result["critical_hit_probability_authorities"][candidate_id] = critical
+        move_id = metadata.get("move_id")
+        if move_id == "metal-claw":
+            result["probabilistic_self_stage_effect_authorities"][candidate_id] = freeze_runtime_d0_probabilistic_self_stage_effect_authority(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=strategy_d0["decision_owner"], target=target, move_metadata=metadata,
+            )
+        elif move_id == "shadow-ball":
+            result["probabilistic_target_stage_effect_authorities"][candidate_id] = freeze_runtime_d0_probabilistic_target_stage_effect_authority(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=strategy_d0["decision_owner"], target=target, move_metadata=metadata,
+            )
+        elif move_id == "thunderbolt":
+            result["thunderbolt_paralysis_authorities"][candidate_id] = freeze_runtime_d0_thunderbolt_paralysis_authority(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=strategy_d0["decision_owner"], target=target, move_metadata=metadata,
+            )
+    return result
+
+
+def _project_live_ledger_metrics(
+    *, strategy_d0: Mapping[str, Any], orchestration: Mapping[str, Any], live_attacks: Mapping[str, Mapping[str, Mapping[str, Any]]],
+) -> tuple[dict[str, Mapping[str, Any]], dict[str, Mapping[str, Any]]]:
+    """Normalize live evidence with an explicit manifest; unavailable stays absent."""
+    ledgers: dict[str, Mapping[str, Any]] = {}
+    metrics: dict[str, Mapping[str, Any]] = {}
+    for evidence in orchestration.get("candidates", []):
+        if not isinstance(evidence, Mapping):
+            continue
+        candidate_id, action_type = evidence.get("candidate_id"), evidence.get("action_type")
+        if not isinstance(candidate_id, str) or action_type not in {"attack", "manual_switch"}:
+            continue
+        candidate = {
+            "candidate_id": candidate_id, "action_type": action_type,
+            "session_id": strategy_d0["session_id"],
+            "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+            "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        }
+        if action_type == "attack":
+            normal = live_attacks.get("normal_formula_inputs", {}).get(candidate_id)
+            hit = live_attacks.get("hit_probability_authorities", {}).get(candidate_id)
+            critical = live_attacks.get("critical_hit_probability_authorities", {}).get(candidate_id)
+            if not isinstance(normal, Mapping) or not isinstance(hit, Mapping) or not isinstance(critical, Mapping):
+                continue
+            bindings = {
+                "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+                "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+                "attacker": deepcopy(dict(strategy_d0["decision_owner"])), "target": deepcopy(dict(normal["target"])), "move_id": normal["move_id"],
+            }
+            secondary = _secondary_manifest_status(candidate_id, live_attacks)
+            manifest = {
+                "accuracy": {"status": hit.get("status", "incomplete")},
+                "critical": {"status": critical.get("status", "incomplete")},
+                "damage_roll": {"status": "resolved" if normal.get("status") == "resolved" else "incomplete"},
+                "secondary": {"status": secondary},
+            }
+            consequence = evidence.get("uncertainty") if evidence.get("evidence_class") == "hit_miss_uncertainty" else None
+        else:
+            bindings = {
+                "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+                "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+            }
+            manifest = {name: {"status": "not_applicable"} for name in ("accuracy", "critical", "damage_roll", "secondary")}
+            consequence = {"status": "complete", "outcome": evidence.get("outcome")} if evidence.get("evidence_class") == "exact_outcome" else None
+        ledger = normalize_exact_predictive_outcome_ledger(
+            candidate=candidate, predictive_consequence=consequence,
+            component_manifest=manifest, bindings=bindings,
+        )
+        metric = project_exact_outcome_descriptive_metrics(ledger=ledger)
+        ledgers[candidate_id], metrics[candidate_id] = ledger, metric
+    return ledgers, metrics
+
+
+def _secondary_manifest_status(candidate_id: str, live_attacks: Mapping[str, Mapping[str, Mapping[str, Any]]]) -> str:
+    values = [
+        live_attacks.get(name, {}).get(candidate_id)
+        for name in (
+            "probabilistic_self_stage_effect_authorities",
+            "probabilistic_target_stage_effect_authorities",
+            "thunderbolt_paralysis_authorities",
+        )
+        if isinstance(live_attacks.get(name, {}).get(candidate_id), Mapping)
+    ]
+    if not values:
+        return "not_applicable"
+    return values[0].get("status", "incomplete") if len(values) == 1 else "rejected"
 
 
 def _result(status: str, reason: str) -> dict[str, str]:

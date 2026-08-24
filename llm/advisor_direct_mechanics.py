@@ -545,7 +545,7 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
     if not _nonempty_str(ability_id) or ability_id == "unknown":
         result["missing_inputs"].append("attacker.ability")
         return result
-    if ability_id in _ACTION_ORDER_ONLY_ABILITIES:
+    if ability_id in _ACTION_ORDER_ONLY_ABILITIES or ability_id in _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES:
         return result
     if ability_id not in STATIC_ATTACKER_DAMAGE_ABILITIES:
         result["unsupported_reason"] = "ability_modifier"
@@ -613,7 +613,7 @@ def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_def
         result["missing_inputs"].append("defender.ability")
         return result
     result["authority_explicit"] = True
-    if ability_id in _ACTION_ORDER_ONLY_ABILITIES:
+    if ability_id in _ACTION_ORDER_ONLY_ABILITIES or ability_id in _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES:
         return result
     if ability_id not in STATIC_DEFENDER_DAMAGE_ABILITIES:
         result["unsupported_reason"] = "defender_ability_modifier"
@@ -1074,4 +1074,8 @@ def _fixed_insufficient(missing: list[str]) -> dict[str, Any]:
 
 def _fixed_unsupported(reason: str) -> dict[str, Any]:
     return {"status": "unsupported_mechanic", "move": None, "damage_model": "level_based_fixed", "fixed_damage": None, "type_effectiveness": None, "damage_range": None, "damage_percent_range": None, "ko_result": None, "missing_inputs": [], "unsupported_reason": reason, "mechanics_source": "native_level_based_fixed_damage", "generation": None}
+# These abilities are explicitly catalogued as having no direct-damage formula
+# modifier.  They remain known identities rather than being represented as an
+# invented absence authority.
+_KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({"pressure"})
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

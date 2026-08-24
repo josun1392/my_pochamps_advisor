@@ -39,7 +39,8 @@ def compose_predictive_hit_miss_uncertainty(
     facts = _intersection(candidate=candidate, branches=branches)
     return {
         "status": "resolved", "schema_version": SCHEMA, "horizon": HORIZON,
-        "session_id": candidate["session_id"], "source_branch_fingerprint": candidate["source_branch_fingerprint"],
+        "session_id": candidate["session_id"], "source_runtime_fingerprint": probability["source_runtime_fingerprint"],
+        "source_branch_fingerprint": candidate["source_branch_fingerprint"],
         "decision_owner": deepcopy(dict(candidate["decision_owner"])),
         "attacker": deepcopy(dict(probability["attacker"])), "target": deepcopy(dict(probability["target"])),
         "move_id": probability["move_id"], "strict_hit_probability": deepcopy(dict(strict_hit_probability)),

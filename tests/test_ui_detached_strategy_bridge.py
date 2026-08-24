@@ -6,6 +6,7 @@ from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_sta
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_substitute import update_substitute_state_context
 from llm.advisor_ui_detached_strategy_bridge import run_current_ui_detached_strategy
+from tests.test_runtime_direct_damage_modifier_authority import _apply as _apply_direct_state, _base as _direct_base, _confirmations as _direct_confirmations
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
 
 
@@ -80,6 +81,8 @@ def test_runtime_bridge_runs_switch_and_incomplete_attack_then_presents_without_
     candidates = {row["candidate_id"]: row for row in result["explanation"]["candidates"]}
     assert result["status"] == "resolved" and result["execution_coverage"]["current_predictive_execution_authority"] == 1
     assert candidates["manual_switch:ready-bench"]["evidence_class"] == "exact_outcome"
+    assert result["exact_outcome_ledgers"]["manual_switch:ready-bench"]["status"] == "evaluable"
+    assert result["descriptive_metrics"]["manual_switch:ready-bench"]["target"]["status"] == "not_applicable"
     assert candidates["attack:tackle"]["evidence_class"] == "incomplete"
     assert candidates["attack:tackle"]["incomplete_reason"] == "exact_damage_unknown"
     assert presentation["status"] == "resolved" and "Ready Bench" in panel.output_edit.toPlainText()
@@ -183,3 +186,56 @@ def test_runtime_bridge_handles_no_selectable_actions_without_provider() -> None
 
     assert result["status"] == "resolved"
     assert result["explanation"]["candidates"] == []
+
+
+def test_runtime_bridge_projects_d0_metadata_to_live_ledgers_and_metrics() -> None:
+    base = _direct_base()
+    state = _apply_direct_state(
+        base,
+        _direct_confirmations(
+            base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+            attacker_ability="pressure", target_ability="pressure",
+        ),
+    )
+    # Water Gun has a partial exact-roll KO chance here, while Tackle has none;
+    # neither candidate has a guaranteed KO.
+    state["opponent_side"]["pokemon"][0]["current_hp"] = 52
+    for side in ("self", "opponent"):
+        pokemon = state[f"{side}_side"]["pokemon"][0]
+        pokemon["stat_stages"].update(accuracy=0, evasion=0)
+        pokemon["current_crit_volatiles"] = []
+        pokemon["current_crit_volatiles_provenance"] = {
+            "event_kind": "current_crit_volatiles_observed", "trust": "user_confirmed_observation", "turn_number": 2,
+        }
+    target_owner = {"session_id": state["session_id"], "side": "opponent", "slot_index": 0, "pokemon_id": "target"}
+    state["substitute_state_context"] = update_substitute_state_context(
+        context=None, session_id=state["session_id"], owner=target_owner,
+        state="known_inactive", substitute_hp=None, provenance="runtime_observed_substitute_state_v1",
+    )
+
+    metadata = {
+        "tackle": {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100},
+        "water-gun": {"move_id": "water-gun", "category": "special", "power": 40, "type": "water", "accuracy": 100},
+    }
+
+    def builder(capture: dict, _runtime_snapshot: dict) -> dict:
+        owner = capture["active_owner"]
+        return {
+            "status": "ready", "_runtime_d0_selection_capture": deepcopy(capture),
+            "_combined_action_turn_snapshot": {"battle_state": {"active_player": {"slot_index": owner["slot_index"], "species_id": owner["pokemon_id"]}}, "current_state": {"current_state_session_id": owner["session_id"]}},
+            "recommendation_request": {"candidate_comparisons": [{"slot_index": index, "move": move, "eligibility": "eligible"} for index, move in enumerate(metadata)]},
+            "evidence_bundle": {"candidates": [{"slot_index": index, "move": move, "canonical_move_metadata": value} for index, (move, value) in enumerate(metadata.items())], "switch_candidates": []},
+        }
+
+    result = run_current_ui_detached_strategy(
+        runtime_session_manager=_RuntimeManager([_snapshot(state), _snapshot(state)]),
+        captured_session_id=state["session_id"], selection_cycle_builder=builder,
+    )
+    ledgers, metrics = result["exact_outcome_ledgers"], result["descriptive_metrics"]
+    assert result["status"] == "resolved"
+    assert set(ledgers) == set(metrics) == {"attack:tackle", "attack:water-gun"}
+    assert all(ledger.get("terminal_probability_mass") == {"numerator": 1, "denominator": 1} for ledger in ledgers.values())
+    assert all(len(ledger["terminal_leaves"]) == 32 for ledger in ledgers.values())
+    assert all(metric["status"] == "resolved" for metric in metrics.values())
+    assert result["orchestration"]["ranking"]["pairwise_matrix"][0]["reason"] == "higher_exact_target_ko_probability"
+    assert result["explanation"]["probability_aware_decisions"][0]["rule"] == "higher_target_ko_probability"

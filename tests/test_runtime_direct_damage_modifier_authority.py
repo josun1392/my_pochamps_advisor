@@ -30,14 +30,14 @@ def _owner(state: dict, side: str) -> dict:
     return {"session_id": state["session_id"], "side": side, "slot_index": 0, "pokemon_id": state[f"{side}_side"]["pokemon"][0]["pokemon_id"]}
 
 
-def _confirmations(state: dict, *, attacker_item: dict, target_item: dict, terrain: str = "none", sides: tuple[list[str], list[str]] = ([], [])) -> list[dict]:
+def _confirmations(state: dict, *, attacker_item: dict, target_item: dict, terrain: str = "none", sides: tuple[list[str], list[str]] = ([], []), attacker_ability: str = "adaptability", target_ability: str = "ice-scales") -> list[dict]:
     owners = {side: {"slot_index": 0, "pokemon_id": _owner(state, side)["pokemon_id"]} for side in ("self", "opponent")}
     boundary = LifecycleConfirmationBoundary(state["session_id"], owners)
     values = [
         boundary.confirm(event_kind="current_item_observed", payload=attacker_item, session_id=state["session_id"], source=CURRENT_ITEM_SOURCE, trust=USER_TRUST, confirmed=True, side="self", slot_index=0, pokemon_id="attacker", turn_number=2),
         boundary.confirm(event_kind="current_item_observed", payload=target_item, session_id=state["session_id"], source=CURRENT_ITEM_SOURCE, trust=USER_TRUST, confirmed=True, side="opponent", slot_index=0, pokemon_id="target", turn_number=2),
-        boundary.confirm(event_kind="current_ability_observed", payload={"ability": "adaptability"}, session_id=state["session_id"], source=CURRENT_ABILITY_SOURCE, trust=USER_TRUST, confirmed=True, side="self", slot_index=0, pokemon_id="attacker", turn_number=2),
-        boundary.confirm(event_kind="current_ability_observed", payload={"ability": "ice-scales"}, session_id=state["session_id"], source=CURRENT_ABILITY_SOURCE, trust=USER_TRUST, confirmed=True, side="opponent", slot_index=0, pokemon_id="target", turn_number=2),
+        boundary.confirm(event_kind="current_ability_observed", payload={"ability": attacker_ability}, session_id=state["session_id"], source=CURRENT_ABILITY_SOURCE, trust=USER_TRUST, confirmed=True, side="self", slot_index=0, pokemon_id="attacker", turn_number=2),
+        boundary.confirm(event_kind="current_ability_observed", payload={"ability": target_ability}, session_id=state["session_id"], source=CURRENT_ABILITY_SOURCE, trust=USER_TRUST, confirmed=True, side="opponent", slot_index=0, pokemon_id="target", turn_number=2),
         boundary.confirm(event_kind="current_terrain_observed", payload={"terrain": terrain}, session_id=state["session_id"], source=CURRENT_TERRAIN_SOURCE, trust=USER_TRUST, confirmed=True, turn_number=2),
         boundary.confirm(event_kind="current_side_conditions_observed", payload={"side_conditions": sides[0]}, session_id=state["session_id"], source=CURRENT_SIDE_CONDITIONS_SOURCE, trust=USER_TRUST, confirmed=True, side="self", turn_number=2),
         boundary.confirm(event_kind="current_side_conditions_observed", payload={"side_conditions": sides[1]}, session_id=state["session_id"], source=CURRENT_SIDE_CONDITIONS_SOURCE, trust=USER_TRUST, confirmed=True, side="opponent", turn_number=2),
@@ -69,6 +69,20 @@ def test_known_item_absence_and_complete_modifier_authority_reach_native_water_g
     assert authority["defender"]["item"]["status"] == "known_absent"
     assert authority["field"]["terrain"] == {"status": "known", "value": "none"}
     assert authority["defender"]["side_conditions"] == {"status": "known", "value": []}
+
+
+def test_pressure_is_catalogued_as_known_neutral_for_both_direct_damage_roles() -> None:
+    base = _base()
+    state = _apply(
+        base,
+        _confirmations(
+            base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+            attacker_ability="pressure", target_ability="pressure",
+        ),
+    )
+    context = _context(state)
+    assert context["status"] == "resolved"
+    assert context["native_evaluation"]["applied_damage_modifiers"] == []
 
 
 def test_unknown_item_and_partial_side_knowledge_stay_incomplete() -> None:
