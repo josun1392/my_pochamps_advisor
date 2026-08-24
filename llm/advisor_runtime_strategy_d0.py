@@ -20,6 +20,7 @@ from llm.advisor_current_critical_state_authority import (
     project_current_crit_volatile_authority,
     project_current_lucky_chant_authority,
 )
+from llm.advisor_current_condition_authority import project_current_condition_authority
 from llm.advisor_battle_state_context import build_deterministic_hit_chance_assessment
 from llm.advisor_ability_interaction_authority import (
     normalize_ability_applicability_context,
@@ -106,6 +107,14 @@ def freeze_runtime_strategy_d0(*, runtime_snapshot: Mapping[str, Any], decision_
             current_stages=_roster(state, side).get(owner["slot_index"], {}).get("stat_stages"),
         ) for side, owner in owners.items()
     }
+    result["current_condition_authority"] = {
+        side: project_current_condition_authority(
+            session_id=session_id, source_runtime_fingerprint=runtime_fingerprint,
+            source_branch_fingerprint=preview_fingerprint, owner=owner,
+            current_condition=_roster(state, side).get(owner["slot_index"], {}).get("condition"),
+            current_condition_provenance=_roster(state, side).get(owner["slot_index"], {}).get("condition_provenance"),
+        ) for side, owner in owners.items()
+    }
     result["current_critical_state_authority"] = {
         "volatiles": {
             side: project_current_crit_volatile_authority(
@@ -143,6 +152,19 @@ def freeze_runtime_current_stage_authority(*, strategy_d0: Mapping[str, Any], ru
     authority = strategy_d0.get("current_stage_authority", {}).get(owner["side"])
     if not isinstance(authority, Mapping) or authority.get("owner") != dict(owner):
         return _result("rejected", "runtime_current_stage_authority_unavailable")
+    return deepcopy(dict(authority))
+
+
+def freeze_runtime_current_condition_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the detached strict major-condition authority for one active owner."""
+    if not _valid_d0(strategy_d0) or not _owner(owner) or strategy_d0.get("active_owners", {}).get(owner.get("side")) != dict(owner):
+        return _result("rejected", "runtime_current_condition_identity_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    authority = strategy_d0.get("current_condition_authority", {}).get(owner["side"])
+    if not isinstance(authority, Mapping) or authority.get("owner") != dict(owner):
+        return _result("rejected", "runtime_current_condition_authority_unavailable")
     return deepcopy(dict(authority))
 
 
