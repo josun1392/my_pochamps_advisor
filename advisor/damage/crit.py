@@ -60,6 +60,16 @@ class MoveCritState:
     crit_stage_bonus: int = 0
 
 
+def move_crit_rule(move_id: str) -> str:
+    """Return the engine's static move rule classification for one move id."""
+    normalized = _normalize(move_id)
+    if normalized in _ALWAYS_CRIT_MOVES:
+        return "always-crit"
+    if normalized in _HIGH_CRIT_MOVES:
+        return "high-crit"
+    return "base"
+
+
 def _normalize(value: Any) -> str:
     return str(value or "").strip().lower().replace("_", "-").replace(" ", "-")
 
