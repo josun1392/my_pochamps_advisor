@@ -7,6 +7,7 @@ from llm.advisor_predictive_fixed_damage_outcome import enrich_predictive_attack
 from llm.advisor_predictive_normal_formula_interval import build_predictive_normal_formula_interval
 from llm.advisor_predictive_water_gun_interval import build_predictive_water_gun_interval
 from llm.advisor_predictive_normal_formula_post_hit import compose_predictive_normal_formula_post_hit
+from llm.advisor_predictive_deterministic_stage_effects import compose_predictive_deterministic_stage_effects
 from llm.advisor_guaranteed_fact_comparison import guaranteed_facts_from_exact_outcome, guaranteed_facts_from_normal_formula_interval, guaranteed_facts_from_water_gun_interval, rank_guaranteed_candidates
 
 def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decision_owner:Mapping[str,Any],selection_snapshot:Mapping[str,Any],execution_bundle:Mapping[str,Any],predictive_attacks:Mapping[str,Mapping[str,Any]]|None=None,water_gun_inputs:Mapping[str,Any]|None=None,normal_formula_inputs:Mapping[str,Mapping[str,Any]]|None=None,post_hit_inputs:Mapping[str,Mapping[str,Any]]|None=None)->dict[str,Any]:
@@ -35,6 +36,8 @@ def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decisi
     if isinstance(post_input,Mapping):
      composed=compose_predictive_normal_formula_post_hit(interval=interval,move_metadata=post_input.get("move_metadata",{}),attacker_hp=post_input.get("attacker_hp",{}),attacker_item=post_input.get("attacker_item"),attacker_ability=post_input.get("attacker_ability"),target_ability=post_input.get("target_ability"),attacker_item_known=post_input.get("attacker_item_known",True))
      if composed.get("status")=="resolved": fact={**fact,"guaranteed_own_fainted":composed["guaranteed_attacker_faint"],"exact_own_hp":composed["attacker_post_hit_hp_values"][0] if len(composed["attacker_post_hit_hp_values"])==1 else None,"possible_own_faint":composed["possible_attacker_faint"],"post_hit":composed}
+    stage=compose_predictive_deterministic_stage_effects(interval=interval,stage_effect_authority=normal_input.get("stage_effect_authority",{}),stat_provenance=normal_input.get("stat_provenance",{}))
+    if stage.get("status")=="resolved": fact={**fact,"stage_effects":stage}
     evidence.append(_e(candidate,"guaranteed_facts",interval=interval,facts=fact));facts.append(fact);continue
   if candidate["action_type"]=="manual_switch":
    outcome=materialize_candidates(decision_state=decision_state,decision_owner=decision_owner,candidates=[candidate])["outcomes"][0]

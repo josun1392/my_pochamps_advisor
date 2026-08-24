@@ -316,13 +316,20 @@ def _sync_stage(state: Mapping[str, Any], side: str, stat: str, delta: int) -> i
     if match is None:
         return None
     previous = match["stage"]
-    match["stage"] = max(-6, min(6, previous + delta))
+    match["stage"] = apply_canonical_stage_delta(previous, delta)
     direct = current.get("direct_mechanics_context") if isinstance(current, Mapping) else None
     role = "attacker" if side == "self" else "defender"
     combatant = direct.get(role) if isinstance(direct, Mapping) else None
     if isinstance(combatant, dict) and isinstance(combatant.get("boosts"), dict):
         combatant["boosts"][stat] = match["stage"]
     return previous
+
+
+def apply_canonical_stage_delta(previous: int, delta: int) -> int:
+    """The shared exact-stage cap used by observed and predictive materializers."""
+    if isinstance(previous, bool) or isinstance(delta, bool) or not isinstance(previous, int) or not isinstance(delta, int) or not -6 <= previous <= 6 or not -6 <= delta <= 6:
+        raise ValueError("invalid canonical stage delta")
+    return max(-6, min(6, previous + delta))
 
 
 def _exact_current_stage(state: Mapping[str, Any], side: str, stat: str) -> int | None:
