@@ -7,6 +7,7 @@ from collections import Counter
 from typing import Any
 
 from advisor.damage.formula import DamageContext, calc_damage_rolls
+from advisor.damage.crit import select_critical_damage_stages
 from advisor.damage.abilities import get_ability
 from advisor.damage.ability_modifiers import get_bp_ability_modifier
 from advisor.damage.field import Field, SideField
@@ -37,7 +38,7 @@ UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS = frozenset({
 })
 NATIVE_DIRECT_MECHANICS_SOURCES = frozenset({"native_q12_direct_damage", "native_level_based_fixed_damage"})
 STATIC_ATTACKER_DAMAGE_ABILITIES = frozenset({
-    "adaptability", "iron-fist", "strong-jaw", "mega-launcher", "technician", "tinted-lens",
+    "adaptability", "iron-fist", "strong-jaw", "mega-launcher", "technician", "tinted-lens", "sniper",
 })
 STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({"thick-fat", "fur-coat", "ice-scales", "filter", "solid-rock", "prism-armor", "wonder-guard", "multiscale", "shadow-shield"})
 ABILITY_MODIFIER_TAGS = {
@@ -81,7 +82,7 @@ DEFENDER_ABILITY_MODIFIER_TAGS = {
 
 def evaluate_direct_damage_mechanics(
     snapshot_damage_input: Mapping[str, Any], *, stat_provenance: Mapping[str, Any],
-    trusted_level: int | None,
+    trusted_level: int | None, is_critical: bool = False,
 ) -> dict[str, Any]:
     """Return bounded public mechanics evidence without inventing battle facts.
 
@@ -92,6 +93,8 @@ def evaluate_direct_damage_mechanics(
     reported as logical missing names instead of becoming defaults.
     """
     missing: list[str] = []
+    if not isinstance(is_critical, bool):
+        return _insufficient(["is_critical"])
     if not isinstance(snapshot_damage_input, Mapping) or not isinstance(stat_provenance, Mapping):
         return _insufficient(["snapshot"])
     context = _mapping(snapshot_damage_input.get("battle_context"))
@@ -224,7 +227,7 @@ def evaluate_direct_damage_mechanics(
     )
     ability_modifier = _attacker_ability_modifier_context(
         current=current, direct_attacker=direct_attacker, move_id=move_id, power=power,
-        move_type=move_type, attacker_types=attacker["types"] if attacker is not None else (),
+        move_type=move_type, attacker_types=attacker["types"] if attacker is not None else (), is_critical=is_critical,
         defender_types=defender["types"] if defender is not None else (),
     )
     item_modifier = _attacker_item_modifier_context(
@@ -290,14 +293,17 @@ def evaluate_direct_damage_mechanics(
         attack_stat = attacker_stats.atk if is_physical else attacker_stats.spa
         defense_stat = defender_stats.def_ if is_physical else defender_stats.spd
         if stage_context["applied"]:
-            attack_stat = calculate_stage_adjusted_stat(attack_stat, stage_context["offensive_stage_value"])
-            defense_stat = calculate_stage_adjusted_stat(defense_stat, stage_context["defensive_stage_value"])
+            offensive_stage, defensive_stage = select_critical_damage_stages(
+                stage_context["offensive_stage_value"], stage_context["defensive_stage_value"], is_critical=is_critical,
+            )
+            attack_stat = calculate_stage_adjusted_stat(attack_stat, offensive_stage)
+            defense_stat = calculate_stage_adjusted_stat(defense_stat, defensive_stage)
         rolls = calc_damage_rolls(DamageContext(
             attacker_level=trusted_level, move_power=power,  # type: ignore[arg-type]
             attack_stat=attack_stat, defense_stat=defense_stat,
             move_type=move_type, attacker_types=tuple(attacker["types"]),
             defender_types=tuple(defender["types"]), is_physical=is_physical,
-            is_critical=False, is_spread=False, move_id=move_id,
+            is_critical=is_critical, is_spread=False, move_id=move_id,
             attacker_species=attacker["pokemon_identity"], defender_species=defender["pokemon_identity"],
             attacker_stats=attacker_stats, defender_stats=defender_stats,
             field=modifier["field"], burn_mod_q12=modifier["burn_mod_q12"],
@@ -324,7 +330,7 @@ def evaluate_direct_damage_mechanics(
         "ko_result": {"status": "resolved", "single_hit_probability": float(ko_chance_from_outcomes(total_rolls, defender_hp))},
         "damage_model": "fixed_hit_formula" if hit_count > 1 else "single_hit_formula",
         "applied_damage_modifiers": [*modifier["applied"], *ability_modifier["applied"], *item_modifier["applied"], *defender_item_modifier["applied"], *defender_ability_modifier["applied"]], "missing_inputs": [], "unsupported_reason": None,
-        "stat_stage_evidence": stage_context["evidence"],
+        "stat_stage_evidence": _critical_stage_evidence(stage_context, is_critical),
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
         "type_damage_evidence": type_authorities["evidence"],
     }
@@ -378,6 +384,20 @@ def _relevant_stage_context(*, current: Mapping[str, Any], category: Any) -> dic
     result.update(applied=True, offensive_stage_value=resolved[("self", offensive)], defensive_stage_value=resolved[("opponent", defensive)])
     result["evidence"] = {"offensive_stage_stat": offensive, "offensive_stage_value": result["offensive_stage_value"], "defensive_stage_stat": defensive, "defensive_stage_value": result["defensive_stage_value"], "stage_adjustment_applied": True}
     return result
+
+
+def _critical_stage_evidence(stage_context: Mapping[str, Any], is_critical: bool) -> Any:
+    """Keep legacy non-critical evidence byte-compatible while recording crit selection."""
+    evidence = stage_context.get("evidence")
+    if not is_critical or not isinstance(evidence, Mapping):
+        return evidence
+    offensive, defensive = select_critical_damage_stages(
+        stage_context["offensive_stage_value"], stage_context["defensive_stage_value"], is_critical=True,
+    )
+    return {
+        **deepcopy(dict(evidence)), "critical_damage_stage_selection": True,
+        "effective_offensive_stage_value": offensive, "effective_defensive_stage_value": defensive,
+    }
 
 
 def _evaluate_level_based_fixed_damage(*, direct: Mapping[str, Any], stat_provenance: Mapping[str, Any], trusted_level: int | None, move_id: str, generation: str) -> dict[str, Any]:
@@ -499,7 +519,7 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
     return None
 
 
-def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_attacker: Mapping[str, Any], move_id: str, power: Any, move_type: Any, attacker_types: tuple[str, ...] | list[str], defender_types: tuple[str, ...] | list[str]) -> dict[str, Any]:
+def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_attacker: Mapping[str, Any], move_id: str, power: Any, move_type: Any, attacker_types: tuple[str, ...] | list[str], defender_types: tuple[str, ...] | list[str], is_critical: bool = False) -> dict[str, Any]:
     """Resolve only static request-start attacker ability effects already owned by Q12."""
     result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None}
     context = current.get("ability_context")
@@ -533,6 +553,11 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
     effect = get_ability(ability_id)
     if effect is None:
         result["unsupported_reason"] = "ability_modifier"
+        return result
+    if ability_id == "sniper":
+        result["ability_effect"] = effect
+        if is_critical:
+            result["applied"].append("ability_sniper_critical_damage")
         return result
     if ability_id == "adaptability":
         if move_type in attacker_types:

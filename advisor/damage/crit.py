@@ -188,6 +188,32 @@ def crit_probability(stage: int) -> Fraction:
     return Fraction(1, 1)
 
 
+def select_critical_damage_stages(
+    offensive_stage: int,
+    defensive_stage: int,
+    *,
+    is_critical: bool,
+) -> tuple[int, int]:
+    """Select the Gen 9 stat stages that feed one damage calculation.
+
+    A critical hit ignores only a disadvantageous offensive stage on the
+    attacker and an advantageous defensive stage on the defender.  The caller
+    still owns authority for the raw stage values; this pure engine helper only
+    selects how already-known values participate in damage materialization.
+    """
+    if (
+        not isinstance(offensive_stage, int)
+        or isinstance(offensive_stage, bool)
+        or not isinstance(defensive_stage, int)
+        or isinstance(defensive_stage, bool)
+        or not isinstance(is_critical, bool)
+    ):
+        raise ValueError("critical damage stages require integer stages and a boolean crit flag")
+    if not is_critical:
+        return offensive_stage, defensive_stage
+    return max(offensive_stage, 0), min(defensive_stage, 0)
+
+
 def is_crit_blocked(defender_state: Any | None = None, field_state: Any | None = None) -> bool:
     """Return True when defender-side effects prevent critical hits."""
     if _ability_id(defender_state) in _CRIT_BLOCKING_ABILITIES:
