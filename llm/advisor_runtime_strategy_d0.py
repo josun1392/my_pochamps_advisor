@@ -21,10 +21,16 @@ from llm.advisor_current_critical_state_authority import (
     project_current_lucky_chant_authority,
 )
 from llm.advisor_battle_state_context import build_deterministic_hit_chance_assessment
-from llm.advisor_ability_interaction_authority import normalize_ability_applicability_context
+from llm.advisor_ability_interaction_authority import (
+    normalize_ability_applicability_context,
+    normalize_ability_interaction_context,
+)
 from advisor.hit_modifier_capabilities import resolve_hit_modifier_capabilities
 from advisor.probabilistic_self_stage_effect_capabilities import (
     resolve_probabilistic_self_stage_effect_capability,
+)
+from advisor.probabilistic_target_stage_effect_capabilities import (
+    resolve_probabilistic_target_stage_effect_capability,
 )
 from advisor.critical_hit_capabilities import resolve_critical_hit_capabilities
 from advisor.strict_critical_hit_probability import assess_strict_critical_hit_probability
@@ -333,6 +339,79 @@ def freeze_runtime_d0_probabilistic_self_stage_effect_authority(
         "current_stage_authority": deepcopy(stage_authority),
         "current_attack_stage": attack_stage,
         "provenance": "runtime_battle_state_v1_to_detached_probabilistic_self_stage_effect_authority_v1",
+    }
+    if status != "resolved" and isinstance(reason, str):
+        result["reason"] = reason
+    return result
+
+
+def freeze_runtime_d0_probabilistic_target_stage_effect_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Freeze exact D0 facts for catalogued target-owned stage secondaries.
+
+    The adapter deliberately does not decide whether the target survived a
+    damage roll or apply a hypothetical drop.  Those are hit-leaf concerns;
+    this handoff only joins current source facts to the pure resolver.
+    """
+    move_id = move_metadata.get("move_id") if isinstance(move_metadata, Mapping) else None
+    active = strategy_d0.get("active_owners") if isinstance(strategy_d0, Mapping) else None
+    if (
+        not _valid_d0(strategy_d0) or not isinstance(move_id, str) or not move_id
+        or not _owner(attacker) or not _owner(target) or attacker != strategy_d0["decision_owner"]
+        or not isinstance(active, Mapping) or active.get(attacker["side"]) != dict(attacker)
+        or active.get(target["side"]) != dict(target) or attacker["side"] == target["side"]
+    ):
+        return _result("rejected", "runtime_probabilistic_target_stage_identity_or_move_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    raw_attacker = _roster(state, attacker["side"]).get(attacker["slot_index"])
+    raw_target = _roster(state, target["side"]).get(target["slot_index"])
+    if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_attacker, attacker) or not _same_runtime_owner(raw_target, target):
+        return _result("rejected", "runtime_probabilistic_target_stage_identity_mismatch")
+    source_authority = _runtime_probabilistic_target_stage_source_authority(
+        state=state, raw_attacker=raw_attacker, raw_target=raw_target,
+        attacker=attacker, target=target,
+    )
+    capability = resolve_probabilistic_target_stage_effect_capability(
+        move=move_metadata, source_authority=source_authority,
+    )
+    stage_authority = freeze_runtime_current_stage_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target,
+    )
+    target_substitute = _runtime_target_substitute_authority(
+        substitute_state(state, target),
+    )
+    status, reason = capability.get("status", "rejected"), capability.get("reason")
+    special_defense_stage = None
+    if stage_authority.get("status") == "rejected":
+        status, reason = "rejected", stage_authority.get("reason", "runtime_current_stage_authority_unavailable")
+    elif not _known_current_stage(stage_authority, "special-defense"):
+        if status == "resolved":
+            status, reason = "incomplete", "target_special_defense_stage_unknown"
+    else:
+        special_defense_stage = deepcopy(stage_authority["stages"]["special-defense"])
+    if target_substitute["status"] != "known" and status == "resolved":
+        status, reason = "incomplete", "target_substitute_unknown"
+    result = {
+        "status": status,
+        "schema_version": "runtime-d0-probabilistic-target-stage-effect-authority-v1",
+        "session_id": strategy_d0["session_id"],
+        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "attacker": deepcopy(dict(attacker)),
+        "target": deepcopy(dict(target)),
+        "move": deepcopy(dict(move_metadata)),
+        "source_authority": deepcopy(source_authority),
+        "capability_resolution": deepcopy(capability),
+        "current_stage_authority": deepcopy(stage_authority),
+        "current_target_special_defense_stage": special_defense_stage,
+        "target_substitute_authority": deepcopy(target_substitute),
+        "provenance": "runtime_battle_state_v1_to_detached_probabilistic_target_stage_effect_authority_v1",
     }
     if status != "resolved" and isinstance(reason, str):
         result["reason"] = reason
@@ -755,6 +834,54 @@ def _runtime_probabilistic_self_stage_ability_authority(*, state: Mapping[str, A
         )
         result["applicability"] = {"status": applicability["status"]}
     return result
+
+
+def _runtime_probabilistic_target_stage_source_authority(
+    *, state: Mapping[str, Any], raw_attacker: Mapping[str, Any], raw_target: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project precisely the three source slots owned by the target resolver."""
+    attacker_ability = _runtime_probabilistic_self_stage_ability_authority(
+        state=state, raw_attacker=raw_attacker, attacker=attacker,
+    )
+    target_ability = _runtime_known_string(raw_target.get("current_ability"))
+    target_ability_authority: dict[str, Any] = (
+        {"status": "known", "value": target_ability}
+        if target_ability is not None else {"status": "unknown"}
+    )
+    if target_ability == "shield-dust":
+        interaction = normalize_ability_interaction_context(
+            state.get("ability_interaction_context"), session_id=target["session_id"],
+            source=target, target=attacker,
+        )
+        target_ability_authority["interaction"] = {"status": interaction["status"]}
+    item = _native_item_authority(
+        raw_target.get("known_item"), raw_target.get("known_item_provenance"),
+    )
+    target_item_authority: dict[str, Any]
+    if item["status"] == "known":
+        target_item_authority = {"status": "known", "value": item["value"]}
+    elif item["status"] == "known_absent":
+        target_item_authority = {"status": "known_absent"}
+    else:
+        target_item_authority = {"status": "unknown"}
+    return {
+        "attacker_ability": attacker_ability,
+        "target_ability": target_ability_authority,
+        "target_item": target_item_authority,
+    }
+
+
+def _runtime_target_substitute_authority(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Expose tracked Substitute state without turning absent tracking into false."""
+    state = value.get("state") if isinstance(value, Mapping) else None
+    if state == "known_inactive":
+        return {"status": "known", "state": state}
+    if state == "known_active":
+        hp = value.get("substitute_hp")
+        if isinstance(hp, int) and not isinstance(hp, bool) and hp > 0:
+            return {"status": "known", "state": state, "substitute_hp": hp}
+    return {"status": "unknown"}
 
 
 def _known_current_stage(authority: Mapping[str, Any], stat: str) -> bool:
