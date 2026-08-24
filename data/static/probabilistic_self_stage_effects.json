@@ -1,0 +1,27 @@
+{
+  "schema_version": "probabilistic-self-stage-effects-catalog-v1",
+  "source": "canonical-maintained-gen9-mechanics-catalog-v1",
+  "rules": [
+    {
+      "rule_id": "metal-claw-self-attack-boost-v1",
+      "move_id": "metal-claw",
+      "category": "physical",
+      "effect_chance": 10,
+      "effect": {
+        "owner": "self",
+        "stat": "attack",
+        "delta": 1
+      },
+      "conditions": {
+        "requires_successful_damaging_hit": true,
+        "blocked_by_substitute": false,
+        "target_must_survive": false
+      },
+      "attacker_ability_policy": {
+        "known_neutral": ["pressure"],
+        "suppresses": ["sheer-force"],
+        "unsupported": ["serene-grace"]
+      }
+    }
+  ]
+}
