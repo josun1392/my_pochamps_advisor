@@ -104,6 +104,9 @@ def _candidate(candidate: Any, frontier: list[str]) -> dict[str, Any] | None:
     uncertainty = candidate.get("hit_miss_uncertainty")
     if uncertainty is not None and not _hit_miss_uncertainty(uncertainty, candidate_id):
         return None
+    critical = candidate.get("critical_hit_uncertainty")
+    if critical is not None and not _critical_hit_uncertainty(critical, candidate_id):
+        return None
     return {
         "candidate_id": candidate_id,
         "label": _label(candidate_id, action_type),
@@ -115,10 +118,11 @@ def _candidate(candidate: Any, frontier: list[str]) -> dict[str, Any] | None:
         "guaranteed_facts": deepcopy(dict(facts)) if isinstance(facts, Mapping) else None,
         "interval": deepcopy(candidate.get("interval")) if isinstance(candidate.get("interval"), Mapping) else None,
         "hit_miss_uncertainty": deepcopy(dict(uncertainty)) if isinstance(uncertainty, Mapping) else None,
+        "critical_hit_uncertainty": deepcopy(dict(critical)) if isinstance(critical, Mapping) else None,
         "incomplete_reason": candidate.get("incomplete_reason"),
         "provenance": candidate.get("provenance"),
         "fact_labels": _fact_labels(facts),
-        "uncertainty_labels": _uncertainty_labels(uncertainty),
+        "uncertainty_labels": [*_uncertainty_labels(uncertainty), *_critical_uncertainty_labels(critical)],
         "reason_labels": [_reason_label(reason) for reason in reasons or []],
     }
 
@@ -174,6 +178,20 @@ def _hit_miss_uncertainty(value: Mapping[str, Any], candidate_id: str) -> bool:
     )
 
 
+def _critical_hit_uncertainty(value: Mapping[str, Any], candidate_id: str) -> bool:
+    probability = value.get("critical_probability")
+    branches = value.get("branches")
+    return (
+        value.get("status") == "resolved"
+        and value.get("schema_version") == "deterministic-predictive-critical-hit-uncertainty-v1"
+        and value.get("move_id") == candidate_id.removeprefix("attack:")
+        and isinstance(probability, Mapping)
+        and all(isinstance(probability.get(key), int) and not isinstance(probability.get(key), bool) for key in ("numerator", "denominator"))
+        and probability["denominator"] > 0 and 0 <= probability["numerator"] <= probability["denominator"]
+        and isinstance(branches, (tuple, list)) and all(isinstance(branch, Mapping) and branch.get("branch") in {"non_critical", "critical"} for branch in branches)
+    )
+
+
 def _uncertainty_labels(value: Any) -> list[str]:
     if not isinstance(value, Mapping):
         return []
@@ -187,6 +205,17 @@ def _uncertainty_labels(value: Any) -> list[str]:
     if names == ["hit", "miss"] and isinstance(probability, int):
         return [f"명중 판정: 명중 {probability}% / 실패 {100 - probability}%"]
     return []
+
+
+def _critical_uncertainty_labels(value: Any) -> list[str]:
+    if not isinstance(value, Mapping): return []
+    probability, branches = value.get("critical_probability"), value.get("branches")
+    if not isinstance(probability, Mapping) or not isinstance(branches, (tuple, list)): return []
+    numerator, denominator = probability.get("numerator"), probability.get("denominator")
+    if not isinstance(numerator, int) or not isinstance(denominator, int) or denominator <= 0: return []
+    names = [branch.get("branch") for branch in branches if isinstance(branch, Mapping)]
+    state = "비급소 전용" if names == ["non_critical"] else "급소 전용" if names == ["critical"] else "비급소/급소 분기" if names == ["non_critical", "critical"] else None
+    return [f"명중 시 급소 판정: {numerator}/{denominator} ({state})"] if state else []
 
 
 def _status_text(status: Any, frontier: Any) -> str:

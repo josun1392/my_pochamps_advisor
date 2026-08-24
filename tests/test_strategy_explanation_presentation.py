@@ -127,7 +127,7 @@ def test_hit_miss_uncertainty_survives_explanation_presentation_and_rendering() 
     water["uncertainty"] = {
         "status": "resolved", "schema_version": "deterministic-predictive-hit-miss-uncertainty-v1",
         "move_id": "water-gun", "probability_percent": 80, "raw_accuracy_threshold": 80,
-        "branches": ({"branch": "hit", "probability_percent": 80, "consequences": {"stage_effects": {"effects": ("speed+1",)}}}, {"branch": "miss", "probability_percent": 20, "consequences": {"target_damage": 0, "hit_triggered_stage_effects": None}}),
+        "branches": ({"branch": "hit", "probability_percent": 80, "consequences": {"stage_effects": {"effects": ("speed+1",)}, "critical_hit_uncertainty": {"status": "resolved", "schema_version": "deterministic-predictive-critical-hit-uncertainty-v1", "move_id": "water-gun", "critical_probability": {"numerator": 1, "denominator": 24}, "branches": ({"branch": "non_critical", "damage_context": {"scope": {"critical": "non_critical_assumed"}}}, {"branch": "critical", "damage_context": {"scope": {"critical": "critical_assumed"}}}), "guaranteed_facts": {"guaranteed_opponent_fainted": None, "possible_opponent_ko": True}}}}, {"branch": "miss", "probability_percent": 20, "consequences": {"target_damage": 0, "hit_triggered_stage_effects": None}}),
         "guaranteed_facts": deepcopy(water["facts"]),
     }
     explanation = explain_detached_strategy(orchestration=orchestration)
@@ -137,10 +137,14 @@ def test_hit_miss_uncertainty_survives_explanation_presentation_and_rendering() 
 
     explained = next(item for item in explanation["candidates"] if item["candidate_id"] == "attack:water-gun")
     assert explained["hit_miss_uncertainty"] == water["uncertainty"]
+    assert explained["critical_hit_uncertainty"]["critical_probability"] == {"numerator": 1, "denominator": 24}
+    assert [branch["branch"] for branch in explained["critical_hit_uncertainty"]["branches"]] == ["non_critical", "critical"]
     assert row["hit_miss_uncertainty"] == water["uncertainty"]
+    assert row["critical_hit_uncertainty"]["guaranteed_facts"]["guaranteed_opponent_fainted"] is None
     assert row["guaranteed_facts"]["guaranteed_opponent_fainted"] is None
     assert row["guaranteed_facts"]["possible_opponent_ko"] is True
-    assert row["uncertainty_labels"] == ["명중 판정: 명중 80% / 실패 20%"]
+    assert row["uncertainty_labels"] == ["명중 판정: 명중 80% / 실패 20%", "명중 시 급소 판정: 1/24 (비급소/급소 분기)"]
+    assert "명중 시 급소 판정: 1/24 (비급소/급소 분기)" in rendered
     assert "Water Gun [명중/실패 분기]" in rendered
     assert "상대 기절 가능" in rendered
     assert "Water Gun [명중/실패 분기]\n  상대 기절 보장" not in rendered
