@@ -1,0 +1,9 @@
+{
+  "schema_version": "deterministic-move-stage-effects-catalog-v1",
+  "source": "canonical-maintained-gen9-mechanics-catalog-v1",
+  "moves": {
+    "acid-spray": {"category": "special", "effects": [{"owner": "target", "stat": "special-defense", "delta": -2}], "conditions": {"requires_successful_damaging_hit": true, "blocked_by_substitute": true, "target_must_survive": true}},
+    "close-combat": {"category": "physical", "effects": [{"owner": "self", "stat": "defense", "delta": -1}, {"owner": "self", "stat": "special-defense", "delta": -1}], "conditions": {"requires_successful_damaging_hit": true, "blocked_by_substitute": false, "target_must_survive": false}},
+    "flame-charge": {"category": "physical", "effects": [{"owner": "self", "stat": "speed", "delta": 1}], "conditions": {"requires_successful_damaging_hit": true, "blocked_by_substitute": false, "target_must_survive": false}}
+  }
+}

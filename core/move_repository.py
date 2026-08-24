@@ -27,6 +27,7 @@ class MoveView:
     effect_category: str | None = None
     ailment: str | None = None
     stat_changes: tuple[tuple[str, int], ...] = ()
+    effect_chance: int | None = None
 
 
 class MoveRepository:
@@ -66,6 +67,7 @@ class MoveRepository:
             effect_category=_optional_str(data.get("meta", {}).get("category") if isinstance(data.get("meta"), dict) else None),
             ailment=_optional_str(data.get("meta", {}).get("ailment") if isinstance(data.get("meta"), dict) else None),
             stat_changes=_stat_changes(data.get("stat_changes")),
+            effect_chance=_optional_int(data.get("effect_chance")),
         )
 
     def _get_from_champions_movepool(self, move_id: str) -> MoveView:
@@ -92,6 +94,7 @@ class MoveRepository:
             effect_category=_optional_str(data.get("effect_category")),
             ailment=_optional_str(data.get("ailment")),
             stat_changes=_stat_changes(data.get("stat_changes")),
+            effect_chance=_optional_int(data.get("effect_chance")),
         )
 
 

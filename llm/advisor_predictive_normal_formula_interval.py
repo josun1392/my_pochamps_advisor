@@ -4,6 +4,7 @@ from typing import Any, Mapping
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 from llm.advisor_substitute import substitute_state
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
+from llm.advisor_deterministic_move_stage_effect_metadata import build_deterministic_move_stage_effect_metadata
 
 def normal_formula_eligibility(move: Mapping[str, Any]) -> dict[str, Any]:
     """Metadata-only v1 gate; native direct mechanics remains final authority."""
@@ -12,7 +13,7 @@ def normal_formula_eligibility(move: Mapping[str, Any]) -> dict[str, Any]:
     if move.get("category") not in {"physical","special"} or not isinstance(move.get("power"),int) or isinstance(move.get("power"),bool) or move["power"]<1 or not isinstance(move.get("type"),str) or not move["type"]: return {"status":"unsupported","reason":"not_simple_normal_formula_metadata"}
     if any(move.get(key) not in {None,0,False} for key in ("min_hits","max_hits","recoil","charge_turn","recharge","self_ko")): return {"status":"unsupported","reason":"not_simple_normal_formula_move"}
     if move.get("drain") not in {None,0} and (isinstance(move.get("drain"),bool) or not isinstance(move.get("drain"),int) or not -100 <= move["drain"] <= 100): return {"status":"unsupported","reason":"invalid_move_drain_metadata"}
-    return {"status":"eligible","move_id":move["move_id"]}
+    return {"status":"eligible","move_id":move["move_id"],"stage_effect_authority":build_deterministic_move_stage_effect_metadata(move)}
 
 def build_predictive_normal_formula_interval(*, branch_state: Mapping[str, Any], decision_owner: Mapping[str, Any], target_owner: Mapping[str, Any], snapshot_damage_input: Mapping[str, Any], stat_provenance: Mapping[str, Any], trusted_level: int | None) -> dict[str, Any]:
     fp=fingerprint_transition_preview_state(branch_state); move=snapshot_damage_input.get("move") if isinstance(snapshot_damage_input,Mapping) else None; eligibility=normal_formula_eligibility(move)

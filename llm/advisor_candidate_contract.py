@@ -66,7 +66,7 @@ def _metadata_value(metadata: Any, name: str) -> Any:
 
 
 def _selected_move_from_metadata(move: str, metadata: Any) -> dict[str, Any]:
-    fields = ("category", "power", "type", "accuracy", "always_hit", "priority", "drain", "min_hits", "max_hits", "healing", "target", "effect_category", "ailment", "stat_changes")
+    fields = ("category", "power", "type", "accuracy", "always_hit", "priority", "drain", "min_hits", "max_hits", "healing", "target", "effect_category", "ailment", "stat_changes", "effect_chance")
     selected = {"move_id": _metadata_value(metadata, "move_id") or move}
     selected.update({field: _metadata_value(metadata, field) for field in fields if _metadata_value(metadata, field) is not None})
     return selected

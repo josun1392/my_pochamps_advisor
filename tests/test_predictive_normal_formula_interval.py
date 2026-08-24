@@ -13,7 +13,9 @@ def _run(move: dict, *, hp: int = 100, substitute: str = "known_inactive", subst
 
 
 def test_metadata_gate_is_generic_and_excludes_non_simple_shapes() -> None:
-    assert normal_formula_eligibility({"move_id": "surf", "category": "special", "power": 90, "type": "water"}) == {"status": "eligible", "move_id": "surf"}
+    eligible = normal_formula_eligibility({"move_id": "surf", "category": "special", "power": 90, "type": "water"})
+    assert eligible["status"] == "eligible" and eligible["move_id"] == "surf"
+    assert eligible["stage_effect_authority"]["status"] == "unknown"
     assert normal_formula_eligibility({"move_id": "bullet-seed", "category": "physical", "power": 25, "type": "grass", "min_hits": 2, "max_hits": 5})["reason"] == "not_simple_normal_formula_move"
     assert normal_formula_eligibility({"move_id": "drain-punch", "category": "physical", "power": 75, "type": "fighting", "drain": 50})["status"] == "eligible"
 
