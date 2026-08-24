@@ -17,6 +17,8 @@ from llm.advisor_current_stage_authority import (
     strict_hit_stage_authority,
 )
 from llm.advisor_battle_state_context import build_deterministic_hit_chance_assessment
+from llm.advisor_ability_interaction_authority import normalize_ability_applicability_context
+from advisor.hit_modifier_capabilities import resolve_hit_modifier_capabilities
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 from llm.advisor_predictive_normal_formula_interval import normal_formula_eligibility
 from llm.advisor_reducer_state_model import (
@@ -125,6 +127,44 @@ def build_runtime_d0_strict_hit_chance_assessment(*, strategy_d0: Mapping[str, A
         return {"status": stages.get("status", "incomplete"), "schema_version": "runtime-d0-strict-hit-chance-v1", "reason": stages.get("reason", "hit_stage_authority_incomplete"), "missing_authority": deepcopy(stages.get("missing_authority", []))}
     assessment = build_deterministic_hit_chance_assessment(selected_move, stages["stat_stage_context"])
     return {"status": "resolved", "schema_version": "runtime-d0-strict-hit-chance-v1", "stage_authority": stages, "assessment": assessment}
+
+
+def freeze_runtime_d0_hit_modifier_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Freeze resolver inputs for the supported Hustle hit-modifier family."""
+    move = _hit_modifier_move(move_metadata)
+    active = strategy_d0.get("active_owners") if isinstance(strategy_d0, Mapping) else None
+    if (
+        not _valid_d0(strategy_d0) or move is None or not _owner(attacker) or not _owner(target)
+        or attacker != strategy_d0["decision_owner"] or not isinstance(active, Mapping)
+        or active.get(attacker["side"]) != dict(attacker) or active.get(target["side"]) != dict(target)
+        or attacker["side"] == target["side"]
+    ):
+        return _result("rejected", "runtime_hit_modifier_identity_or_move_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current": return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    raw_attacker = _roster(state, attacker["side"]).get(attacker["slot_index"])
+    raw_target = _roster(state, target["side"]).get(target["slot_index"])
+    if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_attacker, attacker) or not _same_runtime_owner(raw_target, target):
+        return _result("rejected", "runtime_hit_modifier_identity_mismatch")
+    ability_authority = _runtime_hustle_ability_authority(state=state, raw_attacker=raw_attacker, attacker=attacker)
+    capability = resolve_hit_modifier_capabilities(move=move, source_authority={"attacker_ability": ability_authority})
+    attacker_stages = freeze_runtime_current_stage_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=attacker)
+    target_stages = freeze_runtime_current_stage_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
+    stage_authority = strict_hit_stage_authority(attacker_authority=attacker_stages, target_authority=target_stages)
+    return {
+        "status": capability["status"], "schema_version": "runtime-d0-hit-modifier-authority-v1",
+        "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)),
+        "move": deepcopy(move), "source_authority": {"attacker_ability": deepcopy(ability_authority)},
+        "capability_resolution": deepcopy(capability), "strict_stage_authority": deepcopy(stage_authority),
+        "provenance": "runtime_battle_state_v1_hit_modifier_authority_v1",
+    }
 
 
 def freeze_runtime_seismic_toss_predictive_input(
@@ -452,6 +492,29 @@ def _native_move_metadata(value: Mapping[str, Any]) -> dict[str, Any] | None:
     if not isinstance(move_id, str) or not move_id or category not in {"physical", "special", "status"} or not isinstance(power, int) or isinstance(power, bool) or power < 1 or not isinstance(move_type, str) or not move_type:
         return None
     return deepcopy(dict(value))
+
+
+def _hit_modifier_move(value: Any) -> dict[str, str] | None:
+    if not isinstance(value, Mapping): return None
+    move_id, category = value.get("move_id"), value.get("category")
+    if not isinstance(move_id, str) or not move_id or category not in {"physical", "special", "status"}: return None
+    return {"move_id": move_id, "category": category}
+
+
+def _runtime_hustle_ability_authority(*, state: Mapping[str, Any], raw_attacker: Mapping[str, Any], attacker: Mapping[str, Any]) -> dict[str, Any]:
+    """Project exact observed ability plus explicit applicability when relevant."""
+    ability = _runtime_known_string(raw_attacker.get("current_ability"))
+    if ability is None:
+        # Reducer ability ``None`` has no absence provenance, so it is unknown.
+        return {"status": "unknown"}
+    result: dict[str, Any] = {"status": "known", "value": ability}
+    if ability == "hustle":
+        normalized = normalize_ability_applicability_context(
+            state.get("ability_applicability_context"), session_id=attacker["session_id"],
+            source=attacker, ability_id="hustle",
+        )
+        result["applicability"] = {"status": normalized["status"]}
+    return result
 
 
 def _native_runtime_side(raw: Mapping[str, Any], preview: Any, owner: Mapping[str, Any], stage_map: Mapping[str, int] | None = None) -> dict[str, Any]:
