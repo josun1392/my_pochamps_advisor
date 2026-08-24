@@ -13,6 +13,7 @@ from typing import Any, Mapping, Sequence
 
 from llm.advisor_current_action_authority import freeze_current_action_authority
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
+from llm.advisor_predictive_normal_formula_interval import normal_formula_eligibility
 from llm.advisor_reducer_state_model import (
     STATE_MODEL_VERSION,
     is_unknown_battle_fact,
@@ -243,6 +244,30 @@ def freeze_runtime_water_gun_predictive_input(
         "reason": missing[0] if missing else "runtime_native_damage_context_unavailable",
         "provenance": "runtime_battle_state_v1_water_gun_predictive_input_boundary_v1",
     }
+
+
+def freeze_runtime_normal_formula_predictive_input(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any],
+    native_damage_context: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Generic D0 producer for metadata-eligible, immediate normal-formula damage."""
+    eligibility = normal_formula_eligibility(move_metadata)
+    if eligibility.get("status") != "eligible":
+        return _result("unsupported", eligibility.get("reason", "unsupported_predictive_move"))
+    if not _valid_d0(strategy_d0) or not _owner(attacker) or not _owner(target):
+        return _result("rejected", "invalid_strategy_d0_or_predictive_owner")
+    active = strategy_d0.get("active_owners")
+    if attacker != strategy_d0["decision_owner"] or not isinstance(active, Mapping) or active.get(attacker["side"]) != dict(attacker) or active.get(target["side"]) != dict(target) or attacker["side"] == target["side"]:
+        return _result("rejected", "runtime_predictive_identity_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current": return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    context = _runtime_native_context_for_normal_formula(native_damage_context, strategy_d0=strategy_d0, attacker=attacker, target=target, move_id=eligibility["move_id"])
+    base = {"schema_version": "deterministic-runtime-normal-formula-predictive-input-v1", "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move_id": eligibility["move_id"], "move_metadata": deepcopy(dict(move_metadata)), "provenance": "runtime_battle_state_v1_normal_formula_native_context_v1"}
+    if context.get("status") == "resolved":
+        return {"status": "resolved", **base, "snapshot_damage_input": deepcopy(context["snapshot_damage_input"]), "stat_provenance": deepcopy(context["stat_provenance"]), "trusted_level": context["trusted_level"]}
+    missing = list(context.get("missing_authority", [])) or [context.get("reason", "runtime_native_damage_context_incomplete")]
+    return {"status": "incomplete", **base, "missing_authority": missing, "reason": missing[0]}
 
 
 def freeze_runtime_final_combat_stat_authority(
@@ -513,9 +538,13 @@ def _runtime_direct_damage_modifier_authority(*, state: Mapping[str, Any], attac
 
 
 def _runtime_native_context_for_water_gun(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+    return _runtime_native_context_for_normal_formula(value, strategy_d0=strategy_d0, attacker=attacker, target=target, move_id="water-gun")
+
+
+def _runtime_native_context_for_normal_formula(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], move_id: str) -> dict[str, Any]:
     if not isinstance(value, Mapping) or value.get("schema_version") != "runtime-d0-native-damage-context-v1":
         return {"status": "incomplete", "missing_authority": ["runtime_native_damage_context_unavailable"]}
-    expected = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": strategy_d0["decision_owner"], "attacker": attacker, "target": target, "move_id": "water-gun"}
+    expected = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": strategy_d0["decision_owner"], "attacker": attacker, "target": target, "move_id": move_id}
     if any(value.get(key) != expected_value for key, expected_value in expected.items()):
         return {"status": "incomplete", "missing_authority": ["runtime_native_damage_context_d0_mismatch"]}
     if value.get("status") != "resolved" or not isinstance(value.get("snapshot_damage_input"), Mapping) or not isinstance(value.get("stat_provenance"), Mapping) or not isinstance(value.get("trusted_level"), int):

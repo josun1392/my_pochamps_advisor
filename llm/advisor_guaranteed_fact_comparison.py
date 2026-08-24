@@ -10,10 +10,12 @@ def guaranteed_facts_from_exact_outcome(*,decision_owner:Mapping[str,Any],outcom
  if not _active(own) or not _active(foe) or fingerprint_transition_preview_state(s)!=outcome.get("outcome_branch_fingerprint"):return _r("rejected","invalid_exact_outcome")
  return _facts(outcome["candidate_id"],outcome["action_type"],decision_owner,outcome["source_branch_fingerprint"],own["fainted"],foe["fainted"],own["current_hp"],"exact_outcome")
 def guaranteed_facts_from_water_gun_interval(*,candidate:Mapping[str,Any],interval:Mapping[str,Any],own_current_hp:int)->dict[str,Any]:
- if not isinstance(interval,Mapping) or interval.get("schema_version")!="deterministic-predictive-damage-interval-v1" or interval.get("completeness")!="exact_complete":return _r("incomplete","interval_authority_incomplete")
- if not isinstance(candidate,Mapping) or candidate.get("candidate_id")!="attack:water-gun" or candidate.get("decision_owner")!=interval.get("decision_owner") or candidate.get("source_branch_fingerprint")!=interval.get("source_branch_fingerprint"):return _r("rejected","mismatched_interval_candidate")
+ return guaranteed_facts_from_normal_formula_interval(candidate=candidate,interval=interval,own_current_hp=own_current_hp)
+def guaranteed_facts_from_normal_formula_interval(*,candidate:Mapping[str,Any],interval:Mapping[str,Any],own_current_hp:int)->dict[str,Any]:
+ if not isinstance(interval,Mapping) or interval.get("schema_version") not in {"deterministic-predictive-damage-interval-v1","deterministic-predictive-normal-formula-interval-v1"} or interval.get("completeness")!="exact_complete":return _r("incomplete","interval_authority_incomplete")
+ if not isinstance(candidate,Mapping) or candidate.get("candidate_id")!=f"attack:{interval.get('move_id')}" or candidate.get("decision_owner")!=interval.get("decision_owner") or candidate.get("source_branch_fingerprint")!=interval.get("source_branch_fingerprint"):return _r("rejected","mismatched_interval_candidate")
  f=interval.get("guaranteed_facts",{}); own=interval["decision_owner"]
- return _facts(candidate["candidate_id"],candidate["action_type"],own,interval["source_branch_fingerprint"],False,True if f.get("guaranteed_target_KO") else False if f.get("guaranteed_target_survival") else None,own_current_hp,"water_gun_interval",possible_ko=bool(f.get("possible_target_KO")),substitute=deepcopy(f))
+ return _facts(candidate["candidate_id"],candidate["action_type"],own,interval["source_branch_fingerprint"],False,True if f.get("guaranteed_target_KO") else False if f.get("guaranteed_target_survival") else None,own_current_hp,"normal_formula_interval",possible_ko=bool(f.get("possible_target_KO")),substitute=deepcopy(f))
 def compare_guaranteed_candidates(*,candidate_a:Mapping[str,Any],candidate_b:Mapping[str,Any])->dict[str,Any]:
  if not _valid(candidate_a) or not _valid(candidate_b):return _r("incomplete","insufficient_guaranteed_fact_authority")
  if any(candidate_a[k]!=candidate_b[k] for k in ("session_id","source_branch_fingerprint","decision_owner","horizon")):return _r("rejected","mismatched_guaranteed_fact_scope")

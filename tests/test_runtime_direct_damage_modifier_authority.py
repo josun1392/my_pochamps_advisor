@@ -9,7 +9,7 @@ from llm.advisor_lifecycle_confirmation import (
 )
 from llm.advisor_reducer_state_model import project_atomic_transition, state_fingerprint
 from llm.advisor_replay_policy import build_replay_plan
-from llm.advisor_runtime_strategy_d0 import build_runtime_d0_native_damage_context, freeze_runtime_strategy_d0
+from llm.advisor_runtime_strategy_d0 import build_runtime_d0_native_damage_context, freeze_runtime_normal_formula_predictive_input, freeze_runtime_strategy_d0
 
 
 def _base() -> dict:
@@ -120,3 +120,14 @@ def test_conflicting_format_is_rejected_and_new_session_is_unknown() -> None:
     doubles = boundary.confirm(event_kind="current_battle_format_observed", payload={"battle_format": "doubles"}, session_id=state["session_id"], source=CURRENT_BATTLE_FORMAT_SOURCE, trust=USER_TRUST, confirmed=True, turn_number=3)
     assert project_atomic_transition(state, build_replay_plan(state, [doubles["observation"]]), state["session_id"])["status"] == "blocked_by_semantic_conflict"
     assert create_unknown_bootstrap_battle_state("new-session", "attacker", "target")["state"]["field"]["battle_format"] == {"knowledge": "unknown"}
+
+
+def test_generic_runtime_input_binds_move_metadata_and_rejects_foreign_context() -> None:
+    state = _apply(_base(), _confirmations(_base(), attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"}))
+    snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    metadata = {"move_id": "surf", "category": "special", "power": 90, "type": "water"}
+    native = build_runtime_d0_native_damage_context(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=metadata)
+    generic = freeze_runtime_normal_formula_predictive_input(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=metadata, native_damage_context=native)
+    assert generic["status"] == "resolved" and generic["move_id"] == "surf"
+    assert freeze_runtime_normal_formula_predictive_input(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata={**metadata, "move_id": "tackle"}, native_damage_context=native)["reason"] == "runtime_native_damage_context_d0_mismatch"
