@@ -262,10 +262,24 @@ def freeze_runtime_normal_formula_predictive_input(
         return _result("rejected", "runtime_predictive_identity_mismatch")
     freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
     if freshness.get("status") != "current": return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    raw_attacker = _roster(state, attacker["side"]).get(attacker["slot_index"])
+    raw_target = _roster(state, target["side"]).get(target["slot_index"])
+    preview_attacker = strategy_d0["strategy_state"].get("active", {}).get(attacker["side"])
+    item_authority = _native_item_authority(raw_attacker.get("known_item"), raw_attacker.get("known_item_provenance")) if isinstance(raw_attacker, Mapping) else {"available": False}
+    attacker_ability = _runtime_known_string(raw_attacker.get("current_ability")) if isinstance(raw_attacker, Mapping) else None
+    target_ability = _runtime_known_string(raw_target.get("current_ability")) if isinstance(raw_target, Mapping) else None
+    post_hit_authority = {
+        "attacker_hp": {"current_hp": preview_attacker.get("current_hp"), "max_hp": preview_attacker.get("max_hp")} if _exact_preview_hp(preview_attacker) else None,
+        "attacker_item": item_authority.get("value"),
+        "attacker_item_known": item_authority.get("available") is True,
+        "attacker_ability": attacker_ability,
+        "target_ability": target_ability,
+    }
     context = _runtime_native_context_for_normal_formula(native_damage_context, strategy_d0=strategy_d0, attacker=attacker, target=target, move_id=eligibility["move_id"])
     base = {"schema_version": "deterministic-runtime-normal-formula-predictive-input-v1", "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move_id": eligibility["move_id"], "move_metadata": deepcopy(dict(move_metadata)), "provenance": "runtime_battle_state_v1_normal_formula_native_context_v1"}
     if context.get("status") == "resolved":
-        return {"status": "resolved", **base, "snapshot_damage_input": deepcopy(context["snapshot_damage_input"]), "stat_provenance": deepcopy(context["stat_provenance"]), "trusted_level": context["trusted_level"]}
+        return {"status": "resolved", **base, "snapshot_damage_input": deepcopy(context["snapshot_damage_input"]), "stat_provenance": deepcopy(context["stat_provenance"]), "trusted_level": context["trusted_level"], "post_hit_authority": deepcopy(post_hit_authority)}
     missing = list(context.get("missing_authority", [])) or [context.get("reason", "runtime_native_damage_context_incomplete")]
     return {"status": "incomplete", **base, "missing_authority": missing, "reason": missing[0]}
 

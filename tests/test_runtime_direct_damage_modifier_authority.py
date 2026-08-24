@@ -130,4 +130,7 @@ def test_generic_runtime_input_binds_move_metadata_and_rejects_foreign_context()
     native = build_runtime_d0_native_damage_context(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=metadata)
     generic = freeze_runtime_normal_formula_predictive_input(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=metadata, native_damage_context=native)
     assert generic["status"] == "resolved" and generic["move_id"] == "surf"
+    assert generic["post_hit_authority"]["attacker_item_known"] is True
+    assert generic["post_hit_authority"]["attacker_hp"]["current_hp"] == 100
+    assert generic["post_hit_authority"]["attacker_hp"]["max_hp"] == 120
     assert freeze_runtime_normal_formula_predictive_input(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata={**metadata, "move_id": "tackle"}, native_damage_context=native)["reason"] == "runtime_native_damage_context_d0_mismatch"

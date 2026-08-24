@@ -6,16 +6,17 @@ from llm.advisor_candidate_outcome_materialization import materialize_candidates
 from llm.advisor_predictive_fixed_damage_outcome import enrich_predictive_attack_candidate, materialize_predictive_fixed_damage_outcome
 from llm.advisor_predictive_normal_formula_interval import build_predictive_normal_formula_interval
 from llm.advisor_predictive_water_gun_interval import build_predictive_water_gun_interval
+from llm.advisor_predictive_normal_formula_post_hit import compose_predictive_normal_formula_post_hit
 from llm.advisor_guaranteed_fact_comparison import guaranteed_facts_from_exact_outcome, guaranteed_facts_from_normal_formula_interval, guaranteed_facts_from_water_gun_interval, rank_guaranteed_candidates
 
-def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decision_owner:Mapping[str,Any],selection_snapshot:Mapping[str,Any],execution_bundle:Mapping[str,Any],predictive_attacks:Mapping[str,Mapping[str,Any]]|None=None,water_gun_inputs:Mapping[str,Any]|None=None,normal_formula_inputs:Mapping[str,Mapping[str,Any]]|None=None)->dict[str,Any]:
+def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decision_owner:Mapping[str,Any],selection_snapshot:Mapping[str,Any],execution_bundle:Mapping[str,Any],predictive_attacks:Mapping[str,Mapping[str,Any]]|None=None,water_gun_inputs:Mapping[str,Any]|None=None,normal_formula_inputs:Mapping[str,Mapping[str,Any]]|None=None,post_hit_inputs:Mapping[str,Mapping[str,Any]]|None=None)->dict[str,Any]:
  """Route independently supported candidates without becoming a state owner."""
  if not _d0(decision_owner,selection_snapshot,execution_bundle):return {"status":"rejected","reason":"orchestration_d0_mismatch"}
  discovered=discover_candidates(snapshot=selection_snapshot)
  if discovered.get("status")!="resolved":return discovered
  enriched=enrich_discovered_candidates(selection_snapshot=selection_snapshot,execution_bundle=execution_bundle,candidates=discovered["candidates"])
  if enriched.get("status")!="resolved":return enriched
- evidence=[]; facts=[]; attacks=predictive_attacks or {}; normal=dict(normal_formula_inputs or {}); water=water_gun_inputs or {}; legacy_water="attack:water-gun" not in normal and isinstance(water,Mapping)
+ evidence=[]; facts=[]; attacks=predictive_attacks or {}; normal=dict(normal_formula_inputs or {}); post=dict(post_hit_inputs or {}); water=water_gun_inputs or {}; legacy_water="attack:water-gun" not in normal and isinstance(water,Mapping)
  if legacy_water: normal["attack:water-gun"]=water
  for candidate in enriched["candidates"]:
   cid=candidate["candidate_id"]
@@ -29,7 +30,12 @@ def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decisi
   if candidate["action_type"]=="attack" and isinstance(normal_input,Mapping) and all(isinstance(normal_input.get(key),Mapping) for key in ("target_owner","snapshot_damage_input","stat_provenance")):
    interval=(build_predictive_water_gun_interval if cid=="attack:water-gun" and legacy_water else build_predictive_normal_formula_interval)(branch_state=decision_state,decision_owner=decision_owner,target_owner=normal_input.get("target_owner"),snapshot_damage_input=normal_input.get("snapshot_damage_input"),stat_provenance=normal_input.get("stat_provenance"),trusted_level=normal_input.get("trusted_level"))
    if interval.get("completeness")=="exact_complete":
-    own=decision_state["active"][decision_owner["side"]]["current_hp"];fact=(guaranteed_facts_from_water_gun_interval if cid=="attack:water-gun" and legacy_water else guaranteed_facts_from_normal_formula_interval)(candidate=candidate,interval=interval,own_current_hp=own);evidence.append(_e(candidate,"guaranteed_facts",interval=interval,facts=fact));facts.append(fact);continue
+    own=decision_state["active"][decision_owner["side"]]["current_hp"];fact=(guaranteed_facts_from_water_gun_interval if cid=="attack:water-gun" and legacy_water else guaranteed_facts_from_normal_formula_interval)(candidate=candidate,interval=interval,own_current_hp=own); post_input=post.get(cid)
+    if not isinstance(post_input,Mapping) and isinstance(normal_input.get("post_hit_authority"),Mapping): post_input={"move_metadata":normal_input.get("move_metadata",{}),**normal_input["post_hit_authority"]}
+    if isinstance(post_input,Mapping):
+     composed=compose_predictive_normal_formula_post_hit(interval=interval,move_metadata=post_input.get("move_metadata",{}),attacker_hp=post_input.get("attacker_hp",{}),attacker_item=post_input.get("attacker_item"),attacker_ability=post_input.get("attacker_ability"),target_ability=post_input.get("target_ability"),attacker_item_known=post_input.get("attacker_item_known",True))
+     if composed.get("status")=="resolved": fact={**fact,"guaranteed_own_fainted":composed["guaranteed_attacker_faint"],"exact_own_hp":composed["attacker_post_hit_hp_values"][0] if len(composed["attacker_post_hit_hp_values"])==1 else None,"possible_own_faint":composed["possible_attacker_faint"],"post_hit":composed}
+    evidence.append(_e(candidate,"guaranteed_facts",interval=interval,facts=fact));facts.append(fact);continue
   if candidate["action_type"]=="manual_switch":
    outcome=materialize_candidates(decision_state=decision_state,decision_owner=decision_owner,candidates=[candidate])["outcomes"][0]
    if outcome.get("status")=="complete":
