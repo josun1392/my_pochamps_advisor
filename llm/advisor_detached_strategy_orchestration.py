@@ -11,6 +11,7 @@ from llm.advisor_predictive_deterministic_stage_effects import compose_predictiv
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
+from llm.advisor_predictive_damage_roll_uncertainty import project_predictive_damage_roll_uncertainty
 from llm.advisor_guaranteed_fact_comparison import guaranteed_facts_from_exact_outcome, guaranteed_facts_from_normal_formula_interval, guaranteed_facts_from_water_gun_interval, rank_guaranteed_candidates
 
 def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decision_owner:Mapping[str,Any],selection_snapshot:Mapping[str,Any],execution_bundle:Mapping[str,Any],predictive_attacks:Mapping[str,Mapping[str,Any]]|None=None,water_gun_inputs:Mapping[str,Any]|None=None,normal_formula_inputs:Mapping[str,Mapping[str,Any]]|None=None,post_hit_inputs:Mapping[str,Mapping[str,Any]]|None=None,hit_probability_authorities:Mapping[str,Mapping[str,Any]]|None=None,critical_hit_probability_authorities:Mapping[str,Mapping[str,Any]]|None=None)->dict[str,Any]:
@@ -37,7 +38,7 @@ def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decisi
     own=decision_state["active"][decision_owner["side"]]["current_hp"]; post_input=post.get(cid)
     if not isinstance(post_input,Mapping) and isinstance(normal_input.get("post_hit_authority"),Mapping): post_input={"move_metadata":normal_input.get("move_metadata",{}),**normal_input["post_hit_authority"]}
     fact=_normal_formula_facts(candidate,interval,own,post_input,normal_input,legacy_water=cid=="attack:water-gun" and legacy_water)
-    hit_consequences={"interval":interval,"post_hit":fact.get("post_hit"),"stage_effects":fact.get("stage_effects"),"guaranteed_facts":fact}
+    hit_consequences={"interval":interval,"post_hit":fact.get("post_hit"),"stage_effects":fact.get("stage_effects"),"damage_roll_uncertainty":fact.get("damage_roll_uncertainty"),"guaranteed_facts":fact}
     critical_probability=critical_probabilities.get(cid)
     if isinstance(critical_probability,Mapping):
      if critical_probability.get("status")!="resolved": evidence.append(_e(candidate,"incomplete",reason=critical_probability.get("reason","strict_critical_hit_probability_unavailable"),critical_hit_probability=critical_probability));continue
@@ -45,7 +46,7 @@ def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decisi
      if paired.get("status")!="resolved": evidence.append(_e(candidate,"incomplete",reason=paired.get("reason","critical_damage_context_unavailable"),critical_damage_context=paired));continue
      critical_interval=paired["critical_context"]
      critical_fact=_normal_formula_facts(candidate,critical_interval,own,post_input,normal_input)
-     critical_uncertainty=compose_predictive_critical_hit_uncertainty(candidate=candidate,strict_critical_hit_probability=critical_probability,paired_damage_contexts=paired,non_critical_consequences=hit_consequences,critical_consequences={"interval":critical_interval,"post_hit":critical_fact.get("post_hit"),"stage_effects":critical_fact.get("stage_effects"),"guaranteed_facts":critical_fact})
+     critical_uncertainty=compose_predictive_critical_hit_uncertainty(candidate=candidate,strict_critical_hit_probability=critical_probability,paired_damage_contexts=paired,non_critical_consequences=hit_consequences,critical_consequences={"interval":critical_interval,"post_hit":critical_fact.get("post_hit"),"stage_effects":critical_fact.get("stage_effects"),"damage_roll_uncertainty":critical_fact.get("damage_roll_uncertainty"),"guaranteed_facts":critical_fact})
      if critical_uncertainty.get("status")!="resolved": evidence.append(_e(candidate,"incomplete",reason=critical_uncertainty.get("reason","strict_critical_hit_probability_unavailable"),critical_hit_probability=critical_uncertainty));continue
      fact=critical_uncertainty["guaranteed_facts"]
      hit_consequences={"critical_hit_uncertainty":critical_uncertainty,"guaranteed_facts":fact}
@@ -70,4 +71,6 @@ def _normal_formula_facts(candidate,interval,own,post_input,normal_input,legacy_
   composed=compose_predictive_normal_formula_post_hit(interval=interval,move_metadata=post_input.get("move_metadata",{}),attacker_hp=post_input.get("attacker_hp",{}),attacker_item=post_input.get("attacker_item"),attacker_ability=post_input.get("attacker_ability"),target_ability=post_input.get("target_ability"),attacker_item_known=post_input.get("attacker_item_known",True))
   if composed.get("status")=="resolved": fact={**fact,"guaranteed_own_fainted":composed["guaranteed_attacker_faint"],"exact_own_hp":composed["attacker_post_hit_hp_values"][0] if len(composed["attacker_post_hit_hp_values"])==1 else None,"possible_own_faint":composed["possible_attacker_faint"],"post_hit":composed}
  stage=compose_predictive_deterministic_stage_effects(interval=interval,stage_effect_authority=normal_input.get("stage_effect_authority",{}),stat_provenance=normal_input.get("stat_provenance",{}))
- return {**fact,"stage_effects":stage} if stage.get("status")=="resolved" else fact
+ result={**fact,"stage_effects":stage} if stage.get("status")=="resolved" else fact
+ rolls=project_predictive_damage_roll_uncertainty(interval=interval,post_hit=result.get("post_hit"),stage_effects=result.get("stage_effects"))
+ return {**result,"damage_roll_uncertainty":rolls} if rolls.get("status")=="resolved" else result
