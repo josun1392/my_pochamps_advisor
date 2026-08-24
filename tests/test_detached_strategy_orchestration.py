@@ -97,3 +97,38 @@ def test_metal_claw_missing_probabilistic_authority_fails_closed(monkeypatch):
  result=subject.run_detached_strategy_orchestration(decision_state=root,decision_owner=O,selection_snapshot=S,execution_bundle=E,normal_formula_inputs={"attack:metal-claw":{"target_owner":{},"snapshot_damage_input":{},"stat_provenance":{},"trusted_level":50}})
  assert result["candidates"][0]["evidence_class"]=="incomplete"
  assert result["candidates"][0]["reason"]=="probabilistic_self_stage_effect_authority_missing"
+
+
+def test_resolved_probabilistic_target_stage_authority_stays_inside_hit_consequences(monkeypatch):
+ candidate=_c("attack:shadow-ball")
+ monkeypatch.setattr(subject,"discover_candidates",lambda **_: {"status":"resolved","candidates":[deepcopy(candidate)],"candidate_set_completeness":"complete"})
+ monkeypatch.setattr(subject,"enrich_discovered_candidates",lambda **_: {"status":"resolved","candidates":[deepcopy(candidate)]})
+ interval={"completeness":"exact_complete","scope":{"critical":"non_critical_assumed"}}
+ monkeypatch.setattr(subject,"build_predictive_normal_formula_interval",lambda **_: deepcopy(interval))
+ fact={"status":"resolved","candidate_id":"attack:shadow-ball"}
+ monkeypatch.setattr(subject,"guaranteed_facts_from_normal_formula_interval",lambda **_: deepcopy(fact))
+ secondary={"status":"resolved","schema_version":"deterministic-predictive-probabilistic-target-stage-effect-uncertainty-v1","damage_roll_leaves":({"secondary_branches":({"branch":"no_effect"},{"branch":"effect"})},),"effect_probability":{"numerator":20,"denominator":100}}
+ def compose_secondary(**kwargs):
+  assert kwargs["candidate"]["candidate_id"]=="attack:shadow-ball"
+  assert kwargs["interval"]==interval and kwargs["runtime_authority"]=={"status":"resolved","marker":"shadow_ball"}
+  return deepcopy(secondary)
+ monkeypatch.setattr(subject,"compose_predictive_probabilistic_target_stage_effect_uncertainty",compose_secondary)
+ def compose_hit(**kwargs):
+  assert kwargs["hit_consequences"]["probabilistic_target_stage_effect_uncertainty"]==secondary
+  return {"status":"resolved","branches":(),"guaranteed_facts":{**fact,"marker":"hit_intersection"}}
+ monkeypatch.setattr(subject,"compose_predictive_hit_miss_uncertainty",compose_hit)
+ root={"active":{"self":{"current_hp":90},"opponent":{"current_hp":100}}}
+ result=subject.run_detached_strategy_orchestration(decision_state=root,decision_owner=O,selection_snapshot=S,execution_bundle=E,normal_formula_inputs={"attack:shadow-ball":{"target_owner":{},"snapshot_damage_input":{},"stat_provenance":{},"trusted_level":50}},hit_probability_authorities={"attack:shadow-ball":{"status":"resolved"}},probabilistic_target_stage_effect_authorities={"attack:shadow-ball":{"status":"resolved","marker":"shadow_ball"}})
+ assert result["candidates"][0]["facts"]["marker"]=="hit_intersection"
+
+
+def test_shadow_ball_missing_probabilistic_target_authority_fails_closed(monkeypatch):
+ candidate=_c("attack:shadow-ball")
+ monkeypatch.setattr(subject,"discover_candidates",lambda **_: {"status":"resolved","candidates":[deepcopy(candidate)],"candidate_set_completeness":"complete"})
+ monkeypatch.setattr(subject,"enrich_discovered_candidates",lambda **_: {"status":"resolved","candidates":[deepcopy(candidate)]})
+ monkeypatch.setattr(subject,"build_predictive_normal_formula_interval",lambda **_: {"completeness":"exact_complete"})
+ monkeypatch.setattr(subject,"rank_guaranteed_candidates",lambda **k: {"status":"resolved","preferred_frontier":(),"pairwise_matrix":()})
+ root={"active":{"self":{"current_hp":90},"opponent":{"current_hp":100}}}
+ result=subject.run_detached_strategy_orchestration(decision_state=root,decision_owner=O,selection_snapshot=S,execution_bundle=E,normal_formula_inputs={"attack:shadow-ball":{"target_owner":{},"snapshot_damage_input":{},"stat_provenance":{},"trusted_level":50}})
+ assert result["candidates"][0]["evidence_class"]=="incomplete"
+ assert result["candidates"][0]["reason"]=="probabilistic_target_stage_effect_authority_missing"

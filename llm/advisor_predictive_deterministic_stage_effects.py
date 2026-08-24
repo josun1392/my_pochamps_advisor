@@ -30,6 +30,37 @@ def compose_predictive_self_stage_effect(*, interval: Mapping[str, Any], effect:
         "provenance": "canonical_predictive_stage_composition_v1",
     }
 
+
+def compose_predictive_target_stage_effect(*, interval: Mapping[str, Any], effect: Mapping[str, Any], current_stage: Mapping[str, Any], roll_damage: int) -> dict[str, Any]:
+    """Materialize one surviving direct-hit target-stage overlay.
+
+    Target-owned secondaries must be evaluated per exact damage roll: a KO
+    roll has no target-stage effect.  This helper owns only the forward stage
+    cap arithmetic, not probability, Substitute, or suppression semantics.
+    """
+    if not isinstance(interval, Mapping) or interval.get("completeness") != "exact_complete":
+        return _r("incomplete", "normal_formula_interval_incomplete")
+    if interval.get("target_routing") != "target":
+        return _r("incomplete", "target_stage_direct_hit_unavailable")
+    target_hp = interval.get("target_hp_before")
+    if not isinstance(target_hp, int) or isinstance(target_hp, bool) or target_hp < 1:
+        return _r("incomplete", "target_hp_unknown")
+    if not isinstance(roll_damage, int) or isinstance(roll_damage, bool) or roll_damage < 1:
+        return _r("incomplete", "successful_damaging_hit_unavailable")
+    if roll_damage >= target_hp:
+        return _r("incomplete", "target_did_not_survive_damage_roll")
+    stat, delta = effect.get("stat") if isinstance(effect, Mapping) else None, effect.get("delta") if isinstance(effect, Mapping) else None
+    before = current_stage.get("value") if isinstance(current_stage, Mapping) and current_stage.get("status") == "known" else None
+    if effect.get("owner") != "target" or not isinstance(stat, str) or not isinstance(delta, int) or isinstance(delta, bool) or not -6 <= delta <= -1:
+        return _r("rejected", "invalid_probabilistic_target_stage_effect")
+    if not isinstance(before, int) or isinstance(before, bool) or not -6 <= before <= 6:
+        return _r("incomplete", "target_stage_unknown")
+    return {
+        "status": "resolved", "schema_version": "predictive-target-stage-effect-composition-v1",
+        "effect": {"owner": "target", "stat": stat, "previous_stage": before, "delta": delta, "resulting_stage": apply_canonical_stage_delta(before, delta)},
+        "provenance": "canonical_predictive_stage_composition_v1",
+    }
+
 def compose_predictive_deterministic_stage_effects(*, interval: Mapping[str, Any], stage_effect_authority: Mapping[str, Any], stat_provenance: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(interval, Mapping) or interval.get("completeness") != "exact_complete": return _r("incomplete", "normal_formula_interval_incomplete")
     if not isinstance(stage_effect_authority, Mapping) or stage_effect_authority.get("move_id") != interval.get("move_id"): return _r("rejected", "stage_effect_move_binding_mismatch")
