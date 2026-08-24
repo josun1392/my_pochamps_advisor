@@ -107,6 +107,9 @@ def _candidate(candidate: Any, frontier: list[str]) -> dict[str, Any] | None:
     critical = candidate.get("critical_hit_uncertainty")
     if critical is not None and not _critical_hit_uncertainty(critical, candidate_id):
         return None
+    secondaries = candidate.get("probabilistic_self_stage_effect_summaries")
+    if secondaries is not None and not _probabilistic_self_stage_effect_summaries(secondaries, candidate_id):
+        return None
     return {
         "candidate_id": candidate_id,
         "label": _label(candidate_id, action_type),
@@ -120,10 +123,11 @@ def _candidate(candidate: Any, frontier: list[str]) -> dict[str, Any] | None:
         "hit_miss_uncertainty": deepcopy(dict(uncertainty)) if isinstance(uncertainty, Mapping) else None,
         "critical_hit_uncertainty": deepcopy(dict(critical)) if isinstance(critical, Mapping) else None,
         "damage_roll_summaries": deepcopy(candidate.get("damage_roll_summaries", ())),
+        "probabilistic_self_stage_effect_summaries": deepcopy(secondaries) if isinstance(secondaries, (tuple, list)) else (),
         "incomplete_reason": candidate.get("incomplete_reason"),
         "provenance": candidate.get("provenance"),
         "fact_labels": _fact_labels(facts),
-        "uncertainty_labels": [*_uncertainty_labels(uncertainty), *_critical_uncertainty_labels(critical), *_roll_uncertainty_labels(candidate.get("damage_roll_summaries"))],
+        "uncertainty_labels": [*_uncertainty_labels(uncertainty), *_critical_uncertainty_labels(critical), *_roll_uncertainty_labels(candidate.get("damage_roll_summaries")), *_probabilistic_self_stage_effect_labels(secondaries)],
         "reason_labels": [_reason_label(reason) for reason in reasons or []],
     }
 
@@ -193,6 +197,23 @@ def _critical_hit_uncertainty(value: Mapping[str, Any], candidate_id: str) -> bo
     )
 
 
+def _probabilistic_self_stage_effect_summaries(value: Any, candidate_id: str) -> bool:
+    if not isinstance(value, (tuple, list)):
+        return False
+    for row in value:
+        if not isinstance(row, Mapping) or not isinstance(row.get("branch_path"), str) or row.get("conditional_on") != "successful_damaging_hit":
+            return False
+        uncertainty = row.get("uncertainty")
+        probability = uncertainty.get("effect_probability") if isinstance(uncertainty, Mapping) else None
+        branches = uncertainty.get("branches") if isinstance(uncertainty, Mapping) else None
+        if not isinstance(uncertainty, Mapping) or uncertainty.get("status") != "resolved" or uncertainty.get("schema_version") != "deterministic-predictive-probabilistic-self-stage-effect-uncertainty-v1" or uncertainty.get("move_id") != candidate_id.removeprefix("attack:") or not isinstance(probability, Mapping) or not isinstance(branches, (tuple, list)):
+            return False
+        numerator, denominator = probability.get("numerator"), probability.get("denominator")
+        if not isinstance(numerator, int) or isinstance(numerator, bool) or not isinstance(denominator, int) or isinstance(denominator, bool) or denominator <= 0 or not 0 <= numerator <= denominator:
+            return False
+    return True
+
+
 def _uncertainty_labels(value: Any) -> list[str]:
     if not isinstance(value, Mapping):
         return []
@@ -217,6 +238,27 @@ def _critical_uncertainty_labels(value: Any) -> list[str]:
     names = [branch.get("branch") for branch in branches if isinstance(branch, Mapping)]
     state = "비급소 전용" if names == ["non_critical"] else "급소 전용" if names == ["critical"] else "비급소/급소 분기" if names == ["non_critical", "critical"] else None
     return [f"명중 시 급소 판정: {numerator}/{denominator} ({state})"] if state else []
+def _probabilistic_self_stage_effect_labels(values: Any) -> list[str]:
+    if not isinstance(values, (tuple, list)):
+        return []
+    labels = []
+    for row in values:
+        uncertainty = row.get("uncertainty") if isinstance(row, Mapping) else None
+        probability = uncertainty.get("effect_probability") if isinstance(uncertainty, Mapping) else None
+        branches = uncertainty.get("branches") if isinstance(uncertainty, Mapping) else None
+        if not isinstance(probability, Mapping) or not isinstance(branches, (tuple, list)):
+            continue
+        numerator, denominator = probability.get("numerator"), probability.get("denominator")
+        path = row.get("branch_path") if isinstance(row, Mapping) else None
+        if not isinstance(numerator, int) or not isinstance(denominator, int) or denominator <= 0 or not isinstance(path, str):
+            continue
+        if numerator == 0:
+            labels.append(f"{path} 성공 명중 후 Attack +1: 억제됨 (0/{denominator})")
+        elif numerator == denominator:
+            labels.append(f"{path} 성공 명중 후 Attack +1: 발생 보장 ({numerator}/{denominator})")
+        else:
+            labels.append(f"{path} 성공 명중 후 Attack +1 가능: {numerator}/{denominator} (미발동 {denominator - numerator}/{denominator})")
+    return labels
 def _roll_uncertainty_labels(values:Any)->list[str]:
  if not isinstance(values,(tuple,list)):return []
  labels=[]

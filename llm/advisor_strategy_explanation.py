@@ -17,7 +17,9 @@ def explain_detached_strategy(*,orchestration:Mapping[str,Any])->dict[str,Any]:
   if row.get("evidence_class")=="hit_miss_uncertainty" and uncertainty is None:return _r("rejected","invalid_hit_miss_uncertainty_evidence")
   if critical is _INVALID:return _r("rejected","invalid_critical_hit_uncertainty_evidence")
   rolls=_roll_summaries(uncertainty)
-  rows.append({"candidate_id":row["candidate_id"],"action_type":row.get("action_type"),"evidence_class":row.get("evidence_class"),"execution_readiness":row.get("execution_readiness"),"preferred_frontier_member":row["candidate_id"] in frontier,"comparison_reasons":reasons.get(row["candidate_id"],[]),"guaranteed_facts":deepcopy(dict(facts)) if facts else None,"interval":deepcopy(row.get("interval")) if isinstance(row.get("interval"),Mapping) else None,"hit_miss_uncertainty":uncertainty,"critical_hit_uncertainty":critical,"damage_roll_summaries":rolls,"incomplete_reason":row.get("reason") if row.get("evidence_class")=="incomplete" else None,"provenance":row.get("provenance")})
+  secondary=_probabilistic_self_stage_effect_summaries(uncertainty,row.get("candidate_id"))
+  if secondary is _INVALID:return _r("rejected","invalid_probabilistic_self_stage_effect_uncertainty_evidence")
+  rows.append({"candidate_id":row["candidate_id"],"action_type":row.get("action_type"),"evidence_class":row.get("evidence_class"),"execution_readiness":row.get("execution_readiness"),"preferred_frontier_member":row["candidate_id"] in frontier,"comparison_reasons":reasons.get(row["candidate_id"],[]),"guaranteed_facts":deepcopy(dict(facts)) if facts else None,"interval":deepcopy(row.get("interval")) if isinstance(row.get("interval"),Mapping) else None,"hit_miss_uncertainty":uncertainty,"critical_hit_uncertainty":critical,"damage_roll_summaries":rolls,"probabilistic_self_stage_effect_summaries":secondary,"incomplete_reason":row.get("reason") if row.get("evidence_class")=="incomplete" else None,"provenance":row.get("provenance")})
  status="selection_incomplete" if orchestration.get("selection_completeness")!="complete" else ranking.get("status")
  return {"status":"resolved","schema_version":SCHEMA,"session_id":orchestration["session_id"],"decision_branch_fingerprint":orchestration["decision_branch_fingerprint"],"decision_owner":deepcopy(dict(owner)),"horizon":"immediate_action_consequence","overall_status":status,"preferred_frontier":sorted(frontier),"candidates":sorted(rows,key=lambda x:x["candidate_id"]),"comparison_matrix":deepcopy(ranking.get("pairwise_matrix",[])),"provenance":"detached_strategy_explanation_v1"}
 def _reasons(r):
@@ -59,4 +61,34 @@ def _roll_summaries(hit_miss):
   ko=sum(value>=hp for value in damage)
   result.append({"branch_path":path,"critical_scope":ledger.get("critical_scope"),"exact_roll_count":16,"min_damage":min(damage),"max_damage":max(damage),"ko_roll_count":ko,"conditional_ko_probability":{"numerator":ko,"denominator":16},"damage_value_multiplicity":deepcopy(ledger.get("damage_value_multiplicity",()))})
  return tuple(result)
+def _probabilistic_self_stage_effect_summaries(hit_miss,candidate_id):
+ if not isinstance(hit_miss,Mapping):return ()
+ branches=hit_miss.get("branches");hit=next((x for x in branches if isinstance(x,Mapping) and x.get("branch")=="hit"),None) if isinstance(branches,(tuple,list)) else None
+ if not isinstance(hit,Mapping):return ()
+ consequences=hit.get("consequences") if isinstance(hit.get("consequences"),Mapping) else {}
+ critical=consequences.get("critical_hit_uncertainty") if isinstance(consequences,Mapping) else None
+ leaves=[("hit",consequences)] if not isinstance(critical,Mapping) else [(f"hit/{x.get('branch')}",x.get("consequences")) for x in critical.get("branches",()) if isinstance(x,Mapping)]
+ result=[]
+ for path,leaf in leaves:
+  value=leaf.get("probabilistic_self_stage_effect_uncertainty") if isinstance(leaf,Mapping) else None
+  if value is None:continue
+  if not _probabilistic_self_stage_effect_uncertainty(value,candidate_id):return _INVALID
+  result.append({"branch_path":path,"conditional_on":"successful_damaging_hit","uncertainty":deepcopy(dict(value))})
+ return tuple(result)
+def _probabilistic_self_stage_effect_uncertainty(value,candidate_id):
+ if not isinstance(value,Mapping):return False
+ probability=value.get("effect_probability");branches=value.get("branches")
+ if value.get("status")!="resolved" or value.get("schema_version")!="deterministic-predictive-probabilistic-self-stage-effect-uncertainty-v1" or value.get("move_id")!=candidate_id.removeprefix("attack:") or value.get("shared_successful_hit_consequence")!="inherited_from_enclosing_hit_leaf" or not isinstance(probability,Mapping) or not isinstance(branches,(tuple,list)):return False
+ numerator,denominator=probability.get("numerator"),probability.get("denominator")
+ if not isinstance(numerator,int) or isinstance(numerator,bool) or not isinstance(denominator,int) or isinstance(denominator,bool) or denominator<=0 or not 0<=numerator<=denominator:return False
+ expected=["no_effect"] if numerator==0 else ["effect"] if numerator==denominator else ["no_effect","effect"]
+ if [branch.get("branch") for branch in branches if isinstance(branch,Mapping)]!=expected or len(branches)!=len(expected):return False
+ for branch in branches:
+  probability_row=branch.get("conditional_secondary_probability") if isinstance(branch,Mapping) else None
+  if not isinstance(probability_row,Mapping) or probability_row.get("denominator")!=denominator:return False
+  if branch.get("branch")=="no_effect" and probability_row.get("numerator")!=denominator-numerator:return False
+  if branch.get("branch")=="effect":
+   effect=branch.get("hypothetical_stage_effect")
+   if probability_row.get("numerator")!=numerator or not isinstance(effect,Mapping) or effect.get("owner")!="self" or effect.get("stat")!="attack" or effect.get("delta")!=1 or not all(isinstance(effect.get(key),int) and not isinstance(effect.get(key),bool) and -6<=effect[key]<=6 for key in ("previous_stage","resulting_stage")):return False
+ return True
 def _r(s,r):return {"status":s,"reason":r}
