@@ -37,3 +37,28 @@ def test_explicit_strict_hit_authority_routes_normal_hit_consequence_through_unc
  result=subject.run_detached_strategy_orchestration(decision_state=root,decision_owner=O,selection_snapshot=S,execution_bundle=E,water_gun_inputs={"target_owner":{},"snapshot_damage_input":{},"stat_provenance":{},"trusted_level":50},hit_probability_authorities={"attack:water-gun":{"status":"resolved","marker":"strict"}})
  assert result["candidates"][0]["evidence_class"]=="hit_miss_uncertainty"
  assert result["candidates"][0]["facts"]["marker"]=="intersection"
+
+
+def test_critical_authority_nests_critical_leaves_inside_existing_hit_branch(monkeypatch):
+ candidate=_c("attack:tackle")
+ monkeypatch.setattr(subject,"discover_candidates",lambda **_: {"status":"resolved","candidates":[deepcopy(candidate)],"candidate_set_completeness":"complete"})
+ monkeypatch.setattr(subject,"enrich_discovered_candidates",lambda **_: {"status":"resolved","candidates":[deepcopy(candidate)]})
+ normal={"completeness":"exact_complete","scope":{"critical":"non_critical_assumed"}}
+ critical={"completeness":"exact_complete","scope":{"critical":"critical_assumed"}}
+ monkeypatch.setattr(subject,"build_predictive_normal_formula_interval",lambda **_: deepcopy(normal))
+ monkeypatch.setattr(subject,"materialize_predictive_critical_damage_contexts",lambda **_: {"status":"resolved","critical_context":deepcopy(critical)})
+ fact={"status":"resolved","candidate_id":"attack:tackle"}
+ monkeypatch.setattr(subject,"guaranteed_facts_from_normal_formula_interval",lambda **_: deepcopy(fact))
+ def compose_crit(**kwargs):
+  assert kwargs["non_critical_consequences"]["interval"]==normal
+  assert kwargs["critical_consequences"]["interval"]==critical
+  return {"status":"resolved","guaranteed_facts":{**fact,"marker":"critical_intersection"},"branches":("non_critical","critical")}
+ monkeypatch.setattr(subject,"compose_predictive_critical_hit_uncertainty",compose_crit)
+ def compose_hit(**kwargs):
+  assert kwargs["hit_consequences"]["critical_hit_uncertainty"]["branches"]==("non_critical","critical")
+  return {"status":"resolved","branches":(),"guaranteed_facts":{**fact,"marker":"hit_miss_intersection"}}
+ monkeypatch.setattr(subject,"compose_predictive_hit_miss_uncertainty",compose_hit)
+ root={"active":{"self":{"current_hp":90},"opponent":{"current_hp":100}}}
+ result=subject.run_detached_strategy_orchestration(decision_state=root,decision_owner=O,selection_snapshot=S,execution_bundle=E,normal_formula_inputs={"attack:tackle":{"target_owner":{},"snapshot_damage_input":{},"stat_provenance":{},"trusted_level":50}},hit_probability_authorities={"attack:tackle":{"status":"resolved"}},critical_hit_probability_authorities={"attack:tackle":{"status":"resolved"}})
+ assert result["candidates"][0]["evidence_class"]=="hit_miss_uncertainty"
+ assert result["candidates"][0]["facts"]["marker"]=="hit_miss_intersection"
