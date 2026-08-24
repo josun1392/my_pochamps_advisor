@@ -24,6 +24,7 @@ from llm.advisor_battle_state_context import build_deterministic_hit_chance_asse
 from llm.advisor_ability_interaction_authority import normalize_ability_applicability_context
 from advisor.hit_modifier_capabilities import resolve_hit_modifier_capabilities
 from advisor.critical_hit_capabilities import resolve_critical_hit_capabilities
+from advisor.strict_critical_hit_probability import assess_strict_critical_hit_probability
 from advisor.strict_hit_probability import assess_strict_deterministic_hit_probability
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 from llm.advisor_predictive_normal_formula_interval import normal_formula_eligibility
@@ -200,6 +201,20 @@ def freeze_runtime_d0_critical_hit_authority(
         "provenance": "runtime_battle_state_v1_to_detached_critical_hit_authority_v1",
         **({"reason": capability["reason"]} if capability.get("status") != "resolved" and isinstance(capability.get("reason"), str) else {}),
     }
+
+
+def build_runtime_d0_strict_critical_hit_probability_assessment(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return strict crit probability from the existing D0 authority boundary."""
+    authority = freeze_runtime_d0_critical_hit_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        attacker=attacker, target=target, move_metadata=move_metadata,
+    )
+    if authority.get("status") == "rejected":
+        return {"status": "rejected", "schema_version": "strict-critical-hit-probability-v1", "reason": authority.get("reason", "runtime_critical_hit_authority_rejected")}
+    return assess_strict_critical_hit_probability(critical_hit_authority=authority)
 
 
 def build_runtime_d0_strict_hit_chance_assessment(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], selected_move: Mapping[str, Any]) -> dict[str, Any]:
