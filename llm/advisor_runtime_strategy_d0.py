@@ -23,6 +23,9 @@ from llm.advisor_current_critical_state_authority import (
 from llm.advisor_battle_state_context import build_deterministic_hit_chance_assessment
 from llm.advisor_ability_interaction_authority import normalize_ability_applicability_context
 from advisor.hit_modifier_capabilities import resolve_hit_modifier_capabilities
+from advisor.probabilistic_self_stage_effect_capabilities import (
+    resolve_probabilistic_self_stage_effect_capability,
+)
 from advisor.critical_hit_capabilities import resolve_critical_hit_capabilities
 from advisor.strict_critical_hit_probability import assess_strict_critical_hit_probability
 from advisor.strict_hit_probability import assess_strict_deterministic_hit_probability
@@ -268,6 +271,72 @@ def freeze_runtime_d0_hit_modifier_authority(
         "capability_resolution": deepcopy(capability), "strict_stage_authority": deepcopy(stage_authority),
         "provenance": "runtime_battle_state_v1_hit_modifier_authority_v1",
     }
+
+
+def freeze_runtime_d0_probabilistic_self_stage_effect_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Freeze exact D0 facts for catalogued self-owned stage secondaries.
+
+    This adapter does not predict a successful hit or apply a stage delta.  It
+    only joins the current runtime ability/applicability and Attack-stage
+    authorities to the pure capability resolver for a later hit-leaf consumer.
+    """
+    move_id = move_metadata.get("move_id") if isinstance(move_metadata, Mapping) else None
+    active = strategy_d0.get("active_owners") if isinstance(strategy_d0, Mapping) else None
+    if (
+        not _valid_d0(strategy_d0) or not isinstance(move_id, str) or not move_id
+        or not _owner(attacker) or not _owner(target) or attacker != strategy_d0["decision_owner"]
+        or not isinstance(active, Mapping) or active.get(attacker["side"]) != dict(attacker)
+        or active.get(target["side"]) != dict(target) or attacker["side"] == target["side"]
+    ):
+        return _result("rejected", "runtime_probabilistic_self_stage_identity_or_move_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    raw_attacker = _roster(state, attacker["side"]).get(attacker["slot_index"])
+    raw_target = _roster(state, target["side"]).get(target["slot_index"])
+    if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_attacker, attacker) or not _same_runtime_owner(raw_target, target):
+        return _result("rejected", "runtime_probabilistic_self_stage_identity_mismatch")
+    ability_authority = _runtime_probabilistic_self_stage_ability_authority(
+        state=state, raw_attacker=raw_attacker, attacker=attacker,
+    )
+    capability = resolve_probabilistic_self_stage_effect_capability(
+        move=move_metadata, source_authority={"attacker_ability": ability_authority},
+    )
+    stage_authority = freeze_runtime_current_stage_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=attacker,
+    )
+    status, reason = capability.get("status", "rejected"), capability.get("reason")
+    attack_stage = None
+    if stage_authority.get("status") == "rejected":
+        status, reason = "rejected", stage_authority.get("reason", "runtime_current_stage_authority_unavailable")
+    elif not _known_current_stage(stage_authority, "attack"):
+        if status == "resolved":
+            status, reason = "incomplete", "attacker_attack_stage_unknown"
+    else:
+        attack_stage = deepcopy(stage_authority["stages"]["attack"])
+    result = {
+        "status": status,
+        "schema_version": "runtime-d0-probabilistic-self-stage-effect-authority-v1",
+        "session_id": strategy_d0["session_id"],
+        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "attacker": deepcopy(dict(attacker)),
+        "target": deepcopy(dict(target)),
+        "move": deepcopy(dict(move_metadata)),
+        "source_authority": {"attacker_ability": deepcopy(ability_authority)},
+        "capability_resolution": deepcopy(capability),
+        "current_stage_authority": deepcopy(stage_authority),
+        "current_attack_stage": attack_stage,
+        "provenance": "runtime_battle_state_v1_to_detached_probabilistic_self_stage_effect_authority_v1",
+    }
+    if status != "resolved" and isinstance(reason, str):
+        result["reason"] = reason
+    return result
 
 
 def build_runtime_d0_strict_hit_probability_assessment(
@@ -671,6 +740,27 @@ def _runtime_hustle_ability_authority(*, state: Mapping[str, Any], raw_attacker:
         )
         result["applicability"] = {"status": normalized["status"]}
     return result
+
+
+def _runtime_probabilistic_self_stage_ability_authority(*, state: Mapping[str, Any], raw_attacker: Mapping[str, Any], attacker: Mapping[str, Any]) -> dict[str, Any]:
+    """Project exact attacker ability and Sheer Force applicability only."""
+    ability = _runtime_known_string(raw_attacker.get("current_ability"))
+    if ability is None:
+        return {"status": "unknown"}
+    result: dict[str, Any] = {"status": "known", "value": ability}
+    if ability == "sheer-force":
+        applicability = normalize_ability_applicability_context(
+            state.get("ability_applicability_context"), session_id=attacker["session_id"],
+            source=attacker, ability_id="sheer-force",
+        )
+        result["applicability"] = {"status": applicability["status"]}
+    return result
+
+
+def _known_current_stage(authority: Mapping[str, Any], stat: str) -> bool:
+    stages = authority.get("stages") if isinstance(authority, Mapping) else None
+    value = stages.get(stat) if isinstance(stages, Mapping) else None
+    return isinstance(value, Mapping) and value.get("status") == "known" and isinstance(value.get("value"), int) and not isinstance(value.get("value"), bool) and -6 <= value["value"] <= 6
 
 
 def _runtime_critical_hit_sources(*, raw_attacker: Mapping[str, Any], raw_target: Mapping[str, Any]) -> dict[str, Any]:
