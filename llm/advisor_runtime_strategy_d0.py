@@ -1081,7 +1081,7 @@ def _runtime_side_conditions_exact(raw: Any) -> list[str] | None:
 def _native_item_authority(value: Any, provenance: Any = None) -> dict[str, Any]:
     if isinstance(value, str) and value and not is_unknown_battle_fact(value):
         return {"available": True, "status": "known", "value": value, "source": "runtime_current_item", "trust": "runtime_current", "reason": None, "profile_source": "runtime_battle_state_v1"}
-    if value is None and isinstance(provenance, Mapping) and provenance.get("event_kind") in {"current_item_observed", "item_consumption_observed", "item_removed_observed"}:
+    if value is None and isinstance(provenance, Mapping) and provenance.get("event_kind") in {"current_item_observed", "current_opponent_switch_target_combat_observed", "item_consumption_observed", "item_removed_observed"}:
         return {"available": True, "status": "known_absent", "value": None, "source": "runtime_current_item", "trust": "runtime_current", "reason": None, "profile_source": "runtime_battle_state_v1"}
     return {"available": False, "status": "unknown", "value": None, "source": "unknown", "trust": "unknown", "reason": "item_unknown", "profile_source": "runtime_battle_state_v1"}
 

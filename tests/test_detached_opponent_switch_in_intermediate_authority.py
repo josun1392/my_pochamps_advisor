@@ -14,7 +14,10 @@ def _manager(*, known_hp=True):
     state = create_unknown_bootstrap_battle_state("s", "self", "opponent")["state"]
     bench = deepcopy(state["opponent_side"]["pokemon"][0]); bench["pokemon_id"] = "bench"
     if known_hp:
-        bench.update({"current_hp": 80, "max_hp": 100, "fainted": False})
+        bench.update({"current_hp": 80, "max_hp": 100, "fainted": False, "current_type": ["normal"], "condition": "none", "known_item": None, "current_ability": "pressure", "stat_stages": {key: 0 for key in ("attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion")}, "current_final_stats": {key: {"value": 100, "provenance": {"event_kind": "current_opponent_switch_target_combat_observed", "trust": "user_confirmed_observation", "turn_number": 1}} for key in ("attack", "defense", "special-attack", "special-defense", "speed")}})
+        for field in ("current_hp", "max_hp", "fainted", "current_type", "condition", "known_item", "current_ability", "stat_stages"):
+            bench[f"{field}_provenance"] = {"event_kind": "current_opponent_switch_target_combat_observed", "trust": "user_confirmed_observation", "turn_number": 1}
+        bench["condition_provenance"]["condition"] = "none"
     state["opponent_side"]["pokemon"][1] = bench
     state["switch_hazard_context"] = build_switch_hazard_context(session_id="s", affected_side="opponent", stealth_rock="absent", spikes_layers=0, toxic_spikes_layers=0, sticky_web="absent")
     return BattleObservationRuntimeSessionManager.create("s", state)["manager"]
@@ -40,8 +43,8 @@ def test_selectable_opponent_target_materializes_detached_switch_in_with_exact_k
     assert hypothetical["active_owner"]["pokemon_id"] == "bench"
     assert hypothetical["replaced_active_owner"]["pokemon_id"] == "opponent"
     assert hypothetical["hp_authority"]["current_hp"] == 80
-    assert hypothetical["condition_authority"] == {"status": "unknown"}
-    assert hypothetical["stage_authority"] == {"status": "unknown"}
+    assert hypothetical["condition_authority"]["status"] == "known"
+    assert hypothetical["stage_authority"]["status"] == "known"
     assert hypothetical["entry_consequence"] == {"status": "resolved", "damage": 0, "post_hp": 80, "hazard_ko": False, "effect": "known_absent_entry_hazards"}
     assert manager.read_state()["state"] == before
 

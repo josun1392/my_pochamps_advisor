@@ -17,7 +17,7 @@ from llm.advisor_substitute import update_substitute_state_context
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
 _TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_current_type": "pokemon.current_type", "set_current_condition": "pokemon.condition", "set_current_ability": "pokemon.current_ability", "set_current_item": "pokemon.known_item", "set_current_level": "pokemon.current_level", "set_current_final_combat_stat": "pokemon.current_final_stats", "set_current_move_usability": "pokemon.current_move_usability", "set_current_substitute": "state.substitute_state_context", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "set_current_crit_volatiles": "pokemon.current_crit_volatiles", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "set_current_weather": "field.weather", "start_weather": "field.weather", "end_weather": "field.weather", "set_current_terrain": "field.terrain", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "set_current_battle_format": "field.battle_format", "set_current_side_conditions": "side.side_conditions", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "set_observed_tailwind": "side.tailwind_status", "set_observed_trick_room": "field.trick_room_status", "set_same_turn_event": "state.same_turn_event_context", "mark_first_end_of_turn_reached": "state.first_end_of_turn_context", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
-_TARGETS = {**_TARGETS, "set_current_opponent_response_set": "pokemon.current_opponent_response_set", "set_current_opponent_switch_response_set": "side.current_opponent_switch_response_set"}
+_TARGETS = {**_TARGETS, "set_current_opponent_response_set": "pokemon.current_opponent_response_set", "set_current_opponent_switch_response_set": "side.current_opponent_switch_response_set", "set_current_opponent_switch_target_combat": "pokemon.current_combat"}
 
 
 def make_unknown_battle_fact():
@@ -118,7 +118,7 @@ def _valid_current_type_state(value, provenance):
         })
     except ValueError:
         return False
-    return isinstance(provenance, dict) and provenance.get("event_kind") == "current_type_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0
+    return isinstance(provenance, dict) and provenance.get("event_kind") in {"current_type_observed", "current_opponent_switch_target_combat_observed"} and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0
 
 
 def _valid_known_move_observation(value):
@@ -218,7 +218,7 @@ def _valid_current_final_stats(value):
         if set(entry) != {"value", "provenance"} or not isinstance(entry["value"], int) or isinstance(entry["value"], bool) or not 1 <= entry["value"] <= 9999:
             return False
         provenance = entry["provenance"]
-        if not isinstance(provenance, dict) or provenance.get("event_kind") != "current_final_combat_stat_observed" or provenance.get("trust") != "user_confirmed_observation" or not isinstance(provenance.get("turn_number"), int) or isinstance(provenance.get("turn_number"), bool) or provenance["turn_number"] < 1:
+        if not isinstance(provenance, dict) or provenance.get("event_kind") not in {"current_final_combat_stat_observed", "current_opponent_switch_target_combat_observed"} or provenance.get("trust") != "user_confirmed_observation" or not isinstance(provenance.get("turn_number"), int) or isinstance(provenance.get("turn_number"), bool) or provenance["turn_number"] < 1:
             return False
     return True
 
@@ -252,7 +252,7 @@ def _valid_current_ability_state(value, provenance):
         })
     except ValueError:
         return False
-    return isinstance(provenance, dict) and provenance.get("event_kind") == "current_ability_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0
+    return isinstance(provenance, dict) and provenance.get("event_kind") in {"current_ability_observed", "current_opponent_switch_target_combat_observed"} and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0
 
 
 def _valid_current_condition_state(value, provenance):
@@ -263,7 +263,7 @@ def _valid_current_condition_state(value, provenance):
         return value is None or value in {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}
     if not isinstance(provenance, dict):
         return False
-    if provenance.get("event_kind") == "current_condition_observed":
+    if provenance.get("event_kind") in {"current_condition_observed", "current_opponent_switch_target_combat_observed"}:
         return provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0 and provenance.get("condition") in {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"} and ((provenance["condition"] == "none" and value is None) or value == provenance["condition"])
     if provenance.get("event_kind") == "condition_applied_observed":
         return isinstance(value, str) and value in {"burn", "poison", "toxic", "paralysis", "sleep", "freeze"}
@@ -301,7 +301,7 @@ def _valid_current_item_state(value, provenance):
         return not is_unknown_battle_fact(value) or value == UNKNOWN_BATTLE_FACT
     if not isinstance(provenance, dict) or not isinstance(provenance.get("turn_number"), int) or isinstance(provenance.get("turn_number"), bool) or provenance["turn_number"] < 1:
         return False
-    return (provenance.get("event_kind") == "current_item_observed" and provenance.get("trust") == "user_confirmed_observation" and (value is None or isinstance(value, str) and bool(value))) or (provenance.get("event_kind") in {"item_consumption_observed", "item_removed_observed"} and value is None)
+    return (provenance.get("event_kind") in {"current_item_observed", "current_opponent_switch_target_combat_observed"} and provenance.get("trust") == "user_confirmed_observation" and (value is None or isinstance(value, str) and bool(value))) or (provenance.get("event_kind") in {"item_consumption_observed", "item_removed_observed"} and value is None)
 
 
 def _valid_toxic_progression_state(value):
@@ -480,7 +480,7 @@ def _value(event, name):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions"}:
+    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect == "switch_active":
         return isinstance(_value(event, "side"), str) and all(_value(event, key) is not None for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id"))
@@ -576,6 +576,8 @@ def _apply(state, event):
         return _set_current_opponent_response_set(state, event)
     if effect == "set_current_opponent_switch_response_set":
         return _set_current_opponent_switch_response_set(state, event)
+    if effect == "set_current_opponent_switch_target_combat":
+        return _set_current_opponent_switch_target_combat(state, event)
     if effect == "set_current_terrain":
         return _set_current_terrain(state, event)
     if effect == "set_current_battle_format":
@@ -840,6 +842,34 @@ def _set_current_final_combat_stat(state, event):
         return _conflict(event, "invalid_current_final_combat_stat_state")
     stats[stat] = {"value": value, "provenance": _provenance(event) | {"event_kind": "current_final_combat_stat_observed", "trust": _value(event, "trust"), "turn_number": turn_number}}
     pokemon["current_final_stats"] = stats
+    return None
+
+
+def _set_current_opponent_switch_target_combat(state, event):
+    """Set one explicitly confirmed bench target without making it active."""
+    pokemon, turn = _pokemon(state, event), _value(event, "turn_number")
+    payload = {key: _value(event, key) for key in ("current_hp", "max_hp", "fainted", "types", "final_stats", "stages", "condition", "item", "ability")}
+    if pokemon is None or _value(event, "side") != "opponent" or not isinstance(turn, int) or isinstance(turn, bool) or turn < 1:
+        return _conflict(event, "invalid_switch_target_combat_owner")
+    hp, maximum, fainted = payload["current_hp"], payload["max_hp"], payload["fainted"]
+    stats, stages = payload["final_stats"], payload["stages"]
+    if not isinstance(hp, int) or isinstance(hp, bool) or not isinstance(maximum, int) or isinstance(maximum, bool) or maximum < 1 or not 0 <= hp <= maximum or not isinstance(fainted, bool) or fainted is not (hp == 0) or not isinstance(stats, dict) or not isinstance(stages, dict):
+        return _conflict(event, "invalid_switch_target_combat_payload")
+    pokemon["current_hp"], pokemon["max_hp"], pokemon["fainted"] = hp, maximum, fainted
+    pokemon["current_type"] = deepcopy(payload["types"])
+    pokemon["current_final_stats"] = {stat: {"value": value, "provenance": _provenance(event) | {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn}} for stat, value in stats.items()}
+    pokemon["stat_stages"] = deepcopy(stages)
+    pokemon["condition"] = None if payload["condition"] == "none" else payload["condition"]
+    item = payload["item"]; pokemon["known_item"] = item.get("item") if item.get("status") == "known" else None
+    pokemon["current_ability"] = payload["ability"]
+    for field in ("current_hp", "max_hp", "fainted", "current_type", "stat_stages", "condition", "known_item", "current_ability"):
+        _mark(pokemon, field, event)
+    for field in ("current_hp", "max_hp", "fainted", "stat_stages"):
+        pokemon[f"{field}_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn}
+    pokemon["current_type_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn}
+    pokemon["condition_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn, "condition": payload["condition"]}
+    pokemon["known_item_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn, "status": item.get("status")}
+    pokemon["current_ability_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn}
     return None
 
 

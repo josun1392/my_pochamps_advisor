@@ -1002,8 +1002,33 @@ class MainWindow(QMainWindow):
             if not accepted:
                 return
             confirmed_targets.append({**row, "availability": availability})
-        result = admit_current_combined_opponent_response_universe_observation(runtime_session_manager=manager, captured_session_id=session_id, move_ids=move_ids, move_usability=usability, permission=permission, targets=confirmed_targets, turn_number=turn_number)
+        target_combat_facts, switch_hazard_context = self._collect_current_opponent_switch_target_combat_facts(confirmed_targets)
+        if target_combat_facts is None:
+            return
+        result = admit_current_combined_opponent_response_universe_observation(runtime_session_manager=manager, captured_session_id=session_id, move_ids=move_ids, move_usability=usability, permission=permission, targets=confirmed_targets, turn_number=turn_number, target_combat_facts=target_combat_facts, switch_hazard_context=switch_hazard_context)
         self.statusBar().showMessage("현재 상대 통합 응답 집합 확인 완료" if result.get("status") == "resolved" else "상대 통합 응답 확인 실패: 명시적 현재 정보가 필요합니다")
+
+    def _collect_current_opponent_switch_target_combat_facts(self, targets: list[dict]) -> tuple[list[dict] | None, dict | None]:
+        """One explicit JSON confirmation; no panel/default values become authority."""
+        alive = [row for row in targets if row.get("availability") == "alive"]
+        if not alive:
+            return [], {"stealth_rock": "absent", "spikes_layers": 0, "toxic_spikes_layers": 0, "sticky_web": "absent"}
+        template = {"targets": [{"slot_index": row["slot_index"], "pokemon_id": row["pokemon_id"], "current_hp": None, "max_hp": None, "fainted": None, "types": None, "final_stats": None, "stages": None, "condition": None, "item": None, "ability": None} for row in alive], "switch_hazard_context": {"stealth_rock": "unknown", "spikes_layers": "unknown", "toxic_spikes_layers": "unknown", "sticky_web": "unknown"}}
+        text, accepted = QInputDialog.getMultiLineText(self, "Confirm opponent switch-target combat facts", "Explicit current target facts and entry hazards (JSON). Unknown defaults are intentionally invalid for pair evaluation; replace only facts you can confirm:", json.dumps(template))
+        if not accepted:
+            return None, None
+        try:
+            parsed = json.loads(text)
+            rows, hazards = parsed.get("targets"), parsed.get("switch_hazard_context")
+            if not isinstance(rows, list) or not isinstance(hazards, dict):
+                raise ValueError
+            allowed = {(row["slot_index"], row["pokemon_id"]) for row in alive}
+            if {(row.get("slot_index"), row.get("pokemon_id")) for row in rows if isinstance(row, dict)} != allowed:
+                raise ValueError
+            return rows, hazards
+        except (TypeError, ValueError, json.JSONDecodeError):
+            self.statusBar().showMessage("상대 교체 대상 전투 정보 확인 실패: 명시적 JSON 사실이 필요합니다")
+            return None, None
 
     @Slot()
     def _open_current_opponent_response_set_confirmation(self) -> None:

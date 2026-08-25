@@ -6,6 +6,7 @@ from typing import Any, Mapping
 
 from llm.advisor_reducer_state_model import is_unknown_battle_fact
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
+from llm.advisor_runtime_d0_opponent_switch_target_combat_authority import freeze_runtime_d0_opponent_switch_target_combat_authority
 from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
 from llm.advisor_switch_hazard_authority import normalize_switch_hazard_context
 
@@ -30,6 +31,9 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
     action = _selected_action(switch_response_authority, base, selected_response_action_id)
     if action.get("status") != "resolved":
         return _result(action["status"], action["reason"], base)
+    combat = freeze_runtime_d0_opponent_switch_target_combat_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, switch_response_authority=switch_response_authority, selected_response_action_id=selected_response_action_id)
+    if combat.get("status") != "resolved":
+        return _result(combat.get("status", "incomplete"), combat.get("reason", "switch_target_current_combat_unknown"), base, selected_response_action_id=selected_response_action_id, target_owner=action.get("target_owner"))
     state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, Mapping) else None
     target = action["target_owner"]
     roster = state.get("opponent_side", {}).get("pokemon") if isinstance(state, Mapping) and isinstance(state.get("opponent_side"), Mapping) else None
@@ -71,6 +75,7 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
         "selected_response_action_id": selected_response_action_id,
         "target_owner": deepcopy(target),
         "switch_response_authority_provenance": deepcopy(switch_response_authority.get("response_set_provenance")),
+        "switch_target_combat_authority": deepcopy(combat),
         "hypothetical_switch_in_state": hypothetical,
         "current_authority_writeback": "forbidden",
         "reason": None,
@@ -130,9 +135,10 @@ def _entry_consequence(hazards: Mapping[str, Any], current: Mapping[str, Any], h
 
 
 def _fields(current: Mapping[str, Any]) -> dict:
+    condition = {"status": "known", "value": "none", "provenance": "runtime_battle_state_v1"} if current.get("condition") is None else _simple_authority(current.get("condition"))
     return {
-        "condition": _simple_authority(current.get("condition")),
-        "item": _simple_authority(current.get("known_item")),
+        "condition": condition,
+        "item": {"status": "known", "value": None, "provenance": "runtime_battle_state_v1"} if current.get("known_item") is None else _simple_authority(current.get("known_item")),
         "ability": _simple_authority(current.get("current_ability")),
         "type": _simple_authority(current.get("current_type")),
         "final_stats": _simple_authority(current.get("current_final_stats")),

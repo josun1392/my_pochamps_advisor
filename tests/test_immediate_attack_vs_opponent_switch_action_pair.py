@@ -37,6 +37,10 @@ def _state():
         state["substitute_state_context"] = update_substitute_state_context(context=state.get("substitute_state_context"), session_id=state["session_id"], owner=_owner(state, side), state="known_inactive", substitute_hp=None, provenance="runtime_observed_substitute_state_v1")
     state["substitute_state_context"] = update_substitute_state_context(context=state.get("substitute_state_context"), session_id=state["session_id"], owner=_owner(state, "opponent", 1), state="known_inactive", substitute_hp=None, provenance="runtime_observed_substitute_state_v1")
     state["switch_hazard_context"] = build_switch_hazard_context(session_id=state["session_id"], affected_side="opponent", stealth_rock="absent", spikes_layers=0, toxic_spikes_layers=0, sticky_web="absent")
+    bench = state["opponent_side"]["pokemon"][1]
+    for field in ("current_hp", "current_type", "condition", "known_item", "current_ability"):
+        bench[f"{field}_provenance"] = {"event_kind": "current_opponent_switch_target_combat_observed", "trust": "user_confirmed_observation", "turn_number": 1}
+    bench["condition_provenance"]["condition"] = "none"
     return state
 
 
