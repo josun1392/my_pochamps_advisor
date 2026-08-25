@@ -15,6 +15,7 @@ from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_strategy_d0, resolve_runtime_d0_selectable_move_metadata_authority,
 )
 from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
+from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
 from llm.advisor_substitute import update_substitute_state_context
 
 
@@ -167,4 +168,10 @@ def test_pair_executor_runs_ordinary_own_first_and_opponent_first_paths() -> Non
     assert own_first["terminal_probability_mass"] == opponent_first["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
     assert all(row["second_action"]["state"] == "executed" for row in own_first["terminal_branches"])
     assert all(row["second_action"]["state"] == "executed" for row in opponent_first["terminal_branches"])
+    own_ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=own_first)
+    opponent_ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=opponent_first)
+    assert own_ledger["status"] == opponent_ledger["status"] == "evaluable", (own_ledger.get("reason"), opponent_ledger.get("reason"))
+    assert own_ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert len(own_ledger["terminal_leaves"]) == len(own_first["terminal_branches"])
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair={"status": "incomplete", "reason": "missing"})["status"] == "incomplete"
     assert d0["decision_owner"] == own and snapshot["state"]["self_side"]["pokemon"][0]["current_hp"] == 100
