@@ -3,7 +3,10 @@ from copy import deepcopy
 from llm.advisor_detached_intermediate_predictive_authority import (
     detached_intermediate_builder_inputs, freeze_detached_intermediate_predictive_authority,
 )
-from llm.advisor_detached_predictive_intermediate_state import materialize_detached_predictive_intermediate_state
+from llm.advisor_detached_predictive_intermediate_state import (
+    freeze_detached_actor_neutral_root_predictive_authority,
+    materialize_detached_predictive_intermediate_state,
+)
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import (
@@ -100,3 +103,44 @@ def test_own_actor_and_leaf_local_condition_are_preserved_without_current_author
     assert detached_intermediate_builder_inputs(changed)["status"] == "incomplete"
     stale = deepcopy(snapshot); stale["state"]["last_applied_observation_sequence"] = 2; stale["state_fingerprint"] = state_fingerprint(stale["state"])
     assert freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=stale, intermediate_state=intermediate, actor=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata_authority=_metadata_authority(d0))["status"] == "rejected"
+
+
+def test_opponent_root_leaf_maps_hp_and_preserves_original_d0_binding() -> None:
+    state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    own, opponent = _owner(state, "self"), _owner(state, "opponent")
+    action = {
+        "status": "resolved", "schema_version": "runtime-d0-opponent-known-move-action-authority-v1",
+        "action_id": "opponent_attack:tackle", "move_id": "tackle", "opponent_actor": opponent,
+        "target_owner": own, "session_id": d0["session_id"],
+        "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+        "metadata_authority": {"status": "resolved", "move_id": "tackle", "metadata": deepcopy(MOVE)},
+        "usability": {"status": "known_usable"}, "selectability": "selectable",
+    }
+    root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, opponent_action=action)
+    assert root["status"] == "resolved" and root["predictive_strategy_d0"]["decision_owner"] == opponent
+    predictive = root["predictive_strategy_d0"]
+    leaf = {
+        "leaf_id": "hit/damage_roll:3", "candidate_id": "attack:tackle", "action_type": "attack",
+        "branch_path": ({"branch": "hit", "conditional_probability": {"numerator": 1, "denominator": 1}},),
+        "probability": {"numerator": 1, "denominator": 1}, "hit_state": "hit", "critical_state": "non_critical",
+        "damage_roll": {"roll_index": 3, "random_factor_percent": 88, "damage": 20},
+        "consequences": {"damage": 20, "own_final_hp": 81, "target_final_hp": 0, "target_ko": True, "self_fainted": False, "secondary": None},
+        "provenance": {"session_id": predictive["session_id"], "source_runtime_fingerprint": predictive["source_runtime_fingerprint"], "source_branch_fingerprint": predictive["strategy_preview_fingerprint"], "decision_owner": opponent, "attacker": opponent, "target": own, "move_id": "tackle"},
+    }
+    materialized = materialize_detached_predictive_intermediate_state(strategy_d0=d0, terminal_leaf=leaf, root_predictive_authority=root)
+    assert materialized["status"] == "resolved"
+    assert materialized["decision_owner"] == own
+    assert materialized["active"]["self"]["hypothetical_hp"]["value"] == 0
+    assert materialized["active"]["opponent"]["hypothetical_hp"]["value"] == 81
+    assert materialized["active"]["self"]["hypothetical_fainted"]["value"] is True
+    assert materialized["first_action"]["root_predictive_authority"]["root_actor"] == opponent
+    assert state["self_side"]["pokemon"][0]["current_hp"] == 100
+
+    effected = deepcopy(leaf); effected["consequences"] = {"damage": 20, "own_final_hp": 81, "target_final_hp": 80, "secondary": {"branch": "effect", "hypothetical_stage_effect": {"owner": "self", "stat": "attack", "resulting_stage": 1}, "hypothetical_target_condition": {"resulting_condition": "paralysis"}}}
+    role_mapped = materialize_detached_predictive_intermediate_state(strategy_d0=d0, terminal_leaf=effected, root_predictive_authority=root)
+    assert role_mapped["active"]["opponent"]["hypothetical_stages"]["attack"]["value"] == 1
+    assert role_mapped["active"]["self"]["hypothetical_condition"]["condition"] == "paralysis"
+
+    swapped = deepcopy(root); swapped["root_target"] = opponent
+    assert materialize_detached_predictive_intermediate_state(strategy_d0=d0, terminal_leaf=leaf, root_predictive_authority=swapped)["status"] == "rejected"

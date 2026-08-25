@@ -9,6 +9,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 
+from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0, runtime_strategy_d0_freshness
+
 
 SCHEMA_VERSION = "detached-predictive-intermediate-state-v1"
 HORIZON = "immediate_action_pair"
@@ -18,6 +20,7 @@ _STAGE_KEYS = ("attack", "defense", "special-attack", "special-defense", "speed"
 
 def materialize_detached_predictive_intermediate_state(
     *, strategy_d0: Mapping[str, Any], terminal_leaf: Mapping[str, Any],
+    root_predictive_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Project exact leaf consequences without mutating D0 or runtime state."""
     base = _base(strategy_d0)
@@ -25,7 +28,7 @@ def materialize_detached_predictive_intermediate_state(
         return _result("rejected", "invalid_runtime_strategy_d0", {})
     if isinstance(terminal_leaf, Mapping) and terminal_leaf.get("action_type") == "manual_switch":
         return _result("unsupported", "manual_switch_terminal_leaf_intermediate_state_adapter_unavailable", base)
-    bound = _leaf_binding(terminal_leaf, strategy_d0)
+    bound = _leaf_binding(terminal_leaf, strategy_d0, root_predictive_authority)
     if isinstance(bound, str):
         return _result("rejected", bound, base)
     consequences = terminal_leaf.get("consequences")
@@ -51,6 +54,7 @@ def materialize_detached_predictive_intermediate_state(
             "damage_roll": deepcopy(terminal_leaf.get("damage_roll")),
             "hit_state": terminal_leaf.get("hit_state"), "critical_state": terminal_leaf.get("critical_state"),
             "provenance": deepcopy(dict(terminal_leaf["provenance"])),
+            "root_predictive_authority": _root_provenance(root_predictive_authority),
         },
         "active": {
             actor["side"]: _participant(strategy_d0, actor, own_hp, stage_effects, "self"),
@@ -70,6 +74,40 @@ def materialize_detached_predictive_intermediate_state(
         "provenance": "exact_terminal_leaf_to_detached_intermediate_state_v1",
     }
     return state
+
+
+def freeze_detached_actor_neutral_root_predictive_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    opponent_action: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Bind one opponent-root action to the original D0 without mutating it.
+
+    The resulting synthetic D0 is only an input to the existing strict
+    predictive builders.  It is deliberately tagged hypothetical and carries
+    the original own-side D0 binding separately, so a later leaf cannot be
+    mistaken for current reducer authority.
+    """
+    base = _base(strategy_d0)
+    if base is None:
+        return _result("rejected", "invalid_runtime_strategy_d0", {})
+    if runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot).get("status") != "current":
+        return _result("rejected", "stale_runtime_d0", base)
+    parsed = _opponent_root_action(opponent_action, strategy_d0)
+    if isinstance(parsed, str):
+        return _result("rejected", parsed, base)
+    predictive_d0 = freeze_runtime_strategy_d0(runtime_snapshot=runtime_snapshot, decision_owner=parsed["actor"])
+    if predictive_d0.get("status") != "resolved":
+        return _result("incomplete", predictive_d0.get("reason", "actor_neutral_root_d0_unavailable"), base)
+    return {
+        "status": "resolved", "schema_version": "detached-actor-neutral-root-predictive-authority-v1",
+        "hypothetical": True, "horizon": HORIZON, **base,
+        "root_actor": deepcopy(dict(parsed["actor"])), "root_target": deepcopy(dict(parsed["target"])),
+        "root_action_id": parsed["action_id"], "move_id": parsed["move_id"],
+        "move_metadata": deepcopy(parsed["metadata"]),
+        "predictive_strategy_d0": deepcopy(dict(predictive_d0)),
+        "predictive_runtime_snapshot": deepcopy(dict(runtime_snapshot)),
+        "provenance": "original_frozen_d0_to_actor_neutral_opponent_root_predictive_context_v1",
+    }
 
 
 def _participant(d0: Mapping[str, Any], owner: Mapping[str, Any], hp: int, effects: tuple[Mapping[str, Any], ...], role: str) -> dict[str, Any]:
@@ -142,7 +180,7 @@ def _unchanged_authority(d0: Mapping[str, Any]) -> dict[str, Any]:
     return {"status": "resolved", "active_current_authority": deepcopy(active) if isinstance(active, Mapping) else {}, "field_current_authority": deepcopy(field) if isinstance(field, Mapping) else {}, "carry_forward_rule": "only facts without a represented first_action consequence"}
 
 
-def _leaf_binding(leaf: Any, d0: Mapping[str, Any]) -> dict[str, Any] | str:
+def _leaf_binding(leaf: Any, d0: Mapping[str, Any], root_authority: Mapping[str, Any] | None = None) -> dict[str, Any] | str:
     if not isinstance(leaf, Mapping) or leaf.get("action_type") != "attack" or not isinstance(leaf.get("candidate_id"), str) or not isinstance(leaf.get("leaf_id"), str) or not isinstance(leaf.get("branch_path"), (tuple, list)) or not _fraction(leaf.get("probability")):
         return "invalid_terminal_leaf"
     provenance = leaf.get("provenance")
@@ -150,11 +188,47 @@ def _leaf_binding(leaf: Any, d0: Mapping[str, Any]) -> dict[str, Any] | str:
     required = ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "attacker", "target", "move_id")
     if any(key not in provenance for key in required): return "terminal_leaf_provenance_incomplete"
     expected = {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]}
-    if any(provenance.get(key) != value for key, value in expected.items()): return "terminal_leaf_binding_mismatch"
+    root = _root_leaf_binding(root_authority, d0)
+    if any(provenance.get(key) != value for key, value in expected.items()):
+        if isinstance(root, str): return root if root_authority is not None else "terminal_leaf_binding_mismatch"
+        expected = root["leaf_binding"]
+        if any(provenance.get(key) != value for key, value in expected.items()): return "terminal_leaf_root_predictive_binding_mismatch"
     attacker, target = provenance["attacker"], provenance["target"]
     if not _owner(attacker) or not _owner(target) or attacker["side"] == target["side"] or d0.get("active_owners", {}).get(attacker["side"]) != dict(attacker) or d0.get("active_owners", {}).get(target["side"]) != dict(target): return "terminal_leaf_actor_target_identity_mismatch"
     if leaf["candidate_id"] != f"attack:{provenance['move_id']}": return "terminal_leaf_candidate_move_mismatch"
+    if isinstance(root, Mapping) and (attacker != root["actor"] or target != root["target"] or provenance["move_id"] != root["move_id"]): return "terminal_leaf_root_actor_target_or_move_mismatch"
     return {"attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move_id": provenance["move_id"]}
+
+
+def _opponent_root_action(value: Any, d0: Mapping[str, Any]) -> dict[str, Any] | str:
+    if not isinstance(value, Mapping) or value.get("status") != "resolved" or value.get("schema_version") != "runtime-d0-opponent-known-move-action-authority-v1": return "opponent_root_action_authority_invalid"
+    actor, target = value.get("opponent_actor"), value.get("target_owner")
+    expected = {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]}
+    if any(value.get(key) != item for key, item in expected.items()) or not _owner(actor) or not _owner(target) or actor != d0.get("active_owners", {}).get("opponent") or target != d0.get("active_owners", {}).get("self"): return "opponent_root_action_binding_mismatch"
+    metadata = value.get("metadata_authority")
+    move_id = value.get("move_id")
+    if not isinstance(metadata, Mapping) or metadata.get("status") != "resolved" or metadata.get("move_id") != move_id or not isinstance(metadata.get("metadata"), Mapping) or metadata["metadata"].get("move_id") != move_id: return "opponent_root_move_metadata_authority_invalid"
+    if value.get("selectability") != "selectable" or not isinstance(value.get("usability"), Mapping) or value["usability"].get("status") != "known_usable": return "opponent_root_action_not_known_usable"
+    if not isinstance(value.get("action_id"), str) or not isinstance(move_id, str) or not move_id: return "opponent_root_action_identity_missing"
+    return {"actor": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "action_id": value["action_id"], "move_id": move_id, "metadata": deepcopy(dict(metadata["metadata"]))}
+
+
+def _root_leaf_binding(value: Any, d0: Mapping[str, Any]) -> dict[str, Any] | str:
+    if value is None: return "root_predictive_authority_not_supplied"
+    if not isinstance(value, Mapping) or value.get("status") != "resolved" or value.get("schema_version") != "detached-actor-neutral-root-predictive-authority-v1" or value.get("hypothetical") is not True: return "invalid_root_predictive_authority"
+    original = {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]}
+    if any(value.get(key) != item for key, item in original.items()): return "root_predictive_authority_original_d0_mismatch"
+    predictive = value.get("predictive_strategy_d0")
+    actor, target, move_id = value.get("root_actor"), value.get("root_target"), value.get("move_id")
+    if not isinstance(predictive, Mapping) or predictive.get("status") != "resolved" or not _owner(actor) or not _owner(target) or not isinstance(move_id, str): return "root_predictive_authority_payload_invalid"
+    expected = {"session_id": predictive.get("session_id"), "source_runtime_fingerprint": predictive.get("source_runtime_fingerprint"), "source_branch_fingerprint": predictive.get("strategy_preview_fingerprint"), "decision_owner": predictive.get("decision_owner")}
+    if not all(value for value in expected.values()) or expected["decision_owner"] != actor: return "root_predictive_authority_predictive_d0_invalid"
+    return {"leaf_binding": expected, "actor": actor, "target": target, "move_id": move_id}
+
+
+def _root_provenance(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, Mapping) or value.get("schema_version") != "detached-actor-neutral-root-predictive-authority-v1": return None
+    return {"schema_version": value["schema_version"], "hypothetical": True, "root_action_id": value.get("root_action_id"), "root_actor": deepcopy(value.get("root_actor")), "root_target": deepcopy(value.get("root_target")), "provenance": value.get("provenance")}
 
 
 def _base(d0: Any) -> dict[str, Any] | None:
