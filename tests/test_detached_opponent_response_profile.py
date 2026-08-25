@@ -46,7 +46,10 @@ def _snapshot(state):
 
 
 def _metadata(move):
-    return {"status": "resolved", "schema_version": METADATA_SCHEMA_VERSION, "move_id": move, "metadata": {"move_id": move, "category": "special" if move == "water-gun" else "physical", "power": 40, "type": "water" if move == "water-gun" else "normal", "accuracy": 100, "priority": 0}, "provenance": "repository_normalized_move_metadata_v1"}
+    metadata = {"move_id": move, "category": "special" if move in {"water-gun", "thunderbolt"} else "physical", "power": 90 if move == "thunderbolt" else 40, "type": "electric" if move == "thunderbolt" else "water" if move == "water-gun" else "normal", "accuracy": 100, "priority": 0}
+    if move == "thunderbolt":
+        metadata.update(target="selected-pokemon", effect_chance=10, ailment="paralysis")
+    return {"status": "resolved", "schema_version": METADATA_SCHEMA_VERSION, "move_id": move, "metadata": metadata, "provenance": "repository_normalized_move_metadata_v1"}
 
 
 def _complete_state(state):
@@ -58,7 +61,7 @@ def _complete_state(state):
     return result["projected_state"]
 
 
-def _inputs(*, equal_speed=False, own_hp=100, opponent_hp=100):
+def _inputs(*, equal_speed=False, own_hp=100, opponent_hp=100, own_move="tackle"):
     state = _complete_state(_state())
     state["self_side"]["pokemon"][0]["current_hp"] = own_hp
     state["opponent_side"]["pokemon"][0]["current_hp"] = opponent_hp
@@ -66,8 +69,8 @@ def _inputs(*, equal_speed=False, own_hp=100, opponent_hp=100):
         state["opponent_side"]["pokemon"][0]["current_final_stats"]["speed"]["value"] = 100
     snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
     own = _owner(state, "self")
-    own_metadata = _metadata("tackle") | {"candidate_id": "attack:tackle", "active_attacker": own, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]}
-    own_action = {"action_id": "attack:tackle", "action_type": "attack", "identity": "tackle", "move_metadata_authority": own_metadata}
+    own_metadata = _metadata(own_move) | {"candidate_id": f"attack:{own_move}", "active_attacker": own, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]}
+    own_action = {"action_id": f"attack:{own_move}", "action_type": "attack", "identity": own_move, "move_metadata_authority": own_metadata}
     known = freeze_runtime_d0_opponent_known_move_action_authority(strategy_d0=d0, runtime_snapshot=snapshot, canonical_move_metadata_authorities={move: _metadata(move) for move in MOVES})
     response_set = freeze_runtime_d0_complete_opponent_response_set_authority(strategy_d0=d0, runtime_snapshot=snapshot, opponent_known_move_authority=known)
     orders = {action_id: {"status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": "own_first", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "own_action_id": own_action["action_id"], "opponent_action_id": action_id, "own_actor": _owner(state, "self"), "opponent_actor": _owner(state, "opponent")} for action_id in response_set["selectable_response_action_ids"]}
@@ -232,6 +235,30 @@ def test_exact_first_action_paralysis_branches_second_action_without_current_con
     assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
     states = {row["second_action"]["state"] for row in pair["terminal_branches"]}
     assert states == {"executed", "cancelled_due_to_paralysis"}
+    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 1, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "cancelled_due_to_paralysis")
+    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 3, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "executed")
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
+    assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+
+
+def test_real_thunderbolt_first_action_reaches_crit_and_paralysis_second_action_path():
+    state, _, _, _, _, _ = _inputs()
+    snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    own = _owner(state, "self")
+    own_metadata = _metadata("thunderbolt") | {"candidate_id": "attack:thunderbolt", "active_attacker": own, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]}
+    own_action = {"action_id": "attack:thunderbolt", "action_type": "attack", "identity": "thunderbolt", "move_metadata_authority": own_metadata}
+    known = freeze_runtime_d0_opponent_known_move_action_authority(strategy_d0=d0, runtime_snapshot=snapshot, canonical_move_metadata_authorities={move: _metadata(move) for move in MOVES})
+    response_set = freeze_runtime_d0_complete_opponent_response_set_authority(strategy_d0=d0, runtime_snapshot=snapshot, opponent_known_move_authority=known)
+    opponent_action = response_set["actions"][0]
+    order = {"status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": "own_first", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "own_action_id": own_action["action_id"], "opponent_action_id": opponent_action["action_id"], "own_actor": own, "opponent_actor": _owner(state, "opponent")}
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        opponent_action=opponent_action, action_order_authority=order,
+    )
+    assert pair["status"] == "evaluable"
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert any(row["first_action_leaf"]["critical_state"] == "critical" for row in pair["terminal_branches"])
+    assert {row["second_action"]["state"] for row in pair["terminal_branches"]} >= {"executed", "cancelled_due_to_paralysis"}
     assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 1, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "cancelled_due_to_paralysis")
     assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 3, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "executed")
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"

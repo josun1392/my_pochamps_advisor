@@ -69,6 +69,12 @@ def test_runtime_projects_strict_condition_exact_types_and_substitute_for_eligib
     assert result["target_substitute_authority"] == {"status": "known", "state": "known_inactive"}
 
 
+def test_explicit_canonical_none_condition_is_equivalent_to_observed_none():
+    state = _state()
+    state["opponent_side"]["pokemon"][0]["condition"] = "none"
+    assert _resolve(state)["status"] == "resolved"
+
+
 def test_condition_type_and_suppressors_preserve_resolved_zero_probability():
     condition = _state(); target = condition["opponent_side"]["pokemon"][0]; target["condition"] = "burn"; target["condition_provenance"]["condition"] = "burn"
     electric = _state(); electric["opponent_side"]["pokemon"][0]["current_type"] = ["electric"]

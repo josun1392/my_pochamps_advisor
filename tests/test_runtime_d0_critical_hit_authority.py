@@ -40,9 +40,11 @@ def _resolve(state, move_id="tackle"):
 
 def test_runtime_projects_fully_neutral_base_high_and_always_crit_capabilities():
     base = _resolve(_state())
+    thunderbolt = _resolve(_state(), "thunderbolt")
     high = _resolve(_state(), "slash")
     always = _resolve(_state(), "flower-trick")
     assert (base["status"], base["capability_resolution"]["crit_stage"]) == ("resolved", 0)
+    assert (thunderbolt["status"], thunderbolt["capability_resolution"]["move_rule"], thunderbolt["capability_resolution"]["crit_stage"]) == ("resolved", "base", 0)
     assert (high["status"], high["capability_resolution"]["move_rule"], high["capability_resolution"]["crit_stage"]) == ("resolved", "high-crit", 1)
     assert (always["status"], always["capability_resolution"]["move_rule"], always["capability_resolution"]["crit_stage"]) == ("resolved", "always-crit", 3)
 

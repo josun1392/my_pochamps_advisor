@@ -45,7 +45,10 @@ def _exact_condition(value: Any, provenance: Any) -> str | None:
     turn = provenance.get("turn_number")
     if not isinstance(turn, int) or isinstance(turn, bool) or turn < 1:
         return None
-    if value is None and provenance.get("condition") == "none":
+    # Reducer-owned current state uses both ``None`` and the canonical string
+    # ``"none"`` for an explicitly observed absence.  They are equivalent
+    # only when the same trusted current-condition observation says ``none``.
+    if (value is None or value == "none") and provenance.get("condition") == "none":
         return "none"
     return value if isinstance(value, str) and value in CONDITIONS - {"none"} and provenance.get("condition") == value else None
 

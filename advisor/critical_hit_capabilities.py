@@ -9,7 +9,10 @@ from advisor.damage.crit import is_crit_blocked, move_crit_rule, resolve_crit_st
 
 SCHEMA_VERSION = "critical-hit-capability-resolution-v1"
 CATALOG_VERSION = "critical-hit-capability-catalog-v1"
-_BASE_MOVE_IDS = frozenset({"tackle", "water-gun"})
+# These are canonical ordinary damaging moves whose critical-hit behavior is
+# the Gen 9 base rule.  Move-specific high-/always-critical rules remain
+# delegated to ``move_crit_rule`` below.
+_BASE_MOVE_IDS = frozenset({"tackle", "water-gun", "thunderbolt"})
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
 _SUPPORTED_ATTACKER_ABILITIES = frozenset({"pressure", "super-luck", "merciless", "sniper"})
