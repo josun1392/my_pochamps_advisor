@@ -27,6 +27,7 @@ from core.champions_move_pool import ChampionsMovePoolRepository
 from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository, MoveView
 from llm.advisor_runtime_d0_observed_opponent_move_metadata import freeze_runtime_d0_observed_opponent_move_metadata_authorities
+from llm.advisor_current_opponent_response_set_observation import admit_current_opponent_response_set_observation
 from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
 from core.pokemon_repository import PokemonRepository
 from core.search_engine import SearchEngine
@@ -932,6 +933,10 @@ class MainWindow(QMainWindow):
         self._load_battle_state_action.triggered.connect(self._load_battle_state)
         file_menu.addAction(self._save_battle_state_action)
         file_menu.addAction(self._load_battle_state_action)
+        battle_menu = self.menuBar().addMenu("Battle")
+        self._confirm_opponent_response_set_action = QAction("Confirm Current Opponent Response Set", self)
+        self._confirm_opponent_response_set_action.triggered.connect(self._open_current_opponent_response_set_confirmation)
+        battle_menu.addAction(self._confirm_opponent_response_set_action)
         self._update_persistence_action_state()
 
     def _update_persistence_action_state(self) -> None:
@@ -941,6 +946,45 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
+        action = getattr(self, "_confirm_opponent_response_set_action", None)
+        if action is not None:
+            action.setEnabled(active)
+
+    @Slot()
+    def _open_current_opponent_response_set_confirmation(self) -> None:
+        """Collect explicit present-tense response facts; no panel or learnset inference."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None or not isinstance(turn_number, int) or turn_number < 1:
+            self.statusBar().showMessage("상대 응답 확인 실패: 현재 세션 또는 신뢰된 턴 정보 없음")
+            return
+        QMessageBox.information(self, "Confirm opponent response set", "현재 활성 상대의 정확한 4개 기술과 현재 사용 가능 여부를 명시적으로 확인합니다. 모르는 항목은 unknown으로 남겨 응답 집합을 완성하지 않습니다.")
+        move_ids: list[str] = []
+        for index in range(4):
+            value, accepted = QInputDialog.getText(self, "Opponent move", f"Confirmed current move {index + 1} (canonical ID)")
+            if not accepted:
+                return
+            move_ids.append(value)
+        usability: dict[str, dict[str, str]] = {}
+        for move_id in move_ids:
+            value, accepted = QInputDialog.getItem(self, "Opponent move usability", f"{move_id}: current usability", ["usable", "unusable", "unknown"], 0, False)
+            if not accepted:
+                return
+            usability[move_id.strip().lower()] = {"status": value}
+        result = admit_current_opponent_response_set_observation(
+            runtime_session_manager=manager,
+            captured_session_id=session_id,
+            move_ids=move_ids,
+            move_usability=usability,
+            turn_number=turn_number,
+        )
+        if result.get("status") == "resolved":
+            self.statusBar().showMessage("현재 상대 응답 집합 확인 완료")
+        elif result.get("reason") == "unknown_move_usability":
+            self.statusBar().showMessage("상대 기술 사용 가능 여부가 unknown: 응답 집합은 불완전 상태로 유지")
+        else:
+            self.statusBar().showMessage("상대 응답 집합 확인 실패: 명시적 현재 정보가 필요합니다")
 
     def _active_persistence_manager(self) -> BattleObservationRuntimeSessionManager | None:
         manager = getattr(self, "_observation_runtime_session_manager", None)
