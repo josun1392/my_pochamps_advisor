@@ -69,6 +69,8 @@ def freeze_runtime_d0_combined_opponent_response_universe_authority(
         "universe_state": universe_state,
         "move_dimension": _dimension_output(moves),
         "switch_dimension": _dimension_output(switches),
+        "source_move_response_authority": deepcopy(dict(move_response_authority)),
+        "source_switch_response_authority": deepcopy(dict(switch_response_authority)),
         "response_action_ids": action_ids,
         "selectable_response_action_ids": selectable,
         "actions": deepcopy(actions),

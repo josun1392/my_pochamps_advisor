@@ -14,7 +14,9 @@ from llm.advisor_detached_strategy_orchestration import run_detached_strategy_or
 from llm.advisor_detached_opponent_response_profile import materialize_detached_opponent_response_profile
 from llm.advisor_runtime_d0_action_order_authority import freeze_runtime_d0_action_order_authority
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
+from llm.advisor_runtime_d0_combined_opponent_response_universe_authority import freeze_runtime_d0_combined_opponent_response_universe_authority
 from llm.advisor_runtime_d0_opponent_action_authority import freeze_runtime_d0_opponent_known_move_action_authority
+from llm.advisor_runtime_d0_opponent_switch_response_authority import freeze_runtime_d0_opponent_switch_response_authority
 from llm.advisor_exact_outcome_descriptive_metrics import project_exact_outcome_descriptive_metrics
 from llm.advisor_exact_predictive_outcome_ledger import normalize_exact_predictive_outcome_ledger
 from llm.advisor_predictive_attack_authority import build_predictive_fixed_damage_attack_authority
@@ -155,9 +157,17 @@ def _project_live_opponent_response_profiles(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
         canonical_move_metadata_authorities=canonical_move_metadata_authorities,
     )
-    response_set = freeze_runtime_d0_complete_opponent_response_set_authority(
+    move_response_set = freeze_runtime_d0_complete_opponent_response_set_authority(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
         opponent_known_move_authority=known,
+    )
+    switch_response_set = freeze_runtime_d0_opponent_switch_response_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+    )
+    response_set = freeze_runtime_d0_combined_opponent_response_universe_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        move_response_authority=move_response_set,
+        switch_response_authority=switch_response_set,
     )
     own_actions = [row for row in selection.get("actions", ()) if isinstance(row, Mapping) and row.get("action_type") == "attack" and row.get("selection") == "selectable"]
     if known.get("status") != "resolved" or response_set.get("status") != "resolved":
@@ -170,7 +180,14 @@ def _project_live_opponent_response_profiles(
         action_id = own.get("action_id")
         if not isinstance(action_id, str):
             continue
-        orders = {response_id: freeze_runtime_d0_action_order_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own, opponent_action=by_id.get(response_id, {})) for response_id in response_set.get("selectable_response_action_ids", ())}
+        orders = {
+            response_id: freeze_runtime_d0_action_order_authority(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                own_action=own, opponent_action=by_id.get(response_id, {}),
+            )
+            for response_id in response_set.get("selectable_response_action_ids", ())
+            if by_id.get(response_id, {}).get("response_kind") == "move"
+        }
         result[action_id] = materialize_detached_opponent_response_profile(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own,
             response_set_authority=response_set, action_order_authorities=orders,

@@ -113,9 +113,16 @@ def _entry(value: Any, bindings: Mapping[str, Any]) -> tuple[str, dict[str, Frac
     pair, ledger, metrics = value.get("pair"), value.get("exact_pair_outcome_ledger"), value.get("descriptive_metrics")
     if not isinstance(pair, Mapping) or pair.get("status") != "evaluable" or not isinstance(ledger, Mapping) or ledger.get("status") != "evaluable" or not isinstance(metrics, Mapping) or metrics.get("status") != "resolved": return "required_response_pair_not_evaluable"
     if ledger.get("schema_version") != PAIR_LEDGER_SCHEMA or ledger.get("horizon") != PAIR_HORIZON or metrics.get("schema_version") != PAIR_METRICS_SCHEMA or metrics.get("horizon") != PAIR_HORIZON or metrics.get("source_ledger_status") != "evaluable": return "invalid_response_pair_ledger_or_metrics"
-    keys = ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_action_id", "opponent_action_id", "own_actor", "opponent_actor")
-    if any(pair.get(key) != ledger.get(key) or ledger.get(key) != metrics.get(key) for key in keys): return "response_pair_artifact_binding_mismatch"
-    if pair.get("session_id") != bindings["session_id"] or pair.get("source_runtime_fingerprint") != bindings["source_runtime_fingerprint"] or pair.get("source_branch_fingerprint") != bindings["source_branch_fingerprint"] or pair.get("decision_owner") != bindings["decision_owner"] or pair.get("opponent_actor") != bindings["opponent_actor"] or pair.get("own_actor") != bindings["target_owner"] or pair.get("opponent_action_id") != value["opponent_response_action_id"]: return "response_pair_profile_binding_mismatch"
+    kind = value.get("response_kind", "move")
+    common = ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_action_id", "own_actor")
+    if any(pair.get(key) != ledger.get(key) or ledger.get(key) != metrics.get(key) for key in common): return "response_pair_artifact_binding_mismatch"
+    if pair.get("opponent_action_id", pair.get("opponent_switch_response_action_id")) != ledger.get("opponent_action_id") or ledger.get("opponent_action_id") != metrics.get("opponent_action_id"): return "response_pair_artifact_binding_mismatch"
+    if pair.get("session_id") != bindings["session_id"] or pair.get("source_runtime_fingerprint") != bindings["source_runtime_fingerprint"] or pair.get("source_branch_fingerprint") != bindings["source_branch_fingerprint"] or pair.get("decision_owner") != bindings["decision_owner"] or pair.get("own_actor") != bindings["target_owner"] or pair.get("opponent_action_id", pair.get("opponent_switch_response_action_id")) != value["opponent_response_action_id"]: return "response_pair_profile_binding_mismatch"
+    if kind == "move":
+        if pair.get("opponent_actor") != bindings["opponent_actor"] or ledger.get("opponent_actor") != bindings["opponent_actor"]: return "response_pair_profile_binding_mismatch"
+    elif kind == "switch":
+        if pair.get("replaced_opponent_actor") != bindings["opponent_actor"] or ledger.get("response_action_type") != "manual_switch": return "response_pair_profile_binding_mismatch"
+    else: return "invalid_opponent_response_profile_entry_kind"
     if _fraction(ledger.get("terminal_probability_mass")) != Fraction(1, 1) or _fraction(metrics.get("terminal_probability_mass")) != Fraction(1, 1): return "response_pair_probability_mass_not_one"
     own, opponent = metrics.get("own"), metrics.get("opponent")
     if not isinstance(own, Mapping) or not isinstance(opponent, Mapping) or own.get("status") != "resolved" or opponent.get("status") != "resolved": return "response_pair_ko_metric_unavailable"

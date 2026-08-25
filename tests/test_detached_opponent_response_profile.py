@@ -98,3 +98,29 @@ def test_unusable_excluded_incomplete_pair_blocks_and_binding_mismatch_rejects()
 
     stale = deepcopy(snapshot); stale["state"]["last_applied_observation_sequence"] = 2; stale["state_fingerprint"] = state_fingerprint(stale["state"])
     assert materialize_detached_opponent_response_profile(strategy_d0=d0, runtime_snapshot=stale, own_action=own_action, response_set_authority=response_set, action_order_authorities=orders)["status"] == "rejected"
+
+
+def test_combined_universe_dispatches_move_and_switch_entries_exactly_once(monkeypatch):
+    _, snapshot, d0, own_action, move_set, orders = _inputs()
+    move = deepcopy(move_set["actions"][0]) | {"response_kind": "move"}
+    switch_id = "opponent_switch:response-profile:1:bench"
+    switch = {"action_id": switch_id, "action_type": "manual_switch", "acting_side": "opponent", "target_side": "self", "selectability": "selectable", "availability": "alive", "response_kind": "switch", "target_owner": {"session_id": d0["session_id"], "side": "opponent", "slot_index": 1, "pokemon_id": "bench"}}
+    combined = {
+        "status": "resolved", "schema_version": "runtime-d0-combined-opponent-response-universe-authority-v1",
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "opponent_actor": d0["active_owners"]["opponent"], "target_owner": d0["active_owners"]["self"],
+        "universe_state": "complete_with_selectable_responses", "response_action_ids": (move["action_id"], switch_id), "selectable_response_action_ids": (move["action_id"], switch_id), "actions": (move, switch), "source_switch_response_authority": {"status": "resolved"},
+    }
+    calls = []
+    monkeypatch.setattr("llm.advisor_detached_opponent_response_profile.materialize_immediate_move_vs_move_action_pair", lambda **kwargs: calls.append(("move", kwargs["opponent_action"]["action_id"])) or {"status": "evaluable"})
+    monkeypatch.setattr("llm.advisor_detached_opponent_response_profile.materialize_immediate_attack_vs_opponent_switch_action_pair", lambda **kwargs: calls.append(("switch", kwargs["selected_switch_response_action_id"])) or {"status": "evaluable"})
+    monkeypatch.setattr("llm.advisor_detached_opponent_response_profile.normalize_exact_immediate_action_pair_outcome_ledger", lambda **_: {"status": "evaluable"})
+    monkeypatch.setattr("llm.advisor_detached_opponent_response_profile.project_exact_immediate_action_pair_descriptive_metrics", lambda **_: {"status": "resolved"})
+
+    result = materialize_detached_opponent_response_profile(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, response_set_authority=combined, action_order_authorities={move["action_id"]: orders[move["action_id"]]})
+    assert result["status"] == "evaluable"
+    assert calls == [("move", move["action_id"]), ("switch", switch_id)]
+    assert [(row["opponent_response_action_id"], row["response_kind"]) for row in result["response_entries"]] == [(move["action_id"], "move"), (switch_id, "switch")]
+
+    zero = deepcopy(combined) | {"universe_state": "complete_zero_response_universe", "selectable_response_action_ids": ()}
+    unavailable = materialize_detached_opponent_response_profile(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, response_set_authority=zero, action_order_authorities={})
+    assert unavailable["status"] == "incomplete" and unavailable["reason"] == "combined_response_universe_has_zero_selectable_responses"

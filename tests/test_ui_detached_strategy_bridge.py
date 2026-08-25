@@ -247,7 +247,9 @@ def test_response_profile_live_projection_composes_each_selectable_own_attack(mo
     selection = {"actions": ({"action_id": "attack:left", "action_type": "attack", "selection": "selectable"}, {"action_id": "attack:right", "action_type": "attack", "selection": "selectable"})}
     seen = []
     monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_opponent_known_move_action_authority", lambda **_: {"status": "resolved"})
-    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_complete_opponent_response_set_authority", lambda **_: {"status": "resolved", "selectable_response_action_ids": ("opponent_attack:a",), "actions": ({"action_id": "opponent_attack:a"},)})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_complete_opponent_response_set_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_opponent_switch_response_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_combined_opponent_response_universe_authority", lambda **_: {"status": "resolved", "selectable_response_action_ids": ("opponent_attack:a", "opponent_switch:s:1:b"), "actions": ({"action_id": "opponent_attack:a", "response_kind": "move"}, {"action_id": "opponent_switch:s:1:b", "response_kind": "switch"})})
     monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_action_order_authority", lambda **kwargs: seen.append(kwargs["own_action"]["action_id"]) or {"status": "resolved"})
     monkeypatch.setattr(bridge_subject, "materialize_detached_opponent_response_profile", lambda **kwargs: {"status": "evaluable", "own_action_id": kwargs["own_action"]["action_id"]})
     projected = bridge_subject._project_live_opponent_response_profiles(strategy_d0=d0, runtime_snapshot={}, selection=selection, canonical_move_metadata_authorities={"a": {"status": "resolved"}})

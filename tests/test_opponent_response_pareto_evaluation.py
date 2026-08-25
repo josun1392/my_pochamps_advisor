@@ -7,6 +7,7 @@ from llm.advisor_opponent_response_pareto_evaluation import (
 
 OWNER = {"side": "self", "session_id": "policy", "slot_index": 0, "pokemon_id": "self"}
 TARGET = {"side": "opponent", "session_id": "policy", "slot_index": 0, "pokemon_id": "target"}
+INCOMING = {"side": "opponent", "session_id": "policy", "slot_index": 1, "pokemon_id": "incoming"}
 
 
 def _fraction(value):
@@ -28,10 +29,12 @@ def _profile(record, responses):
     for index, (action_id, opponent_ko, own_ko) in enumerate(responses):
         pair_id = f"pair:{record['candidate_id']}:{action_id}"
         base = {"pair_id": pair_id, "session_id": "policy", "source_runtime_fingerprint": "runtime", "source_branch_fingerprint": "preview", "decision_owner": deepcopy(OWNER), "own_action_id": record["candidate_id"], "opponent_action_id": action_id, "own_actor": deepcopy(OWNER), "opponent_actor": deepcopy(TARGET)}
-        pair = {"status": "evaluable", **base}
-        ledger = {"status": "evaluable", "schema_version": "exact-immediate-action-pair-outcome-ledger-v1", "horizon": "immediate_action_pair", **base, "terminal_probability_mass": _fraction((1, 1))}
-        metrics = {"status": "resolved", "schema_version": "exact-immediate-action-pair-descriptive-metrics-v1", "horizon": "immediate_action_pair", "source_ledger_status": "evaluable", **base, "terminal_probability_mass": _fraction((1, 1)), "own": {"status": "resolved", "ko_probability": _fraction(own_ko), "survival_probability": _fraction((own_ko[1] - own_ko[0], own_ko[1]))}, "opponent": {"status": "resolved", "ko_probability": _fraction(opponent_ko), "survival_probability": _fraction((opponent_ko[1] - opponent_ko[0], opponent_ko[1]))}}
-        entries.append({"opponent_response_action_id": action_id, "pair": pair, "exact_pair_outcome_ledger": ledger, "descriptive_metrics": metrics})
+        switch = action_id.startswith("opponent_switch:")
+        pair = {"status": "evaluable", **base} if not switch else {"status": "evaluable", **{key: value for key, value in base.items() if key != "opponent_action_id" and key != "opponent_actor"}, "opponent_switch_response_action_id": action_id, "replaced_opponent_actor": deepcopy(TARGET)}
+        ledger_base = base if not switch else {**base, "opponent_actor": deepcopy(INCOMING), "opponent_switch_response_action_id": action_id, "replaced_opponent_actor": deepcopy(TARGET), "response_action_type": "manual_switch"}
+        ledger = {"status": "evaluable", "schema_version": "exact-immediate-action-pair-outcome-ledger-v1", "horizon": "immediate_action_pair", **ledger_base, "terminal_probability_mass": _fraction((1, 1))}
+        metrics = {"status": "resolved", "schema_version": "exact-immediate-action-pair-descriptive-metrics-v1", "horizon": "immediate_action_pair", "source_ledger_status": "evaluable", **ledger_base, "terminal_probability_mass": _fraction((1, 1)), "own": {"status": "resolved", "ko_probability": _fraction(own_ko), "survival_probability": _fraction((own_ko[1] - own_ko[0], own_ko[1]))}, "opponent": {"status": "resolved", "ko_probability": _fraction(opponent_ko), "survival_probability": _fraction((opponent_ko[1] - opponent_ko[0], opponent_ko[1]))}}
+        entries.append({"opponent_response_action_id": action_id, "response_kind": "switch" if switch else "move", "pair": pair, "exact_pair_outcome_ledger": ledger, "descriptive_metrics": metrics})
     return {"status": "evaluable", "schema_version": "detached-opponent-response-profile-v1", "horizon": "immediate_action_pair", "own_action_id": record["candidate_id"], "session_id": "policy", "source_runtime_fingerprint": "runtime", "source_branch_fingerprint": "preview", "decision_owner": deepcopy(OWNER), "opponent_actor": deepcopy(TARGET), "target_owner": deepcopy(OWNER), "selectable_response_action_ids": tuple(item[0] for item in responses), "response_entries": tuple(entries), "response_probability": "not_modeled", "ranking_influence": "none"}
 
 
@@ -65,6 +68,11 @@ def test_one_strict_improvement_dominates_and_profiles_remain_immutable():
     assert result["comparison"] == "left_preferred"
     assert left["opponent_response_profile"] == original
     assert result["response_policy"]["response_probability"] == "not_modeled"
+
+
+def test_switch_response_coordinates_use_the_same_exact_pareto_rule():
+    left, right = _paired((("opponent_switch:policy:1:incoming", (3, 4), (0, 1)),), (("opponent_switch:policy:1:incoming", (1, 2), (0, 1)),))
+    assert compare_opponent_response_wise_pareto_candidates(left=left, right=right)["comparison"] == "left_preferred"
 
 
 def test_mismatched_or_rejected_profiles_fail_closed_and_unavailable_preserves_base_tie():
