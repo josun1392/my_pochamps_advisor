@@ -46,7 +46,7 @@ def _snapshot(state):
 
 
 def _metadata(move):
-    metadata = {"move_id": move, "category": "special" if move in {"water-gun", "thunderbolt"} else "physical", "power": 90 if move == "thunderbolt" else 40, "type": "electric" if move == "thunderbolt" else "water" if move == "water-gun" else "normal", "accuracy": 100, "priority": 0}
+    metadata = {"move_id": move, "category": "special" if move in {"water-gun", "thunderbolt"} else "physical", "power": 90 if move == "thunderbolt" else 70 if move == "facade" else 40, "type": "electric" if move == "thunderbolt" else "water" if move == "water-gun" else "normal", "accuracy": 100, "priority": 0}
     if move == "thunderbolt":
         metadata.update(target="selected-pokemon", effect_chance=10, ailment="paralysis")
     return {"status": "resolved", "schema_version": METADATA_SCHEMA_VERSION, "move_id": move, "metadata": metadata, "provenance": "repository_normalized_move_metadata_v1"}
@@ -261,5 +261,48 @@ def test_real_thunderbolt_first_action_reaches_crit_and_paralysis_second_action_
     assert {row["second_action"]["state"] for row in pair["terminal_branches"]} >= {"executed", "cancelled_due_to_paralysis"}
     assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 1, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "cancelled_due_to_paralysis")
     assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 3, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "executed")
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
+    assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+
+
+def test_real_thunderbolt_paralysis_drives_guts_second_action_damage():
+    def pair_for_guts_second_action():
+        state, _, _, _, _, _ = _inputs()
+        state["opponent_side"]["pokemon"][0]["current_ability"] = "guts"
+        snapshot = _snapshot(state)
+        d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+        own = _owner(state, "self")
+        own_action = {
+            "action_id": "attack:thunderbolt", "action_type": "attack", "identity": "thunderbolt",
+            "move_metadata_authority": _metadata("thunderbolt") | {
+                "candidate_id": "attack:thunderbolt", "active_attacker": own,
+                "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+                "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+            },
+        }
+        known = freeze_runtime_d0_opponent_known_move_action_authority(
+            strategy_d0=d0, runtime_snapshot=snapshot,
+            canonical_move_metadata_authorities={move_id: _metadata(move_id) for move_id in MOVES},
+        )
+        response_set = freeze_runtime_d0_complete_opponent_response_set_authority(
+            strategy_d0=d0, runtime_snapshot=snapshot, opponent_known_move_authority=known,
+        )
+        opponent_action = response_set["actions"][0]
+        order = {
+            "status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": "own_first",
+            "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+            "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+            "own_action_id": own_action["action_id"], "opponent_action_id": opponent_action["action_id"],
+            "own_actor": own, "opponent_actor": _owner(state, "opponent"),
+        }
+        return materialize_immediate_move_vs_move_action_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+            opponent_action=opponent_action, action_order_authority=order,
+        ), snapshot
+
+    pair, snapshot = pair_for_guts_second_action()
+    assert pair["status"] == "evaluable"
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert {row["second_action"]["state"] for row in pair["terminal_branches"]} >= {"executed", "cancelled_due_to_paralysis"}
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
     assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"

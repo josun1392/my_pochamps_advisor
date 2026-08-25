@@ -105,23 +105,21 @@ def _paralysis_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str
     synthetic = deepcopy(dict(snapshot.get("state", {})))
     if not synthetic:
         return {"status": "rejected", "reason": "intermediate_predictive_snapshot_missing"}
-    if not _paralysis_damage_neutral_second_action(authority, synthetic):
-        return {"status": "unsupported", "reason": "paralysis_second_action_damage_modifier_not_supported"}
     for role, owner in (("actor", actor), ("target", target)):
         if role not in changed:
             continue
         raw = _pokemon(synthetic, owner)
         if raw is None:
             return {"status": "rejected", "reason": "intermediate_condition_owner_identity_mismatch"}
-        # Full-paralysis is handled by the explicit execution branches below.
-        # This calculator view is only for ordinary moves for which paralysis
-        # has no direct damage modifier; the exact hypothetical status remains
-        # separately tagged and is never presented as runtime current state.
-        raw["condition"] = "none"
+        # Full-paralysis is handled by explicit execution branches.  The
+        # detached calculator view still consumes exact paralysis for
+        # status-dependent damage such as Facade and Guts.
+        raw["condition"] = "paralysis"
+        raw["detached_exact_intermediate_condition_authority"] = True
         raw["condition_provenance"] = {
             "event_kind": "current_condition_observed", "trust": "user_confirmed_observation",
-            "turn_number": 1, "condition": "none",
-            "hypothetical_provenance": "private_paralysis_neutral_calculator_view",
+            "turn_number": 1, "condition": "paralysis",
+            "hypothetical_provenance": "private_exact_paralysis_calculator_view",
         }
     private_snapshot = {
         "status": "runtime_snapshot_ready", "session_id": authority["session_id"],
@@ -137,22 +135,10 @@ def _paralysis_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str
         "hypothetical_condition_authority": {
             "status": "known_present", "condition": "paralysis",
             "provenance": "exact_terminal_leaf_condition_effect",
-            "calculator_view": "paralysis_neutral_for_supported_ordinary_move",
+            "calculator_view": "exact_paralysis_for_supported_status_dependent_damage",
         },
         "provenance": "private_exact_hypothetical_paralysis_builder_view_v1",
     }
-
-
-def _paralysis_damage_neutral_second_action(authority: Mapping[str, Any], state: Mapping[str, Any]) -> bool:
-    metadata = authority.get("move_metadata")
-    actor = authority.get("predictive_actor")
-    if not isinstance(metadata, Mapping) or not isinstance(actor, Mapping) or metadata.get("move_id") == "facade":
-        return False
-    raw = _pokemon(state, actor)
-    # Guts turns the exact major condition into a direct damage modifier.  It
-    # needs its own explicit status-aware damage authority rather than this
-    # deliberately narrow ordinary-move consumer.
-    return isinstance(raw, Mapping) and raw.get("current_ability") != "guts"
 
 
 def _base(authority: Any) -> dict[str, Any] | None:

@@ -112,6 +112,7 @@ class DamageContext:
     is_contact: bool = False
     attacker_hp_current: int = 100
     attacker_hp_max: int = 100
+    attacker_condition: str = "none"
     defender_hp_current: int | None = None
     defender_hp_max: int | None = None
     defender_hp_ratio: float = 1.0
@@ -282,6 +283,7 @@ def calc_damage_rolls(
                     move_type=ctx.move_type,
                     hp_current=ctx.attacker_hp_current,
                     hp_max=ctx.attacker_hp_max,
+                    attacker_condition=ctx.attacker_condition,
                 ),
                 attacker_move_attack_stat_ability_mod(
                     eff_attacker_ability,

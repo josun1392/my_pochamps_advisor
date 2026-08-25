@@ -44,10 +44,14 @@ def _resolve(move_id="tackle", **kwargs):
 def test_base_high_and_always_crit_rules_resolve_exact_engine_stages():
     base = _resolve()
     thunderbolt = _resolve("thunderbolt")
+    facade = _resolve("facade")
+    guts = _resolve(attacker_ability="guts")
     high = _resolve("slash")
     always = _resolve("flower-trick")
     assert (base["status"], base["move_rule"], base["crit_stage"]) == ("resolved", "base", 0)
     assert (thunderbolt["status"], thunderbolt["move_rule"], thunderbolt["crit_stage"]) == ("resolved", "base", 0)
+    assert (facade["status"], facade["move_rule"], facade["crit_stage"]) == ("resolved", "base", 0)
+    assert (guts["status"], guts["crit_stage"]) == ("resolved", 0)
     assert (high["status"], high["move_rule"], high["crit_stage"]) == ("resolved", "high-crit", 1)
     assert (always["status"], always["move_rule"], always["crit_stage"]) == ("resolved", "always-crit", 3)
 

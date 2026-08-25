@@ -52,6 +52,7 @@ def freeze_detached_intermediate_predictive_authority(
         raw["current_hp"] = values["hp"]
         raw["fainted"] = values["fainted"]
         raw["stat_stages"] = deepcopy(values["stages"])
+        raw["detached_intermediate_predictive_authority"] = True
     # A status change has exact hypothetical provenance but cannot be written
     # into a runtime-shaped snapshot as if it were an observed condition.
     # Later status-aware second-action support must consume this field directly.

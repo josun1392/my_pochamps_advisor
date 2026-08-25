@@ -133,7 +133,7 @@ def test_exact_intermediate_paralysis_consumes_private_condition_and_branches_se
     ]
     inputs = consumed["builder_inputs"]
     assert inputs["hypothetical_condition_authority"]["condition"] == "paralysis"
-    assert inputs["runtime_snapshot"]["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+    assert inputs["runtime_snapshot"]["state"]["opponent_side"]["pokemon"][0]["condition"] == "paralysis"
     assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
     native = build_runtime_d0_native_damage_context(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"], attacker=inputs["attacker"], target=inputs["target"], move_metadata=MOVE)
     hit = build_runtime_d0_strict_hit_probability_assessment(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"], attacker=inputs["attacker"], target=inputs["target"], selected_move=MOVE)
@@ -153,6 +153,37 @@ def test_exact_intermediate_paralysis_consumes_private_condition_and_branches_se
     assert consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=bad)["status"] == "incomplete"
     stale = deepcopy(authority); stale["predictive_strategy_d0"]["decision_owner"] = _owner(state, "self")
     assert consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=stale)["status"] == "rejected"
+
+
+def test_exact_intermediate_paralysis_drives_facade_and_guts_without_current_mutation():
+    def authority_for(d0, intermediate, metadata):
+        return freeze_detached_intermediate_predictive_authority(
+            strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate,
+            actor=_owner(state, "opponent"), target=_owner(state, "self"),
+            move_metadata_authority=metadata,
+        )
+
+    state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    intermediate = _intermediate(d0)
+    intermediate["active"]["opponent"]["hypothetical_condition"] = {"status": "known_present", "condition": "paralysis", "source": "exact_terminal_leaf_condition_effect"}
+    facade = _metadata_authority(d0) | {"move_id": "facade", "metadata": {"move_id": "facade", "category": "physical", "power": 70, "type": "normal", "accuracy": 100, "priority": 0}}
+    facade_inputs = consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=authority_for(d0, intermediate, facade))["builder_inputs"]
+    facade_native = build_runtime_d0_native_damage_context(strategy_d0=facade_inputs["strategy_d0"], runtime_snapshot=facade_inputs["runtime_snapshot"], attacker=facade_inputs["attacker"], target=facade_inputs["target"], move_metadata=facade["metadata"])
+    assert facade_native["status"] == "resolved"
+    assert facade_native["native_evaluation"]["dynamic_power_evidence"]["effective_power"] == 140
+
+    guts_state = _state(); guts_state["opponent_side"]["pokemon"][0]["current_ability"] = "guts"
+    guts_snapshot = _snapshot(guts_state); guts_d0 = freeze_runtime_strategy_d0(runtime_snapshot=guts_snapshot, decision_owner=_owner(guts_state, "self"))
+    guts_intermediate = _intermediate(guts_d0)
+    guts_intermediate["active"]["opponent"]["hypothetical_condition"] = {"status": "known_present", "condition": "paralysis", "source": "exact_terminal_leaf_condition_effect"}
+    guts_authority = freeze_detached_intermediate_predictive_authority(strategy_d0=guts_d0, runtime_snapshot=guts_snapshot, intermediate_state=guts_intermediate, actor=_owner(guts_state, "opponent"), target=_owner(guts_state, "self"), move_metadata_authority=_metadata_authority(guts_d0))
+    guts_inputs = consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=guts_authority)["builder_inputs"]
+    guts_native = build_runtime_d0_native_damage_context(strategy_d0=guts_inputs["strategy_d0"], runtime_snapshot=guts_inputs["runtime_snapshot"], attacker=guts_inputs["attacker"], target=guts_inputs["target"], move_metadata=MOVE)
+    guts_crit = build_runtime_d0_strict_critical_hit_probability_assessment(strategy_d0=guts_inputs["strategy_d0"], runtime_snapshot=guts_inputs["runtime_snapshot"], attacker=guts_inputs["attacker"], target=guts_inputs["target"], move_metadata=MOVE)
+    assert guts_native["status"] == guts_crit["status"] == "resolved"
+    assert "ability_guts_status_attack_boost" in guts_native["native_evaluation"]["applied_damage_modifiers"]
+    assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+    assert guts_snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
 
 
 def test_opponent_root_leaf_maps_hp_and_preserves_original_d0_binding() -> None:

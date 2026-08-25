@@ -1129,7 +1129,22 @@ def _native_stage_entries(attacker: Mapping[str, int] | None, target: Mapping[st
 
 
 def _native_condition_entries(attacker: Mapping[str, Any], target: Mapping[str, Any]) -> list[dict[str, Any]]:
-    return [{"side": side, "condition_type": _runtime_known_string(raw.get("condition")) or "unknown", "status": "user_confirmed" if _runtime_known_string(raw.get("condition")) else "unknown", "source": "user_confirmed_current_condition" if _runtime_known_string(raw.get("condition")) else "unknown"} for side, raw in (("self", attacker), ("opponent", target))]
+    rows = []
+    for side, raw in (("self", attacker), ("opponent", target)):
+        condition = _runtime_known_string(raw.get("condition"))
+        exact_intermediate_paralysis = (
+            raw.get("detached_exact_intermediate_condition_authority") is True
+            and condition == "paralysis"
+        )
+        detached_intermediate_view = raw.get("detached_intermediate_predictive_authority") is True
+        rows.append({
+            "side": side, "condition_type": condition or "unknown",
+            "status": "user_confirmed" if condition else "unknown",
+            "source": "user_confirmed_current_condition" if condition else "unknown",
+            "hypothetical_source": "exact_detached_intermediate_paralysis" if exact_intermediate_paralysis else None,
+            "hypothetical_view": "detached_intermediate_predictive_authority" if detached_intermediate_view else None,
+        })
+    return rows
 
 
 def _native_ability_entries(attacker: Mapping[str, Any], target: Mapping[str, Any]) -> list[dict[str, Any]]:

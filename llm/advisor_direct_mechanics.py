@@ -38,7 +38,7 @@ UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS = frozenset({
 })
 NATIVE_DIRECT_MECHANICS_SOURCES = frozenset({"native_q12_direct_damage", "native_level_based_fixed_damage"})
 STATIC_ATTACKER_DAMAGE_ABILITIES = frozenset({
-    "adaptability", "iron-fist", "strong-jaw", "mega-launcher", "technician", "tinted-lens", "sniper",
+    "adaptability", "iron-fist", "strong-jaw", "mega-launcher", "technician", "tinted-lens", "sniper", "guts",
 })
 STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({"thick-fat", "fur-coat", "ice-scales", "filter", "solid-rock", "prism-armor", "wonder-guard", "multiscale", "shadow-shield"})
 ABILITY_MODIFIER_TAGS = {
@@ -48,6 +48,7 @@ ABILITY_MODIFIER_TAGS = {
     "mega-launcher": "ability_mega_launcher_boost",
     "technician": "ability_technician_boost",
     "tinted-lens": "ability_tinted_lens_not_very_effective_boost",
+    "guts": "ability_guts_status_attack_boost",
 }
 STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band", "wise-glasses", "expert-belt"})
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
@@ -220,15 +221,18 @@ def evaluate_direct_damage_mechanics(
         missing.append("attacker.level")
     direct_attacker = _mapping(direct.get("attacker"))
     direct_defender = _mapping(direct.get("defender"))
-    modifier = _modifier_context(
-        current=current, direct=direct, category=category, move_type=move_type,
-        defender_types=defender["types"] if defender is not None else (),
-        ignore_burn_attack_reduction=bool(isinstance(facade, Mapping) and facade.get("burn_attack_reduction_ignored") is True),
-    )
     ability_modifier = _attacker_ability_modifier_context(
         current=current, direct_attacker=direct_attacker, move_id=move_id, power=power,
         move_type=move_type, attacker_types=attacker["types"] if attacker is not None else (), is_critical=is_critical,
         defender_types=defender["types"] if defender is not None else (),
+    )
+    modifier = _modifier_context(
+        current=current, direct=direct, category=category, move_type=move_type,
+        defender_types=defender["types"] if defender is not None else (),
+        ignore_burn_attack_reduction=bool(
+            (isinstance(facade, Mapping) and facade.get("burn_attack_reduction_ignored") is True)
+            or (ability_modifier["attacker_condition"] == "burn" and "ability_guts_status_attack_boost" in ability_modifier["applied"])
+        ),
     )
     item_modifier = _attacker_item_modifier_context(
         stat_provenance=stat_provenance, direct_attacker=direct_attacker, category=category,
@@ -244,7 +248,8 @@ def evaluate_direct_damage_mechanics(
     )
     stage_context = _relevant_stage_context(current=current, category=category)
     legacy_modifier_reason = _unsupported_modifier(
-        {**direct_attacker, "ability": _KNOWN_ABSENT, "item": _KNOWN_ABSENT}, {**direct_defender, "ability": _KNOWN_ABSENT}, {}
+        {**direct_attacker, "ability": _KNOWN_ABSENT, "item": _KNOWN_ABSENT}, {**direct_defender, "ability": _KNOWN_ABSENT}, {},
+        allow_exact_detached_paralysis=_has_exact_detached_paralysis(current),
     )
     if legacy_modifier_reason is not None:
         return _unsupported(legacy_modifier_reason)
@@ -313,6 +318,7 @@ def evaluate_direct_damage_mechanics(
             defender_item=defender_item_modifier["item_effect"],
             defender_ability=defender_ability_modifier["ability_effect"],
             defender_hp_current=direct_defender["current_hp"], defender_hp_max=direct_defender["max_hp"],
+            attacker_condition=ability_modifier["attacker_condition"],
         ))
     except (TypeError, ValueError, KeyError):
         return _unsupported("native_direct_damage")
@@ -503,11 +509,17 @@ def _require_hp(value: Mapping[str, Any], side: str, missing: list[str]) -> None
     if _positive_int(current) and _positive_int(maximum) and current > maximum: missing.append(f"{side}.current_hp")
 
 
-def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any]) -> str | None:
+def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_paralysis: bool = False) -> str | None:
     for side in (attacker, defender):
         for key, reason in (("ability", "ability_modifier"), ("item", "item_modifier"), ("status", "major_status_modifier")):
             value = side.get(key)
             if isinstance(value, Mapping) and value.get("status") == "known" and _nonempty_str(value.get("value")):
+                # Paralysis has no direct damage modifier by itself.  Its
+                # action-cancellation semantics are owned by the detached
+                # second-action consumer, while Guts receives the exact
+                # condition through the explicit ability context below.
+                if key == "status" and value.get("value") == "paralysis" and allow_exact_detached_paralysis:
+                    continue
                 return reason
         boosts = side.get("boosts")
         if isinstance(boosts, Mapping) and set(boosts) == set(_BOOST_KEYS) and any(boosts[key] != 0 for key in _BOOST_KEYS):
@@ -521,7 +533,7 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
 
 def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_attacker: Mapping[str, Any], move_id: str, power: Any, move_type: Any, attacker_types: tuple[str, ...] | list[str], defender_types: tuple[str, ...] | list[str], is_critical: bool = False) -> dict[str, Any]:
     """Resolve only static request-start attacker ability effects already owned by Q12."""
-    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None}
+    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None, "attacker_condition": "none"}
     context = current.get("ability_context")
     if not isinstance(context, Mapping):
         if direct_attacker.get("ability") == _KNOWN_ABSENT:
@@ -559,6 +571,16 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
         if is_critical:
             result["applied"].append("ability_sniper_critical_damage")
         return result
+    if ability_id == "guts":
+        condition = _attacker_condition(current)
+        if not _is_detached_intermediate_view(current) or condition not in {"none", "paralysis"}:
+            result["unsupported_reason"] = "ability_modifier"
+            return result
+        result["attacker_condition"] = condition
+        if condition == "paralysis" and _has_exact_detached_paralysis(current):
+            result["ability_effect"] = effect
+            result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
+        return result
     if ability_id == "adaptability":
         if move_type in attacker_types:
             result["ability_effect"] = effect
@@ -584,6 +606,39 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
     result["ability_effect"] = effect
     result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
     return result
+
+
+def _attacker_condition(current: Mapping[str, Any]) -> str | None:
+    context = current.get("condition_context")
+    entries = context.get("current_conditions") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        return None
+    rows = [row for row in entries if isinstance(row, Mapping) and row.get("side") == "self"]
+    if len(rows) != 1:
+        return None
+    condition = rows[0].get("condition_type")
+    return condition if condition in {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"} else None
+
+
+def _has_exact_detached_paralysis(current: Mapping[str, Any]) -> bool:
+    context = current.get("condition_context")
+    entries = context.get("current_conditions") if isinstance(context, Mapping) else None
+    return isinstance(entries, list) and any(
+        isinstance(row, Mapping)
+        and row.get("condition_type") == "paralysis"
+        and row.get("hypothetical_source") == "exact_detached_intermediate_paralysis"
+        for row in entries
+    )
+
+
+def _is_detached_intermediate_view(current: Mapping[str, Any]) -> bool:
+    context = current.get("condition_context")
+    entries = context.get("current_conditions") if isinstance(context, Mapping) else None
+    return isinstance(entries, list) and any(
+        isinstance(row, Mapping)
+        and row.get("hypothetical_view") == "detached_intermediate_predictive_authority"
+        for row in entries
+    )
 
 
 def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_defender: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str]) -> dict[str, Any]:
@@ -613,7 +668,9 @@ def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_def
         result["missing_inputs"].append("defender.ability")
         return result
     result["authority_explicit"] = True
-    if ability_id in _ACTION_ORDER_ONLY_ABILITIES or ability_id in _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES:
+    # Guts has no incoming-damage effect.  It is evaluated only when this
+    # holder is the predictive attacker, after its exact condition is known.
+    if ability_id == "guts" or ability_id in _ACTION_ORDER_ONLY_ABILITIES or ability_id in _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES:
         return result
     if ability_id not in STATIC_DEFENDER_DAMAGE_ABILITIES:
         result["unsupported_reason"] = "defender_ability_modifier"
@@ -764,7 +821,11 @@ def _facade_power_context(current: Mapping[str, Any]) -> dict[str, Any]:
     if len(matches) != 1:
         return {"status": "insufficient_context", "missing_inputs": ["attacker.condition"]}
     try:
-        condition = normalize_user_confirmed_current_condition({key: value for key, value in matches[0].items() if key != "provenance"})["condition_type"]
+        condition = normalize_user_confirmed_current_condition({
+            key: matches[0][key]
+            for key in ("side", "condition_type", "status", "source")
+            if key in matches[0]
+        })["condition_type"]
     except ValueError:
         return {"status": "unsupported_mechanic", "missing_inputs": []}
     boosted = condition in {"burn", "poison", "toxic", "paralysis"}

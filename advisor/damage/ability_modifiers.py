@@ -259,10 +259,19 @@ def attack_stat_ability_mod(
     move_type: str = "",
     hp_current: int = 1,
     hp_max: int = 1,
+    attacker_condition: str = "none",
 ) -> int:
-    if ability is None or not ability.implemented:
+    if ability is None:
         return Q12_ONE
     ability_id = ability.ability_id
+    if (
+        ability_id == "guts"
+        and is_physical
+        and attacker_condition in set(ability.raw_data.get("trigger_status", ()))
+    ):
+        return ability.multiplier_q12
+    if not ability.implemented:
+        return Q12_ONE
     stat_multiplier = get_atk_ability_modifier(
         ability_id,
         "physical" if is_physical else "special",
