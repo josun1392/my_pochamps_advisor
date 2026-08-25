@@ -17,7 +17,7 @@ from llm.advisor_substitute import update_substitute_state_context
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
 _TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_current_type": "pokemon.current_type", "set_current_condition": "pokemon.condition", "set_current_ability": "pokemon.current_ability", "set_current_item": "pokemon.known_item", "set_current_level": "pokemon.current_level", "set_current_final_combat_stat": "pokemon.current_final_stats", "set_current_move_usability": "pokemon.current_move_usability", "set_current_substitute": "state.substitute_state_context", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "set_current_crit_volatiles": "pokemon.current_crit_volatiles", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "set_current_weather": "field.weather", "start_weather": "field.weather", "end_weather": "field.weather", "set_current_terrain": "field.terrain", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "set_current_battle_format": "field.battle_format", "set_current_side_conditions": "side.side_conditions", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "set_observed_tailwind": "side.tailwind_status", "set_observed_trick_room": "field.trick_room_status", "set_same_turn_event": "state.same_turn_event_context", "mark_first_end_of_turn_reached": "state.first_end_of_turn_context", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
-_TARGETS = {**_TARGETS, "set_current_opponent_response_set": "pokemon.current_opponent_response_set"}
+_TARGETS = {**_TARGETS, "set_current_opponent_response_set": "pokemon.current_opponent_response_set", "set_current_opponent_switch_response_set": "side.current_opponent_switch_response_set"}
 
 
 def make_unknown_battle_fact():
@@ -46,7 +46,9 @@ def validate_battle_state_unknown_markers(state):
             return False
         if side_name == "self_side" and "switch_permission_context" in side and not _valid_switch_permission_context(state, side["switch_permission_context"]):
             return False
-        if any(_contains_marker(value) for key, value in side.items() if key not in {"pokemon", "side_conditions", "side_conditions_provenance", "tailwind_status", "switch_permission_context"}):
+        if side_name == "opponent_side" and "current_opponent_switch_response_set" in side and not _valid_current_opponent_switch_response_set(state, side["current_opponent_switch_response_set"]):
+            return False
+        if any(_contains_marker(value) for key, value in side.items() if key not in {"pokemon", "side_conditions", "side_conditions_provenance", "tailwind_status", "switch_permission_context", "current_opponent_switch_response_set"}):
             return False
         for pokemon in roster.values():
             if not isinstance(pokemon, dict):
@@ -166,6 +168,25 @@ def _valid_current_opponent_response_set(value, known_moves):
         and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] >= 1
         and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool) and provenance["source_sequence"] >= 1
     )
+
+
+def _valid_current_opponent_switch_response_set(state, value):
+    side = state.get("opponent_side") if isinstance(state, dict) else None
+    roster = side.get("pokemon") if isinstance(side, dict) else None
+    active = side.get("active_slot_index") if isinstance(side, dict) else None
+    if not isinstance(value, dict) or not isinstance(roster, dict) or set(value) != {"schema_version", "permission", "target_set_completeness", "targets", "active_owner", "provenance"}:
+        return False
+    owner, provenance, targets = value.get("active_owner"), value.get("provenance"), value.get("targets")
+    if value.get("schema_version") != "current-opponent-switch-response-set-v1" or value.get("permission") not in {"permitted", "blocked", "unknown"} or value.get("target_set_completeness") != "complete" or not isinstance(owner, dict) or owner != {"session_id": state.get("session_id"), "side": "opponent", "slot_index": active, "pokemon_id": roster.get(active, {}).get("pokemon_id") if isinstance(roster.get(active), dict) else None} or not isinstance(targets, list):
+        return False
+    seen = set()
+    for row in targets:
+        slot = row.get("slot_index") if isinstance(row, dict) else None; pokemon_id = row.get("pokemon_id") if isinstance(row, dict) else None
+        pokemon = roster.get(slot)
+        if not isinstance(row, dict) or set(row) != {"slot_index", "pokemon_id", "availability"} or not isinstance(slot, int) or isinstance(slot, bool) or slot < 0 or slot == active or not isinstance(pokemon_id, str) or not pokemon_id or row.get("availability") not in {"alive", "fainted", "unknown"} or (slot, pokemon_id) in seen or not isinstance(pokemon, dict) or pokemon.get("pokemon_id") != pokemon_id:
+            return False
+        seen.add((slot, pokemon_id))
+    return isinstance(provenance, dict) and provenance.get("event_kind") == "current_opponent_switch_response_set_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] >= 1 and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool) and provenance["source_sequence"] >= 1
 
 
 def _valid_known_move_provenance(value, moves):
@@ -459,7 +480,7 @@ def _value(event, name):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions"}:
+    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect == "switch_active":
         return isinstance(_value(event, "side"), str) and all(_value(event, key) is not None for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id"))
@@ -553,6 +574,8 @@ def _apply(state, event):
         return _set_current_move_usability(state, event)
     if effect == "set_current_opponent_response_set":
         return _set_current_opponent_response_set(state, event)
+    if effect == "set_current_opponent_switch_response_set":
+        return _set_current_opponent_switch_response_set(state, event)
     if effect == "set_current_terrain":
         return _set_current_terrain(state, event)
     if effect == "set_current_battle_format":
@@ -975,6 +998,34 @@ def _set_current_opponent_response_set(state, event):
     pokemon["known_move_ids_provenance"] = {move: deepcopy(provenance) for move in moves}
     pokemon["current_move_usability"] = {move: {**row, "provenance": deepcopy(provenance)} for move, row in normalized.items()}
     pokemon["current_opponent_response_set"] = {"moveset_completeness": "complete", "move_ids": list(moves), "provenance": deepcopy(provenance)}
+    return None
+
+
+def _set_current_opponent_switch_response_set(state, event):
+    """Store only an explicit present-tense opponent switch-response snapshot."""
+    side = _side(state, "opponent")
+    if side is None or _value(event, "side") != "opponent" or not _active_identity_matches(state, "opponent", _value(event, "slot_index"), _value(event, "pokemon_id")):
+        return _conflict(event, "invalid_current_opponent_switch_response_owner")
+    permission, targets, turn = _value(event, "permission"), _value(event, "targets"), _value(event, "turn_number")
+    if permission not in {"permitted", "blocked", "unknown"} or not isinstance(targets, list) or not isinstance(turn, int) or isinstance(turn, bool) or turn < 1 or _value(event, "trust") != "user_confirmed_observation":
+        return _conflict(event, "invalid_current_opponent_switch_response_observation")
+    roster, active, normalized = side.get("pokemon"), side.get("active_slot_index"), []
+    seen = set()
+    if not isinstance(roster, dict): return _conflict(event, "invalid_current_opponent_switch_response_roster")
+    for row in targets:
+        slot = row.get("slot_index") if isinstance(row, dict) else None
+        pokemon_id = row.get("pokemon_id") if isinstance(row, dict) else None
+        availability = row.get("availability") if isinstance(row, dict) else None
+        pokemon = roster.get(slot)
+        if (not isinstance(slot, int) or isinstance(slot, bool) or slot < 0 or slot == active or not isinstance(pokemon_id, str) or not pokemon_id or availability not in {"alive", "fainted", "unknown"} or (slot, pokemon_id) in seen or not isinstance(pokemon, dict) or pokemon.get("pokemon_id") != pokemon_id):
+            return _conflict(event, "invalid_current_opponent_switch_response_target")
+        seen.add((slot, pokemon_id)); normalized.append({"slot_index": slot, "pokemon_id": pokemon_id, "availability": availability})
+    side["current_opponent_switch_response_set"] = {
+        "schema_version": "current-opponent-switch-response-set-v1", "permission": permission,
+        "target_set_completeness": "complete", "targets": normalized,
+        "active_owner": {"session_id": state["session_id"], "side": "opponent", "slot_index": _value(event, "slot_index"), "pokemon_id": _value(event, "pokemon_id")},
+        "provenance": _provenance(event) | {"event_kind": "current_opponent_switch_response_set_observed", "trust": "user_confirmed_observation", "turn_number": turn},
+    }
     return None
 
 
