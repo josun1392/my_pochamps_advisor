@@ -48,7 +48,7 @@ def compare_own_action_probability_aware_candidates(*, left: Mapping[str, Any], 
     return _result("resolved", "exact_probability_metrics_tie", comparison="tied", preference_source="stable_guaranteed_tie", guaranteed=guaranteed, probability_policy=_policy(eligibility))
 
 
-def rank_own_action_probability_aware_candidates(*, candidates: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def rank_own_action_probability_aware_candidates(*, candidates: Sequence[Mapping[str, Any]], opponent_response_profiles: Mapping[str, Mapping[str, Any]] | None = None) -> dict[str, Any]:
     """Use the existing frontier shape with only the approved pairwise wrapper."""
     ids = [row.get("candidate_id") if isinstance(row, Mapping) else None for row in candidates]
     if len(candidates) < 2 or not all(isinstance(value, str) and value for value in ids) or len(set(ids)) != len(ids):
@@ -57,6 +57,14 @@ def rank_own_action_probability_aware_candidates(*, candidates: Sequence[Mapping
     for index, left in enumerate(candidates):
         for right in candidates[index + 1:]:
             comparison = compare_own_action_probability_aware_candidates(left=left, right=right)
+            if _exact_stable_attack_tie(comparison):
+                from llm.advisor_opponent_response_pareto_evaluation import (
+                    compare_opponent_response_wise_pareto_candidates,
+                )
+                comparison = compare_opponent_response_wise_pareto_candidates(
+                    left=_with_response_profile(left, opponent_response_profiles),
+                    right=_with_response_profile(right, opponent_response_profiles),
+                )
             comparison = {
                 **comparison,
                 "left_candidate_id": left["candidate_id"],
@@ -75,6 +83,18 @@ def rank_own_action_probability_aware_candidates(*, candidates: Sequence[Mapping
 def _facts(record: Any) -> Mapping[str, Any] | None:
     value = record.get("guaranteed_facts") if isinstance(record, Mapping) else None
     return value if isinstance(value, Mapping) else None
+
+
+def _exact_stable_attack_tie(comparison: Mapping[str, Any]) -> bool:
+    return comparison.get("status") == "resolved" and comparison.get("comparison") == "tied" and comparison.get("reason") == "exact_probability_metrics_tie" and comparison.get("preference_source") == "stable_guaranteed_tie"
+
+
+def _with_response_profile(record: Mapping[str, Any], profiles: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
+    result = deepcopy(dict(record))
+    candidate_id = result.get("candidate_id")
+    if isinstance(profiles, Mapping) and isinstance(candidate_id, str) and isinstance(profiles.get(candidate_id), Mapping):
+        result["opponent_response_profile"] = deepcopy(dict(profiles[candidate_id]))
+    return result
 
 
 def _eligibility(left: Mapping[str, Any], right: Mapping[str, Any]) -> dict[str, Any]:
