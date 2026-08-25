@@ -12,8 +12,10 @@ from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_native_damage_context, build_runtime_d0_strict_critical_hit_probability_assessment,
     build_runtime_d0_strict_hit_probability_assessment, freeze_runtime_normal_formula_predictive_input,
-    freeze_runtime_strategy_d0,
+    freeze_runtime_strategy_d0, resolve_runtime_d0_selectable_move_metadata_authority,
 )
+from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
+from llm.advisor_substitute import update_substitute_state_context
 
 
 MOVE = {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}
@@ -144,3 +146,25 @@ def test_opponent_root_leaf_maps_hp_and_preserves_original_d0_binding() -> None:
 
     swapped = deepcopy(root); swapped["root_target"] = opponent
     assert materialize_detached_predictive_intermediate_state(strategy_d0=d0, terminal_leaf=leaf, root_predictive_authority=swapped)["status"] == "rejected"
+
+
+def test_pair_executor_runs_ordinary_own_first_and_opponent_first_paths() -> None:
+    state = _state()
+    for side in ("self", "opponent"):
+        state["substitute_state_context"] = update_substitute_state_context(context=state.get("substitute_state_context"), session_id=state["session_id"], owner=_owner(state, side), state="known_inactive", substitute_hp=None, provenance="runtime_observed_substitute_state_v1")
+    snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    own, opponent = _owner(state, "self"), _owner(state, "opponent")
+    own_meta = _metadata_authority(d0)
+    own_meta.update({"schema_version": "canonical-normalized-move-metadata-authority-v1", "candidate_id": "attack:tackle", "active_attacker": own})
+    own_action = {"action_id": "attack:tackle", "action_type": "attack", "identity": "tackle", "move_metadata_authority": own_meta}
+    assert resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=d0, action=own_action)["status"] == "resolved"
+    opponent_action = {"status": "resolved", "schema_version": "runtime-d0-opponent-known-move-action-authority-v1", "action_id": "opponent_attack:tackle", "action_type": "attack", "move_id": "tackle", "opponent_actor": opponent, "target_owner": own, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "metadata_authority": {"status": "resolved", "move_id": "tackle", "metadata": deepcopy(MOVE)}, "usability": {"status": "known_usable"}, "selectability": "selectable"}
+    def order(value: str) -> dict:
+        return {"status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": value, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "own_action_id": own_action["action_id"], "opponent_action_id": opponent_action["action_id"], "own_actor": own, "opponent_actor": opponent}
+    own_first = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent_action, action_order_authority=order("own_first"))
+    opponent_first = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent_action, action_order_authority=order("opponent_first"))
+    assert own_first["status"] == opponent_first["status"] == "evaluable", (own_first.get("reason"), opponent_first.get("reason"))
+    assert own_first["terminal_probability_mass"] == opponent_first["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert all(row["second_action"]["state"] == "executed" for row in own_first["terminal_branches"])
+    assert all(row["second_action"]["state"] == "executed" for row in opponent_first["terminal_branches"])
+    assert d0["decision_owner"] == own and snapshot["state"]["self_side"]["pokemon"][0]["current_hp"] == 100
