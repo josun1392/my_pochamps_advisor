@@ -7,6 +7,8 @@ from llm.advisor_immediate_attack_vs_opponent_switch_action_pair import material
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
+from llm.advisor_identity_groundedness import build_groundedness
+from llm.advisor_prospective_entry_authority import build_prospective_entry_interactions
 from llm.advisor_substitute import update_substitute_state_context
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 
@@ -101,3 +103,26 @@ def test_non_evaluable_switch_pair_remains_fail_closed_for_ledger_and_metrics():
     ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
     assert ledger["status"] == "unsupported"
     assert project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)["status"] == "unsupported"
+
+
+def test_toxic_spikes_hypothetical_condition_never_falls_back_to_stale_switch_target_condition():
+    state = _state()
+    bench = state["opponent_side"]["pokemon"][1]
+    bench["prospective_groundedness_context"] = build_groundedness(
+        session_id=state["session_id"], side="opponent", slot_index=1, pokemon_id="bench", status="grounded",
+    )
+    bench["prospective_entry_interactions_context"] = build_prospective_entry_interactions(
+        session_id=state["session_id"], side="opponent", slot_index=1, pokemon_id="bench",
+        toxic_spikes="applicable", sticky_web="applicable",
+    )
+    state["switch_hazard_context"] = build_switch_hazard_context(
+        session_id=state["session_id"], affected_side="opponent", stealth_rock="absent", spikes_layers=0,
+        toxic_spikes_layers=1, sticky_web="absent",
+    )
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert pair["status"] == "incomplete"
+    assert pair["reason"] == "hypothetical_switch_in_condition_consumer_unavailable"

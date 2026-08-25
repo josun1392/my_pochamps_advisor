@@ -8,7 +8,9 @@ from llm.advisor_reducer_state_model import is_unknown_battle_fact
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
 from llm.advisor_runtime_d0_opponent_switch_target_combat_authority import freeze_runtime_d0_opponent_switch_target_combat_authority
 from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
+from llm.advisor_switch_entry_effects import evaluate_toxic_spikes_entry
 from llm.advisor_switch_hazard_authority import normalize_switch_hazard_context
+from llm.advisor_prospective_entry_authority import normalize_prospective_entry_interactions
 
 
 SCHEMA_VERSION = "detached-opponent-switch-in-intermediate-authority-v1"
@@ -53,6 +55,12 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
     if post_hp == 0:
         return _result("unsupported", "replacement_required_after_switch_entry_ko", base, selected_response_action_id=selected_response_action_id, target_owner=target, entry_hazard_context=hazards, entry_consequence=entry)
     fields = _fields(current)
+    toxic = entry["toxic_spikes_consequence"]
+    if toxic.get("outcome") == "status_applied":
+        fields["condition"] = {
+            "status": "known", "value": toxic["post_condition"],
+            "provenance": "detached_toxic_spikes_entry_v1",
+        }
     hypothetical = {
         "schema_version": SCHEMA_VERSION,
         "hypothetical": True,
@@ -68,6 +76,7 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
         "stage_authority": fields["stages"],
         "substitute_authority": {"status": "unknown", "reason": "opponent_switch_in_substitute_untracked"},
         "entry_hazard_context": deepcopy(hazards),
+        "post_entry_hazard_context": deepcopy(entry["post_entry_hazard_context"]),
         "entry_consequence": deepcopy(entry),
     }
     return {
@@ -116,22 +125,33 @@ def _hazards(state: Any, session_id: str) -> dict:
 def _entry_consequence(hazards: Mapping[str, Any], current: Mapping[str, Any], hp: Mapping[str, Any], target_owner: Mapping[str, Any]) -> dict:
     if not isinstance(hazards, Mapping) or any(hazards.get(key) == "unknown" for key in ("stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web")):
         return {"status": "incomplete", "reason": "switch_entry_hazards_unknown"}
-    if hazards.get("toxic_spikes_layers") != 0 or hazards.get("sticky_web") != "absent":
+    if hazards.get("sticky_web") != "absent":
         return {"status": "unsupported", "reason": "switch_entry_effect_not_supported_by_detached_adapter"}
-    if hazards.get("stealth_rock") == "absent" and hazards.get("spikes_layers") == 0:
-        return {"status": "resolved", "damage": 0, "post_hp": hp["current_hp"], "hazard_ko": False, "effect": "known_absent_entry_hazards"}
     target = {
         "side": "opponent",
         "hp_authority": {"status": "known", "current_hp": hp["current_hp"], "maximum_hp": hp["maximum_hp"]},
-        "item_authority": _simple_authority(current.get("known_item")),
-        "ability_authority": _simple_authority(current.get("current_ability")),
-        "current_type_authority": _simple_authority(current.get("current_type")),
+        "item_authority": _entry_value_authority(current.get("known_item")),
+        "ability_authority": _entry_value_authority(current.get("current_ability")),
+        "current_type_authority": _entry_value_authority(current.get("current_type")),
+        "persistent_condition_authority": _entry_condition_authority(current.get("condition")),
         "prospective_groundedness_authority": _groundedness_authority(current.get("prospective_groundedness_context"), target_owner),
+        "prospective_entry_interactions_authority": _entry_interactions_authority(current.get("prospective_entry_interactions_context"), target_owner),
     }
     evaluated = evaluate_entry_hazards(hazards=hazards, target=target)
     if evaluated.get("status") != "complete":
         return {"status": "incomplete", "reason": str(evaluated.get("reason") or "switch_entry_hazard_authority_incomplete")}
-    return {"status": "resolved", "damage": evaluated["damage"], "post_hp": evaluated["post_hazard_hp"], "hazard_ko": evaluated["hazard_ko"], "effect": "supported_stealth_rock_or_spikes", "hazard_evidence": deepcopy(evaluated)}
+    toxic = evaluate_toxic_spikes_entry(hazards=hazards, target=target)
+    if toxic.get("status") != "complete":
+        return {"status": "incomplete", "reason": str(toxic.get("reason") or "toxic_spikes_authority_incomplete")}
+    after_hazards = deepcopy(dict(hazards))
+    if toxic.get("removes_toxic_spikes") is True:
+        after_hazards["toxic_spikes_layers"] = 0
+    effect = "known_absent_entry_hazards" if hazards.get("stealth_rock") == "absent" and hazards.get("spikes_layers") == 0 and hazards.get("toxic_spikes_layers") == 0 else "supported_entry_hazards"
+    return {
+        "status": "resolved", "damage": evaluated["damage"], "post_hp": evaluated["post_hazard_hp"], "hazard_ko": evaluated["hazard_ko"], "effect": effect,
+        "hazard_evidence": deepcopy(evaluated), "toxic_spikes_consequence": deepcopy(toxic),
+        "post_entry_hazard_context": after_hazards,
+    }
 
 
 def _fields(current: Mapping[str, Any]) -> dict:
@@ -152,11 +172,32 @@ def _simple_authority(value: Any) -> dict:
     return {"status": "known", "value": deepcopy(value), "provenance": "runtime_battle_state_v1"}
 
 
+def _entry_value_authority(value: Any) -> dict:
+    """Make a minimal exact-value view for the existing entry resolver."""
+    if is_unknown_battle_fact(value):
+        return {"status": "unknown"}
+    return {"status": "known", "value": deepcopy(value)}
+
+
+def _entry_condition_authority(value: Any) -> dict:
+    if is_unknown_battle_fact(value) or value not in {None, "none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}:
+        return {"status": "unknown"}
+    return {"status": "known", "value": deepcopy(value)}
+
+
 def _groundedness_authority(value: Any, target_owner: Mapping[str, Any]) -> dict:
     if not isinstance(value, Mapping) or value.get("schema_version") != "identity-groundedness-v1" or any(value.get(key) != target_owner.get(key) for key in ("side", "slot_index", "pokemon_id")):
         return {"status": "unknown"}
     status = value.get("status")
     return {"status": status} if status in {"grounded", "ungrounded"} else {"status": "unknown"}
+
+
+def _entry_interactions_authority(value: Any, target_owner: Mapping[str, Any]) -> dict:
+    normalized = normalize_prospective_entry_interactions(
+        value, session_id=target_owner["session_id"], side=target_owner["side"],
+        slot_index=target_owner["slot_index"], pokemon_id=target_owner["pokemon_id"],
+    )
+    return {"toxic_spikes": normalized["toxic_spikes"], "sticky_web": normalized["sticky_web"]}
 
 
 def _base(d0: Any) -> dict:

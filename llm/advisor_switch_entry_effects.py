@@ -18,7 +18,7 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
     non-damaging entry effect correctly remains incomplete.
     """
     damage = evaluate_entry_hazards(hazards=hazards, target=target)
-    toxic = _evaluate_toxic_spikes(hazards=hazards, target=target)
+    toxic = evaluate_toxic_spikes_entry(hazards=hazards, target=target)
     sticky = _evaluate_sticky_web(hazards=hazards, target=target)
     intimidate = _evaluate_intimidate(target=target, damage=damage, authority=intimidate_authority)
     download = _evaluate_download(target=target, damage=damage, authority=download_authority)
@@ -38,17 +38,23 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
     }
 
 
-def _evaluate_toxic_spikes(*, hazards: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
-    item = _authority(target, "item_authority")
-    if _known_value(item) == "heavy-duty-boots":
-        return _complete("prevented_by_heavy_duty_boots")
-    if not _known_authority(item):
-        return _incomplete("item_unknown")
+def evaluate_toxic_spikes_entry(*, hazards: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve only the exact Toxic Spikes consequence for one incoming target.
+
+    This deliberately stays independent of the broader switch-entry effects
+    bundle: a detached switch-in can consume Toxic Spikes without claiming
+    support for Sticky Web or switch-entry abilities.
+    """
     layers = _hazard_value(hazards, target.get("side"), "toxic_spikes_layers", {0, 1, 2})
     if layers is None:
         return _incomplete("toxic_spikes_unknown")
     if layers == 0:
         return _complete("absent")
+    item = _authority(target, "item_authority")
+    if _known_value(item) == "heavy-duty-boots":
+        return _complete("prevented_by_heavy_duty_boots")
+    if not _known_authority(item):
+        return _incomplete("item_unknown")
     grounded = _grounded(target)
     if grounded is None:
         return _incomplete("prospective_groundedness_unknown")

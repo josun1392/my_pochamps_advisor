@@ -83,6 +83,17 @@ def _switch_first_predictive_view(strategy_d0: Mapping[str, Any], runtime_snapsh
         return _result("rejected", "switch_in_hypothetical_state_invalid", {})
     side["active_slot_index"] = incoming["slot_index"]
     target["current_hp"], target["max_hp"], target["fainted"] = hp["current_hp"], hp["maximum_hp"], False
+    condition = hypothetical.get("condition_authority")
+    if not isinstance(condition, Mapping) or condition.get("status") != "known" or condition.get("value") not in {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}:
+        return _result("incomplete", "hypothetical_switch_in_condition_unknown", {})
+    original_condition = target.get("condition") or "none"
+    if condition["value"] != original_condition:
+        # The runtime-D0 strategy view deliberately accepts only observed
+        # current conditions.  Do not masquerade an entry-hazard result as an
+        # observation, and never fall back to this target's stale pre-entry
+        # condition.  A future switch-first status consumer can lift this
+        # bounded restriction without changing switch-in authority.
+        return _result("incomplete", "hypothetical_switch_in_condition_consumer_unavailable", {})
     snapshot = {"status": "runtime_snapshot_ready", "session_id": strategy_d0["session_id"], "state": synthetic, "state_fingerprint": state_fingerprint(synthetic)}
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=strategy_d0["decision_owner"])
     if d0.get("status") != "resolved":
