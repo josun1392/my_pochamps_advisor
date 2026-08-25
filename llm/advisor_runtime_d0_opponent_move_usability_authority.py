@@ -105,7 +105,7 @@ def _record(value: Any) -> bool:
     if value["status"] == "known_unusable" and value.get("reason") not in {"no_pp", "disabled", "choice_lock", "encore_restriction", "other_supported_restriction", "observed_unclassified"}:
         return False
     provenance = value.get("provenance")
-    return isinstance(provenance, Mapping) and provenance.get("event_kind") == "current_move_usability_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] >= 1 and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool) and provenance["source_sequence"] >= 1
+    return isinstance(provenance, Mapping) and provenance.get("event_kind") in {"current_move_usability_observed", "current_opponent_response_set_observed"} and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] >= 1 and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool) and provenance["source_sequence"] >= 1
 
 
 def _owner(value: Any) -> bool:

@@ -1,7 +1,7 @@
 """Private session-scoped canonical observation buffer."""
 from copy import deepcopy
 
-_KINDS={"direct_move_damage_observed","used_move_observed","exact_hp_transition_observed","exact_hp_recovery_observed","current_type_observed","current_weather_observed","current_ability_observed","current_item_observed","current_terrain_observed","current_side_conditions_observed","current_battle_format_observed","current_level_observed","current_final_combat_stat_observed","substitute_state_observed","pokemon_switch_observed","pokemon_faint_observed","condition_applied_observed","stat_stage_observed","switch_hazards_observed","tailwind_side_condition_observed","trick_room_field_observed","same_turn_event_observed","first_end_of_turn_reached_observed"}
+_KINDS={"direct_move_damage_observed","used_move_observed","exact_hp_transition_observed","exact_hp_recovery_observed","current_type_observed","current_weather_observed","current_ability_observed","current_item_observed","current_terrain_observed","current_side_conditions_observed","current_battle_format_observed","current_level_observed","current_final_combat_stat_observed","current_opponent_response_set_observed","substitute_state_observed","pokemon_switch_observed","pokemon_faint_observed","condition_applied_observed","stat_stage_observed","switch_hazards_observed","tailwind_side_condition_observed","trick_room_field_observed","same_turn_event_observed","first_end_of_turn_reached_observed"}
 class ObservationCollection:
  def __init__(self,session_id): self._session_id=session_id; self._items={}
  def add_confirmation_result(self,result):

@@ -205,7 +205,14 @@ def _move_id(value: Any) -> bool:
 
 
 def _provenance_map(value: Any, moves: list[str]) -> bool:
-    return isinstance(value, Mapping) and set(value) == set(moves) and all(isinstance(row, Mapping) and row.get("event_kind") == "used_move_observed" and row.get("trust") == "user_confirmed_observation" and isinstance(row.get("source_observation_id"), str) and bool(row["source_observation_id"]) and isinstance(row.get("source_sequence"), int) and not isinstance(row.get("source_sequence"), bool) and row["source_sequence"] >= 1 for row in value.values())
+    return isinstance(value, Mapping) and set(value) == set(moves) and all(
+        isinstance(row, Mapping)
+        and row.get("event_kind") in {"used_move_observed", "current_opponent_response_set_observed"}
+        and row.get("trust") == "user_confirmed_observation"
+        and isinstance(row.get("source_observation_id"), str) and bool(row["source_observation_id"])
+        and isinstance(row.get("source_sequence"), int) and not isinstance(row.get("source_sequence"), bool) and row["source_sequence"] >= 1
+        for row in value.values()
+    )
 
 
 def _result(status: str, reason: str, base: Mapping[str, Any]) -> dict[str, Any]:
