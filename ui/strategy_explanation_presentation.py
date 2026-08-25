@@ -271,8 +271,19 @@ def _probability_aware_decisions(value: Any) -> bool:
     for decision in value:
         if not isinstance(decision, Mapping):
             return False
-        if decision.get("schema_version") != "probability-aware-strategy-decision-explanation-v1":
-            return False
+        if decision.get("schema_version") == "opponent-response-pareto-decision-explanation-v1":
+            if decision.get("rule") != "response_wise_pareto_dominance" or not isinstance(decision.get("selected_candidate_id"), str) or not isinstance(decision.get("compared_candidate_id"), str) or decision.get("guaranteed_comparison_tied") is not True or decision.get("own_action_probability_tied") is not True or decision.get("response_probability") != "not_modeled" or not isinstance(decision.get("bindings"), Mapping): return False
+            ids,evidence=decision.get("shared_response_action_ids"),decision.get("response_evidence")
+            if not isinstance(ids,(tuple,list)) or not ids or len(ids)!=len(set(ids)) or not all(isinstance(item,str) and item for item in ids) or not isinstance(evidence,(tuple,list)) or len(evidence)!=len(ids): return False
+            seen=set()
+            for row in evidence:
+                if not isinstance(row,Mapping) or row.get("opponent_response_action_id") not in ids or row["opponent_response_action_id"] in seen: return False
+                seen.add(row["opponent_response_action_id"])
+                for key in ("selected_opponent_ko_probability","alternative_opponent_ko_probability","selected_own_ko_probability","alternative_own_ko_probability"):
+                    fraction=row.get(key)
+                    if not isinstance(fraction,Mapping) or not isinstance(fraction.get("numerator"),int) or isinstance(fraction.get("numerator"),bool) or not isinstance(fraction.get("denominator"),int) or isinstance(fraction.get("denominator"),bool) or fraction["denominator"]<=0 or not 0<=fraction["numerator"]<=fraction["denominator"]: return False
+            continue
+        if decision.get("schema_version") != "probability-aware-strategy-decision-explanation-v1": return False
         if decision.get("rule") not in {"higher_target_ko_probability", "lower_self_faint_probability"}:
             return False
         if decision.get("metric") not in {"target_ko_probability", "self_faint_probability"}:
@@ -391,6 +402,11 @@ def _probability_decision_labels(values: Any) -> list[str]:
     labels = []
     for decision in values:
         if not isinstance(decision, Mapping):
+            continue
+        if decision.get("rule") == "response_wise_pareto_dominance":
+            evidence = decision.get("response_evidence")
+            if isinstance(evidence, (tuple, list)):
+                labels.append(f"기존 확률 결과가 같아 모든 확인된 상대 응답에서 Pareto 우세 ({len(evidence)}개 응답; 상대 KO는 낮지 않고 자신의 KO는 높지 않음)")
             continue
         selected = decision.get("selected_metric")
         alternative = decision.get("alternative_metric")

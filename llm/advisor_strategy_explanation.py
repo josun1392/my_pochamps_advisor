@@ -8,7 +8,7 @@ def explain_detached_strategy(*,orchestration:Mapping[str,Any])->dict[str,Any]:
  if not isinstance(owner,Mapping) or orchestration.get("session_id")!=owner.get("session_id") or not isinstance(orchestration.get("decision_branch_fingerprint"),str) or not isinstance(candidates,list) or not isinstance(ranking,Mapping):return _r("rejected","inconsistent_orchestration_d0")
  frontier=ranking.get("preferred_frontier",[])
  if not isinstance(frontier,list) or any(not isinstance(x,str) for x in frontier):return _r("rejected","invalid_orchestration_ranking")
- reasons=_reasons(ranking);probability_decisions=_probability_aware_decisions(ranking)
+ reasons=_reasons(ranking);probability_decisions=_probability_aware_decisions(ranking,session_id=orchestration["session_id"],branch_fingerprint=orchestration["decision_branch_fingerprint"],decision_owner=owner)
  if probability_decisions is _INVALID:return _r("rejected","invalid_probability_aware_strategy_decision")
  decisions_by_candidate={}
  for decision in probability_decisions:decisions_by_candidate.setdefault(decision["selected_candidate_id"],[]).append(decision)
@@ -35,10 +35,15 @@ def _reasons(r):
  for x in r.get("pairwise_matrix",[]) if isinstance(r.get("pairwise_matrix"),(tuple,list)) else []:
   if isinstance(x,Mapping) and x.get("comparison")=="preferred" and isinstance(x.get("preferred_candidate"),str):out.setdefault(x["preferred_candidate"],[]).append(x.get("reason"))
  return out
-def _probability_aware_decisions(ranking):
+def _probability_aware_decisions(ranking,session_id=None,branch_fingerprint=None,decision_owner=None):
  decisions=[]
  for value in ranking.get("pairwise_matrix",[]) if isinstance(ranking.get("pairwise_matrix"),(tuple,list)) else []:
-  if not isinstance(value,Mapping) or value.get("preference_source") not in {"target_ko_probability","self_faint_probability"}:continue
+  if not isinstance(value,Mapping):continue
+  if value.get("preference_source")=="opponent_response_wise_pareto":
+   decision=_pareto_decision(value,session_id=session_id,branch_fingerprint=branch_fingerprint,decision_owner=decision_owner)
+   if decision is _INVALID:return _INVALID
+   decisions.append(decision);continue
+  if value.get("preference_source") not in {"target_ko_probability","self_faint_probability"}:continue
   comparison=value.get("comparison");left=value.get("left_candidate_id");right=value.get("right_candidate_id");policy=value.get("probability_policy");guaranteed=value.get("guaranteed")
   if comparison not in {"left_preferred","right_preferred"} or not isinstance(left,str) or not isinstance(right,str) or not isinstance(policy,Mapping) or policy.get("status")!="eligible" or not isinstance(guaranteed,Mapping) or guaranteed.get("comparison")!="tied_on_supported_facts":return _INVALID
   metric="target_ko_probability" if value["preference_source"]=="target_ko_probability" else "self_faint_probability"
@@ -48,6 +53,22 @@ def _probability_aware_decisions(ranking):
   if not _fraction(selected_value) or not _fraction(alternative_value) or not isinstance(policy.get("bindings"),Mapping):return _INVALID
   decisions.append({"schema_version":"probability-aware-strategy-decision-explanation-v1","policy_version":value.get("schema_version"),"rule":"higher_target_ko_probability" if metric=="target_ko_probability" else "lower_self_faint_probability","selected_candidate_id":selected,"compared_candidate_id":alternative,"metric":metric,"selected_metric":deepcopy(dict(selected_value)),"alternative_metric":deepcopy(dict(alternative_value)),"guaranteed_comparison_tied":True,"guaranteed_comparison_reason":guaranteed.get("reason"),"bindings":deepcopy(dict(policy["bindings"]))})
  return tuple(decisions)
+def _pareto_decision(value,*,session_id,branch_fingerprint,decision_owner):
+ comparison=value.get("comparison");left=value.get("left_candidate_id");right=value.get("right_candidate_id");policy=value.get("response_policy");base=value.get("base_comparison")
+ if comparison not in {"left_preferred","right_preferred"} or value.get("reason")!="response_wise_pareto_dominance" or not isinstance(left,str) or not isinstance(right,str) or not isinstance(policy,Mapping) or policy.get("status")!="eligible" or not isinstance(base,Mapping) or base.get("comparison")!="tied" or base.get("reason")!="exact_probability_metrics_tie":return _INVALID
+ ids=policy.get("response_action_ids");rows=policy.get("response_comparisons");bindings=policy.get("bindings")
+ if not isinstance(ids,tuple) or not ids or len(ids)!=len(set(ids)) or not all(isinstance(x,str) and x for x in ids) or not isinstance(rows,tuple) or len(rows)!=len(ids) or not isinstance(bindings,Mapping):return _INVALID
+ if bindings.get("session_id")!=session_id or bindings.get("source_branch_fingerprint")!=branch_fingerprint or bindings.get("decision_owner")!=decision_owner or not isinstance(bindings.get("source_runtime_fingerprint"),str) or not bindings["source_runtime_fingerprint"]:return _INVALID
+ selected_left=comparison=="left_preferred";selected=left if selected_left else right;alternative=right if selected_left else left;seen=set();evidence=[];strict=False
+ for row in rows:
+  if not isinstance(row,Mapping) or row.get("opponent_response_action_id") not in ids or row["opponent_response_action_id"] in seen:return _INVALID
+  seen.add(row["opponent_response_action_id"]);prefix="left" if selected_left else "right";other="right" if selected_left else "left"
+  selected_ko=row.get(f"{prefix}_opponent_ko_probability");alternative_ko=row.get(f"{other}_opponent_ko_probability");selected_own=row.get(f"{prefix}_own_ko_probability");alternative_own=row.get(f"{other}_own_ko_probability")
+  if not all(_fraction(x) for x in (selected_ko,alternative_ko,selected_own,alternative_own)) or row.get(f"{prefix}_weakly_dominates") is not True:return _INVALID
+  strict|=selected_ko!=alternative_ko or selected_own!=alternative_own
+  evidence.append({"opponent_response_action_id":row["opponent_response_action_id"],"selected_opponent_ko_probability":deepcopy(dict(selected_ko)),"alternative_opponent_ko_probability":deepcopy(dict(alternative_ko)),"selected_own_ko_probability":deepcopy(dict(selected_own)),"alternative_own_ko_probability":deepcopy(dict(alternative_own))})
+ if seen!=set(ids) or not strict:return _INVALID
+ return {"schema_version":"opponent-response-pareto-decision-explanation-v1","policy_version":value.get("schema_version"),"rule":"response_wise_pareto_dominance","selected_candidate_id":selected,"compared_candidate_id":alternative,"shared_response_action_ids":tuple(ids),"response_evidence":tuple(evidence),"guaranteed_comparison_tied":True,"own_action_probability_tied":True,"bindings":deepcopy(dict(bindings)),"response_probability":"not_modeled"}
 def _fraction(value):
  return isinstance(value,Mapping) and isinstance(value.get("numerator"),int) and not isinstance(value.get("numerator"),bool) and isinstance(value.get("denominator"),int) and not isinstance(value.get("denominator"),bool) and value["denominator"]>0 and 0<=value["numerator"]<=value["denominator"]
 def _hit_miss_uncertainty(row):

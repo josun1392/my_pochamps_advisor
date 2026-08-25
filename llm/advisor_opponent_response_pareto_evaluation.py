@@ -56,7 +56,7 @@ def compare_opponent_response_wise_pareto_candidates(*, left: Mapping[str, Any],
         left_strict |= first["opponent_ko"] > second["opponent_ko"] or first["own_ko"] < second["own_ko"]
         right_strict |= second["opponent_ko"] > first["opponent_ko"] or second["own_ko"] < first["own_ko"]
         rows.append({"opponent_response_action_id": action_id, "left_opponent_ko_probability": _fd(first["opponent_ko"]), "right_opponent_ko_probability": _fd(second["opponent_ko"]), "left_own_ko_probability": _fd(first["own_ko"]), "right_own_ko_probability": _fd(second["own_ko"]), "left_weakly_dominates": left_weak, "right_weakly_dominates": right_weak})
-    policy = {"status": "eligible", "response_action_ids": tuple(left_profile["response_ids"]), "response_comparisons": tuple(rows), "response_probability": "not_modeled", "ranking_influence": "none"}
+    policy = {"status": "eligible", "response_action_ids": tuple(left_profile["response_ids"]), "response_comparisons": tuple(rows), "bindings": deepcopy(left_profile["bindings"]), "response_probability": "not_modeled", "ranking_influence": "none"}
     if left_dominates and left_strict:
         return _result("resolved", "response_wise_pareto_dominance", comparison="left_preferred", preference_source="opponent_response_wise_pareto", base_comparison=base, response_policy=policy)
     if right_dominates and right_strict:
