@@ -16,7 +16,7 @@ from llm.advisor_substitute import update_substitute_state_context
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
-_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_current_type": "pokemon.current_type", "set_current_condition": "pokemon.condition", "set_current_ability": "pokemon.current_ability", "set_current_item": "pokemon.known_item", "set_current_level": "pokemon.current_level", "set_current_final_combat_stat": "pokemon.current_final_stats", "set_current_substitute": "state.substitute_state_context", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "set_current_crit_volatiles": "pokemon.current_crit_volatiles", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "set_current_weather": "field.weather", "start_weather": "field.weather", "end_weather": "field.weather", "set_current_terrain": "field.terrain", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "set_current_battle_format": "field.battle_format", "set_current_side_conditions": "side.side_conditions", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "set_observed_tailwind": "side.tailwind_status", "set_observed_trick_room": "field.trick_room_status", "set_same_turn_event": "state.same_turn_event_context", "mark_first_end_of_turn_reached": "state.first_end_of_turn_context", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
+_TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_current_type": "pokemon.current_type", "set_current_condition": "pokemon.condition", "set_current_ability": "pokemon.current_ability", "set_current_item": "pokemon.known_item", "set_current_level": "pokemon.current_level", "set_current_final_combat_stat": "pokemon.current_final_stats", "set_current_move_usability": "pokemon.current_move_usability", "set_current_substitute": "state.substitute_state_context", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "set_current_crit_volatiles": "pokemon.current_crit_volatiles", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "set_current_weather": "field.weather", "start_weather": "field.weather", "end_weather": "field.weather", "set_current_terrain": "field.terrain", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "set_current_battle_format": "field.battle_format", "set_current_side_conditions": "side.side_conditions", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "set_observed_tailwind": "side.tailwind_status", "set_observed_trick_room": "field.trick_room_status", "set_same_turn_event": "state.same_turn_event_context", "mark_first_end_of_turn_reached": "state.first_end_of_turn_context", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
 
 
 def make_unknown_battle_fact():
@@ -55,9 +55,9 @@ def validate_battle_state_unknown_markers(state):
             known_moves = pokemon.get("known_move_ids", [])
             if not isinstance(known_moves, list) or len(known_moves) > 4 or any(not _canonical_move_id(move) for move in known_moves) or len(set(known_moves)) != len(known_moves) or not _valid_known_move_provenance(pokemon.get("known_move_ids_provenance"), known_moves):
                 return False
-            if not _valid_current_crit_volatile_state(pokemon.get("current_crit_volatiles"), pokemon.get("current_crit_volatiles_provenance")):
+            if not _valid_current_move_usability(pokemon.get("current_move_usability"), known_moves) or not _valid_current_crit_volatile_state(pokemon.get("current_crit_volatiles"), pokemon.get("current_crit_volatiles_provenance")):
                 return False
-            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "known_move_ids_provenance", "toxic_progression", "condition", "condition_provenance", "current_crit_volatiles", "current_crit_volatiles_provenance"}):
+            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "known_move_ids_provenance", "current_move_usability", "toxic_progression", "condition", "condition_provenance", "current_crit_volatiles", "current_crit_volatiles_provenance"}):
                 return False
     field = state.get("field")
     if not isinstance(field, dict) or not all(_valid_fact_marker(field.get(name)) for name in ("weather", "terrain", "battle_format")) or not _valid_current_weather_state(field.get("weather"), field.get("weather_provenance")) or not _valid_current_terrain_state(field.get("terrain"), field.get("terrain_provenance")) or not _valid_current_battle_format_state(field.get("battle_format"), field.get("battle_format_provenance")):
@@ -129,6 +129,24 @@ def _valid_known_move_observation(value):
         and not isinstance(value.get("source_sequence"), bool)
         and value["source_sequence"] >= 1
     )
+
+
+def _valid_current_move_usability(value, known_moves):
+    if value is None:
+        return True
+    if not isinstance(value, dict) or any(not _canonical_move_id(move) or move not in known_moves for move in value):
+        return False
+    for record in value.values():
+        provenance = record.get("provenance") if isinstance(record, dict) else None
+        if not isinstance(record, dict) or set(record) != {"status", "reason", "provenance"} or record.get("status") not in {"known_usable", "known_unusable"}:
+            return False
+        if record["status"] == "known_usable" and record["reason"] is not None:
+            return False
+        if record["status"] == "known_unusable" and record["reason"] not in {"no_pp", "disabled", "choice_lock", "encore_restriction", "other_supported_restriction", "observed_unclassified"}:
+            return False
+        if not isinstance(provenance, dict) or provenance.get("event_kind") != "current_move_usability_observed" or provenance.get("trust") != "user_confirmed_observation" or not isinstance(provenance.get("turn_number"), int) or isinstance(provenance.get("turn_number"), bool) or provenance["turn_number"] < 1 or not isinstance(provenance.get("source_sequence"), int) or isinstance(provenance.get("source_sequence"), bool) or provenance["source_sequence"] < 1:
+            return False
+    return True
 
 
 def _valid_known_move_provenance(value, moves):
@@ -422,7 +440,7 @@ def _value(event, name):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions"}:
+    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect == "switch_active":
         return isinstance(_value(event, "side"), str) and all(_value(event, key) is not None for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id"))
@@ -512,6 +530,8 @@ def _apply(state, event):
         return _set_current_ability(state, event)
     if effect == "set_current_item":
         return _set_current_item(state, event)
+    if effect == "set_current_move_usability":
+        return _set_current_move_usability(state, event)
     if effect == "set_current_terrain":
         return _set_current_terrain(state, event)
     if effect == "set_current_battle_format":
@@ -854,6 +874,55 @@ def _set_current_item(state, event):
         return _conflict(event, "stale_current_item_observation")
     pokemon["known_item"] = item if status == "known" else None
     pokemon["known_item_provenance"] = _provenance(event) | {"event_kind": "current_item_observed", "trust": _value(event, "trust"), "turn_number": turn_number, "status": status}
+    return None
+
+
+def _set_current_move_usability(state, event):
+    """Record a single explicit, current selectability observation.
+
+    This deliberately has no PP or lock-mechanics inference path.  A later
+    D0 authority may use the fact only while it remains the newest reducer
+    observation for this exact active opponent identity.
+    """
+    pokemon, side = _pokemon(state, event), _value(event, "side")
+    move_id, status, reason, turn_number = (
+        _value(event, "canonical_move_id"), _value(event, "usability"),
+        _value(event, "reason"), _value(event, "turn_number"),
+    )
+    if (
+        side != "opponent" or pokemon is None
+        or not _active_identity_matches(state, side, _value(event, "slot_index"), _value(event, "pokemon_id"))
+        or pokemon.get("fainted") is True or not _canonical_move_id(move_id)
+        or status not in {"known_usable", "known_unusable"}
+        or _value(event, "trust") != "user_confirmed_observation"
+        or not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1
+    ):
+        return _conflict(event, "invalid_current_move_usability_observation")
+    allowed_reasons = {"no_pp", "disabled", "choice_lock", "encore_restriction", "other_supported_restriction", "observed_unclassified"}
+    if (status == "known_usable" and reason is not None) or (status == "known_unusable" and reason not in allowed_reasons):
+        return _conflict(event, "invalid_current_move_usability_reason")
+    known_moves = pokemon.get("known_move_ids", [])
+    if not isinstance(known_moves, list) or move_id not in known_moves:
+        return _conflict(event, "current_move_usability_requires_known_move")
+    current = pokemon.get("current_move_usability")
+    if current is None:
+        current = {}
+    if not _valid_current_move_usability(current, known_moves):
+        return _conflict(event, "invalid_current_move_usability_state")
+    prior = current.get(move_id, {}).get("provenance") if isinstance(current.get(move_id), dict) else None
+    prior_turn = prior.get("turn_number") if isinstance(prior, dict) else None
+    if isinstance(prior_turn, int) and not isinstance(prior_turn, bool) and turn_number < prior_turn:
+        return _conflict(event, "stale_current_move_usability_observation")
+    pokemon["current_move_usability"] = {
+        **current,
+        move_id: {
+            "status": status, "reason": reason,
+            "provenance": _provenance(event) | {
+                "event_kind": "current_move_usability_observed",
+                "trust": "user_confirmed_observation", "turn_number": turn_number,
+            },
+        },
+    }
     return None
 
 

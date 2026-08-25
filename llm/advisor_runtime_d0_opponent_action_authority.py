@@ -16,6 +16,7 @@ SCHEMA_VERSION = "runtime-d0-opponent-known-move-action-authority-v1"
 METADATA_SCHEMA_VERSION = "canonical-normalized-move-metadata-authority-v1"
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _STATUSES = frozenset({"resolved", "incomplete", "unsupported", "rejected"})
+USABILITY_SCHEMA_VERSION = "runtime-d0-opponent-move-usability-authority-v1"
 
 
 def freeze_runtime_d0_opponent_known_move_action_authority(
@@ -77,6 +78,49 @@ def freeze_runtime_d0_opponent_known_move_action_authority(
         "status": "resolved", "schema_version": SCHEMA_VERSION, **common,
         "actions": actions, "provenance": "runtime_reducer_known_move_identity_v1",
     }
+
+
+def compose_runtime_d0_opponent_move_usability(
+    *, opponent_action: Mapping[str, Any], usability_authority: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Attach separately frozen current selectability without re-reading state.
+
+    The known-move action remains an identity authority.  Only a matching
+    usability authority may make it selectable; incomplete evidence keeps the
+    action known but non-executable for a later pair materializer.
+    """
+    action = deepcopy(dict(opponent_action)) if isinstance(opponent_action, Mapping) else None
+    if not isinstance(action, dict) or action.get("schema_version") != SCHEMA_VERSION:
+        return _result("rejected", "invalid_opponent_known_move_action", {})
+    if not isinstance(usability_authority, Mapping) or usability_authority.get("schema_version") != USABILITY_SCHEMA_VERSION:
+        action["status"] = "rejected"; action["reason"] = "invalid_opponent_move_usability_authority"
+        return action
+    fields = ("action_id", "move_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "opponent_actor", "target_owner")
+    if any(usability_authority.get(field) != action.get(field) for field in fields):
+        action["status"] = "rejected"; action["reason"] = "opponent_move_usability_binding_mismatch"
+        return action
+    usability_status = usability_authority.get("status")
+    if usability_status == "rejected":
+        action["status"] = "rejected"; action["reason"] = usability_authority.get("reason", "opponent_move_usability_rejected")
+        action["usability"] = deepcopy(usability_authority.get("usability", {"status": "unknown"}))
+        action["selectability"] = "unknown"
+        return action
+    if usability_status == "unsupported":
+        action["usability"] = deepcopy(usability_authority.get("usability", {"status": "unknown"}))
+        action["selectability"] = "unknown"; action["selectability_reason"] = usability_authority.get("reason", "opponent_move_usability_unsupported")
+        return action
+    if usability_status == "incomplete":
+        action["usability"] = deepcopy(usability_authority.get("usability", {"status": "unknown"}))
+        action["selectability"] = "unknown"; action["selectability_reason"] = usability_authority.get("reason", "opponent_move_usability_unknown")
+        return action
+    usage = usability_authority.get("usability")
+    if usability_status != "resolved" or not isinstance(usage, Mapping) or usage.get("status") not in {"known_usable", "known_unusable"}:
+        action["status"] = "rejected"; action["reason"] = "opponent_move_usability_payload_invalid"
+        return action
+    action["usability"] = deepcopy(dict(usage))
+    action["selectability"] = "selectable" if usage["status"] == "known_usable" else "not_selectable"
+    action["selectability_reason"] = usage.get("reason")
+    return action
 
 
 def _action(*, move_id: str, index: int, base: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], observation: Mapping[str, Any], metadata_authority: Any) -> dict[str, Any]:
