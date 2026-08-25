@@ -11,6 +11,10 @@ from typing import Any, Callable, Mapping
 
 from llm.advisor_current_execution_authority import freeze_current_execution_authority
 from llm.advisor_detached_strategy_orchestration import run_detached_strategy_orchestration
+from llm.advisor_detached_opponent_response_profile import materialize_detached_opponent_response_profile
+from llm.advisor_runtime_d0_action_order_authority import freeze_runtime_d0_action_order_authority
+from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
+from llm.advisor_runtime_d0_opponent_action_authority import freeze_runtime_d0_opponent_known_move_action_authority
 from llm.advisor_exact_outcome_descriptive_metrics import project_exact_outcome_descriptive_metrics
 from llm.advisor_exact_predictive_outcome_ledger import normalize_exact_predictive_outcome_ledger
 from llm.advisor_predictive_attack_authority import build_predictive_fixed_damage_attack_authority
@@ -44,6 +48,7 @@ SCHEMA = "ui-detached-strategy-bridge-result-v1"
 def run_current_ui_detached_strategy(
     *, runtime_session_manager: Any, captured_session_id: str, decision_owner: Mapping[str, Any] | None = None,
     decision_side: str = "self", selection_cycle_builder: Callable[[Mapping[str, Any], Mapping[str, Any]], Mapping[str, Any]],
+    opponent_canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Capture one runtime revision and return detached strategy explanation.
 
@@ -104,11 +109,15 @@ def run_current_ui_detached_strategy(
     ledgers, metrics = _project_live_ledger_metrics(
         strategy_d0=d0, orchestration=provisional, live_attacks=live_attacks,
     )
+    response_profiles = _project_live_opponent_response_profiles(
+        strategy_d0=d0, runtime_snapshot=capture, selection=selection,
+        canonical_move_metadata_authorities=opponent_canonical_move_metadata_authorities,
+    )
     orchestration = run_detached_strategy_orchestration(
         decision_state=d0["strategy_state"], decision_owner=d0["decision_owner"],
         selection_snapshot=selection, execution_bundle=execution,
         predictive_attacks=predictive_attacks, exact_outcome_ledgers=ledgers,
-        descriptive_metrics=metrics, **live_attacks,
+        descriptive_metrics=metrics, opponent_response_profiles=response_profiles, **live_attacks,
     )
     if orchestration.get("status") == "rejected":
         return _result("rejected", orchestration.get("reason", "detached_orchestration_rejected"))
@@ -127,9 +136,44 @@ def run_current_ui_detached_strategy(
         "execution_coverage": deepcopy(execution["execution_coverage"]),
         "exact_outcome_ledgers": deepcopy(ledgers),
         "descriptive_metrics": deepcopy(metrics),
+        "opponent_response_profiles": deepcopy(response_profiles),
         "orchestration": deepcopy(orchestration), "explanation": deepcopy(explanation),
         "provenance": "runtime_d0_detached_strategy_ui_controller_bridge_v1",
     }
+
+
+def _project_live_opponent_response_profiles(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], selection: Mapping[str, Any],
+    canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]] | None,
+) -> dict[str, Mapping[str, Any]]:
+    """Compose existing response owners; absent metadata leaves own policy intact."""
+    if not isinstance(canonical_move_metadata_authorities, Mapping):
+        return {}
+    known = freeze_runtime_d0_opponent_known_move_action_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        canonical_move_metadata_authorities=canonical_move_metadata_authorities,
+    )
+    response_set = freeze_runtime_d0_complete_opponent_response_set_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        opponent_known_move_authority=known,
+    )
+    own_actions = [row for row in selection.get("actions", ()) if isinstance(row, Mapping) and row.get("action_type") == "attack" and row.get("selection") == "selectable"]
+    if known.get("status") != "resolved" or response_set.get("status") != "resolved":
+        status = "rejected" if "rejected" in {known.get("status"), response_set.get("status")} else "unsupported" if "unsupported" in {known.get("status"), response_set.get("status")} else "incomplete"
+        reason = response_set.get("reason") or known.get("reason") or "opponent_response_authority_unavailable"
+        return {row["action_id"]: {"status": status, "reason": reason} for row in own_actions if isinstance(row.get("action_id"), str)}
+    by_id = {row.get("action_id"): row for row in response_set.get("actions", ()) if isinstance(row, Mapping)}
+    result = {}
+    for own in own_actions:
+        action_id = own.get("action_id")
+        if not isinstance(action_id, str):
+            continue
+        orders = {response_id: freeze_runtime_d0_action_order_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own, opponent_action=by_id.get(response_id, {})) for response_id in response_set.get("selectable_response_action_ids", ())}
+        result[action_id] = materialize_detached_opponent_response_profile(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own,
+            response_set_authority=response_set, action_order_authorities=orders,
+        )
+    return result
 
 
 def _capture(manager: Any, session_id: str) -> Mapping[str, Any] | None:

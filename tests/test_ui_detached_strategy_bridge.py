@@ -6,6 +6,7 @@ from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_sta
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_substitute import update_substitute_state_context
 from llm.advisor_ui_detached_strategy_bridge import run_current_ui_detached_strategy
+import llm.advisor_ui_detached_strategy_bridge as bridge_subject
 from tests.test_runtime_direct_damage_modifier_authority import _apply as _apply_direct_state, _base as _direct_base, _confirmations as _direct_confirmations
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
 
@@ -239,3 +240,18 @@ def test_runtime_bridge_projects_d0_metadata_to_live_ledgers_and_metrics() -> No
     assert all(metric["status"] == "resolved" for metric in metrics.values())
     assert result["orchestration"]["ranking"]["pairwise_matrix"][0]["reason"] == "higher_exact_target_ko_probability"
     assert result["explanation"]["probability_aware_decisions"][0]["rule"] == "higher_target_ko_probability"
+
+
+def test_response_profile_live_projection_composes_each_selectable_own_attack(monkeypatch) -> None:
+    d0 = {"session_id": "s", "source_runtime_fingerprint": "runtime", "strategy_preview_fingerprint": "preview", "decision_owner": {"session_id": "s", "side": "self"}}
+    selection = {"actions": ({"action_id": "attack:left", "action_type": "attack", "selection": "selectable"}, {"action_id": "attack:right", "action_type": "attack", "selection": "selectable"})}
+    seen = []
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_opponent_known_move_action_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_complete_opponent_response_set_authority", lambda **_: {"status": "resolved", "selectable_response_action_ids": ("opponent_attack:a",), "actions": ({"action_id": "opponent_attack:a"},)})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_action_order_authority", lambda **kwargs: seen.append(kwargs["own_action"]["action_id"]) or {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "materialize_detached_opponent_response_profile", lambda **kwargs: {"status": "evaluable", "own_action_id": kwargs["own_action"]["action_id"]})
+    projected = bridge_subject._project_live_opponent_response_profiles(strategy_d0=d0, runtime_snapshot={}, selection=selection, canonical_move_metadata_authorities={"a": {"status": "resolved"}})
+    assert set(projected) == {"attack:left", "attack:right"} and seen == ["attack:left", "attack:right"]
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_opponent_known_move_action_authority", lambda **_: {"status": "incomplete", "reason": "known_moves_unknown"})
+    unavailable = bridge_subject._project_live_opponent_response_profiles(strategy_d0=d0, runtime_snapshot={}, selection=selection, canonical_move_metadata_authorities={"a": {"status": "resolved"}})
+    assert all(value["status"] == "incomplete" for value in unavailable.values())
