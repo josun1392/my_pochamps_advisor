@@ -22,7 +22,7 @@ _STAGES = ("attack", "defense", "special-attack", "special-defense", "speed", "a
 def freeze_detached_intermediate_predictive_authority(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     intermediate_state: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any],
-    move_metadata: Mapping[str, Any],
+    move_metadata_authority: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Create a strictly hypothetical, role-explicit predictive authority.
 
@@ -31,7 +31,8 @@ def freeze_detached_intermediate_predictive_authority(
     prevents a builder from silently rereading the old current condition.
     """
     base = _base(strategy_d0)
-    if base is None or not _owner(actor) or not _owner(target) or not _move(move_metadata):
+    metadata = _metadata_authority(move_metadata_authority, base)
+    if base is None or not _owner(actor) or not _owner(target) or metadata is None:
         return _result("rejected", "invalid_detached_intermediate_predictive_request", {})
     if runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot).get("status") != "current":
         return _result("rejected", "stale_runtime_d0", base)
@@ -68,7 +69,7 @@ def freeze_detached_intermediate_predictive_authority(
         **base, **parsed["binding"], "intermediate_state_id": parsed["intermediate_state_id"],
         "source_first_action_leaf_id": parsed["source_leaf_id"],
         "predictive_actor": deepcopy(dict(actor)), "predictive_target": deepcopy(dict(target)),
-        "move_id": move_metadata["move_id"], "move_metadata": deepcopy(dict(move_metadata)),
+        "move_id": metadata["move_id"], "move_metadata": deepcopy(metadata),
         "intermediate_overrides": {
             "actor": deepcopy(parsed["actor"]), "target": deepcopy(parsed["target"]),
             "condition_override_requires_direct_consumer": condition_changed,
@@ -137,6 +138,15 @@ def _owner(value: Any) -> bool:
 
 def _move(value: Any) -> bool:
     return isinstance(value, Mapping) and isinstance(value.get("move_id"), str) and bool(value["move_id"]) and value.get("category") in {"physical", "special"} and isinstance(value.get("power"), int) and not isinstance(value.get("power"), bool) and value["power"] > 0 and isinstance(value.get("type"), str) and bool(value["type"])
+
+
+def _metadata_authority(value: Any, base: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if base is None or not isinstance(value, Mapping) or value.get("status") != "resolved": return None
+    metadata = value.get("metadata")
+    if not _move(metadata): return None
+    expected = {"session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": base["decision_owner"], "move_id": metadata["move_id"]}
+    if any(value.get(key) != expected_value for key, expected_value in expected.items()): return None
+    return deepcopy(dict(metadata))
 
 
 def _result(status: str, reason: str, base: Mapping[str, Any]) -> dict[str, Any]:

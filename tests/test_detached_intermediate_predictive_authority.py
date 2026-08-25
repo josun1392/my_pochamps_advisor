@@ -16,6 +16,10 @@ from llm.advisor_runtime_strategy_d0 import (
 MOVE = {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}
 
 
+def _metadata_authority(d0: dict) -> dict:
+    return {"status": "resolved", "move_id": "tackle", "metadata": deepcopy(MOVE), "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(d0["decision_owner"])}
+
+
 def _state() -> dict:
     state = create_unknown_bootstrap_battle_state("intermediate-authority", "self-a", "opponent-a")["state"]
     for side, types in (("self", ["normal"]), ("opponent", ["water"])):
@@ -56,7 +60,7 @@ def _intermediate(d0: dict, *, own_hp=70, target_hp=80, own_attack=1) -> dict:
 def test_reversed_actor_uses_exact_intermediate_hp_and_stages_through_existing_builders() -> None:
     state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
     intermediate = _intermediate(d0, own_hp=61, target_hp=77, own_attack=2)
-    authority = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=_owner(state, "opponent"), target=_owner(state, "self"), move_metadata=MOVE)
+    authority = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=_owner(state, "opponent"), target=_owner(state, "self"), move_metadata_authority=_metadata_authority(d0))
     inputs = detached_intermediate_builder_inputs(authority)
     assert authority["status"] == inputs["status"] == "resolved"
     assert inputs["strategy_d0"]["decision_owner"] == _owner(state, "opponent")
@@ -76,23 +80,23 @@ def test_reversed_actor_uses_exact_intermediate_hp_and_stages_through_existing_b
 
 def test_role_mismatch_fainted_actor_and_changed_condition_fail_closed() -> None:
     state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self")); intermediate = _intermediate(d0)
-    bad = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=_owner(state, "self"), target=_owner(state, "self"), move_metadata=MOVE)
+    bad = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=_owner(state, "self"), target=_owner(state, "self"), move_metadata_authority=_metadata_authority(d0))
     assert bad["status"] == "rejected"
     intermediate["active"]["opponent"]["hypothetical_fainted"]["value"] = True
     intermediate["active"]["opponent"]["hypothetical_hp"]["value"] = 0
-    fainted = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=_owner(state, "opponent"), target=_owner(state, "self"), move_metadata=MOVE)
+    fainted = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=_owner(state, "opponent"), target=_owner(state, "self"), move_metadata_authority=_metadata_authority(d0))
     assert fainted["status"] == "incomplete"
 
 
 def test_own_actor_and_leaf_local_condition_are_preserved_without_current_authority_promotion() -> None:
     state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self")); intermediate = _intermediate(d0)
-    own = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=MOVE)
+    own = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata_authority=_metadata_authority(d0))
     assert own["status"] == "resolved" and detached_intermediate_builder_inputs(own)["status"] == "resolved"
 
     intermediate["active"]["opponent"]["hypothetical_condition"] = {"status": "known_present", "condition": "paralysis", "source": "exact_terminal_leaf_condition_effect"}
-    changed = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=MOVE)
+    changed = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata_authority=_metadata_authority(d0))
     assert changed["status"] == "resolved"
     assert changed["intermediate_overrides"]["target"]["condition"]["condition"] == "paralysis"
     assert detached_intermediate_builder_inputs(changed)["status"] == "incomplete"
     stale = deepcopy(snapshot); stale["state"]["last_applied_observation_sequence"] = 2; stale["state_fingerprint"] = state_fingerprint(stale["state"])
-    assert freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=stale, intermediate_state=intermediate, actor=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=MOVE)["status"] == "rejected"
+    assert freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=stale, intermediate_state=intermediate, actor=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata_authority=_metadata_authority(d0))["status"] == "rejected"
