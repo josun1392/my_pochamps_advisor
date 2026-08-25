@@ -76,27 +76,62 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if value.get("provenance") != dict(base): return "pair_terminal_branch_provenance_mismatch"
     first, second = value.get("first_action_leaf"), value.get("second_action")
     if not isinstance(first, Mapping) or not isinstance(first.get("leaf_id"), str) or _fraction(first.get("probability")) <= 0: return "first_action_leaf_invalid"
-    if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint"}: return "second_action_branch_invalid"
+    if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
+    order_probability = _order_probability(value)
+    if isinstance(order_probability, str): return order_probability
+    execution_probability = _execution_probability(second)
+    if isinstance(execution_probability, str): return execution_probability
     second_leaf = second.get("leaf")
     if second["state"] == "executed":
-        if not isinstance(second_leaf, Mapping) or not isinstance(second_leaf.get("leaf_id"), str) or _fraction(second_leaf.get("probability")) != conditional: return "executed_second_action_leaf_invalid"
-    elif second_leaf is not None or conditional != Fraction(1, 1) or second.get("reason") != "second_action_cancelled_due_to_faint": return "cancelled_second_action_branch_invalid"
+        if not isinstance(second_leaf, Mapping) or not isinstance(second_leaf.get("leaf_id"), str) or _fraction(second_leaf.get("probability")) * execution_probability != conditional: return "executed_second_action_leaf_invalid"
+    elif second["state"] == "cancelled_due_to_faint":
+        if second_leaf is not None or conditional != Fraction(1, 1) or execution_probability != Fraction(1, 1) or second.get("reason") != "second_action_cancelled_due_to_faint": return "cancelled_second_action_branch_invalid"
+    elif second_leaf is not None or conditional != Fraction(1, 4) or execution_probability != Fraction(1, 4) or second.get("reason") != "second_action_cancelled_due_to_paralysis": return "cancelled_second_action_branch_invalid"
     probability = _fraction(value.get("probability"))
-    if probability != _fraction(first["probability"]) * conditional: return "pair_leaf_probability_composition_invalid"
+    if probability != order_probability * _fraction(first["probability"]) * conditional: return "pair_leaf_probability_composition_invalid"
     final_source = second_leaf if isinstance(second_leaf, Mapping) else first
     final = _final(final_source, base)
     if isinstance(final, str): return final
     return {"pair_leaf_id": value["pair_leaf_id"], "action_order": value["action_order"],
+            **({"action_order_branch": deepcopy(dict(value["action_order_branch"])), "action_order_conditional_probability": _fd(order_probability)} if "action_order_branch" in value else {}),
             "probability": _fd(probability), "first_action": _action_leaf(first),
-            "second_action": {"state": second["state"], "actor": deepcopy(second.get("actor")), "conditional_probability": _fd(conditional), **({"leaf": _action_leaf(second_leaf)} if isinstance(second_leaf, Mapping) else {"reason": second["reason"]})},
+            "second_action": {"state": second["state"], "actor": deepcopy(second.get("actor")), "conditional_probability": _fd(conditional), **({"execution_branch": deepcopy(dict(second["execution_branch"])), "execution_conditional_probability": _fd(execution_probability)} if "execution_branch" in second else {}), **({"leaf": _action_leaf(second_leaf)} if isinstance(second_leaf, Mapping) else {"reason": second["reason"]})},
             "intermediate_state_id": value.get("intermediate_state_id"), "final_consequences": final,
             "source_pair_branch": deepcopy(dict(value))}
 
 
 def _action_leaf(leaf: Mapping[str, Any]) -> dict[str, Any]:
     return {"leaf_id": leaf["leaf_id"], "branch_path": deepcopy(leaf.get("branch_path")), "probability": deepcopy(leaf.get("probability")), "hit_state": leaf.get("hit_state"), "critical_state": leaf.get("critical_state"), "damage_roll": deepcopy(leaf.get("damage_roll")), "consequences": deepcopy(leaf.get("consequences")), "provenance": deepcopy(leaf.get("provenance"))}
+
+
+def _order_probability(value: Mapping[str, Any]) -> Fraction | str:
+    branch = value.get("action_order_branch")
+    probability = value.get("action_order_conditional_probability")
+    if branch is None and probability is None:
+        return Fraction(1, 1)
+    if not isinstance(branch, Mapping) or branch.get("order") != value.get("action_order") or branch.get("order_branch_id") not in {"equal_speed:own_first", "equal_speed:opponent_first"}:
+        return "pair_order_branch_invalid"
+    parsed = _fraction(probability)
+    return parsed if parsed == Fraction(1, 2) else "pair_order_probability_invalid"
+
+
+def _execution_probability(second: Mapping[str, Any]) -> Fraction | str:
+    branch = second.get("execution_branch")
+    probability = second.get("execution_conditional_probability")
+    if branch is None and probability is None:
+        return Fraction(1, 1)
+    if not isinstance(branch, Mapping) or not isinstance(branch.get("execution_branch_id"), str):
+        return "second_action_execution_branch_invalid"
+    parsed = _fraction(probability)
+    if branch.get("state") != second.get("state") or _fraction(branch.get("conditional_probability")) != parsed:
+        return "second_action_execution_branch_mismatch"
+    if second["state"] == "cancelled_due_to_paralysis":
+        return parsed if branch.get("execution_branch_id") == "second_action:fully_paralyzed" and parsed == Fraction(1, 4) else "second_action_execution_probability_invalid"
+    if second["state"] == "executed":
+        return parsed if branch.get("execution_branch_id") == "second_action:can_act_after_paralysis" and parsed == Fraction(3, 4) else "second_action_execution_probability_invalid"
+    return "second_action_execution_branch_invalid"
 
 
 def _final(source: Mapping[str, Any], base: Mapping[str, Any]) -> dict[str, Any] | str:

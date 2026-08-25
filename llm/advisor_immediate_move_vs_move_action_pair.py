@@ -9,7 +9,10 @@ from llm.advisor_exact_equal_speed_action_order_branching import (
     materialize_exact_equal_speed_action_order_branches,
 )
 from llm.advisor_detached_intermediate_predictive_authority import (
-    detached_intermediate_builder_inputs, freeze_detached_intermediate_predictive_authority,
+    freeze_detached_intermediate_predictive_authority,
+)
+from llm.advisor_detached_intermediate_paralysis_second_action_authority import (
+    consume_detached_intermediate_paralysis_for_second_action,
 )
 from llm.advisor_detached_predictive_intermediate_state import (
     freeze_detached_actor_neutral_root_predictive_authority,
@@ -24,6 +27,7 @@ from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_native_damage_context,
     build_runtime_d0_strict_critical_hit_probability_assessment,
     build_runtime_d0_strict_hit_probability_assessment,
+    freeze_runtime_d0_thunderbolt_paralysis_authority,
     freeze_runtime_normal_formula_predictive_input,
     resolve_runtime_d0_selectable_move_metadata_authority,
 )
@@ -95,13 +99,26 @@ def _materialize_order(
         authority = freeze_detached_intermediate_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             intermediate_state=intermediate, actor=second_actor,
             target=base["opponent_actor"] if second_actor == base["own_actor"] else base["own_actor"], move_metadata_authority=second_meta)
-        inputs = detached_intermediate_builder_inputs(authority)
-        if inputs.get("status") != "resolved": return _result(_status(inputs), inputs.get("reason", "second_action_intermediate_authority_unavailable"), base, first_leaf_id=leaf["leaf_id"])
-        second = _normal_formula_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
-            actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs))
-        if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
-        for second_leaf in second["terminal_leaves"]:
-            branches.append(_branch(base, order, leaf, intermediate, second_leaf, second_actor, order_plan))
+        paralysis = consume_detached_intermediate_paralysis_for_second_action(
+            intermediate_predictive_authority=authority,
+        )
+        if paralysis.get("status") != "resolved": return _result(_status(paralysis), paralysis.get("reason", "second_action_intermediate_authority_unavailable"), base, first_leaf_id=leaf["leaf_id"])
+        inputs = paralysis["builder_inputs"]
+        execution = paralysis.get("second_action_execution_branches")
+        if not isinstance(execution, tuple) or not execution: return _result("rejected", "second_action_execution_branches_invalid", base, first_leaf_id=leaf["leaf_id"])
+        if any(not _execution_branch(row) for row in execution) or sum((_fraction(row["conditional_probability"]) for row in execution), Fraction()) != Fraction(1, 1):
+            return _result("rejected", "second_action_execution_branch_mass_invalid", base, first_leaf_id=leaf["leaf_id"])
+        executable = [row for row in execution if isinstance(row, Mapping) and row.get("state") == "executed"]
+        second = None
+        if executable:
+            second = _normal_formula_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
+                actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs))
+            if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
+        for execution_branch in execution:
+            if execution_branch["state"] == "cancelled_due_to_paralysis":
+                branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan, execution_branch)); continue
+            for second_leaf in second["terminal_leaves"]:
+                branches.append(_branch(base, order, leaf, intermediate, second_leaf, second_actor, order_plan, execution_branch))
     return branches
 
 
@@ -115,14 +132,22 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     if any(row.get("status") != "resolved" for row in (normal, hit, crit)):
         row = next(row for row in (normal, hit, crit) if row.get("status") != "resolved")
         return _result(_status(row), row.get("reason", "normal_formula_predictive_authority_unavailable"), {})
+    thunderbolt = None
+    if metadata["move_id"] == "thunderbolt":
+        thunderbolt = freeze_runtime_d0_thunderbolt_paralysis_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            attacker=actor, target=target, move_metadata=metadata,
+        )
+        if thunderbolt.get("status") != "resolved":
+            return _result(_status(thunderbolt), thunderbolt.get("reason", "thunderbolt_paralysis_authority_unavailable"), {})
     candidate = {"candidate_id": f"attack:{metadata['move_id']}", "action_type": "attack", "session_id": strategy_d0["session_id"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"]))}
     own_hp = strategy_d0["strategy_state"]["active"][actor["side"]]["current_hp"]
     interval_input = {"snapshot_damage_input": normal["snapshot_damage_input"], "stat_provenance": normal["stat_provenance"], "trusted_level": normal["trusted_level"]}
     paired = materialize_predictive_critical_damage_contexts(branch_state=strategy_d0["strategy_state"], decision_owner=actor, target_owner=target, **interval_input)
     if paired.get("status") != "resolved": return _result(_status(paired), paired.get("reason", "critical_damage_context_unavailable"), {})
     post_input = {"move_metadata": metadata, **normal["post_hit_authority"]}
-    non = _normal_formula_facts(candidate, paired["non_critical_context"], own_hp, post_input, normal)
-    critical = _normal_formula_facts(candidate, paired["critical_context"], own_hp, post_input, normal)
+    non = _normal_formula_facts(candidate, paired["non_critical_context"], own_hp, post_input, normal, thunderbolt_paralysis_authority=thunderbolt)
+    critical = _normal_formula_facts(candidate, paired["critical_context"], own_hp, post_input, normal, thunderbolt_paralysis_authority=thunderbolt)
     non_consequences = _consequences(paired["non_critical_context"], non)
     critical_consequences = _consequences(paired["critical_context"], critical)
     critical = compose_predictive_critical_hit_uncertainty(candidate=candidate, strict_critical_hit_probability=crit, paired_damage_contexts=paired, non_critical_consequences=non_consequences, critical_consequences=critical_consequences)
@@ -133,11 +158,11 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     if uncertainty.get("status") != "resolved": return _result(_status(uncertainty), uncertainty.get("reason", "hit_miss_uncertainty_unavailable"), {})
     bindings = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "attacker": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "move_id": metadata["move_id"]}
     return normalize_exact_predictive_outcome_ledger(candidate=candidate, predictive_consequence=uncertainty,
-        component_manifest={"accuracy": {"status": "resolved"}, "critical": {"status": "resolved"}, "damage_roll": {"status": "resolved"}, "secondary": {"status": "not_applicable"}}, bindings=bindings)
+        component_manifest={"accuracy": {"status": "resolved"}, "critical": {"status": "resolved"}, "damage_roll": {"status": "resolved"}, "secondary": {"status": "resolved" if thunderbolt is not None else "not_applicable"}}, bindings=bindings)
 
 
 def _consequences(interval: Mapping[str, Any], facts: Mapping[str, Any]) -> dict[str, Any]:
-    return {"interval": interval, "post_hit": facts.get("post_hit"), "stage_effects": facts.get("stage_effects"), "damage_roll_uncertainty": facts.get("damage_roll_uncertainty"), "guaranteed_facts": facts}
+    return {"interval": interval, "post_hit": facts.get("post_hit"), "stage_effects": facts.get("stage_effects"), "damage_roll_uncertainty": facts.get("damage_roll_uncertainty"), "thunderbolt_paralysis_uncertainty": facts.get("thunderbolt_paralysis_uncertainty"), "guaranteed_facts": facts}
 
 def _base(d0: Any, own: Any, opponent: Any) -> dict[str, Any] | None:
     if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or not isinstance(own, Mapping) or own.get("action_type") != "attack" or not isinstance(own.get("action_id"), str): return None
@@ -186,12 +211,29 @@ def _metadata_for_inputs(authority: Any, inputs: Mapping[str, Any] | None) -> Ma
     return deepcopy(dict(metadata))
 def _fainted(state: Mapping[str, Any], owner: Mapping[str, Any]) -> bool:
     row = state.get("active", {}).get(owner.get("side"), {}) if isinstance(state.get("active"), Mapping) else {}; return isinstance(row, Mapping) and row.get("hypothetical_fainted", {}).get("value") is True
-def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], intermediate: Mapping[str, Any], second: Mapping[str, Any] | None, second_actor: Mapping[str, Any], order_plan: Mapping[str, Any]) -> dict[str, Any]:
+def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], intermediate: Mapping[str, Any], second: Mapping[str, Any] | None, second_actor: Mapping[str, Any], order_plan: Mapping[str, Any], execution_branch: Mapping[str, Any] | None = None) -> dict[str, Any]:
     first_p = _fraction(first["probability"]); second_p = Fraction(1, 1) if second is None else _fraction(second["probability"])
     order_p = order_plan["probability"]
-    path = f"{first['leaf_id']}/" + ("second_cancelled_due_to_faint" if second is None else f"{second['leaf_id']}")
+    execution_p = Fraction(1, 1) if execution_branch is None else _fraction(execution_branch["conditional_probability"])
+    cancellation = execution_branch.get("state") if isinstance(execution_branch, Mapping) and execution_branch.get("state") != "executed" else "cancelled_due_to_faint"
+    path = f"{first['leaf_id']}/" + (f"second_{cancellation}" if second is None else f"{second['leaf_id']}")
     source_branch = order_plan.get("source_branch")
-    return {"pair_leaf_id": (f"{source_branch['order_branch_id']}/" if isinstance(source_branch, Mapping) else "") + path, "action_order": order, **({"action_order_branch": deepcopy(dict(source_branch)), "action_order_conditional_probability": _fd(order_p)} if isinstance(source_branch, Mapping) else {}), "first_action_leaf": deepcopy(dict(first)), "intermediate_state_id": f"intermediate:{first['candidate_id']}:{first['leaf_id']}", "second_action": {"state": "cancelled_due_to_faint" if second is None else "executed", "actor": deepcopy(dict(second_actor)), "conditional_probability": _fd(second_p), **({"reason": "second_action_cancelled_due_to_faint"} if second is None else {"leaf": deepcopy(dict(second))})}, "probability": _fd(order_p * first_p * second_p), "provenance": deepcopy(dict(base))}
+    second_action = {"state": cancellation if second is None else "executed", "actor": deepcopy(dict(second_actor)), "conditional_probability": _fd(execution_p * second_p), **({"reason": f"second_action_cancelled_due_to_{cancellation.removeprefix('cancelled_due_to_')}"} if second is None else {"leaf": deepcopy(dict(second))})}
+    if execution_branch is not None and execution_p != Fraction(1, 1):
+        second_action["execution_branch"] = deepcopy(dict(execution_branch))
+        second_action["execution_conditional_probability"] = _fd(execution_p)
+        if second is not None: second_action["mechanical_leaf_probability"] = _fd(second_p)
+    return {"pair_leaf_id": (f"{source_branch['order_branch_id']}/" if isinstance(source_branch, Mapping) else "") + path, "action_order": order, **({"action_order_branch": deepcopy(dict(source_branch)), "action_order_conditional_probability": _fd(order_p)} if isinstance(source_branch, Mapping) else {}), "first_action_leaf": deepcopy(dict(first)), "intermediate_state_id": f"intermediate:{first['candidate_id']}:{first['leaf_id']}", "second_action": second_action, "probability": _fd(order_p * first_p * execution_p * second_p), "provenance": deepcopy(dict(base))}
+
+
+def _execution_branch(value: Any) -> bool:
+    if not isinstance(value, Mapping) or value.get("state") not in {"executed", "cancelled_due_to_paralysis"} or not isinstance(value.get("execution_branch_id"), str): return False
+    try: probability = _fraction(value["conditional_probability"])
+    except (KeyError, TypeError, ValueError, ZeroDivisionError): return False
+    if probability <= 0: return False
+    if value["state"] == "cancelled_due_to_paralysis":
+        return probability == Fraction(1, 4) and value.get("reason") == "second_action_cancelled_due_to_paralysis"
+    return probability in {Fraction(1, 1), Fraction(3, 4)}
 def _fraction(value: Mapping[str, Any]) -> Fraction: return Fraction(value["numerator"], value["denominator"])
 def _fd(value: Fraction) -> dict[str, int]: return {"numerator": value.numerator, "denominator": value.denominator}
 def _status(value: Mapping[str, Any]) -> str: return value.get("status") if isinstance(value, Mapping) and value.get("status") in _STATUSES else "rejected"

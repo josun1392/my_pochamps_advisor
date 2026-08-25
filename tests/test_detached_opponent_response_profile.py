@@ -2,6 +2,7 @@ from copy import deepcopy
 
 from llm.advisor_detached_opponent_response_profile import materialize_detached_opponent_response_profile
 from llm.advisor_exact_equal_speed_action_order_branching import materialize_exact_equal_speed_action_order_branches
+from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
 from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_reducer_state_model import project_atomic_transition, state_fingerprint
@@ -169,6 +170,7 @@ def test_exact_equal_speed_branches_execute_both_orders_with_exact_mass_and_canc
         if row["second_action"]["state"] == "cancelled_due_to_faint"
     }
     assert cancelled_orders == {"own_first", "opponent_first"}
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
 
     _, deterministic_snapshot, deterministic_d0, deterministic_own, deterministic_set, _ = _inputs()
     deterministic_order = {
@@ -200,3 +202,37 @@ def test_equal_speed_branching_never_promotes_unknown_unsupported_or_mismatched_
         opponent_action=response_set["actions"][0], action_order_authority=stale,
     )
     assert pair["status"] == "rejected"
+
+
+def test_exact_first_action_paralysis_branches_second_action_without_current_condition_mutation(monkeypatch):
+    state, snapshot, d0, own_action, response_set, orders = _inputs()
+    opponent_action = response_set["actions"][0]
+
+    def leaf(*, strategy_d0, actor, target, **_):
+        first = actor == d0["active_owners"]["self"]
+        return {
+            "status": "evaluable", "terminal_leaves": ({
+                "leaf_id": "first:paralysis" if first else "second:ordinary",
+                "candidate_id": "attack:tackle", "action_type": "attack",
+                "branch_path": ({"branch": "hit", "conditional_probability": {"numerator": 1, "denominator": 1}},),
+                "probability": {"numerator": 1, "denominator": 1}, "hit_state": "hit",
+                "critical_state": "non_critical", "damage_roll": {"roll_index": 0, "random_factor_percent": 85, "damage": 1},
+                "consequences": {"damage": 1, "own_final_hp": 99, "target_final_hp": 99, "target_ko": False, "self_fainted": False,
+                    "secondary": {"branch": "effect", "hypothetical_target_condition": {"resulting_condition": "paralysis"}} if first else None},
+                "provenance": {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": strategy_d0["decision_owner"], "attacker": actor, "target": target, "move_id": "tackle"},
+            },),
+        }
+
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair._normal_formula_ledger", leaf)
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        opponent_action=opponent_action, action_order_authority=orders[opponent_action["action_id"]],
+    )
+    assert pair["status"] == "evaluable"
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    states = {row["second_action"]["state"] for row in pair["terminal_branches"]}
+    assert states == {"executed", "cancelled_due_to_paralysis"}
+    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 1, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "cancelled_due_to_paralysis")
+    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 3, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "executed")
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
+    assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"

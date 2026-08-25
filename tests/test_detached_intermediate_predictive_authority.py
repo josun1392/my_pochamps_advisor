@@ -3,6 +3,9 @@ from copy import deepcopy
 from llm.advisor_detached_intermediate_predictive_authority import (
     detached_intermediate_builder_inputs, freeze_detached_intermediate_predictive_authority,
 )
+from llm.advisor_detached_intermediate_paralysis_second_action_authority import (
+    consume_detached_intermediate_paralysis_for_second_action,
+)
 from llm.advisor_detached_predictive_intermediate_state import (
     freeze_detached_actor_neutral_root_predictive_authority,
     materialize_detached_predictive_intermediate_state,
@@ -107,6 +110,49 @@ def test_own_actor_and_leaf_local_condition_are_preserved_without_current_author
     assert detached_intermediate_builder_inputs(changed)["status"] == "incomplete"
     stale = deepcopy(snapshot); stale["state"]["last_applied_observation_sequence"] = 2; stale["state_fingerprint"] = state_fingerprint(stale["state"])
     assert freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=stale, intermediate_state=intermediate, actor=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata_authority=_metadata_authority(d0))["status"] == "rejected"
+
+
+def test_exact_intermediate_paralysis_consumes_private_condition_and_branches_second_action():
+    state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    intermediate = _intermediate(d0)
+    intermediate["active"]["opponent"]["hypothetical_condition"] = {
+        "status": "known_present", "condition": "paralysis", "source": "exact_terminal_leaf_condition_effect",
+    }
+    authority = freeze_detached_intermediate_predictive_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate,
+        actor=_owner(state, "opponent"), target=_owner(state, "self"),
+        move_metadata_authority=_metadata_authority(d0),
+    )
+    consumed = consume_detached_intermediate_paralysis_for_second_action(
+        intermediate_predictive_authority=authority,
+    )
+    assert consumed["status"] == "resolved"
+    assert [(row["state"], row["conditional_probability"]) for row in consumed["second_action_execution_branches"]] == [
+        ("cancelled_due_to_paralysis", {"numerator": 1, "denominator": 4}),
+        ("executed", {"numerator": 3, "denominator": 4}),
+    ]
+    inputs = consumed["builder_inputs"]
+    assert inputs["hypothetical_condition_authority"]["condition"] == "paralysis"
+    assert inputs["runtime_snapshot"]["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+    assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+    native = build_runtime_d0_native_damage_context(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"], attacker=inputs["attacker"], target=inputs["target"], move_metadata=MOVE)
+    hit = build_runtime_d0_strict_hit_probability_assessment(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"], attacker=inputs["attacker"], target=inputs["target"], selected_move=MOVE)
+    crit = build_runtime_d0_strict_critical_hit_probability_assessment(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"], attacker=inputs["attacker"], target=inputs["target"], move_metadata=MOVE)
+    assert native["status"] == hit["status"] == crit["status"] == "resolved"
+    assert consumed["paralysis_speed_semantics"] == "action_order_already_frozen_before_first_action"
+
+    no_condition = freeze_detached_intermediate_predictive_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=_intermediate(d0),
+        actor=_owner(state, "opponent"), target=_owner(state, "self"), move_metadata_authority=_metadata_authority(d0),
+    )
+    assert consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=no_condition)["second_action_execution_branches"] == (
+        {"execution_branch_id": "second_action:can_act", "state": "executed", "conditional_probability": {"numerator": 1, "denominator": 1}},
+    )
+    bad = deepcopy(authority)
+    bad["intermediate_overrides"]["actor"]["condition"] = {"status": "known_present", "condition": "sleep", "source": "exact_terminal_leaf_condition_effect"}
+    assert consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=bad)["status"] == "incomplete"
+    stale = deepcopy(authority); stale["predictive_strategy_d0"]["decision_owner"] = _owner(state, "self")
+    assert consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=stale)["status"] == "rejected"
 
 
 def test_opponent_root_leaf_maps_hp_and_preserves_original_d0_binding() -> None:
