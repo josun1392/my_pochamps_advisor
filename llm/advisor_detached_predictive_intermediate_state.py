@@ -159,8 +159,10 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
         damage = consequences.get("damage")
         branches = deterministic.get("branches")
         matching = [row for row in branches if isinstance(row, Mapping) and row.get("raw_damage") == damage] if isinstance(branches, (tuple, list)) else []
-        if len(matching) != 1 or not isinstance(matching[0].get("effects"), (tuple, list)):
+        if not matching or not isinstance(matching[0].get("effects"), (tuple, list)):
             return "deterministic_stage_effect_leaf_identity_missing"
+        if any(row.get("effects") != matching[0].get("effects") for row in matching):
+            return "deterministic_stage_effect_leaf_identity_ambiguous"
         result.extend(row for row in matching[0]["effects"] if isinstance(row, Mapping))
     secondary = consequences.get("secondary")
     if isinstance(secondary, Mapping) and secondary.get("branch") == "effect":

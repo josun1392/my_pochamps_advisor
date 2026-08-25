@@ -49,9 +49,17 @@ def _snapshot(state):
 
 
 def _metadata(move):
-    metadata = {"move_id": move, "category": "special" if move in {"water-gun", "thunderbolt"} else "physical", "power": 90 if move == "thunderbolt" else 70 if move == "facade" else 40, "type": "electric" if move == "thunderbolt" else "water" if move == "water-gun" else "normal", "accuracy": 100, "priority": 0}
+    metadata = {"move_id": move, "category": "special" if move in {"water-gun", "thunderbolt", "shadow-ball", "acid-spray"} else "physical", "power": 90 if move == "thunderbolt" else 80 if move == "shadow-ball" else 50 if move == "metal-claw" else 50 if move == "flame-charge" else 40 if move == "acid-spray" else 70 if move == "facade" else 40, "type": "electric" if move == "thunderbolt" else "ghost" if move == "shadow-ball" else "steel" if move == "metal-claw" else "fire" if move == "flame-charge" else "poison" if move == "acid-spray" else "water" if move == "water-gun" else "normal", "accuracy": 100, "priority": 0}
     if move == "thunderbolt":
         metadata.update(target="selected-pokemon", effect_chance=10, ailment="paralysis")
+    if move == "metal-claw":
+        metadata.update(effect_chance=10, stat_changes=[{"stat": "attack", "change": 1}])
+    if move == "shadow-ball":
+        metadata.update(target="selected-pokemon", effect_chance=20, stat_changes=[{"stat": "special-defense", "change": -1}])
+    if move == "flame-charge":
+        metadata.update(effect_chance=100, stat_changes=[{"stat": "speed", "change": 1}])
+    if move == "acid-spray":
+        metadata.update(target="selected-pokemon", effect_chance=100, stat_changes=[{"stat": "special-defense", "change": -2}])
     return {"status": "resolved", "schema_version": METADATA_SCHEMA_VERSION, "move_id": move, "metadata": metadata, "provenance": "repository_normalized_move_metadata_v1"}
 
 
@@ -403,3 +411,53 @@ def test_fixed_damage_leaf_rejects_stale_or_mismatched_authority_without_mutatio
         strategy_d0=d0, attacker=attacker, target=target, move_id="seismic-toss", predictive_authority=stale,
     )
     assert result["status"] == "rejected" and authority == before
+
+
+def _live_secondary_pair(move: str):
+    state = _complete_state(_state())
+    state["opponent_side"]["pokemon"][0]["current_type"] = ["water"]
+    snapshot = _snapshot(state)
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    own = _owner(state, "self")
+    own_action = {
+        "action_id": f"attack:{move}", "action_type": "attack", "identity": move,
+        "move_metadata_authority": _metadata(move) | {
+            "candidate_id": f"attack:{move}", "active_attacker": own,
+            "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+            "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+        },
+    }
+    known = freeze_runtime_d0_opponent_known_move_action_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot,
+        canonical_move_metadata_authorities={move_id: _metadata(move_id) for move_id in MOVES},
+    )
+    response_set = freeze_runtime_d0_complete_opponent_response_set_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, opponent_known_move_authority=known,
+    )
+    opponent_action = response_set["actions"][0]
+    order = {"status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": "own_first",
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+        "own_action_id": own_action["action_id"], "opponent_action_id": opponent_action["action_id"],
+        "own_actor": own, "opponent_actor": _owner(state, "opponent")}
+    return materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        opponent_action=opponent_action, action_order_authority=order,
+    )
+
+
+def test_live_regular_crit_catalog_reaches_existing_secondary_and_stage_pair_leaves():
+    metal = _live_secondary_pair("metal-claw")
+    shadow = _live_secondary_pair("shadow-ball")
+    flame = _live_secondary_pair("flame-charge")
+    for pair in (metal, shadow, flame):
+        assert pair["status"] == "evaluable"
+        assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+        assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
+    metal_secondary = {row["first_action_leaf"]["consequences"]["secondary"]["branch"] for row in metal["terminal_branches"]}
+    shadow_secondary = {row["first_action_leaf"]["consequences"]["secondary"]["branch"] for row in shadow["terminal_branches"]}
+    assert metal_secondary == shadow_secondary == {"effect", "no_effect"}
+    assert any(row["first_action_leaf"]["consequences"]["deterministic_stage_effect"] is not None for row in flame["terminal_branches"])
+    assert project_exact_immediate_action_pair_descriptive_metrics(
+        ledger=normalize_exact_immediate_action_pair_outcome_ledger(pair=shadow),
+    )["status"] == "resolved"

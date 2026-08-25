@@ -12,7 +12,13 @@ CATALOG_VERSION = "critical-hit-capability-catalog-v1"
 # These are canonical ordinary damaging moves whose critical-hit behavior is
 # the Gen 9 base rule.  Move-specific high-/always-critical rules remain
 # delegated to ``move_crit_rule`` below.
-_BASE_MOVE_IDS = frozenset({"tackle", "water-gun", "thunderbolt", "facade"})
+_BASE_MOVE_IDS = frozenset({
+    "tackle", "water-gun", "thunderbolt", "facade",
+    # These moves already have bounded predictive secondary/stage mechanics.
+    # Keeping this list explicit makes their ordinary Gen 9 crit rule usable
+    # without turning uncatalogued attacks into a generic supported family.
+    "metal-claw", "shadow-ball", "acid-spray", "close-combat", "flame-charge",
+})
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
 _SUPPORTED_ATTACKER_ABILITIES = frozenset({"pressure", "super-luck", "merciless", "sniper", "guts"})

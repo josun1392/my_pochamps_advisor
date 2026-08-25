@@ -18,6 +18,7 @@ def materialize_predictive_critical_damage_contexts(
     snapshot_damage_input: Mapping[str, Any],
     stat_provenance: Mapping[str, Any],
     trusted_level: int | None,
+    source_runtime_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     """Build exact non-critical and critical intervals from one frozen input.
 
@@ -28,7 +29,7 @@ def materialize_predictive_critical_damage_contexts(
     non_critical = build_predictive_normal_formula_interval(
         branch_state=branch_state, decision_owner=decision_owner, target_owner=target_owner,
         snapshot_damage_input=snapshot_damage_input, stat_provenance=stat_provenance,
-        trusted_level=trusted_level, is_critical=False,
+        trusted_level=trusted_level, is_critical=False, source_runtime_fingerprint=source_runtime_fingerprint,
     )
     unavailable = _unavailable(non_critical)
     if unavailable is not None:
@@ -39,7 +40,7 @@ def materialize_predictive_critical_damage_contexts(
     critical = build_predictive_normal_formula_interval(
         branch_state=branch_state, decision_owner=decision_owner, target_owner=target_owner,
         snapshot_damage_input=snapshot_damage_input, stat_provenance=stat_provenance,
-        trusted_level=trusted_level, is_critical=True,
+        trusted_level=trusted_level, is_critical=True, source_runtime_fingerprint=source_runtime_fingerprint,
     )
     unavailable = _unavailable(critical)
     if unavailable is not None:
