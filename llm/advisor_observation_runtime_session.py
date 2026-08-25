@@ -68,6 +68,10 @@ class BattleObservationRuntimeSession:
         if captured_session_id != self._session_id: return _session_result("stale_session", self._session_id)
         return deepcopy(self._collection.add_confirmation_result(deepcopy(confirmation_result)))
 
+    def admit_confirmations_atomically(self, captured_session_id, confirmation_results):
+        if captured_session_id != self._session_id: return _session_result("stale_session", self._session_id)
+        return deepcopy(self._collection.add_confirmation_results(deepcopy(confirmation_results)))
+
     def preview(self, captured_session_id, observation_snapshot):
         if captured_session_id != self._session_id: return _session_result("stale_session", self._session_id)
         return deepcopy(self._runtime.preview(deepcopy(observation_snapshot)))
@@ -125,6 +129,7 @@ class BattleObservationRuntimeSessionManager:
     def capture_runtime_state_snapshot(self, captured_session_id): return self._active_session.capture_runtime_state_snapshot(captured_session_id)
     def read_applied_ledger(self): return self._active_session.read_applied_ledger()
     def admit_confirmation(self, captured_session_id, confirmation_result): return self._active_session.admit_confirmation(captured_session_id, confirmation_result)
+    def admit_confirmations_atomically(self, captured_session_id, confirmation_results): return self._active_session.admit_confirmations_atomically(captured_session_id, confirmation_results)
     def preview(self, captured_session_id, observation_snapshot): return self._active_session.preview(captured_session_id, observation_snapshot)
     def apply(self, captured_session_id, observation_snapshot): return self._active_session.apply(captured_session_id, observation_snapshot)
     def save(self, captured_session_id, path): return self._active_session.save(captured_session_id, path)
