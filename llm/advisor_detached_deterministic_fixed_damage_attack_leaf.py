@@ -1,0 +1,124 @@
+"""Exact terminal-leaf adapter for authoritative deterministic fixed damage."""
+from __future__ import annotations
+
+from copy import deepcopy
+from typing import Any, Mapping
+
+
+SCHEMA_VERSION = "detached-deterministic-fixed-damage-attack-leaf-v1"
+_OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
+
+
+def materialize_detached_deterministic_fixed_damage_attack_leaf(
+    *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any],
+    move_id: str, predictive_authority: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project one already-exact fixed-damage result into one ``1/1`` leaf.
+
+    This is deliberately only a terminal-leaf projection.  Fixed-damage
+    mechanics, type immunity, Substitute routing, and HP arithmetic remain
+    owned by the existing predictive fixed-damage authority.
+    """
+    base = _base(strategy_d0, attacker, target, move_id)
+    if base is None:
+        return _result("rejected", "invalid_fixed_damage_leaf_request", {})
+    parsed = _authority(predictive_authority, base)
+    if isinstance(parsed, str):
+        return _result("rejected", parsed, base)
+    if predictive_authority.get("completeness") != "exact_complete":
+        return _result("incomplete", predictive_authority.get("reason", "fixed_damage_authority_incomplete"), base)
+    result = predictive_authority.get("predicted_result")
+    if not isinstance(result, Mapping):
+        return _result("rejected", "fixed_damage_predicted_result_missing", base)
+    projected = _consequences(strategy_d0, attacker, target, result)
+    if isinstance(projected, str):
+        return _result("rejected", projected, base)
+    leaf = {
+        "leaf_id": "fixed_damage:deterministic",
+        "candidate_id": f"attack:{move_id}",
+        "action_type": "attack",
+        "branch_path": ("fixed_damage", "deterministic"),
+        "probability": {"numerator": 1, "denominator": 1},
+        "hit_state": "deterministic_exact",
+        "critical_state": "not_applicable",
+        "consequences": projected,
+        "provenance": {
+            **base,
+            "provenance": "strict_d0_predictive_fixed_damage_authority_v1",
+        },
+    }
+    return {
+        "status": "evaluable", "schema_version": SCHEMA_VERSION,
+        "terminal_leaves": (leaf,),
+        "terminal_probability_mass": {"numerator": 1, "denominator": 1},
+        "component_manifest": {
+            "accuracy": {"status": "not_applicable", "reason": "authoritative_deterministic_fixed_damage_result"},
+            "critical": {"status": "not_applicable", "reason": "fixed_damage_no_critical_branch"},
+            "damage_roll": {"status": "not_applicable", "reason": "fixed_damage_no_roll_branch"},
+            "secondary": {"status": "not_applicable"},
+        },
+        **base,
+        "provenance": "strict_predictive_fixed_damage_to_exact_deterministic_terminal_leaf_v1",
+    }
+
+
+def _base(d0: Any, attacker: Any, target: Any, move_id: Any) -> dict[str, Any] | None:
+    if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or not _owner(attacker) or not _owner(target) or attacker["side"] == target["side"] or move_id != "seismic-toss":
+        return None
+    active = d0.get("active_owners")
+    if not isinstance(active, Mapping) or d0.get("decision_owner") != dict(attacker) or active.get(attacker["side"]) != dict(attacker) or active.get(target["side"]) != dict(target):
+        return None
+    return {
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(d0["decision_owner"])),
+        "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move_id": move_id,
+    }
+
+
+def _authority(value: Any, base: Mapping[str, Any]) -> str | None:
+    if not isinstance(value, Mapping) or value.get("status") != "resolved" or value.get("schema_version") != "deterministic-predictive-attack-authority-v1" or value.get("authority_class") != "current_predictive_execution_authority":
+        return "fixed_damage_predictive_authority_invalid"
+    for key in ("session_id", "source_branch_fingerprint", "decision_owner", "attacker", "target", "move_id"):
+        if value.get(key) != base.get(key):
+            return "fixed_damage_predictive_authority_binding_mismatch"
+    return None
+
+
+def _consequences(d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], result: Mapping[str, Any]) -> dict[str, Any] | str:
+    damage = result.get("damage")
+    active = d0.get("strategy_state", {}).get("active", {})
+    own = active.get(attacker["side"]) if isinstance(active, Mapping) else None
+    defender = active.get(target["side"]) if isinstance(active, Mapping) else None
+    if not isinstance(damage, int) or isinstance(damage, bool) or damage < 0 or not _hp(own) or not _hp(defender):
+        return "fixed_damage_result_or_current_hp_invalid"
+    route = result.get("damage_route")
+    if route == "target":
+        before, after, fainted = result.get("target_hp_before"), result.get("target_hp_after"), result.get("target_fainted")
+        if before != defender["current_hp"] or not isinstance(after, int) or isinstance(after, bool) or after != max(0, before - damage) or fainted is not (after == 0):
+            return "fixed_damage_target_result_mismatch"
+        target_hp, target_ko = after, fainted
+    elif route == "substitute":
+        before, after, fainted = result.get("substitute_hp_before"), result.get("substitute_hp_after"), result.get("target_fainted")
+        if not isinstance(before, int) or isinstance(before, bool) or not isinstance(after, int) or isinstance(after, bool) or after != max(0, before - damage) or fainted is not False:
+            return "fixed_damage_substitute_result_mismatch"
+        target_hp, target_ko = defender["current_hp"], False
+    else:
+        return "fixed_damage_route_unsupported"
+    return {
+        "damage": damage, "own_final_hp": own["current_hp"], "target_final_hp": target_hp,
+        "target_ko": target_ko, "self_fainted": False, "secondary": None,
+        "deterministic_fixed_damage": {"damage_route": route, "predicted_result": deepcopy(dict(result))},
+    }
+
+
+def _owner(value: Any) -> bool:
+    return isinstance(value, Mapping) and set(value) == set(_OWNER_KEYS) and isinstance(value.get("session_id"), str) and bool(value["session_id"]) and value.get("side") in {"self", "opponent"} and isinstance(value.get("slot_index"), int) and not isinstance(value.get("slot_index"), bool) and value["slot_index"] >= 0 and isinstance(value.get("pokemon_id"), str) and bool(value["pokemon_id"])
+
+
+def _hp(value: Any) -> bool:
+    return isinstance(value, Mapping) and isinstance(value.get("current_hp"), int) and not isinstance(value.get("current_hp"), bool) and value["current_hp"] >= 0 and value.get("fainted") is (value["current_hp"] == 0)
+
+
+def _result(status: str, reason: str, base: Mapping[str, Any]) -> dict[str, Any]:
+    return {"status": status, "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "reason": reason}

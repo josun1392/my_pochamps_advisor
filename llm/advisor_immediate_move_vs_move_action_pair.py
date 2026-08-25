@@ -19,7 +19,11 @@ from llm.advisor_detached_predictive_intermediate_state import (
     materialize_detached_predictive_intermediate_state,
 )
 from llm.advisor_detached_strategy_orchestration import _normal_formula_facts
+from llm.advisor_detached_deterministic_fixed_damage_attack_leaf import (
+    materialize_detached_deterministic_fixed_damage_attack_leaf,
+)
 from llm.advisor_exact_predictive_outcome_ledger import normalize_exact_predictive_outcome_ledger
+from llm.advisor_predictive_attack_authority import build_predictive_fixed_damage_attack_authority
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
@@ -29,6 +33,7 @@ from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_strict_hit_probability_assessment,
     freeze_runtime_d0_thunderbolt_paralysis_authority,
     freeze_runtime_normal_formula_predictive_input,
+    freeze_runtime_seismic_toss_predictive_input,
     resolve_runtime_d0_selectable_move_metadata_authority,
 )
 
@@ -85,7 +90,7 @@ def _materialize_order(
         root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
         if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "opponent_root_predictive_authority_unavailable"), base)
         first_d0, first_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
-    first = _normal_formula_ledger(strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
+    first = _attack_ledger(strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
                                    target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"], metadata_authority=first_meta)
     if first.get("status") != "evaluable": return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base, first_action_ledger=first)
     branches: list[dict[str, Any]] = []
@@ -111,7 +116,7 @@ def _materialize_order(
         executable = [row for row in execution if isinstance(row, Mapping) and row.get("state") == "executed"]
         second = None
         if executable:
-            second = _normal_formula_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
+            second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
                 actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs))
             if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
         for execution_branch in execution:
@@ -120,6 +125,32 @@ def _materialize_order(
             for second_leaf in second["terminal_leaves"]:
                 branches.append(_branch(base, order, leaf, intermediate, second_leaf, second_actor, order_plan, execution_branch))
     return branches
+
+
+def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any]) -> dict[str, Any]:
+    metadata = _metadata_for_inputs(metadata_authority, None)
+    if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
+    if metadata.get("move_id") == "seismic-toss":
+        return _seismic_toss_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target)
+    return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata)
+
+
+def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+    frozen = freeze_runtime_seismic_toss_predictive_input(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        attacker=actor, target=target, move_id="seismic-toss",
+    )
+    if frozen.get("status") != "resolved": return _result(_status(frozen), frozen.get("reason", "fixed_damage_predictive_input_unavailable"), {})
+    authority = build_predictive_fixed_damage_attack_authority(
+        branch_state=strategy_d0["strategy_state"], decision_owner=actor, target_owner=target,
+        move_id="seismic-toss", predictive_input=frozen["predictive_input"],
+    )
+    leaf = materialize_detached_deterministic_fixed_damage_attack_leaf(
+        strategy_d0=strategy_d0, attacker=actor, target=target,
+        move_id="seismic-toss", predictive_authority=authority,
+    )
+    if leaf.get("status") != "evaluable": return _result(_status(leaf), leaf.get("reason", "fixed_damage_terminal_leaf_unavailable"), {})
+    return leaf
 
 
 def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any]) -> dict[str, Any]:

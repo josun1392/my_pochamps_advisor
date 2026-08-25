@@ -4,11 +4,14 @@ from llm.advisor_detached_opponent_response_profile import materialize_detached_
 from llm.advisor_exact_equal_speed_action_order_branching import materialize_exact_equal_speed_action_order_branches
 from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
 from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
+from llm.advisor_exact_action_pair_descriptive_metrics import project_exact_immediate_action_pair_descriptive_metrics
+from llm.advisor_detached_deterministic_fixed_damage_attack_leaf import materialize_detached_deterministic_fixed_damage_attack_leaf
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_predictive_attack_authority import build_predictive_fixed_damage_attack_authority
 from llm.advisor_reducer_state_model import project_atomic_transition, state_fingerprint
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
 from llm.advisor_runtime_d0_opponent_action_authority import METADATA_SCHEMA_VERSION, freeze_runtime_d0_opponent_known_move_action_authority
-from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
+from llm.advisor_runtime_strategy_d0 import freeze_runtime_seismic_toss_predictive_input, freeze_runtime_strategy_d0
 from llm.advisor_substitute import update_substitute_state_context
 
 
@@ -306,3 +309,97 @@ def test_real_thunderbolt_paralysis_drives_guts_second_action_damage():
     assert {row["second_action"]["state"] for row in pair["terminal_branches"]} >= {"executed", "cancelled_due_to_paralysis"}
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
     assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+
+
+def _fixed_damage_inputs(*, own_first: bool, opponent_hp: int = 100, own_hp: int = 100):
+    state = _state()
+    state["self_side"]["pokemon"][0]["current_hp"] = own_hp
+    state["opponent_side"]["pokemon"][0]["current_hp"] = opponent_hp
+    state = _complete_state(state)
+    snapshot = _snapshot(state)
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    own = _owner(state, "self")
+    fixed_metadata = {
+        "move_id": "seismic-toss", "category": "physical", "power": 1,
+        "type": "normal", "accuracy": 100, "priority": 0,
+    }
+    own_action = {
+        "action_id": "attack:seismic-toss" if own_first else "attack:tackle",
+        "action_type": "attack", "identity": "seismic-toss" if own_first else "tackle",
+        "move_metadata_authority": (
+            {"status": "resolved", "candidate_id": "attack:seismic-toss", "active_attacker": own,
+             "move_id": "seismic-toss", "metadata": fixed_metadata,
+             "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+             "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]}
+            if own_first else _metadata("tackle") | {"candidate_id": "attack:tackle", "active_attacker": own,
+             "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+             "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]}
+        ),
+    }
+    action_id = "opponent_attack:tackle" if own_first else "opponent_attack:seismic-toss"
+    opponent_action = {
+        "status": "resolved", "schema_version": "runtime-d0-opponent-known-move-action-authority-v1",
+        "action_id": action_id, "move_id": "tackle" if own_first else "seismic-toss",
+        "selectability": "selectable", "usability": {"status": "known_usable"},
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+        "opponent_actor": _owner(state, "opponent"), "target_owner": own,
+        "metadata_authority": (
+            _metadata("tackle") if own_first else {"status": "resolved", "move_id": "seismic-toss", "metadata": fixed_metadata}
+        ),
+    }
+    order = {
+        "status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1",
+        "order": "own_first" if own_first else "opponent_first", "session_id": d0["session_id"],
+        "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+        "own_action_id": own_action["action_id"], "opponent_action_id": action_id,
+        "own_actor": own, "opponent_actor": _owner(state, "opponent"),
+    }
+    return state, snapshot, d0, own_action, opponent_action, order
+
+
+def test_deterministic_seismic_toss_leaf_runs_through_both_pair_orders_and_shared_metrics():
+    for own_first in (True, False):
+        state, snapshot, d0, own_action, opponent_action, order = _fixed_damage_inputs(own_first=own_first)
+        pair = materialize_immediate_move_vs_move_action_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+            opponent_action=opponent_action, action_order_authority=order,
+        )
+        assert pair["status"] == "evaluable"
+        assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+        fixed = [row["first_action_leaf"] for row in pair["terminal_branches"] if row["first_action_leaf"]["provenance"]["move_id"] == "seismic-toss"]
+        assert fixed and all(row["probability"] == {"numerator": 1, "denominator": 1} and "damage_roll" not in row for row in fixed)
+        ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+        assert ledger["status"] == "evaluable"
+        assert project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)["status"] == "resolved"
+        assert snapshot["state"] == state
+
+
+def test_deterministic_seismic_toss_ko_cancels_second_action_without_renormalization():
+    _, snapshot, d0, own_action, opponent_action, order = _fixed_damage_inputs(own_first=True, opponent_hp=50)
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        opponent_action=opponent_action, action_order_authority=order,
+    )
+    assert pair["status"] == "evaluable"
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert [row["second_action"]["state"] for row in pair["terminal_branches"]] == ["cancelled_due_to_faint"]
+
+
+def test_fixed_damage_leaf_rejects_stale_or_mismatched_authority_without_mutation():
+    state, snapshot, d0, _, _, _ = _fixed_damage_inputs(own_first=True)
+    attacker, target = _owner(state, "self"), _owner(state, "opponent")
+    frozen = freeze_runtime_seismic_toss_predictive_input(
+        strategy_d0=d0, runtime_snapshot=snapshot, attacker=attacker, target=target, move_id="seismic-toss",
+    )
+    authority = build_predictive_fixed_damage_attack_authority(
+        branch_state=d0["strategy_state"], decision_owner=attacker, target_owner=target,
+        move_id="seismic-toss", predictive_input=frozen["predictive_input"],
+    )
+    before = deepcopy(authority)
+    stale = deepcopy(authority) | {"source_branch_fingerprint": "stale"}
+    result = materialize_detached_deterministic_fixed_damage_attack_leaf(
+        strategy_d0=d0, attacker=attacker, target=target, move_id="seismic-toss", predictive_authority=stale,
+    )
+    assert result["status"] == "rejected" and authority == before
