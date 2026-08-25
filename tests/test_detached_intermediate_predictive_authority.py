@@ -16,6 +16,7 @@ from llm.advisor_runtime_strategy_d0 import (
 )
 from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
 from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
+from llm.advisor_exact_action_pair_descriptive_metrics import project_exact_immediate_action_pair_descriptive_metrics
 from llm.advisor_substitute import update_substitute_state_context
 
 
@@ -174,4 +175,10 @@ def test_pair_executor_runs_ordinary_own_first_and_opponent_first_paths() -> Non
     assert own_ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
     assert len(own_ledger["terminal_leaves"]) == len(own_first["terminal_branches"])
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair={"status": "incomplete", "reason": "missing"})["status"] == "incomplete"
+    metrics = project_exact_immediate_action_pair_descriptive_metrics(ledger=own_ledger)
+    assert metrics["status"] == "resolved" and metrics["ranking_influence"] == "none"
+    assert metrics["own"]["ko_probability"] == {"numerator": 0, "denominator": 1}
+    assert metrics["own"]["survival_probability"] == {"numerator": 1, "denominator": 1}
+    assert metrics["joint_terminal_states"]["probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert project_exact_immediate_action_pair_descriptive_metrics(ledger={"status": "unsupported", "reason": "upstream"})["status"] == "unsupported"
     assert d0["decision_owner"] == own and snapshot["state"]["self_side"]["pokemon"][0]["current_hp"] == 100
