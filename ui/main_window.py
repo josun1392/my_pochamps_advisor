@@ -28,6 +28,7 @@ from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository, MoveView
 from llm.advisor_runtime_d0_observed_opponent_move_metadata import freeze_runtime_d0_observed_opponent_move_metadata_authorities
 from llm.advisor_current_opponent_response_set_observation import admit_current_opponent_response_set_observation
+from llm.advisor_current_opponent_switch_response_set_observation import admit_current_opponent_switch_response_set_observation
 from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
 from core.pokemon_repository import PokemonRepository
 from core.search_engine import SearchEngine
@@ -937,6 +938,9 @@ class MainWindow(QMainWindow):
         self._confirm_opponent_response_set_action = QAction("Confirm Current Opponent Response Set", self)
         self._confirm_opponent_response_set_action.triggered.connect(self._open_current_opponent_response_set_confirmation)
         battle_menu.addAction(self._confirm_opponent_response_set_action)
+        self._confirm_opponent_switch_response_set_action = QAction("Confirm Current Opponent Switch Response Set", self)
+        self._confirm_opponent_switch_response_set_action.triggered.connect(self._open_current_opponent_switch_response_set_confirmation)
+        battle_menu.addAction(self._confirm_opponent_switch_response_set_action)
         self._update_persistence_action_state()
 
     def _update_persistence_action_state(self) -> None:
@@ -946,9 +950,10 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        action = getattr(self, "_confirm_opponent_response_set_action", None)
-        if action is not None:
-            action.setEnabled(active)
+        for name in ("_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action"):
+            action = getattr(self, name, None)
+            if action is not None:
+                action.setEnabled(active)
 
     @Slot()
     def _open_current_opponent_response_set_confirmation(self) -> None:
@@ -985,6 +990,48 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("상대 기술 사용 가능 여부가 unknown: 응답 집합은 불완전 상태로 유지")
         else:
             self.statusBar().showMessage("상대 응답 집합 확인 실패: 명시적 현재 정보가 필요합니다")
+
+    @Slot()
+    def _open_current_opponent_switch_response_set_confirmation(self) -> None:
+        """Collect explicit current switch facts from reducer-known target identities only."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None or not isinstance(turn_number, int) or turn_number < 1:
+            self.statusBar().showMessage("상대 교체 응답 확인 실패: 현재 세션 또는 신뢰된 턴 정보 없음")
+            return
+        snapshot = manager.capture_runtime_state_snapshot(session_id)
+        state = snapshot.get("state") if snapshot.get("status") == "runtime_snapshot_ready" else None
+        side = state.get("opponent_side") if isinstance(state, dict) else None
+        roster = side.get("pokemon") if isinstance(side, dict) else None
+        active_slot = side.get("active_slot_index") if isinstance(side, dict) else None
+        if not isinstance(roster, dict) or not isinstance(active_slot, int):
+            self.statusBar().showMessage("상대 교체 응답 확인 실패: 현재 상대 로스터 정보 없음")
+            return
+        targets = [
+            {"slot_index": slot, "pokemon_id": pokemon["pokemon_id"]}
+            for slot, pokemon in roster.items()
+            if isinstance(slot, int) and slot != active_slot and isinstance(pokemon, dict) and isinstance(pokemon.get("pokemon_id"), str) and pokemon["pokemon_id"]
+        ]
+        permission, accepted = QInputDialog.getItem(self, "Opponent switch permission", "Current opponent switch permission", ["permitted", "blocked", "unknown"], 0, False)
+        if not accepted:
+            return
+        listed = ", ".join(f"slot {row['slot_index']}: {row['pokemon_id']}" for row in targets) or "(no reducer-known bench targets)"
+        if QMessageBox.question(self, "Confirm opponent switch target set", f"Does this exactly list every current non-active opponent switch target?\n{listed}", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
+            return
+        confirmed_targets = []
+        for row in targets:
+            availability, accepted = QInputDialog.getItem(self, "Opponent switch target availability", f"slot {row['slot_index']} / {row['pokemon_id']}: current availability", ["alive", "fainted", "unknown"], 0, False)
+            if not accepted:
+                return
+            confirmed_targets.append({**row, "availability": availability})
+        result = admit_current_opponent_switch_response_set_observation(runtime_session_manager=manager, captured_session_id=session_id, permission=permission, targets=confirmed_targets, turn_number=turn_number)
+        if result.get("status") == "resolved":
+            self.statusBar().showMessage("현재 상대 교체 응답 집합 확인 완료")
+        elif result.get("reason") in {"explicit_switch_permission_required", "explicit_complete_target_set_required"}:
+            self.statusBar().showMessage("상대 교체 응답 집합은 명시적 완전 확인이 필요합니다")
+        else:
+            self.statusBar().showMessage("상대 교체 응답 확인 실패: 명시적 현재 정보가 필요합니다")
 
     def _active_persistence_manager(self) -> BattleObservationRuntimeSessionManager | None:
         manager = getattr(self, "_observation_runtime_session_manager", None)
