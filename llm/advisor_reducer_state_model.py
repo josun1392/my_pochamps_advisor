@@ -53,11 +53,11 @@ def validate_battle_state_unknown_markers(state):
             if any(not _valid_fact_marker(pokemon.get(field)) for field in ("current_level", "current_hp", "max_hp", "fainted", "condition", "known_item")) or not _valid_current_condition_state(pokemon.get("condition"), pokemon.get("condition_provenance")) or not _valid_current_item_state(pokemon.get("known_item"), pokemon.get("known_item_provenance")) or not _valid_current_level_state(pokemon.get("current_level"), pokemon.get("current_level_provenance")) or not _valid_current_final_stats(pokemon.get("current_final_stats")) or not _valid_current_type_state(pokemon.get("current_type"), pokemon.get("current_type_provenance")) or not _valid_current_ability_state(pokemon.get("current_ability"), pokemon.get("current_ability_provenance")) or not _valid_toxic_progression_state(pokemon.get("toxic_progression")):
                 return False
             known_moves = pokemon.get("known_move_ids", [])
-            if not isinstance(known_moves, list) or len(known_moves) > 4 or any(not _canonical_move_id(move) for move in known_moves) or len(set(known_moves)) != len(known_moves):
+            if not isinstance(known_moves, list) or len(known_moves) > 4 or any(not _canonical_move_id(move) for move in known_moves) or len(set(known_moves)) != len(known_moves) or not _valid_known_move_provenance(pokemon.get("known_move_ids_provenance"), known_moves):
                 return False
             if not _valid_current_crit_volatile_state(pokemon.get("current_crit_volatiles"), pokemon.get("current_crit_volatiles_provenance")):
                 return False
-            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "toxic_progression", "condition", "condition_provenance", "current_crit_volatiles", "current_crit_volatiles_provenance"}):
+            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "known_move_ids_provenance", "toxic_progression", "condition", "condition_provenance", "current_crit_volatiles", "current_crit_volatiles_provenance"}):
                 return False
     field = state.get("field")
     if not isinstance(field, dict) or not all(_valid_fact_marker(field.get(name)) for name in ("weather", "terrain", "battle_format")) or not _valid_current_weather_state(field.get("weather"), field.get("weather_provenance")) or not _valid_current_terrain_state(field.get("terrain"), field.get("terrain_provenance")) or not _valid_current_battle_format_state(field.get("battle_format"), field.get("battle_format_provenance")):
@@ -116,6 +116,31 @@ def _valid_current_type_state(value, provenance):
     except ValueError:
         return False
     return isinstance(provenance, dict) and provenance.get("event_kind") == "current_type_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0
+
+
+def _valid_known_move_observation(value):
+    return (
+        isinstance(value, dict)
+        and value.get("event_kind") == "used_move_observed"
+        and value.get("trust") == "user_confirmed_observation"
+        and isinstance(value.get("source_observation_id"), str)
+        and bool(value["source_observation_id"])
+        and isinstance(value.get("source_sequence"), int)
+        and not isinstance(value.get("source_sequence"), bool)
+        and value["source_sequence"] >= 1
+    )
+
+
+def _valid_known_move_provenance(value, moves):
+    if value is None:
+        # Legacy snapshots retain their identity list but cannot become strict
+        # opponent-action authority until every move has positive provenance.
+        return True
+    return (
+        isinstance(value, dict)
+        and set(value) == set(moves)
+        and all(_valid_known_move_observation(item) for item in value.values())
+    )
 
 
 def _valid_current_level_state(value, provenance):
@@ -624,7 +649,15 @@ def _apply(state, event):
             return _conflict(event, "invalid_known_move_state")
         if move_id in known_moves: return None
         if len(known_moves) >= 4: return _conflict(event, "known_move_capacity_exceeded")
-        pokemon["known_move_ids"] = [*known_moves, move_id]; _mark(pokemon, "known_move_ids", event); return None
+        pokemon["known_move_ids"] = [*known_moves, move_id]
+        provenance = pokemon.get("known_move_ids_provenance")
+        if provenance is None:
+            provenance = {}
+        if not isinstance(provenance, dict) or any(key not in known_moves or not _valid_known_move_observation(value) for key, value in provenance.items()):
+            return _conflict(event, "invalid_known_move_provenance")
+        provenance[move_id] = _provenance(event) | {"event_kind": "used_move_observed"}
+        pokemon["known_move_ids_provenance"] = provenance
+        return None
     if effect in {"set_condition", "clear_condition", "consume_item", "remove_item"}: return _pokemon_effect(state, event)
     if effect in {"start_weather", "end_weather", "start_terrain", "end_terrain"}: return _field_effect(state, event)
     if effect in {"start_side_condition", "end_side_condition"}: return _side_condition(state, event)

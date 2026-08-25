@@ -81,7 +81,11 @@ def test_observed_canonical_moves_are_identity_bound_partial_complete_and_idempo
 
     _observe(boundary, collection, move_id="earthquake", observation_id="repeat")
     assert _apply(coordinator, collection)["status"] == "applied"
-    assert build_known_move_context_projection(store.read_snapshot()["state"])["opponent"]["known_move_ids"] == ["earthquake", "protect", "swords-dance", "stone-edge"]
+    final_state = store.read_snapshot()["state"]
+    assert build_known_move_context_projection(final_state)["opponent"]["known_move_ids"] == ["earthquake", "protect", "swords-dance", "stone-edge"]
+    provenance = final_state["opponent_side"]["pokemon"][1]["known_move_ids_provenance"]
+    assert set(provenance) == {"earthquake", "protect", "swords-dance", "stone-edge"}
+    assert all(value["event_kind"] == "used_move_observed" and value["trust"] == "user_confirmed_observation" for value in provenance.values())
 
 
 def test_invalid_inferred_stale_wrong_owner_and_fifth_move_fail_closed():
