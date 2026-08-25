@@ -7,7 +7,7 @@ from typing import Any, Mapping
 
 
 SCHEMA_VERSION = "exact-immediate-action-pair-outcome-ledger-v1"
-PAIR_SCHEMA = "immediate-move-vs-move-action-pair-v1"
+PAIR_SCHEMAS = {"immediate-move-vs-move-action-pair-v1", "immediate-attack-vs-opponent-switch-action-pair-v1"}
 HORIZON = "immediate_action_pair"
 _STATUSES = {"incomplete", "unsupported", "rejected"}
 
@@ -18,14 +18,14 @@ def normalize_exact_immediate_action_pair_outcome_ledger(*, pair: Mapping[str, A
     if pair.get("status") != "evaluable":
         return _result(_status(pair), pair.get("reason", "immediate_action_pair_not_evaluable"), _base(pair))
     base = _base(pair)
-    if base is None or pair.get("schema_version") != PAIR_SCHEMA or pair.get("horizon") != HORIZON:
+    if base is None or pair.get("schema_version") not in PAIR_SCHEMAS or pair.get("horizon") != HORIZON:
         return _result("rejected", "immediate_action_pair_binding_or_schema_invalid")
     branches = pair.get("terminal_branches")
     if not isinstance(branches, (tuple, list)) or not branches: return _result("rejected", "pair_terminal_branches_missing", base)
     parsed: list[dict[str, Any]] = []
     identities: set[str] = set()
     for branch in branches:
-        leaf = _leaf(branch, base)
+        leaf = _switch_leaf(branch, base) if pair.get("schema_version") == "immediate-attack-vs-opponent-switch-action-pair-v1" else _leaf(branch, base)
         if isinstance(leaf, str): return _result("rejected", leaf, base)
         if leaf["pair_leaf_id"] in identities: return _result("rejected", "duplicate_pair_terminal_leaf_id", base)
         identities.add(leaf["pair_leaf_id"]); parsed.append(leaf)
@@ -41,11 +41,34 @@ def normalize_exact_immediate_action_pair_outcome_ledger(*, pair: Mapping[str, A
 
 
 def _base(pair: Mapping[str, Any]) -> dict[str, Any] | None:
+    if pair.get("schema_version") == "immediate-attack-vs-opponent-switch-action-pair-v1":
+        required = ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_action_id", "opponent_switch_response_action_id", "own_actor", "replaced_opponent_actor")
+        strings = ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "own_action_id", "opponent_switch_response_action_id")
+        switch = pair.get("switch_in_authority")
+        incoming = switch.get("target_owner") if isinstance(switch, Mapping) else None
+        if not all(key in pair for key in required) or not all(isinstance(pair.get(key), str) and pair[key] for key in strings) or not all(isinstance(pair.get(key), Mapping) for key in ("decision_owner", "own_actor", "replaced_opponent_actor")) or not isinstance(incoming, Mapping): return None
+        return {**{key: deepcopy(pair[key]) for key in required}, "opponent_action_id": pair["opponent_switch_response_action_id"], "opponent_actor": deepcopy(dict(incoming)), "response_action_type": "manual_switch"}
     required = ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_action_id", "opponent_action_id", "own_actor", "opponent_actor")
     strings = ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "own_action_id", "opponent_action_id")
     if not all(key in pair for key in required) or not all(isinstance(pair.get(key), str) and pair[key] for key in strings): return None
     if not isinstance(pair.get("decision_owner"), Mapping) or not isinstance(pair.get("own_actor"), Mapping) or not isinstance(pair.get("opponent_actor"), Mapping): return None
     return {key: deepcopy(pair[key]) for key in required}
+
+
+def _switch_leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
+    if not isinstance(value, Mapping) or not isinstance(value.get("pair_leaf_id"), str) or value.get("action_order") != "opponent_switch_first": return "invalid_switch_pair_terminal_branch"
+    source_base = {key: deepcopy(value) for key, value in base.items() if key not in {"opponent_action_id", "opponent_actor", "response_action_type"}}
+    if value.get("provenance") != source_base: return "switch_pair_terminal_branch_provenance_mismatch"
+    attack = value.get("attack_leaf")
+    probability = _fraction(value.get("probability"))
+    if not isinstance(attack, Mapping) or not isinstance(attack.get("leaf_id"), str) or _fraction(attack.get("probability")) <= 0 or probability != _fraction(attack["probability"]): return "switch_pair_attack_leaf_invalid"
+    final = _final(attack, base)
+    if isinstance(final, str): return final
+    incoming = value.get("incoming_target")
+    if incoming != base["opponent_actor"]: return "switch_pair_incoming_target_identity_mismatch"
+    return {"pair_leaf_id": value["pair_leaf_id"], "action_order": value["action_order"], "probability": _fd(probability),
+            "switch_response": {"action_id": base["opponent_action_id"], "incoming_target": deepcopy(dict(incoming)), "switch_in_state_id": value.get("switch_in_state_id"), "entry_consequence": deepcopy(value.get("entry_consequence"))},
+            "attack_action": _action_leaf(attack), "final_consequences": final, "source_pair_branch": deepcopy(dict(value))}
 
 
 def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:

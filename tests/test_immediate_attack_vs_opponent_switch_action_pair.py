@@ -1,6 +1,8 @@
 from copy import deepcopy
 
 from llm.advisor_detached_opponent_switch_in_intermediate_authority import SCHEMA_VERSION as SWITCH_IN_SCHEMA
+from llm.advisor_exact_action_pair_descriptive_metrics import project_exact_immediate_action_pair_descriptive_metrics
+from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
 from llm.advisor_immediate_attack_vs_opponent_switch_action_pair import materialize_immediate_attack_vs_opponent_switch_action_pair
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_reducer_state_model import state_fingerprint
@@ -72,3 +74,26 @@ def test_unknown_hazards_and_stale_or_unknown_switches_fail_closed():
 
     state = _state(); d0, snapshot, action, switch, switch_id = _inputs(state)
     assert materialize_immediate_attack_vs_opponent_switch_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=action, switch_response_authority=switch, selected_switch_response_action_id="missing")["status"] == "rejected"
+
+
+def test_switch_pair_reuses_canonical_ledger_and_metrics_with_leaf_provenance():
+    state = _state(); d0, snapshot, action, switch, switch_id = _inputs(state)
+    pair = materialize_immediate_attack_vs_opponent_switch_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=action, switch_response_authority=switch, selected_switch_response_action_id=switch_id)
+    before = deepcopy(pair)
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    metrics = project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)
+
+    assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert ledger["opponent_switch_response_action_id"] == switch_id
+    assert all(leaf["switch_response"]["incoming_target"]["pokemon_id"] == "bench" for leaf in ledger["terminal_leaves"])
+    assert metrics["status"] == "resolved" and metrics["ranking_influence"] == "none"
+    assert metrics["opponent"]["final_hp_distribution"]["probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert all(outcome["pair_leaf_ids"] for outcome in metrics["opponent"]["final_hp_distribution"]["outcomes"])
+    assert pair == before
+
+
+def test_non_evaluable_switch_pair_remains_fail_closed_for_ledger_and_metrics():
+    pair = {"status": "unsupported", "reason": "replacement_required_after_switch_entry_ko"}
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "unsupported"
+    assert project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)["status"] == "unsupported"

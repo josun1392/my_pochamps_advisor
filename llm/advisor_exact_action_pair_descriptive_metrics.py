@@ -47,7 +47,11 @@ def _base(value: Any) -> dict[str, Any] | None:
     keys = ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_action_id", "opponent_action_id", "own_actor", "opponent_actor")
     strings = ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "own_action_id", "opponent_action_id")
     if not all(key in value for key in keys) or not all(isinstance(value.get(key), str) and value[key] for key in strings) or not all(isinstance(value.get(key), Mapping) for key in ("decision_owner", "own_actor", "opponent_actor")): return None
-    return {key: deepcopy(value[key]) for key in keys}
+    base = {key: deepcopy(value[key]) for key in keys}
+    for key in ("opponent_switch_response_action_id", "replaced_opponent_actor", "response_action_type"):
+        if key in value:
+            base[key] = deepcopy(value[key])
+    return base
 
 
 def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
