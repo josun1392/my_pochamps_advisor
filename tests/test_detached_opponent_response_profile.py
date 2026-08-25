@@ -1,6 +1,8 @@
 from copy import deepcopy
 
 from llm.advisor_detached_opponent_response_profile import materialize_detached_opponent_response_profile
+from llm.advisor_exact_equal_speed_action_order_branching import materialize_exact_equal_speed_action_order_branches
+from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_reducer_state_model import project_atomic_transition, state_fingerprint
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
@@ -55,8 +57,13 @@ def _complete_state(state):
     return result["projected_state"]
 
 
-def _inputs():
-    state = _complete_state(_state()); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+def _inputs(*, equal_speed=False, own_hp=100, opponent_hp=100):
+    state = _complete_state(_state())
+    state["self_side"]["pokemon"][0]["current_hp"] = own_hp
+    state["opponent_side"]["pokemon"][0]["current_hp"] = opponent_hp
+    if equal_speed:
+        state["opponent_side"]["pokemon"][0]["current_final_stats"]["speed"]["value"] = 100
+    snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
     own = _owner(state, "self")
     own_metadata = _metadata("tackle") | {"candidate_id": "attack:tackle", "active_attacker": own, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]}
     own_action = {"action_id": "attack:tackle", "action_type": "attack", "identity": "tackle", "move_metadata_authority": own_metadata}
@@ -64,6 +71,17 @@ def _inputs():
     response_set = freeze_runtime_d0_complete_opponent_response_set_authority(strategy_d0=d0, runtime_snapshot=snapshot, opponent_known_move_authority=known)
     orders = {action_id: {"status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": "own_first", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "own_action_id": own_action["action_id"], "opponent_action_id": action_id, "own_actor": _owner(state, "self"), "opponent_actor": _owner(state, "opponent")} for action_id in response_set["selectable_response_action_ids"]}
     return state, snapshot, d0, own_action, response_set, orders
+
+
+def _equal_speed_order(d0, own_action, opponent_action):
+    return {
+        "status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1",
+        "order": "unresolved_tie", "order_engine": {"status": "speed_tie"},
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+        "own_action_id": own_action["action_id"], "opponent_action_id": opponent_action["action_id"],
+        "own_actor": d0["active_owners"]["self"], "opponent_actor": d0["active_owners"]["opponent"],
+    }
 
 
 def test_complete_response_set_materializes_all_exact_pairs_without_probabilities():
@@ -124,3 +142,61 @@ def test_combined_universe_dispatches_move_and_switch_entries_exactly_once(monke
     zero = deepcopy(combined) | {"universe_state": "complete_zero_response_universe", "selectable_response_action_ids": ()}
     unavailable = materialize_detached_opponent_response_profile(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, response_set_authority=zero, action_order_authorities={})
     assert unavailable["status"] == "incomplete" and unavailable["reason"] == "combined_response_universe_has_zero_selectable_responses"
+
+
+def test_exact_equal_speed_branches_execute_both_orders_with_exact_mass_and_cancellation():
+    _, snapshot, d0, own_action, response_set, _ = _inputs(equal_speed=True, own_hp=1, opponent_hp=1)
+    opponent_action = response_set["actions"][0]
+    order = _equal_speed_order(d0, own_action, opponent_action)
+    assert order["status"] == "resolved" and order["order"] == "unresolved_tie"
+    branching = materialize_exact_equal_speed_action_order_branches(action_order_authority=order)
+    assert branching["status"] == "resolved"
+    assert [(row["order"], row["conditional_probability"]) for row in branching["order_branches"]] == [
+        ("own_first", {"numerator": 1, "denominator": 2}),
+        ("opponent_first", {"numerator": 1, "denominator": 2}),
+    ]
+
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        opponent_action=opponent_action, action_order_authority=order,
+    )
+    assert pair["status"] == "evaluable"
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert {row["action_order"] for row in pair["terminal_branches"]} == {"own_first", "opponent_first"}
+    assert {row["action_order_conditional_probability"]["denominator"] for row in pair["terminal_branches"]} == {2}
+    cancelled_orders = {
+        row["action_order"] for row in pair["terminal_branches"]
+        if row["second_action"]["state"] == "cancelled_due_to_faint"
+    }
+    assert cancelled_orders == {"own_first", "opponent_first"}
+
+    _, deterministic_snapshot, deterministic_d0, deterministic_own, deterministic_set, _ = _inputs()
+    deterministic_order = {
+        **_equal_speed_order(deterministic_d0, deterministic_own, deterministic_set["actions"][0]),
+        "order": "own_first", "order_engine": {"status": "acts_first"},
+    }
+    deterministic_pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=deterministic_d0, runtime_snapshot=deterministic_snapshot,
+        own_action=deterministic_own, opponent_action=deterministic_set["actions"][0],
+        action_order_authority=deterministic_order,
+    )
+    assert deterministic_order["order"] == "own_first"
+    assert deterministic_pair["status"] == "evaluable"
+    assert "exact_equal_speed_order_branches" not in deterministic_pair
+
+
+def test_equal_speed_branching_never_promotes_unknown_unsupported_or_mismatched_order():
+    _, snapshot, d0, own_action, response_set, _ = _inputs(equal_speed=True)
+    resolved = _equal_speed_order(d0, own_action, response_set["actions"][0])
+    unknown = deepcopy(resolved) | {"status": "incomplete", "reason": "order_unknown"}
+    assert materialize_exact_equal_speed_action_order_branches(action_order_authority=unknown)["status"] == "incomplete"
+    unsupported = deepcopy(resolved) | {"status": "unsupported", "reason": "lagging_tail"}
+    assert materialize_exact_equal_speed_action_order_branches(action_order_authority=unsupported)["status"] == "unsupported"
+    malformed = deepcopy(resolved) | {"order_engine": {"status": "acts_first"}}
+    assert materialize_exact_equal_speed_action_order_branches(action_order_authority=malformed)["status"] == "rejected"
+    stale = deepcopy(resolved) | {"source_runtime_fingerprint": "stale"}
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        opponent_action=response_set["actions"][0], action_order_authority=stale,
+    )
+    assert pair["status"] == "rejected"

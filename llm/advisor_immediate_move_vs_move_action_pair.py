@@ -5,6 +5,9 @@ from copy import deepcopy
 from fractions import Fraction
 from typing import Any, Mapping
 
+from llm.advisor_exact_equal_speed_action_order_branching import (
+    materialize_exact_equal_speed_action_order_branches,
+)
 from llm.advisor_detached_intermediate_predictive_authority import (
     detached_intermediate_builder_inputs, freeze_detached_intermediate_predictive_authority,
 )
@@ -39,12 +42,38 @@ def materialize_immediate_move_vs_move_action_pair(
     """Evaluate one known-usable opponent move conditional on its selection."""
     base = _base(strategy_d0, own_action, opponent_action)
     if base is None: return _result("rejected", "invalid_pair_request", {})
-    order = _order(action_order_authority, base)
-    if isinstance(order, tuple): return _result(*order, base)
+    orders = _orders(action_order_authority, base)
+    if isinstance(orders, tuple): return _result(*orders, base)
     opponent_meta = _opponent_metadata(opponent_action, base)
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    branches: list[dict[str, Any]] = []
+    for order_plan in orders:
+        materialized = _materialize_order(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
+            own_action=own_action, opponent_action=opponent_action, own_meta=own_meta,
+            opponent_meta=opponent_meta, order_plan=order_plan,
+        )
+        if isinstance(materialized, Mapping): return materialized
+        branches.extend(materialized)
+    mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
+    if mass != Fraction(1, 1): return _result("rejected", "pair_terminal_probability_mass_not_one", base, terminal_probability_mass=_fd(mass))
+    return {"status": "evaluable", "schema_version": SCHEMA_VERSION, "horizon": HORIZON, **base,
+            "action_order": deepcopy(dict(action_order_authority)),
+            **({"exact_equal_speed_order_branches": tuple(deepcopy(plan["source_branch"]) for plan in orders)} if len(orders) == 2 else {}),
+            "conditional_on": "opponent_selected_exact_known_usable_move",
+            "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass),
+            "aggregation": "none_preserve_first_and_second_leaf_identity",
+            "provenance": "strict_detached_immediate_move_vs_move_pair_materialization_v1"}
+
+
+def _materialize_order(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
+    own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], order_plan: Mapping[str, Any],
+) -> list[dict[str, Any]] | dict[str, Any]:
+    order = order_plan["order"]
     first_actor = base["own_actor"] if order == "own_first" else base["opponent_actor"]
     first_meta = own_meta if order == "own_first" else opponent_meta
     first_d0, first_snapshot, root = strategy_d0, runtime_snapshot, None
@@ -53,8 +82,7 @@ def materialize_immediate_move_vs_move_action_pair(
         if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "opponent_root_predictive_authority_unavailable"), base)
         first_d0, first_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
     first = _normal_formula_ledger(strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
-                                   target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"],
-                                   metadata_authority=first_meta)
+                                   target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"], metadata_authority=first_meta)
     if first.get("status") != "evaluable": return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base, first_action_ledger=first)
     branches: list[dict[str, Any]] = []
     second_actor = base["opponent_actor"] if order == "own_first" else base["own_actor"]
@@ -63,24 +91,18 @@ def materialize_immediate_move_vs_move_action_pair(
         intermediate = materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=leaf, root_predictive_authority=root)
         if intermediate.get("status") != "resolved": return _result(_status(intermediate), intermediate.get("reason", "intermediate_state_unavailable"), base)
         if _fainted(intermediate, second_actor):
-            branches.append(_branch(base, order, leaf, intermediate, None, second_actor)); continue
+            branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan)); continue
         authority = freeze_detached_intermediate_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             intermediate_state=intermediate, actor=second_actor,
-            target=base["opponent_actor"] if second_actor == base["own_actor"] else base["own_actor"],
-            move_metadata_authority=second_meta)
+            target=base["opponent_actor"] if second_actor == base["own_actor"] else base["own_actor"], move_metadata_authority=second_meta)
         inputs = detached_intermediate_builder_inputs(authority)
         if inputs.get("status") != "resolved": return _result(_status(inputs), inputs.get("reason", "second_action_intermediate_authority_unavailable"), base, first_leaf_id=leaf["leaf_id"])
         second = _normal_formula_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
             actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs))
         if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
-        for second_leaf in second["terminal_leaves"]: branches.append(_branch(base, order, leaf, intermediate, second_leaf, second_actor))
-    mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
-    if mass != Fraction(1, 1): return _result("rejected", "pair_terminal_probability_mass_not_one", base, terminal_probability_mass=_fd(mass))
-    return {"status": "evaluable", "schema_version": SCHEMA_VERSION, "horizon": HORIZON, **base,
-            "action_order": deepcopy(dict(action_order_authority)), "conditional_on": "opponent_selected_exact_known_usable_move",
-            "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass),
-            "aggregation": "none_preserve_first_and_second_leaf_identity",
-            "provenance": "strict_detached_immediate_move_vs_move_pair_materialization_v1"}
+        for second_leaf in second["terminal_leaves"]:
+            branches.append(_branch(base, order, leaf, intermediate, second_leaf, second_actor, order_plan))
+    return branches
 
 
 def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any]) -> dict[str, Any]:
@@ -122,12 +144,30 @@ def _base(d0: Any, own: Any, opponent: Any) -> dict[str, Any] | None:
     self_owner, opp_owner = d0.get("active_owners", {}).get("self"), d0.get("active_owners", {}).get("opponent")
     if not isinstance(self_owner, Mapping) or not isinstance(opp_owner, Mapping) or d0.get("decision_owner") != self_owner: return None
     return {"pair_id": f"pair:{own['action_id']}:{opponent.get('action_id') if isinstance(opponent, Mapping) else None}", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "own_action_id": own["action_id"], "opponent_action_id": opponent.get("action_id") if isinstance(opponent, Mapping) else None, "own_actor": deepcopy(dict(self_owner)), "opponent_actor": deepcopy(dict(opp_owner))}
-def _order(value: Any, base: Mapping[str, Any]) -> str | tuple[str, str]:
+def _orders(value: Any, base: Mapping[str, Any]) -> list[dict[str, Any]] | tuple[str, str]:
     if not isinstance(value, Mapping) or value.get("schema_version") != "runtime-d0-action-order-authority-v1": return ("rejected", "action_order_authority_invalid")
     for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_action_id", "opponent_action_id", "own_actor", "opponent_actor"):
         if value.get(key) != base.get(key): return ("rejected", "action_order_binding_mismatch")
     if value.get("status") != "resolved": return (_status(value), value.get("reason", "action_order_unavailable"))
-    return value["order"] if value.get("order") in {"own_first", "opponent_first"} else ("incomplete", "action_order_unresolved_tie")
+    if value.get("order") in {"own_first", "opponent_first"}:
+        return [{"order": value["order"], "probability": Fraction(1, 1), "source_branch": None}]
+    if value.get("order") != "unresolved_tie": return ("incomplete", "action_order_unavailable")
+    branching = materialize_exact_equal_speed_action_order_branches(action_order_authority=value)
+    if branching.get("status") != "resolved": return (_status(branching), branching.get("reason", "equal_speed_order_branching_unavailable"))
+    for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_action_id", "opponent_action_id", "own_actor", "opponent_actor"):
+        if branching.get(key) != base.get(key): return ("rejected", "equal_speed_order_branching_binding_mismatch")
+    rows = branching.get("order_branches")
+    if not isinstance(rows, tuple) or len(rows) != 2: return ("rejected", "equal_speed_order_branches_invalid")
+    plans: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, Mapping) or row.get("order") not in {"own_first", "opponent_first"} or not isinstance(row.get("order_branch_id"), str):
+            return ("rejected", "equal_speed_order_branch_invalid")
+        try: probability = _fraction(row["conditional_probability"])
+        except (KeyError, TypeError, ValueError, ZeroDivisionError): return ("rejected", "equal_speed_order_probability_invalid")
+        if probability != Fraction(1, 2): return ("rejected", "equal_speed_order_probability_not_one_half")
+        plans.append({"order": row["order"], "probability": probability, "source_branch": deepcopy(dict(row))})
+    if {plan["order"] for plan in plans} != {"own_first", "opponent_first"}: return ("rejected", "equal_speed_order_branches_not_exhaustive")
+    return plans
 def _opponent_metadata(action: Any, base: Mapping[str, Any]) -> Mapping[str, Any] | tuple[str, str]:
     if not isinstance(action, Mapping) or action.get("status") != "resolved": return (_status(action) if isinstance(action, Mapping) else "rejected", action.get("reason", "opponent_action_invalid") if isinstance(action, Mapping) else "opponent_action_invalid")
     if action.get("selectability") != "selectable" or action.get("usability", {}).get("status") != "known_usable": return ("incomplete", "opponent_action_not_known_usable")
@@ -146,9 +186,12 @@ def _metadata_for_inputs(authority: Any, inputs: Mapping[str, Any] | None) -> Ma
     return deepcopy(dict(metadata))
 def _fainted(state: Mapping[str, Any], owner: Mapping[str, Any]) -> bool:
     row = state.get("active", {}).get(owner.get("side"), {}) if isinstance(state.get("active"), Mapping) else {}; return isinstance(row, Mapping) and row.get("hypothetical_fainted", {}).get("value") is True
-def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], intermediate: Mapping[str, Any], second: Mapping[str, Any] | None, second_actor: Mapping[str, Any]) -> dict[str, Any]:
+def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], intermediate: Mapping[str, Any], second: Mapping[str, Any] | None, second_actor: Mapping[str, Any], order_plan: Mapping[str, Any]) -> dict[str, Any]:
     first_p = _fraction(first["probability"]); second_p = Fraction(1, 1) if second is None else _fraction(second["probability"])
-    return {"pair_leaf_id": f"{first['leaf_id']}/" + ("second_cancelled_due_to_faint" if second is None else f"{second['leaf_id']}"), "action_order": order, "first_action_leaf": deepcopy(dict(first)), "intermediate_state_id": f"intermediate:{first['candidate_id']}:{first['leaf_id']}", "second_action": {"state": "cancelled_due_to_faint" if second is None else "executed", "actor": deepcopy(dict(second_actor)), "conditional_probability": _fd(second_p), **({"reason": "second_action_cancelled_due_to_faint"} if second is None else {"leaf": deepcopy(dict(second))})}, "probability": _fd(first_p * second_p), "provenance": deepcopy(dict(base))}
+    order_p = order_plan["probability"]
+    path = f"{first['leaf_id']}/" + ("second_cancelled_due_to_faint" if second is None else f"{second['leaf_id']}")
+    source_branch = order_plan.get("source_branch")
+    return {"pair_leaf_id": (f"{source_branch['order_branch_id']}/" if isinstance(source_branch, Mapping) else "") + path, "action_order": order, **({"action_order_branch": deepcopy(dict(source_branch)), "action_order_conditional_probability": _fd(order_p)} if isinstance(source_branch, Mapping) else {}), "first_action_leaf": deepcopy(dict(first)), "intermediate_state_id": f"intermediate:{first['candidate_id']}:{first['leaf_id']}", "second_action": {"state": "cancelled_due_to_faint" if second is None else "executed", "actor": deepcopy(dict(second_actor)), "conditional_probability": _fd(second_p), **({"reason": "second_action_cancelled_due_to_faint"} if second is None else {"leaf": deepcopy(dict(second))})}, "probability": _fd(order_p * first_p * second_p), "provenance": deepcopy(dict(base))}
 def _fraction(value: Mapping[str, Any]) -> Fraction: return Fraction(value["numerator"], value["denominator"])
 def _fd(value: Fraction) -> dict[str, int]: return {"numerator": value.numerator, "denominator": value.denominator}
 def _status(value: Mapping[str, Any]) -> str: return value.get("status") if isinstance(value, Mapping) and value.get("status") in _STATUSES else "rejected"
