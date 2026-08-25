@@ -49,6 +49,7 @@ def run_current_ui_detached_strategy(
     *, runtime_session_manager: Any, captured_session_id: str, decision_owner: Mapping[str, Any] | None = None,
     decision_side: str = "self", selection_cycle_builder: Callable[[Mapping[str, Any], Mapping[str, Any]], Mapping[str, Any]],
     opponent_canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    opponent_move_metadata_authority_builder: Callable[[Mapping[str, Any], Mapping[str, Any]], Mapping[str, Mapping[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     """Capture one runtime revision and return detached strategy explanation.
 
@@ -109,9 +110,10 @@ def run_current_ui_detached_strategy(
     ledgers, metrics = _project_live_ledger_metrics(
         strategy_d0=d0, orchestration=provisional, live_attacks=live_attacks,
     )
+    opponent_metadata = opponent_move_metadata_authority_builder(d0, capture) if callable(opponent_move_metadata_authority_builder) else opponent_canonical_move_metadata_authorities
     response_profiles = _project_live_opponent_response_profiles(
         strategy_d0=d0, runtime_snapshot=capture, selection=selection,
-        canonical_move_metadata_authorities=opponent_canonical_move_metadata_authorities,
+        canonical_move_metadata_authorities=opponent_metadata,
     )
     orchestration = run_detached_strategy_orchestration(
         decision_state=d0["strategy_state"], decision_owner=d0["decision_owner"],

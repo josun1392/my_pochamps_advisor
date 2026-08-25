@@ -26,6 +26,7 @@ from core.champions_item_repository import ChampionsItemRepository
 from core.champions_move_pool import ChampionsMovePoolRepository
 from core.ko_mapping_loader import KoMappingLoader
 from core.move_repository import MoveRepository, MoveView
+from llm.advisor_runtime_d0_observed_opponent_move_metadata import freeze_runtime_d0_observed_opponent_move_metadata_authorities
 from core.pokemon_stat_sample_repository import PokemonStatSampleRepository
 from core.pokemon_repository import PokemonRepository
 from core.search_engine import SearchEngine
@@ -1496,6 +1497,7 @@ class MainWindow(QMainWindow):
         result = run_current_ui_detached_strategy(
             runtime_session_manager=manager, captured_session_id=session_id,
             decision_side="self", selection_cycle_builder=build_selection_cycle,
+            opponent_move_metadata_authority_builder=lambda strategy_d0, runtime_snapshot: freeze_runtime_d0_observed_opponent_move_metadata_authorities(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, move_repository=self.move_repo),
         )
         if result.get("status") == "resolved":
             panel.set_strategy_explanation(result["explanation"])
