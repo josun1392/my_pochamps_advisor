@@ -23,7 +23,7 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
     intimidate = evaluate_intimidate_entry(target=target, damage=damage, authority=intimidate_authority)
     download = _evaluate_download(target=target, damage=damage, authority=download_authority)
     trace = _evaluate_trace(target=target, damage=damage, authority=trace_authority)
-    sturdy = _evaluate_sturdy(target=target, damage=damage, authority=sturdy_authority)
+    sturdy = evaluate_sturdy_entry(target=target, damage=damage, authority=sturdy_authority)
     weather = evaluate_entry_weather(target=target, damage=damage, field_state_context=field_state_context)
     return {
         **deepcopy(damage),
@@ -198,7 +198,7 @@ def _evaluate_trace(*, target: Mapping[str, Any], damage: Mapping[str, Any], aut
     return _complete("ability_copied", copied_ability=authority["target_ability"], opponent_identity=deepcopy(dict(authority["target"])))
 
 
-def _evaluate_sturdy(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+def evaluate_sturdy_entry(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
     ability = _authority(target, "ability_authority")
     if not _known_authority(ability):
         return _incomplete("candidate_ability_unknown")

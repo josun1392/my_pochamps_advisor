@@ -9,8 +9,9 @@ from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_current_stage_authority
 from llm.advisor_runtime_d0_opponent_switch_target_combat_authority import freeze_runtime_d0_opponent_switch_target_combat_authority
 from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
-from llm.advisor_switch_entry_effects import evaluate_entry_weather, evaluate_intimidate_entry, evaluate_sticky_web_entry, evaluate_toxic_spikes_entry
+from llm.advisor_switch_entry_effects import evaluate_entry_weather, evaluate_intimidate_entry, evaluate_sticky_web_entry, evaluate_toxic_spikes_entry, evaluate_sturdy_entry
 from llm.advisor_switch_entry_intimidate_authority import normalize_switch_entry_intimidate_authority
+from llm.advisor_switch_entry_sturdy_authority import normalize_switch_entry_sturdy_authority
 from llm.advisor_switch_hazard_authority import normalize_switch_hazard_context
 from llm.advisor_prospective_entry_authority import normalize_prospective_entry_interactions
 
@@ -54,6 +55,7 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
         hazards, current, hp, target, strategy_d0=strategy_d0,
         runtime_snapshot=runtime_snapshot, own_actor=base["own_actor"],
         entry_intimidate_authority=state.get("switch_entry_intimidate_authority"),
+        entry_sturdy_authority=state.get("switch_entry_sturdy_authority"),
         field_state_context=_field_weather_context(state),
     )
     if entry.get("status") != "resolved":
@@ -92,6 +94,9 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
         "final_stats_authority": fields["final_stats"],
         "stage_authority": fields["stages"],
         "own_attack_stage_overlay": deepcopy(own_attack_overlay),
+        "sturdy_survival_authority": _sturdy_survival_authority(
+            entry["sturdy_consequence"], target, base, post_hp, hp["maximum_hp"],
+        ),
         "weather_authority": _weather_overlay(entry["weather_consequence"]),
         "substitute_authority": {"status": "unknown", "reason": "opponent_switch_in_substitute_untracked"},
         "entry_hazard_context": deepcopy(hazards),
@@ -144,7 +149,7 @@ def _hazards(state: Any, session_id: str) -> dict:
 def _entry_consequence(
     hazards: Mapping[str, Any], current: Mapping[str, Any], hp: Mapping[str, Any], target_owner: Mapping[str, Any],
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_actor: Mapping[str, Any],
-    entry_intimidate_authority: Any, field_state_context: Mapping[str, Any] | None,
+    entry_intimidate_authority: Any, entry_sturdy_authority: Any, field_state_context: Mapping[str, Any] | None,
 ) -> dict:
     if not isinstance(hazards, Mapping) or any(hazards.get(key) == "unknown" for key in ("stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web")):
         return {"status": "incomplete", "reason": "switch_entry_hazards_unknown"}
@@ -178,6 +183,13 @@ def _entry_consequence(
     if intimidate.get("status") != "complete":
         status = "rejected" if intimidate.get("status") == "rejected" else "incomplete"
         return {"status": status, "reason": str(intimidate.get("reason") or "intimidate_authority_incomplete")}
+    sturdy = _sturdy_consequence(
+        authority_value=entry_sturdy_authority, target=target, damage=evaluated,
+        incoming_owner=target_owner, own_actor=own_actor,
+    )
+    if sturdy.get("status") != "complete":
+        status = "rejected" if sturdy.get("status") == "rejected" else "incomplete"
+        return {"status": status, "reason": str(sturdy.get("reason") or "sturdy_authority_incomplete")}
     weather = evaluate_entry_weather(target=target, damage=evaluated, field_state_context=field_state_context)
     if weather.get("status") != "complete":
         return {"status": "incomplete", "reason": str(weather.get("reason") or "switch_entry_weather_authority_incomplete")}
@@ -190,6 +202,7 @@ def _entry_consequence(
         "hazard_evidence": deepcopy(evaluated), "toxic_spikes_consequence": deepcopy(toxic),
         "sticky_web_consequence": deepcopy(sticky),
         "intimidate_consequence": deepcopy(intimidate),
+        "sturdy_consequence": deepcopy(sturdy),
         "weather_consequence": deepcopy(weather),
         "own_attack_stage_overlay": _own_attack_stage_overlay(intimidate, own_actor),
         "post_entry_hazard_context": after_hazards,
@@ -229,6 +242,45 @@ def _intimidate_consequence(
     if authority.get("target_attack_stage") != attack.get("value"):
         return {"status": "rejected", "reason": "intimidate_pre_entry_attack_stage_mismatch"}
     return evaluate_intimidate_entry(target=target, damage=damage, authority=authority)
+
+
+def _sturdy_consequence(*, authority_value: Any, target: Mapping[str, Any], damage: Mapping[str, Any], incoming_owner: Mapping[str, Any], own_actor: Mapping[str, Any]) -> dict:
+    ability = target.get("ability_authority")
+    if not isinstance(ability, Mapping) or ability.get("status") != "known":
+        return {"status": "insufficient_context", "reason": "incoming_ability_unknown"}
+    if ability.get("value") != "sturdy":
+        return {"status": "complete", "outcome": "not_applicable"}
+    if authority_value is None:
+        return {"status": "insufficient_context", "reason": "sturdy_interaction_unknown"}
+    authority = normalize_switch_entry_sturdy_authority(
+        authority_value, session_id=incoming_owner["session_id"], target=own_actor,
+    )
+    if authority is None:
+        return {"status": "rejected", "reason": "sturdy_authority_binding_mismatch"}
+    if not _same_identity(authority.get("source"), incoming_owner):
+        return {"status": "rejected", "reason": "sturdy_source_identity_mismatch"}
+    return evaluate_sturdy_entry(target=target, damage=damage, authority=authority)
+
+
+def _sturdy_survival_authority(sturdy: Mapping[str, Any], incoming_owner: Mapping[str, Any], base: Mapping[str, Any], post_hp: int, maximum_hp: int) -> dict:
+    bindings = {
+        "schema_version": "detached-switch-in-sturdy-survival-authority-v1",
+        "session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"],
+        "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": deepcopy(base["decision_owner"]),
+        "defender": deepcopy(dict(incoming_owner)), "attacker": deepcopy(base["own_actor"]),
+    }
+    if not isinstance(sturdy, Mapping) or sturdy.get("status") != "complete":
+        return {**bindings, "status": "unknown"}
+    if sturdy.get("outcome") != "survival_ready":
+        return {**bindings, "status": "not_applicable", "outcome": sturdy.get("outcome")}
+    if not isinstance(post_hp, int) or isinstance(post_hp, bool) or post_hp != maximum_hp or maximum_hp <= 1:
+        return {**bindings, "status": "unknown"}
+    if not _same_identity(sturdy.get("opponent_identity"), base["own_actor"]):
+        return {**bindings, "status": "unknown"}
+    return {
+        **bindings, "status": "ready", "post_entry_hp": post_hp, "maximum_hp": maximum_hp,
+        "provenance": "exact_detached_opponent_switch_in_sturdy_readiness_v1",
+    }
 
 
 def _own_attack_stage_overlay(intimidate: Mapping[str, Any], own_actor: Mapping[str, Any]) -> dict:

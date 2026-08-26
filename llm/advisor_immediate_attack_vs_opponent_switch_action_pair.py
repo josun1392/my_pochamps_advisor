@@ -51,6 +51,7 @@ def materialize_immediate_attack_vs_opponent_switch_action_pair(
         strategy_d0=predictive["strategy_d0"], runtime_snapshot=predictive["runtime_snapshot"],
         actor=predictive["own_actor"], target=predictive["incoming_target"],
         metadata_authority=metadata["metadata"],
+        sturdy_survival_authority=switch_in["hypothetical_switch_in_state"].get("sturdy_survival_authority"),
     )
     if attack.get("status") != "evaluable":
         return _result(_status(attack), attack.get("reason", "own_attack_ledger_unavailable"), base, switch_in_authority=deepcopy(switch_in))

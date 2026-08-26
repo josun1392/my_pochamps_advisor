@@ -12,7 +12,7 @@ _APPLICABILITY = frozenset({"applicable", "suppressed", "unknown"})
 def build_switch_entry_sturdy_authority(*, session_id: str, source: Mapping[str, Any], target: Mapping[str, Any], applicability: str = "unknown") -> dict[str, Any]:
     """Build detached B-to-opposing-active authority for Sturdy interactions."""
     source_identity, target_identity = _identity(source), _identity(target)
-    if not isinstance(session_id, str) or not session_id or source_identity["side"] != "self" or target_identity["side"] != "opponent" or applicability not in _APPLICABILITY:
+    if not isinstance(session_id, str) or not session_id or source_identity["side"] == target_identity["side"] or applicability not in _APPLICABILITY:
         raise ValueError("invalid_switch_entry_sturdy_authority")
     return deepcopy({"schema_version": SCHEMA_VERSION, "session_id": session_id, "source": source_identity, "target": target_identity, "applicability": applicability})
 

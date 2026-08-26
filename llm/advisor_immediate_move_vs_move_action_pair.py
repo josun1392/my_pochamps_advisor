@@ -155,7 +155,7 @@ def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Ma
     return leaf
 
 
-def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any]) -> dict[str, Any]:
+def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata)
@@ -165,6 +165,8 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     if any(row.get("status") != "resolved" for row in (normal, hit, crit)):
         row = next(row for row in (normal, hit, crit) if row.get("status") != "resolved")
         return _result(_status(row), row.get("reason", "normal_formula_predictive_authority_unavailable"), {})
+    if isinstance(sturdy_survival_authority, Mapping) and sturdy_survival_authority.get("status") == "ready" and metadata["move_id"] in {"thunderbolt", "shadow-ball", "acid-spray"}:
+        return _result("unsupported", "sturdy_target_secondary_raw_ko_semantics_unsupported", {})
     thunderbolt = None
     self_stage = None
     target_stage = None
@@ -194,15 +196,19 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     interval_input = {"snapshot_damage_input": normal["snapshot_damage_input"], "stat_provenance": normal["stat_provenance"], "trusted_level": normal["trusted_level"]}
     paired = materialize_predictive_critical_damage_contexts(branch_state=strategy_d0["strategy_state"], decision_owner=actor, target_owner=target, source_runtime_fingerprint=strategy_d0["source_runtime_fingerprint"], **interval_input)
     if paired.get("status") != "resolved": return _result(_status(paired), paired.get("reason", "critical_damage_context_unavailable"), {})
-    post_input = {"move_metadata": metadata, **normal["post_hit_authority"]}
+    post_input = {"move_metadata": metadata, **normal["post_hit_authority"], "target_sturdy_survival_authority": sturdy_survival_authority}
     non = _normal_formula_facts(candidate, paired["non_critical_context"], own_hp, post_input, normal,
         probabilistic_self_stage_effect_authority=self_stage,
         probabilistic_target_stage_effect_authority=target_stage,
-        thunderbolt_paralysis_authority=thunderbolt)
+        thunderbolt_paralysis_authority=thunderbolt, sturdy_survival_authority=sturdy_survival_authority)
     critical = _normal_formula_facts(candidate, paired["critical_context"], own_hp, post_input, normal,
         probabilistic_self_stage_effect_authority=self_stage,
         probabilistic_target_stage_effect_authority=target_stage,
-        thunderbolt_paralysis_authority=thunderbolt)
+        thunderbolt_paralysis_authority=thunderbolt, sturdy_survival_authority=sturdy_survival_authority)
+    if isinstance(sturdy_survival_authority, Mapping) and sturdy_survival_authority.get("status") == "ready":
+        failed = next((fact.get("post_hit_failure") for fact in (non, critical) if isinstance(fact.get("post_hit_failure"), Mapping)), None)
+        if failed is not None:
+            return _result(_status(failed), failed.get("reason", "sturdy_post_hit_authority_unavailable"), {})
     non_consequences = _consequences(paired["non_critical_context"], non)
     critical_consequences = _consequences(paired["critical_context"], critical)
     critical = compose_predictive_critical_hit_uncertainty(candidate=candidate, strict_critical_hit_probability=crit, paired_damage_contexts=paired, non_critical_consequences=non_consequences, critical_consequences=critical_consequences)

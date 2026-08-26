@@ -12,6 +12,7 @@ from llm.advisor_prospective_entry_authority import build_prospective_entry_inte
 from llm.advisor_substitute import update_substitute_state_context
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority
+from llm.advisor_switch_entry_sturdy_authority import build_switch_entry_sturdy_authority
 
 
 MOVE = {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}
@@ -75,6 +76,15 @@ def _intimidate_ready(state, *, interaction="lowered", self_attack_stage=0):
 
 def _weather_setter_ready(state, ability):
     state["opponent_side"]["pokemon"][1]["current_ability"] = ability
+    return state
+
+
+def _sturdy_ready(state, *, applicability="applicable"):
+    state["opponent_side"]["pokemon"][1]["current_ability"] = "sturdy"
+    state["switch_entry_sturdy_authority"] = build_switch_entry_sturdy_authority(
+        session_id=state["session_id"], source=_owner(state, "opponent", 1),
+        target=_owner(state, "self"), applicability=applicability,
+    )
     return state
 
 
@@ -311,6 +321,105 @@ def test_weather_setter_does_not_activate_after_entry_hazard_ko():
     )
     assert pair["status"] == "unsupported"
     assert pair["switch_in_authority"]["entry_consequence"]["weather_consequence"]["outcome"] == "not_activated_hazard_ko"
+
+
+def test_sturdy_switch_in_caps_lethal_normal_formula_leaves_without_losing_roll_provenance():
+    state = _sturdy_ready(_state())
+    bench = state["opponent_side"]["pokemon"][1]
+    bench["current_hp"] = bench["max_hp"] = 10
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    before = deepcopy(snapshot)
+    pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    sturdy = pair["switch_in_authority"]["hypothetical_switch_in_state"]["sturdy_survival_authority"]
+    assert sturdy["status"] == "ready" and sturdy["post_entry_hp"] == sturdy["maximum_hp"] == 10
+    hits = [row["attack_leaf"] for row in pair["terminal_branches"] if row["attack_leaf"]["hit_state"] == "hit"]
+    assert {row["damage_roll"]["roll_index"] for row in hits if row["damage_roll"] is not None} == set(range(16))
+    activated = [row for row in hits if row["consequences"]["sturdy_survival"]["outcome"] == "applied"]
+    assert activated
+    assert all(row["damage_roll"]["damage"] >= 10 and row["consequences"]["damage"] == 9 for row in activated)
+    assert all(row["consequences"]["target_final_hp"] == 1 and row["consequences"]["target_ko"] is False for row in activated)
+    misses = [row["attack_leaf"] for row in pair["terminal_branches"] if row["attack_leaf"]["hit_state"] == "miss"]
+    assert all(row["consequences"]["target_final_hp"] == 10 and row["consequences"]["sturdy_survival"] is None for row in misses)
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    metrics = project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)
+    assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert metrics["status"] == "resolved"
+    assert snapshot == before
+
+
+def test_sturdy_hazard_chip_suppression_unknown_and_foreign_authority_fail_closed_or_stay_inactive():
+    state = _sturdy_ready(_state())
+    state["opponent_side"]["pokemon"][1]["prospective_groundedness_context"] = build_groundedness(
+        session_id=state["session_id"], side="opponent", slot_index=1, pokemon_id="bench", status="grounded",
+    )
+    state["switch_hazard_context"] = build_switch_hazard_context(
+        session_id=state["session_id"], affected_side="opponent", stealth_rock="absent",
+        spikes_layers=1, toxic_spikes_layers=0, sticky_web="absent",
+    )
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    chipped = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert chipped["status"] == "evaluable"
+    assert chipped["switch_in_authority"]["hypothetical_switch_in_state"]["sturdy_survival_authority"]["status"] == "not_applicable"
+
+    state = _sturdy_ready(_state(), applicability="suppressed")
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    suppressed = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert suppressed["status"] == "evaluable"
+    assert suppressed["switch_in_authority"]["hypothetical_switch_in_state"]["sturdy_survival_authority"]["status"] == "not_applicable"
+
+    state = _sturdy_ready(_state(), applicability="unknown")
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    assert materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )["status"] == "incomplete"
+
+    state = _sturdy_ready(_state())
+    state["switch_entry_sturdy_authority"]["source"]["pokemon_id"] = "foreign"
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    assert materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )["status"] == "rejected"
+
+
+def test_sturdy_ready_nonlethal_and_target_secondary_paths_remain_exact_or_fail_closed():
+    state = _sturdy_ready(_state())
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    nonlethal = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert nonlethal["status"] == "evaluable"
+    hits = [row["attack_leaf"] for row in nonlethal["terminal_branches"] if row["attack_leaf"]["hit_state"] == "hit"]
+    assert all(row["consequences"]["sturdy_survival"]["outcome"] == "not_triggered" for row in hits)
+    assert all(row["consequences"]["target_final_hp"] == 100 - row["consequences"]["damage"] for row in hits)
+
+    state["opponent_side"]["pokemon"][1]["current_hp"] = state["opponent_side"]["pokemon"][1]["max_hp"] = 10
+    d0, snapshot, fresh_action, switch, switch_id = _inputs(state)
+    thunderbolt = _water_gun_action(fresh_action)
+    thunderbolt["action_id"] = "attack:thunderbolt"
+    thunderbolt["identity"] = "thunderbolt"
+    thunderbolt["move_metadata_authority"].update(candidate_id="attack:thunderbolt", move_id="thunderbolt")
+    thunderbolt["move_metadata_authority"]["metadata"] = {
+        "move_id": "thunderbolt", "category": "special", "power": 90,
+        "type": "electric", "accuracy": 100, "priority": 0,
+    }
+    assert materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=thunderbolt,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )["status"] == "unsupported"
 
 
 def test_intimidate_blocked_reversed_and_stage_bounds_preserve_exact_stage_outcomes():

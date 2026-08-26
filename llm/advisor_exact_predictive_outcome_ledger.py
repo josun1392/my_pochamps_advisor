@@ -181,10 +181,10 @@ def _leaf(candidate: Mapping[str, Any], bound: Mapping[str, Any], path: tuple, c
     for _, factor in path:
         probability *= Fraction(factor["numerator"], factor["denominator"])
     interval = consequence.get("interval") if isinstance(consequence.get("interval"), Mapping) else {}
-    damage = roll.get("damage") if roll is not None else consequence.get("target_damage")
+    post = roll.get("post_hit_consequence") if roll is not None else None
+    damage = post.get("actual_damage") if isinstance(post, Mapping) and isinstance(post.get("actual_damage"), int) and not isinstance(post.get("actual_damage"), bool) else roll.get("damage") if roll is not None else consequence.get("target_damage")
     hp_before = interval.get("target_hp_before")
     target_hp = max(0, hp_before - damage) if isinstance(hp_before, int) and not isinstance(hp_before, bool) and isinstance(damage, int) and not isinstance(damage, bool) else consequence.get("target_hp_after")
-    post = roll.get("post_hit_consequence") if roll is not None else None
     own_hp = post.get("attacker_post_hit_hp") if isinstance(post, Mapping) else consequence.get("attacker_hp_after")
     if own_hp is None and isinstance(post, Mapping):
         own_hp = post.get("attacker_hp_after")
@@ -194,7 +194,7 @@ def _leaf(candidate: Mapping[str, Any], bound: Mapping[str, Any], path: tuple, c
         "conditional_factors": tuple(factor for _, factor in path), "probability": _fraction_dict(probability),
         "hit_state": next((name for name, _ in path if name in {"hit", "miss"}), None), "critical_state": critical_state,
         "damage_roll": None if roll is None else {"roll_index": roll["roll_index"], "random_factor_percent": roll["random_factor_percent"], "damage": roll["damage"]},
-        "consequences": {"damage": damage, "target_final_hp": target_hp, "target_ko": target_hp == 0 if isinstance(target_hp, int) else None, "own_final_hp": own_hp, "self_fainted": own_hp == 0 if isinstance(own_hp, int) else None, "post_hit": deepcopy(dict(post)) if isinstance(post, Mapping) else None, "deterministic_stage_effect": deepcopy(dict(consequence["stage_effects"])) if isinstance(consequence.get("stage_effects"), Mapping) else None, "secondary": deepcopy(dict(secondary)) if isinstance(secondary, Mapping) else None},
+        "consequences": {"damage": damage, "target_final_hp": target_hp, "target_ko": target_hp == 0 if isinstance(target_hp, int) else None, "own_final_hp": own_hp, "self_fainted": own_hp == 0 if isinstance(own_hp, int) else None, "post_hit": deepcopy(dict(post)) if isinstance(post, Mapping) else None, "sturdy_survival": deepcopy(post.get("sturdy_survival")) if isinstance(post, Mapping) and isinstance(post.get("sturdy_survival"), Mapping) else None, "deterministic_stage_effect": deepcopy(dict(consequence["stage_effects"])) if isinstance(consequence.get("stage_effects"), Mapping) else None, "secondary": deepcopy(dict(secondary)) if isinstance(secondary, Mapping) else None},
         "provenance": deepcopy(dict(bound)),
     }
 
