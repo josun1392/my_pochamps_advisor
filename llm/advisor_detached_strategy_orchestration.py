@@ -94,7 +94,7 @@ def _normal_formula_facts(candidate,interval,own,post_input,normal_input,legacy_
   composed=compose_predictive_normal_formula_post_hit(interval=interval,move_metadata=post_input.get("move_metadata",{}),attacker_hp=post_input.get("attacker_hp",{}),attacker_item=post_input.get("attacker_item"),attacker_ability=post_input.get("attacker_ability"),target_ability=post_input.get("target_ability"),attacker_item_known=post_input.get("attacker_item_known",True),target_sturdy_survival_authority=sturdy_survival_authority)
   if composed.get("status")=="resolved": fact={**fact,"guaranteed_own_fainted":composed["guaranteed_attacker_faint"],"exact_own_hp":composed["attacker_post_hit_hp_values"][0] if len(composed["attacker_post_hit_hp_values"])==1 else None,"possible_own_faint":composed["possible_attacker_faint"],"post_hit":composed}
   elif isinstance(sturdy_survival_authority,Mapping) and sturdy_survival_authority.get("status")=="ready": fact={**fact,"post_hit_failure":composed}
- stage=compose_predictive_deterministic_stage_effects(interval=interval,stage_effect_authority=normal_input.get("stage_effect_authority",{}),stat_provenance=normal_input.get("stat_provenance",{}))
+ stage=compose_predictive_deterministic_stage_effects(interval=interval,stage_effect_authority=normal_input.get("stage_effect_authority",{}),stat_provenance=normal_input.get("stat_provenance",{}),post_hit=fact.get("post_hit"))
  result={**fact,"stage_effects":stage} if stage.get("status")=="resolved" else fact
  rolls=project_predictive_damage_roll_uncertainty(interval=interval,post_hit=result.get("post_hit"),stage_effects=result.get("stage_effects"))
  result={**result,"damage_roll_uncertainty":rolls} if rolls.get("status")=="resolved" else result
@@ -102,9 +102,9 @@ def _normal_formula_facts(candidate,interval,own,post_input,normal_input,legacy_
   secondary=compose_predictive_probabilistic_self_stage_effect_uncertainty(candidate=candidate,interval=interval,runtime_authority=probabilistic_self_stage_effect_authority)
   if secondary.get("status")=="resolved": result={**result,"probabilistic_self_stage_effect_uncertainty":secondary}
  if isinstance(probabilistic_target_stage_effect_authority,Mapping):
-  secondary=compose_predictive_probabilistic_target_stage_effect_uncertainty(candidate=candidate,interval=interval,runtime_authority=probabilistic_target_stage_effect_authority)
+  secondary=compose_predictive_probabilistic_target_stage_effect_uncertainty(candidate=candidate,interval=interval,runtime_authority=probabilistic_target_stage_effect_authority,post_hit=result.get("post_hit"))
   if secondary.get("status")=="resolved": result={**result,"probabilistic_target_stage_effect_uncertainty":secondary}
  if isinstance(thunderbolt_paralysis_authority,Mapping):
-  secondary=compose_predictive_thunderbolt_paralysis_uncertainty(candidate=candidate,interval=interval,runtime_authority=thunderbolt_paralysis_authority)
+  secondary=compose_predictive_thunderbolt_paralysis_uncertainty(candidate=candidate,interval=interval,runtime_authority=thunderbolt_paralysis_authority,post_hit=result.get("post_hit"))
   if secondary.get("status")=="resolved": result={**result,"thunderbolt_paralysis_uncertainty":secondary}
  return result

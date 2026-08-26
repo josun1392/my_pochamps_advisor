@@ -31,7 +31,7 @@
         "unsupported": ["serene-grace"]
       },
       "target_ability_policy": {
-        "known_neutral": ["pressure", "guts"],
+        "known_neutral": ["pressure", "guts", "sturdy"],
         "suppresses": ["shield-dust"],
         "unsupported": ["limber"]
       },

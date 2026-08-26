@@ -40,23 +40,22 @@ def materialize_detached_switch_first_hypothetical_condition_predictive_view(
         expected = toxic.get("post_condition")
         if expected not in {"poison", "toxic"} or condition != expected:
             return _result("rejected", "switch_first_toxic_spikes_condition_conflict", base, target_owner=target)
-        # This marker and provenance exist only in the owned deep copy below.
-        # The original reducer snapshot and frozen D0 are never altered.
-        raw["condition"] = condition
-        raw["condition_provenance"] = {
-            "event_kind": "current_condition_observed",
-            "trust": "user_confirmed_observation",
-            "turn_number": 1,
-            "condition": condition,
-            "hypothetical_provenance": "exact_detached_switch_entry_toxic_spikes",
-        }
-        raw["detached_switch_first_hypothetical_condition_authority"] = True
         changed = True
     elif condition != original:
         # A no-effect entry result cannot silently replace an exact current
         # target condition.  Treat the disagreement as incomplete rather than
         # choosing either value.
         return _result("incomplete", "switch_first_hypothetical_condition_conflicts_with_current_target", base, target_owner=target)
+    # This marker exists only in our deep-copy calculator view.  It makes the
+    # switch-in authority (rather than stale bench/reducer provenance) the
+    # source for both an applied condition and a strictly confirmed no-effect.
+    raw["condition"] = condition
+    raw["condition_provenance"] = {
+        "event_kind": "current_condition_observed", "trust": "user_confirmed_observation",
+        "turn_number": 1, "condition": condition,
+        "hypothetical_provenance": "exact_detached_switch_entry_toxic_spikes",
+    }
+    raw["detached_switch_first_hypothetical_condition_authority"] = True
     snapshot = {
         "status": "runtime_snapshot_ready", "session_id": base["session_id"],
         "state": state, "state_fingerprint": state_fingerprint(state),

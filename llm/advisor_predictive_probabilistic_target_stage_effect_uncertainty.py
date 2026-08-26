@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_predictive_deterministic_stage_effects import compose_predictive_target_stage_effect
+from llm.advisor_predictive_post_hit_target_outcomes import resolve_predictive_post_hit_target_outcomes
 
 
 SCHEMA_VERSION = "deterministic-predictive-probabilistic-target-stage-effect-uncertainty-v1"
@@ -12,7 +13,7 @@ HORIZON = "immediate_action_consequence"
 
 
 def compose_predictive_probabilistic_target_stage_effect_uncertainty(
-    *, candidate: Mapping[str, Any], interval: Mapping[str, Any], runtime_authority: Mapping[str, Any],
+    *, candidate: Mapping[str, Any], interval: Mapping[str, Any], runtime_authority: Mapping[str, Any], post_hit: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Attach exact effect/no-effect choices only to surviving direct-hit rolls."""
     authority = _authority(runtime_authority)
@@ -24,16 +25,18 @@ def compose_predictive_probabilistic_target_stage_effect_uncertainty(
         return _result("rejected", "probabilistic_target_stage_hit_leaf_binding_mismatch")
 
     numerator, denominator = authority["probability"]["numerator"], authority["probability"]["denominator"]
-    target_hp = interval["target_hp_before"]
+    outcomes = resolve_predictive_post_hit_target_outcomes(interval=interval, post_hit=post_hit)
+    if outcomes.get("status") != "resolved":
+        return outcomes
     blocked = authority["target_substitute"]["state"] == "known_active"
     leaves = []
     possible = []
-    for index, damage in enumerate(interval["exact_damage_rolls"]):
-        survived = damage < target_hp
+    for index, outcome in enumerate(outcomes["outcomes"]):
+        damage, actual, survived = outcome["raw_damage"], outcome["actual_damage"], outcome["target_survived"]
         leaf = {
             "roll_index": index, "random_factor_percent": 85 + index, "damage": damage,
             "roll_probability": {"numerator": 1, "denominator": 16},
-            "target_post_hit_hp": max(0, target_hp - damage), "target_survived": survived,
+            "actual_damage": actual, "target_post_hit_hp": outcome["target_post_hit_hp"], "target_survived": survived,
         }
         if not survived:
             leaf["secondary_eligibility"] = "target_fainted"
@@ -47,7 +50,7 @@ def compose_predictive_probabilistic_target_stage_effect_uncertainty(
         else:
             materialized = compose_predictive_target_stage_effect(
                 interval=interval, effect=authority["effect"],
-                current_stage=authority["current_target_special_defense_stage"], roll_damage=damage,
+                current_stage=authority["current_target_special_defense_stage"], roll_damage=actual,
             )
             if materialized.get("status") != "resolved":
                 return materialized

@@ -394,7 +394,19 @@ def test_sturdy_hazard_chip_suppression_unknown_and_foreign_authority_fail_close
     )["status"] == "rejected"
 
 
-def test_sturdy_ready_nonlethal_and_target_secondary_paths_remain_exact_or_fail_closed():
+def _target_secondary_action(action, move_id, *, power, move_type, **metadata_extra):
+    result = _water_gun_action(action)
+    result["action_id"] = f"attack:{move_id}"
+    result["identity"] = move_id
+    result["move_metadata_authority"].update(candidate_id=f"attack:{move_id}", move_id=move_id)
+    result["move_metadata_authority"]["metadata"] = {
+        "move_id": move_id, "category": "special", "power": power,
+        "type": move_type, "accuracy": 100, "priority": 0, "target": "selected-pokemon", **metadata_extra,
+    }
+    return result
+
+
+def test_sturdy_ready_nonlethal_and_target_secondary_paths_remain_exact():
     state = _sturdy_ready(_state())
     d0, snapshot, action, switch, switch_id = _inputs(state)
     nonlethal = materialize_immediate_attack_vs_opponent_switch_action_pair(
@@ -407,19 +419,67 @@ def test_sturdy_ready_nonlethal_and_target_secondary_paths_remain_exact_or_fail_
     assert all(row["consequences"]["target_final_hp"] == 100 - row["consequences"]["damage"] for row in hits)
 
     state["opponent_side"]["pokemon"][1]["current_hp"] = state["opponent_side"]["pokemon"][1]["max_hp"] = 10
-    d0, snapshot, fresh_action, switch, switch_id = _inputs(state)
-    thunderbolt = _water_gun_action(fresh_action)
-    thunderbolt["action_id"] = "attack:thunderbolt"
-    thunderbolt["identity"] = "thunderbolt"
-    thunderbolt["move_metadata_authority"].update(candidate_id="attack:thunderbolt", move_id="thunderbolt")
-    thunderbolt["move_metadata_authority"]["metadata"] = {
-        "move_id": "thunderbolt", "category": "special", "power": 90,
-        "type": "electric", "accuracy": 100, "priority": 0,
+    state["opponent_side"]["pokemon"][1]["condition_provenance"] = {
+        "event_kind": "current_opponent_switch_target_combat_observed", "trust": "user_confirmed_observation",
+        "turn_number": 1, "condition": "none",
     }
-    assert materialize_immediate_attack_vs_opponent_switch_action_pair(
+    d0, snapshot, fresh_action, switch, switch_id = _inputs(state)
+    thunderbolt = _target_secondary_action(fresh_action, "thunderbolt", power=90, move_type="electric", effect_chance=10, ailment="paralysis")
+    thunder_pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
         strategy_d0=d0, runtime_snapshot=snapshot, own_action=thunderbolt,
         switch_response_authority=switch, selected_switch_response_action_id=switch_id,
-    )["status"] == "unsupported"
+    )
+    assert thunder_pair["status"] == "evaluable", thunder_pair.get("reason")
+    assert thunder_pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    thunder_saved = [row["attack_leaf"] for row in thunder_pair["terminal_branches"]
+                     if row["attack_leaf"]["hit_state"] == "hit"
+                     and row["attack_leaf"]["consequences"]["sturdy_survival"]["outcome"] == "applied"]
+    assert {row["consequences"]["secondary"]["branch"] for row in thunder_saved} == {"effect", "no_effect"}
+    assert all(row["consequences"]["target_final_hp"] == 1 and row["consequences"]["target_ko"] is False for row in thunder_saved)
+
+    state = _sturdy_ready(_state())
+    state["opponent_side"]["pokemon"][1].update(current_hp=10, max_hp=10, current_type=["water"])
+    state["opponent_side"]["pokemon"][1]["condition_provenance"] = {
+        "event_kind": "current_opponent_switch_target_combat_observed", "trust": "user_confirmed_observation",
+        "turn_number": 1, "condition": "none",
+    }
+    d0, snapshot, fresh_action, switch, switch_id = _inputs(state)
+    shadow_pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot,
+        own_action=_target_secondary_action(fresh_action, "shadow-ball", power=80, move_type="ghost", effect_chance=20, stat_changes=[{"stat": "special-defense", "change": -1}]),
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert shadow_pair["status"] == "evaluable", shadow_pair.get("reason")
+    shadow_saved = [row["attack_leaf"] for row in shadow_pair["terminal_branches"]
+                    if row["attack_leaf"]["hit_state"] == "hit"
+                    and row["attack_leaf"]["consequences"]["sturdy_survival"]["outcome"] == "applied"]
+    assert {row["consequences"]["secondary"]["branch"] for row in shadow_saved} == {"effect", "no_effect"}
+    assert all(row["consequences"]["target_final_hp"] == 1 for row in shadow_saved)
+
+    state = _sturdy_ready(_state())
+    state["opponent_side"]["pokemon"][1].update(current_hp=10, max_hp=10)
+    state["opponent_side"]["pokemon"][1]["condition_provenance"] = {
+        "event_kind": "current_opponent_switch_target_combat_observed", "trust": "user_confirmed_observation",
+        "turn_number": 1, "condition": "none",
+    }
+    d0, snapshot, fresh_action, switch, switch_id = _inputs(state)
+    acid_pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot,
+        own_action=_target_secondary_action(fresh_action, "acid-spray", power=40, move_type="poison", effect_chance=100, stat_changes=[{"stat": "special-defense", "change": -2}]),
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert acid_pair["status"] == "evaluable", acid_pair.get("reason")
+    acid_saved = [row["attack_leaf"] for row in acid_pair["terminal_branches"]
+                  if row["attack_leaf"]["hit_state"] == "hit"
+                  and row["attack_leaf"]["consequences"]["sturdy_survival"]["outcome"] == "applied"]
+    assert acid_saved and all(row["consequences"]["target_final_hp"] == 1 for row in acid_saved)
+    assert all(row["consequences"]["deterministic_stage_effect"]["branches"][row["damage_roll"]["roll_index"]]["effects"] for row in acid_saved)
+
+    for pair in (thunder_pair, shadow_pair, acid_pair):
+        ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+        metrics = project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)
+        assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+        assert metrics["status"] == "resolved"
 
 
 def test_intimidate_blocked_reversed_and_stage_bounds_preserve_exact_stage_outcomes():

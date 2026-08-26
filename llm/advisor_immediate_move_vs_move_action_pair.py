@@ -165,8 +165,6 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     if any(row.get("status") != "resolved" for row in (normal, hit, crit)):
         row = next(row for row in (normal, hit, crit) if row.get("status") != "resolved")
         return _result(_status(row), row.get("reason", "normal_formula_predictive_authority_unavailable"), {})
-    if isinstance(sturdy_survival_authority, Mapping) and sturdy_survival_authority.get("status") == "ready" and metadata["move_id"] in {"thunderbolt", "shadow-ball", "acid-spray"}:
-        return _result("unsupported", "sturdy_target_secondary_raw_ko_semantics_unsupported", {})
     thunderbolt = None
     self_stage = None
     target_stage = None
