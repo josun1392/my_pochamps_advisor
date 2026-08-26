@@ -107,6 +107,21 @@ def _switch_first_predictive_view(strategy_d0: Mapping[str, Any], runtime_snapsh
         own_target["detached_switch_first_hypothetical_intimidate_authority"] = True
     elif isinstance(overlay, Mapping) and overlay.get("status") not in {"not_applicable"}:
         return _result("incomplete", "switch_in_intimidate_overlay_unknown", {})
+    weather = hypothetical.get("weather_authority")
+    if isinstance(weather, Mapping) and weather.get("status") == "known":
+        field = synthetic.get("field") if isinstance(synthetic, Mapping) else None
+        before, after = weather.get("before"), weather.get("after")
+        if not isinstance(field, dict) or field.get("weather") != before or after not in {"rain", "sun", "sandstorm", "snow"}:
+            return _result("rejected", "switch_in_weather_overlay_binding_mismatch", {})
+        field["weather"] = after
+        field["weather_provenance"] = {
+            "event_kind": "current_weather_observed", "trust": "user_confirmed_observation",
+            "turn_number": 1,
+            "hypothetical_provenance": "exact_detached_switch_entry_weather",
+        }
+        field["detached_switch_first_hypothetical_weather_authority"] = True
+    elif isinstance(weather, Mapping) and weather.get("status") not in {"not_applicable"}:
+        return _result("incomplete", "switch_in_weather_overlay_unknown", {})
     consumer = materialize_detached_switch_first_hypothetical_condition_predictive_view(
         strategy_d0=strategy_d0, synthetic_runtime_state=synthetic,
         switch_in_authority=switch_in,

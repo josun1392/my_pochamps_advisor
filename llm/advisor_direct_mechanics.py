@@ -1155,5 +1155,7 @@ def _fixed_unsupported(reason: str) -> dict[str, Any]:
 # These abilities are explicitly catalogued as having no direct-damage formula
 # modifier.  They remain known identities rather than being represented as an
 # invented absence authority.
-_KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({"intimidate", "pressure"})
+_KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({
+    "intimidate", "pressure", "drizzle", "drought", "sand-stream", "snow-warning",
+})
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

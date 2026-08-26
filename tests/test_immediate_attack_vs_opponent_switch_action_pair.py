@@ -73,6 +73,23 @@ def _intimidate_ready(state, *, interaction="lowered", self_attack_stage=0):
     return state
 
 
+def _weather_setter_ready(state, ability):
+    state["opponent_side"]["pokemon"][1]["current_ability"] = ability
+    return state
+
+
+def _water_gun_action(action):
+    result = deepcopy(action)
+    result["action_id"] = "attack:water-gun"
+    result["identity"] = "water-gun"
+    result["move_metadata_authority"].update(candidate_id="attack:water-gun", move_id="water-gun")
+    result["move_metadata_authority"]["metadata"] = {
+        "move_id": "water-gun", "category": "special", "power": 40,
+        "type": "water", "accuracy": 100, "priority": 0,
+    }
+    return result
+
+
 def _hit_rolls(pair):
     return tuple(
         leaf["attack_leaf"]["damage_roll"]["damage"]
@@ -240,6 +257,60 @@ def test_intimidate_switch_in_overlays_exact_own_attack_stage_before_physical_at
     assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
     assert metrics["status"] == "resolved"
     assert snapshot == before
+
+
+def test_weather_setter_switch_in_overlays_exact_weather_for_following_attack_without_d0_writeback():
+    baseline_state = _state()
+    d0, snapshot, action, switch, switch_id = _inputs(baseline_state)
+    baseline = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=_water_gun_action(action),
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    baseline_maximum = max(_hit_rolls(baseline))
+
+    for ability, weather, relation in (
+        ("drizzle", "rain", "greater"), ("drought", "sun", "less"),
+        ("sand-stream", "sandstorm", "equal"), ("snow-warning", "snow", "equal"),
+    ):
+        state = _weather_setter_ready(_state(), ability)
+        d0, snapshot, action, switch, switch_id = _inputs(state)
+        before = deepcopy(snapshot)
+        pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=_water_gun_action(action),
+            switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+        )
+        assert pair["status"] == "evaluable", pair.get("reason")
+        assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+        entry = pair["switch_in_authority"]["hypothetical_switch_in_state"]["entry_consequence"]
+        assert entry["weather_consequence"] == {
+            "status": "complete", "outcome": "weather_set", "weather_before": "none", "weather_after": weather,
+        }
+        private_snapshot = pair["switch_first_condition_consumer"]["runtime_snapshot"]
+        assert private_snapshot["state"]["field"]["weather"] == weather
+        maximum = max(_hit_rolls(pair))
+        if relation == "greater":
+            assert maximum > baseline_maximum
+        elif relation == "less":
+            assert maximum < baseline_maximum
+        else:
+            assert maximum == baseline_maximum
+        assert snapshot == before
+
+
+def test_weather_setter_does_not_activate_after_entry_hazard_ko():
+    state = _weather_setter_ready(_state(), "drizzle")
+    state["opponent_side"]["pokemon"][1]["current_hp"] = 1
+    state["switch_hazard_context"] = build_switch_hazard_context(
+        session_id=state["session_id"], affected_side="opponent", stealth_rock="present",
+        spikes_layers=0, toxic_spikes_layers=0, sticky_web="absent",
+    )
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert pair["status"] == "unsupported"
+    assert pair["switch_in_authority"]["entry_consequence"]["weather_consequence"]["outcome"] == "not_activated_hazard_ko"
 
 
 def test_intimidate_blocked_reversed_and_stage_bounds_preserve_exact_stage_outcomes():
