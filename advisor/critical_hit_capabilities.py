@@ -22,6 +22,9 @@ _BASE_MOVE_IDS = frozenset({
     # authority.  Their normal Gen 9 critical rule is the ordinary base rule;
     # the authority still keeps each hit's eventual critical roll distinct.
     "double-hit", "double-kick",
+    # Ordinary canonical 2--5-hit moves admitted by the detached hit-count
+    # authority.  Each eventual hit keeps an independent ordinary crit roll.
+    "bullet-seed", "rock-blast",
 })
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
