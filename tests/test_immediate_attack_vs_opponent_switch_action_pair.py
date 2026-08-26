@@ -165,3 +165,29 @@ def test_switch_entry_condition_dependent_attack_stays_fail_closed_without_exist
     )
     assert pair["status"] in {"incomplete", "unsupported"}
     assert pair["status"] != "evaluable"
+
+
+def test_sticky_web_hypothetical_speed_stage_flows_through_condition_neutral_switch_pair():
+    state = _state()
+    bench = state["opponent_side"]["pokemon"][1]
+    bench["prospective_groundedness_context"] = build_groundedness(
+        session_id=state["session_id"], side="opponent", slot_index=1, pokemon_id="bench", status="grounded",
+    )
+    bench["prospective_entry_interactions_context"] = build_prospective_entry_interactions(
+        session_id=state["session_id"], side="opponent", slot_index=1, pokemon_id="bench",
+        toxic_spikes="applicable", sticky_web="applicable",
+    )
+    state["switch_hazard_context"] = build_switch_hazard_context(
+        session_id=state["session_id"], affected_side="opponent", stealth_rock="absent", spikes_layers=0,
+        toxic_spikes_layers=0, sticky_web="present",
+    )
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    before = deepcopy(snapshot)
+    pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert pair["switch_in_authority"]["hypothetical_switch_in_state"]["stage_authority"]["value"]["speed"] == -1
+    assert snapshot == before

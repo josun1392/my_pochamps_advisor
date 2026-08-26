@@ -85,21 +85,22 @@ def test_unselectable_or_mismatched_response_never_materializes():
     assert materialize_detached_opponent_switch_in_intermediate_authority(strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=foreign, selected_response_action_id="opponent_switch:s:1:bench")["status"] == "rejected"
 
 
-def _toxic_ready(state, *, layers, types=("normal",), condition="none", grounded="grounded", interaction="applicable"):
+def _toxic_ready(state, *, layers, types=("normal",), condition="none", grounded="grounded", interaction="applicable", sticky_web="absent", sticky_interaction="applicable", speed_stage=0):
     bench = state["opponent_side"]["pokemon"][1]
     bench["current_type"] = list(types)
     bench["condition"] = condition
     bench["condition_provenance"]["condition"] = condition
+    bench["stat_stages"]["speed"] = speed_stage
     bench["prospective_groundedness_context"] = build_groundedness(
         session_id="s", side="opponent", slot_index=1, pokemon_id="bench", status=grounded,
     )
     bench["prospective_entry_interactions_context"] = build_prospective_entry_interactions(
         session_id="s", side="opponent", slot_index=1, pokemon_id="bench",
-        toxic_spikes=interaction, sticky_web="applicable",
+        toxic_spikes=interaction, sticky_web=sticky_interaction,
     )
     state["switch_hazard_context"] = build_switch_hazard_context(
         session_id="s", affected_side="opponent", stealth_rock="absent", spikes_layers=0,
-        toxic_spikes_layers=layers, sticky_web="absent",
+        toxic_spikes_layers=layers, sticky_web=sticky_web,
     )
     return state
 
@@ -163,6 +164,63 @@ def test_toxic_spikes_immunity_and_absorption_require_exact_target_authority():
     assert already_statused["hypothetical_switch_in_state"]["entry_consequence"]["toxic_spikes_consequence"]["outcome"] == "already_statused"
 
     manager = _manager(); state = _toxic_ready(manager.read_state()["state"], layers=1, interaction="unknown")
+    d0, snapshot, switch = _inputs(manager, state)
+    assert materialize_detached_opponent_switch_in_intermediate_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
+        selected_response_action_id="opponent_switch:s:1:bench",
+    )["status"] == "incomplete"
+
+
+def test_sticky_web_projects_exact_hypothetical_speed_stage_and_respects_bounds():
+    manager = _manager()
+    state = _toxic_ready(manager.read_state()["state"], layers=0, sticky_web="present", speed_stage=0)
+    d0, snapshot, switch = _inputs(manager, state)
+    lowered = materialize_detached_opponent_switch_in_intermediate_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
+        selected_response_action_id="opponent_switch:s:1:bench",
+    )
+    assert lowered["status"] == "resolved"
+    hypothetical = lowered["hypothetical_switch_in_state"]
+    assert hypothetical["stage_authority"]["value"]["speed"] == -1
+    assert hypothetical["entry_consequence"]["sticky_web_consequence"] == {
+        "status": "complete", "outcome": "speed_stage_lowered", "speed_stage_before": 0, "speed_stage_after": -1,
+    }
+
+    manager = _manager()
+    state = _toxic_ready(manager.read_state()["state"], layers=0, sticky_web="present", speed_stage=-6)
+    d0, snapshot, switch = _inputs(manager, state)
+    bounded = materialize_detached_opponent_switch_in_intermediate_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
+        selected_response_action_id="opponent_switch:s:1:bench",
+    )
+    assert bounded["status"] == "resolved"
+    assert bounded["hypothetical_switch_in_state"]["entry_consequence"]["sticky_web_consequence"]["outcome"] == "speed_stage_minimum"
+    assert bounded["hypothetical_switch_in_state"]["stage_authority"]["value"]["speed"] == -6
+
+
+def test_sticky_web_known_ungrounded_is_no_effect_and_unknown_authority_is_incomplete():
+    manager = _manager()
+    state = _toxic_ready(manager.read_state()["state"], layers=0, sticky_web="present", grounded="ungrounded")
+    d0, snapshot, switch = _inputs(manager, state)
+    ungrounded = materialize_detached_opponent_switch_in_intermediate_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
+        selected_response_action_id="opponent_switch:s:1:bench",
+    )
+    assert ungrounded["status"] == "resolved"
+    assert ungrounded["hypothetical_switch_in_state"]["entry_consequence"]["sticky_web_consequence"]["outcome"] == "ungrounded"
+    assert ungrounded["hypothetical_switch_in_state"]["stage_authority"]["value"]["speed"] == 0
+
+    manager = _manager()
+    state = _toxic_ready(manager.read_state()["state"], layers=0, sticky_web="present", grounded="unknown")
+    d0, snapshot, switch = _inputs(manager, state)
+    assert materialize_detached_opponent_switch_in_intermediate_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
+        selected_response_action_id="opponent_switch:s:1:bench",
+    )["status"] == "incomplete"
+
+    manager = _manager()
+    state = _toxic_ready(manager.read_state()["state"], layers=0, sticky_web="present")
+    state["opponent_side"]["pokemon"][1]["stat_stages"]["speed"] = "unknown"
     d0, snapshot, switch = _inputs(manager, state)
     assert materialize_detached_opponent_switch_in_intermediate_authority(
         strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,

@@ -85,6 +85,12 @@ def _switch_first_predictive_view(strategy_d0: Mapping[str, Any], runtime_snapsh
         return _result("rejected", "switch_in_hypothetical_state_invalid", {})
     side["active_slot_index"] = incoming["slot_index"]
     target["current_hp"], target["max_hp"], target["fainted"] = hp["current_hp"], hp["maximum_hp"], False
+    stages = hypothetical.get("stage_authority")
+    stage_values = stages.get("value") if isinstance(stages, Mapping) and stages.get("status") == "known" else None
+    if not isinstance(stage_values, Mapping) or any(not isinstance(stage_values.get(stat), int) or isinstance(stage_values.get(stat), bool) or not -6 <= stage_values[stat] <= 6 for stat in ("attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion")):
+        return _result("incomplete", "switch_in_hypothetical_stage_authority_unknown", {})
+    target["stat_stages"] = deepcopy(dict(stage_values))
+    target["detached_switch_first_hypothetical_stage_authority"] = True
     consumer = materialize_detached_switch_first_hypothetical_condition_predictive_view(
         strategy_d0=strategy_d0, synthetic_runtime_state=synthetic,
         switch_in_authority=switch_in,

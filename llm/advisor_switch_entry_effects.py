@@ -19,7 +19,7 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
     """
     damage = evaluate_entry_hazards(hazards=hazards, target=target)
     toxic = evaluate_toxic_spikes_entry(hazards=hazards, target=target)
-    sticky = _evaluate_sticky_web(hazards=hazards, target=target)
+    sticky = evaluate_sticky_web_entry(hazards=hazards, target=target)
     intimidate = _evaluate_intimidate(target=target, damage=damage, authority=intimidate_authority)
     download = _evaluate_download(target=target, damage=damage, authority=download_authority)
     trace = _evaluate_trace(target=target, damage=damage, authority=trace_authority)
@@ -86,7 +86,8 @@ def evaluate_toxic_spikes_entry(*, hazards: Mapping[str, Any], target: Mapping[s
     return _complete("status_applied", post_condition="toxic" if layers == 2 else "poison")
 
 
-def _evaluate_sticky_web(*, hazards: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+def evaluate_sticky_web_entry(*, hazards: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve only the exact Sticky Web Speed-stage consequence."""
     item = _authority(target, "item_authority")
     if _known_value(item) == "heavy-duty-boots":
         return _complete("prevented_by_heavy_duty_boots")

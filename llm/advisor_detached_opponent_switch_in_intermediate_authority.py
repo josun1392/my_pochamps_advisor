@@ -8,7 +8,7 @@ from llm.advisor_reducer_state_model import is_unknown_battle_fact
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
 from llm.advisor_runtime_d0_opponent_switch_target_combat_authority import freeze_runtime_d0_opponent_switch_target_combat_authority
 from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
-from llm.advisor_switch_entry_effects import evaluate_toxic_spikes_entry
+from llm.advisor_switch_entry_effects import evaluate_sticky_web_entry, evaluate_toxic_spikes_entry
 from llm.advisor_switch_hazard_authority import normalize_switch_hazard_context
 from llm.advisor_prospective_entry_authority import normalize_prospective_entry_interactions
 
@@ -61,6 +61,15 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
             "status": "known", "value": toxic["post_condition"],
             "provenance": "detached_toxic_spikes_entry_v1",
         }
+    sticky = entry["sticky_web_consequence"]
+    if sticky.get("outcome") == "speed_stage_lowered":
+        stages = fields["stages"]
+        if not isinstance(stages, Mapping) or stages.get("status") != "known" or not isinstance(stages.get("value"), Mapping):
+            return _result("incomplete", "switch_in_sticky_web_stage_authority_unknown", base, selected_response_action_id=selected_response_action_id, target_owner=target)
+        stages = deepcopy(dict(stages))
+        stages["value"]["speed"] = sticky["speed_stage_after"]
+        stages["provenance"] = "detached_sticky_web_entry_v1"
+        fields["stages"] = stages
     hypothetical = {
         "schema_version": SCHEMA_VERSION,
         "hypothetical": True,
@@ -125,8 +134,6 @@ def _hazards(state: Any, session_id: str) -> dict:
 def _entry_consequence(hazards: Mapping[str, Any], current: Mapping[str, Any], hp: Mapping[str, Any], target_owner: Mapping[str, Any]) -> dict:
     if not isinstance(hazards, Mapping) or any(hazards.get(key) == "unknown" for key in ("stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web")):
         return {"status": "incomplete", "reason": "switch_entry_hazards_unknown"}
-    if hazards.get("sticky_web") != "absent":
-        return {"status": "unsupported", "reason": "switch_entry_effect_not_supported_by_detached_adapter"}
     target = {
         "side": "opponent",
         "hp_authority": {"status": "known", "current_hp": hp["current_hp"], "maximum_hp": hp["maximum_hp"]},
@@ -135,6 +142,7 @@ def _entry_consequence(hazards: Mapping[str, Any], current: Mapping[str, Any], h
         "current_type_authority": _entry_value_authority(current.get("current_type")),
         "persistent_condition_authority": _entry_condition_authority(current.get("condition")),
         "prospective_groundedness_authority": _groundedness_authority(current.get("prospective_groundedness_context"), target_owner),
+        "prospective_speed_stage_authority": _entry_speed_stage_authority(current.get("stat_stages")),
         "prospective_entry_interactions_authority": _entry_interactions_authority(current.get("prospective_entry_interactions_context"), target_owner),
     }
     evaluated = evaluate_entry_hazards(hazards=hazards, target=target)
@@ -143,13 +151,17 @@ def _entry_consequence(hazards: Mapping[str, Any], current: Mapping[str, Any], h
     toxic = evaluate_toxic_spikes_entry(hazards=hazards, target=target)
     if toxic.get("status") != "complete":
         return {"status": "incomplete", "reason": str(toxic.get("reason") or "toxic_spikes_authority_incomplete")}
+    sticky = evaluate_sticky_web_entry(hazards=hazards, target=target)
+    if sticky.get("status") != "complete":
+        return {"status": "incomplete", "reason": str(sticky.get("reason") or "sticky_web_authority_incomplete")}
     after_hazards = deepcopy(dict(hazards))
     if toxic.get("removes_toxic_spikes") is True:
         after_hazards["toxic_spikes_layers"] = 0
-    effect = "known_absent_entry_hazards" if hazards.get("stealth_rock") == "absent" and hazards.get("spikes_layers") == 0 and hazards.get("toxic_spikes_layers") == 0 else "supported_entry_hazards"
+    effect = "known_absent_entry_hazards" if hazards.get("stealth_rock") == "absent" and hazards.get("spikes_layers") == 0 and hazards.get("toxic_spikes_layers") == 0 and hazards.get("sticky_web") == "absent" else "supported_entry_hazards"
     return {
         "status": "resolved", "damage": evaluated["damage"], "post_hp": evaluated["post_hazard_hp"], "hazard_ko": evaluated["hazard_ko"], "effect": effect,
         "hazard_evidence": deepcopy(evaluated), "toxic_spikes_consequence": deepcopy(toxic),
+        "sticky_web_consequence": deepcopy(sticky),
         "post_entry_hazard_context": after_hazards,
     }
 
@@ -183,6 +195,13 @@ def _entry_condition_authority(value: Any) -> dict:
     if is_unknown_battle_fact(value) or value not in {None, "none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}:
         return {"status": "unknown"}
     return {"status": "known", "value": deepcopy(value)}
+
+
+def _entry_speed_stage_authority(value: Any) -> dict:
+    speed = value.get("speed") if isinstance(value, Mapping) else None
+    if not isinstance(speed, int) or isinstance(speed, bool) or not -6 <= speed <= 6:
+        return {"status": "unknown"}
+    return {"status": "known", "value": speed}
 
 
 def _groundedness_authority(value: Any, target_owner: Mapping[str, Any]) -> dict:
