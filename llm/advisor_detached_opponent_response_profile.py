@@ -13,6 +13,9 @@ from llm.advisor_exact_immediate_action_pair_outcome_ledger import (
 from llm.advisor_immediate_move_vs_move_action_pair import (
     materialize_immediate_move_vs_move_action_pair,
 )
+from llm.advisor_detached_variable_two_to_five_hit_graph_immediate_move_pair import (
+    materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair,
+)
 from llm.advisor_immediate_attack_vs_opponent_switch_action_pair import (
     materialize_immediate_attack_vs_opponent_switch_action_pair,
 )
@@ -67,10 +70,9 @@ def materialize_detached_opponent_response_profile(
         if kind == "move":
             if action.get("usability", {}).get("status") != "known_usable":
                 return _result("rejected", "selectable_move_response_usability_invalid", base)
-            pair = materialize_immediate_move_vs_move_action_pair(
-                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own_action,
-                opponent_action=action, action_order_authority=action_order_authorities[action_id],
-            )
+            pair_builder = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair if own_action.get("identity") in {"bullet-seed", "rock-blast"} else materialize_immediate_move_vs_move_action_pair
+            pair = pair_builder(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own_action,
+                                opponent_action=action, action_order_authority=action_order_authorities[action_id])
         else:
             switch_authority = response_set_authority.get("source_switch_response_authority")
             if not isinstance(switch_authority, Mapping):

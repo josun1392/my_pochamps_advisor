@@ -5,9 +5,14 @@ from copy import deepcopy
 from fractions import Fraction
 from typing import Any, Mapping
 
+from llm.advisor_variable_two_to_five_hit_graph_shared_pair_ledger import (
+    PAIR_SCHEMA as VARIABLE_GRAPH_PAIR_SCHEMA,
+    normalize_variable_two_to_five_hit_graph_pair,
+)
+
 
 SCHEMA_VERSION = "exact-immediate-action-pair-outcome-ledger-v1"
-PAIR_SCHEMAS = {"immediate-move-vs-move-action-pair-v1", "immediate-attack-vs-opponent-switch-action-pair-v1"}
+PAIR_SCHEMAS = {"immediate-move-vs-move-action-pair-v1", "immediate-attack-vs-opponent-switch-action-pair-v1", VARIABLE_GRAPH_PAIR_SCHEMA}
 HORIZON = "immediate_action_pair"
 _STATUSES = {"incomplete", "unsupported", "rejected"}
 
@@ -20,6 +25,8 @@ def normalize_exact_immediate_action_pair_outcome_ledger(*, pair: Mapping[str, A
     base = _base(pair)
     if base is None or pair.get("schema_version") not in PAIR_SCHEMAS or pair.get("horizon") != HORIZON:
         return _result("rejected", "immediate_action_pair_binding_or_schema_invalid")
+    if pair.get("schema_version") == VARIABLE_GRAPH_PAIR_SCHEMA:
+        return normalize_variable_two_to_five_hit_graph_pair(pair=pair, base=base)
     branches = pair.get("terminal_branches")
     if not isinstance(branches, (tuple, list)) or not branches: return _result("rejected", "pair_terminal_branches_missing", base)
     parsed: list[dict[str, Any]] = []

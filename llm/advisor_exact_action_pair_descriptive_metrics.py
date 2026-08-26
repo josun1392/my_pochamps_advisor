@@ -5,6 +5,8 @@ from copy import deepcopy
 from fractions import Fraction
 from typing import Any, Mapping
 
+from llm.advisor_variable_two_to_five_hit_graph_shared_pair_ledger import graph_metric_rows
+
 
 SCHEMA_VERSION = "exact-immediate-action-pair-descriptive-metrics-v1"
 LEDGER_SCHEMA = "exact-immediate-action-pair-outcome-ledger-v1"
@@ -17,10 +19,17 @@ def project_exact_immediate_action_pair_descriptive_metrics(*, ledger: Mapping[s
     unavailable = _unavailable(ledger)
     if unavailable is not None: return unavailable
     base = _base(ledger)
-    leaves = ledger["terminal_leaves"]
-    parsed = [_leaf(leaf, base) for leaf in leaves]
-    if any(isinstance(row, str) for row in parsed): return _result("rejected", next(row for row in parsed if isinstance(row, str)), base)
-    rows = tuple(parsed)
+    if ledger.get("terminal_leaf_representation") == "exact_variable_multi_hit_graph_paths":
+        graph_rows = graph_metric_rows(ledger=ledger, base=base)
+        if isinstance(graph_rows, str): return _result("rejected", graph_rows, base)
+        rows = graph_rows
+        provenance = "exact_variable_multi_hit_graph_pair_descriptive_aggregation_v1"
+    else:
+        leaves = ledger["terminal_leaves"]
+        parsed = [_leaf(leaf, base) for leaf in leaves]
+        if any(isinstance(row, str) for row in parsed): return _result("rejected", next(row for row in parsed if isinstance(row, str)), base)
+        rows = tuple(parsed)
+        provenance = "exact_immediate_action_pair_leaf_descriptive_aggregation_v1"
     mass = sum((row["probability"] for row in rows), Fraction())
     if mass != Fraction(1, 1) or _fraction(ledger["terminal_probability_mass"]) != mass: return _result("rejected", "pair_ledger_probability_mass_mismatch", base)
     own = _side(rows, "own_final_hp")
@@ -32,13 +41,15 @@ def project_exact_immediate_action_pair_descriptive_metrics(*, ledger: Mapping[s
             "terminal_probability_mass": _fd(mass), "own": own, "opponent": opponent,
             "joint_terminal_states": joint, "supported_final_stage_outcomes": stages,
             "supported_final_condition_outcomes": conditions, "ranking_influence": "none",
-            "provenance": "exact_immediate_action_pair_leaf_descriptive_aggregation_v1"}
+            "provenance": provenance}
 
 
 def _unavailable(value: Any) -> dict[str, Any] | None:
     if not isinstance(value, Mapping): return _result("rejected", "invalid_exact_immediate_action_pair_ledger")
     if value.get("status") != "evaluable": return _result(_status(value), value.get("reason", "exact_immediate_action_pair_ledger_unavailable"), _base(value))
-    if value.get("schema_version") != LEDGER_SCHEMA or value.get("horizon") != HORIZON or _base(value) is None or not isinstance(value.get("terminal_leaves"), (tuple, list)) or not value["terminal_leaves"]: return _result("rejected", "invalid_evaluable_exact_immediate_action_pair_ledger", _base(value))
+    graph = value.get("terminal_leaf_representation") == "exact_variable_multi_hit_graph_paths"
+    flat = isinstance(value.get("terminal_leaves"), (tuple, list)) and bool(value["terminal_leaves"])
+    if value.get("schema_version") != LEDGER_SCHEMA or value.get("horizon") != HORIZON or _base(value) is None or not (graph or flat): return _result("rejected", "invalid_evaluable_exact_immediate_action_pair_ledger", _base(value))
     return None
 
 
