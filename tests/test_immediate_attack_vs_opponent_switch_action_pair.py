@@ -406,6 +406,67 @@ def _target_secondary_action(action, move_id, *, power, move_type, **metadata_ex
     return result
 
 
+def _seismic_toss_action(action):
+    result = deepcopy(action)
+    result["action_id"] = "attack:seismic-toss"
+    result["identity"] = "seismic-toss"
+    result["move_metadata_authority"].update(candidate_id="attack:seismic-toss", move_id="seismic-toss")
+    result["move_metadata_authority"]["metadata"] = {
+        "move_id": "seismic-toss", "category": "physical", "power": 1,
+        "type": "normal", "accuracy": 100, "priority": 0,
+    }
+    return result
+
+
+def test_sturdy_switch_in_caps_lethal_seismic_toss_without_roll_or_crit_branches():
+    state = _sturdy_ready(_state())
+    bench = state["opponent_side"]["pokemon"][1]
+    bench["current_hp"] = bench["max_hp"] = 10
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    before = deepcopy(snapshot)
+    pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=_seismic_toss_action(action),
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    leaf = pair["terminal_branches"][0]["attack_leaf"]
+    assert leaf["probability"] == {"numerator": 1, "denominator": 1}
+    assert leaf["hit_state"] == "deterministic_exact" and leaf["critical_state"] == "not_applicable"
+    assert "damage_roll" not in leaf
+    assert leaf["consequences"]["deterministic_fixed_damage"]["raw_damage"] == 50
+    assert leaf["consequences"]["damage"] == 9
+    assert leaf["consequences"]["target_final_hp"] == 1 and leaf["consequences"]["target_ko"] is False
+    assert leaf["consequences"]["sturdy_survival"]["outcome"] == "applied"
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    metrics = project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)
+    assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert metrics["status"] == "resolved"
+    assert snapshot == before
+
+
+def test_seismic_toss_hazard_chip_disables_sturdy_and_nonlethal_fixed_damage_remains_raw():
+    state = _sturdy_ready(_state())
+    bench = state["opponent_side"]["pokemon"][1]
+    bench["prospective_groundedness_context"] = build_groundedness(
+        session_id=state["session_id"], side="opponent", slot_index=1, pokemon_id="bench", status="grounded",
+    )
+    state["switch_hazard_context"] = build_switch_hazard_context(
+        session_id=state["session_id"], affected_side="opponent", stealth_rock="absent",
+        spikes_layers=1, toxic_spikes_layers=0, sticky_web="absent",
+    )
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=_seismic_toss_action(action),
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    leaf = pair["terminal_branches"][0]["attack_leaf"]
+    assert pair["switch_in_authority"]["hypothetical_switch_in_state"]["sturdy_survival_authority"]["status"] == "not_applicable"
+    assert leaf["consequences"]["deterministic_fixed_damage"]["raw_damage"] == leaf["consequences"]["damage"] == 50
+    assert leaf["consequences"]["sturdy_survival"]["outcome"] == "not_applicable"
+
+
 def test_sturdy_ready_nonlethal_and_target_secondary_paths_remain_exact():
     state = _sturdy_ready(_state())
     d0, snapshot, action, switch, switch_id = _inputs(state)

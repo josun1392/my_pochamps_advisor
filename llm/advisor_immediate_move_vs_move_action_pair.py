@@ -129,15 +129,15 @@ def _materialize_order(
     return branches
 
 
-def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any]) -> dict[str, Any]:
+def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     if metadata.get("move_id") == "seismic-toss":
-        return _seismic_toss_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target)
-    return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata)
+        return _seismic_toss_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, sturdy_survival_authority=sturdy_survival_authority)
+    return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority)
 
 
-def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     frozen = freeze_runtime_seismic_toss_predictive_input(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
         attacker=actor, target=target, move_id="seismic-toss",
@@ -150,6 +150,7 @@ def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Ma
     leaf = materialize_detached_deterministic_fixed_damage_attack_leaf(
         strategy_d0=strategy_d0, attacker=actor, target=target,
         move_id="seismic-toss", predictive_authority=authority,
+        sturdy_survival_authority=sturdy_survival_authority,
     )
     if leaf.get("status") != "evaluable": return _result(_status(leaf), leaf.get("reason", "fixed_damage_terminal_leaf_unavailable"), {})
     return leaf

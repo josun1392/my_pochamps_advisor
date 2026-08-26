@@ -11,7 +11,7 @@ from llm.advisor_detached_opponent_switch_in_intermediate_authority import (
 from llm.advisor_detached_switch_first_hypothetical_condition_predictive_consumer import (
     materialize_detached_switch_first_hypothetical_condition_predictive_view,
 )
-from llm.advisor_immediate_move_vs_move_action_pair import _normal_formula_ledger
+from llm.advisor_immediate_move_vs_move_action_pair import _attack_ledger
 from llm.advisor_runtime_strategy_d0 import (
     resolve_runtime_d0_selectable_move_metadata_authority,
     runtime_strategy_d0_freshness,
@@ -47,7 +47,7 @@ def materialize_immediate_attack_vs_opponent_switch_action_pair(
     predictive = _switch_first_predictive_view(strategy_d0, runtime_snapshot, switch_in)
     if predictive.get("status") != "resolved":
         return _result(_status(predictive), predictive.get("reason", "switch_first_predictive_view_unavailable"), base)
-    attack = _normal_formula_ledger(
+    attack = _attack_ledger(
         strategy_d0=predictive["strategy_d0"], runtime_snapshot=predictive["runtime_snapshot"],
         actor=predictive["own_actor"], target=predictive["incoming_target"],
         metadata_authority=metadata["metadata"],
