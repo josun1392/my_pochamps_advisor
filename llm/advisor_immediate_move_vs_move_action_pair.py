@@ -30,6 +30,11 @@ from llm.advisor_predictive_attack_authority import build_predictive_fixed_damag
 from llm.advisor_runtime_d0_fixed_two_hit_multi_hit_execution_authority import (
     freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority,
 )
+from llm.advisor_hypothetical_protection_effects import (
+    canonical_protection_metadata,
+    prevent_supported_direct_damage,
+    project_self_protection,
+)
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
@@ -56,6 +61,7 @@ def materialize_immediate_move_vs_move_action_pair(
     own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
     action_order_authority: Mapping[str, Any],
     first_action_sturdy_survival_authority: Mapping[str, Any] | None = None,
+    opponent_protection_success_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
     base = _base(strategy_d0, own_action, opponent_action)
@@ -66,6 +72,12 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    if _is_protection_metadata(opponent_meta.get("metadata")):
+        return _materialize_protection_response_pair(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
+            own_meta=own_meta, opponent_meta=opponent_meta, orders=orders,
+            opponent_protection_success_authority=opponent_protection_success_authority,
+        )
     branches: list[dict[str, Any]] = []
     for order_plan in orders:
         materialized = _materialize_order(
@@ -85,6 +97,104 @@ def materialize_immediate_move_vs_move_action_pair(
             "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass),
             "aggregation": "none_preserve_first_and_second_leaf_identity",
             "provenance": "strict_detached_immediate_move_vs_move_pair_materialization_v1"}
+
+
+def _materialize_protection_response_pair(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any],
+    own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]],
+    opponent_protection_success_authority: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Materialize only the existing exact ordinary self-protection contract."""
+    branches: list[dict[str, Any]] = []
+    for plan in orders:
+        if plan["order"] == "own_first":
+            first = _attack_ledger(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                actor=base["own_actor"], target=base["opponent_actor"], metadata_authority=own_meta,
+            )
+            if first.get("status") != "evaluable":
+                return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base)
+            for leaf in first["terminal_leaves"]:
+                branches.append(_protection_branch(
+                    base, plan, leaf, "cancelled_due_to_faint" if leaf["consequences"].get("target_ko") is True else "executed_protection",
+                ))
+            continue
+        protection = _resolved_protection(
+            strategy_d0=strategy_d0, opponent=base["opponent_actor"], own=base["own_actor"],
+            metadata=opponent_meta["metadata"], success_authority=opponent_protection_success_authority,
+        )
+        if protection.get("status") != "resolved":
+            return _result(_status(protection), protection.get("reason", "opponent_protection_authority_unavailable"), base)
+        bypass = prevent_supported_direct_damage(
+            effect=protection, opponent_action={"move": _protection_targeted_attack_metadata(own_meta["metadata"])},
+            protected_owner=base["opponent_actor"],
+        )
+        if bypass.get("status") != "resolved":
+            return _result(_status(bypass), bypass.get("reason", "protection_bypass_authority_unavailable"), base)
+        leaf = _protection_leaf(base, strategy_d0, opponent_meta["metadata"])
+        if leaf is None:
+            return _result("incomplete", "exact_protection_hp_authority_missing", base)
+        branches.append(_protection_branch(base, plan, leaf, "prevented_by_protection"))
+    mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
+    if mass != Fraction(1, 1): return _result("rejected", "pair_terminal_probability_mass_not_one", base, terminal_probability_mass=_fd(mass))
+    return {
+        "status": "evaluable", "schema_version": SCHEMA_VERSION, "horizon": HORIZON, **base,
+        "conditional_on": "opponent_selected_exact_known_usable_move",
+        "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass),
+        "aggregation": "none_preserve_protection_and_attack_identity",
+        "provenance": "strict_detached_immediate_protection_response_pair_materialization_v1",
+    }
+
+
+def _resolved_protection(*, strategy_d0: Mapping[str, Any], opponent: Mapping[str, Any], own: Mapping[str, Any], metadata: Mapping[str, Any], success_authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    action = {"owner": deepcopy(dict(opponent)), "move": {"move_id": metadata.get("move_id"), "category": metadata.get("category"), "target": metadata.get("target"), "accuracy": metadata.get("accuracy")}}
+    branch = deepcopy(dict(strategy_d0["strategy_state"]))
+    active = branch.get("active")
+    row = active.get("opponent") if isinstance(active, dict) else None
+    if not isinstance(row, Mapping) or any(row.get(key) != opponent.get(key) for key in ("session_id", "side", "slot_index", "pokemon_id")):
+        return _result("rejected", "protection_actor_neutral_branch_identity_mismatch", {})
+    active["self"] = deepcopy(dict(active["opponent"]))
+    return project_self_protection(
+        branch_state=branch, action=action,
+        expected_owner=opponent, success_authority=success_authority or {},
+    )
+
+
+def _protection_targeted_attack_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:
+    return {"category": metadata.get("category"), "protection_bypass": metadata.get("protection_bypass")}
+
+
+def _is_protection_metadata(metadata: Any) -> bool:
+    return isinstance(metadata, Mapping) and canonical_protection_metadata(metadata.get("move_id")) is not None
+
+
+def _protection_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadata: Mapping[str, Any]) -> dict[str, Any] | None:
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    own_hp = active.get("self", {}).get("current_hp") if isinstance(active, Mapping) else None
+    opponent_hp = active.get("opponent", {}).get("current_hp") if isinstance(active, Mapping) else None
+    if not isinstance(own_hp, int) or isinstance(own_hp, bool) or own_hp < 0 or not isinstance(opponent_hp, int) or isinstance(opponent_hp, bool) or opponent_hp < 0:
+        return None
+    return {
+        "leaf_id": "protect:success", "candidate_id": f"protection:{metadata['move_id']}",
+        "action_type": "protection", "branch_path": ("protect:success",),
+        "probability": _fd(Fraction(1, 1)), "hit_state": "not_applicable",
+        "critical_state": "not_applicable", "damage_roll": "not_applicable",
+        "consequences": {"own_final_hp": opponent_hp, "target_final_hp": own_hp, "target_ko": own_hp == 0, "self_fainted": opponent_hp == 0, "deterministic_stage_effect": None, "secondary": None},
+        "provenance": {"session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": deepcopy(dict(base["decision_owner"])), "attacker": deepcopy(dict(base["opponent_actor"])), "target": deepcopy(dict(base["own_actor"])), "move_id": metadata["move_id"]},
+    }
+
+
+def _protection_branch(base: Mapping[str, Any], plan: Mapping[str, Any], first: Mapping[str, Any], state: str) -> dict[str, Any]:
+    order_probability = plan["probability"]
+    source = plan.get("source_branch")
+    return {
+        "pair_leaf_id": (f"{source['order_branch_id']}/" if isinstance(source, Mapping) else "") + f"{first['leaf_id']}/second_{state}",
+        "action_order": plan["order"],
+        **({"action_order_branch": deepcopy(dict(source)), "action_order_conditional_probability": _fd(order_probability)} if isinstance(source, Mapping) else {}),
+        "first_action_leaf": deepcopy(dict(first)), "intermediate_state_id": None,
+        "second_action": {"state": state, "actor": deepcopy(dict(base["opponent_actor"] if plan["order"] == "own_first" else base["own_actor"])), "conditional_probability": _fd(Fraction(1, 1)), "reason": state},
+        "probability": _fd(order_probability * _fraction(first["probability"])), "provenance": deepcopy(dict(base)),
+    }
 
 
 def _materialize_order(
