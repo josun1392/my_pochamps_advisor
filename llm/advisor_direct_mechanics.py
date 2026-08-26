@@ -737,6 +737,11 @@ def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
         result["missing_inputs"].append("attacker.item")
         return result
     item_id = item["value"]
+    # Loaded Dice only alters the multi-hit count.  The count modifier owner
+    # supplies that effect separately, so it has no direct single-hit damage
+    # modifier to apply here.
+    if item_id == "loaded-dice":
+        return result
     if item_id not in STATIC_ATTACKER_DAMAGE_ITEMS:
         result["unsupported_reason"] = "item_modifier"
         return result
@@ -1157,5 +1162,6 @@ def _fixed_unsupported(reason: str) -> dict[str, Any]:
 # invented absence authority.
 _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({
     "intimidate", "pressure", "drizzle", "drought", "sand-stream", "snow-warning",
+    "skill-link",
 })
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

@@ -9,9 +9,14 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_immediate_attack_vs_opponent_switch_action_pair import _owner, _state
 
 
-def _inputs(*, move_id="bullet-seed", power=25, accuracy=100, target_hp=100):
+def _inputs(*, move_id="bullet-seed", power=25, accuracy=100, target_hp=100, attacker_ability=None, attacker_item=None):
     state = _state(); target = state["opponent_side"]["pokemon"][0]
     target["current_hp"] = target_hp; target["max_hp"] = max(100, target_hp); target["fainted"] = False
+    attacker = state["self_side"]["pokemon"][0]
+    if attacker_ability is not None: attacker["current_ability"] = attacker_ability
+    if attacker_item is not None:
+        attacker["known_item"] = attacker_item
+        attacker["known_item_provenance"]["status"] = "known"
     snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
     own, foe = _owner(state, "self"), _owner(state, "opponent")
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=own)
@@ -62,3 +67,15 @@ def test_miss_and_stale_or_wrong_authority_fail_closed():
     assert materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=bad)["status"] == "rejected"
     stale = deepcopy(snapshot); stale["state"]["self_side"]["pokemon"][0]["current_hp"] = 1; stale["state_fingerprint"] = state_fingerprint(stale["state"])
     assert materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(strategy_d0=d0, runtime_snapshot=stale, action=action, execution_authority=execution)["status"] == "rejected"
+
+
+@pytest.mark.parametrize("kwargs, expected_counts", [
+    ({"attacker_ability": "skill-link"}, {5}),
+    ({"attacker_item": "loaded-dice"}, {4, 5}),
+])
+def test_exact_modifier_authority_flows_unchanged_into_existing_graph_materializer(kwargs, expected_counts):
+    _state0, snapshot, d0, action, execution, _own, _foe = _inputs(**kwargs)
+    result = materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=execution)
+    assert execution["hit_count_modifier_authority"]["status"] == "resolved"
+    assert result["status"] == "evaluable", result.get("reason")
+    assert {row["selected_hit_count"] for row in result["terminal_leaf_roots"] if row["selected_hit_count"] is not None} == expected_counts

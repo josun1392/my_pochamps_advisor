@@ -180,7 +180,10 @@ def _distribution(value: Any) -> tuple[tuple[int, Fraction], ...] | None:
         if not _integer(count) or count not in {2, 3, 4, 5} or fraction <= 0:
             return None
         rows.append((count, fraction))
-    return tuple(sorted(rows)) if {count for count, _ in rows} == {2, 3, 4, 5} and sum((probability for _, probability in rows), Fraction()) == Fraction(1, 1) else None
+    # A strict modifier authority may reduce the canonical family to an exact
+    # subset (Skill Link: five; Loaded Dice: four/five).  Each row remains a
+    # valid ordinary 2--5-hit count and the authority must still own unit mass.
+    return tuple(sorted(rows)) if len({count for count, _ in rows}) == len(rows) and sum((probability for _, probability in rows), Fraction()) == Fraction(1, 1) else None
 
 
 def _single_hit_metadata(metadata: Mapping[str, Any]) -> dict[str, Any] | None:

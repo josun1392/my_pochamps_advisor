@@ -5,7 +5,14 @@ import pytest
 from llm.advisor_runtime_d0_variable_two_to_five_hit_count_execution_authority import (
     SCHEMA_VERSION, freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority,
 )
-from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
+from llm.advisor_runtime_d0_variable_multi_hit_count_modifier_authority import (
+    SCHEMA_VERSION as MODIFIER_SCHEMA,
+    freeze_runtime_d0_variable_multi_hit_count_modifier_authority,
+)
+from llm.advisor_runtime_strategy_d0 import (
+    freeze_runtime_d0_critical_hit_authority,
+    freeze_runtime_strategy_d0,
+)
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 
@@ -60,13 +67,38 @@ def test_fixed_two_missing_and_other_multi_hit_families_fail_closed():
     assert freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=_action(d0, "population-bomb", min_hits=2, max_hits=5, multiaccuracy=True))["reason"] == "variable_multi_hit_move_not_in_supported_execution_catalog"
 
 
-@pytest.mark.parametrize("field, value, reason", [("current_ability", "skill-link", "variable_multi_hit_skill_link_requires_separate_execution_authority"), ("known_item", "loaded-dice", "variable_multi_hit_loaded_dice_requires_separate_execution_authority")])
-def test_skill_link_or_loaded_dice_are_never_silently_neutral(field, value, reason):
+@pytest.mark.parametrize(
+    "field, value, expected_modifier, expected_distribution",
+    [
+        ("current_ability", "skill-link", "skill_link", ((5, 1, 1),)),
+        ("known_item", "loaded-dice", "loaded_dice", ((4, 1, 2), (5, 1, 2))),
+    ],
+)
+def test_skill_link_and_loaded_dice_freeze_exact_modifier_distributions(field, value, expected_modifier, expected_distribution):
     state = _state(); pokemon = state["self_side"]["pokemon"][0]; pokemon[field] = value
     if field == "known_item": pokemon["known_item_provenance"]["status"] = "known"
     snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state))
     result = freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=_action(d0))
-    assert result["status"] == "unsupported" and result["reason"] == reason
+    assert result["status"] == "resolved"
+    assert result["hit_count_modifier_authority"]["schema_version"] == MODIFIER_SCHEMA
+    assert result["hit_count_modifier_authority"]["modifier"] == expected_modifier
+    assert tuple((row["hit_count"], row["probability"]["numerator"], row["probability"]["denominator"]) for row in result["hit_count_execution"]["distribution"]) == expected_distribution
+
+
+def test_skill_link_precedes_loaded_dice_and_unknown_modifier_sources_fail_closed():
+    state = _state(); pokemon = state["self_side"]["pokemon"][0]
+    pokemon.update(current_ability="skill-link", known_item="loaded-dice")
+    pokemon["known_item_provenance"]["status"] = "known"
+    snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state))
+    resolved = freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=_action(d0))
+    assert resolved["status"] == "resolved"
+    assert resolved["hit_count_execution"]["distribution"] == ({"hit_count": 5, "probability": {"numerator": 1, "denominator": 1}},)
+
+    state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state)); action = _action(d0)
+    critical = freeze_runtime_d0_critical_hit_authority(strategy_d0=d0, runtime_snapshot=snapshot, attacker=d0["decision_owner"], target=d0["active_owners"]["opponent"], move_metadata=action["move_metadata_authority"]["metadata"])
+    critical["source_authority"]["attacker_item"] = {"status": "unknown"}
+    incomplete = freeze_runtime_d0_variable_multi_hit_count_modifier_authority(strategy_d0=d0, runtime_snapshot=snapshot, attacker=d0["decision_owner"], target=d0["active_owners"]["opponent"], move_metadata=action["move_metadata_authority"]["metadata"], critical_hit_authority=critical)
+    assert incomplete["status"] == "incomplete" and incomplete["reason"] == "variable_multi_hit_attacker_item_unknown"
 
 
 def test_stale_or_conflicting_bindings_fail_closed_without_mutation():

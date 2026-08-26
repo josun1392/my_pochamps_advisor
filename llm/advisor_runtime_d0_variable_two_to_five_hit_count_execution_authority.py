@@ -17,6 +17,9 @@ from llm.advisor_runtime_strategy_d0 import (
     resolve_runtime_d0_selectable_move_metadata_authority,
     runtime_strategy_d0_freshness,
 )
+from llm.advisor_runtime_d0_variable_multi_hit_count_modifier_authority import (
+    freeze_runtime_d0_variable_multi_hit_count_modifier_authority,
+)
 
 
 SCHEMA_VERSION = "runtime-d0-variable-two-to-five-hit-count-execution-authority-v1"
@@ -60,7 +63,11 @@ def freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
         attacker=own, target=opponent, move_metadata=metadata,
     )
-    modifier = _hit_count_modifier_authority(critical_source)
+    modifier = freeze_runtime_d0_variable_multi_hit_count_modifier_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        attacker=own, target=opponent, move_metadata=metadata,
+        critical_hit_authority=critical_source,
+    )
     if modifier["status"] != "resolved":
         return _result(modifier["status"], modifier["reason"], {
             **common, "classification": classification,
@@ -77,13 +84,7 @@ def freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority(
             "hit_count_modifier_authority": modifier,
             "critical_hit_authority": deepcopy(critical),
         })
-    distribution = _standard_distribution(metadata)
-    if distribution is None:
-        return _result("rejected", "canonical_variable_multi_hit_distribution_invalid", {
-            **common, "classification": classification,
-            "hit_count_modifier_authority": modifier,
-            "critical_hit_authority": deepcopy(critical),
-        })
+    distribution = modifier["hit_count_distribution"]
     return {
         "status": "resolved", "schema_version": SCHEMA_VERSION, **common,
         "move_id": metadata["move_id"], "hit_count_execution": {
@@ -103,7 +104,7 @@ def freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority(
         "execution_exclusions": {
             "aggregate_total_damage": "forbidden", "fixed_two_hit": "handled_by_separate_authority",
             "multiaccuracy": "unsupported", "escalating_power": "unsupported",
-            "skill_link_or_loaded_dice": "requires_separate_exact_authority",
+            "skill_link_or_loaded_dice": "supported_by_runtime_d0_modifier_authority_v1",
             "per_hit_secondary": "unsupported", "drain_or_recoil": "unsupported",
             "contact_or_item_consumption": "requires_separate_exact_owner",
             "substitute_or_replacement": "requires_separate_exact_owner",
