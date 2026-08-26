@@ -8,10 +8,11 @@ from typing import Any, Mapping
 from llm.advisor_detached_opponent_switch_in_intermediate_authority import (
     materialize_detached_opponent_switch_in_intermediate_authority,
 )
+from llm.advisor_detached_switch_first_hypothetical_condition_predictive_consumer import (
+    materialize_detached_switch_first_hypothetical_condition_predictive_view,
+)
 from llm.advisor_immediate_move_vs_move_action_pair import _normal_formula_ledger
-from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import (
-    freeze_runtime_strategy_d0,
     resolve_runtime_d0_selectable_move_metadata_authority,
     runtime_strategy_d0_freshness,
 )
@@ -62,6 +63,7 @@ def materialize_immediate_attack_vs_opponent_switch_action_pair(
         **base, "action_order": "opponent_switch_first",
         "conditional_on": "opponent_selected_exact_selectable_switch_response",
         "switch_in_authority": deepcopy(switch_in), "terminal_branches": branches,
+        "switch_first_condition_consumer": deepcopy(predictive["condition_consumer"]),
         "terminal_probability_mass": _fd(mass),
         "aggregation": "none_preserve_switch_and_attack_leaf_identity",
         "provenance": "strict_detached_immediate_attack_vs_opponent_switch_pair_v1",
@@ -83,23 +85,16 @@ def _switch_first_predictive_view(strategy_d0: Mapping[str, Any], runtime_snapsh
         return _result("rejected", "switch_in_hypothetical_state_invalid", {})
     side["active_slot_index"] = incoming["slot_index"]
     target["current_hp"], target["max_hp"], target["fainted"] = hp["current_hp"], hp["maximum_hp"], False
-    condition = hypothetical.get("condition_authority")
-    if not isinstance(condition, Mapping) or condition.get("status") != "known" or condition.get("value") not in {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}:
-        return _result("incomplete", "hypothetical_switch_in_condition_unknown", {})
-    original_condition = target.get("condition") or "none"
-    if condition["value"] != original_condition:
-        # The runtime-D0 strategy view deliberately accepts only observed
-        # current conditions.  Do not masquerade an entry-hazard result as an
-        # observation, and never fall back to this target's stale pre-entry
-        # condition.  A future switch-first status consumer can lift this
-        # bounded restriction without changing switch-in authority.
-        return _result("incomplete", "hypothetical_switch_in_condition_consumer_unavailable", {})
-    snapshot = {"status": "runtime_snapshot_ready", "session_id": strategy_d0["session_id"], "state": synthetic, "state_fingerprint": state_fingerprint(synthetic)}
-    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=strategy_d0["decision_owner"])
-    if d0.get("status") != "resolved":
-        return _result("incomplete", d0.get("reason", "switch_first_predictive_d0_unavailable"), {})
+    consumer = materialize_detached_switch_first_hypothetical_condition_predictive_view(
+        strategy_d0=strategy_d0, synthetic_runtime_state=synthetic,
+        switch_in_authority=switch_in,
+    )
+    if consumer.get("status") != "resolved":
+        return _result(_status(consumer), consumer.get("reason", "switch_first_condition_consumer_unavailable"), {})
+    d0, snapshot = consumer["strategy_d0"], consumer["runtime_snapshot"]
     return {"status": "resolved", "strategy_d0": d0, "runtime_snapshot": snapshot,
-            "own_actor": deepcopy(d0["active_owners"]["self"]), "incoming_target": deepcopy(d0["active_owners"]["opponent"])}
+            "own_actor": deepcopy(d0["active_owners"]["self"]), "incoming_target": deepcopy(d0["active_owners"]["opponent"]),
+            "condition_consumer": consumer}
 
 
 def _base(d0: Any, own: Any, switch_id: Any) -> dict | None:

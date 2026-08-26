@@ -250,6 +250,7 @@ def evaluate_direct_damage_mechanics(
     legacy_modifier_reason = _unsupported_modifier(
         {**direct_attacker, "ability": _KNOWN_ABSENT, "item": _KNOWN_ABSENT}, {**direct_defender, "ability": _KNOWN_ABSENT}, {},
         allow_exact_detached_paralysis=_has_exact_detached_paralysis(current),
+        allow_exact_detached_switch_entry_condition=_has_exact_detached_switch_entry_condition(current),
     )
     if legacy_modifier_reason is not None:
         return _unsupported(legacy_modifier_reason)
@@ -280,6 +281,8 @@ def evaluate_direct_damage_mechanics(
         _require_zero_boosts(side.get("boosts"), f"{side_name}.boosts", missing)
         _require_hp(side, side_name, missing)
         if side_name == "attacker" and modifier.get("burn_known"):
+            pass
+        elif side_name == "defender" and _has_exact_detached_switch_entry_condition(current):
             pass
         else:
             _require_known_absent(side.get("status"), f"{side_name}.status", missing)
@@ -509,7 +512,7 @@ def _require_hp(value: Mapping[str, Any], side: str, missing: list[str]) -> None
     if _positive_int(current) and _positive_int(maximum) and current > maximum: missing.append(f"{side}.current_hp")
 
 
-def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_paralysis: bool = False) -> str | None:
+def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_paralysis: bool = False, allow_exact_detached_switch_entry_condition: bool = False) -> str | None:
     for side in (attacker, defender):
         for key, reason in (("ability", "ability_modifier"), ("item", "item_modifier"), ("status", "major_status_modifier")):
             value = side.get(key)
@@ -519,6 +522,8 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
                 # second-action consumer, while Guts receives the exact
                 # condition through the explicit ability context below.
                 if key == "status" and value.get("value") == "paralysis" and allow_exact_detached_paralysis:
+                    continue
+                if key == "status" and value.get("value") in {"poison", "toxic"} and allow_exact_detached_switch_entry_condition:
                     continue
                 return reason
         boosts = side.get("boosts")
@@ -627,6 +632,18 @@ def _has_exact_detached_paralysis(current: Mapping[str, Any]) -> bool:
         isinstance(row, Mapping)
         and row.get("condition_type") == "paralysis"
         and row.get("hypothetical_source") == "exact_detached_intermediate_paralysis"
+        for row in entries
+    )
+
+
+def _has_exact_detached_switch_entry_condition(current: Mapping[str, Any]) -> bool:
+    context = current.get("condition_context")
+    entries = context.get("current_conditions") if isinstance(context, Mapping) else None
+    return isinstance(entries, list) and any(
+        isinstance(row, Mapping)
+        and row.get("side") == "opponent"
+        and row.get("condition_type") in {"poison", "toxic"}
+        and row.get("switch_entry_hypothetical_source") == "exact_detached_switch_entry_toxic_spikes"
         for row in entries
     )
 

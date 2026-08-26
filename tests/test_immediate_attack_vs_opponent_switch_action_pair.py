@@ -105,7 +105,38 @@ def test_non_evaluable_switch_pair_remains_fail_closed_for_ledger_and_metrics():
     assert project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)["status"] == "unsupported"
 
 
-def test_toxic_spikes_hypothetical_condition_never_falls_back_to_stale_switch_target_condition():
+def test_toxic_spikes_hypothetical_condition_reaches_private_switch_first_calculator_view():
+    for layers, expected in ((1, "poison"), (2, "toxic")):
+        state = _state()
+        bench = state["opponent_side"]["pokemon"][1]
+        bench["prospective_groundedness_context"] = build_groundedness(
+            session_id=state["session_id"], side="opponent", slot_index=1, pokemon_id="bench", status="grounded",
+        )
+        bench["prospective_entry_interactions_context"] = build_prospective_entry_interactions(
+            session_id=state["session_id"], side="opponent", slot_index=1, pokemon_id="bench",
+            toxic_spikes="applicable", sticky_web="applicable",
+        )
+        state["switch_hazard_context"] = build_switch_hazard_context(
+            session_id=state["session_id"], affected_side="opponent", stealth_rock="absent", spikes_layers=0,
+            toxic_spikes_layers=layers, sticky_web="absent",
+        )
+        d0, snapshot, action, switch, switch_id = _inputs(state)
+        before = deepcopy(snapshot)
+        pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+            switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+        )
+        assert pair["status"] == "evaluable", pair.get("reason")
+        assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+        consumer = pair["switch_first_condition_consumer"]
+        assert consumer["hypothetical"] is True
+        assert consumer["condition"] == expected
+        assert consumer["condition_changed"] is True
+        assert consumer["provenance"] == "exact_detached_switch_in_condition_private_calculator_view_v1"
+        assert snapshot == before
+
+
+def test_switch_entry_condition_dependent_attack_stays_fail_closed_without_existing_pair_catalog_coverage():
     state = _state()
     bench = state["opponent_side"]["pokemon"][1]
     bench["prospective_groundedness_context"] = build_groundedness(
@@ -120,9 +151,17 @@ def test_toxic_spikes_hypothetical_condition_never_falls_back_to_stale_switch_ta
         toxic_spikes_layers=1, sticky_web="absent",
     )
     d0, snapshot, action, switch, switch_id = _inputs(state)
+    venoshock = deepcopy(action)
+    venoshock["action_id"] = "attack:venoshock"
+    venoshock["identity"] = "venoshock"
+    venoshock["move_metadata_authority"].update(candidate_id="attack:venoshock", move_id="venoshock")
+    venoshock["move_metadata_authority"]["metadata"] = {
+        "move_id": "venoshock", "category": "special", "power": 65,
+        "type": "poison", "accuracy": 100, "priority": 0,
+    }
     pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
-        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=venoshock,
         switch_response_authority=switch, selected_switch_response_action_id=switch_id,
     )
-    assert pair["status"] == "incomplete"
-    assert pair["reason"] == "hypothetical_switch_in_condition_consumer_unavailable"
+    assert pair["status"] in {"incomplete", "unsupported"}
+    assert pair["status"] != "evaluable"
