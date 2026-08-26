@@ -12,12 +12,15 @@ from llm.advisor_exact_immediate_action_pair_outcome_ledger import (
 from llm.advisor_immediate_move_vs_move_action_pair import (
     materialize_immediate_move_vs_move_action_pair,
 )
+from tests.test_detached_fixed_two_hit_per_hit_predictive_materialization import _sturdy
 from tests.test_detached_opponent_response_profile import _equal_speed_order, _inputs, _metadata, _owner
 
 
-def _fixed_two_action(d0, *, move_id: str) -> dict:
+def _fixed_two_action(d0, *, move_id: str, power: int | None = None) -> dict:
     metadata = deepcopy(_metadata(move_id))
     metadata["metadata"].update({"min_hits": 2, "max_hits": 2})
+    if power is not None:
+        metadata["metadata"]["power"] = power
     metadata.update({
         "candidate_id": f"attack:{move_id}", "active_attacker": d0["decision_owner"],
         "session_id": d0["session_id"],
@@ -97,3 +100,20 @@ def test_fixed_two_hit_composes_the_existing_exact_equal_speed_order_branches():
     assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
     assert {row["action_order"] for row in pair["terminal_branches"]} == {"own_first", "opponent_first"}
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
+
+
+def test_sturdy_saved_first_hit_allows_second_fixed_two_hit_to_ko_in_the_pair():
+    _state, snapshot, d0, _own_action, response_set, _orders = _inputs(opponent_hp=100)
+    own_action = _fixed_two_action(d0, move_id="double-hit", power=500)
+    opponent_action = next(row for row in response_set["actions"] if row["action_id"] == "opponent_attack:tackle")
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent_action,
+        action_order_authority=_order(d0, own_action, opponent_action, "own_first"),
+        first_action_sturdy_survival_authority=_sturdy(d0, _owner(_state, "self"), _owner(_state, "opponent")),
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert all(row["first_action_leaf"]["ordered_hits"][0]["sturdy_applied"] for row in pair["terminal_branches"])
+    assert all(len(row["first_action_leaf"]["ordered_hits"]) == 2 and row["first_action_leaf"]["consequences"]["target_ko"] is True for row in pair["terminal_branches"])
+    assert all(row["second_action"]["state"] == "cancelled_due_to_faint" for row in pair["terminal_branches"])
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}

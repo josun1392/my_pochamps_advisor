@@ -55,6 +55,7 @@ def materialize_immediate_move_vs_move_action_pair(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
     action_order_authority: Mapping[str, Any],
+    first_action_sturdy_survival_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
     base = _base(strategy_d0, own_action, opponent_action)
@@ -71,6 +72,7 @@ def materialize_immediate_move_vs_move_action_pair(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta,
             opponent_meta=opponent_meta, order_plan=order_plan,
+            first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
         )
         if isinstance(materialized, Mapping): return materialized
         branches.extend(materialized)
@@ -89,6 +91,7 @@ def _materialize_order(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
     own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], order_plan: Mapping[str, Any],
+    first_action_sturdy_survival_authority: Mapping[str, Any] | None,
 ) -> list[dict[str, Any]] | dict[str, Any]:
     order = order_plan["order"]
     first_actor = base["own_actor"] if order == "own_first" else base["opponent_actor"]
@@ -99,7 +102,8 @@ def _materialize_order(
         if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "opponent_root_predictive_authority_unavailable"), base)
         first_d0, first_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
     first = _attack_ledger(strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
-                                   target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"], metadata_authority=first_meta)
+                                   target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"], metadata_authority=first_meta,
+                                   sturdy_survival_authority=first_action_sturdy_survival_authority)
     if first.get("status") != "evaluable": return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base, first_action_ledger=first)
     branches: list[dict[str, Any]] = []
     second_actor = base["opponent_actor"] if order == "own_first" else base["own_actor"]
