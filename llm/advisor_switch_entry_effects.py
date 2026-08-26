@@ -20,7 +20,7 @@ def evaluate_switch_entry_effects(*, hazards: Mapping[str, Any], target: Mapping
     damage = evaluate_entry_hazards(hazards=hazards, target=target)
     toxic = evaluate_toxic_spikes_entry(hazards=hazards, target=target)
     sticky = evaluate_sticky_web_entry(hazards=hazards, target=target)
-    intimidate = _evaluate_intimidate(target=target, damage=damage, authority=intimidate_authority)
+    intimidate = evaluate_intimidate_entry(target=target, damage=damage, authority=intimidate_authority)
     download = _evaluate_download(target=target, damage=damage, authority=download_authority)
     trace = _evaluate_trace(target=target, damage=damage, authority=trace_authority)
     sturdy = _evaluate_sturdy(target=target, damage=damage, authority=sturdy_authority)
@@ -118,7 +118,8 @@ def evaluate_sticky_web_entry(*, hazards: Mapping[str, Any], target: Mapping[str
     return _complete("speed_stage_lowered" if after < stage else "speed_stage_minimum", speed_stage_before=stage, speed_stage_after=after)
 
 
-def _evaluate_intimidate(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+def evaluate_intimidate_entry(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Resolve only the exact Intimidate entry-stage consequence."""
     ability = _authority(target, "ability_authority")
     if not _known_authority(ability):
         return _incomplete("candidate_ability_unknown")

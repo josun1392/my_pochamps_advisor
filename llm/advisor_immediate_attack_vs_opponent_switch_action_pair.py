@@ -91,6 +91,22 @@ def _switch_first_predictive_view(strategy_d0: Mapping[str, Any], runtime_snapsh
         return _result("incomplete", "switch_in_hypothetical_stage_authority_unknown", {})
     target["stat_stages"] = deepcopy(dict(stage_values))
     target["detached_switch_first_hypothetical_stage_authority"] = True
+    overlay = hypothetical.get("own_attack_stage_overlay")
+    if isinstance(overlay, Mapping) and overlay.get("status") == "known":
+        own_side = synthetic.get("self_side") if isinstance(synthetic, Mapping) else None
+        own_roster = own_side.get("pokemon") if isinstance(own_side, Mapping) else None
+        own_owner = overlay.get("owner")
+        own_target = own_roster.get(own_owner.get("slot_index")) if isinstance(own_owner, Mapping) and isinstance(own_roster, Mapping) else None
+        after = overlay.get("after")
+        if own_owner != strategy_d0.get("active_owners", {}).get("self") or not isinstance(own_target, dict) or own_target.get("pokemon_id") != own_owner.get("pokemon_id") or not isinstance(after, int) or isinstance(after, bool) or not -6 <= after <= 6:
+            return _result("rejected", "switch_in_intimidate_overlay_binding_mismatch", {})
+        own_stages = own_target.get("stat_stages")
+        if not isinstance(own_stages, Mapping) or not isinstance(own_stages.get("attack"), int) or isinstance(own_stages.get("attack"), bool) or own_stages["attack"] != overlay.get("before"):
+            return _result("rejected", "switch_in_intimidate_pre_entry_stage_mismatch", {})
+        own_target["stat_stages"] = {**deepcopy(dict(own_stages)), "attack": after}
+        own_target["detached_switch_first_hypothetical_intimidate_authority"] = True
+    elif isinstance(overlay, Mapping) and overlay.get("status") not in {"not_applicable"}:
+        return _result("incomplete", "switch_in_intimidate_overlay_unknown", {})
     consumer = materialize_detached_switch_first_hypothetical_condition_predictive_view(
         strategy_d0=strategy_d0, synthetic_runtime_state=synthetic,
         switch_in_authority=switch_in,

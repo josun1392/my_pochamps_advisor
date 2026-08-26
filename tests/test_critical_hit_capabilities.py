@@ -74,6 +74,13 @@ def test_lucky_chant_and_supported_defender_abilities_are_exact_blockers():
     assert lucky["crit_blocker"]["status"] == armor["crit_blocker"]["status"] == shell["crit_blocker"]["status"] == "known_present"
 
 
+def test_intimidate_is_a_known_neutral_defender_critical_hit_source():
+    result = _resolve(defender_ability="intimidate")
+    assert result["status"] == "resolved"
+    assert result["crit_stage"] == 0
+    assert result["crit_blocker"]["status"] == "known_absent"
+
+
 def test_missing_authority_fails_closed_without_neutral_fabrication():
     state = _state(); state["attacker"]["crit_volatiles"]["volatiles"]["focus-energy"] = {"status": "unknown"}
     volatile = resolve_critical_hit_capabilities(move={"move_id": "tackle"}, source_authority=_source(), critical_state_authority=state)

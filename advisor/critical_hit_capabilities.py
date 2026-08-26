@@ -22,7 +22,7 @@ _BASE_MOVE_IDS = frozenset({
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
 _SUPPORTED_ATTACKER_ABILITIES = frozenset({"pressure", "super-luck", "merciless", "sniper", "guts"})
-_SUPPORTED_DEFENDER_ABILITIES = frozenset({"pressure", "battle-armor", "shell-armor", "guts"})
+_SUPPORTED_DEFENDER_ABILITIES = frozenset({"pressure", "intimidate", "battle-armor", "shell-armor", "guts"})
 _SUPPORTED_ATTACKER_ITEMS = frozenset({"scope-lens", "razor-claw"})
 _POISONED = frozenset({"poison", "poisoned", "toxic", "badly-poisoned"})
 
@@ -190,7 +190,7 @@ def _defender_ability(source: Mapping[str, Any], ledger: list[dict[str, Any]]) -
     ability = source["value"]
     if ability not in _SUPPORTED_DEFENDER_ABILITIES:
         ledger.append(_row("defender_ability", "unsupported", source_value=ability)); return _unsupported("defender_ability_not_in_supported_critical_hit_catalog")
-    ledger.append(_row("defender_ability", "applicable" if ability != "pressure" else "known_neutral", source_value=ability))
+    ledger.append(_row("defender_ability", "applicable" if ability in {"battle-armor", "shell-armor"} else "known_neutral", source_value=ability))
     return _resolved(ability)
 
 

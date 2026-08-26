@@ -11,6 +11,7 @@ from llm.advisor_identity_groundedness import build_groundedness
 from llm.advisor_prospective_entry_authority import build_prospective_entry_interactions
 from llm.advisor_substitute import update_substitute_state_context
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
+from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority
 
 
 MOVE = {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}
@@ -59,6 +60,25 @@ def _inputs(state):
     switch_id = "opponent_switch:attack-switch:1:bench"
     switch = {"status": "resolved", "schema_version": "runtime-d0-opponent-switch-response-authority-v1", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": own, "own_actor": own, "opponent_actor": opponent, "actions": ({"action_id": switch_id, "action_type": "manual_switch", "acting_side": "opponent", "target_side": "self", "selectability": "selectable", "target_owner": incoming, "availability": "alive"},), "selectable_response_action_ids": (switch_id,), "response_set_provenance": {"source": "test"}}
     return d0, snapshot, own_action, switch, switch_id
+
+
+def _intimidate_ready(state, *, interaction="lowered", self_attack_stage=0):
+    state["self_side"]["pokemon"][0]["stat_stages"]["attack"] = self_attack_stage
+    state["opponent_side"]["pokemon"][1]["current_ability"] = "intimidate"
+    state["switch_entry_intimidate_authority"] = build_switch_entry_intimidate_authority(
+        session_id=state["session_id"], source=_owner(state, "opponent", 1),
+        target=_owner(state, "self"), interaction=interaction,
+        target_attack_stage=self_attack_stage,
+    )
+    return state
+
+
+def _hit_rolls(pair):
+    return tuple(
+        leaf["attack_leaf"]["damage_roll"]["damage"]
+        for leaf in pair["terminal_branches"]
+        if leaf["attack_leaf"]["hit_state"] == "hit" and leaf["attack_leaf"]["critical_state"] == "non_critical"
+    )
 
 
 def test_switch_first_pair_uses_incoming_target_and_preserves_exact_attack_leaves():
@@ -190,4 +210,113 @@ def test_sticky_web_hypothetical_speed_stage_flows_through_condition_neutral_swi
     assert pair["status"] == "evaluable", pair.get("reason")
     assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
     assert pair["switch_in_authority"]["hypothetical_switch_in_state"]["stage_authority"]["value"]["speed"] == -1
+    assert snapshot == before
+
+
+def test_intimidate_switch_in_overlays_exact_own_attack_stage_before_physical_attack():
+    baseline_state = _state()
+    d0, snapshot, action, switch, switch_id = _inputs(baseline_state)
+    baseline = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    state = _intimidate_ready(_state(), interaction="lowered", self_attack_stage=0)
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    before = deepcopy(snapshot)
+    lowered = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+
+    assert lowered["status"] == "evaluable", lowered.get("reason")
+    assert lowered["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    entry = lowered["switch_in_authority"]["hypothetical_switch_in_state"]["entry_consequence"]
+    assert entry["intimidate_consequence"]["outcome"] == "attack_stage_lowered"
+    assert entry["own_attack_stage_overlay"]["after"] == -1
+    assert lowered["switch_first_condition_consumer"]["strategy_d0"]["current_stage_authority"]["self"]["stages"]["attack"]["value"] == -1
+    assert max(_hit_rolls(lowered)) < max(_hit_rolls(baseline))
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=lowered)
+    metrics = project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)
+    assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert metrics["status"] == "resolved"
+    assert snapshot == before
+
+
+def test_intimidate_blocked_reversed_and_stage_bounds_preserve_exact_stage_outcomes():
+    for interaction, stage, expected, after in (
+        ("blocked", 0, "attack_drop_prevented", 0),
+        ("reversed", 0, "attack_stage_reversed", 1),
+        ("lowered", -6, "attack_stage_minimum", -6),
+        ("reversed", 6, "attack_stage_maximum", 6),
+    ):
+        state = _intimidate_ready(_state(), interaction=interaction, self_attack_stage=stage)
+        d0, snapshot, action, switch, switch_id = _inputs(state)
+        pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+            switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+        )
+        assert pair["status"] == "evaluable", pair.get("reason")
+        entry = pair["switch_in_authority"]["hypothetical_switch_in_state"]["entry_consequence"]
+        assert entry["intimidate_consequence"]["outcome"] == expected
+        assert entry["own_attack_stage_overlay"]["after"] == after
+
+
+def test_intimidate_unknown_or_foreign_authority_fails_closed_before_prediction():
+    state = _intimidate_ready(_state(), interaction="lowered")
+    state["switch_entry_intimidate_authority"] = build_switch_entry_intimidate_authority(
+        session_id=state["session_id"], source=_owner(state, "opponent", 1),
+        target=_owner(state, "self"), interaction="unknown", target_attack_stage="unknown",
+    )
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    incomplete = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert incomplete["status"] == "incomplete"
+
+    state = _intimidate_ready(_state(), interaction="lowered")
+    state["switch_entry_intimidate_authority"]["source"]["pokemon_id"] = "foreign"
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    rejected = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert rejected["status"] == "rejected"
+
+    state = _intimidate_ready(_state(), interaction="lowered")
+    state["opponent_side"]["pokemon"][1]["current_ability"] = "unknown"
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    unknown_ability = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert unknown_ability["status"] == "incomplete"
+
+    state = _intimidate_ready(_state(), interaction="lowered")
+    state["self_side"]["pokemon"][0]["stat_stages"]["attack"] = "unknown"
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    unknown_stage = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert unknown_stage["status"] == "incomplete"
+
+
+def test_entry_hazard_ko_does_not_activate_intimidate_or_mutate_current_state():
+    state = _intimidate_ready(_state(), interaction="lowered")
+    bench = state["opponent_side"]["pokemon"][1]
+    bench["current_hp"] = 1
+    bench["current_type"] = ["fire"]
+    state["switch_hazard_context"] = build_switch_hazard_context(
+        session_id=state["session_id"], affected_side="opponent", stealth_rock="present",
+        spikes_layers=0, toxic_spikes_layers=0, sticky_web="absent",
+    )
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    before = deepcopy(snapshot)
+    result = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert result["status"] == "unsupported"
+    assert result["reason"] == "replacement_required_after_switch_entry_ko"
     assert snapshot == before
