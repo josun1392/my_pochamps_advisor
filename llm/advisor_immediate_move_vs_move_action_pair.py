@@ -22,8 +22,14 @@ from llm.advisor_detached_strategy_orchestration import _normal_formula_facts
 from llm.advisor_detached_deterministic_fixed_damage_attack_leaf import (
     materialize_detached_deterministic_fixed_damage_attack_leaf,
 )
+from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import (
+    materialize_detached_fixed_two_hit_per_hit_predictive_leaves,
+)
 from llm.advisor_exact_predictive_outcome_ledger import normalize_exact_predictive_outcome_ledger
 from llm.advisor_predictive_attack_authority import build_predictive_fixed_damage_attack_authority
+from llm.advisor_runtime_d0_fixed_two_hit_multi_hit_execution_authority import (
+    freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority,
+)
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
@@ -134,7 +140,48 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     if metadata.get("move_id") == "seismic-toss":
         return _seismic_toss_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, sturdy_survival_authority=sturdy_survival_authority)
+    if metadata.get("move_id") in {"double-hit", "double-kick"}:
+        return _fixed_two_hit_ledger(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor,
+            target=target, metadata_authority=metadata_authority,
+            sturdy_survival_authority=sturdy_survival_authority,
+        )
     return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority)
+
+
+def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Adapt already-validated canonical metadata to the fixed-two-hit owner.
+
+    This is only a tagged D0-local selection view.  It neither looks up move
+    data nor promotes the detached actor-neutral D0 to current authority.
+    """
+    metadata = _metadata_for_inputs(metadata_authority, None)
+    opposing_side = "opponent" if isinstance(actor, Mapping) and actor.get("side") == "self" else "self"
+    if metadata is None or actor != strategy_d0.get("decision_owner") or target != strategy_d0.get("active_owners", {}).get(opposing_side):
+        return _result("rejected", "fixed_two_hit_predictive_role_or_metadata_invalid", {})
+    action_id = f"attack:{metadata['move_id']}"
+    projection = {
+        "status": "resolved", "schema_version": "runtime-d0-selectable-move-metadata-authority-v1",
+        "candidate_id": action_id, "move_id": metadata["move_id"], "metadata": deepcopy(dict(metadata)),
+        "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "active_attacker": deepcopy(dict(strategy_d0["decision_owner"])),
+        "provenance": "strict_detached_pair_metadata_to_fixed_two_hit_d0_selection_view_v1",
+    }
+    action = {"action_id": action_id, "action_type": "attack", "identity": metadata["move_id"], "move_metadata_authority": projection}
+    execution = freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
+    )
+    if execution.get("status") != "resolved":
+        return _result(_status(execution), execution.get("reason", "fixed_two_hit_execution_authority_unavailable"), {})
+    leaves = materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
+        execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority,
+    )
+    if leaves.get("status") != "evaluable":
+        return _result(_status(leaves), leaves.get("reason", "fixed_two_hit_terminal_leaves_unavailable"), {})
+    return leaves
 
 
 def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:

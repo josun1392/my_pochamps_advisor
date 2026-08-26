@@ -166,13 +166,19 @@ def _base(d0: Any, action: Any, authority: Any) -> dict[str, Any] | None:
     if not isinstance(d0, Mapping) or not isinstance(action, Mapping) or not isinstance(authority, Mapping) or authority.get("status") != "resolved" or authority.get("schema_version") != EXECUTION_SCHEMA:
         return None
     expected = {"session_id": d0.get("session_id"), "source_runtime_fingerprint": d0.get("source_runtime_fingerprint"), "source_branch_fingerprint": d0.get("strategy_preview_fingerprint"), "decision_owner": d0.get("decision_owner"), "action_id": action.get("action_id")}
-    if any(authority.get(key) != value for key, value in expected.items()) or authority.get("attacker") != d0.get("active_owners", {}).get("self") or authority.get("target") != d0.get("active_owners", {}).get("opponent") or authority.get("hit_count") != 2:
+    attacker = d0.get("decision_owner")
+    target = d0.get("active_owners", {}).get("opponent" if isinstance(attacker, Mapping) and attacker.get("side") == "self" else "self")
+    if any(authority.get(key) != value for key, value in expected.items()) or authority.get("attacker") != attacker or authority.get("target") != target or authority.get("hit_count") != 2:
         return None
     metadata = authority.get("move_metadata_authority", {}).get("metadata") if isinstance(authority.get("move_metadata_authority"), Mapping) else None
     critical = authority.get("per_hit_critical_execution")
     if not isinstance(metadata, Mapping) or metadata.get("move_id") != action.get("identity") or not isinstance(critical, Mapping) or critical.get("semantics") != "independent_canonical_critical_roll_per_hit" or not isinstance(critical.get("per_hit_critical_probability"), Mapping):
         return None
-    return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "action_id": action["action_id"], "move_id": metadata["move_id"], "attacker": deepcopy(dict(authority["attacker"])), "target": deepcopy(dict(authority["target"])), "per_hit_critical_execution": deepcopy(dict(critical)), "execution_authority": deepcopy(dict(authority))}
+    attacker = authority["attacker"]
+    own_hp = d0.get("strategy_state", {}).get("active", {}).get(attacker["side"], {}).get("current_hp")
+    if not isinstance(own_hp, int) or isinstance(own_hp, bool) or own_hp < 0:
+        return None
+    return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "action_id": action["action_id"], "move_id": metadata["move_id"], "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(authority["target"])), "own_current_hp": own_hp, "per_hit_critical_execution": deepcopy(dict(critical)), "execution_authority": deepcopy(dict(authority))}
 
 
 def _single_hit_metadata(metadata: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -205,11 +211,36 @@ def _sturdy_state(authority: Mapping[str, Any] | None, *, consumed: bool) -> dic
 def _leaf(base: Mapping[str, Any], hit_state: str, probability: Fraction, events: tuple[Mapping[str, Any], ...], target_hp: int, sturdy: Mapping[str, Any]) -> dict[str, Any]:
     path = [hit_state]
     for index, event in enumerate(events, 1): path.extend((f"hit_{index}:{event['critical_state']}", f"hit_{index}:roll:{event['roll_index']}"))
-    return {"leaf_id": "/".join(path), "hit_state": hit_state, "probability": probability, "ordered_hits": tuple(deepcopy(dict(event)) for event in events), "consequences": {"target_final_hp": target_hp, "target_ko": target_hp == 0, "sturdy": deepcopy(dict(sturdy))}, "provenance": deepcopy(dict(base))}
+    # The fixed-two-hit authority deliberately owns no recoil, drain, or
+    # self-KO behavior.  The current attacker HP is therefore an exact
+    # unchanged consequence, but it must still be exposed in the common
+    # terminal-leaf shape used by detached pair composition.
+    return {
+        "leaf_id": "/".join(path), "candidate_id": f"attack:{base['move_id']}",
+        "action_type": "attack", "branch_path": tuple(path), "hit_state": hit_state,
+        "critical_state": "per_hit_independent", "damage_roll": "per_hit_independent",
+        "probability": probability, "ordered_hits": tuple(deepcopy(dict(event)) for event in events),
+        "consequences": {
+            "own_final_hp": base["own_current_hp"], "self_fainted": False,
+            "target_final_hp": target_hp, "target_ko": target_hp == 0,
+            "deterministic_stage_effect": None, "secondary": None,
+            "sturdy": deepcopy(dict(sturdy)),
+        },
+        "provenance": {
+            key: deepcopy(base[key])
+            for key in (
+                "session_id", "source_runtime_fingerprint", "source_branch_fingerprint",
+                "decision_owner", "attacker", "target", "move_id",
+            )
+        },
+    }
 
 
 def _serialize_leaf(value: Mapping[str, Any]) -> dict[str, Any]:
-    result = deepcopy(dict(value)); result["probability"] = _fd(result["probability"]); return result
+    result = deepcopy(dict(value)); result["probability"] = _fd(result["probability"])
+    for event in result["ordered_hits"]:
+        event["probability"] = _fd(event["probability"])
+    return result
 
 def _fd(value: Fraction) -> dict[str, int]: return {"numerator": value.numerator, "denominator": value.denominator}
 def _result(status: str, reason: str, base: Mapping[str, Any], **extra: Any) -> dict[str, Any]: return {"status": status, "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "reason": reason, **deepcopy(extra)}

@@ -103,7 +103,13 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
 
 
 def _action_leaf(leaf: Mapping[str, Any]) -> dict[str, Any]:
-    return {"leaf_id": leaf["leaf_id"], "branch_path": deepcopy(leaf.get("branch_path")), "probability": deepcopy(leaf.get("probability")), "hit_state": leaf.get("hit_state"), "critical_state": leaf.get("critical_state"), "damage_roll": deepcopy(leaf.get("damage_roll")), "consequences": deepcopy(leaf.get("consequences")), "provenance": deepcopy(leaf.get("provenance"))}
+    return {
+        "leaf_id": leaf["leaf_id"], "branch_path": deepcopy(leaf.get("branch_path")),
+        "probability": deepcopy(leaf.get("probability")), "hit_state": leaf.get("hit_state"),
+        "critical_state": leaf.get("critical_state"), "damage_roll": deepcopy(leaf.get("damage_roll")),
+        **({"ordered_hits": deepcopy(leaf["ordered_hits"])} if "ordered_hits" in leaf else {}),
+        "consequences": deepcopy(leaf.get("consequences")), "provenance": deepcopy(leaf.get("provenance")),
+    }
 
 
 def _order_probability(value: Mapping[str, Any]) -> Fraction | str:

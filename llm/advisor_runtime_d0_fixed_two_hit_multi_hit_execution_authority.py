@@ -36,8 +36,10 @@ def freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority(
     freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
     if freshness.get("status") != "current":
         return _result("rejected", freshness.get("reason", "stale_runtime_d0"), base)
-    own, opponent = strategy_d0.get("active_owners", {}).get("self"), strategy_d0.get("active_owners", {}).get("opponent")
-    if not _owner(own) or not _owner(opponent) or own != strategy_d0.get("decision_owner"):
+    active = strategy_d0.get("active_owners", {})
+    own = strategy_d0.get("decision_owner")
+    opponent = active.get("opponent" if isinstance(own, Mapping) and own.get("side") == "self" else "self")
+    if not _owner(own) or not _owner(opponent) or own != active.get(own["side"]):
         return _result("rejected", "runtime_fixed_two_hit_active_identity_unavailable", base)
     metadata_authority = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=action)
     common = {
