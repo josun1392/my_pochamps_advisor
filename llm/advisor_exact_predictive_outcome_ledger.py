@@ -18,6 +18,7 @@ _COMPONENTS = ("accuracy", "critical", "damage_roll", "secondary")
 _STAT_SECONDARY = "deterministic-predictive-probabilistic-target-stage-effect-uncertainty-v1"
 _STATUS_SECONDARY = "deterministic-predictive-thunderbolt-paralysis-uncertainty-v1"
 _SELF_SECONDARY = "deterministic-predictive-probabilistic-self-stage-effect-uncertainty-v1"
+_FLINCH_SECONDARY = "deterministic-predictive-iron-head-flinch-uncertainty-v1"
 
 
 def normalize_exact_predictive_outcome_ledger(
@@ -165,13 +166,15 @@ def _secondary_descendants(candidate: Mapping[str, Any], bound: Mapping[str, Any
             effect["hypothetical_stage_effect"] = deepcopy(branch["hypothetical_stage_effect"])
         if "hypothetical_target_condition" in branch:
             effect["hypothetical_target_condition"] = deepcopy(branch["hypothetical_target_condition"])
+        if "hypothetical_target_flinch" in branch:
+            effect["hypothetical_target_flinch"] = deepcopy(branch["hypothetical_target_flinch"])
         result.append(_leaf(candidate, bound, path + ((f"secondary:{branch['branch']}", _fraction_dict(factor)),), consequence, critical_state, roll, effect))
     return result
 
 
 def _secondary(consequence: Mapping[str, Any]) -> Mapping[str, Any] | None:
-    values = [consequence.get(key) for key in ("probabilistic_self_stage_effect_uncertainty", "probabilistic_target_stage_effect_uncertainty", "thunderbolt_paralysis_uncertainty") if consequence.get(key) is not None]
-    if len(values) != 1 or not isinstance(values[0], Mapping) or values[0].get("status") != "resolved" or values[0].get("schema_version") not in {_SELF_SECONDARY, _STAT_SECONDARY, _STATUS_SECONDARY}:
+    values = [consequence.get(key) for key in ("probabilistic_self_stage_effect_uncertainty", "probabilistic_target_stage_effect_uncertainty", "thunderbolt_paralysis_uncertainty", "iron_head_flinch_uncertainty") if consequence.get(key) is not None]
+    if len(values) != 1 or not isinstance(values[0], Mapping) or values[0].get("status") != "resolved" or values[0].get("schema_version") not in {_SELF_SECONDARY, _STAT_SECONDARY, _STATUS_SECONDARY, _FLINCH_SECONDARY}:
         return None
     return values[0]
 

@@ -43,6 +43,7 @@ from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_strict_critical_hit_probability_assessment,
     build_runtime_d0_strict_hit_probability_assessment,
     freeze_runtime_d0_thunderbolt_paralysis_authority,
+    freeze_runtime_d0_iron_head_flinch_authority,
     freeze_runtime_d0_probabilistic_self_stage_effect_authority,
     freeze_runtime_d0_probabilistic_target_stage_effect_authority,
     freeze_runtime_normal_formula_predictive_input,
@@ -328,6 +329,7 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         row = next(row for row in (normal, hit, crit) if row.get("status") != "resolved")
         return _result(_status(row), row.get("reason", "normal_formula_predictive_authority_unavailable"), {})
     thunderbolt = None
+    iron_head_flinch = None
     self_stage = None
     target_stage = None
     if metadata["move_id"] == "thunderbolt":
@@ -337,6 +339,13 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         )
         if thunderbolt.get("status") != "resolved":
             return _result(_status(thunderbolt), thunderbolt.get("reason", "thunderbolt_paralysis_authority_unavailable"), {})
+    if metadata["move_id"] == "iron-head":
+        iron_head_flinch = freeze_runtime_d0_iron_head_flinch_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            attacker=actor, target=target, move_metadata=metadata,
+        )
+        if iron_head_flinch.get("status") != "resolved":
+            return _result(_status(iron_head_flinch), iron_head_flinch.get("reason", "iron_head_flinch_authority_unavailable"), {})
     if metadata["move_id"] == "metal-claw":
         self_stage = freeze_runtime_d0_probabilistic_self_stage_effect_authority(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
@@ -360,11 +369,11 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     non = _normal_formula_facts(candidate, paired["non_critical_context"], own_hp, post_input, normal,
         probabilistic_self_stage_effect_authority=self_stage,
         probabilistic_target_stage_effect_authority=target_stage,
-        thunderbolt_paralysis_authority=thunderbolt, sturdy_survival_authority=sturdy_survival_authority)
+        thunderbolt_paralysis_authority=thunderbolt, iron_head_flinch_authority=iron_head_flinch, sturdy_survival_authority=sturdy_survival_authority)
     critical = _normal_formula_facts(candidate, paired["critical_context"], own_hp, post_input, normal,
         probabilistic_self_stage_effect_authority=self_stage,
         probabilistic_target_stage_effect_authority=target_stage,
-        thunderbolt_paralysis_authority=thunderbolt, sturdy_survival_authority=sturdy_survival_authority)
+        thunderbolt_paralysis_authority=thunderbolt, iron_head_flinch_authority=iron_head_flinch, sturdy_survival_authority=sturdy_survival_authority)
     if isinstance(sturdy_survival_authority, Mapping) and sturdy_survival_authority.get("status") == "ready":
         failed = next((fact.get("post_hit_failure") for fact in (non, critical) if isinstance(fact.get("post_hit_failure"), Mapping)), None)
         if failed is not None:
@@ -379,11 +388,11 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     if uncertainty.get("status") != "resolved": return _result(_status(uncertainty), uncertainty.get("reason", "hit_miss_uncertainty_unavailable"), {})
     bindings = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "attacker": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "move_id": metadata["move_id"]}
     return normalize_exact_predictive_outcome_ledger(candidate=candidate, predictive_consequence=uncertainty,
-        component_manifest={"accuracy": {"status": "resolved"}, "critical": {"status": "resolved"}, "damage_roll": {"status": "resolved"}, "secondary": {"status": "resolved" if any(item is not None for item in (thunderbolt, self_stage, target_stage)) else "not_applicable"}}, bindings=bindings)
+        component_manifest={"accuracy": {"status": "resolved"}, "critical": {"status": "resolved"}, "damage_roll": {"status": "resolved"}, "secondary": {"status": "resolved" if any(item is not None for item in (thunderbolt, iron_head_flinch, self_stage, target_stage)) else "not_applicable"}}, bindings=bindings)
 
 
 def _consequences(interval: Mapping[str, Any], facts: Mapping[str, Any]) -> dict[str, Any]:
-    return {"interval": interval, "post_hit": facts.get("post_hit"), "stage_effects": facts.get("stage_effects"), "damage_roll_uncertainty": facts.get("damage_roll_uncertainty"), "probabilistic_self_stage_effect_uncertainty": facts.get("probabilistic_self_stage_effect_uncertainty"), "probabilistic_target_stage_effect_uncertainty": facts.get("probabilistic_target_stage_effect_uncertainty"), "thunderbolt_paralysis_uncertainty": facts.get("thunderbolt_paralysis_uncertainty"), "guaranteed_facts": facts}
+    return {"interval": interval, "post_hit": facts.get("post_hit"), "stage_effects": facts.get("stage_effects"), "damage_roll_uncertainty": facts.get("damage_roll_uncertainty"), "probabilistic_self_stage_effect_uncertainty": facts.get("probabilistic_self_stage_effect_uncertainty"), "probabilistic_target_stage_effect_uncertainty": facts.get("probabilistic_target_stage_effect_uncertainty"), "thunderbolt_paralysis_uncertainty": facts.get("thunderbolt_paralysis_uncertainty"), "iron_head_flinch_uncertainty": facts.get("iron_head_flinch_uncertainty"), "guaranteed_facts": facts}
 
 def _base(d0: Any, own: Any, opponent: Any) -> dict[str, Any] | None:
     if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or not isinstance(own, Mapping) or own.get("action_type") != "attack" or not isinstance(own.get("action_id"), str): return None

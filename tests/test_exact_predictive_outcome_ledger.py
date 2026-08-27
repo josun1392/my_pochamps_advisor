@@ -99,6 +99,26 @@ def test_survival_required_thunderbolt_secondary_has_no_descendant_for_ko_roll()
     assert len(ko_roll) == 1 and ko_roll[0]["consequences"]["secondary"]["branch"] == "not_applicable"
 
 
+def test_iron_head_flinch_secondary_normalizes_exactly_without_erasing_roll_identity():
+    flinch = _secondary("deterministic-predictive-iron-head-flinch-uncertainty-v1", move="iron-head", per_roll=True)
+    flinch["damage_roll_leaves"] = tuple(
+        {
+            **row,
+            "secondary_branches": (
+                {"branch": "no_effect", "conditional_secondary_probability": {"numerator": 70, "denominator": 100}},
+                {"branch": "effect", "conditional_secondary_probability": {"numerator": 30, "denominator": 100}, "hypothetical_target_flinch": {"schema_version": "detached-hypothetical-immediate-flinch-v1", "state": "flinched"}},
+            ),
+        }
+        for row in flinch["damage_roll_leaves"]
+    )
+    result = normalize_exact_predictive_outcome_ledger(candidate=_candidate("iron-head"), predictive_consequence=_hit("iron-head", secondary=("iron_head_flinch_uncertainty", flinch), probability=100), component_manifest=_manifest(secondary="resolved"), bindings=_bindings("iron-head"))
+    assert result["status"] == "evaluable"
+    assert result["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    effects = [leaf for leaf in result["terminal_leaves"] if leaf["consequences"]["secondary"] and leaf["consequences"]["secondary"]["branch"] == "effect"]
+    assert len(effects) == 16
+    assert effects[0]["consequences"]["secondary"]["hypothetical_target_flinch"]["state"] == "flinched"
+
+
 def test_missing_manifest_and_partial_or_stale_tree_fail_closed_without_renormalization():
     assert normalize_exact_predictive_outcome_ledger(candidate=_candidate(), predictive_consequence=_hit(), component_manifest={"accuracy": {"status": "resolved"}}, bindings=_bindings())["status"] == "incomplete"
     partial = _hit(); partial["branches"] = (partial["branches"][0],)

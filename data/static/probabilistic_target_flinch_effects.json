@@ -1,0 +1,19 @@
+{
+  "schema_version": "probabilistic-target-flinch-effects-catalog-v1",
+  "source": "canonical-maintained-gen9-mechanics-catalog-v1",
+  "rules": [
+    {
+      "rule_id": "iron-head-target-flinch-v1",
+      "move_id": "iron-head",
+      "category": "physical",
+      "target_scope": "selected-pokemon",
+      "effect_chance": 30,
+      "effect": {"owner": "target", "state": "flinch"},
+      "conditions": {
+        "requires_successful_damaging_hit": true,
+        "blocked_by_substitute": true,
+        "target_must_survive": true
+      }
+    }
+  ]
+}

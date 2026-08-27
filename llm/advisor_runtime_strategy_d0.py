@@ -36,6 +36,9 @@ from advisor.probabilistic_target_stage_effect_capabilities import (
 from advisor.probabilistic_target_status_effect_capabilities import (
     resolve_probabilistic_target_status_effect_capability,
 )
+from advisor.probabilistic_target_flinch_effect_capabilities import (
+    resolve_probabilistic_target_flinch_effect_capability,
+)
 from advisor.critical_hit_capabilities import resolve_critical_hit_capabilities
 from advisor.strict_critical_hit_probability import assess_strict_critical_hit_probability
 from advisor.strict_hit_probability import assess_strict_deterministic_hit_probability
@@ -502,6 +505,51 @@ def freeze_runtime_d0_thunderbolt_paralysis_authority(
     }
     if status != "resolved" and isinstance(reason, str):
         result["reason"] = reason
+    return result
+
+
+def freeze_runtime_d0_iron_head_flinch_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Freeze the exact catalogued Iron Head flinch secondary inputs."""
+    move_id = move_metadata.get("move_id") if isinstance(move_metadata, Mapping) else None
+    active = strategy_d0.get("active_owners") if isinstance(strategy_d0, Mapping) else None
+    if (
+        not _valid_d0(strategy_d0) or move_id != "iron-head" or not _owner(attacker) or not _owner(target)
+        or attacker != strategy_d0["decision_owner"] or not isinstance(active, Mapping)
+        or active.get(attacker["side"]) != dict(attacker) or active.get(target["side"]) != dict(target)
+        or attacker["side"] == target["side"]
+    ):
+        return _result("rejected", "runtime_iron_head_flinch_identity_or_move_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    raw_attacker = _roster(state, attacker["side"]).get(attacker["slot_index"])
+    raw_target = _roster(state, target["side"]).get(target["slot_index"])
+    if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_attacker, attacker) or not _same_runtime_owner(raw_target, target):
+        return _result("rejected", "runtime_iron_head_flinch_identity_mismatch")
+    target_condition = freeze_runtime_current_condition_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
+    source = _runtime_probabilistic_target_status_source_authority(
+        state=state, raw_attacker=raw_attacker, raw_target=raw_target,
+        attacker=attacker, target=target, target_condition=target_condition,
+    )
+    capability = resolve_probabilistic_target_flinch_effect_capability(move=move_metadata, source_authority=source)
+    substitute = _runtime_target_substitute_authority(substitute_state(state, target))
+    status, reason = capability.get("status", "rejected"), capability.get("reason")
+    if target_condition.get("status") == "rejected": status, reason = "rejected", target_condition.get("reason", "runtime_current_condition_authority_unavailable")
+    if substitute.get("status") != "known" and status == "resolved": status, reason = "incomplete", "target_substitute_unknown"
+    result = {
+        "status": status, "schema_version": "runtime-d0-iron-head-flinch-authority-v1",
+        "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move": deepcopy(dict(move_metadata)),
+        "source_authority": deepcopy(source), "capability_resolution": deepcopy(capability),
+        "current_target_condition_authority": deepcopy(target_condition), "target_substitute_authority": deepcopy(substitute),
+        "provenance": "runtime_battle_state_v1_to_detached_iron_head_flinch_authority_v1",
+    }
+    if status != "resolved" and isinstance(reason, str): result["reason"] = reason
     return result
 
 
