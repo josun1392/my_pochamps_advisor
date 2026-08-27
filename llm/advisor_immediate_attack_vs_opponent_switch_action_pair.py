@@ -92,6 +92,18 @@ def _switch_first_predictive_view(strategy_d0: Mapping[str, Any], runtime_snapsh
         return _result("incomplete", "switch_in_hypothetical_stage_authority_unknown", {})
     target["stat_stages"] = deepcopy(dict(stage_values))
     target["detached_switch_first_hypothetical_stage_authority"] = True
+    trace = hypothetical.get("trace_ability_overlay")
+    if isinstance(trace, Mapping) and trace.get("status") == "known":
+        if trace.get("owner") != incoming or trace.get("before") != "trace" or not isinstance(trace.get("after"), str) or not trace["after"] or target.get("current_ability") != "trace":
+            return _result("rejected", "switch_in_trace_overlay_binding_mismatch", {})
+        target["current_ability"] = trace["after"]
+        target["current_ability_provenance"] = {
+            "event_kind": "current_ability_observed", "trust": "user_confirmed_observation", "turn_number": 1,
+            "hypothetical_provenance": "exact_detached_switch_entry_trace",
+        }
+        target["detached_switch_first_hypothetical_trace_authority"] = True
+    elif isinstance(trace, Mapping) and trace.get("status") not in {"not_applicable"}:
+        return _result("incomplete", "switch_in_trace_overlay_unknown", {})
     overlay = hypothetical.get("own_attack_stage_overlay")
     if isinstance(overlay, Mapping) and overlay.get("status") == "known":
         own_side = synthetic.get("self_side") if isinstance(synthetic, Mapping) else None

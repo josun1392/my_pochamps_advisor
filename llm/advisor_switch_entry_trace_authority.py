@@ -11,7 +11,7 @@ _TRACEABILITY = frozenset({"traceable", "untraceable", "unknown"})
 
 def build_switch_entry_trace_authority(*, session_id: str, source: Mapping[str, Any], target: Mapping[str, Any], target_ability: str = "unknown", traceability: str = "unknown") -> dict[str, Any]:
     source_identity, target_identity = _identity(source), _identity(target)
-    if (not isinstance(session_id, str) or not session_id or source_identity["side"] != "self" or target_identity["side"] != "opponent" or not isinstance(target_ability, str) or not target_ability or traceability not in _TRACEABILITY or (traceability != "unknown" and target_ability == "unknown")):
+    if (not isinstance(session_id, str) or not session_id or source_identity["side"] == target_identity["side"] or not isinstance(target_ability, str) or not target_ability or traceability not in _TRACEABILITY or (traceability != "unknown" and target_ability == "unknown")):
         raise ValueError("invalid_switch_entry_trace_authority")
     return deepcopy({"schema_version": SCHEMA_VERSION, "session_id": session_id, "source": source_identity, "target": target_identity, "target_ability": target_ability, "traceability": traceability})
 

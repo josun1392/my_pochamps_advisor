@@ -11,6 +11,7 @@ from llm.advisor_identity_groundedness import build_groundedness
 from llm.advisor_prospective_entry_authority import build_prospective_entry_interactions
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority
+from llm.advisor_switch_entry_trace_authority import build_switch_entry_trace_authority
 
 
 def _manager(*, known_hp=True):
@@ -288,6 +289,101 @@ def test_download_tie_bounds_hazard_ko_and_unknown_authority_fail_closed():
     manager = _manager()
     state = _toxic_ready(manager.read_state()["state"], layers=0, sticky_web="present")
     state["opponent_side"]["pokemon"][1]["stat_stages"]["speed"] = "unknown"
+    d0, snapshot, switch = _inputs(manager, state)
+    assert materialize_detached_opponent_switch_in_intermediate_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
+        selected_response_action_id="opponent_switch:s:1:bench",
+    )["status"] == "incomplete"
+
+
+def test_trace_projects_only_an_identity_bound_hypothetical_copied_ability():
+    manager = _manager()
+    state = manager.read_state()["state"]
+    state["opponent_side"]["pokemon"][1]["current_ability"] = "trace"
+    state["switch_entry_trace_authority"] = build_switch_entry_trace_authority(
+        session_id="s", source={"side": "opponent", "slot_index": 1, "pokemon_id": "bench"},
+        target={"side": "self", "slot_index": 0, "pokemon_id": "self"},
+        target_ability="pressure", traceability="traceable",
+    )
+    d0, snapshot, switch = _inputs(manager, state)
+    result = materialize_detached_opponent_switch_in_intermediate_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
+        selected_response_action_id="opponent_switch:s:1:bench",
+    )
+    assert result["status"] == "resolved", result.get("reason")
+    hypothetical = result["hypothetical_switch_in_state"]
+    assert hypothetical["ability_authority"] == {
+        "status": "known", "value": "pressure", "provenance": "detached_opponent_switch_in_trace_entry_v1",
+    }
+    assert hypothetical["trace_ability_overlay"]["owner"]["pokemon_id"] == "bench"
+    assert hypothetical["trace_ability_overlay"]["copied_from"]["pokemon_id"] == "self"
+    assert snapshot["state"]["opponent_side"]["pokemon"][1]["current_ability"] == "trace"
+
+
+def test_trace_untraceable_and_foreign_source_follow_strict_resolver_semantics():
+    manager = _manager()
+    state = manager.read_state()["state"]
+    state["opponent_side"]["pokemon"][1]["current_ability"] = "trace"
+    state["switch_entry_trace_authority"] = build_switch_entry_trace_authority(
+        session_id="s", source={"side": "opponent", "slot_index": 1, "pokemon_id": "bench"},
+        target={"side": "self", "slot_index": 0, "pokemon_id": "self"},
+        target_ability="multitype", traceability="untraceable",
+    )
+    d0, snapshot, switch = _inputs(manager, state)
+    untraceable = materialize_detached_opponent_switch_in_intermediate_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
+        selected_response_action_id="opponent_switch:s:1:bench",
+    )
+    assert untraceable["status"] == "resolved"
+    assert untraceable["hypothetical_switch_in_state"]["entry_consequence"]["trace_consequence"]["outcome"] == "ability_untraceable"
+    assert untraceable["hypothetical_switch_in_state"]["ability_authority"]["value"] == "trace"
+
+    state["switch_entry_trace_authority"] = build_switch_entry_trace_authority(
+        session_id="s", source={"side": "opponent", "slot_index": 9, "pokemon_id": "foreign"},
+        target={"side": "self", "slot_index": 0, "pokemon_id": "self"},
+        target_ability="pressure", traceability="traceable",
+    )
+    d0, snapshot, switch = _inputs(manager, state)
+    foreign = materialize_detached_opponent_switch_in_intermediate_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
+        selected_response_action_id="opponent_switch:s:1:bench",
+    )
+    assert foreign["status"] == "rejected"
+
+
+def test_trace_does_not_activate_after_entry_hazard_ko_and_unknown_copy_fails_closed():
+    manager = _manager()
+    state = manager.read_state()["state"]
+    state["opponent_side"]["pokemon"][1].update(current_hp=1, max_hp=100, fainted=False, current_ability="trace")
+    state["switch_hazard_context"] = build_switch_hazard_context(
+        session_id="s", affected_side="opponent", stealth_rock="absent", spikes_layers=3,
+        toxic_spikes_layers=0, sticky_web="absent",
+    )
+    state["opponent_side"]["pokemon"][1]["prospective_groundedness_context"] = build_groundedness(
+        session_id="s", side="opponent", slot_index=1, pokemon_id="bench", status="grounded",
+    )
+    state["switch_entry_trace_authority"] = build_switch_entry_trace_authority(
+        session_id="s", source={"side": "opponent", "slot_index": 1, "pokemon_id": "bench"},
+        target={"side": "self", "slot_index": 0, "pokemon_id": "self"},
+        target_ability="pressure", traceability="traceable",
+    )
+    d0, snapshot, switch = _inputs(manager, state)
+    ko = materialize_detached_opponent_switch_in_intermediate_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
+        selected_response_action_id="opponent_switch:s:1:bench",
+    )
+    assert ko["status"] == "unsupported"
+    assert ko["entry_consequence"]["trace_consequence"]["outcome"] == "not_activated_hazard_ko"
+
+    state["switch_hazard_context"] = build_switch_hazard_context(
+        session_id="s", affected_side="opponent", stealth_rock="absent", spikes_layers=0,
+        toxic_spikes_layers=0, sticky_web="absent",
+    )
+    state["opponent_side"]["pokemon"][1]["current_hp"] = 80
+    state["switch_entry_trace_authority"] = build_switch_entry_trace_authority(
+        session_id="s", source={"side": "opponent", "slot_index": 1, "pokemon_id": "bench"},
+        target={"side": "self", "slot_index": 0, "pokemon_id": "self"},
+    )
     d0, snapshot, switch = _inputs(manager, state)
     assert materialize_detached_opponent_switch_in_intermediate_authority(
         strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,

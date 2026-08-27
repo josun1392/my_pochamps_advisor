@@ -13,6 +13,7 @@ from llm.advisor_substitute import update_substitute_state_context
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority
 from llm.advisor_switch_entry_sturdy_authority import build_switch_entry_sturdy_authority
+from llm.advisor_switch_entry_trace_authority import build_switch_entry_trace_authority
 
 
 MOVE = {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}
@@ -88,6 +89,15 @@ def _sturdy_ready(state, *, applicability="applicable"):
     return state
 
 
+def _trace_ready(state, *, copied_ability="pressure", traceability="traceable"):
+    state["opponent_side"]["pokemon"][1]["current_ability"] = "trace"
+    state["switch_entry_trace_authority"] = build_switch_entry_trace_authority(
+        session_id=state["session_id"], source=_owner(state, "opponent", 1), target=_owner(state, "self"),
+        target_ability=copied_ability, traceability=traceability,
+    )
+    return state
+
+
 def _water_gun_action(action):
     result = deepcopy(action)
     result["action_id"] = "attack:water-gun"
@@ -118,6 +128,31 @@ def test_switch_first_pair_uses_incoming_target_and_preserves_exact_attack_leave
     assert all(row["attack_leaf"]["damage_roll"] is not None for row in result["terminal_branches"] if row["attack_leaf"]["hit_state"] == "hit")
     assert result["switch_in_authority"]["schema_version"] == SWITCH_IN_SCHEMA
     assert snapshot == before and state["opponent_side"]["active_slot_index"] == 0
+
+
+def test_trace_switch_in_copies_only_into_the_private_attack_view_and_preserves_pair_mass():
+    state = _trace_ready(_state(), copied_ability="pressure")
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    before = deepcopy(snapshot)
+    pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    trace = pair["switch_in_authority"]["hypothetical_switch_in_state"]["trace_ability_overlay"]
+    assert trace["after"] == "pressure" and trace["owner"]["pokemon_id"] == "bench"
+    assert snapshot == before
+
+
+def test_trace_with_unsupported_immediate_ability_interaction_fails_closed():
+    state = _trace_ready(_state(), copied_ability="water-absorb")
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=_water_gun_action(action),
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert pair["status"] in {"incomplete", "unsupported"}
 
 
 def test_unknown_hazards_and_stale_or_unknown_switches_fail_closed():

@@ -182,6 +182,11 @@ def evaluate_download_entry(*, target: Mapping[str, Any], damage: Mapping[str, A
     return _evaluate_download(target=target, damage=damage, authority=authority)
 
 
+def evaluate_trace_entry(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Expose the strict Trace resolver for detached switch-in projection."""
+    return _evaluate_trace(target=target, damage=damage, authority=authority)
+
+
 def _evaluate_trace(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
     ability = _authority(target, "ability_authority")
     if not _known_authority(ability):

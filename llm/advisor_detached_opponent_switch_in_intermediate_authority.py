@@ -9,9 +9,10 @@ from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_current_stage_authority
 from llm.advisor_runtime_d0_opponent_switch_target_combat_authority import freeze_runtime_d0_opponent_switch_target_combat_authority
 from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
-from llm.advisor_switch_entry_effects import evaluate_download_entry, evaluate_entry_weather, evaluate_intimidate_entry, evaluate_sticky_web_entry, evaluate_toxic_spikes_entry, evaluate_sturdy_entry
+from llm.advisor_switch_entry_effects import evaluate_download_entry, evaluate_entry_weather, evaluate_intimidate_entry, evaluate_sticky_web_entry, evaluate_toxic_spikes_entry, evaluate_sturdy_entry, evaluate_trace_entry
 from llm.advisor_switch_entry_intimidate_authority import normalize_switch_entry_intimidate_authority
 from llm.advisor_switch_entry_download_authority import normalize_switch_entry_download_authority
+from llm.advisor_switch_entry_trace_authority import normalize_switch_entry_trace_authority
 from llm.advisor_switch_entry_sturdy_authority import normalize_switch_entry_sturdy_authority
 from llm.advisor_switch_hazard_authority import normalize_switch_hazard_context
 from llm.advisor_prospective_entry_authority import normalize_prospective_entry_interactions
@@ -57,6 +58,7 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
         runtime_snapshot=runtime_snapshot, own_actor=base["own_actor"],
         entry_intimidate_authority=state.get("switch_entry_intimidate_authority"),
         entry_download_authority=state.get("switch_entry_download_authority"),
+        entry_trace_authority=state.get("switch_entry_trace_authority"),
         entry_sturdy_authority=state.get("switch_entry_sturdy_authority"),
         field_state_context=_field_weather_context(state),
     )
@@ -66,6 +68,15 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
     if post_hp == 0:
         return _result("unsupported", "replacement_required_after_switch_entry_ko", base, selected_response_action_id=selected_response_action_id, target_owner=target, entry_hazard_context=hazards, entry_consequence=entry)
     fields = _fields(current)
+    trace = entry["trace_consequence"]
+    if trace.get("outcome") == "ability_copied":
+        copied = trace.get("copied_ability")
+        if not isinstance(copied, str) or not copied:
+            return _result("incomplete", "switch_in_trace_copied_ability_unknown", base, selected_response_action_id=selected_response_action_id, target_owner=target)
+        fields["ability"] = {
+            "status": "known", "value": copied,
+            "provenance": "detached_opponent_switch_in_trace_entry_v1",
+        }
     toxic = entry["toxic_spikes_consequence"]
     if toxic.get("outcome") == "status_applied":
         fields["condition"] = {
@@ -106,6 +117,7 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
         "final_stats_authority": fields["final_stats"],
         "stage_authority": fields["stages"],
         "incoming_offensive_stage_overlay": _incoming_offensive_stage_overlay(download, target),
+        "trace_ability_overlay": _trace_ability_overlay(trace, target, base["own_actor"]),
         "own_attack_stage_overlay": deepcopy(own_attack_overlay),
         "sturdy_survival_authority": _sturdy_survival_authority(
             entry["sturdy_consequence"], target, base, post_hp, hp["maximum_hp"],
@@ -162,7 +174,7 @@ def _hazards(state: Any, session_id: str) -> dict:
 def _entry_consequence(
     hazards: Mapping[str, Any], current: Mapping[str, Any], hp: Mapping[str, Any], target_owner: Mapping[str, Any],
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_actor: Mapping[str, Any],
-    entry_intimidate_authority: Any, entry_download_authority: Any, entry_sturdy_authority: Any, field_state_context: Mapping[str, Any] | None,
+    entry_intimidate_authority: Any, entry_download_authority: Any, entry_trace_authority: Any, entry_sturdy_authority: Any, field_state_context: Mapping[str, Any] | None,
 ) -> dict:
     if not isinstance(hazards, Mapping) or any(hazards.get(key) == "unknown" for key in ("stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web")):
         return {"status": "incomplete", "reason": "switch_entry_hazards_unknown"}
@@ -204,6 +216,13 @@ def _entry_consequence(
     if download.get("status") != "complete":
         status = "rejected" if download.get("status") == "rejected" else "incomplete"
         return {"status": status, "reason": str(download.get("reason") or "download_authority_incomplete")}
+    trace = _trace_consequence(
+        authority_value=entry_trace_authority, target=target, damage=evaluated,
+        incoming_owner=target_owner, own_actor=own_actor,
+    )
+    if trace.get("status") != "complete":
+        status = "rejected" if trace.get("status") == "rejected" else "incomplete"
+        return {"status": status, "reason": str(trace.get("reason") or "trace_authority_incomplete")}
     sturdy = _sturdy_consequence(
         authority_value=entry_sturdy_authority, target=target, damage=evaluated,
         incoming_owner=target_owner, own_actor=own_actor,
@@ -224,6 +243,7 @@ def _entry_consequence(
         "sticky_web_consequence": deepcopy(sticky),
         "intimidate_consequence": deepcopy(intimidate),
         "download_consequence": deepcopy(download),
+        "trace_consequence": deepcopy(trace),
         "sturdy_consequence": deepcopy(sturdy),
         "weather_consequence": deepcopy(weather),
         "own_attack_stage_overlay": _own_attack_stage_overlay(intimidate, own_actor),
@@ -302,6 +322,24 @@ def _download_consequence(*, authority_value: Any, target: Mapping[str, Any], da
     return evaluate_download_entry(target=target, damage=damage, authority=authority)
 
 
+def _trace_consequence(*, authority_value: Any, target: Mapping[str, Any], damage: Mapping[str, Any], incoming_owner: Mapping[str, Any], own_actor: Mapping[str, Any]) -> dict:
+    ability = target.get("ability_authority")
+    if not isinstance(ability, Mapping) or ability.get("status") != "known":
+        return {"status": "insufficient_context", "reason": "incoming_ability_unknown"}
+    if ability.get("value") != "trace":
+        return {"status": "complete", "outcome": "not_applicable"}
+    if authority_value is None:
+        return {"status": "insufficient_context", "reason": "trace_authority_unknown"}
+    authority = normalize_switch_entry_trace_authority(
+        authority_value, session_id=incoming_owner["session_id"], target=own_actor,
+    )
+    if authority is None:
+        return {"status": "rejected", "reason": "trace_authority_binding_mismatch"}
+    if not _same_identity(authority.get("source"), incoming_owner):
+        return {"status": "rejected", "reason": "trace_source_identity_mismatch"}
+    return evaluate_trace_entry(target=target, damage=damage, authority=authority)
+
+
 def _sturdy_survival_authority(sturdy: Mapping[str, Any], incoming_owner: Mapping[str, Any], base: Mapping[str, Any], post_hp: int, maximum_hp: int) -> dict:
     bindings = {
         "schema_version": "detached-switch-in-sturdy-survival-authority-v1",
@@ -345,6 +383,21 @@ def _incoming_offensive_stage_overlay(download: Mapping[str, Any], incoming_owne
     if stat not in {"attack", "special-attack"} or not isinstance(before, int) or isinstance(before, bool) or not isinstance(after, int) or isinstance(after, bool) or not -6 <= before <= 6 or not -6 <= after <= 6:
         return {"status": "unknown"}
     return {"status": "known", "owner": deepcopy(dict(incoming_owner)), "stat": stat, "before": before, "after": after, "outcome": outcome, "provenance": "detached_opponent_switch_in_download_entry_v1"}
+
+
+def _trace_ability_overlay(trace: Mapping[str, Any], incoming_owner: Mapping[str, Any], copied_source: Mapping[str, Any]) -> dict:
+    if not isinstance(trace, Mapping) or trace.get("status") != "complete":
+        return {"status": "unknown"}
+    if trace.get("outcome") in {"not_applicable", "ability_untraceable", "not_activated_hazard_ko"}:
+        return {"status": "not_applicable", "outcome": trace.get("outcome")}
+    copied = trace.get("copied_ability")
+    if trace.get("outcome") != "ability_copied" or not isinstance(copied, str) or not copied or not _same_identity(trace.get("opponent_identity"), copied_source):
+        return {"status": "unknown"}
+    return {
+        "status": "known", "owner": deepcopy(dict(incoming_owner)), "copied_from": deepcopy(dict(copied_source)),
+        "before": "trace", "after": copied, "outcome": "ability_copied",
+        "provenance": "detached_opponent_switch_in_trace_entry_v1",
+    }
 
 
 def _field_weather_context(state: Any) -> dict | None:
