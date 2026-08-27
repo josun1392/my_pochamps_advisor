@@ -70,7 +70,7 @@ def materialize_detached_opponent_response_profile(
         if kind == "move":
             if action.get("usability", {}).get("status") != "known_usable":
                 return _result("rejected", "selectable_move_response_usability_invalid", base)
-            pair_builder = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair if own_action.get("identity") in {"bullet-seed", "rock-blast", "population-bomb"} else materialize_immediate_move_vs_move_action_pair
+            pair_builder = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair if own_action.get("identity") in {"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"} else materialize_immediate_move_vs_move_action_pair
             pair = pair_builder(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own_action,
                                 opponent_action=action, action_order_authority=action_order_authorities[action_id])
         else:
