@@ -41,6 +41,9 @@ def materialize_detached_predictive_intermediate_state(
     stage_effects = _stage_effects(terminal_leaf, consequences)
     if isinstance(stage_effects, str):
         return _result("rejected", stage_effects, {**base, **bound})
+    flinch = _flinch_cancellation_consequence(consequences, target)
+    if isinstance(flinch, str):
+        return _result("rejected", flinch, {**base, **bound})
     state = {
         "schema_version": SCHEMA_VERSION,
         "status": "resolved",
@@ -67,8 +70,9 @@ def materialize_detached_predictive_intermediate_state(
                 "target_can_act": target_hp > 0,
                 "rule": "second_selected_action_cancelled_if_its_actor_is_fainted",
             },
+            "flinch_cancellation": flinch,
             "other_cancellation_mechanics": {
-                "status": "unsupported", "reason": "flinch_disable_lock_and_related_cancellation_not_materialized_v1",
+                "status": "unsupported", "reason": "disable_lock_and_related_cancellation_not_materialized_v1",
             },
         },
         "provenance": "exact_terminal_leaf_to_detached_intermediate_state_v1",
@@ -171,6 +175,17 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
         condition = secondary.get("hypothetical_target_condition")
         if isinstance(condition, Mapping): result.append({"owner": "target", "hypothetical_target_condition": condition})
     return tuple(deepcopy(dict(effect)) for effect in result)
+
+
+def _flinch_cancellation_consequence(consequences: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any] | str:
+    """Expose only an exact terminal-leaf flinch marker for the pending action."""
+    secondary = consequences.get("secondary")
+    if not isinstance(secondary, Mapping) or "hypothetical_target_flinch" not in secondary:
+        return {"status": "resolved", "affected_owner": deepcopy(dict(target)), "state": "not_flinched", "provenance": "no_exact_first_action_flinch_consequence"}
+    marker = secondary.get("hypothetical_target_flinch")
+    if secondary.get("branch") != "effect" or not isinstance(marker, Mapping) or marker.get("schema_version") != "detached-hypothetical-immediate-flinch-v1" or marker.get("state") != "flinched" or marker.get("provenance") != "iron_head_successful_damage_roll_secondary_v1":
+        return "terminal_leaf_flinch_consequence_invalid"
+    return {"status": "resolved", "affected_owner": deepcopy(dict(target)), "state": "flinched", "provenance": "exact_terminal_leaf_iron_head_flinch_secondary"}
 
 
 def _unchanged_authority(d0: Mapping[str, Any]) -> dict[str, Any]:

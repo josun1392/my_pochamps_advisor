@@ -224,6 +224,15 @@ def _materialize_order(
         if intermediate.get("status") != "resolved": return _result(_status(intermediate), intermediate.get("reason", "intermediate_state_unavailable"), base)
         if _fainted(intermediate, second_actor):
             branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan)); continue
+        flinch = _pending_second_action_flinch(intermediate, second_actor)
+        if isinstance(flinch, str):
+            return _result("rejected", flinch, base, first_leaf_id=leaf["leaf_id"])
+        if flinch:
+            branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan, {
+                "execution_branch_id": "second_action:flinched", "state": "cancelled_due_to_flinch",
+                "conditional_probability": _fd(Fraction(1, 1)), "reason": "second_action_cancelled_due_to_flinch",
+            }))
+            continue
         authority = freeze_detached_intermediate_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             intermediate_state=intermediate, actor=second_actor,
             target=base["opponent_actor"] if second_actor == base["own_actor"] else base["own_actor"], move_metadata_authority=second_meta)
@@ -441,6 +450,14 @@ def _metadata_for_inputs(authority: Any, inputs: Mapping[str, Any] | None) -> Ma
     return deepcopy(dict(metadata))
 def _fainted(state: Mapping[str, Any], owner: Mapping[str, Any]) -> bool:
     row = state.get("active", {}).get(owner.get("side"), {}) if isinstance(state.get("active"), Mapping) else {}; return isinstance(row, Mapping) and row.get("hypothetical_fainted", {}).get("value") is True
+def _pending_second_action_flinch(state: Mapping[str, Any], actor: Mapping[str, Any]) -> bool | str:
+    compatibility = state.get("second_action_compatibility") if isinstance(state, Mapping) else None
+    flinch = compatibility.get("flinch_cancellation") if isinstance(compatibility, Mapping) else None
+    if not isinstance(flinch, Mapping) or flinch.get("status") != "resolved" or flinch.get("affected_owner") != actor:
+        return "intermediate_flinch_cancellation_authority_invalid"
+    if flinch.get("state") == "not_flinched": return False
+    if flinch.get("state") == "flinched" and flinch.get("provenance") == "exact_terminal_leaf_iron_head_flinch_secondary": return True
+    return "intermediate_flinch_cancellation_state_invalid"
 def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], intermediate: Mapping[str, Any], second: Mapping[str, Any] | None, second_actor: Mapping[str, Any], order_plan: Mapping[str, Any], execution_branch: Mapping[str, Any] | None = None) -> dict[str, Any]:
     first_p = _fraction(first["probability"]); second_p = Fraction(1, 1) if second is None else _fraction(second["probability"])
     order_p = order_plan["probability"]
@@ -449,7 +466,7 @@ def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], inter
     path = f"{first['leaf_id']}/" + (f"second_{cancellation}" if second is None else f"{second['leaf_id']}")
     source_branch = order_plan.get("source_branch")
     second_action = {"state": cancellation if second is None else "executed", "actor": deepcopy(dict(second_actor)), "conditional_probability": _fd(execution_p * second_p), **({"reason": f"second_action_cancelled_due_to_{cancellation.removeprefix('cancelled_due_to_')}"} if second is None else {"leaf": deepcopy(dict(second))})}
-    if execution_branch is not None and execution_p != Fraction(1, 1):
+    if execution_branch is not None and (execution_p != Fraction(1, 1) or execution_branch.get("state") != "executed"):
         second_action["execution_branch"] = deepcopy(dict(execution_branch))
         second_action["execution_conditional_probability"] = _fd(execution_p)
         if second is not None: second_action["mechanical_leaf_probability"] = _fd(second_p)
@@ -457,12 +474,14 @@ def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], inter
 
 
 def _execution_branch(value: Any) -> bool:
-    if not isinstance(value, Mapping) or value.get("state") not in {"executed", "cancelled_due_to_paralysis"} or not isinstance(value.get("execution_branch_id"), str): return False
+    if not isinstance(value, Mapping) or value.get("state") not in {"executed", "cancelled_due_to_paralysis", "cancelled_due_to_flinch"} or not isinstance(value.get("execution_branch_id"), str): return False
     try: probability = _fraction(value["conditional_probability"])
     except (KeyError, TypeError, ValueError, ZeroDivisionError): return False
     if probability <= 0: return False
     if value["state"] == "cancelled_due_to_paralysis":
         return probability == Fraction(1, 4) and value.get("reason") == "second_action_cancelled_due_to_paralysis"
+    if value["state"] == "cancelled_due_to_flinch":
+        return probability == Fraction(1, 1) and value.get("execution_branch_id") == "second_action:flinched" and value.get("reason") == "second_action_cancelled_due_to_flinch"
     return probability in {Fraction(1, 1), Fraction(3, 4)}
 def _fraction(value: Mapping[str, Any]) -> Fraction: return Fraction(value["numerator"], value["denominator"])
 def _fd(value: Fraction) -> dict[str, int]: return {"numerator": value.numerator, "denominator": value.denominator}

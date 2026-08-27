@@ -49,9 +49,11 @@ def _snapshot(state):
 
 
 def _metadata(move):
-    metadata = {"move_id": move, "category": "special" if move in {"water-gun", "thunderbolt", "shadow-ball", "acid-spray"} else "physical", "power": 90 if move == "thunderbolt" else 80 if move == "shadow-ball" else 50 if move == "metal-claw" else 50 if move == "flame-charge" else 40 if move == "acid-spray" else 70 if move == "facade" else 40, "type": "electric" if move == "thunderbolt" else "ghost" if move == "shadow-ball" else "steel" if move == "metal-claw" else "fire" if move == "flame-charge" else "poison" if move == "acid-spray" else "water" if move == "water-gun" else "normal", "accuracy": 100, "priority": 0}
+    metadata = {"move_id": move, "category": "special" if move in {"water-gun", "thunderbolt", "shadow-ball", "acid-spray"} else "physical", "power": 90 if move == "thunderbolt" else 80 if move in {"shadow-ball", "iron-head"} else 50 if move == "metal-claw" else 50 if move == "flame-charge" else 40 if move == "acid-spray" else 70 if move == "facade" else 40, "type": "electric" if move == "thunderbolt" else "ghost" if move == "shadow-ball" else "steel" if move in {"metal-claw", "iron-head"} else "fire" if move == "flame-charge" else "poison" if move == "acid-spray" else "water" if move == "water-gun" else "normal", "accuracy": 100, "priority": 0}
     if move == "thunderbolt":
         metadata.update(target="selected-pokemon", effect_chance=10, ailment="paralysis")
+    if move == "iron-head":
+        metadata.update(target="selected-pokemon", effect_chance=30, ailment="flinch")
     if move == "metal-claw":
         metadata.update(effect_chance=10, stat_changes=[{"stat": "attack", "change": 1}])
     if move == "shadow-ball":
@@ -250,6 +252,99 @@ def test_exact_first_action_paralysis_branches_second_action_without_current_con
     assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 3, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "executed")
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
     assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+
+
+def test_exact_first_action_flinch_cancels_only_the_pending_second_action(monkeypatch):
+    state, snapshot, d0, own_action, response_set, orders = _inputs(equal_speed=True)
+    opponent_action = response_set["actions"][0]
+
+    def leaf(*, strategy_d0, actor, target, metadata_authority, **_):
+        move_id = metadata_authority["move_id"]
+        return {
+            "status": "evaluable", "terminal_leaves": ({
+                "leaf_id": f"first:{actor['side']}:{move_id}", "candidate_id": f"attack:{move_id}", "action_type": "attack",
+                "branch_path": ({"branch": "hit", "conditional_probability": {"numerator": 1, "denominator": 1}},),
+                "probability": {"numerator": 1, "denominator": 1}, "hit_state": "hit",
+                "critical_state": "non_critical", "damage_roll": {"roll_index": 0, "random_factor_percent": 85, "damage": 1},
+                "consequences": {"damage": 1, "own_final_hp": 99, "target_final_hp": 99, "target_ko": False, "self_fainted": False,
+                    "secondary": {"branch": "effect", "hypothetical_target_flinch": {"schema_version": "detached-hypothetical-immediate-flinch-v1", "state": "flinched", "provenance": "iron_head_successful_damage_roll_secondary_v1"}}},
+                "provenance": {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": strategy_d0["decision_owner"], "attacker": actor, "target": target, "move_id": move_id},
+            },),
+        }
+
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair._normal_formula_ledger", leaf)
+    own_first = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent_action, action_order_authority=orders[opponent_action["action_id"]])
+    opponent_first_order = {**orders[opponent_action["action_id"]], "order": "opponent_first"}
+    opponent_first = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent_action, action_order_authority=opponent_first_order)
+    tied = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent_action, action_order_authority=_equal_speed_order(d0, own_action, opponent_action))
+    for pair in (own_first, opponent_first, tied):
+        assert pair["status"] == "evaluable", pair.get("reason")
+        assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+        assert all(row["second_action"]["state"] == "cancelled_due_to_flinch" for row in pair["terminal_branches"])
+        assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
+    assert {row["action_order"] for row in tied["terminal_branches"]} == {"own_first", "opponent_first"}
+    assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+
+
+def test_no_flinch_or_miss_first_leaf_keeps_existing_second_action_execution(monkeypatch):
+    _, snapshot, d0, own_action, response_set, orders = _inputs()
+    opponent_action = response_set["actions"][0]
+
+    def leaf(*, strategy_d0, actor, target, **_):
+        first = actor == d0["active_owners"]["self"]
+        return {
+            "status": "evaluable", "terminal_leaves": ({
+                "leaf_id": "first:miss" if first else "second:ordinary", "candidate_id": "attack:tackle", "action_type": "attack",
+                "branch_path": ({"branch": "miss" if first else "hit", "conditional_probability": {"numerator": 1, "denominator": 1}},),
+                "probability": {"numerator": 1, "denominator": 1}, "hit_state": "miss" if first else "hit",
+                "critical_state": "non_critical", "damage_roll": {"roll_index": 0, "random_factor_percent": 85, "damage": 0 if first else 1},
+                "consequences": {"damage": 0 if first else 1, "own_final_hp": 100 if first else 99, "target_final_hp": 100 if first else 99, "target_ko": False, "self_fainted": False, "secondary": None},
+                "provenance": {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": strategy_d0["decision_owner"], "attacker": actor, "target": target, "move_id": "tackle"},
+            },),
+        }
+
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair._normal_formula_ledger", leaf)
+    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent_action, action_order_authority=orders[opponent_action["action_id"]])
+    assert pair["status"] == "evaluable"
+    assert pair["terminal_branches"][0]["second_action"]["state"] == "executed"
+
+
+def test_live_iron_head_flinch_branches_cancel_only_the_later_response_action():
+    _, snapshot, d0, own_action, response_set, orders = _inputs(own_move="iron-head")
+    opponent_action = response_set["actions"][0]
+    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent_action, action_order_authority=orders[opponent_action["action_id"]])
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    states = {row["second_action"]["state"] for row in pair["terminal_branches"]}
+    assert states == {"executed", "cancelled_due_to_flinch"}
+    flinched = [row for row in pair["terminal_branches"] if row["second_action"]["state"] == "cancelled_due_to_flinch"]
+    assert flinched and all(row["first_action_leaf"]["consequences"]["secondary"]["hypothetical_target_flinch"]["state"] == "flinched" for row in flinched)
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable"
+    assert project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)["status"] == "resolved"
+
+
+def test_flinch_on_the_second_action_never_retroactively_cancels_the_first(monkeypatch):
+    _, snapshot, d0, own_action, response_set, orders = _inputs()
+    opponent_action = response_set["actions"][0]
+
+    def leaf(*, strategy_d0, actor, target, metadata_authority, **_):
+        second = actor == d0["active_owners"]["opponent"]
+        move_id = metadata_authority["move_id"]
+        return {"status": "evaluable", "terminal_leaves": ({
+            "leaf_id": f"{'second' if second else 'first'}:{move_id}", "candidate_id": f"attack:{move_id}", "action_type": "attack",
+            "branch_path": ({"branch": "hit", "conditional_probability": {"numerator": 1, "denominator": 1}},), "probability": {"numerator": 1, "denominator": 1},
+            "hit_state": "hit", "critical_state": "non_critical", "damage_roll": {"roll_index": 0, "random_factor_percent": 85, "damage": 1},
+            "consequences": {"damage": 1, "own_final_hp": 99, "target_final_hp": 99, "target_ko": False, "self_fainted": False,
+                "secondary": {"branch": "effect", "hypothetical_target_flinch": {"schema_version": "detached-hypothetical-immediate-flinch-v1", "state": "flinched", "provenance": "iron_head_successful_damage_roll_secondary_v1"}} if second else None},
+            "provenance": {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": strategy_d0["decision_owner"], "attacker": actor, "target": target, "move_id": move_id},
+        },)}
+
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair._normal_formula_ledger", leaf)
+    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent_action, action_order_authority=orders[opponent_action["action_id"]])
+    assert pair["status"] == "evaluable"
+    assert pair["terminal_branches"][0]["second_action"]["state"] == "executed"
+    assert pair["terminal_branches"][0]["second_action"]["leaf"]["consequences"]["secondary"]["hypothetical_target_flinch"]["state"] == "flinched"
 
 
 def test_real_thunderbolt_first_action_reaches_crit_and_paralysis_second_action_path():
