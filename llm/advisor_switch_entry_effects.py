@@ -177,6 +177,11 @@ def _evaluate_download(*, target: Mapping[str, Any], damage: Mapping[str, Any], 
     return _complete(outcome, boosted_stat=stat, stage_before=before, stage_after=after, opponent_identity=deepcopy(dict(authority["target"])))
 
 
+def evaluate_download_entry(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Expose the existing exact Download resolver without broad entry composition."""
+    return _evaluate_download(target=target, damage=damage, authority=authority)
+
+
 def _evaluate_trace(*, target: Mapping[str, Any], damage: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
     ability = _authority(target, "ability_authority")
     if not _known_authority(ability):

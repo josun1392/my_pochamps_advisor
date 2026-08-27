@@ -9,8 +9,9 @@ from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_current_stage_authority
 from llm.advisor_runtime_d0_opponent_switch_target_combat_authority import freeze_runtime_d0_opponent_switch_target_combat_authority
 from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
-from llm.advisor_switch_entry_effects import evaluate_entry_weather, evaluate_intimidate_entry, evaluate_sticky_web_entry, evaluate_toxic_spikes_entry, evaluate_sturdy_entry
+from llm.advisor_switch_entry_effects import evaluate_download_entry, evaluate_entry_weather, evaluate_intimidate_entry, evaluate_sticky_web_entry, evaluate_toxic_spikes_entry, evaluate_sturdy_entry
 from llm.advisor_switch_entry_intimidate_authority import normalize_switch_entry_intimidate_authority
+from llm.advisor_switch_entry_download_authority import normalize_switch_entry_download_authority
 from llm.advisor_switch_entry_sturdy_authority import normalize_switch_entry_sturdy_authority
 from llm.advisor_switch_hazard_authority import normalize_switch_hazard_context
 from llm.advisor_prospective_entry_authority import normalize_prospective_entry_interactions
@@ -55,6 +56,7 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
         hazards, current, hp, target, strategy_d0=strategy_d0,
         runtime_snapshot=runtime_snapshot, own_actor=base["own_actor"],
         entry_intimidate_authority=state.get("switch_entry_intimidate_authority"),
+        entry_download_authority=state.get("switch_entry_download_authority"),
         entry_sturdy_authority=state.get("switch_entry_sturdy_authority"),
         field_state_context=_field_weather_context(state),
     )
@@ -79,6 +81,16 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
         stages["value"]["speed"] = sticky["speed_stage_after"]
         stages["provenance"] = "detached_sticky_web_entry_v1"
         fields["stages"] = stages
+    download = entry["download_consequence"]
+    if download.get("outcome") in {"attack_stage_raised", "attack_stage_maximum", "special-attack_stage_raised", "special-attack_stage_maximum"}:
+        stages = fields["stages"]
+        stat, after = download.get("boosted_stat"), download.get("stage_after")
+        if not isinstance(stages, Mapping) or stages.get("status") != "known" or not isinstance(stages.get("value"), Mapping) or stat not in {"attack", "special-attack"} or not isinstance(after, int) or isinstance(after, bool) or not -6 <= after <= 6:
+            return _result("incomplete", "switch_in_download_stage_authority_unknown", base, selected_response_action_id=selected_response_action_id, target_owner=target)
+        stages = deepcopy(dict(stages))
+        stages["value"][stat] = after
+        stages["provenance"] = "detached_download_entry_v1"
+        fields["stages"] = stages
     own_attack_overlay = entry["own_attack_stage_overlay"]
     hypothetical = {
         "schema_version": SCHEMA_VERSION,
@@ -93,6 +105,7 @@ def materialize_detached_opponent_switch_in_intermediate_authority(
         "type_authority": fields["type"],
         "final_stats_authority": fields["final_stats"],
         "stage_authority": fields["stages"],
+        "incoming_offensive_stage_overlay": _incoming_offensive_stage_overlay(download, target),
         "own_attack_stage_overlay": deepcopy(own_attack_overlay),
         "sturdy_survival_authority": _sturdy_survival_authority(
             entry["sturdy_consequence"], target, base, post_hp, hp["maximum_hp"],
@@ -149,7 +162,7 @@ def _hazards(state: Any, session_id: str) -> dict:
 def _entry_consequence(
     hazards: Mapping[str, Any], current: Mapping[str, Any], hp: Mapping[str, Any], target_owner: Mapping[str, Any],
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_actor: Mapping[str, Any],
-    entry_intimidate_authority: Any, entry_sturdy_authority: Any, field_state_context: Mapping[str, Any] | None,
+    entry_intimidate_authority: Any, entry_download_authority: Any, entry_sturdy_authority: Any, field_state_context: Mapping[str, Any] | None,
 ) -> dict:
     if not isinstance(hazards, Mapping) or any(hazards.get(key) == "unknown" for key in ("stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web")):
         return {"status": "incomplete", "reason": "switch_entry_hazards_unknown"}
@@ -165,6 +178,7 @@ def _entry_consequence(
         "persistent_condition_authority": _entry_condition_authority(current.get("condition")),
         "prospective_groundedness_authority": _groundedness_authority(current.get("prospective_groundedness_context"), target_owner),
         "prospective_speed_stage_authority": _entry_speed_stage_authority(current.get("stat_stages")),
+        "prospective_offensive_stages_authority": _entry_offensive_stages_authority(current.get("stat_stages")),
         "prospective_entry_interactions_authority": _entry_interactions_authority(current.get("prospective_entry_interactions_context"), target_owner),
     }
     evaluated = evaluate_entry_hazards(hazards=hazards, target=target)
@@ -183,6 +197,13 @@ def _entry_consequence(
     if intimidate.get("status") != "complete":
         status = "rejected" if intimidate.get("status") == "rejected" else "incomplete"
         return {"status": status, "reason": str(intimidate.get("reason") or "intimidate_authority_incomplete")}
+    download = _download_consequence(
+        authority_value=entry_download_authority, target=target, damage=evaluated,
+        incoming_owner=target_owner, own_actor=own_actor,
+    )
+    if download.get("status") != "complete":
+        status = "rejected" if download.get("status") == "rejected" else "incomplete"
+        return {"status": status, "reason": str(download.get("reason") or "download_authority_incomplete")}
     sturdy = _sturdy_consequence(
         authority_value=entry_sturdy_authority, target=target, damage=evaluated,
         incoming_owner=target_owner, own_actor=own_actor,
@@ -202,6 +223,7 @@ def _entry_consequence(
         "hazard_evidence": deepcopy(evaluated), "toxic_spikes_consequence": deepcopy(toxic),
         "sticky_web_consequence": deepcopy(sticky),
         "intimidate_consequence": deepcopy(intimidate),
+        "download_consequence": deepcopy(download),
         "sturdy_consequence": deepcopy(sturdy),
         "weather_consequence": deepcopy(weather),
         "own_attack_stage_overlay": _own_attack_stage_overlay(intimidate, own_actor),
@@ -262,6 +284,24 @@ def _sturdy_consequence(*, authority_value: Any, target: Mapping[str, Any], dama
     return evaluate_sturdy_entry(target=target, damage=damage, authority=authority)
 
 
+def _download_consequence(*, authority_value: Any, target: Mapping[str, Any], damage: Mapping[str, Any], incoming_owner: Mapping[str, Any], own_actor: Mapping[str, Any]) -> dict:
+    ability = target.get("ability_authority")
+    if not isinstance(ability, Mapping) or ability.get("status") != "known":
+        return {"status": "insufficient_context", "reason": "incoming_ability_unknown"}
+    if ability.get("value") != "download":
+        return {"status": "complete", "outcome": "not_applicable"}
+    if authority_value is None:
+        return {"status": "insufficient_context", "reason": "download_authority_unknown"}
+    authority = normalize_switch_entry_download_authority(
+        authority_value, session_id=incoming_owner["session_id"], target=own_actor,
+    )
+    if authority is None:
+        return {"status": "rejected", "reason": "download_authority_binding_mismatch"}
+    if not _same_identity(authority.get("source"), incoming_owner):
+        return {"status": "rejected", "reason": "download_source_identity_mismatch"}
+    return evaluate_download_entry(target=target, damage=damage, authority=authority)
+
+
 def _sturdy_survival_authority(sturdy: Mapping[str, Any], incoming_owner: Mapping[str, Any], base: Mapping[str, Any], post_hp: int, maximum_hp: int) -> dict:
     bindings = {
         "schema_version": "detached-switch-in-sturdy-survival-authority-v1",
@@ -295,6 +335,16 @@ def _own_attack_stage_overlay(intimidate: Mapping[str, Any], own_actor: Mapping[
         "before": before, "after": after, "outcome": outcome,
         "provenance": "detached_opponent_switch_in_intimidate_entry_v1",
     }
+
+
+def _incoming_offensive_stage_overlay(download: Mapping[str, Any], incoming_owner: Mapping[str, Any]) -> dict:
+    outcome = download.get("outcome") if isinstance(download, Mapping) else None
+    if outcome not in {"attack_stage_raised", "attack_stage_maximum", "special-attack_stage_raised", "special-attack_stage_maximum"}:
+        return {"status": "not_applicable"}
+    stat, before, after = download.get("boosted_stat"), download.get("stage_before"), download.get("stage_after")
+    if stat not in {"attack", "special-attack"} or not isinstance(before, int) or isinstance(before, bool) or not isinstance(after, int) or isinstance(after, bool) or not -6 <= before <= 6 or not -6 <= after <= 6:
+        return {"status": "unknown"}
+    return {"status": "known", "owner": deepcopy(dict(incoming_owner)), "stat": stat, "before": before, "after": after, "outcome": outcome, "provenance": "detached_opponent_switch_in_download_entry_v1"}
 
 
 def _field_weather_context(state: Any) -> dict | None:
@@ -363,6 +413,15 @@ def _entry_speed_stage_authority(value: Any) -> dict:
     if not isinstance(speed, int) or isinstance(speed, bool) or not -6 <= speed <= 6:
         return {"status": "unknown"}
     return {"status": "known", "value": speed}
+
+
+def _entry_offensive_stages_authority(value: Any) -> dict | None:
+    if not isinstance(value, Mapping):
+        return None
+    result = {stat: value.get(stat) for stat in ("attack", "special-attack")}
+    if any(not isinstance(stage, int) or isinstance(stage, bool) or not -6 <= stage <= 6 for stage in result.values()):
+        return None
+    return result
 
 
 def _groundedness_authority(value: Any, target_owner: Mapping[str, Any]) -> dict:

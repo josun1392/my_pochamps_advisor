@@ -10,6 +10,7 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from llm.advisor_identity_groundedness import build_groundedness
 from llm.advisor_prospective_entry_authority import build_prospective_entry_interactions
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
+from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority
 
 
 def _manager(*, known_hp=True):
@@ -217,6 +218,72 @@ def test_sticky_web_known_ungrounded_is_no_effect_and_unknown_authority_is_incom
         strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch,
         selected_response_action_id="opponent_switch:s:1:bench",
     )["status"] == "incomplete"
+
+
+def _download_ready(state, *, defense=90, special_defense=100, attack_stage=0, special_attack_stage=0):
+    bench = state["opponent_side"]["pokemon"][1]
+    bench["current_ability"] = "download"
+    bench["stat_stages"]["attack"] = attack_stage
+    bench["stat_stages"]["special-attack"] = special_attack_stage
+    source = {"side": "opponent", "slot_index": 1, "pokemon_id": "bench"}
+    target = {"side": "self", "slot_index": 0, "pokemon_id": "self"}
+    state["switch_entry_download_authority"] = build_switch_entry_download_authority(
+        session_id="s", source=source, target=target, applicability="applicable",
+        target_defense=defense, target_special_defense=special_defense,
+    )
+    return state
+
+
+def test_download_projects_exact_incoming_attack_and_special_attack_stage_overlays():
+    manager = _manager()
+    state = _download_ready(manager.read_state()["state"], defense=90, special_defense=100)
+    d0, snapshot, switch = _inputs(manager, state)
+    attack = materialize_detached_opponent_switch_in_intermediate_authority(strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch, selected_response_action_id="opponent_switch:s:1:bench")
+    assert attack["status"] == "resolved", attack.get("reason")
+    hypothetical = attack["hypothetical_switch_in_state"]
+    assert hypothetical["entry_consequence"]["download_consequence"]["outcome"] == "attack_stage_raised"
+    assert hypothetical["stage_authority"]["value"]["attack"] == 1
+    assert hypothetical["incoming_offensive_stage_overlay"]["stat"] == "attack"
+
+    manager = _manager()
+    state = _download_ready(manager.read_state()["state"], defense=100, special_defense=90)
+    d0, snapshot, switch = _inputs(manager, state)
+    special = materialize_detached_opponent_switch_in_intermediate_authority(strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch, selected_response_action_id="opponent_switch:s:1:bench")
+    assert special["status"] == "resolved", special.get("reason")
+    assert special["hypothetical_switch_in_state"]["entry_consequence"]["download_consequence"]["outcome"] == "special-attack_stage_raised"
+    assert special["hypothetical_switch_in_state"]["stage_authority"]["value"]["special-attack"] == 1
+
+
+def test_download_tie_bounds_hazard_ko_and_unknown_authority_fail_closed():
+    manager = _manager()
+    state = _download_ready(manager.read_state()["state"], defense=100, special_defense=100, special_attack_stage=6)
+    d0, snapshot, switch = _inputs(manager, state)
+    tied = materialize_detached_opponent_switch_in_intermediate_authority(strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch, selected_response_action_id="opponent_switch:s:1:bench")
+    assert tied["status"] == "resolved"
+    assert tied["hypothetical_switch_in_state"]["entry_consequence"]["download_consequence"]["outcome"] == "special-attack_stage_maximum"
+    assert tied["hypothetical_switch_in_state"]["stage_authority"]["value"]["special-attack"] == 6
+
+    manager = _manager()
+    state = _download_ready(manager.read_state()["state"])
+    state["switch_entry_download_authority"]["applicability"] = "unknown"
+    d0, snapshot, switch = _inputs(manager, state)
+    assert materialize_detached_opponent_switch_in_intermediate_authority(strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch, selected_response_action_id="opponent_switch:s:1:bench")["status"] == "incomplete"
+
+    manager = _manager()
+    state = _download_ready(manager.read_state()["state"])
+    state["opponent_side"]["pokemon"][1]["stat_stages"]["attack"] = "unknown"
+    d0, snapshot, switch = _inputs(manager, state)
+    assert materialize_detached_opponent_switch_in_intermediate_authority(strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch, selected_response_action_id="opponent_switch:s:1:bench")["status"] == "incomplete"
+
+    manager = _manager()
+    state = _download_ready(manager.read_state()["state"])
+    state = _toxic_ready(state, layers=0)
+    state["opponent_side"]["pokemon"][1]["current_hp"] = 1
+    state["switch_hazard_context"] = build_switch_hazard_context(session_id="s", affected_side="opponent", stealth_rock="absent", spikes_layers=3, toxic_spikes_layers=0, sticky_web="absent")
+    d0, snapshot, switch = _inputs(manager, state)
+    ko = materialize_detached_opponent_switch_in_intermediate_authority(strategy_d0=d0, runtime_snapshot=snapshot, switch_response_authority=switch, selected_response_action_id="opponent_switch:s:1:bench")
+    assert ko["status"] == "unsupported"
+    assert ko["entry_consequence"]["download_consequence"]["outcome"] == "not_activated_hazard_ko"
 
     manager = _manager()
     state = _toxic_ready(manager.read_state()["state"], layers=0, sticky_web="present")
