@@ -20,7 +20,14 @@ def _graph_pair(*, move_id="bullet-seed", power=25, own_hp=100, opponent_hp=100)
 
 def test_bullet_seed_and_rock_blast_graph_pairs_normalize_and_project_exact_metrics():
     for move in ("bullet-seed", "rock-blast"):
-        _snapshot, _d0, _own, _opponent, _set, pair = _graph_pair(move_id=move)
+        # This test owns graph-ledger/metric invariants, not a duplicate of
+        # the surviving-second-action transition coverage below.  A forced
+        # first-hit KO preserves each selected 2/3/4/5-count root and its
+        # exact probability while avoiding a mechanically irrelevant full
+        # second-action ledger for every distinct first-action HP state.
+        _snapshot, _d0, _own, _opponent, _set, pair = _graph_pair(
+            move_id=move, power=500, opponent_hp=1,
+        )
         ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
         metrics = project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)
         assert ledger["status"] == "evaluable", ledger.get("reason")
@@ -47,8 +54,23 @@ def test_graph_ko_cancellation_and_surviving_second_action_paths_are_exact_and_a
 
 
 def test_response_profile_consumes_graph_derived_metrics_without_changing_profile_contract():
-    _state, snapshot, d0, _own, response_set, _orders = _inputs(opponent_hp=100)
-    own = _variable_action(d0, "bullet-seed")
+    _state, snapshot, d0, _own, response_set, _orders = _inputs(opponent_hp=1)
+    # Response-profile completeness and multi-response dispatch are covered by
+    # the profile owner tests.  This graph-specific contract needs one exact
+    # surviving response coordinate, not the same expensive variable graph
+    # twice with different ordinary opponent moves.
+    response_set = {
+        **response_set,
+        "actions": tuple(
+            row if row["action_id"] == "opponent_attack:tackle" else {
+                **row, "selectability": "not_selectable",
+                "usability": {"status": "known_unusable", "reason": "disabled"},
+            }
+            for row in response_set["actions"]
+        ),
+        "selectable_response_action_ids": ("opponent_attack:tackle",),
+    }
+    own = _variable_action(d0, "bullet-seed", power=500)
     orders = {row["action_id"]: _order(d0, own, row, "own_first") for row in response_set["actions"] if row["action_id"] in response_set["selectable_response_action_ids"]}
     profile = materialize_detached_opponent_response_profile(
         strategy_d0=d0, runtime_snapshot=snapshot, own_action=own,
