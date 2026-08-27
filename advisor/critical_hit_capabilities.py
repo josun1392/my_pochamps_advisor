@@ -29,6 +29,9 @@ _BASE_MOVE_IDS = frozenset({
     # Population Bomb has the same canonical ordinary critical rule on every
     # landed attempt. Its independent accuracy sequence is owned separately.
     "population-bomb",
+    # Canonical escalating three-hit moves admitted by the strict execution
+    # authority.  Each landed hit retains the ordinary Gen 9 crit rule.
+    "triple-axel", "triple-kick",
 })
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
