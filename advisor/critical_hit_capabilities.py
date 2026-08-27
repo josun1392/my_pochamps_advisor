@@ -26,6 +26,9 @@ _BASE_MOVE_IDS = frozenset({
     # Ordinary canonical 2--5-hit moves admitted by the detached hit-count
     # authority.  Each eventual hit keeps an independent ordinary crit roll.
     "bullet-seed", "rock-blast",
+    # Population Bomb has the same canonical ordinary critical rule on every
+    # landed attempt. Its independent accuracy sequence is owned separately.
+    "population-bomb",
 })
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
