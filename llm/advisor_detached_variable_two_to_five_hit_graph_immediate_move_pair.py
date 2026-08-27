@@ -24,6 +24,8 @@ from llm.advisor_detached_predictive_intermediate_state import (
 from llm.advisor_detached_variable_two_to_five_hit_per_hit_predictive_materialization import (
     materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves,
 )
+from llm.advisor_detached_population_bomb_per_hit_accuracy_predictive_graph_materialization import materialize_detached_population_bomb_per_hit_accuracy_predictive_graph
+from llm.advisor_runtime_d0_population_bomb_per_hit_accuracy_execution_authority import freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority
 from llm.advisor_immediate_move_vs_move_action_pair import (
     _attack_ledger, _base, _fainted, _metadata_for_inputs, _opponent_metadata,
     _orders, _status,
@@ -37,6 +39,7 @@ from llm.advisor_runtime_strategy_d0 import resolve_runtime_d0_selectable_move_m
 SCHEMA_VERSION = "detached-variable-two-to-five-hit-graph-immediate-move-pair-v1"
 HORIZON = "immediate_action_pair"
 _VARIABLE_MOVES = frozenset({"bullet-seed", "rock-blast"})
+_GRAPH_MOVES = _VARIABLE_MOVES | frozenset({"population-bomb"})
 _STATUSES = {"incomplete", "unsupported", "rejected"}
 
 
@@ -134,7 +137,7 @@ def _materialize_order_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot
 def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     opponent_side = "opponent" if isinstance(actor, Mapping) and actor.get("side") == "self" else "self"
-    if metadata is None or metadata.get("move_id") not in _VARIABLE_MOVES or actor != strategy_d0.get("decision_owner") or target != strategy_d0.get("active_owners", {}).get(opponent_side):
+    if metadata is None or metadata.get("move_id") not in _GRAPH_MOVES or actor != strategy_d0.get("decision_owner") or target != strategy_d0.get("active_owners", {}).get(opponent_side):
         return _result("unsupported", "variable_multi_hit_move_not_first_action_or_not_supported", {})
     action_id = f"attack:{metadata['move_id']}"
     projection = {
@@ -147,13 +150,17 @@ def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         "provenance": "strict_detached_pair_metadata_to_variable_multi_hit_d0_selection_view_v1",
     }
     action = {"action_id": action_id, "action_type": "attack", "identity": metadata["move_id"], "move_metadata_authority": projection}
-    execution = freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action)
+    if metadata["move_id"] == "population-bomb":
+        execution = freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action)
+    else:
+        execution = freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action)
     if execution.get("status") != "resolved":
         return _result(_status(execution), execution.get("reason", "variable_multi_hit_execution_authority_unavailable"), {})
-    graph = materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
-        execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority,
-    )
+    graph = (materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority,
+    ) if metadata["move_id"] == "population-bomb" else materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority,
+    ))
     return graph if graph.get("status") == "evaluable" else _result(_status(graph), graph.get("reason", "variable_multi_hit_path_graph_unavailable"), {})
 
 
@@ -166,7 +173,10 @@ def _terminal_sources(graph: Mapping[str, Any]) -> tuple[dict[str, Any], ...] | 
         return "variable_graph_node_identity_invalid"
     outgoing: dict[str, list[Mapping[str, Any]]] = {node_id: [] for node_id in node_ids}
     for edge in edges:
-        if not isinstance(edge, Mapping) or edge.get("from_node_id") not in node_ids or _fraction(edge.get("conditional_probability")) <= 0 or not isinstance(edge.get("ordered_hit"), Mapping):
+        population = graph.get("move_id") == "population-bomb"
+        hit = edge.get("ordered_hit") if isinstance(edge, Mapping) else None
+        if population and isinstance(edge, Mapping): hit = _mapping(_mapping(edge.get("attempt_outcome")).get("ordered_hit")) or None
+        if not isinstance(edge, Mapping) or edge.get("from_node_id") not in node_ids or _fraction(edge.get("conditional_probability")) <= 0 or (not population and not isinstance(hit, Mapping)):
             return "variable_graph_edge_invalid"
         if edge.get("terminal") is True:
             if "terminal_consequences" not in edge:
@@ -197,10 +207,12 @@ def _terminal_sources(graph: Mapping[str, Any]) -> tuple[dict[str, Any], ...] | 
         for edge in outgoing[node["node_id"]]:
             probability = source_probability * _fraction(edge["conditional_probability"])
             if edge.get("terminal") is True:
-                result.append({"source_id": f"edge:{edge['edge_id']}", "path_probability": probability, "consequences": deepcopy(dict(edge["terminal_consequences"])), "ordered_hit": deepcopy(dict(edge["ordered_hit"]))})
+                ordered = edge.get("ordered_hit") if isinstance(edge.get("ordered_hit"), Mapping) else _mapping(_mapping(edge.get("attempt_outcome")).get("ordered_hit")) or None
+                result.append({"source_id": f"edge:{edge['edge_id']}", "path_probability": probability, "consequences": deepcopy(dict(edge["terminal_consequences"])), "ordered_hit": deepcopy(dict(ordered)) if isinstance(ordered, Mapping) else None})
             else:
                 target = node_by_id[edge["to_node_id"]]
-                if target.get("completed_hit_count") != node.get("completed_hit_count", -1) + 1:
+                advancing = target.get("attempt_index") == node.get("attempt_index", -1) + 1 if population else target.get("completed_hit_count") == node.get("completed_hit_count", -1) + 1
+                if not advancing:
                     return "variable_graph_cycle_or_nonadvancing_edge"
                 incoming[edge["to_node_id"]] += probability
     mass = sum((row["path_probability"] for row in result), Fraction())
@@ -285,4 +297,5 @@ def _fraction(value: Any) -> Fraction:
 
 
 def _fd(value: Fraction) -> dict[str, int]: return {"numerator": value.numerator, "denominator": value.denominator}
+def _mapping(value: Any) -> Mapping[str, Any]: return value if isinstance(value, Mapping) else {}
 def _result(status: str, reason: str, base: Mapping[str, Any], **extra: Any) -> dict[str, Any]: return {"status": status, "schema_version": SCHEMA_VERSION, "horizon": HORIZON, **deepcopy(dict(base)), "reason": reason, **deepcopy(extra)}

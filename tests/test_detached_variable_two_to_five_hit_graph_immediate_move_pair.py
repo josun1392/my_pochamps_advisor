@@ -15,6 +15,13 @@ def _variable_action(d0, move_id="bullet-seed", power=25):
     return {"action_id": f"attack:{move_id}", "action_type": "attack", "identity": move_id, "move_metadata_authority": authority}
 
 
+def _population_bomb_action(d0, power=500, accuracy=100):
+    authority = deepcopy(_metadata("population-bomb"))
+    authority["metadata"].update({"min_hits": 10, "max_hits": 10, "multiaccuracy": True, "power": power, "type": "normal", "accuracy": accuracy})
+    authority.update({"candidate_id": "attack:population-bomb", "active_attacker": d0["decision_owner"], "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]})
+    return {"action_id": "attack:population-bomb", "action_type": "attack", "identity": "population-bomb", "move_metadata_authority": authority}
+
+
 def _opponent_variable(action, move_id="rock-blast", power=25):
     value = deepcopy(action); value["action_id"] = f"opponent_attack:{move_id}"; value["move_id"] = move_id
     value["metadata_authority"] = _metadata(move_id); value["metadata_authority"]["metadata"].update({"min_hits": 2, "max_hits": 5, "power": power, "type": "rock" if move_id == "rock-blast" else "grass"})
@@ -75,3 +82,15 @@ def test_equal_speed_composes_both_variable_first_orders_without_eager_flattenin
     assert result["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
     assert {row["action_order"] for row in result["order_graphs"]} == {"own_first", "opponent_first"}
     assert all(row["first_action_graph"]["terminal_leaf_representation"].startswith("exact_root_to_terminal_path_graph") for row in result["order_graphs"])
+
+
+def test_population_bomb_graph_attaches_miss_or_ko_terminal_sources_without_flattening():
+    _state, snapshot, d0, _own, response_set, _orders = _inputs(opponent_hp=1)
+    own = _population_bomb_action(d0, power=500, accuracy=50)
+    opponent = next(row for row in response_set["actions"] if row["action_id"] == "opponent_attack:tackle")
+    result = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent, action_order_authority=_order(d0, own, opponent, "own_first"))
+    assert result["status"] == "evaluable", result.get("reason")
+    assert result["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    transitions = result["order_graphs"][0]["terminal_transitions"]
+    assert any(row["ordered_terminal_hit"] is None and row["second_action"]["state"] == "outcome_graph" for row in transitions)
+    assert any(row["ordered_terminal_hit"] is not None and row["second_action"]["state"] == "cancelled_due_to_faint" for row in transitions)
