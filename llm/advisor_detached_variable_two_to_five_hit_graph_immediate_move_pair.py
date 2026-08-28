@@ -12,7 +12,7 @@ from fractions import Fraction
 from typing import Any, Mapping
 
 from llm.advisor_detached_intermediate_paralysis_second_action_authority import (
-    consume_detached_intermediate_paralysis_for_second_action,
+    consume_detached_sleep_freeze_execution_for_second_action,
 )
 from llm.advisor_detached_intermediate_predictive_authority import (
     freeze_detached_intermediate_predictive_authority,
@@ -51,6 +51,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
     own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
     action_order_authority: Mapping[str, Any],
     first_action_sturdy_survival_authority: Mapping[str, Any] | None = None,
+    pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Attach exact second-action outcomes to a variable first-action graph."""
     base = _base(strategy_d0, own_action, opponent_action)
@@ -73,6 +74,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
             own_action=own_action, opponent_action=opponent_action,
             own_metadata=own_metadata, opponent_metadata=opponent_metadata,
             order_plan=plan, first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
+            pending_status_execution_authorities=pending_status_execution_authorities,
         )
         if graph.get("status") != "evaluable":
             return _result(_status(graph), graph.get("reason", "variable_graph_order_unavailable"), base, order_graphs=tuple(order_graphs))
@@ -92,7 +94,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
     }
 
 
-def _materialize_order_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_metadata: Mapping[str, Any], opponent_metadata: Mapping[str, Any], order_plan: Mapping[str, Any], first_action_sturdy_survival_authority: Mapping[str, Any] | None) -> dict[str, Any]:
+def _materialize_order_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_metadata: Mapping[str, Any], opponent_metadata: Mapping[str, Any], order_plan: Mapping[str, Any], first_action_sturdy_survival_authority: Mapping[str, Any] | None, pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
     order = order_plan["order"]
     first_actor = base["own_actor"] if order == "own_first" else base["opponent_actor"]
     first_metadata = own_metadata if order == "own_first" else opponent_metadata
@@ -120,6 +122,8 @@ def _materialize_order_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
         first_graph=first, terminal_sources=sources, second_actor=second_actor,
         second_metadata=second_metadata, root_predictive_authority=root,
+        pending_action_id=opponent_action.get("action_id") if order == "own_first" else own_action.get("action_id"),
+        pending_status_execution_authorities=pending_status_execution_authorities,
     )
     if isinstance(transitions, Mapping):
         return transitions
@@ -228,7 +232,7 @@ def _terminal_sources(graph: Mapping[str, Any]) -> tuple[dict[str, Any], ...] | 
     return result if mass == Fraction(1, 1) else "variable_graph_terminal_path_mass_not_one"
 
 
-def _attach_second_actions(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], first_graph: Mapping[str, Any], terminal_sources: tuple[Mapping[str, Any], ...], second_actor: Mapping[str, Any], second_metadata: Mapping[str, Any], root_predictive_authority: Mapping[str, Any] | None) -> tuple[list[dict[str, Any]], Fraction] | tuple[dict[str, Any], None]:
+def _attach_second_actions(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], first_graph: Mapping[str, Any], terminal_sources: tuple[Mapping[str, Any], ...], second_actor: Mapping[str, Any], second_metadata: Mapping[str, Any], root_predictive_authority: Mapping[str, Any] | None, pending_action_id: Any, pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None) -> tuple[list[dict[str, Any]], Fraction] | tuple[dict[str, Any], None]:
     first_actor, first_target = first_graph.get("attacker"), first_graph.get("target")
     if not isinstance(first_actor, Mapping) or not isinstance(first_target, Mapping):
         return _result("rejected", "variable_graph_first_actor_target_missing", {}), None
@@ -254,7 +258,7 @@ def _attach_second_actions(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
                 actor=second_actor, target=first_target if second_actor == first_actor else first_actor,
                 move_metadata_authority=second_metadata,
             )
-            paralysis = consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=authority)
+            paralysis = consume_detached_sleep_freeze_execution_for_second_action(intermediate_predictive_authority=authority, pending_action_id=pending_action_id, pending_status_execution_authority=(pending_status_execution_authorities or {}).get(pending_action_id) if isinstance(pending_action_id, str) else None)
             if paralysis.get("status") != "resolved":
                 return _result(_status(paralysis), paralysis.get("reason", "variable_graph_second_action_intermediate_authority_unavailable"), {}, first_terminal_source=source["source_id"]), None
             execution = paralysis.get("second_action_execution_branches")
@@ -265,8 +269,8 @@ def _attach_second_actions(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
                 factor = _fraction(branch.get("conditional_probability"))
                 if factor <= 0:
                     return _result("rejected", "variable_graph_second_action_execution_probability_invalid", {}), None
-                if branch.get("state") == "cancelled_due_to_paralysis":
-                    outcomes.append({"state": "cancelled_due_to_paralysis", "conditional_probability": _fd(factor), "reason": branch.get("reason"), "execution_branch": deepcopy(dict(branch))}); continue
+                if branch.get("state") in {"cancelled_due_to_paralysis", "cancelled_due_to_sleep", "cancelled_due_to_freeze"}:
+                    outcomes.append({"state": branch["state"], "conditional_probability": _fd(factor), "reason": branch.get("reason"), "execution_branch": deepcopy(dict(branch))}); continue
                 if branch.get("state") != "executed":
                     return _result("rejected", "variable_graph_second_action_execution_state_invalid", {}), None
                 inputs = paralysis.get("builder_inputs", {})

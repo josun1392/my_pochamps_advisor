@@ -14,6 +14,7 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 
 
 SCHEMA_VERSION = "detached-intermediate-paralysis-second-action-authority-v1"
+_PENDING_STATUS_SCHEMA = "runtime-d0-pending-status-action-execution-authority-v1"
 _BINDINGS = (
     "session_id", "source_runtime_fingerprint", "source_branch_fingerprint",
     "decision_owner", "intermediate_state_id", "source_first_action_leaf_id",
@@ -56,6 +57,41 @@ def consume_detached_intermediate_paralysis_for_second_action(
         return _result(_status(inputs), inputs.get("reason", "paralysis_second_action_builder_inputs_unavailable"), base)
     actor_changed = changed.get("actor") == "paralysis"
     return _resolved(base, inputs, tuple(sorted(changed)), _execution_branches(paralyzed=actor_changed))
+
+
+def consume_detached_sleep_freeze_execution_for_second_action(
+    *, intermediate_predictive_authority: Mapping[str, Any], pending_action_id: str,
+    pending_status_execution_authority: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Apply only an already-resolved current-D0 sleep/freeze action result.
+
+    A first-action-created sleep/freeze override cannot consume a runtime
+    observation: it has no leaf-bound execution-result producer in this v1.
+    """
+    result = consume_detached_intermediate_paralysis_for_second_action(
+        intermediate_predictive_authority=intermediate_predictive_authority,
+    )
+    if result.get("status") != "resolved":
+        return result
+    authority = intermediate_predictive_authority
+    condition = _current_pending_actor_sleep_or_freeze(authority)
+    if condition in {"intermediate_condition_override_missing", "hypothetical_sleep_freeze_execution_authority_missing"}:
+        return _result("incomplete", condition, _base(authority) or {})
+    if condition is None:
+        return result
+    if pending_status_execution_authority is None:
+        return _result("incomplete", "pending_sleep_freeze_execution_authority_missing", _base(authority) or {})
+    if not _pending_status_matches(result, pending_status_execution_authority, pending_action_id, condition):
+        return _result("rejected", "pending_sleep_freeze_execution_authority_binding_mismatch", _base(authority) or {})
+    execution_state, blocker = pending_status_execution_authority["execution_state"], pending_status_execution_authority["blocker"]
+    branches = (
+        {"execution_branch_id": "second_action:can_act_after_status_execution_observation", "state": "executed", "conditional_probability": _fd(Fraction(1, 1))},
+    ) if execution_state == "executable" else (
+        {"execution_branch_id": f"second_action:blocked_by_{blocker}", "state": f"cancelled_due_to_{blocker}", "conditional_probability": _fd(Fraction(1, 1)), "reason": f"second_action_cancelled_due_to_{blocker}"},
+    )
+    return {**result, "second_action_execution_branches": branches,
+            "pending_status_execution_authority": deepcopy(dict(pending_status_execution_authority)),
+            "provenance": "detached_second_action_sleep_freeze_execution_consumer_v1"}
 
 
 def _resolved(base: Mapping[str, Any], inputs: Mapping[str, Any], changed_roles: tuple[str, ...], branches: tuple[dict[str, Any], ...]) -> dict[str, Any]:
@@ -101,6 +137,28 @@ def _changed_conditions(overrides: Mapping[str, Any], source_leaf_id: Any) -> di
             continue
         return "intermediate_exact_condition_authority_missing"
     return changed
+
+
+def _current_pending_actor_sleep_or_freeze(authority: Mapping[str, Any]) -> str | None:
+    overrides = authority.get("intermediate_overrides")
+    actor = overrides.get("actor") if isinstance(overrides, Mapping) else None
+    if not isinstance(actor, Mapping):
+        return "intermediate_condition_override_missing"
+    if actor.get("condition_changed") is True:
+        condition = actor.get("condition")
+        if isinstance(condition, Mapping) and condition.get("status") == "known_present" and condition.get("condition") in {"sleep", "freeze"}:
+            return "hypothetical_sleep_freeze_execution_authority_missing"
+        return None
+    snapshot, owner = authority.get("predictive_runtime_snapshot"), authority.get("predictive_actor")
+    raw = _pokemon(snapshot.get("state", {}), owner) if isinstance(snapshot, Mapping) and isinstance(owner, Mapping) else None
+    provenance = raw.get("condition_provenance") if isinstance(raw, Mapping) else None
+    if isinstance(raw, Mapping) and raw.get("condition") in {"sleep", "freeze"} and isinstance(provenance, Mapping) and provenance.get("event_kind") == "current_condition_observed" and provenance.get("trust") == "user_confirmed_observation" and provenance.get("condition") == raw.get("condition"):
+        return raw["condition"]
+    return None
+
+
+def _pending_status_matches(result: Mapping[str, Any], pending: Mapping[str, Any], action_id: Any, condition: str) -> bool:
+    return isinstance(action_id, str) and bool(action_id) and pending.get("status") == "resolved" and pending.get("schema_version") == _PENDING_STATUS_SCHEMA and pending.get("execution_state") in {"executable", "blocked"} and ((pending.get("execution_state") == "executable" and pending.get("blocker") is None) or (pending.get("execution_state") == "blocked" and pending.get("blocker") == condition)) and pending.get("condition") == condition and pending.get("pending_action_id") == action_id and pending.get("pending_move_id") == result.get("move_id") and pending.get("pending_actor") == result.get("predictive_actor") and all(pending.get(left) == result.get(right) for left, right in (("session_id", "session_id"), ("source_runtime_fingerprint", "source_runtime_fingerprint"), ("source_branch_fingerprint", "source_branch_fingerprint"), ("decision_owner", "decision_owner")))
 
 
 def _condition_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str, str]) -> dict[str, Any]:

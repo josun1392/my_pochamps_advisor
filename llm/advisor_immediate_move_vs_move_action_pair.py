@@ -12,7 +12,7 @@ from llm.advisor_detached_intermediate_predictive_authority import (
     freeze_detached_intermediate_predictive_authority,
 )
 from llm.advisor_detached_intermediate_paralysis_second_action_authority import (
-    consume_detached_intermediate_paralysis_for_second_action,
+    consume_detached_sleep_freeze_execution_for_second_action,
 )
 from llm.advisor_detached_predictive_intermediate_state import (
     freeze_detached_actor_neutral_root_predictive_authority,
@@ -64,6 +64,7 @@ def materialize_immediate_move_vs_move_action_pair(
     action_order_authority: Mapping[str, Any],
     first_action_sturdy_survival_authority: Mapping[str, Any] | None = None,
     opponent_protection_success_authority: Mapping[str, Any] | None = None,
+    pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
     base = _base(strategy_d0, own_action, opponent_action)
@@ -87,6 +88,7 @@ def materialize_immediate_move_vs_move_action_pair(
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta,
             opponent_meta=opponent_meta, order_plan=order_plan,
             first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
+            pending_status_execution_authorities=pending_status_execution_authorities,
         )
         if isinstance(materialized, Mapping): return materialized
         branches.extend(materialized)
@@ -204,6 +206,7 @@ def _materialize_order(
     base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
     own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], order_plan: Mapping[str, Any],
     first_action_sturdy_survival_authority: Mapping[str, Any] | None,
+    pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None,
 ) -> list[dict[str, Any]] | dict[str, Any]:
     order = order_plan["order"]
     first_actor = base["own_actor"] if order == "own_first" else base["opponent_actor"]
@@ -220,6 +223,7 @@ def _materialize_order(
     branches: list[dict[str, Any]] = []
     second_actor = base["opponent_actor"] if order == "own_first" else base["own_actor"]
     second_meta = opponent_meta if order == "own_first" else own_meta
+    second_action_id = opponent_action.get("action_id") if order == "own_first" else own_action.get("action_id")
     for leaf in first["terminal_leaves"]:
         intermediate = materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=leaf, root_predictive_authority=root)
         if intermediate.get("status") != "resolved": return _result(_status(intermediate), intermediate.get("reason", "intermediate_state_unavailable"), base)
@@ -237,8 +241,10 @@ def _materialize_order(
         authority = freeze_detached_intermediate_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             intermediate_state=intermediate, actor=second_actor,
             target=base["opponent_actor"] if second_actor == base["own_actor"] else base["own_actor"], move_metadata_authority=second_meta)
-        paralysis = consume_detached_intermediate_paralysis_for_second_action(
+        paralysis = consume_detached_sleep_freeze_execution_for_second_action(
             intermediate_predictive_authority=authority,
+            pending_action_id=second_action_id,
+            pending_status_execution_authority=(pending_status_execution_authorities or {}).get(second_action_id) if isinstance(second_action_id, str) else None,
         )
         if paralysis.get("status") != "resolved": return _result(_status(paralysis), paralysis.get("reason", "second_action_intermediate_authority_unavailable"), base, first_leaf_id=leaf["leaf_id"])
         inputs = paralysis["builder_inputs"]

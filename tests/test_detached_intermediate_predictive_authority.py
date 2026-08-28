@@ -4,7 +4,7 @@ from llm.advisor_detached_intermediate_predictive_authority import (
     detached_intermediate_builder_inputs, freeze_detached_intermediate_predictive_authority,
 )
 from llm.advisor_detached_intermediate_paralysis_second_action_authority import (
-    consume_detached_intermediate_paralysis_for_second_action,
+    consume_detached_intermediate_paralysis_for_second_action, consume_detached_sleep_freeze_execution_for_second_action,
 )
 from llm.advisor_detached_predictive_intermediate_state import (
     freeze_detached_actor_neutral_root_predictive_authority,
@@ -154,6 +154,22 @@ def test_exact_intermediate_paralysis_consumes_private_condition_and_branches_se
     assert consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=bad)["status"] == "incomplete"
     stale = deepcopy(authority); stale["predictive_strategy_d0"]["decision_owner"] = _owner(state, "self")
     assert consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=stale)["status"] == "rejected"
+
+
+def test_current_sleep_freeze_execution_authority_is_exact_and_hypothetical_status_stays_closed():
+    state = _state(); state["opponent_side"]["pokemon"][0]["condition"] = "sleep"
+    state["opponent_side"]["pokemon"][0]["condition_provenance"]["condition"] = "sleep"
+    snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    authority = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=_intermediate(d0), actor=_owner(state, "opponent"), target=_owner(state, "self"), move_metadata_authority=_metadata_authority(d0))
+    pending = {"status": "resolved", "schema_version": "runtime-d0-pending-status-action-execution-authority-v1", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "pending_actor": _owner(state, "opponent"), "pending_action_id": "opponent_attack:tackle", "pending_move_id": "tackle", "condition": "sleep", "execution_state": "blocked", "blocker": "sleep"}
+    blocked = consume_detached_sleep_freeze_execution_for_second_action(intermediate_predictive_authority=authority, pending_action_id="opponent_attack:tackle", pending_status_execution_authority=pending)
+    assert blocked["status"] == "resolved" and blocked["second_action_execution_branches"][0]["state"] == "cancelled_due_to_sleep"
+    executable = consume_detached_sleep_freeze_execution_for_second_action(intermediate_predictive_authority=authority, pending_action_id="opponent_attack:tackle", pending_status_execution_authority={**pending, "execution_state": "executable", "blocker": None})
+    assert executable["status"] == "resolved" and executable["second_action_execution_branches"][0]["state"] == "executed"
+    assert consume_detached_sleep_freeze_execution_for_second_action(intermediate_predictive_authority=authority, pending_action_id="opponent_attack:tackle", pending_status_execution_authority=None)["status"] == "incomplete"
+    hypothetical = _intermediate(d0); hypothetical["active"]["opponent"]["hypothetical_condition"] = {"status": "known_present", "condition": "freeze", "source": "exact_terminal_leaf_condition_effect"}
+    detached = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=hypothetical, actor=_owner(state, "opponent"), target=_owner(state, "self"), move_metadata_authority=_metadata_authority(d0))
+    assert consume_detached_sleep_freeze_execution_for_second_action(intermediate_predictive_authority=detached, pending_action_id="opponent_attack:tackle", pending_status_execution_authority=pending)["status"] == "incomplete"
 
 
 def test_exact_intermediate_paralysis_drives_facade_and_guts_without_current_mutation():
