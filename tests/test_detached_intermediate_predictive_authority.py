@@ -290,6 +290,50 @@ def test_sparkling_aria_burn_clearing_is_a_detached_exact_terminal_effect() -> N
     assert stale["status"] == "rejected"
 
 
+def test_sparkling_aria_exact_known_none_replaces_only_the_second_action_private_condition_view() -> None:
+    state = _state()
+    state["opponent_side"]["pokemon"][0]["condition"] = "burn"
+    state["opponent_side"]["pokemon"][0]["condition_provenance"] = {"event_kind": "current_condition_observed", "trust": "user_confirmed_observation", "turn_number": 1, "condition": "burn"}
+    for side in ("self", "opponent"):
+        state["substitute_state_context"] = update_substitute_state_context(
+            context=state.get("substitute_state_context"), session_id=state["session_id"], owner=_owner(state, side),
+            state="known_inactive", substitute_hp=None, provenance="runtime_observed_substitute_state_v1",
+        )
+    snapshot = _snapshot(state)
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    sparkling = _metadata_authority(d0) | {"move_id": "sparkling-aria", "metadata": deepcopy(SPARKLING_ARIA)}
+    first = _normal_formula_ledger(strategy_d0=d0, runtime_snapshot=snapshot, actor=_owner(state, "self"), target=_owner(state, "opponent"), metadata_authority=sparkling)
+    leaf = next(row for row in first["terminal_leaves"] if row["consequences"]["secondary"] and row["consequences"]["secondary"].get("branch") == "effect")
+    intermediate = materialize_detached_predictive_intermediate_state(strategy_d0=d0, terminal_leaf=leaf)
+    condition = intermediate["active"]["opponent"]["hypothetical_condition"]
+    assert condition["status"] == "known_none" and condition["source"] == "exact_terminal_leaf_condition_removal"
+    second = freeze_detached_intermediate_predictive_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate,
+        actor=_owner(state, "opponent"), target=_owner(state, "self"), move_metadata_authority=_metadata_authority(d0),
+    )
+    consumed = consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=second)
+    assert consumed["status"] == "resolved", consumed.get("reason")
+    assert consumed["builder_inputs"]["hypothetical_condition_authority"] == {
+        "status": "known_none", "conditions": {"actor": "none"},
+        "provenance": "exact_terminal_leaf_condition_removal",
+        "calculator_view": "exact_intermediate_condition_for_supported_status_dependent_damage",
+    }
+    private = consumed["builder_inputs"]["runtime_snapshot"]
+    assert private["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+    assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "burn"
+    native = build_runtime_d0_native_damage_context(
+        strategy_d0=consumed["builder_inputs"]["strategy_d0"], runtime_snapshot=private,
+        attacker=consumed["builder_inputs"]["attacker"], target=consumed["builder_inputs"]["target"], move_metadata=MOVE,
+    )
+    assert native["status"] == "resolved", native.get("reason")
+    assert "burn_physical_reduction" not in native["native_evaluation"]["applied_damage_modifiers"]
+
+    no_removal_leaf = deepcopy(leaf)
+    no_removal_leaf["consequences"]["secondary"] = None
+    no_removal = materialize_detached_predictive_intermediate_state(strategy_d0=d0, terminal_leaf=no_removal_leaf)
+    assert no_removal["active"]["opponent"]["hypothetical_condition"]["condition"] == "burn"
+
+
 def test_opponent_root_leaf_maps_hp_and_preserves_original_d0_binding() -> None:
     state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
     own, opponent = _owner(state, "self"), _owner(state, "opponent")

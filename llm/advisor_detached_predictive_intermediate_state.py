@@ -153,6 +153,9 @@ def _condition(authority: Any, effects: tuple[Mapping[str, Any], ...], role: str
         condition = effect.get("hypothetical_target_condition")
         if role == "target" and isinstance(condition, Mapping) and isinstance(condition.get("resulting_condition"), str):
             return {"status": "known_present", "condition": condition["resulting_condition"], "source": "exact_terminal_leaf_condition_effect", "effect": deepcopy(dict(condition))}
+        removal = effect.get("hypothetical_target_condition_removal")
+        if role == "target" and isinstance(removal, Mapping):
+            return {"status": "known_none", "source": "exact_terminal_leaf_condition_removal", "effect": deepcopy(dict(removal))}
     return result
 
 
@@ -174,7 +177,22 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
         if isinstance(stage, Mapping): result.append(stage)
         condition = secondary.get("hypothetical_target_condition")
         if isinstance(condition, Mapping): result.append({"owner": "target", "hypothetical_target_condition": condition})
+        removal = secondary.get("hypothetical_target_condition_removal")
+        if removal is not None:
+            if not _condition_removal(removal, leaf.get("leaf_id")):
+                return "terminal_leaf_condition_removal_consequence_invalid"
+            result.append({"owner": "target", "hypothetical_target_condition_removal": removal})
     return tuple(deepcopy(dict(effect)) for effect in result)
+
+
+def _condition_removal(value: Any, leaf_id: Any) -> bool:
+    return isinstance(value, Mapping) and value == {
+        "schema_version": "detached-hypothetical-target-condition-removal-v1",
+        "condition_before": "burn", "condition_removed": "burn", "condition_after": "none",
+        "removal_trigger": "successful_damaging_hit_target_survives",
+        "provenance": "sparkling_aria_successful_damage_roll_burn_clearing_v1",
+        "source_leaf_id": leaf_id,
+    }
 
 
 def _flinch_cancellation_consequence(consequences: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any] | str:

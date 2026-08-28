@@ -41,7 +41,7 @@ def consume_detached_intermediate_paralysis_for_second_action(
     overrides = authority.get("intermediate_overrides")
     if not isinstance(overrides, Mapping):
         return _result("rejected", "intermediate_condition_overrides_missing", base)
-    changed = _changed_conditions(overrides)
+    changed = _changed_conditions(overrides, authority.get("source_first_action_leaf_id"))
     if isinstance(changed, str):
         return _result("incomplete", changed, base)
     if not changed:
@@ -49,7 +49,7 @@ def consume_detached_intermediate_paralysis_for_second_action(
         if inputs.get("status") != "resolved":
             return _result(_status(inputs), inputs.get("reason", "second_action_builder_inputs_unavailable"), base)
         return _resolved(base, inputs, (), _execution_branches(paralyzed=False))
-    if any(condition not in {"paralysis", "burn", "poison", "toxic"} for condition in changed.values()):
+    if any(condition not in {"none", "paralysis", "burn", "poison", "toxic"} for condition in changed.values()):
         return _result("incomplete", "changed_intermediate_condition_not_supported_for_second_action", base)
     inputs = _condition_builder_inputs(authority, changed)
     if inputs.get("status") != "resolved":
@@ -79,7 +79,7 @@ def _execution_branches(*, paralyzed: bool) -> tuple[dict[str, Any], ...]:
     )
 
 
-def _changed_conditions(overrides: Mapping[str, Any]) -> dict[str, str] | str:
+def _changed_conditions(overrides: Mapping[str, Any], source_leaf_id: Any) -> dict[str, str] | str:
     changed: dict[str, str] = {}
     for role in ("actor", "target"):
         row = overrides.get(role)
@@ -91,9 +91,15 @@ def _changed_conditions(overrides: Mapping[str, Any]) -> dict[str, str] | str:
             return "intermediate_condition_change_flag_invalid"
         if not changed_flag:
             continue
-        if not isinstance(condition, Mapping) or condition.get("source") != "exact_terminal_leaf_condition_effect" or condition.get("status") != "known_present" or not isinstance(condition.get("condition"), str):
+        if not isinstance(condition, Mapping):
             return "intermediate_exact_condition_authority_missing"
-        changed[role] = condition["condition"]
+        if condition.get("source") == "exact_terminal_leaf_condition_effect" and condition.get("status") == "known_present" and isinstance(condition.get("condition"), str):
+            changed[role] = condition["condition"]
+            continue
+        if condition.get("source") == "exact_terminal_leaf_condition_removal" and condition.get("status") == "known_none" and _sparkling_aria_burn_removal(condition.get("effect"), source_leaf_id):
+            changed[role] = "none"
+            continue
+        return "intermediate_exact_condition_authority_missing"
     return changed
 
 
@@ -105,6 +111,7 @@ def _condition_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str
     synthetic = deepcopy(dict(snapshot.get("state", {})))
     if not synthetic:
         return {"status": "rejected", "reason": "intermediate_predictive_snapshot_missing"}
+    known_none = len(changed) == 1 and next(iter(changed.values())) == "none"
     for role, owner in (("actor", actor), ("target", target)):
         if role not in changed:
             continue
@@ -112,7 +119,8 @@ def _condition_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str
         if raw is None:
             return {"status": "rejected", "reason": "intermediate_condition_owner_identity_mismatch"}
         # Full-paralysis is handled by explicit execution branches. Other
-        # admitted conditions merely flow into existing direct/crit owners.
+        # admitted conditions, including exact detached known-none, only flow
+        # into the private existing direct/crit consumers.
         raw["condition"] = changed[role]
         raw["detached_exact_intermediate_condition_authority"] = True
         raw["condition_provenance"] = {
@@ -132,12 +140,23 @@ def _condition_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str
         "attacker": deepcopy(dict(actor)), "target": deepcopy(dict(target)),
         "move_metadata": deepcopy(dict(authority.get("move_metadata", {}))),
         "hypothetical_condition_authority": {
-            "status": "known_present", "condition": next(iter(changed.values())) if len(changed) == 1 else None,
+            "status": "known_none" if known_none else "known_present",
+            **({} if known_none else {"condition": next(iter(changed.values())) if len(changed) == 1 else None}),
             "conditions": deepcopy(dict(changed)),
-            "provenance": "exact_terminal_leaf_condition_effect",
+            "provenance": "exact_terminal_leaf_condition_removal" if known_none else "exact_terminal_leaf_condition_effect",
             "calculator_view": "exact_intermediate_condition_for_supported_status_dependent_damage",
         },
         "provenance": "private_exact_hypothetical_intermediate_condition_builder_view_v1",
+    }
+
+
+def _sparkling_aria_burn_removal(value: Any, source_leaf_id: Any) -> bool:
+    return isinstance(value, Mapping) and value == {
+        "schema_version": "detached-hypothetical-target-condition-removal-v1",
+        "condition_before": "burn", "condition_removed": "burn", "condition_after": "none",
+        "removal_trigger": "successful_damaging_hit_target_survives",
+        "provenance": "sparkling_aria_successful_damage_roll_burn_clearing_v1",
+        "source_leaf_id": source_leaf_id,
     }
 
 

@@ -113,7 +113,7 @@ def _intermediate(value: Any, d0: Mapping[str, Any], actor: Mapping[str, Any], t
         if not isinstance(stages, Mapping) or any(stages.get(stat, {}).get("status") != "known" or not isinstance(stages[stat].get("value"), int) or not -6 <= stages[stat]["value"] <= 6 for stat in _STAGES): return "intermediate_exact_stage_missing"
         condition = row.get("hypothetical_condition")
         if not isinstance(condition, Mapping): condition = {"status": "unknown", "reason": "intermediate_condition_missing"}
-        return {"hp": hp["value"], "fainted": fainted["value"], "stages": {stat: stages[stat]["value"] for stat in _STAGES}, "condition": deepcopy(dict(condition)), "condition_changed": condition.get("source") == "exact_terminal_leaf_condition_effect"}
+        return {"hp": hp["value"], "fainted": fainted["value"], "stages": {stat: stages[stat]["value"] for stat in _STAGES}, "condition": deepcopy(dict(condition)), "condition_changed": condition.get("source") in {"exact_terminal_leaf_condition_effect", "exact_terminal_leaf_condition_removal"}}
     parsed_actor, parsed_target = participant(actor), participant(target)
     if isinstance(parsed_actor, str) or isinstance(parsed_target, str): return parsed_actor if isinstance(parsed_actor, str) else parsed_target
     first = value.get("first_action")
