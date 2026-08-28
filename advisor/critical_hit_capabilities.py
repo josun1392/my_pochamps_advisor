@@ -13,7 +13,7 @@ CATALOG_VERSION = "critical-hit-capability-catalog-v1"
 # the Gen 9 base rule.  Move-specific high-/always-critical rules remain
 # delegated to ``move_crit_rule`` below.
 _BASE_MOVE_IDS = frozenset({
-    "tackle", "water-gun", "thunderbolt", "facade",
+    "tackle", "water-gun", "thunderbolt", "facade", "sparkling-aria",
     # These moves already have bounded predictive secondary/stage mechanics.
     # Keeping this list explicit makes their ordinary Gen 9 crit rule usable
     # without turning uncatalogued attacks into a generic supported family.

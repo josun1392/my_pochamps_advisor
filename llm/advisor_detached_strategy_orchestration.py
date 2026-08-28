@@ -16,6 +16,7 @@ from llm.advisor_predictive_probabilistic_self_stage_effect_uncertainty import c
 from llm.advisor_predictive_probabilistic_target_stage_effect_uncertainty import compose_predictive_probabilistic_target_stage_effect_uncertainty
 from llm.advisor_predictive_thunderbolt_paralysis_uncertainty import compose_predictive_thunderbolt_paralysis_uncertainty
 from llm.advisor_predictive_iron_head_flinch_uncertainty import compose_predictive_iron_head_flinch_uncertainty
+from llm.advisor_predictive_sparkling_aria_burn_clearing_uncertainty import compose_predictive_sparkling_aria_burn_clearing_uncertainty
 from llm.advisor_guaranteed_fact_comparison import guaranteed_facts_from_exact_outcome, guaranteed_facts_from_normal_formula_interval, guaranteed_facts_from_water_gun_interval, rank_guaranteed_candidates
 from llm.advisor_probability_aware_strategy_evaluation import rank_own_action_probability_aware_candidates
 
@@ -89,7 +90,7 @@ def _rank(facts,evidence,ledgers,metrics,response_profiles=None):
   records.append({"candidate_id":cid,"action_type":row.get("action_type",fact.get("action_type") if isinstance(fact,Mapping) else None),"guaranteed_facts":fact,"exact_outcome_ledger":ledgers.get(cid) if isinstance(ledgers,Mapping) else None,"descriptive_metrics":metrics.get(cid) if isinstance(metrics,Mapping) else None})
  return rank_own_action_probability_aware_candidates(candidates=records,opponent_response_profiles=response_profiles)
 def _d0(o,s,e):return isinstance(o,Mapping) and all(s.get(k)==e.get(k) for k in ("session_id","decision_branch_fingerprint","decision_owner")) and s.get("decision_owner")==dict(o)
-def _normal_formula_facts(candidate,interval,own,post_input,normal_input,legacy_water=False,probabilistic_self_stage_effect_authority=None,probabilistic_target_stage_effect_authority=None,thunderbolt_paralysis_authority=None,iron_head_flinch_authority=None,sturdy_survival_authority=None):
+def _normal_formula_facts(candidate,interval,own,post_input,normal_input,legacy_water=False,probabilistic_self_stage_effect_authority=None,probabilistic_target_stage_effect_authority=None,thunderbolt_paralysis_authority=None,iron_head_flinch_authority=None,sparkling_aria_burn_clearing_authority=None,sturdy_survival_authority=None):
  fact=(guaranteed_facts_from_water_gun_interval if legacy_water else guaranteed_facts_from_normal_formula_interval)(candidate=candidate,interval=interval,own_current_hp=own)
  if isinstance(post_input,Mapping):
   composed=compose_predictive_normal_formula_post_hit(interval=interval,move_metadata=post_input.get("move_metadata",{}),attacker_hp=post_input.get("attacker_hp",{}),attacker_item=post_input.get("attacker_item"),attacker_ability=post_input.get("attacker_ability"),target_ability=post_input.get("target_ability"),attacker_item_known=post_input.get("attacker_item_known",True),target_sturdy_survival_authority=sturdy_survival_authority)
@@ -111,4 +112,7 @@ def _normal_formula_facts(candidate,interval,own,post_input,normal_input,legacy_
  if isinstance(iron_head_flinch_authority,Mapping):
   secondary=compose_predictive_iron_head_flinch_uncertainty(candidate=candidate,interval=interval,runtime_authority=iron_head_flinch_authority,post_hit=result.get("post_hit"))
   if secondary.get("status")=="resolved": result={**result,"iron_head_flinch_uncertainty":secondary}
+ if isinstance(sparkling_aria_burn_clearing_authority,Mapping):
+  secondary=compose_predictive_sparkling_aria_burn_clearing_uncertainty(candidate=candidate,interval=interval,runtime_authority=sparkling_aria_burn_clearing_authority,post_hit=result.get("post_hit"))
+  if secondary.get("status")=="resolved": result={**result,"sparkling_aria_burn_clearing_uncertainty":secondary}
  return result

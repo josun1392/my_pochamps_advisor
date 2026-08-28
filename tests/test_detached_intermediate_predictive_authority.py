@@ -14,16 +14,17 @@ from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_sta
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_native_damage_context, build_runtime_d0_strict_critical_hit_probability_assessment,
-    build_runtime_d0_strict_hit_probability_assessment, freeze_runtime_normal_formula_predictive_input,
+    build_runtime_d0_strict_hit_probability_assessment, freeze_runtime_d0_sparkling_aria_burn_clearing_authority, freeze_runtime_normal_formula_predictive_input,
     freeze_runtime_strategy_d0, resolve_runtime_d0_selectable_move_metadata_authority,
 )
-from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
+from llm.advisor_immediate_move_vs_move_action_pair import _normal_formula_ledger, materialize_immediate_move_vs_move_action_pair
 from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
 from llm.advisor_exact_action_pair_descriptive_metrics import project_exact_immediate_action_pair_descriptive_metrics
 from llm.advisor_substitute import update_substitute_state_context
 
 
 MOVE = {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}
+SPARKLING_ARIA = {"move_id": "sparkling-aria", "category": "special", "power": 90, "type": "water", "accuracy": 100, "priority": 0, "target": "selected-pokemon", "effect_chance": 100, "ailment": "none"}
 
 
 def _metadata_authority(d0: dict) -> dict:
@@ -234,6 +235,59 @@ def test_exact_intermediate_burn_poison_and_toxic_reuse_existing_second_action_m
     guts, _snapshot1 = consumed("toxic", burn_move, ability="guts")
     guts_native = build_runtime_d0_native_damage_context(strategy_d0=guts["builder_inputs"]["strategy_d0"], runtime_snapshot=guts["builder_inputs"]["runtime_snapshot"], attacker=guts["builder_inputs"]["attacker"], target=guts["builder_inputs"]["target"], move_metadata=burn_move)
     assert "ability_guts_status_attack_boost" in guts_native["native_evaluation"]["applied_damage_modifiers"]
+
+
+def test_sparkling_aria_burn_clearing_is_a_detached_exact_terminal_effect() -> None:
+    state = _state()
+    opponent = state["opponent_side"]["pokemon"][0]
+    opponent["condition"] = "burn"
+    opponent["condition_provenance"] = {"event_kind": "current_condition_observed", "trust": "user_confirmed_observation", "turn_number": 1, "condition": "burn"}
+    for side in ("self", "opponent"):
+        state["substitute_state_context"] = update_substitute_state_context(
+            context=state.get("substitute_state_context"), session_id=state["session_id"], owner=_owner(state, side),
+            state="known_inactive", substitute_hp=None, provenance="runtime_observed_substitute_state_v1",
+        )
+    snapshot = _snapshot(state)
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    authority = freeze_runtime_d0_sparkling_aria_burn_clearing_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=SPARKLING_ARIA,
+    )
+    assert authority["status"] == "resolved", authority.get("reason")
+    metadata = _metadata_authority(d0) | {"move_id": "sparkling-aria", "metadata": deepcopy(SPARKLING_ARIA)}
+    ledger = _normal_formula_ledger(strategy_d0=d0, runtime_snapshot=snapshot, actor=_owner(state, "self"), target=_owner(state, "opponent"), metadata_authority=metadata)
+    assert ledger["status"] == "evaluable", ledger.get("reason")
+    assert ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    effects = [leaf for leaf in ledger["terminal_leaves"] if leaf["consequences"]["secondary"] and leaf["consequences"]["secondary"].get("branch") == "effect"]
+    assert effects
+    for leaf in effects:
+        removal = leaf["consequences"]["secondary"]["hypothetical_target_condition_removal"]
+        assert removal == {
+            "schema_version": "detached-hypothetical-target-condition-removal-v1",
+            "condition_before": "burn", "condition_removed": "burn", "condition_after": "none",
+            "removal_trigger": "successful_damaging_hit_target_survives",
+            "provenance": "sparkling_aria_successful_damage_roll_burn_clearing_v1",
+            "source_leaf_id": leaf["leaf_id"],
+        }
+        assert leaf["damage_roll"]["damage"] >= leaf["consequences"]["post_hit"]["actual_damage"]
+    assert all(leaf["consequences"]["secondary"] is None for leaf in ledger["terminal_leaves"] if leaf["hit_state"] == "miss")
+    assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "burn"
+
+    no_burn_state = _state()
+    for side in ("self", "opponent"):
+        no_burn_state["substitute_state_context"] = update_substitute_state_context(
+            context=no_burn_state.get("substitute_state_context"), session_id=no_burn_state["session_id"], owner=_owner(no_burn_state, side),
+            state="known_inactive", substitute_hp=None, provenance="runtime_observed_substitute_state_v1",
+        )
+    no_burn_snapshot = _snapshot(no_burn_state)
+    no_burn_d0 = freeze_runtime_strategy_d0(runtime_snapshot=no_burn_snapshot, decision_owner=_owner(no_burn_state, "self"))
+    no_burn = freeze_runtime_d0_sparkling_aria_burn_clearing_authority(
+        strategy_d0=no_burn_d0, runtime_snapshot=no_burn_snapshot, attacker=_owner(no_burn_state, "self"), target=_owner(no_burn_state, "opponent"), move_metadata=SPARKLING_ARIA,
+    )
+    assert no_burn["status"] == "resolved" and no_burn["capability_resolution"]["effect_applicable"] is False
+    stale = freeze_runtime_d0_sparkling_aria_burn_clearing_authority(
+        strategy_d0=d0, runtime_snapshot=no_burn_snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=SPARKLING_ARIA,
+    )
+    assert stale["status"] == "rejected"
 
 
 def test_opponent_root_leaf_maps_hp_and_preserves_original_d0_binding() -> None:

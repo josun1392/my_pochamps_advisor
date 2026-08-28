@@ -39,6 +39,9 @@ from advisor.probabilistic_target_status_effect_capabilities import (
 from advisor.probabilistic_target_flinch_effect_capabilities import (
     resolve_probabilistic_target_flinch_effect_capability,
 )
+from advisor.canonical_target_condition_removal_capabilities import (
+    resolve_canonical_target_condition_removal_capability,
+)
 from advisor.critical_hit_capabilities import resolve_critical_hit_capabilities
 from advisor.strict_critical_hit_probability import assess_strict_critical_hit_probability
 from advisor.strict_hit_probability import assess_strict_deterministic_hit_probability
@@ -553,6 +556,50 @@ def freeze_runtime_d0_iron_head_flinch_authority(
     return result
 
 
+def freeze_runtime_d0_sparkling_aria_burn_clearing_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Freeze exact D0 inputs for Sparkling Aria's catalogued burn clearing."""
+    active = strategy_d0.get("active_owners") if isinstance(strategy_d0, Mapping) else None
+    if (
+        not _valid_d0(strategy_d0) or not isinstance(move_metadata, Mapping)
+        or move_metadata.get("move_id") != "sparkling-aria" or not _owner(attacker) or not _owner(target)
+        or attacker != strategy_d0["decision_owner"] or not isinstance(active, Mapping)
+        or active.get(attacker["side"]) != dict(attacker) or active.get(target["side"]) != dict(target)
+        or attacker["side"] == target["side"]
+    ):
+        return _result("rejected", "runtime_sparkling_aria_burn_clearing_identity_or_move_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    state, _session, _fingerprint = _runtime_snapshot(runtime_snapshot)
+    raw_attacker = _roster(state, attacker["side"]).get(attacker["slot_index"])
+    raw_target = _roster(state, target["side"]).get(target["slot_index"])
+    if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_attacker, attacker) or not _same_runtime_owner(raw_target, target):
+        return _result("rejected", "runtime_sparkling_aria_burn_clearing_identity_mismatch")
+    target_condition = freeze_runtime_current_condition_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
+    capability = resolve_canonical_target_condition_removal_capability(move=move_metadata, target_condition_authority=target_condition)
+    substitute = _runtime_target_substitute_authority(substitute_state(state, target))
+    status, reason = capability.get("status", "rejected"), capability.get("reason")
+    if target_condition.get("status") == "rejected":
+        status, reason = "rejected", target_condition.get("reason", "runtime_current_condition_authority_unavailable")
+    if substitute.get("status") != "known" and status == "resolved":
+        status, reason = "incomplete", "target_substitute_unknown"
+    result = {
+        "status": status, "schema_version": "runtime-d0-sparkling-aria-burn-clearing-authority-v1",
+        "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+        "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move": deepcopy(dict(move_metadata)),
+        "capability_resolution": deepcopy(capability), "current_target_condition_authority": deepcopy(target_condition),
+        "target_substitute_authority": deepcopy(substitute),
+        "provenance": "runtime_battle_state_v1_to_detached_sparkling_aria_burn_clearing_authority_v1",
+    }
+    if status != "resolved" and isinstance(reason, str):
+        result["reason"] = reason
+    return result
+
+
 def build_runtime_d0_strict_hit_probability_assessment(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     attacker: Mapping[str, Any], target: Mapping[str, Any], selected_move: Mapping[str, Any],
@@ -836,6 +883,7 @@ def freeze_runtime_final_combat_stat_authority(
 def build_runtime_d0_native_damage_context(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     attacker: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any],
+    sparkling_aria_burn_clearing_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -888,6 +936,15 @@ def build_runtime_d0_native_damage_context(
         "condition_context": {"current_conditions": _native_condition_entries(raw_attacker, raw_target)},
         "ability_context": {"current_abilities": _native_ability_entries(raw_attacker, raw_target)},
     }
+    if move["move_id"] == "sparkling-aria" and sparkling_aria_burn_clearing_authority is not None:
+        if not _exact_sparkling_aria_pre_hit_burn_authority(
+            sparkling_aria_burn_clearing_authority, strategy_d0=strategy_d0,
+            attacker=attacker, target=target,
+        ):
+            return _native_context_result("rejected", "sparkling_aria_burn_clearing_authority_invalid")
+        for row in current["condition_context"]["current_conditions"]:
+            if row.get("side") == "opponent":
+                row["hypothetical_source"] = "exact_detached_sparkling_aria_pre_hit_burn"
     damage_input = {
         "attacker": {**deepcopy(dict(attacker)), "session_id": strategy_d0["session_id"]},
         "defender": {**deepcopy(dict(target)), "session_id": strategy_d0["session_id"]},
@@ -924,6 +981,25 @@ def build_runtime_d0_native_damage_context(
 
 def _native_context_result(status: str, reason: str) -> dict[str, Any]:
     return {"status": status, "schema_version": "runtime-d0-native-damage-context-v1", "reason": reason}
+
+
+def _exact_sparkling_aria_pre_hit_burn_authority(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any]) -> bool:
+    if not isinstance(value, Mapping) or value.get("schema_version") != "runtime-d0-sparkling-aria-burn-clearing-authority-v1" or value.get("status") != "resolved":
+        return False
+    expected = {
+        "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": strategy_d0["decision_owner"],
+        "attacker": attacker, "target": target,
+    }
+    if any(value.get(key) != expected_value for key, expected_value in expected.items()):
+        return False
+    if not isinstance(value.get("move"), Mapping) or value["move"].get("move_id") != "sparkling-aria":
+        return False
+    capability = value.get("capability_resolution")
+    target_condition = value.get("current_target_condition_authority")
+    effect = capability.get("effect") if isinstance(capability, Mapping) else None
+    before = target_condition.get("condition") if isinstance(target_condition, Mapping) else None
+    return effect == {"owner": "target", "condition_before": "burn", "condition_removed": "burn", "condition_after": "none"} and isinstance(before, Mapping) and before.get("status") == "known_present" and before.get("condition") == "burn"
 
 
 def _native_move_metadata(value: Mapping[str, Any]) -> dict[str, Any] | None:

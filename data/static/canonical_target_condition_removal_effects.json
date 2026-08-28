@@ -1,0 +1,29 @@
+{
+  "schema_version": "canonical-target-condition-removal-effects-catalog-v1",
+  "source": "canonical-maintained-gen9-mechanics-catalog-v1",
+  "rules": [
+    {
+      "rule_id": "sparkling-aria-target-burn-clearing-v1",
+      "move_id": "sparkling-aria",
+      "category": "special",
+      "type": "water",
+      "power": 90,
+      "accuracy": 100,
+      "target_scope": "selected-pokemon",
+      "effect_chance": 100,
+      "ailment": "none",
+      "effect": {
+        "owner": "target",
+        "condition_before": "burn",
+        "condition_removed": "burn",
+        "condition_after": "none"
+      },
+      "conditions": {
+        "requires_successful_damaging_hit": true,
+        "requires_target_routing": true,
+        "blocked_by_substitute": true,
+        "target_must_survive": true
+      }
+    }
+  ]
+}

@@ -251,6 +251,7 @@ def evaluate_direct_damage_mechanics(
         {**direct_attacker, "ability": _KNOWN_ABSENT, "item": _KNOWN_ABSENT}, {**direct_defender, "ability": _KNOWN_ABSENT}, {},
         allow_exact_detached_condition=_has_exact_detached_condition(current),
         allow_exact_detached_switch_entry_condition=_has_exact_detached_switch_entry_condition(current),
+        allow_exact_detached_defender_condition=_has_exact_detached_sparkling_aria_pre_hit_burn(current),
     )
     if legacy_modifier_reason is not None:
         return _unsupported(legacy_modifier_reason)
@@ -285,6 +286,8 @@ def evaluate_direct_damage_mechanics(
         elif _side_has_exact_detached_condition(current, "self" if side_name == "attacker" else "opponent"):
             pass
         elif side_name == "defender" and _has_exact_detached_switch_entry_condition(current):
+            pass
+        elif side_name == "defender" and _has_exact_detached_sparkling_aria_pre_hit_burn(current):
             pass
         else:
             _require_known_absent(side.get("status"), f"{side_name}.status", missing)
@@ -514,8 +517,8 @@ def _require_hp(value: Mapping[str, Any], side: str, missing: list[str]) -> None
     if _positive_int(current) and _positive_int(maximum) and current > maximum: missing.append(f"{side}.current_hp")
 
 
-def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False) -> str | None:
-    for side in (attacker, defender):
+def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False, allow_exact_detached_defender_condition: bool = False) -> str | None:
+    for is_defender, side in ((False, attacker), (True, defender)):
         for key, reason in (("ability", "ability_modifier"), ("item", "item_modifier"), ("status", "major_status_modifier")):
             value = side.get(key)
             if isinstance(value, Mapping) and value.get("status") == "known" and _nonempty_str(value.get("value")):
@@ -525,6 +528,8 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
                 if key == "status" and value.get("value") in {"paralysis", "burn", "poison", "toxic"} and allow_exact_detached_condition:
                     continue
                 if key == "status" and value.get("value") in {"poison", "toxic"} and allow_exact_detached_switch_entry_condition:
+                    continue
+                if key == "status" and is_defender and value.get("value") == "burn" and allow_exact_detached_defender_condition:
                     continue
                 return reason
         boosts = side.get("boosts")
@@ -633,6 +638,18 @@ def _has_exact_detached_condition(current: Mapping[str, Any]) -> bool:
         isinstance(row, Mapping)
         and row.get("condition_type") in {"burn", "poison", "toxic", "paralysis"}
         and row.get("hypothetical_source") == "exact_detached_intermediate_condition"
+        for row in entries
+    )
+
+
+def _has_exact_detached_sparkling_aria_pre_hit_burn(current: Mapping[str, Any]) -> bool:
+    context = current.get("condition_context")
+    entries = context.get("current_conditions") if isinstance(context, Mapping) else None
+    return isinstance(entries, list) and any(
+        isinstance(row, Mapping)
+        and row.get("side") == "opponent"
+        and row.get("condition_type") == "burn"
+        and row.get("hypothetical_source") == "exact_detached_sparkling_aria_pre_hit_burn"
         for row in entries
     )
 
