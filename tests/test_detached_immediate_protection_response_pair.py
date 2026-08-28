@@ -10,12 +10,12 @@ from tests.test_detached_opponent_response_profile import _equal_speed_order, _i
 from tests.test_fixed_two_hit_immediate_move_pair_integration import _fixed_two_action, _order
 
 
-def _protect_action(d0) -> dict:
+def _protect_action(d0, move_id="protect") -> dict:
     opponent = d0["active_owners"]["opponent"]
-    metadata = {"move_id": "protect", "category": "status", "target": "user", "accuracy": None, "priority": 4}
+    metadata = {"move_id": move_id, "category": "status", "target": "user", "accuracy": None, "priority": 4}
     return {
         "status": "resolved", "schema_version": "runtime-d0-opponent-known-move-action-authority-v1",
-        "action_id": "opponent_attack:protect", "action_type": "attack", "move_id": "protect",
+        "action_id": f"opponent_attack:{move_id}", "action_type": "attack", "move_id": move_id,
         "opponent_actor": opponent, "target_owner": d0["active_owners"]["self"],
         "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
         "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
@@ -70,3 +70,25 @@ def test_own_first_and_equal_speed_preserve_order_and_unknown_success_fails_clos
 
     missing = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=protect, action_order_authority=_order(d0, own, protect, "opponent_first"))
     assert missing["status"] == "incomplete"
+
+
+def test_detect_uses_existing_pair_protection_and_ledger_contracts():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs(equal_speed=True)
+    own, detect = _own_action(d0, "tackle"), _protect_action(d0, "detect")
+    blocked = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=detect,
+        action_order_authority=_order(d0, own, detect, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+    )
+    assert blocked["status"] == "evaluable", blocked.get("reason")
+    assert all(row["second_action"]["state"] == "prevented_by_protection" for row in blocked["terminal_branches"])
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=blocked)["status"] == "evaluable"
+
+    tied = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=detect,
+        action_order_authority=_equal_speed_order(d0, own, detect),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+    )
+    assert tied["status"] == "evaluable", tied.get("reason")
+    assert tied["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert {row["action_order"] for row in tied["terminal_branches"]} == {"own_first", "opponent_first"}

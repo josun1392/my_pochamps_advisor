@@ -10,12 +10,46 @@ def _success(n=0): return {"schema_version": "branch-protection-success-v1", "ow
 def test_checked_in_metadata_not_name_or_broad_category_inference_and_success_is_explicit():
     branch = _branch(); before = deepcopy(branch)
     assert canonical_protection_metadata("protect")["blocks_supported_direct_damage"] is True
+    assert canonical_protection_metadata("detect") == {
+        "move_id": "detect", "protects_self": True,
+        "blocks_supported_direct_damage": True,
+        "protection_kind": "ordinary_self_protection",
+        "has_additional_material_effects": False,
+    }
     assert canonical_protection_metadata("fake-protect") is None
     assert project_self_protection(branch_state=branch, action=_action("fake-protect"), expected_owner=OWNER, success_authority=_success())["status"] == "unsupported"
     assert project_self_protection(branch_state=branch, action=_action(), expected_owner=OWNER, success_authority=_success())["status"] == "resolved"
     assert project_self_protection(branch_state=branch, action=_action(), expected_owner=OWNER, success_authority={})["reason"] == "protection_chain_authority"
     assert project_self_protection(branch_state=branch, action=_action(), expected_owner=OWNER, success_authority=_success(1))["reason"] == "protection_chain_authority"
     assert branch == before
+
+
+def test_detect_uses_the_same_strict_ordinary_protection_resolver():
+    effect = project_self_protection(
+        branch_state=_branch(), action=_action("detect"), expected_owner=OWNER,
+        success_authority=_success(),
+    )
+    assert effect["status"] == "resolved"
+    assert effect["metadata"]["move_id"] == "detect"
+    assert prevent_supported_direct_damage(
+        effect=effect, protected_owner=OWNER,
+        opponent_action={"move": {"category": "physical", "protection_bypass": False}},
+    )["execution_status"] == "prevented"
+    assert prevent_supported_direct_damage(
+        effect=effect, protected_owner=OWNER,
+        opponent_action={"move": {"category": "physical", "protection_bypass": True}},
+    )["reason"] == "protection_bypass_authority"
+    conflicting = _action("detect")
+    conflicting["move"]["target"] = "normal"
+    assert project_self_protection(
+        branch_state=_branch(), action=conflicting, expected_owner=OWNER,
+        success_authority=_success(),
+    )["status"] == "unsupported"
+    foreign = {**OWNER, "pokemon_id": "foreign"}
+    assert project_self_protection(
+        branch_state=_branch(), action=_action("detect"), expected_owner=foreign,
+        success_authority=_success(),
+    )["status"] == "rejected"
 
 def test_protection_prevents_only_explicitly_non_bypassing_direct_damage():
     effect = project_self_protection(branch_state=_branch(), action=_action(), expected_owner=OWNER, success_authority=_success())
