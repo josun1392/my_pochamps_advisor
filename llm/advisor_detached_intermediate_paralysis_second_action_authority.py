@@ -49,9 +49,9 @@ def consume_detached_intermediate_paralysis_for_second_action(
         if inputs.get("status") != "resolved":
             return _result(_status(inputs), inputs.get("reason", "second_action_builder_inputs_unavailable"), base)
         return _resolved(base, inputs, (), _execution_branches(paralyzed=False))
-    if any(condition != "paralysis" for condition in changed.values()):
+    if any(condition not in {"paralysis", "burn", "poison", "toxic"} for condition in changed.values()):
         return _result("incomplete", "changed_intermediate_condition_not_supported_for_second_action", base)
-    inputs = _paralysis_builder_inputs(authority, changed)
+    inputs = _condition_builder_inputs(authority, changed)
     if inputs.get("status") != "resolved":
         return _result(_status(inputs), inputs.get("reason", "paralysis_second_action_builder_inputs_unavailable"), base)
     actor_changed = changed.get("actor") == "paralysis"
@@ -97,7 +97,7 @@ def _changed_conditions(overrides: Mapping[str, Any]) -> dict[str, str] | str:
     return changed
 
 
-def _paralysis_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str, str]) -> dict[str, Any]:
+def _condition_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str, str]) -> dict[str, Any]:
     snapshot = authority.get("predictive_runtime_snapshot")
     actor, target = authority.get("predictive_actor"), authority.get("predictive_target")
     if not isinstance(snapshot, Mapping) or not isinstance(actor, Mapping) or not isinstance(target, Mapping):
@@ -111,15 +111,14 @@ def _paralysis_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str
         raw = _pokemon(synthetic, owner)
         if raw is None:
             return {"status": "rejected", "reason": "intermediate_condition_owner_identity_mismatch"}
-        # Full-paralysis is handled by explicit execution branches.  The
-        # detached calculator view still consumes exact paralysis for
-        # status-dependent damage such as Facade and Guts.
-        raw["condition"] = "paralysis"
+        # Full-paralysis is handled by explicit execution branches. Other
+        # admitted conditions merely flow into existing direct/crit owners.
+        raw["condition"] = changed[role]
         raw["detached_exact_intermediate_condition_authority"] = True
         raw["condition_provenance"] = {
             "event_kind": "current_condition_observed", "trust": "user_confirmed_observation",
-            "turn_number": 1, "condition": "paralysis",
-            "hypothetical_provenance": "private_exact_paralysis_calculator_view",
+            "turn_number": 1, "condition": changed[role],
+            "hypothetical_provenance": "private_exact_intermediate_condition_calculator_view",
         }
     private_snapshot = {
         "status": "runtime_snapshot_ready", "session_id": authority["session_id"],
@@ -127,17 +126,18 @@ def _paralysis_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str
     }
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=private_snapshot, decision_owner=actor)
     if d0.get("status") != "resolved":
-        return {"status": "incomplete", "reason": d0.get("reason", "paralysis_hypothetical_d0_unavailable")}
+        return {"status": "incomplete", "reason": d0.get("reason", "intermediate_condition_hypothetical_d0_unavailable")}
     return {
         "status": "resolved", "strategy_d0": deepcopy(d0), "runtime_snapshot": private_snapshot,
         "attacker": deepcopy(dict(actor)), "target": deepcopy(dict(target)),
         "move_metadata": deepcopy(dict(authority.get("move_metadata", {}))),
         "hypothetical_condition_authority": {
-            "status": "known_present", "condition": "paralysis",
+            "status": "known_present", "condition": next(iter(changed.values())) if len(changed) == 1 else None,
+            "conditions": deepcopy(dict(changed)),
             "provenance": "exact_terminal_leaf_condition_effect",
-            "calculator_view": "exact_paralysis_for_supported_status_dependent_damage",
+            "calculator_view": "exact_intermediate_condition_for_supported_status_dependent_damage",
         },
-        "provenance": "private_exact_hypothetical_paralysis_builder_view_v1",
+        "provenance": "private_exact_hypothetical_intermediate_condition_builder_view_v1",
     }
 
 

@@ -249,7 +249,7 @@ def evaluate_direct_damage_mechanics(
     stage_context = _relevant_stage_context(current=current, category=category)
     legacy_modifier_reason = _unsupported_modifier(
         {**direct_attacker, "ability": _KNOWN_ABSENT, "item": _KNOWN_ABSENT}, {**direct_defender, "ability": _KNOWN_ABSENT}, {},
-        allow_exact_detached_paralysis=_has_exact_detached_paralysis(current),
+        allow_exact_detached_condition=_has_exact_detached_condition(current),
         allow_exact_detached_switch_entry_condition=_has_exact_detached_switch_entry_condition(current),
     )
     if legacy_modifier_reason is not None:
@@ -281,6 +281,8 @@ def evaluate_direct_damage_mechanics(
         _require_zero_boosts(side.get("boosts"), f"{side_name}.boosts", missing)
         _require_hp(side, side_name, missing)
         if side_name == "attacker" and modifier.get("burn_known"):
+            pass
+        elif _side_has_exact_detached_condition(current, "self" if side_name == "attacker" else "opponent"):
             pass
         elif side_name == "defender" and _has_exact_detached_switch_entry_condition(current):
             pass
@@ -512,16 +514,15 @@ def _require_hp(value: Mapping[str, Any], side: str, missing: list[str]) -> None
     if _positive_int(current) and _positive_int(maximum) and current > maximum: missing.append(f"{side}.current_hp")
 
 
-def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_paralysis: bool = False, allow_exact_detached_switch_entry_condition: bool = False) -> str | None:
+def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False) -> str | None:
     for side in (attacker, defender):
         for key, reason in (("ability", "ability_modifier"), ("item", "item_modifier"), ("status", "major_status_modifier")):
             value = side.get(key)
             if isinstance(value, Mapping) and value.get("status") == "known" and _nonempty_str(value.get("value")):
-                # Paralysis has no direct damage modifier by itself.  Its
-                # action-cancellation semantics are owned by the detached
-                # second-action consumer, while Guts receives the exact
-                # condition through the explicit ability context below.
-                if key == "status" and value.get("value") == "paralysis" and allow_exact_detached_paralysis:
+                # Detached intermediate major conditions are exact terminal
+                # consequences, not current-runtime observations.  They may
+                # be consumed only through the tagged private calculator view.
+                if key == "status" and value.get("value") in {"paralysis", "burn", "poison", "toxic"} and allow_exact_detached_condition:
                     continue
                 if key == "status" and value.get("value") in {"poison", "toxic"} and allow_exact_detached_switch_entry_condition:
                     continue
@@ -578,11 +579,11 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
         return result
     if ability_id == "guts":
         condition = _attacker_condition(current)
-        if not _is_detached_intermediate_view(current) or condition not in {"none", "paralysis"}:
+        if not _is_detached_intermediate_view(current) or condition not in {"none", "burn", "poison", "toxic", "paralysis"}:
             result["unsupported_reason"] = "ability_modifier"
             return result
         result["attacker_condition"] = condition
-        if condition == "paralysis" and _has_exact_detached_paralysis(current):
+        if condition in {"burn", "poison", "toxic", "paralysis"} and _has_exact_detached_condition(current):
             result["ability_effect"] = effect
             result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
         return result
@@ -625,13 +626,25 @@ def _attacker_condition(current: Mapping[str, Any]) -> str | None:
     return condition if condition in {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"} else None
 
 
-def _has_exact_detached_paralysis(current: Mapping[str, Any]) -> bool:
+def _has_exact_detached_condition(current: Mapping[str, Any]) -> bool:
     context = current.get("condition_context")
     entries = context.get("current_conditions") if isinstance(context, Mapping) else None
     return isinstance(entries, list) and any(
         isinstance(row, Mapping)
-        and row.get("condition_type") == "paralysis"
-        and row.get("hypothetical_source") == "exact_detached_intermediate_paralysis"
+        and row.get("condition_type") in {"burn", "poison", "toxic", "paralysis"}
+        and row.get("hypothetical_source") == "exact_detached_intermediate_condition"
+        for row in entries
+    )
+
+
+def _side_has_exact_detached_condition(current: Mapping[str, Any], side: str) -> bool:
+    context = current.get("condition_context")
+    entries = context.get("current_conditions") if isinstance(context, Mapping) else None
+    return isinstance(entries, list) and any(
+        isinstance(row, Mapping)
+        and row.get("side") == side
+        and row.get("condition_type") in {"burn", "poison", "toxic", "paralysis"}
+        and row.get("hypothetical_source") == "exact_detached_intermediate_condition"
         for row in entries
     )
 
@@ -940,10 +953,17 @@ def _status_condition_power_context(*, move_id: str, current: Mapping[str, Any])
     matches = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == "opponent"]
     if len(matches) != 1:
         return {"status": "insufficient_context", "missing_inputs": ["defender.condition"]}
-    try:
-        condition = normalize_user_confirmed_current_condition({key: value for key, value in matches[0].items() if key != "provenance"})["condition_type"]
-    except ValueError:
-        return {"status": "unsupported_mechanic", "missing_inputs": []}
+    entry = matches[0]
+    if (
+        entry.get("condition_type") in {"burn", "poison", "toxic", "paralysis"}
+        and entry.get("hypothetical_source") == "exact_detached_intermediate_condition"
+    ):
+        condition = entry["condition_type"]
+    else:
+        try:
+            condition = normalize_user_confirmed_current_condition({key: value for key, value in entry.items() if key != "provenance"})["condition_type"]
+        except ValueError:
+            return {"status": "unsupported_mechanic", "missing_inputs": []}
     condition_met = condition != "none" if move_id == "hex" else condition in {"poison", "toxic"}
     rule = "defender-major-status-doubles-power" if move_id == "hex" else "defender-poison-doubles-power"
     return {

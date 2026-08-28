@@ -186,6 +186,56 @@ def test_exact_intermediate_paralysis_drives_facade_and_guts_without_current_mut
     assert guts_snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
 
 
+def test_exact_intermediate_burn_poison_and_toxic_reuse_existing_second_action_mechanics_without_mutation():
+    state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    def consumed(condition, move, *, ability=None, ability_side="opponent", actor_side="opponent", condition_side="opponent"):
+        local_state = deepcopy(state)
+        if ability is not None:
+            local_state[f"{ability_side}_side"]["pokemon"][0]["current_ability"] = ability
+        local_snapshot = _snapshot(local_state); local_d0 = freeze_runtime_strategy_d0(runtime_snapshot=local_snapshot, decision_owner=_owner(local_state, "self"))
+        intermediate = _intermediate(local_d0)
+        intermediate["active"][condition_side]["hypothetical_condition"] = {"status": "known_present", "condition": condition, "source": "exact_terminal_leaf_condition_effect"}
+        metadata = _metadata_authority(local_d0) | {"move_id": move["move_id"], "metadata": move}
+        target_side = "self" if actor_side == "opponent" else "opponent"
+        authority = freeze_detached_intermediate_predictive_authority(strategy_d0=local_d0, runtime_snapshot=local_snapshot, intermediate_state=intermediate, actor=_owner(local_state, actor_side), target=_owner(local_state, target_side), move_metadata_authority=metadata)
+        return consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=authority), local_snapshot
+
+    burn_move = {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100, "priority": 0}
+    burn, burn_snapshot = consumed("burn", burn_move)
+    assert burn["status"] == "resolved" and burn["second_action_execution_branches"][0]["conditional_probability"] == {"numerator": 1, "denominator": 1}
+    burn_native = build_runtime_d0_native_damage_context(strategy_d0=burn["builder_inputs"]["strategy_d0"], runtime_snapshot=burn["builder_inputs"]["runtime_snapshot"], attacker=burn["builder_inputs"]["attacker"], target=burn["builder_inputs"]["target"], move_metadata=burn_move)
+    assert "burn_physical_reduction" in burn_native["native_evaluation"]["applied_damage_modifiers"]
+    assert burn_snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+
+    facade_move = {"move_id": "facade", "category": "physical", "power": 70, "type": "normal", "accuracy": 100, "priority": 0}
+    facade, _snapshot0 = consumed("burn", facade_move)
+    facade_native = build_runtime_d0_native_damage_context(strategy_d0=facade["builder_inputs"]["strategy_d0"], runtime_snapshot=facade["builder_inputs"]["runtime_snapshot"], attacker=facade["builder_inputs"]["attacker"], target=facade["builder_inputs"]["target"], move_metadata=facade_move)
+    assert facade_native["native_evaluation"]["dynamic_power_evidence"]["effective_power"] == 140
+
+    hex_move = {"move_id": "hex", "category": "special", "power": 65, "type": "ghost", "accuracy": 100, "priority": 0}
+    poison, _snapshot0 = consumed("poison", hex_move, actor_side="self", condition_side="opponent")
+    poison_native = build_runtime_d0_native_damage_context(strategy_d0=poison["builder_inputs"]["strategy_d0"], runtime_snapshot=poison["builder_inputs"]["runtime_snapshot"], attacker=poison["builder_inputs"]["attacker"], target=poison["builder_inputs"]["target"], move_metadata=hex_move)
+    assert poison_native["status"] == "resolved", (poison_native.get("reason"), poison_native.get("missing_inputs"), poison_native.get("native_evaluation"))
+    assert poison_native["native_evaluation"]["dynamic_power_evidence"]["effective_power"] == 130
+    assert poison["builder_inputs"]["runtime_snapshot"]["state"]["opponent_side"]["pokemon"][0]["condition"] == "poison"
+    assert _snapshot0["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
+
+    venoshock_move = {"move_id": "venoshock", "category": "special", "power": 65, "type": "poison", "accuracy": 100, "priority": 0}
+    toxic, _snapshot0 = consumed("toxic", venoshock_move, actor_side="self", condition_side="opponent")
+    toxic_native = build_runtime_d0_native_damage_context(strategy_d0=toxic["builder_inputs"]["strategy_d0"], runtime_snapshot=toxic["builder_inputs"]["runtime_snapshot"], attacker=toxic["builder_inputs"]["attacker"], target=toxic["builder_inputs"]["target"], move_metadata=venoshock_move)
+    assert toxic_native["status"] == "resolved"
+    assert toxic_native["native_evaluation"]["dynamic_power_evidence"]["effective_power"] == 130
+
+    merciless, _snapshot0 = consumed("poison", burn_move, ability="merciless", ability_side="self", actor_side="self", condition_side="opponent")
+    merciless_crit = build_runtime_d0_strict_critical_hit_probability_assessment(strategy_d0=merciless["builder_inputs"]["strategy_d0"], runtime_snapshot=merciless["builder_inputs"]["runtime_snapshot"], attacker=merciless["builder_inputs"]["attacker"], target=merciless["builder_inputs"]["target"], move_metadata=burn_move)
+    assert merciless_crit["status"] == "resolved"
+    assert merciless_crit["critical_probability"] == {"numerator": 1, "denominator": 1}
+
+    guts, _snapshot1 = consumed("toxic", burn_move, ability="guts")
+    guts_native = build_runtime_d0_native_damage_context(strategy_d0=guts["builder_inputs"]["strategy_d0"], runtime_snapshot=guts["builder_inputs"]["runtime_snapshot"], attacker=guts["builder_inputs"]["attacker"], target=guts["builder_inputs"]["target"], move_metadata=burn_move)
+    assert "ability_guts_status_attack_boost" in guts_native["native_evaluation"]["applied_damage_modifiers"]
+
+
 def test_opponent_root_leaf_maps_hp_and_preserves_original_d0_binding() -> None:
     state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
     own, opponent = _owner(state, "self"), _owner(state, "opponent")

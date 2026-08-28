@@ -1180,9 +1180,9 @@ def _native_condition_entries(attacker: Mapping[str, Any], target: Mapping[str, 
     rows = []
     for side, raw in (("self", attacker), ("opponent", target)):
         condition = _runtime_known_string(raw.get("condition"))
-        exact_intermediate_paralysis = (
+        exact_intermediate_condition = (
             raw.get("detached_exact_intermediate_condition_authority") is True
-            and condition == "paralysis"
+            and condition in {"paralysis", "burn", "poison", "toxic"}
         )
         exact_switch_entry_condition = (
             raw.get("detached_switch_first_hypothetical_condition_authority") is True
@@ -1193,7 +1193,7 @@ def _native_condition_entries(attacker: Mapping[str, Any], target: Mapping[str, 
             "side": side, "condition_type": condition or "unknown",
             "status": "user_confirmed" if condition else "unknown",
             "source": "user_confirmed_current_condition" if condition else "unknown",
-            "hypothetical_source": "exact_detached_intermediate_paralysis" if exact_intermediate_paralysis else None,
+            "hypothetical_source": "exact_detached_intermediate_condition" if exact_intermediate_condition else None,
             "switch_entry_hypothetical_source": "exact_detached_switch_entry_toxic_spikes" if exact_switch_entry_condition else None,
             "hypothetical_view": "detached_intermediate_predictive_authority" if detached_intermediate_view else None,
         })
