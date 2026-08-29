@@ -1,0 +1,19 @@
+{
+  "schema_version": "canonical-multi-recipient-action-execution-scopes-v1",
+  "authority": "pokemon-showdown/data/moves.ts and sim/battle-actions.ts (Gen 9 doubles Rock Slide)",
+  "moves": {
+    "rock-slide": {
+      "canonical_target_class": "all-opponents",
+      "recipient_classification": "spread_multi_target",
+      "recipient_resolution_order": "frozen_target_set_order",
+      "spread_damage_modifier": {
+        "numerator": 3,
+        "denominator": 4,
+        "applies_when_recipient_count_at_least": 2
+      },
+      "accuracy_uncertainty_scope": "recipient_local",
+      "critical_hit_uncertainty_scope": "recipient_local",
+      "damage_roll_uncertainty_scope": "recipient_local"
+    }
+  }
+}
