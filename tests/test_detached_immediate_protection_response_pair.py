@@ -22,6 +22,11 @@ from llm.advisor_runtime_d0_baneful_bunker_reactive_poison_authority import (
     build_baneful_bunker_successful_block_context,
     freeze_runtime_d0_baneful_bunker_reactive_poison_authority,
 )
+from llm.advisor_runtime_d0_burning_bulwark_reactive_burn_authority import (
+    build_burning_bulwark_reactive_burn_applicability_resolution,
+    build_burning_bulwark_successful_block_context,
+    freeze_runtime_d0_burning_bulwark_reactive_burn_authority,
+)
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import _equal_speed_order, _inputs, _metadata
@@ -118,6 +123,29 @@ def _baneful_poison_authority(d0, snapshot, own, *, outcome="applies"):
     )
     return freeze_runtime_d0_baneful_bunker_reactive_poison_authority(
         strategy_d0=d0, runtime_snapshot=snapshot, shield_owner=d0["active_owners"]["opponent"], shield_action_id="opponent_attack:baneful-bunker",
+        blocked_attacker=d0["active_owners"]["self"], blocked_action=own, contact_authority=contact,
+        protection_block_context=context, applicability_resolution=applicability,
+    ), contact
+
+
+def _burning_burn_authority(d0, snapshot, own, *, outcome="applies"):
+    contact = freeze_runtime_d0_canonical_contact_classification_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=own,
+        attacker=d0["active_owners"]["self"], target=d0["active_owners"]["opponent"],
+    )
+    protection = {"status": "resolved", "owner": d0["active_owners"]["opponent"], "metadata": {"move_id": "burning-bulwark"}, "provenance": "exact_burning_bulwark_block_v1"}
+    context = build_burning_bulwark_successful_block_context(
+        session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"], shield_action_id="opponent_attack:burning-bulwark",
+        blocked_attacker=d0["active_owners"]["self"], blocked_action_id=own["action_id"], blocked_move_id=own["identity"],
+        protection_authority=protection, action_blocked=True, protection_bypass=False, substitute_authority={"status": "known_absent"},
+    )
+    applicability = build_burning_bulwark_reactive_burn_applicability_resolution(
+        session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"], blocked_attacker=d0["active_owners"]["self"],
+        blocked_action_id=own["action_id"], blocked_move_id=own["identity"], outcome=outcome,
+        ability_authority={"status": "known", "value": "pressure"}, item_authority={"status": "known_absent"},
+    )
+    return freeze_runtime_d0_burning_bulwark_reactive_burn_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, shield_owner=d0["active_owners"]["opponent"], shield_action_id="opponent_attack:burning-bulwark",
         blocked_attacker=d0["active_owners"]["self"], blocked_action=own, contact_authority=contact,
         protection_block_context=context, applicability_resolution=applicability,
     ), contact
@@ -406,5 +434,65 @@ def test_baneful_bunker_no_effect_and_missing_or_foreign_authority_remain_strict
     rejected = materialize_immediate_move_vs_move_action_pair(
         strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
         action_order_authority=_order(d0, own, shield, "opponent_first"), opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]), incoming_contact_authority=contact, baneful_bunker_reactive_poison_authority=foreign,
+    )
+    assert rejected["status"] == "rejected"
+
+
+def test_burning_bulwark_consumes_exact_burn_transition_into_protection_pair_and_ledger():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs()
+    own, shield = _own_action(d0, "tackle"), _protect_action(d0, "burning-bulwark")
+    burn, contact = _burning_burn_authority(d0, snapshot, own)
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact, burning_bulwark_reactive_burn_authority=burn,
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    leaf = pair["terminal_branches"][0]["first_action_leaf"]
+    assert leaf["hit_state"] == leaf["critical_state"] == leaf["damage_roll"] == "not_applicable"
+    transition = leaf["consequences"]["reactive_shield_condition_transition"]
+    assert transition["condition"] == "burn" and transition["condition_before"] == "known_none"
+    assert leaf["consequences"]["secondary"] is None
+    assert leaf["consequences"]["baneful_bunker_reactive_poison"] is None
+    assert leaf["consequences"]["burning_bulwark_reactive_burn"]["authority"]["trigger"] == "burning_bulwark_successful_blocked_contact"
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert ledger["terminal_leaves"][0]["final_consequences"]["reactive_shield_condition_consequence"] == transition
+
+
+def test_burning_bulwark_no_effect_missing_and_foreign_authority_remain_strict():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs()
+    shield, own = _protect_action(d0, "burning-bulwark"), _own_action(d0, "shadow-ball")
+    non_contact, contact = _burning_burn_authority(d0, snapshot, own)
+    block_only = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"), opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact, burning_bulwark_reactive_burn_authority=non_contact,
+    )
+    assert block_only["status"] == "evaluable"
+    assert block_only["terminal_branches"][0]["first_action_leaf"]["consequences"]["reactive_shield_condition_transition"] is None
+
+    own = _own_action(d0, "tackle")
+    prevented, contact = _burning_burn_authority(d0, snapshot, own, outcome="prevented")
+    prevented_pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"), opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact, burning_bulwark_reactive_burn_authority=prevented,
+    )
+    assert prevented_pair["status"] == "evaluable"
+    assert prevented_pair["terminal_branches"][0]["first_action_leaf"]["consequences"]["reactive_shield_condition_transition"] is None
+
+    missing = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"), opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]), incoming_contact_authority=contact,
+    )
+    assert missing["status"] == "incomplete"
+    foreign = deepcopy(prevented)
+    foreign["blocked_action_id"] = "foreign"
+    rejected = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"), opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact, burning_bulwark_reactive_burn_authority=foreign,
     )
     assert rejected["status"] == "rejected"

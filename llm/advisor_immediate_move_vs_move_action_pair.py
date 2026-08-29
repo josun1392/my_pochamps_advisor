@@ -38,7 +38,8 @@ from llm.advisor_hypothetical_protection_effects import (
 from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata
 from advisor.canonical_spiky_shield_reactive_damage import canonical_spiky_shield_reactive_damage_metadata
 from advisor.canonical_baneful_bunker_reactive_poison import canonical_baneful_bunker_reactive_poison_metadata
-from llm.advisor_hypothetical_silk_trap_effects import project_silk_trap_protection, project_kings_shield_protection, project_obstruct_protection, project_spiky_shield_protection, project_baneful_bunker_protection, resolve_silk_trap_speed_effect, resolve_kings_shield_attack_effect, resolve_obstruct_defense_effect
+from advisor.canonical_burning_bulwark_reactive_burn import canonical_burning_bulwark_reactive_burn_metadata
+from llm.advisor_hypothetical_silk_trap_effects import project_silk_trap_protection, project_kings_shield_protection, project_obstruct_protection, project_spiky_shield_protection, project_baneful_bunker_protection, project_burning_bulwark_protection, resolve_silk_trap_speed_effect, resolve_kings_shield_attack_effect, resolve_obstruct_defense_effect
 from llm.advisor_runtime_d0_silk_trap_speed_drop_interaction_authority import (
     freeze_runtime_d0_silk_trap_speed_drop_interaction_authority,
     freeze_runtime_d0_kings_shield_attack_drop_interaction_authority,
@@ -51,6 +52,10 @@ from llm.advisor_runtime_d0_spiky_shield_reactive_damage_authority import (
 from llm.advisor_runtime_d0_baneful_bunker_reactive_poison_authority import (
     SCHEMA_VERSION as BANEFUL_BUNKER_POISON_SCHEMA_VERSION,
     materialize_detached_baneful_bunker_reactive_poison,
+)
+from llm.advisor_runtime_d0_burning_bulwark_reactive_burn_authority import (
+    SCHEMA_VERSION as BURNING_BULWARK_BURN_SCHEMA_VERSION,
+    materialize_detached_burning_bulwark_reactive_burn,
 )
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
@@ -87,6 +92,7 @@ def materialize_immediate_move_vs_move_action_pair(
     obstruct_reactive_interaction_authority: Mapping[str, Any] | None = None,
     spiky_shield_reactive_damage_authority: Mapping[str, Any] | None = None,
     baneful_bunker_reactive_poison_authority: Mapping[str, Any] | None = None,
+    burning_bulwark_reactive_burn_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
@@ -98,7 +104,7 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
-    if _is_protection_metadata(opponent_meta.get("metadata")) or any(candidate(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None for candidate in (canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata, canonical_spiky_shield_reactive_damage_metadata, canonical_baneful_bunker_reactive_poison_metadata)):
+    if _is_protection_metadata(opponent_meta.get("metadata")) or any(candidate(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None for candidate in (canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata, canonical_spiky_shield_reactive_damage_metadata, canonical_baneful_bunker_reactive_poison_metadata, canonical_burning_bulwark_reactive_burn_metadata)):
         return _materialize_protection_response_pair(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
             own_meta=own_meta, opponent_meta=opponent_meta, orders=orders,
@@ -109,6 +115,7 @@ def materialize_immediate_move_vs_move_action_pair(
             obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority,
             spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority,
             baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority,
+            burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority,
         )
     branches: list[dict[str, Any]] = []
     for order_plan in orders:
@@ -142,6 +149,7 @@ def _materialize_protection_response_pair(
     obstruct_reactive_interaction_authority: Mapping[str, Any] | None,
     spiky_shield_reactive_damage_authority: Mapping[str, Any] | None,
     baneful_bunker_reactive_poison_authority: Mapping[str, Any] | None,
+    burning_bulwark_reactive_burn_authority: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """Materialize only the existing exact ordinary self-protection contract."""
     branches: list[dict[str, Any]] = []
@@ -173,6 +181,7 @@ def _materialize_protection_response_pair(
         reactive = None
         spiky_damage = None
         baneful_poison = None
+        burning_burn = None
         if canonical_silk_trap_metadata(opponent_meta["metadata"].get("move_id")) is not None:
             if isinstance(incoming_contact_authority, Mapping) and incoming_contact_authority.get("status") == "resolved" and incoming_contact_authority.get("contact_state") == "non_contact":
                 interaction = None
@@ -223,7 +232,14 @@ def _materialize_protection_response_pair(
             )
             if baneful_poison.get("status") != "resolved":
                 return _result(_status(baneful_poison), baneful_poison.get("reason", "baneful_bunker_reactive_poison_authority_unavailable"), base)
-        leaf = _protection_leaf(base, strategy_d0, opponent_meta["metadata"], reactive, spiky_damage, baneful_poison)
+        elif canonical_burning_bulwark_reactive_burn_metadata(opponent_meta["metadata"].get("move_id")) is not None:
+            burning_burn = _burning_bulwark_reactive_burn(
+                base=base, contact_authority=incoming_contact_authority,
+                authority=burning_bulwark_reactive_burn_authority,
+            )
+            if burning_burn.get("status") != "resolved":
+                return _result(_status(burning_burn), burning_burn.get("reason", "burning_bulwark_reactive_burn_authority_unavailable"), base)
+        leaf = _protection_leaf(base, strategy_d0, opponent_meta["metadata"], reactive, spiky_damage, baneful_poison, burning_burn)
         if leaf is None:
             return _result("incomplete", "exact_protection_hp_authority_missing", base)
         branches.append(_protection_branch(base, plan, leaf, "prevented_by_protection"))
@@ -256,6 +272,8 @@ def _resolved_protection(*, strategy_d0: Mapping[str, Any], opponent: Mapping[st
         return project_spiky_shield_protection(branch_state=branch, action=action, owner=opponent, success_authority=success_authority or {})
     if canonical_baneful_bunker_reactive_poison_metadata(metadata.get("move_id")) is not None:
         return project_baneful_bunker_protection(branch_state=branch, action=action, owner=opponent, success_authority=success_authority or {})
+    if canonical_burning_bulwark_reactive_burn_metadata(metadata.get("move_id")) is not None:
+        return project_burning_bulwark_protection(branch_state=branch, action=action, owner=opponent, success_authority=success_authority or {})
     return project_self_protection(
         branch_state=branch, action=action,
         expected_owner=opponent, success_authority=success_authority or {},
@@ -270,7 +288,7 @@ def _is_protection_metadata(metadata: Any) -> bool:
     return isinstance(metadata, Mapping) and canonical_protection_metadata(metadata.get("move_id")) is not None
 
 
-def _protection_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadata: Mapping[str, Any], reactive: Mapping[str, Any] | None = None, spiky_damage: Mapping[str, Any] | None = None, baneful_poison: Mapping[str, Any] | None = None) -> dict[str, Any] | None:
+def _protection_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadata: Mapping[str, Any], reactive: Mapping[str, Any] | None = None, spiky_damage: Mapping[str, Any] | None = None, baneful_poison: Mapping[str, Any] | None = None, burning_burn: Mapping[str, Any] | None = None) -> dict[str, Any] | None:
     active = strategy_d0.get("strategy_state", {}).get("active", {})
     own_hp = active.get("self", {}).get("current_hp") if isinstance(active, Mapping) else None
     opponent_hp = active.get("opponent", {}).get("current_hp") if isinstance(active, Mapping) else None
@@ -291,7 +309,8 @@ def _protection_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], me
             "silk_trap_reactive_consequence": deepcopy(reactive) if isinstance(reactive, Mapping) else None,
             "spiky_shield_reactive_damage": deepcopy(spiky_damage) if isinstance(spiky_damage, Mapping) else None,
             "baneful_bunker_reactive_poison": deepcopy(baneful_poison) if isinstance(baneful_poison, Mapping) else None,
-            "reactive_shield_condition_transition": deepcopy(baneful_poison.get("transition")) if isinstance(baneful_poison, Mapping) and baneful_poison.get("outcome") == "applies" else None,
+            "burning_bulwark_reactive_burn": deepcopy(burning_burn) if isinstance(burning_burn, Mapping) else None,
+            "reactive_shield_condition_transition": deepcopy(baneful_poison.get("transition")) if isinstance(baneful_poison, Mapping) and baneful_poison.get("outcome") == "applies" else deepcopy(burning_burn.get("transition")) if isinstance(burning_burn, Mapping) and burning_burn.get("outcome") == "applies" else None,
             "secondary": None,
         },
         "provenance": {"session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": deepcopy(dict(base["decision_owner"])), "attacker": deepcopy(dict(base["opponent_actor"])), "target": deepcopy(dict(base["own_actor"])), "move_id": metadata["move_id"]},
@@ -362,6 +381,41 @@ def _baneful_bunker_reactive_poison(*, base: Mapping[str, Any], contact_authorit
     transition = overlay.get("hypothetical_condition_authority")
     if authority.get("outcome") != "applies" or overlay.get("transition_applied") is not True or not isinstance(transition, Mapping) or transition.get("status") != "known_present" or transition.get("condition") != "poison" or transition.get("condition_before") != "known_none" or transition.get("condition_after") != "poison" or transition.get("trigger") != "baneful_bunker_successful_blocked_contact":
         return {"status": "rejected", "reason": "baneful_bunker_reactive_poison_transition_invalid"}
+    return {"status": "resolved", "outcome": "applies", "transition": deepcopy(dict(transition)), "authority": deepcopy(dict(authority)), "overlay": overlay}
+
+
+def _burning_bulwark_reactive_burn(*, base: Mapping[str, Any], contact_authority: Mapping[str, Any] | None, authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Consume one frozen Burning Bulwark result; pair code never resolves eligibility."""
+    if not isinstance(authority, Mapping):
+        return {"status": "incomplete", "reason": "burning_bulwark_reactive_burn_authority_missing"}
+    expected = {
+        "schema_version": BURNING_BULWARK_BURN_SCHEMA_VERSION,
+        "session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"],
+        "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": base["decision_owner"],
+        "shield_owner": base["opponent_actor"], "shield_action_id": base["opponent_action_id"],
+        "shield_move_id": "burning-bulwark", "blocked_attacker": base["own_actor"],
+        "blocked_action_id": base["own_action_id"],
+    }
+    if any(authority.get(key) != value for key, value in expected.items()):
+        return {"status": "rejected", "reason": "burning_bulwark_reactive_burn_authority_binding_mismatch"}
+    if authority.get("status") != "resolved":
+        return {"status": _status(authority), "reason": authority.get("reason", "burning_bulwark_reactive_burn_authority_unavailable")}
+    if not isinstance(contact_authority, Mapping) or authority.get("blocked_move_id") != contact_authority.get("move_id"):
+        return {"status": "rejected", "reason": "burning_bulwark_blocked_move_identity_mismatch"}
+    if authority.get("contact_authority") != contact_authority:
+        return {"status": "rejected", "reason": "burning_bulwark_contact_provenance_mismatch"}
+    overlay = materialize_detached_burning_bulwark_reactive_burn(authority=authority)
+    if overlay.get("status") != "resolved":
+        return {"status": _status(overlay), "reason": overlay.get("reason", "burning_bulwark_reactive_burn_overlay_invalid")}
+    if overlay.get("owner") != base["own_actor"]:
+        return {"status": "rejected", "reason": "burning_bulwark_reactive_burn_overlay_owner_mismatch"}
+    if authority.get("outcome") == "not_applicable":
+        if overlay.get("transition_applied") is not False:
+            return {"status": "rejected", "reason": "burning_bulwark_no_effect_transition_invalid"}
+        return {"status": "resolved", "outcome": "not_applicable", "authority": deepcopy(dict(authority)), "overlay": overlay}
+    transition = overlay.get("hypothetical_condition_authority")
+    if authority.get("outcome") != "applies" or overlay.get("transition_applied") is not True or not isinstance(transition, Mapping) or transition.get("status") != "known_present" or transition.get("condition") != "burn" or transition.get("condition_before") != "known_none" or transition.get("condition_after") != "burn" or transition.get("trigger") != "burning_bulwark_successful_blocked_contact":
+        return {"status": "rejected", "reason": "burning_bulwark_reactive_burn_transition_invalid"}
     return {"status": "resolved", "outcome": "applies", "transition": deepcopy(dict(transition)), "authority": deepcopy(dict(authority)), "overlay": overlay}
 
 
