@@ -14,6 +14,9 @@ CATALOG_VERSION = "critical-hit-capability-catalog-v1"
 # delegated to ``move_crit_rule`` below.
 _BASE_MOVE_IDS = frozenset({
     "tackle", "water-gun", "thunderbolt", "facade", "sparkling-aria",
+    # Rock Slide is the explicitly scoped direct-damage move for the first
+    # frozen-recipient doubles execution graph.
+    "rock-slide",
     # These moves already have bounded predictive secondary/stage mechanics.
     # Keeping this list explicit makes their ordinary Gen 9 crit rule usable
     # without turning uncatalogued attacks into a generic supported family.

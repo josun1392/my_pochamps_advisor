@@ -83,7 +83,7 @@ DEFENDER_ABILITY_MODIFIER_TAGS = {
 
 def evaluate_direct_damage_mechanics(
     snapshot_damage_input: Mapping[str, Any], *, stat_provenance: Mapping[str, Any],
-    trusted_level: int | None, is_critical: bool = False,
+    trusted_level: int | None, is_critical: bool = False, is_spread: bool = False,
 ) -> dict[str, Any]:
     """Return bounded public mechanics evidence without inventing battle facts.
 
@@ -94,8 +94,8 @@ def evaluate_direct_damage_mechanics(
     reported as logical missing names instead of becoming defaults.
     """
     missing: list[str] = []
-    if not isinstance(is_critical, bool):
-        return _insufficient(["is_critical"])
+    if not isinstance(is_critical, bool) or not isinstance(is_spread, bool):
+        return _insufficient(["is_critical_or_spread"])
     if not isinstance(snapshot_damage_input, Mapping) or not isinstance(stat_provenance, Mapping):
         return _insufficient(["snapshot"])
     context = _mapping(snapshot_damage_input.get("battle_context"))
@@ -316,7 +316,7 @@ def evaluate_direct_damage_mechanics(
             attack_stat=attack_stat, defense_stat=defense_stat,
             move_type=move_type, attacker_types=tuple(attacker["types"]),
             defender_types=tuple(defender["types"]), is_physical=is_physical,
-            is_critical=is_critical, is_spread=False, move_id=move_id,
+            is_critical=is_critical, is_spread=is_spread, move_id=move_id,
             attacker_species=attacker["pokemon_identity"], defender_species=defender["pokemon_identity"],
             attacker_stats=attacker_stats, defender_stats=defender_stats,
             field=modifier["field"], burn_mod_q12=modifier["burn_mod_q12"],
