@@ -35,6 +35,11 @@ from llm.advisor_hypothetical_protection_effects import (
     prevent_supported_direct_damage,
     project_self_protection,
 )
+from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata
+from llm.advisor_hypothetical_silk_trap_effects import project_silk_trap_protection, resolve_silk_trap_speed_effect
+from llm.advisor_runtime_d0_silk_trap_speed_drop_interaction_authority import (
+    freeze_runtime_d0_silk_trap_speed_drop_interaction_authority,
+)
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
@@ -64,6 +69,8 @@ def materialize_immediate_move_vs_move_action_pair(
     action_order_authority: Mapping[str, Any],
     first_action_sturdy_survival_authority: Mapping[str, Any] | None = None,
     opponent_protection_success_authority: Mapping[str, Any] | None = None,
+    incoming_contact_authority: Mapping[str, Any] | None = None,
+    silk_trap_reactive_interaction_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
@@ -75,11 +82,13 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
-    if _is_protection_metadata(opponent_meta.get("metadata")):
+    if _is_protection_metadata(opponent_meta.get("metadata")) or canonical_silk_trap_metadata(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None:
         return _materialize_protection_response_pair(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
             own_meta=own_meta, opponent_meta=opponent_meta, orders=orders,
             opponent_protection_success_authority=opponent_protection_success_authority,
+            incoming_contact_authority=incoming_contact_authority,
+            silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority,
         )
     branches: list[dict[str, Any]] = []
     for order_plan in orders:
@@ -107,6 +116,8 @@ def _materialize_protection_response_pair(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any],
     own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]],
     opponent_protection_success_authority: Mapping[str, Any] | None,
+    incoming_contact_authority: Mapping[str, Any] | None,
+    silk_trap_reactive_interaction_authority: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """Materialize only the existing exact ordinary self-protection contract."""
     branches: list[dict[str, Any]] = []
@@ -135,7 +146,23 @@ def _materialize_protection_response_pair(
         )
         if bypass.get("status") != "resolved":
             return _result(_status(bypass), bypass.get("reason", "protection_bypass_authority_unavailable"), base)
-        leaf = _protection_leaf(base, strategy_d0, opponent_meta["metadata"])
+        reactive = None
+        if canonical_silk_trap_metadata(opponent_meta["metadata"].get("move_id")) is not None:
+            if isinstance(incoming_contact_authority, Mapping) and incoming_contact_authority.get("status") == "resolved" and incoming_contact_authority.get("contact_state") == "non_contact":
+                interaction = None
+            else:
+                interaction = freeze_runtime_d0_silk_trap_speed_drop_interaction_authority(
+                    strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                    shield_owner=base["opponent_actor"], blocked_attacker=base["own_actor"],
+                    blocked_action={"action_id":base["own_action_id"], "identity":own_meta["metadata"].get("move_id")},
+                    contact_authority=incoming_contact_authority, protection_authority=protection,
+                    interaction_resolution=silk_trap_reactive_interaction_authority,
+                )
+                if interaction.get("status") != "resolved":
+                    return _result(_status(interaction), interaction.get("reason", "silk_trap_reactive_authority_unavailable"), base)
+            reactive = resolve_silk_trap_speed_effect(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, blocked_action={"action_id":base["own_action_id"],"identity":own_meta["metadata"].get("move_id")}, blocked_attacker=base["own_actor"], shield_owner=base["opponent_actor"], contact_authority=incoming_contact_authority, reactive_interaction_authority=interaction)
+            if reactive.get("status") != "resolved": return _result(_status(reactive), reactive.get("reason", "silk_trap_reactive_authority_unavailable"), base)
+        leaf = _protection_leaf(base, strategy_d0, opponent_meta["metadata"], reactive)
         if leaf is None:
             return _result("incomplete", "exact_protection_hp_authority_missing", base)
         branches.append(_protection_branch(base, plan, leaf, "prevented_by_protection"))
@@ -158,6 +185,8 @@ def _resolved_protection(*, strategy_d0: Mapping[str, Any], opponent: Mapping[st
     if not isinstance(row, Mapping) or any(row.get(key) != opponent.get(key) for key in ("session_id", "side", "slot_index", "pokemon_id")):
         return _result("rejected", "protection_actor_neutral_branch_identity_mismatch", {})
     active["self"] = deepcopy(dict(active["opponent"]))
+    if canonical_silk_trap_metadata(metadata.get("move_id")) is not None:
+        return project_silk_trap_protection(branch_state=branch, action=action, owner=opponent, success_authority=success_authority or {})
     return project_self_protection(
         branch_state=branch, action=action,
         expected_owner=opponent, success_authority=success_authority or {},
@@ -172,7 +201,7 @@ def _is_protection_metadata(metadata: Any) -> bool:
     return isinstance(metadata, Mapping) and canonical_protection_metadata(metadata.get("move_id")) is not None
 
 
-def _protection_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadata: Mapping[str, Any]) -> dict[str, Any] | None:
+def _protection_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadata: Mapping[str, Any], reactive: Mapping[str, Any] | None = None) -> dict[str, Any] | None:
     active = strategy_d0.get("strategy_state", {}).get("active", {})
     own_hp = active.get("self", {}).get("current_hp") if isinstance(active, Mapping) else None
     opponent_hp = active.get("opponent", {}).get("current_hp") if isinstance(active, Mapping) else None
@@ -183,7 +212,13 @@ def _protection_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], me
         "action_type": "protection", "branch_path": ("protect:success",),
         "probability": _fd(Fraction(1, 1)), "hit_state": "not_applicable",
         "critical_state": "not_applicable", "damage_roll": "not_applicable",
-        "consequences": {"own_final_hp": opponent_hp, "target_final_hp": own_hp, "target_ko": own_hp == 0, "self_fainted": opponent_hp == 0, "deterministic_stage_effect": None, "secondary": None},
+        "consequences": {
+            "own_final_hp": opponent_hp, "target_final_hp": own_hp,
+            "target_ko": own_hp == 0, "self_fainted": opponent_hp == 0,
+            "deterministic_stage_effect": deepcopy(reactive.get("effect")) if isinstance(reactive, Mapping) and reactive.get("applies") is True else None,
+            "silk_trap_reactive_consequence": deepcopy(reactive) if isinstance(reactive, Mapping) else None,
+            "secondary": None,
+        },
         "provenance": {"session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": deepcopy(dict(base["decision_owner"])), "attacker": deepcopy(dict(base["opponent_actor"])), "target": deepcopy(dict(base["own_actor"])), "move_id": metadata["move_id"]},
     }
 

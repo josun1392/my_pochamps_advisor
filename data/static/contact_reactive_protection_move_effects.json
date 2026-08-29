@@ -1,0 +1,1 @@
+{"schema_version":"canonical-contact-reactive-protection-moves-v1","authority":"pokemon-showdown/data/moves.ts (Silk Trap: self protection; contact attacker Speed -1)","moves":{"silk-trap":{"protects_self":true,"blocks_supported_direct_damage":true,"protection_kind":"ordinary_self_protection","reactive_contact_effect":{"owner":"blocked_attacker","stat":"speed","delta":-1}}}}

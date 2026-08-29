@@ -6,6 +6,10 @@ from copy import deepcopy
 from llm.advisor_exact_action_pair_descriptive_metrics import project_exact_immediate_action_pair_descriptive_metrics
 from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
 from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
+from llm.advisor_runtime_d0_canonical_contact_classification_authority import freeze_runtime_d0_canonical_contact_classification_authority
+from llm.advisor_runtime_d0_silk_trap_speed_drop_interaction_authority import (
+    build_silk_trap_speed_drop_interaction_resolution,
+)
 from tests.test_detached_opponent_response_profile import _equal_speed_order, _inputs, _metadata
 from tests.test_fixed_two_hit_immediate_move_pair_integration import _fixed_two_action, _order
 
@@ -19,7 +23,7 @@ def _protect_action(d0, move_id="protect") -> dict:
         "opponent_actor": opponent, "target_owner": d0["active_owners"]["self"],
         "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
         "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
-        "metadata_authority": {"status": "resolved", "move_id": "protect", "metadata": metadata},
+        "metadata_authority": {"status": "resolved", "move_id": move_id, "metadata": metadata},
         "usability": {"status": "known_usable"}, "selectability": "selectable",
     }
 
@@ -33,6 +37,16 @@ def _own_action(d0, move_id: str) -> dict:
 
 def _success(opponent) -> dict:
     return {"schema_version": "branch-protection-success-v1", "owner": opponent, "previous_successful_protection_count": 0, "provenance": "explicit_branch_nonconsecutive_protection"}
+
+
+def _silk_interaction(d0, *, move_id="tackle", outcome="applies", delta=-1):
+    return build_silk_trap_speed_drop_interaction_resolution(
+        session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"],
+        blocked_attacker=d0["active_owners"]["self"], blocked_action_id=f"attack:{move_id}",
+        blocked_move_id=move_id, outcome=outcome, resulting_delta=delta,
+        ability_authority={"status": "known", "value": "pressure"},
+        item_authority={"status": "known_absent"},
+    )
 
 
 def test_confirmed_opponent_first_protect_blocks_normal_fixed_damage_and_fixed_two_hit_without_attack_leaves():
@@ -92,3 +106,73 @@ def test_detect_uses_existing_pair_protection_and_ledger_contracts():
     assert tied["status"] == "evaluable", tied.get("reason")
     assert tied["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
     assert {row["action_order"] for row in tied["terminal_branches"]} == {"own_first", "opponent_first"}
+
+
+def test_silk_trap_blocks_contact_and_projects_exact_blocked_attacker_speed_drop():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs()
+    own, silk = _own_action(d0, "tackle"), _protect_action(d0, "silk-trap")
+    contact = freeze_runtime_d0_canonical_contact_classification_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=own,
+        attacker=d0["active_owners"]["self"], target=d0["active_owners"]["opponent"],
+    )
+    assert contact["contact_state"] == "contact"
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=silk,
+        action_order_authority=_order(d0, own, silk, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact,
+        silk_trap_reactive_interaction_authority=_silk_interaction(d0),
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    effect = pair["terminal_branches"][0]["first_action_leaf"]["consequences"]["deterministic_stage_effect"]
+    assert effect["owner"] == "blocked_attacker" and effect["stat"] == "speed" and effect["requested_delta"] == -1
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
+
+
+def test_silk_trap_prevented_reversed_non_contact_and_missing_interaction_are_strict():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs()
+    silk = _protect_action(d0, "silk-trap")
+    for outcome, delta, expected in (("prevented", 0, None), ("reversed", 1, 1)):
+        own = _own_action(d0, "tackle")
+        contact = freeze_runtime_d0_canonical_contact_classification_authority(
+            strategy_d0=d0, runtime_snapshot=snapshot, action=own,
+            attacker=d0["active_owners"]["self"], target=d0["active_owners"]["opponent"],
+        )
+        pair = materialize_immediate_move_vs_move_action_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=silk,
+            action_order_authority=_order(d0, own, silk, "opponent_first"),
+            opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+            incoming_contact_authority=contact,
+            silk_trap_reactive_interaction_authority=_silk_interaction(d0, outcome=outcome, delta=delta),
+        )
+        assert pair["status"] == "evaluable", pair.get("reason")
+        effect = pair["terminal_branches"][0]["first_action_leaf"]["consequences"]["deterministic_stage_effect"]
+        assert (effect is None) if expected is None else effect["resulting_stage"] == expected
+
+    own = _own_action(d0, "flamethrower")
+    contact = freeze_runtime_d0_canonical_contact_classification_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=own,
+        attacker=d0["active_owners"]["self"], target=d0["active_owners"]["opponent"],
+    )
+    assert contact["contact_state"] == "non_contact"
+    non_contact = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=silk,
+        action_order_authority=_order(d0, own, silk, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact,
+    )
+    assert non_contact["status"] == "evaluable"
+    assert non_contact["terminal_branches"][0]["first_action_leaf"]["consequences"]["deterministic_stage_effect"] is None
+
+    own = _own_action(d0, "tackle")
+    contact = freeze_runtime_d0_canonical_contact_classification_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=own,
+        attacker=d0["active_owners"]["self"], target=d0["active_owners"]["opponent"],
+    )
+    missing = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=silk,
+        action_order_authority=_order(d0, own, silk, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact,
+    )
+    assert missing["status"] == "incomplete"
