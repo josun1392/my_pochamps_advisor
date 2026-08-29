@@ -9,6 +9,7 @@ from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate
 from llm.advisor_runtime_d0_canonical_contact_classification_authority import freeze_runtime_d0_canonical_contact_classification_authority
 from llm.advisor_runtime_d0_silk_trap_speed_drop_interaction_authority import (
     build_silk_trap_speed_drop_interaction_resolution,
+    build_kings_shield_attack_drop_interaction_resolution,
 )
 from tests.test_detached_opponent_response_profile import _equal_speed_order, _inputs, _metadata
 from tests.test_fixed_two_hit_immediate_move_pair_integration import _fixed_two_action, _order
@@ -41,6 +42,16 @@ def _success(opponent) -> dict:
 
 def _silk_interaction(d0, *, move_id="tackle", outcome="applies", delta=-1):
     return build_silk_trap_speed_drop_interaction_resolution(
+        session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"],
+        blocked_attacker=d0["active_owners"]["self"], blocked_action_id=f"attack:{move_id}",
+        blocked_move_id=move_id, outcome=outcome, resulting_delta=delta,
+        ability_authority={"status": "known", "value": "pressure"},
+        item_authority={"status": "known_absent"},
+    )
+
+
+def _kings_interaction(d0, *, move_id="tackle", outcome="applies", delta=-1):
+    return build_kings_shield_attack_drop_interaction_resolution(
         session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"],
         blocked_attacker=d0["active_owners"]["self"], blocked_action_id=f"attack:{move_id}",
         blocked_move_id=move_id, outcome=outcome, resulting_delta=delta,
@@ -176,3 +187,23 @@ def test_silk_trap_prevented_reversed_non_contact_and_missing_interaction_are_st
         incoming_contact_authority=contact,
     )
     assert missing["status"] == "incomplete"
+
+
+def test_kings_shield_contact_attack_drop_reuses_strict_reactive_path_without_changing_silk_trap():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs()
+    own, shield = _own_action(d0, "tackle"), _protect_action(d0, "kings-shield")
+    contact = freeze_runtime_d0_canonical_contact_classification_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=own,
+        attacker=d0["active_owners"]["self"], target=d0["active_owners"]["opponent"],
+    )
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact,
+        kings_shield_reactive_interaction_authority=_kings_interaction(d0),
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    effect = pair["terminal_branches"][0]["first_action_leaf"]["consequences"]["deterministic_stage_effect"]
+    assert effect == {"owner": "blocked_attacker", "stat": "attack", "previous_stage": 0, "requested_delta": -1, "resulting_stage": -1, "interaction_outcome": "applies"}
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"

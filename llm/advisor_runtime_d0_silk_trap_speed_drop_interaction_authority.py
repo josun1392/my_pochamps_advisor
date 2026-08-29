@@ -61,6 +61,14 @@ def build_silk_trap_speed_drop_interaction_resolution(
     }
 
 
+def build_kings_shield_attack_drop_interaction_resolution(**kwargs: Any) -> dict[str, Any]:
+    """Use the same explicit-result schema, tagged for King's Shield Attack."""
+    result = build_silk_trap_speed_drop_interaction_resolution(**kwargs)
+    result["shield_move_id"] = "kings-shield"
+    result["stage_stat"] = "attack"
+    return result
+
+
 def freeze_runtime_d0_silk_trap_speed_drop_interaction_authority(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     shield_owner: Mapping[str, Any], blocked_attacker: Mapping[str, Any],
@@ -126,6 +134,45 @@ def freeze_runtime_d0_silk_trap_speed_drop_interaction_authority(
         "interaction_resolution": deepcopy(resolution),
         "provenance": "runtime_d0_explicit_silk_trap_speed_drop_interaction_v1",
     }
+
+
+def freeze_runtime_d0_kings_shield_attack_drop_interaction_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    shield_owner: Mapping[str, Any], blocked_attacker: Mapping[str, Any],
+    blocked_action: Mapping[str, Any], contact_authority: Mapping[str, Any],
+    protection_authority: Mapping[str, Any], interaction_resolution: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Strict King's Shield wrapper over the proven D0 interaction checks."""
+    resolved = freeze_runtime_d0_silk_trap_speed_drop_interaction_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        shield_owner=shield_owner, blocked_attacker=blocked_attacker,
+        blocked_action=blocked_action, contact_authority=contact_authority,
+        protection_authority={**dict(protection_authority), "metadata": {"move_id": "silk-trap"}},
+        interaction_resolution=_as_silk_resolution(interaction_resolution),
+    )
+    if resolved.get("status") != "resolved":
+        return resolved
+    stage = freeze_runtime_current_stage_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=blocked_attacker,
+    )
+    attack = stage.get("stages", {}).get("attack") if isinstance(stage, Mapping) else None
+    if not isinstance(attack, Mapping) or attack.get("status") != "known":
+        return _result("incomplete", "kings_shield_blocked_attacker_attack_stage_unknown", _base(strategy_d0, shield_owner, blocked_attacker, blocked_action) or {})
+    before = attack.get("value")
+    if not isinstance(before, int) or isinstance(before, bool) or not -6 <= before <= 6:
+        return _result("rejected", "kings_shield_blocked_attacker_attack_stage_invalid", _base(strategy_d0, shield_owner, blocked_attacker, blocked_action) or {})
+    delta = resolved["resulting_delta"]
+    return {**resolved, "shield_move_id": "kings-shield", "stage_stat": "attack",
+            "attack_stage_before": before, "attack_stage_after": max(-6, min(6, before + delta)),
+            "stage_authority": deepcopy(dict(stage)),
+            "provenance": "runtime_d0_explicit_kings_shield_attack_drop_interaction_v1"}
+
+
+def _as_silk_resolution(value: Mapping[str, Any] | None) -> Mapping[str, Any] | None:
+    if not isinstance(value, Mapping):
+        return value
+    adapted = deepcopy(dict(value)); adapted.pop("shield_move_id", None); adapted.pop("stage_stat", None)
+    return adapted
 
 
 def _base(d0: Any, shield: Any, attacker: Any, action: Any) -> dict[str, Any] | None:
