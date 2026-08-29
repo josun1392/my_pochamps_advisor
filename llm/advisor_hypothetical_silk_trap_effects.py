@@ -3,6 +3,7 @@ from copy import deepcopy
 from typing import Any,Mapping
 from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata
 from advisor.canonical_spiky_shield_reactive_damage import canonical_spiky_shield_reactive_damage_metadata
+from advisor.canonical_baneful_bunker_reactive_poison import canonical_baneful_bunker_reactive_poison_metadata
 from llm.advisor_hypothetical_protection_effects import project_self_protection
 
 def project_silk_trap_protection(*,branch_state,action,owner,success_authority):
@@ -36,6 +37,14 @@ def project_spiky_shield_protection(*,branch_state,action,owner,success_authorit
  result=project_self_protection(branch_state=branch_state,action=proxy,expected_owner=owner,success_authority=success_authority)
  if result.get("status")!="resolved":return result
  return {**result,"metadata":meta,"provenance":"canonical_spiky_shield_shared_ordinary_protection_v1"}
+
+def project_baneful_bunker_protection(*,branch_state,action,owner,success_authority):
+ meta=canonical_baneful_bunker_reactive_poison_metadata(action.get("move",{}).get("move_id") if isinstance(action,Mapping) else None)
+ if meta is None:return {"status":"unsupported","reason":"canonical_baneful_bunker_metadata"}
+ proxy={"owner":deepcopy(dict(owner)),"move":{"move_id":"protect","category":action["move"].get("category"),"target":action["move"].get("target"),"accuracy":action["move"].get("accuracy")}}
+ result=project_self_protection(branch_state=branch_state,action=proxy,expected_owner=owner,success_authority=success_authority)
+ if result.get("status")!="resolved":return result
+ return {**result,"metadata":meta,"provenance":"canonical_baneful_bunker_shared_ordinary_protection_v1"}
 
 def resolve_silk_trap_speed_effect(*,strategy_d0,runtime_snapshot,blocked_action,blocked_attacker,shield_owner,contact_authority,reactive_interaction_authority):
  if not isinstance(contact_authority,Mapping):return {"status":"incomplete","reason":"silk_trap_contact_authority_missing"}

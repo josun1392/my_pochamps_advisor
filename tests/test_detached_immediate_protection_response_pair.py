@@ -17,6 +17,11 @@ from llm.advisor_runtime_d0_spiky_shield_reactive_damage_authority import (
     build_spiky_shield_successful_block_context,
     freeze_runtime_d0_spiky_shield_reactive_damage_authority,
 )
+from llm.advisor_runtime_d0_baneful_bunker_reactive_poison_authority import (
+    build_baneful_bunker_reactive_poison_applicability_resolution,
+    build_baneful_bunker_successful_block_context,
+    freeze_runtime_d0_baneful_bunker_reactive_poison_authority,
+)
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import _equal_speed_order, _inputs, _metadata
@@ -90,6 +95,29 @@ def _spiky_damage_authority(d0, snapshot, own, *, outcome="applies"):
     )
     return freeze_runtime_d0_spiky_shield_reactive_damage_authority(
         strategy_d0=d0, runtime_snapshot=snapshot, shield_owner=d0["active_owners"]["opponent"], shield_action_id="opponent_attack:spiky-shield",
+        blocked_attacker=d0["active_owners"]["self"], blocked_action=own, contact_authority=contact,
+        protection_block_context=context, applicability_resolution=applicability,
+    ), contact
+
+
+def _baneful_poison_authority(d0, snapshot, own, *, outcome="applies"):
+    contact = freeze_runtime_d0_canonical_contact_classification_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=own,
+        attacker=d0["active_owners"]["self"], target=d0["active_owners"]["opponent"],
+    )
+    protection = {"status": "resolved", "owner": d0["active_owners"]["opponent"], "metadata": {"move_id": "baneful-bunker"}, "provenance": "exact_baneful_bunker_block_v1"}
+    context = build_baneful_bunker_successful_block_context(
+        session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"], shield_action_id="opponent_attack:baneful-bunker",
+        blocked_attacker=d0["active_owners"]["self"], blocked_action_id=own["action_id"], blocked_move_id=own["identity"],
+        protection_authority=protection, action_blocked=True, protection_bypass=False, substitute_authority={"status": "known_absent"},
+    )
+    applicability = build_baneful_bunker_reactive_poison_applicability_resolution(
+        session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"], blocked_attacker=d0["active_owners"]["self"],
+        blocked_action_id=own["action_id"], blocked_move_id=own["identity"], outcome=outcome,
+        ability_authority={"status": "known", "value": "pressure"}, item_authority={"status": "known_absent"},
+    )
+    return freeze_runtime_d0_baneful_bunker_reactive_poison_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, shield_owner=d0["active_owners"]["opponent"], shield_action_id="opponent_attack:baneful-bunker",
         blocked_attacker=d0["active_owners"]["self"], blocked_action=own, contact_authority=contact,
         protection_block_context=context, applicability_resolution=applicability,
     ), contact
@@ -310,3 +338,73 @@ def test_spiky_shield_reactive_ko_and_non_contact_or_missing_authority_remain_ex
         opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]), incoming_contact_authority=contact,
     )
     assert missing["status"] == "incomplete"
+
+
+def test_baneful_bunker_consumes_exact_poison_transition_into_protection_pair_and_ledger():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs()
+    own, shield = _own_action(d0, "tackle"), _protect_action(d0, "baneful-bunker")
+    poison, contact = _baneful_poison_authority(d0, snapshot, own)
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact, baneful_bunker_reactive_poison_authority=poison,
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    leaf = pair["terminal_branches"][0]["first_action_leaf"]
+    assert leaf["hit_state"] == leaf["critical_state"] == leaf["damage_roll"] == "not_applicable"
+    transition = leaf["consequences"]["reactive_shield_condition_transition"]
+    assert transition["condition"] == "poison" and transition["condition_before"] == "known_none"
+    assert leaf["consequences"]["secondary"] is None
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert ledger["terminal_leaves"][0]["final_consequences"]["reactive_shield_condition_consequence"] == transition
+
+
+def test_baneful_bunker_no_effect_and_missing_or_foreign_authority_remain_strict():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs()
+    shield, own = _protect_action(d0, "baneful-bunker"), _own_action(d0, "shadow-ball")
+    non_contact, contact = _baneful_poison_authority(d0, snapshot, own)
+    block_only = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"), opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact, baneful_bunker_reactive_poison_authority=non_contact,
+    )
+    assert block_only["status"] == "evaluable"
+    assert block_only["terminal_branches"][0]["first_action_leaf"]["consequences"]["reactive_shield_condition_transition"] is None
+    own = _own_action(d0, "tackle"); prevented, contact = _baneful_poison_authority(d0, snapshot, own, outcome="prevented")
+    prevented_pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"), opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact, baneful_bunker_reactive_poison_authority=prevented,
+    )
+    assert prevented_pair["status"] == "evaluable"
+    assert prevented_pair["terminal_branches"][0]["first_action_leaf"]["consequences"]["reactive_shield_condition_transition"] is None
+    for condition, types in (("burn", ["normal"]), ("none", ["poison"]), ("none", ["steel"])):
+        state, snapshot, d0, _unused, _responses, _orders = _inputs()
+        state["self_side"]["pokemon"][0]["condition"] = condition
+        state["self_side"]["pokemon"][0]["condition_provenance"]["condition"] = condition
+        state["self_side"]["pokemon"][0]["current_type"] = types
+        snapshot = {**snapshot, "state": state, "state_fingerprint": state_fingerprint(state)}
+        d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=d0["decision_owner"])
+        own, shield = _own_action(d0, "tackle"), _protect_action(d0, "baneful-bunker")
+        no_effect, contact = _baneful_poison_authority(d0, snapshot, own)
+        pair = materialize_immediate_move_vs_move_action_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+            action_order_authority=_order(d0, own, shield, "opponent_first"), opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+            incoming_contact_authority=contact, baneful_bunker_reactive_poison_authority=no_effect,
+        )
+        assert pair["status"] == "evaluable"
+        assert pair["terminal_branches"][0]["first_action_leaf"]["consequences"]["reactive_shield_condition_transition"] is None
+    own = _own_action(d0, "tackle"); poison, contact = _baneful_poison_authority(d0, snapshot, own)
+    missing = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"), opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]), incoming_contact_authority=contact,
+    )
+    assert missing["status"] == "incomplete"
+    foreign = deepcopy(poison); foreign["blocked_action_id"] = "foreign"
+    rejected = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"), opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]), incoming_contact_authority=contact, baneful_bunker_reactive_poison_authority=foreign,
+    )
+    assert rejected["status"] == "rejected"

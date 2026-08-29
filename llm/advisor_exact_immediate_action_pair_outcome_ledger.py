@@ -166,7 +166,8 @@ def _final(source: Mapping[str, Any], base: Mapping[str, Any]) -> dict[str, Any]
     return {"own_final_hp": own_hp, "opponent_final_hp": opponent_hp,
             "own_fainted": own_hp == 0, "opponent_fainted": opponent_hp == 0,
             "supported_stage_consequence": deepcopy(consequences.get("deterministic_stage_effect")),
-            "supported_secondary_consequence": deepcopy(consequences.get("secondary"))}
+            "supported_secondary_consequence": deepcopy(consequences.get("secondary")),
+            "reactive_shield_condition_consequence": deepcopy(consequences.get("reactive_shield_condition_transition"))}
 
 
 def _hp(value: Any) -> bool: return isinstance(value, int) and not isinstance(value, bool) and value >= 0
