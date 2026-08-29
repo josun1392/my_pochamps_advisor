@@ -39,6 +39,7 @@ from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_
 from advisor.canonical_spiky_shield_reactive_damage import canonical_spiky_shield_reactive_damage_metadata
 from advisor.canonical_baneful_bunker_reactive_poison import canonical_baneful_bunker_reactive_poison_metadata
 from advisor.canonical_burning_bulwark_reactive_burn import canonical_burning_bulwark_reactive_burn_metadata
+from advisor.canonical_quick_guard_protection import canonical_quick_guard_protection_metadata
 from llm.advisor_hypothetical_silk_trap_effects import project_silk_trap_protection, project_kings_shield_protection, project_obstruct_protection, project_spiky_shield_protection, project_baneful_bunker_protection, project_burning_bulwark_protection, resolve_silk_trap_speed_effect, resolve_kings_shield_attack_effect, resolve_obstruct_defense_effect
 from llm.advisor_runtime_d0_silk_trap_speed_drop_interaction_authority import (
     freeze_runtime_d0_silk_trap_speed_drop_interaction_authority,
@@ -57,6 +58,7 @@ from llm.advisor_runtime_d0_burning_bulwark_reactive_burn_authority import (
     SCHEMA_VERSION as BURNING_BULWARK_BURN_SCHEMA_VERSION,
     materialize_detached_burning_bulwark_reactive_burn,
 )
+from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
@@ -93,6 +95,7 @@ def materialize_immediate_move_vs_move_action_pair(
     spiky_shield_reactive_damage_authority: Mapping[str, Any] | None = None,
     baneful_bunker_reactive_poison_authority: Mapping[str, Any] | None = None,
     burning_bulwark_reactive_burn_authority: Mapping[str, Any] | None = None,
+    quick_guard_priority_applicability_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
@@ -104,6 +107,8 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    if canonical_quick_guard_protection_metadata(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None:
+        return _materialize_quick_guard_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_meta=own_meta, orders=orders, authority=quick_guard_priority_applicability_authority)
     if _is_protection_metadata(opponent_meta.get("metadata")) or any(candidate(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None for candidate in (canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata, canonical_spiky_shield_reactive_damage_metadata, canonical_baneful_bunker_reactive_poison_metadata, canonical_burning_bulwark_reactive_burn_metadata)):
         return _materialize_protection_response_pair(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
@@ -252,6 +257,28 @@ def _materialize_protection_response_pair(
         "aggregation": "none_preserve_protection_and_attack_identity",
         "provenance": "strict_detached_immediate_protection_response_pair_materialization_v1",
     }
+
+
+def _materialize_quick_guard_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(authority, Mapping): return _result("incomplete", "quick_guard_priority_applicability_authority_missing", base)
+    expected = {"schema_version": QUICK_GUARD_SCHEMA_VERSION, "session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": base["decision_owner"], "guard_user": base["opponent_actor"], "guard_action_id": base["opponent_action_id"], "guard_move_id": "quick-guard", "incoming_actor": base["own_actor"], "incoming_action_id": base["own_action_id"], "incoming_move_id": own_meta["metadata"].get("move_id"), "selected_target": base["opponent_actor"]}
+    if any(authority.get(key) != value for key, value in expected.items()): return _result("rejected", "quick_guard_priority_applicability_authority_binding_mismatch", base)
+    if authority.get("status") != "resolved": return _result(_status(authority), authority.get("reason", "quick_guard_priority_applicability_unavailable"), base)
+    branches=[]
+    for plan in orders:
+        ledger=_attack_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,actor=base["own_actor"],target=base["opponent_actor"],metadata_authority=own_meta)
+        if ledger.get("status")!="evaluable": return _result(_status(ledger), "quick_guard_incoming_attack_ledger_unavailable", base)
+        if plan["order"]=="opponent_first" and authority.get("outcome")=="applies":
+            leaf=_protection_leaf(base,strategy_d0,{"move_id":"quick-guard"})
+            if leaf is None:return _result("incomplete","quick_guard_protection_leaf_unavailable",base)
+            leaf["consequences"]["quick_guard_priority_applicability"]=deepcopy(dict(authority))
+            branches.append(_protection_branch(base,plan,leaf,"prevented_by_protection"))
+        elif authority.get("outcome")=="not_applicable" or plan["order"]=="own_first":
+            for leaf in ledger["terminal_leaves"]: branches.append(_protection_branch(base,plan,leaf,"executed_protection"))
+        else:return _result("rejected","quick_guard_priority_applicability_outcome_invalid",base)
+    mass=sum((_fraction(row["probability"]) for row in branches),Fraction())
+    if mass!=Fraction(1,1):return _result("rejected","pair_terminal_probability_mass_not_one",base)
+    return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**base,"conditional_on":"opponent_selected_exact_known_usable_move","terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_quick_guard_applicability_provenance","provenance":"strict_detached_quick_guard_protection_pair_materialization_v1"}
 
 
 def _resolved_protection(*, strategy_d0: Mapping[str, Any], opponent: Mapping[str, Any], own: Mapping[str, Any], metadata: Mapping[str, Any], success_authority: Mapping[str, Any] | None) -> dict[str, Any]:

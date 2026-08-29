@@ -27,6 +27,7 @@ from llm.advisor_runtime_d0_burning_bulwark_reactive_burn_authority import (
     build_burning_bulwark_successful_block_context,
     freeze_runtime_d0_burning_bulwark_reactive_burn_authority,
 )
+from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import build_quick_guard_protection_context, freeze_runtime_d0_quick_guard_priority_applicability_authority
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import _equal_speed_order, _inputs, _metadata
@@ -149,6 +150,12 @@ def _burning_burn_authority(d0, snapshot, own, *, outcome="applies"):
         blocked_attacker=d0["active_owners"]["self"], blocked_action=own, contact_authority=contact,
         protection_block_context=context, applicability_resolution=applicability,
     ), contact
+
+
+def _quick_guard_authority(d0, snapshot, own, *, blocked=True, bypass=False):
+    protection={"status":"resolved","owner":d0["active_owners"]["opponent"],"metadata":{"move_id":"quick-guard"}}
+    context=build_quick_guard_protection_context(session_id=d0["session_id"],guard_user=d0["active_owners"]["opponent"],guard_action_id="opponent_attack:quick-guard",incoming_actor=d0["active_owners"]["self"],incoming_action_id=own["action_id"],incoming_move_id=own["identity"],selected_target=d0["active_owners"]["opponent"],protection_authority=protection,action_blocked=blocked,protection_bypass=bypass)
+    return freeze_runtime_d0_quick_guard_priority_applicability_authority(strategy_d0=d0,runtime_snapshot=snapshot,guard_user=d0["active_owners"]["opponent"],guard_action_id="opponent_attack:quick-guard",incoming_actor=d0["active_owners"]["self"],incoming_action=own,selected_target=d0["active_owners"]["opponent"],protection_context=context)
 
 
 def test_confirmed_opponent_first_protect_blocks_normal_fixed_damage_and_fixed_two_hit_without_attack_leaves():
@@ -496,3 +503,33 @@ def test_burning_bulwark_no_effect_missing_and_foreign_authority_remain_strict()
         incoming_contact_authority=contact, burning_bulwark_reactive_burn_authority=foreign,
     )
     assert rejected["status"] == "rejected"
+
+
+def test_quick_guard_consumes_only_exact_priority_applicability():
+    _state,snapshot,d0,_unused,_responses,_orders=_inputs()
+    own,guard=_own_action(d0,"tackle"),_protect_action(d0,"quick-guard")
+    own["move_metadata_authority"]["metadata"].update(priority=1,target="selected-pokemon")
+    applies=_quick_guard_authority(d0,snapshot,own)
+    pair=materialize_immediate_move_vs_move_action_pair(strategy_d0=d0,runtime_snapshot=snapshot,own_action=own,opponent_action=guard,action_order_authority=_order(d0,own,guard,"opponent_first"),quick_guard_priority_applicability_authority=applies)
+    assert pair["status"]=="evaluable",pair.get("reason")
+    leaf=pair["terminal_branches"][0]["first_action_leaf"]
+    assert leaf["hit_state"]==leaf["critical_state"]==leaf["damage_roll"]=="not_applicable"
+    assert leaf["consequences"]["quick_guard_priority_applicability"]["outcome"]=="applies"
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["terminal_probability_mass"]=={"numerator":1,"denominator":1}
+
+
+def test_quick_guard_no_effect_and_fail_closed_paths_preserve_order_contracts():
+    _state,snapshot,d0,_unused,_responses,_orders=_inputs(equal_speed=True)
+    own,guard=_own_action(d0,"tackle"),_protect_action(d0,"quick-guard")
+    own["move_metadata_authority"]["metadata"].update(priority=0,target="selected-pokemon")
+    no_effect=_quick_guard_authority(d0,snapshot,own)
+    pair=materialize_immediate_move_vs_move_action_pair(strategy_d0=d0,runtime_snapshot=snapshot,own_action=own,opponent_action=guard,action_order_authority=_order(d0,own,guard,"opponent_first"),quick_guard_priority_applicability_authority=no_effect)
+    assert pair["status"]=="evaluable",pair.get("reason")
+    leaf=pair["terminal_branches"][0]["first_action_leaf"]
+    assert leaf["hit_state"] != "not_applicable" and leaf["consequences"].get("quick_guard_priority_applicability") is None
+    tied=materialize_immediate_move_vs_move_action_pair(strategy_d0=d0,runtime_snapshot=snapshot,own_action=own,opponent_action=guard,action_order_authority=_equal_speed_order(d0,own,guard),quick_guard_priority_applicability_authority=no_effect)
+    assert tied["status"]=="evaluable" and tied["terminal_probability_mass"]=={"numerator":1,"denominator":1}
+    assert {row["action_order"] for row in tied["terminal_branches"]}=={"own_first","opponent_first"}
+    assert materialize_immediate_move_vs_move_action_pair(strategy_d0=d0,runtime_snapshot=snapshot,own_action=own,opponent_action=guard,action_order_authority=_order(d0,own,guard,"opponent_first"))["status"]=="incomplete"
+    foreign=deepcopy(no_effect);foreign["incoming_action_id"]="foreign"
+    assert materialize_immediate_move_vs_move_action_pair(strategy_d0=d0,runtime_snapshot=snapshot,own_action=own,opponent_action=guard,action_order_authority=_order(d0,own,guard,"opponent_first"),quick_guard_priority_applicability_authority=foreign)["status"]=="rejected"
