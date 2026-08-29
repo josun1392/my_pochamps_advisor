@@ -1,0 +1,16 @@
+{
+  "schema_version": "canonical-baneful-bunker-reactive-poison-v1",
+  "authority": "pokemon-showdown/data/moves.ts (Baneful Bunker blocked-contact poison)",
+  "moves": {
+    "baneful-bunker": {
+      "protects_self": true,
+      "blocks_supported_direct_damage": true,
+      "reactive_contact_condition": {
+        "owner": "blocked_attacker",
+        "condition_before": "none",
+        "condition_after": "poison",
+        "trigger": "baneful_bunker_successful_blocked_contact"
+      }
+    }
+  }
+}
