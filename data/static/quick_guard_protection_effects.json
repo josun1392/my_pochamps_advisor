@@ -1,0 +1,12 @@
+{
+  "schema_version": "canonical-quick-guard-protection-v1",
+  "authority": "pokemon-showdown/data/moves.ts (Quick Guard priority-action protection)",
+  "moves": {
+    "quick-guard": {
+      "protects_side": true,
+      "protection_kind": "priority_action_guard",
+      "requires_positive_effective_priority": true,
+      "blocks_supported_direct_damage": true
+    }
+  }
+}
