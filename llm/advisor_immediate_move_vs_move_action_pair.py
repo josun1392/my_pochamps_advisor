@@ -35,11 +35,12 @@ from llm.advisor_hypothetical_protection_effects import (
     prevent_supported_direct_damage,
     project_self_protection,
 )
-from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata
-from llm.advisor_hypothetical_silk_trap_effects import project_silk_trap_protection, project_kings_shield_protection, resolve_silk_trap_speed_effect, resolve_kings_shield_attack_effect
+from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata
+from llm.advisor_hypothetical_silk_trap_effects import project_silk_trap_protection, project_kings_shield_protection, project_obstruct_protection, resolve_silk_trap_speed_effect, resolve_kings_shield_attack_effect, resolve_obstruct_defense_effect
 from llm.advisor_runtime_d0_silk_trap_speed_drop_interaction_authority import (
     freeze_runtime_d0_silk_trap_speed_drop_interaction_authority,
     freeze_runtime_d0_kings_shield_attack_drop_interaction_authority,
+    freeze_runtime_d0_obstruct_defense_drop_interaction_authority,
 )
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
@@ -73,6 +74,7 @@ def materialize_immediate_move_vs_move_action_pair(
     incoming_contact_authority: Mapping[str, Any] | None = None,
     silk_trap_reactive_interaction_authority: Mapping[str, Any] | None = None,
     kings_shield_reactive_interaction_authority: Mapping[str, Any] | None = None,
+    obstruct_reactive_interaction_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
@@ -84,7 +86,7 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
-    if _is_protection_metadata(opponent_meta.get("metadata")) or any(candidate(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None for candidate in (canonical_silk_trap_metadata, canonical_kings_shield_metadata)):
+    if _is_protection_metadata(opponent_meta.get("metadata")) or any(candidate(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None for candidate in (canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata)):
         return _materialize_protection_response_pair(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
             own_meta=own_meta, opponent_meta=opponent_meta, orders=orders,
@@ -92,6 +94,7 @@ def materialize_immediate_move_vs_move_action_pair(
             incoming_contact_authority=incoming_contact_authority,
             silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority,
             kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority,
+            obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority,
         )
     branches: list[dict[str, Any]] = []
     for order_plan in orders:
@@ -122,6 +125,7 @@ def _materialize_protection_response_pair(
     incoming_contact_authority: Mapping[str, Any] | None,
     silk_trap_reactive_interaction_authority: Mapping[str, Any] | None,
     kings_shield_reactive_interaction_authority: Mapping[str, Any] | None,
+    obstruct_reactive_interaction_authority: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """Materialize only the existing exact ordinary self-protection contract."""
     branches: list[dict[str, Any]] = []
@@ -180,6 +184,13 @@ def _materialize_protection_response_pair(
                 if interaction.get("status") != "resolved": return _result(_status(interaction), interaction.get("reason", "kings_shield_reactive_authority_unavailable"), base)
             reactive = resolve_kings_shield_attack_effect(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, blocked_action={"action_id":base["own_action_id"],"identity":own_meta["metadata"].get("move_id")}, blocked_attacker=base["own_actor"], shield_owner=base["opponent_actor"], contact_authority=incoming_contact_authority, reactive_interaction_authority=interaction)
             if reactive.get("status") != "resolved": return _result(_status(reactive), reactive.get("reason", "kings_shield_reactive_authority_unavailable"), base)
+        elif canonical_obstruct_metadata(opponent_meta["metadata"].get("move_id")) is not None:
+            if isinstance(incoming_contact_authority, Mapping) and incoming_contact_authority.get("status") == "resolved" and incoming_contact_authority.get("contact_state") == "non_contact": interaction = None
+            else:
+                interaction = freeze_runtime_d0_obstruct_defense_drop_interaction_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, shield_owner=base["opponent_actor"], blocked_attacker=base["own_actor"], blocked_action={"action_id":base["own_action_id"], "identity":own_meta["metadata"].get("move_id")}, contact_authority=incoming_contact_authority, protection_authority=protection, interaction_resolution=obstruct_reactive_interaction_authority)
+                if interaction.get("status") != "resolved": return _result(_status(interaction), interaction.get("reason", "obstruct_reactive_authority_unavailable"), base)
+            reactive = resolve_obstruct_defense_effect(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, blocked_action={"action_id":base["own_action_id"],"identity":own_meta["metadata"].get("move_id")}, blocked_attacker=base["own_actor"], shield_owner=base["opponent_actor"], contact_authority=incoming_contact_authority, reactive_interaction_authority=interaction)
+            if reactive.get("status") != "resolved": return _result(_status(reactive), reactive.get("reason", "obstruct_reactive_authority_unavailable"), base)
         leaf = _protection_leaf(base, strategy_d0, opponent_meta["metadata"], reactive)
         if leaf is None:
             return _result("incomplete", "exact_protection_hp_authority_missing", base)
@@ -207,6 +218,8 @@ def _resolved_protection(*, strategy_d0: Mapping[str, Any], opponent: Mapping[st
         return project_silk_trap_protection(branch_state=branch, action=action, owner=opponent, success_authority=success_authority or {})
     if canonical_kings_shield_metadata(metadata.get("move_id")) is not None:
         return project_kings_shield_protection(branch_state=branch, action=action, owner=opponent, success_authority=success_authority or {})
+    if canonical_obstruct_metadata(metadata.get("move_id")) is not None:
+        return project_obstruct_protection(branch_state=branch, action=action, owner=opponent, success_authority=success_authority or {})
     return project_self_protection(
         branch_state=branch, action=action,
         expected_owner=opponent, success_authority=success_authority or {},

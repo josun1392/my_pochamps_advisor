@@ -1,7 +1,7 @@
 """Strict detached Silk Trap blocked-contact Speed consequence."""
 from copy import deepcopy
 from typing import Any,Mapping
-from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata
+from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata
 from llm.advisor_hypothetical_protection_effects import project_self_protection
 
 def project_silk_trap_protection(*,branch_state,action,owner,success_authority):
@@ -19,6 +19,14 @@ def project_kings_shield_protection(*,branch_state,action,owner,success_authorit
  result=project_self_protection(branch_state=branch_state,action=proxy,expected_owner=owner,success_authority=success_authority)
  if result.get("status")!="resolved":return result
  return {**result,"metadata":meta,"provenance":"canonical_kings_shield_shared_ordinary_protection_v1"}
+
+def project_obstruct_protection(*,branch_state,action,owner,success_authority):
+ meta=canonical_obstruct_metadata(action.get("move",{}).get("move_id") if isinstance(action,Mapping) else None)
+ if meta is None:return {"status":"unsupported","reason":"canonical_obstruct_metadata"}
+ proxy={"owner":deepcopy(dict(owner)),"move":{"move_id":"protect","category":action["move"].get("category"),"target":action["move"].get("target"),"accuracy":action["move"].get("accuracy")}}
+ result=project_self_protection(branch_state=branch_state,action=proxy,expected_owner=owner,success_authority=success_authority)
+ if result.get("status")!="resolved":return result
+ return {**result,"metadata":meta,"provenance":"canonical_obstruct_shared_ordinary_protection_v1"}
 
 def resolve_silk_trap_speed_effect(*,strategy_d0,runtime_snapshot,blocked_action,blocked_attacker,shield_owner,contact_authority,reactive_interaction_authority):
  if not isinstance(contact_authority,Mapping):return {"status":"incomplete","reason":"silk_trap_contact_authority_missing"}
@@ -55,4 +63,15 @@ def resolve_kings_shield_attack_effect(**kwargs):
  if not isinstance(before,int) or isinstance(before,bool) or not isinstance(after,int) or isinstance(after,bool) or not -6<=before<=6 or not -6<=after<=6:return {"status":"rejected","reason":"kings_shield_reactive_interaction_result_invalid"}
  result["effect"]={"owner":"blocked_attacker","stat":"attack","previous_stage":before,"requested_delta":-1,"resulting_stage":after,"interaction_outcome":authority.get("outcome")}
  result["provenance"]="canonical_kings_shield_blocked_contact_attack_drop_v1"
+ return result
+
+def resolve_obstruct_defense_effect(**kwargs):
+ result=resolve_silk_trap_speed_effect(**kwargs)
+ authority=kwargs.get("reactive_interaction_authority")
+ if result.get("status")!="resolved" or result.get("applies") is not True:return result
+ before=authority.get("defense_stage_before") if isinstance(authority,Mapping) else None
+ after=authority.get("defense_stage_after") if isinstance(authority,Mapping) else None
+ if not isinstance(before,int) or isinstance(before,bool) or not isinstance(after,int) or isinstance(after,bool) or not -6<=before<=6 or not -6<=after<=6:return {"status":"rejected","reason":"obstruct_reactive_interaction_result_invalid"}
+ result["effect"]={"owner":"blocked_attacker","stat":"defense","previous_stage":before,"requested_delta":-2,"resulting_stage":after,"interaction_outcome":authority.get("outcome")}
+ result["provenance"]="canonical_obstruct_blocked_contact_defense_drop_v1"
  return result

@@ -10,6 +10,7 @@ from llm.advisor_runtime_d0_canonical_contact_classification_authority import fr
 from llm.advisor_runtime_d0_silk_trap_speed_drop_interaction_authority import (
     build_silk_trap_speed_drop_interaction_resolution,
     build_kings_shield_attack_drop_interaction_resolution,
+    build_obstruct_defense_drop_interaction_resolution,
 )
 from tests.test_detached_opponent_response_profile import _equal_speed_order, _inputs, _metadata
 from tests.test_fixed_two_hit_immediate_move_pair_integration import _fixed_two_action, _order
@@ -58,6 +59,10 @@ def _kings_interaction(d0, *, move_id="tackle", outcome="applies", delta=-1):
         ability_authority={"status": "known", "value": "pressure"},
         item_authority={"status": "known_absent"},
     )
+
+def _obstruct_interaction(d0, *, move_id="tackle", outcome="applies", delta=-2):
+    return build_obstruct_defense_drop_interaction_resolution(
+        session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"], blocked_attacker=d0["active_owners"]["self"], blocked_action_id=f"attack:{move_id}", blocked_move_id=move_id, outcome=outcome, resulting_delta=delta, ability_authority={"status":"known","value":"pressure"}, item_authority={"status":"known_absent"})
 
 
 def test_confirmed_opponent_first_protect_blocks_normal_fixed_damage_and_fixed_two_hit_without_attack_leaves():
@@ -207,3 +212,11 @@ def test_kings_shield_contact_attack_drop_reuses_strict_reactive_path_without_ch
     effect = pair["terminal_branches"][0]["first_action_leaf"]["consequences"]["deterministic_stage_effect"]
     assert effect == {"owner": "blocked_attacker", "stat": "attack", "previous_stage": 0, "requested_delta": -1, "resulting_stage": -1, "interaction_outcome": "applies"}
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
+
+def test_obstruct_contact_defense_drop_uses_exact_minus_two_authority():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs()
+    own, shield = _own_action(d0,"tackle"), _protect_action(d0,"obstruct")
+    contact=freeze_runtime_d0_canonical_contact_classification_authority(strategy_d0=d0,runtime_snapshot=snapshot,action=own,attacker=d0["active_owners"]["self"],target=d0["active_owners"]["opponent"])
+    pair=materialize_immediate_move_vs_move_action_pair(strategy_d0=d0,runtime_snapshot=snapshot,own_action=own,opponent_action=shield,action_order_authority=_order(d0,own,shield,"opponent_first"),opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),incoming_contact_authority=contact,obstruct_reactive_interaction_authority=_obstruct_interaction(d0))
+    assert pair["status"]=="evaluable",pair.get("reason")
+    assert pair["terminal_branches"][0]["first_action_leaf"]["consequences"]["deterministic_stage_effect"]["resulting_stage"]==-2

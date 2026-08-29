@@ -24,7 +24,7 @@ def build_silk_trap_speed_drop_interaction_resolution(
     *, session_id: str, shield_owner: Mapping[str, Any], blocked_attacker: Mapping[str, Any],
     blocked_action_id: str, blocked_move_id: str, outcome: str,
     resulting_delta: int | None, ability_authority: Mapping[str, Any],
-    item_authority: Mapping[str, Any],
+    item_authority: Mapping[str, Any], requested_delta: int = -1,
 ) -> dict[str, Any]:
     """Build trusted exact outcome evidence; this is not a mechanics resolver.
 
@@ -40,13 +40,15 @@ def build_silk_trap_speed_drop_interaction_resolution(
         or not _modifier_authority(ability_authority) or not _modifier_authority(item_authority)
     ):
         raise ValueError("invalid_silk_trap_speed_drop_interaction_resolution")
-    if outcome == "applies" and resulting_delta != -1:
+    if not isinstance(requested_delta, int) or isinstance(requested_delta, bool) or not -6 <= requested_delta < 0:
+        raise ValueError("invalid_contact_reactive_requested_delta")
+    if outcome == "applies" and resulting_delta != requested_delta:
         raise ValueError("invalid_silk_trap_applies_delta")
     if outcome == "prevented" and resulting_delta != 0:
         raise ValueError("invalid_silk_trap_prevented_delta")
     if outcome == "reversed" and (
         not isinstance(resulting_delta, int) or isinstance(resulting_delta, bool)
-        or not -12 <= resulting_delta <= 12 or resulting_delta == -1
+        or not -12 <= resulting_delta <= 12 or resulting_delta == requested_delta
     ):
         raise ValueError("invalid_silk_trap_reversed_delta")
     return {
@@ -54,7 +56,7 @@ def build_silk_trap_speed_drop_interaction_resolution(
         "session_id": session_id, "shield_owner": shield,
         "blocked_attacker": attacker, "blocked_action_id": blocked_action_id,
         "blocked_move_id": blocked_move_id, "outcome": outcome,
-        "resulting_delta": resulting_delta,
+        "requested_delta": requested_delta, "resulting_delta": resulting_delta,
         "ability_authority": deepcopy(dict(ability_authority)),
         "item_authority": deepcopy(dict(item_authority)),
         "provenance": "explicit_canonical_silk_trap_stage_interaction_result_v1",
@@ -69,11 +71,17 @@ def build_kings_shield_attack_drop_interaction_resolution(**kwargs: Any) -> dict
     return result
 
 
+def build_obstruct_defense_drop_interaction_resolution(**kwargs: Any) -> dict[str, Any]:
+    result = build_silk_trap_speed_drop_interaction_resolution(**kwargs, requested_delta=-2)
+    result["shield_move_id"] = "obstruct"; result["stage_stat"] = "defense"
+    return result
+
+
 def freeze_runtime_d0_silk_trap_speed_drop_interaction_authority(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     shield_owner: Mapping[str, Any], blocked_attacker: Mapping[str, Any],
     blocked_action: Mapping[str, Any], contact_authority: Mapping[str, Any],
-    protection_authority: Mapping[str, Any], interaction_resolution: Mapping[str, Any] | None,
+    protection_authority: Mapping[str, Any], interaction_resolution: Mapping[str, Any] | None, requested_delta: int = -1,
 ) -> dict[str, Any]:
     """Freeze one current, exact Silk Trap outcome for a blocked contact action."""
     base = _base(strategy_d0, shield_owner, blocked_attacker, blocked_action)
@@ -107,7 +115,7 @@ def freeze_runtime_d0_silk_trap_speed_drop_interaction_authority(
         return _result("rejected", "silk_trap_blocked_attacker_speed_stage_invalid", base)
     if interaction_resolution is None:
         return _result("incomplete", "silk_trap_speed_drop_interaction_result_missing", base)
-    resolution = _resolution(interaction_resolution, base)
+    resolution = _resolution(interaction_resolution, base, requested_delta)
     if resolution is None:
         return _result("rejected", "silk_trap_speed_drop_interaction_result_binding_mismatch", base)
     if resolution["ability_authority"].get("status") == "unknown" or resolution["item_authority"].get("status") == "unknown":
@@ -123,7 +131,7 @@ def freeze_runtime_d0_silk_trap_speed_drop_interaction_authority(
     after = max(-6, min(6, before + resolution["resulting_delta"]))
     return {
         "status": "resolved", "schema_version": SCHEMA_VERSION, **base,
-        "outcome": resolution["outcome"], "requested_delta": -1,
+        "outcome": resolution["outcome"], "requested_delta": requested_delta,
         "resulting_delta": resolution["resulting_delta"],
         "speed_stage_before": before, "speed_stage_after": after,
         "contact_authority": deepcopy(dict(contact_authority)),
@@ -166,6 +174,26 @@ def freeze_runtime_d0_kings_shield_attack_drop_interaction_authority(
             "attack_stage_before": before, "attack_stage_after": max(-6, min(6, before + delta)),
             "stage_authority": deepcopy(dict(stage)),
             "provenance": "runtime_d0_explicit_kings_shield_attack_drop_interaction_v1"}
+
+
+def freeze_runtime_d0_obstruct_defense_drop_interaction_authority(**kwargs: Any) -> dict[str, Any]:
+    shield_owner, blocked_attacker = kwargs["shield_owner"], kwargs["blocked_attacker"]
+    protection = {**dict(kwargs["protection_authority"]), "metadata": {"move_id": "silk-trap"}}
+    resolved = freeze_runtime_d0_silk_trap_speed_drop_interaction_authority(
+        **{**kwargs, "protection_authority": protection,
+           "interaction_resolution": _as_silk_resolution(kwargs.get("interaction_resolution")), "requested_delta": -2},
+    )
+    if resolved.get("status") != "resolved": return resolved
+    stage = freeze_runtime_current_stage_authority(strategy_d0=kwargs["strategy_d0"], runtime_snapshot=kwargs["runtime_snapshot"], owner=blocked_attacker)
+    defense = stage.get("stages", {}).get("defense") if isinstance(stage, Mapping) else None
+    if not isinstance(defense, Mapping) or defense.get("status") != "known":
+        return _result("incomplete", "obstruct_blocked_attacker_defense_stage_unknown", _base(kwargs["strategy_d0"], shield_owner, blocked_attacker, kwargs["blocked_action"]) or {})
+    before = defense.get("value")
+    if not isinstance(before, int) or isinstance(before, bool) or not -6 <= before <= 6:
+        return _result("rejected", "obstruct_blocked_attacker_defense_stage_invalid", _base(kwargs["strategy_d0"], shield_owner, blocked_attacker, kwargs["blocked_action"]) or {})
+    return {**resolved, "shield_move_id": "obstruct", "stage_stat": "defense", "defense_stage_before": before,
+            "defense_stage_after": max(-6, min(6, before + resolved["resulting_delta"])), "stage_authority": deepcopy(dict(stage)),
+            "provenance": "runtime_d0_explicit_obstruct_defense_drop_interaction_v1"}
 
 
 def _as_silk_resolution(value: Mapping[str, Any] | None) -> Mapping[str, Any] | None:
@@ -214,7 +242,7 @@ def _protection_matches(value: Any, base: Mapping[str, Any]) -> bool:
     return isinstance(value, Mapping) and value.get("owner") == base["shield_owner"] and value.get("metadata", {}).get("move_id") == "silk-trap"
 
 
-def _resolution(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | None:
+def _resolution(value: Any, base: Mapping[str, Any], requested_delta: int = -1) -> dict[str, Any] | None:
     if not isinstance(value, Mapping):
         return None
     try:
@@ -222,7 +250,7 @@ def _resolution(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | None:
             session_id=base["session_id"], shield_owner=base["shield_owner"], blocked_attacker=base["blocked_attacker"],
             blocked_action_id=base["blocked_action_id"], blocked_move_id=base["blocked_move_id"],
             outcome=value.get("outcome"), resulting_delta=value.get("resulting_delta"),
-            ability_authority=value.get("ability_authority"), item_authority=value.get("item_authority"),
+            ability_authority=value.get("ability_authority"), item_authority=value.get("item_authority"), requested_delta=requested_delta,
         )
     except (TypeError, ValueError):
         return None
