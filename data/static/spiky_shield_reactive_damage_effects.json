@@ -1,0 +1,18 @@
+{
+  "schema_version": "canonical-spiky-shield-reactive-damage-v1",
+  "authority": "pokemon-showdown/data/moves.ts (Spiky Shield blocked-contact damage)",
+  "moves": {
+    "spiky-shield": {
+      "protects_self": true,
+      "blocks_supported_direct_damage": true,
+      "reactive_contact_damage": {
+        "owner": "blocked_attacker",
+        "basis": "maximum_hp",
+        "numerator": 1,
+        "denominator": 8,
+        "rounding": "floor",
+        "minimum_damage": 1
+      }
+    }
+  }
+}
