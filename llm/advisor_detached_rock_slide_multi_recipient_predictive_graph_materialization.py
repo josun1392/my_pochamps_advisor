@@ -117,25 +117,40 @@ def _recipient_events(d0: Mapping[str, Any], snapshot: Mapping[str, Any], base: 
     local_d0, local_snapshot = _recipient_d0_view(d0, snapshot, base["attacker"], recipient)
     if local_d0 is None or local_snapshot is None:
         return {"status": "incomplete", "reason": "rock_slide_recipient_private_d0_view_unavailable"}
+    raw_recipient = local_snapshot["state"][f"{recipient['side']}_side"]["pokemon"].get(recipient["slot_index"])
+    if isinstance(raw_recipient, Mapping) and raw_recipient.get("current_ability") == "sturdy":
+        return {"status": "incomplete", "reason": "rock_slide_recipient_sturdy_survival_authority_required"}
     metadata = base["move_metadata"]
     hit = build_runtime_d0_strict_hit_probability_assessment(strategy_d0=local_d0, runtime_snapshot=local_snapshot, attacker=base["attacker"], target=recipient, selected_move=metadata)
     if hit.get("status") != "resolved": return {"status": hit.get("status", "rejected"), "reason": hit.get("reason", "rock_slide_recipient_hit_authority_unavailable")}
-    critical = build_runtime_d0_strict_critical_hit_probability_assessment(strategy_d0=local_d0, runtime_snapshot=local_snapshot, attacker=base["attacker"], target=recipient, move_metadata=metadata)
-    if critical.get("status") != "resolved": return {"status": critical.get("status", "rejected"), "reason": critical.get("reason", "rock_slide_recipient_critical_authority_unavailable")}
+    native = build_runtime_d0_native_damage_context(strategy_d0=local_d0, runtime_snapshot=local_snapshot, attacker=base["attacker"], target=recipient, move_metadata=metadata)
+    if native.get("status") != "resolved": return {"status": native.get("status", "incomplete"), "reason": native.get("reason", "rock_slide_recipient_normal_damage_authority_unavailable")}
     try:
         hit_probability = Fraction(hit["probability_percent"], 100)
-        critical_probability = Fraction(critical["critical_probability"]["numerator"], critical["critical_probability"]["denominator"])
     except (KeyError, TypeError, ValueError, ZeroDivisionError):
         return {"status": "rejected", "reason": "rock_slide_recipient_probability_invalid"}
-    if not 0 <= hit_probability <= 1 or not 0 <= critical_probability <= 1:
+    if not 0 <= hit_probability <= 1:
         return {"status": "rejected", "reason": "rock_slide_recipient_probability_out_of_range"}
     result: list[dict[str, Any]] = []
     if hit_probability < 1:
         result.append({"probability": 1 - hit_probability, "outcome": "miss", "hit_state": "miss", "critical_state": "not_applicable", "damage_roll": {"status": "not_applicable", "reason": "miss_has_no_critical_or_damage_roll"}, "raw_damage": 0, "actual_damage": 0, "pre_hp": _hp(local_d0, recipient), "post_hp": _hp(local_d0, recipient), "fainted": False})
     if not hit_probability:
         return result
-    native = build_runtime_d0_native_damage_context(strategy_d0=local_d0, runtime_snapshot=local_snapshot, attacker=base["attacker"], target=recipient, move_metadata=metadata)
-    if native.get("status") != "resolved": return {"status": native.get("status", "incomplete"), "reason": native.get("reason", "rock_slide_recipient_normal_damage_authority_unavailable")}
+    applicability_interval = build_predictive_normal_formula_interval(branch_state=local_d0["strategy_state"], decision_owner=base["attacker"], target_owner=recipient, snapshot_damage_input=native["snapshot_damage_input"], stat_provenance=native["stat_provenance"], trusted_level=native["trusted_level"], is_critical=False, is_spread=True, source_runtime_fingerprint=local_d0["source_runtime_fingerprint"])
+    if applicability_interval.get("completeness") != "exact_complete": return {"status": "incomplete", "reason": applicability_interval.get("reason", "rock_slide_recipient_applicability_unavailable")}
+    type_effectiveness = applicability_interval.get("native_evaluator_result", {}).get("type_effectiveness") if isinstance(applicability_interval.get("native_evaluator_result"), Mapping) else None
+    if type_effectiveness == 0.0:
+        hp = _hp(local_d0, recipient)
+        result.append({"probability": hit_probability, "outcome": "immune", "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": {"status": "not_applicable", "reason": "type_immune_recipient_has_no_critical_or_damage_roll"}, "raw_damage": 0, "actual_damage": 0, "pre_hp": hp, "post_hp": hp, "fainted": False})
+        return result
+    critical = build_runtime_d0_strict_critical_hit_probability_assessment(strategy_d0=local_d0, runtime_snapshot=local_snapshot, attacker=base["attacker"], target=recipient, move_metadata=metadata)
+    if critical.get("status") != "resolved": return {"status": critical.get("status", "rejected"), "reason": critical.get("reason", "rock_slide_recipient_critical_authority_unavailable")}
+    try:
+        critical_probability = Fraction(critical["critical_probability"]["numerator"], critical["critical_probability"]["denominator"])
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return {"status": "rejected", "reason": "rock_slide_recipient_probability_invalid"}
+    if not 0 <= critical_probability <= 1:
+        return {"status": "rejected", "reason": "rock_slide_recipient_probability_out_of_range"}
     for state, factor in (("non_critical", 1 - critical_probability), ("critical", critical_probability)):
         if not factor: continue
         raw_interval = build_predictive_normal_formula_interval(branch_state=local_d0["strategy_state"], decision_owner=base["attacker"], target_owner=recipient, snapshot_damage_input=native["snapshot_damage_input"], stat_provenance=native["stat_provenance"], trusted_level=native["trusted_level"], is_critical=state == "critical", is_spread=False, source_runtime_fingerprint=local_d0["source_runtime_fingerprint"])
