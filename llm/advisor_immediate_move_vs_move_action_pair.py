@@ -36,11 +36,16 @@ from llm.advisor_hypothetical_protection_effects import (
     project_self_protection,
 )
 from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata
-from llm.advisor_hypothetical_silk_trap_effects import project_silk_trap_protection, project_kings_shield_protection, project_obstruct_protection, resolve_silk_trap_speed_effect, resolve_kings_shield_attack_effect, resolve_obstruct_defense_effect
+from advisor.canonical_spiky_shield_reactive_damage import canonical_spiky_shield_reactive_damage_metadata
+from llm.advisor_hypothetical_silk_trap_effects import project_silk_trap_protection, project_kings_shield_protection, project_obstruct_protection, project_spiky_shield_protection, resolve_silk_trap_speed_effect, resolve_kings_shield_attack_effect, resolve_obstruct_defense_effect
 from llm.advisor_runtime_d0_silk_trap_speed_drop_interaction_authority import (
     freeze_runtime_d0_silk_trap_speed_drop_interaction_authority,
     freeze_runtime_d0_kings_shield_attack_drop_interaction_authority,
     freeze_runtime_d0_obstruct_defense_drop_interaction_authority,
+)
+from llm.advisor_runtime_d0_spiky_shield_reactive_damage_authority import (
+    SCHEMA_VERSION as SPIKY_SHIELD_DAMAGE_SCHEMA_VERSION,
+    materialize_detached_spiky_shield_reactive_damage,
 )
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
@@ -75,6 +80,7 @@ def materialize_immediate_move_vs_move_action_pair(
     silk_trap_reactive_interaction_authority: Mapping[str, Any] | None = None,
     kings_shield_reactive_interaction_authority: Mapping[str, Any] | None = None,
     obstruct_reactive_interaction_authority: Mapping[str, Any] | None = None,
+    spiky_shield_reactive_damage_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
@@ -86,7 +92,7 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
-    if _is_protection_metadata(opponent_meta.get("metadata")) or any(candidate(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None for candidate in (canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata)):
+    if _is_protection_metadata(opponent_meta.get("metadata")) or any(candidate(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None for candidate in (canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata, canonical_spiky_shield_reactive_damage_metadata)):
         return _materialize_protection_response_pair(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
             own_meta=own_meta, opponent_meta=opponent_meta, orders=orders,
@@ -95,6 +101,7 @@ def materialize_immediate_move_vs_move_action_pair(
             silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority,
             kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority,
             obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority,
+            spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority,
         )
     branches: list[dict[str, Any]] = []
     for order_plan in orders:
@@ -126,6 +133,7 @@ def _materialize_protection_response_pair(
     silk_trap_reactive_interaction_authority: Mapping[str, Any] | None,
     kings_shield_reactive_interaction_authority: Mapping[str, Any] | None,
     obstruct_reactive_interaction_authority: Mapping[str, Any] | None,
+    spiky_shield_reactive_damage_authority: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """Materialize only the existing exact ordinary self-protection contract."""
     branches: list[dict[str, Any]] = []
@@ -155,6 +163,7 @@ def _materialize_protection_response_pair(
         if bypass.get("status") != "resolved":
             return _result(_status(bypass), bypass.get("reason", "protection_bypass_authority_unavailable"), base)
         reactive = None
+        spiky_damage = None
         if canonical_silk_trap_metadata(opponent_meta["metadata"].get("move_id")) is not None:
             if isinstance(incoming_contact_authority, Mapping) and incoming_contact_authority.get("status") == "resolved" and incoming_contact_authority.get("contact_state") == "non_contact":
                 interaction = None
@@ -191,7 +200,14 @@ def _materialize_protection_response_pair(
                 if interaction.get("status") != "resolved": return _result(_status(interaction), interaction.get("reason", "obstruct_reactive_authority_unavailable"), base)
             reactive = resolve_obstruct_defense_effect(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, blocked_action={"action_id":base["own_action_id"],"identity":own_meta["metadata"].get("move_id")}, blocked_attacker=base["own_actor"], shield_owner=base["opponent_actor"], contact_authority=incoming_contact_authority, reactive_interaction_authority=interaction)
             if reactive.get("status") != "resolved": return _result(_status(reactive), reactive.get("reason", "obstruct_reactive_authority_unavailable"), base)
-        leaf = _protection_leaf(base, strategy_d0, opponent_meta["metadata"], reactive)
+        elif canonical_spiky_shield_reactive_damage_metadata(opponent_meta["metadata"].get("move_id")) is not None:
+            spiky_damage = _spiky_shield_reactive_damage(
+                base=base, contact_authority=incoming_contact_authority,
+                authority=spiky_shield_reactive_damage_authority,
+            )
+            if spiky_damage.get("status") != "resolved":
+                return _result(_status(spiky_damage), spiky_damage.get("reason", "spiky_shield_reactive_damage_authority_unavailable"), base)
+        leaf = _protection_leaf(base, strategy_d0, opponent_meta["metadata"], reactive, spiky_damage)
         if leaf is None:
             return _result("incomplete", "exact_protection_hp_authority_missing", base)
         branches.append(_protection_branch(base, plan, leaf, "prevented_by_protection"))
@@ -220,6 +236,8 @@ def _resolved_protection(*, strategy_d0: Mapping[str, Any], opponent: Mapping[st
         return project_kings_shield_protection(branch_state=branch, action=action, owner=opponent, success_authority=success_authority or {})
     if canonical_obstruct_metadata(metadata.get("move_id")) is not None:
         return project_obstruct_protection(branch_state=branch, action=action, owner=opponent, success_authority=success_authority or {})
+    if canonical_spiky_shield_reactive_damage_metadata(metadata.get("move_id")) is not None:
+        return project_spiky_shield_protection(branch_state=branch, action=action, owner=opponent, success_authority=success_authority or {})
     return project_self_protection(
         branch_state=branch, action=action,
         expected_owner=opponent, success_authority=success_authority or {},
@@ -234,11 +252,14 @@ def _is_protection_metadata(metadata: Any) -> bool:
     return isinstance(metadata, Mapping) and canonical_protection_metadata(metadata.get("move_id")) is not None
 
 
-def _protection_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadata: Mapping[str, Any], reactive: Mapping[str, Any] | None = None) -> dict[str, Any] | None:
+def _protection_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadata: Mapping[str, Any], reactive: Mapping[str, Any] | None = None, spiky_damage: Mapping[str, Any] | None = None) -> dict[str, Any] | None:
     active = strategy_d0.get("strategy_state", {}).get("active", {})
     own_hp = active.get("self", {}).get("current_hp") if isinstance(active, Mapping) else None
     opponent_hp = active.get("opponent", {}).get("current_hp") if isinstance(active, Mapping) else None
     if not isinstance(own_hp, int) or isinstance(own_hp, bool) or own_hp < 0 or not isinstance(opponent_hp, int) or isinstance(opponent_hp, bool) or opponent_hp < 0:
+        return None
+    reactive_post_hp = spiky_damage.get("post_hp") if isinstance(spiky_damage, Mapping) and spiky_damage.get("outcome") == "applies" else own_hp
+    if not isinstance(reactive_post_hp, int) or isinstance(reactive_post_hp, bool) or reactive_post_hp < 0:
         return None
     return {
         "leaf_id": "protect:success", "candidate_id": f"protection:{metadata['move_id']}",
@@ -246,14 +267,47 @@ def _protection_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], me
         "probability": _fd(Fraction(1, 1)), "hit_state": "not_applicable",
         "critical_state": "not_applicable", "damage_roll": "not_applicable",
         "consequences": {
-            "own_final_hp": opponent_hp, "target_final_hp": own_hp,
-            "target_ko": own_hp == 0, "self_fainted": opponent_hp == 0,
+            "own_final_hp": opponent_hp, "target_final_hp": reactive_post_hp,
+            "target_ko": reactive_post_hp == 0, "self_fainted": opponent_hp == 0,
             "deterministic_stage_effect": deepcopy(reactive.get("effect")) if isinstance(reactive, Mapping) and reactive.get("applies") is True else None,
             "silk_trap_reactive_consequence": deepcopy(reactive) if isinstance(reactive, Mapping) else None,
+            "spiky_shield_reactive_damage": deepcopy(spiky_damage) if isinstance(spiky_damage, Mapping) else None,
             "secondary": None,
         },
         "provenance": {"session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": deepcopy(dict(base["decision_owner"])), "attacker": deepcopy(dict(base["opponent_actor"])), "target": deepcopy(dict(base["own_actor"])), "move_id": metadata["move_id"]},
     }
+
+
+def _spiky_shield_reactive_damage(*, base: Mapping[str, Any], contact_authority: Mapping[str, Any] | None, authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Consume only a frozen Spiky Shield result; pair code never recalculates it."""
+    if not isinstance(authority, Mapping):
+        return {"status": "incomplete", "reason": "spiky_shield_reactive_damage_authority_missing"}
+    expected = {
+        "schema_version": SPIKY_SHIELD_DAMAGE_SCHEMA_VERSION,
+        "session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"],
+        "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": base["decision_owner"],
+        "shield_owner": base["opponent_actor"], "shield_action_id": base["opponent_action_id"],
+        "shield_move_id": "spiky-shield", "blocked_attacker": base["own_actor"],
+        "blocked_action_id": base["own_action_id"],
+    }
+    if any(authority.get(key) != value for key, value in expected.items()):
+        return {"status": "rejected", "reason": "spiky_shield_reactive_damage_authority_binding_mismatch"}
+    if authority.get("status") != "resolved":
+        return {"status": _status(authority), "reason": authority.get("reason", "spiky_shield_reactive_damage_authority_unavailable")}
+    if not isinstance(contact_authority, Mapping) or authority.get("blocked_move_id") != contact_authority.get("move_id"):
+        return {"status": "rejected", "reason": "spiky_shield_blocked_move_identity_mismatch"}
+    if authority.get("contact_authority") != contact_authority:
+        return {"status": "rejected", "reason": "spiky_shield_contact_provenance_mismatch"}
+    if authority.get("outcome") == "not_applicable":
+        return {"status": "resolved", "outcome": "not_applicable", "authority": deepcopy(dict(authority))}
+    if authority.get("outcome") != "applies":
+        return {"status": "rejected", "reason": "spiky_shield_reactive_damage_outcome_invalid"}
+    overlay = materialize_detached_spiky_shield_reactive_damage(authority=authority)
+    if overlay.get("status") != "resolved":
+        return {"status": _status(overlay), "reason": overlay.get("reason", "spiky_shield_reactive_damage_overlay_invalid")}
+    if overlay.get("owner") != base["own_actor"]:
+        return {"status": "rejected", "reason": "spiky_shield_reactive_damage_overlay_owner_mismatch"}
+    return {"status": "resolved", "outcome": "applies", "post_hp": overlay["hypothetical_hp_authority"]["current_hp"], "fainted": overlay["hypothetical_fainted_authority"]["value"], "authority": deepcopy(dict(authority)), "overlay": overlay}
 
 
 def _protection_branch(base: Mapping[str, Any], plan: Mapping[str, Any], first: Mapping[str, Any], state: str) -> dict[str, Any]:

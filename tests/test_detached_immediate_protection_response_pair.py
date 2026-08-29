@@ -12,6 +12,13 @@ from llm.advisor_runtime_d0_silk_trap_speed_drop_interaction_authority import (
     build_kings_shield_attack_drop_interaction_resolution,
     build_obstruct_defense_drop_interaction_resolution,
 )
+from llm.advisor_runtime_d0_spiky_shield_reactive_damage_authority import (
+    build_spiky_shield_reactive_damage_applicability_resolution,
+    build_spiky_shield_successful_block_context,
+    freeze_runtime_d0_spiky_shield_reactive_damage_authority,
+)
+from llm.advisor_reducer_state_model import state_fingerprint
+from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import _equal_speed_order, _inputs, _metadata
 from tests.test_fixed_two_hit_immediate_move_pair_integration import _fixed_two_action, _order
 
@@ -63,6 +70,29 @@ def _kings_interaction(d0, *, move_id="tackle", outcome="applies", delta=-1):
 def _obstruct_interaction(d0, *, move_id="tackle", outcome="applies", delta=-2):
     return build_obstruct_defense_drop_interaction_resolution(
         session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"], blocked_attacker=d0["active_owners"]["self"], blocked_action_id=f"attack:{move_id}", blocked_move_id=move_id, outcome=outcome, resulting_delta=delta, ability_authority={"status":"known","value":"pressure"}, item_authority={"status":"known_absent"})
+
+
+def _spiky_damage_authority(d0, snapshot, own, *, outcome="applies"):
+    contact = freeze_runtime_d0_canonical_contact_classification_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=own,
+        attacker=d0["active_owners"]["self"], target=d0["active_owners"]["opponent"],
+    )
+    protection = {"status": "resolved", "owner": d0["active_owners"]["opponent"], "metadata": {"move_id": "spiky-shield"}, "provenance": "exact_spiky_shield_block_v1"}
+    context = build_spiky_shield_successful_block_context(
+        session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"], shield_action_id="opponent_attack:spiky-shield",
+        blocked_attacker=d0["active_owners"]["self"], blocked_action_id=own["action_id"], blocked_move_id=own["identity"],
+        protection_authority=protection, action_blocked=True, protection_bypass=False, substitute_authority={"status": "known_absent"},
+    )
+    applicability = build_spiky_shield_reactive_damage_applicability_resolution(
+        session_id=d0["session_id"], shield_owner=d0["active_owners"]["opponent"], blocked_attacker=d0["active_owners"]["self"],
+        blocked_action_id=own["action_id"], blocked_move_id=own["identity"], outcome=outcome,
+        ability_authority={"status": "known", "value": "pressure"}, item_authority={"status": "known_absent"},
+    )
+    return freeze_runtime_d0_spiky_shield_reactive_damage_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, shield_owner=d0["active_owners"]["opponent"], shield_action_id="opponent_attack:spiky-shield",
+        blocked_attacker=d0["active_owners"]["self"], blocked_action=own, contact_authority=contact,
+        protection_block_context=context, applicability_resolution=applicability,
+    ), contact
 
 
 def test_confirmed_opponent_first_protect_blocks_normal_fixed_damage_and_fixed_two_hit_without_attack_leaves():
@@ -220,3 +250,63 @@ def test_obstruct_contact_defense_drop_uses_exact_minus_two_authority():
     pair=materialize_immediate_move_vs_move_action_pair(strategy_d0=d0,runtime_snapshot=snapshot,own_action=own,opponent_action=shield,action_order_authority=_order(d0,own,shield,"opponent_first"),opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),incoming_contact_authority=contact,obstruct_reactive_interaction_authority=_obstruct_interaction(d0))
     assert pair["status"]=="evaluable",pair.get("reason")
     assert pair["terminal_branches"][0]["first_action_leaf"]["consequences"]["deterministic_stage_effect"]["resulting_stage"]==-2
+
+
+def _spiky_pair_inputs(*, own_hp: int):
+    state, snapshot, d0, _unused, _responses, _orders = _inputs(own_hp=own_hp)
+    state["self_side"]["pokemon"][0]["max_hp"] = 80
+    snapshot = {**snapshot, "state": state, "state_fingerprint": state_fingerprint(state)}
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=d0["decision_owner"])
+    own, shield = _own_action(d0, "tackle"), _protect_action(d0, "spiky-shield")
+    damage, contact = _spiky_damage_authority(d0, snapshot, own)
+    return snapshot, d0, own, shield, damage, contact
+
+
+def test_spiky_shield_consumes_reactive_damage_into_pair_ledger_and_metrics():
+    snapshot, d0, own, shield, damage, contact = _spiky_pair_inputs(own_hp=80)
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact, spiky_shield_reactive_damage_authority=damage,
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    leaf = pair["terminal_branches"][0]["first_action_leaf"]
+    assert leaf["hit_state"] == leaf["critical_state"] == leaf["damage_roll"] == "not_applicable"
+    assert leaf["consequences"]["target_final_hp"] == 70 and leaf["consequences"]["target_ko"] is False
+    assert leaf["consequences"]["spiky_shield_reactive_damage"]["authority"]["reactive_damage"] == 10
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    metrics = project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)
+    assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert metrics["status"] == "resolved" and metrics["own"]["final_hp_distribution"]["outcomes"][0]["final_hp"] == 70
+
+
+def test_spiky_shield_reactive_ko_and_non_contact_or_missing_authority_remain_exact():
+    snapshot, d0, own, shield, damage, contact = _spiky_pair_inputs(own_hp=5)
+    ko = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=contact, spiky_shield_reactive_damage_authority=damage,
+    )
+    assert ko["status"] == "evaluable" and ko["terminal_branches"][0]["second_action"]["state"] == "prevented_by_protection"
+    assert ko["terminal_branches"][0]["first_action_leaf"]["consequences"]["target_ko"] is True
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=ko)
+    assert project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)["own"]["ko_probability"] == {"numerator": 1, "denominator": 1}
+
+    non_contact = _own_action(d0, "shadow-ball")
+    non_contact_damage, non_contact_authority = _spiky_damage_authority(d0, snapshot, non_contact)
+    block_only = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=non_contact, opponent_action=shield,
+        action_order_authority=_order(d0, non_contact, shield, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority=non_contact_authority, spiky_shield_reactive_damage_authority=non_contact_damage,
+    )
+    assert block_only["status"] == "evaluable"
+    assert block_only["terminal_branches"][0]["first_action_leaf"]["consequences"]["spiky_shield_reactive_damage"]["outcome"] == "not_applicable"
+    missing = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=shield,
+        action_order_authority=_order(d0, own, shield, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]), incoming_contact_authority=contact,
+    )
+    assert missing["status"] == "incomplete"
