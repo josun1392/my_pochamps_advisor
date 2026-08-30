@@ -118,8 +118,13 @@ def _opponent_first_transitions(transitions: tuple[Any, ...], first: Any, base: 
         seen.add(leaf_id)
         row = _transition(value, base, order, _fraction(leaf.get("probability")), "opponent_first")
         if isinstance(row, str): return row
-        overlay = row["vector"].get("source_scalar_intermediate_overlay")
-        if not isinstance(overlay, Mapping) or overlay.get("first_action", {}).get("leaf_id") != leaf_id: return "rock_slide_nested_pair_vector_overlay_source_mismatch"
+        if leaf.get("action_type") == "status_protection":
+            graph = row["transition"].get("second_action", {}).get("rock_slide_graph") if isinstance(row.get("transition"), Mapping) else None
+            authority = leaf.get("wide_guard_spread_applicability_authority")
+            if row["vector"].get("source_scalar_intermediate_overlay") is not None or not isinstance(authority, Mapping) or not isinstance(graph, Mapping) or graph.get("wide_guard_spread_applicability_authority") != authority: return "rock_slide_nested_pair_wide_guard_provenance_invalid"
+        else:
+            overlay = row["vector"].get("source_scalar_intermediate_overlay")
+            if not isinstance(overlay, Mapping) or overlay.get("first_action", {}).get("leaf_id") != leaf_id: return "rock_slide_nested_pair_vector_overlay_source_mismatch"
         parsed.append(row)
     return tuple(parsed) if seen == set(source_map) else "rock_slide_nested_pair_first_terminal_omission"
 
@@ -142,6 +147,9 @@ def _transition(value: Any, base: Mapping[str, Any], order: Fraction, source_pro
         if direction != "own_first" or second.get("builder_view_provenance") != "strict_hypothetical_rock_slide_vector_predictive_builder_view_v1" or isinstance(_attack_rows(second), str): return "rock_slide_nested_pair_builder_or_second_ledger_invalid"
     elif state == "rock_slide_graph":
         if direction != "opponent_first" or second.get("frozen_scope_adapter_provenance") != "detached_rock_slide_vector_to_unchanged_frozen_scope_graph_consumer_adapter_v1" or isinstance(_graph_rows(second.get("rock_slide_graph")), str): return "rock_slide_nested_pair_adapter_or_second_graph_invalid"
+    elif state == "wide_guard_no_retroactive_effect":
+        authority = second.get("wide_guard_spread_applicability_authority")
+        if direction != "own_first" or second.get("reason") != "wide_guard_established_after_rock_slide_has_no_retroactive_effect" or not isinstance(authority, Mapping): return "rock_slide_nested_pair_wide_guard_retroactive_state_invalid"
     else: return "rock_slide_nested_pair_second_action_state_invalid"
     return {"source_probability": source_probability, "transition": value, "vector": vector, "second_state": state}
 
@@ -192,11 +200,13 @@ def _rows(*, pair: Mapping[str, Any]) -> Iterable[dict[str, Any]]:
             elif second["state"] == "outcome_ledger":
                 for leaf in second["terminal_leaves"]:
                     yield _row(branch["action_order"], order * source * _fraction(leaf["probability"]), transition, vector, pending, second, leaf, None)
-            else:
+            elif second["state"] == "rock_slide_graph":
                 rows = _graph_rows(second["rock_slide_graph"])
                 assert not isinstance(rows, str)
                 for rock in rows:
                     yield _row(branch["action_order"], order * source * rock["probability"], transition, vector, pending, second, None, rock)
+            else:
+                yield _row(branch["action_order"], order * source, transition, vector, pending, second, None, None)
 
 
 def _row(order: str, probability: Fraction, transition: Mapping[str, Any], vector: Mapping[str, Any], pending: Mapping[str, Any], second: Mapping[str, Any], leaf: Mapping[str, Any] | None, rock: Mapping[str, Any] | None) -> dict[str, Any]:

@@ -9,7 +9,7 @@ from llm.advisor_rock_slide_multi_recipient_action_descriptive_metrics import (
 from llm.advisor_rock_slide_multi_recipient_action_outcome_ledger import (
     normalize_rock_slide_multi_recipient_action_outcome_ledger,
 )
-from tests.test_detached_rock_slide_multi_recipient_predictive_graph_materialization import _inputs
+from tests.test_detached_rock_slide_multi_recipient_predictive_graph_materialization import _inputs, _wide_guard_authority
 
 
 def _graph(*, accuracy=100, target_hp=100):
@@ -92,3 +92,21 @@ def test_malformed_cycle_probability_cursor_and_terminal_outcome_graphs_reject()
     bad_cursor = deepcopy(graph)
     bad_cursor["terminal_leaf_nodes"][0]["recipient_cursor"] = 1
     assert normalize_rock_slide_multi_recipient_action_outcome_ledger(graph=bad_cursor)["status"] == "rejected"
+
+
+def test_wide_guard_prevention_provenance_normalizes_and_malformed_damage_or_authority_rejects():
+    _state, snapshot, d0, action, scope = _inputs(accuracy=100)
+    authority = _wide_guard_authority(d0, snapshot, action, scope)
+    graph = materialize_detached_rock_slide_multi_recipient_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_scope_authority=scope, wide_guard_spread_applicability_authority=authority)
+    ledger = normalize_rock_slide_multi_recipient_action_outcome_ledger(graph=graph)
+    assert ledger["status"] == "evaluable", ledger.get("reason")
+    metrics = project_rock_slide_multi_recipient_action_descriptive_metrics(ledger=ledger)
+    assert all(row["wide_guard_prevention_probability"] == {"numerator": 1, "denominator": 1} and row["faint_probability"] == {"numerator": 0, "denominator": 1} for row in metrics["recipients"])
+
+    malformed = deepcopy(graph)
+    prevented = next(edge for edge in malformed["terminal_leaf_edges"] if edge["recipient_outcome"]["outcome"] == "prevented_by_wide_guard")
+    prevented["recipient_outcome"]["actual_damage"] = 1
+    assert normalize_rock_slide_multi_recipient_action_outcome_ledger(graph=malformed)["status"] == "rejected"
+    malformed_authority = deepcopy(graph)
+    malformed_authority["terminal_leaf_edges"][0]["recipient_outcome"]["wide_guard_applicability_authority"] = {"status": "resolved"}
+    assert normalize_rock_slide_multi_recipient_action_outcome_ledger(graph=malformed_authority)["status"] == "rejected"

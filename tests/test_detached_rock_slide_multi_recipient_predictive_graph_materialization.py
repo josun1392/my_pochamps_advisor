@@ -6,6 +6,7 @@ from llm.advisor_reducer_state_model import project_atomic_transition, state_fin
 from llm.advisor_replay_policy import build_replay_plan
 from llm.advisor_runtime_d0_doubles_action_target_set_authority import freeze_runtime_d0_doubles_action_target_set_authority
 from llm.advisor_runtime_d0_multi_recipient_action_execution_scope_authority import freeze_runtime_d0_multi_recipient_action_execution_scope_authority
+from llm.advisor_runtime_d0_wide_guard_spread_applicability_authority import build_wide_guard_protection_context, freeze_runtime_d0_wide_guard_spread_applicability_authority
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from llm.advisor_substitute import update_substitute_state_context
 from tests.test_immediate_attack_vs_opponent_switch_action_pair import _state as exact_state
@@ -58,6 +59,13 @@ def _inputs(*, accuracy=100, target_hp=100):
     return state, snapshot, d0, action, scope
 
 
+def _wide_guard_authority(d0, snapshot, action, scope, *, blocked=True):
+    guard = d0["active_owners"]["opponent"]
+    protection = {"status": "resolved", "owner": deepcopy(guard), "metadata": {"move_id": "wide-guard"}}
+    context = build_wide_guard_protection_context(session_id=d0["session_id"], guard_user=guard, guard_action_id="opponent_action:wide-guard", incoming_actor=d0["decision_owner"], incoming_action_id=action["action_id"], incoming_move_id=action["identity"], protected_side="opponent", protection_authority=protection, action_blocked=blocked, protection_bypass=False)
+    return freeze_runtime_d0_wide_guard_spread_applicability_authority(strategy_d0=d0, runtime_snapshot=snapshot, guard_user=guard, guard_action_id="opponent_action:wide-guard", incoming_action=action, protected_side="opponent", decision_point="turn:1", target_set_authority=scope["target_set_authority"], execution_scope_authority=scope, protection_context=context)
+
+
 def test_rock_slide_graph_keeps_ordered_recipient_local_branches_and_exact_mass():
     state, snapshot, d0, action, scope = _inputs(accuracy=100)
     before = deepcopy(snapshot)
@@ -91,3 +99,25 @@ def test_scope_mismatch_and_stale_d0_fail_closed():
     assert materialize_detached_rock_slide_multi_recipient_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_scope_authority=bad)["status"] == "rejected"
     stale = deepcopy(snapshot); stale["state"]["self_side"]["pokemon"][0]["current_hp"] = 99; stale["state_fingerprint"] = state_fingerprint(stale["state"])
     assert materialize_detached_rock_slide_multi_recipient_predictive_graph(strategy_d0=d0, runtime_snapshot=stale, action=action, execution_scope_authority=scope)["status"] == "rejected"
+
+
+def test_wide_guard_prevents_exact_frozen_recipients_before_any_hit_critical_or_roll_branch():
+    _state, snapshot, d0, action, scope = _inputs(accuracy=100)
+    authority = _wide_guard_authority(d0, snapshot, action, scope)
+    graph = materialize_detached_rock_slide_multi_recipient_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_scope_authority=scope, wide_guard_spread_applicability_authority=authority)
+    assert graph["status"] == "evaluable", graph.get("reason")
+    outcomes = [edge["recipient_outcome"] for edge in graph["terminal_leaf_edges"]]
+    prevented = [row for row in outcomes if row["outcome"] == "prevented_by_wide_guard"]
+    assert {row["recipient_index"] for row in prevented} == {1, 2}
+    assert all(row["hit_state"] == row["critical_state"] == "not_applicable" and row["damage_roll"]["status"] == "not_applicable" and row["pre_hp"] == row["post_hp"] for row in prevented)
+    assert graph["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+
+
+def test_wide_guard_not_applicable_preserves_ordinary_graph_and_incomplete_fails_closed():
+    _state, snapshot, d0, action, scope = _inputs(accuracy=100)
+    no_effect = _wide_guard_authority(d0, snapshot, action, scope, blocked=False)
+    graph = materialize_detached_rock_slide_multi_recipient_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_scope_authority=scope, wide_guard_spread_applicability_authority=no_effect)
+    assert graph["status"] == "evaluable", graph.get("reason")
+    assert any(edge["recipient_outcome"]["outcome"] == "hit" for edge in graph["terminal_leaf_edges"])
+    incomplete = {"status": "incomplete", "reason": "wide_guard_authority_missing"}
+    assert materialize_detached_rock_slide_multi_recipient_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_scope_authority=scope, wide_guard_spread_applicability_authority=incomplete)["status"] == "incomplete"

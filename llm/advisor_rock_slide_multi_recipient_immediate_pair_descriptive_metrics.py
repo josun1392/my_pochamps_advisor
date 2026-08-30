@@ -30,7 +30,7 @@ def project_rock_slide_multi_recipient_immediate_pair_descriptive_metrics(*, led
     root = Fraction()
     for row in rows:
         probability = row["probability"]
-        if probability <= 0 or row["second_action_state"] not in {"outcome_ledger", "rock_slide_graph", "cancelled_due_to_faint"}:
+        if probability <= 0 or row["second_action_state"] not in {"outcome_ledger", "rock_slide_graph", "cancelled_due_to_faint", "wide_guard_no_retroactive_effect"}:
             return _result("rejected", "rock_slide_nested_pair_metric_row_invalid", _base(ledger))
         root += probability; order[row["order"]] += probability
         state = "cancelled_due_to_faint" if row["second_action_state"] == "cancelled_due_to_faint" else "executed"

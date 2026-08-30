@@ -15,7 +15,7 @@ from llm.advisor_runtime_strategy_d0 import resolve_runtime_d0_selectable_move_m
 SCHEMA_VERSION = "detached-rock-slide-multi-recipient-immediate-move-pair-v1"
 
 
-def materialize_detached_rock_slide_multi_recipient_immediate_move_pair(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], action_order_authority: Mapping[str, Any], execution_scope_authority: Mapping[str, Any]) -> dict[str, Any]:
+def materialize_detached_rock_slide_multi_recipient_immediate_move_pair(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], action_order_authority: Mapping[str, Any], execution_scope_authority: Mapping[str, Any], wide_guard_spread_applicability_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     base = _base(strategy_d0, own_action, opponent_action)
     if base is None or own_action.get("identity") != "rock-slide": return _result("rejected", "invalid_rock_slide_multi_recipient_pair_request", {})
     orders = _orders(action_order_authority, base)
@@ -25,14 +25,15 @@ def materialize_detached_rock_slide_multi_recipient_immediate_move_pair(*, strat
     if own_meta.get("status") != "resolved" or isinstance(opponent_meta, tuple): return _result(_status(own_meta) if own_meta.get("status") != "resolved" else opponent_meta[0], own_meta.get("reason", "own_metadata_unavailable") if own_meta.get("status") != "resolved" else opponent_meta[1], base)
     graphs=[]; mass=Fraction()
     for plan in orders:
-        result = _order(strategy_d0, runtime_snapshot, base, own_action, opponent_action, own_meta, opponent_meta, plan, execution_scope_authority)
+        result = _order(strategy_d0, runtime_snapshot, base, own_action, opponent_action, own_meta, opponent_meta, plan, execution_scope_authority, wide_guard_spread_applicability_authority)
         if result.get("status") != "evaluable": return _result(_status(result), result.get("reason", "rock_slide_pair_order_unavailable"), base)
         graphs.append(result); mass += _f(result["order_weighted_terminal_probability_mass"])
     if mass != 1: return _result("rejected", "rock_slide_pair_root_mass_invalid", base)
     return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":"immediate_action_pair",**base,"action_order":deepcopy(dict(action_order_authority)),"order_graphs":tuple(graphs),"terminal_leaf_representation":"immutable_rock_slide_graph_paths_with_attached_second_action_outcomes","terminal_probability_mass":_fd(mass),"legacy_flat_pair_ledger_compatibility":"not_applicable_requires_multi_recipient_pair_ledger","provenance":"strict_rock_slide_multi_recipient_graph_to_immediate_pair_v1"}
 
 
-def _order(d0,snapshot,base,own,opponent,own_meta,opponent_meta,plan,scope):
+def _order(d0,snapshot,base,own,opponent,own_meta,opponent_meta,plan,scope,wide_guard_authority):
+    opponent_is_wide_guard = opponent.get("move_id") == "wide-guard"
     if plan["order"] == "own_first":
         graph=materialize_detached_rock_slide_multi_recipient_predictive_graph(strategy_d0=d0,runtime_snapshot=snapshot,action=own,execution_scope_authority=scope)
         if graph.get("status") != "evaluable": return graph
@@ -47,28 +48,34 @@ def _order(d0,snapshot,base,own,opponent,own_meta,opponent_meta,plan,scope):
             if builder.get("status") != "resolved": return builder
             if not builder["actor_can_act"]: transition["second_action"]={"state":"cancelled_due_to_faint","actor":deepcopy(pending),"conditional_probability":_fd(Fraction(1,1)),"reason":"second_action_cancelled_due_to_faint"}
             else:
-                second=_attack_ledger(strategy_d0=builder["predictive_strategy_d0"],runtime_snapshot=builder["predictive_runtime_snapshot"],actor=builder["pending_actor"],target=builder["pending_target"],metadata_authority=opponent_meta)
-                if second.get("status")!="evaluable": return second
-                transition["second_action"]={"state":"outcome_ledger","actor":deepcopy(pending),"conditional_probability":_fd(Fraction(1,1)),"builder_view_provenance":builder["provenance"],"terminal_leaves":deepcopy(second["terminal_leaves"]),"terminal_probability_mass":deepcopy(second["terminal_probability_mass"])}
+                if opponent_is_wide_guard:
+                    transition["second_action"]={"state":"wide_guard_no_retroactive_effect","actor":deepcopy(pending),"conditional_probability":_fd(Fraction(1,1)),"reason":"wide_guard_established_after_rock_slide_has_no_retroactive_effect","wide_guard_spread_applicability_authority":deepcopy(dict(wide_guard_authority)) if isinstance(wide_guard_authority, Mapping) else None}
+                else:
+                    second=_attack_ledger(strategy_d0=builder["predictive_strategy_d0"],runtime_snapshot=builder["predictive_runtime_snapshot"],actor=builder["pending_actor"],target=builder["pending_target"],metadata_authority=opponent_meta)
+                    if second.get("status")!="evaluable": return second
+                    transition["second_action"]={"state":"outcome_ledger","actor":deepcopy(pending),"conditional_probability":_fd(Fraction(1,1)),"builder_view_provenance":builder["provenance"],"terminal_leaves":deepcopy(second["terminal_leaves"]),"terminal_probability_mass":deepcopy(second["terminal_probability_mass"])}
             _attach_probability_factorization(transition, plan)
             transitions.append(transition)
         conditional=sum((_f(x["incoming_path_probability"]) for x in transitions),Fraction())
         return _order_result(plan,graph,transitions,conditional)
     root=freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=d0,runtime_snapshot=snapshot,opponent_action=opponent)
     if root.get("status")!="resolved": return root
-    first=_attack_ledger(strategy_d0=root["predictive_strategy_d0"],runtime_snapshot=root["predictive_runtime_snapshot"],actor=base["opponent_actor"],target=base["own_actor"],metadata_authority=opponent_meta)
+    first=_wide_guard_first_ledger(opponent, base, wide_guard_authority) if opponent_is_wide_guard else _attack_ledger(strategy_d0=root["predictive_strategy_d0"],runtime_snapshot=root["predictive_runtime_snapshot"],actor=base["opponent_actor"],target=base["own_actor"],metadata_authority=opponent_meta)
     if first.get("status")!="evaluable": return first
     transitions=[]
     for leaf in first["terminal_leaves"]:
-        intermediate=materialize_detached_predictive_intermediate_state(strategy_d0=d0,terminal_leaf=leaf,root_predictive_authority=root)
-        if intermediate.get("status")!="resolved": return intermediate
-        vector=materialize_detached_rock_slide_intermediate_state_vector(strategy_d0=d0,runtime_snapshot=snapshot,execution_scope_authority=scope,scalar_intermediate_overlay=intermediate)
+        if opponent_is_wide_guard:
+            vector=materialize_detached_rock_slide_intermediate_state_vector(strategy_d0=d0,runtime_snapshot=snapshot,execution_scope_authority=scope)
+        else:
+            intermediate=materialize_detached_predictive_intermediate_state(strategy_d0=d0,terminal_leaf=leaf,root_predictive_authority=root)
+            if intermediate.get("status")!="resolved": return intermediate
+            vector=materialize_detached_rock_slide_intermediate_state_vector(strategy_d0=d0,runtime_snapshot=snapshot,execution_scope_authority=scope,scalar_intermediate_overlay=intermediate)
         if vector.get("status")!="resolved": return vector
         transition={"first_terminal_leaf":deepcopy(leaf),"incoming_path_probability":deepcopy(leaf["probability"]),"recipient_vector":deepcopy(vector),"pending_actor":deepcopy(base["own_actor"])}
         if vector["rock_slide_actor_state"]["fainted"]: transition["second_action"]={"state":"cancelled_due_to_faint","actor":deepcopy(base["own_actor"]),"conditional_probability":_fd(Fraction(1,1)),"reason":"second_action_cancelled_due_to_faint"}
         else:
             adapter=freeze_detached_rock_slide_frozen_scope_graph_consumer_adapter(vector=vector,runtime_snapshot=snapshot)
-            graph=materialize_detached_rock_slide_multi_recipient_predictive_graph(strategy_d0=d0,runtime_snapshot=snapshot,action=own,execution_scope_authority=scope,frozen_scope_consumer_adapter=adapter)
+            graph=materialize_detached_rock_slide_multi_recipient_predictive_graph(strategy_d0=d0,runtime_snapshot=snapshot,action=own,execution_scope_authority=scope,frozen_scope_consumer_adapter=adapter,wide_guard_spread_applicability_authority=wide_guard_authority if opponent_is_wide_guard else None)
             if graph.get("status")!="evaluable": return graph
             transition["second_action"]={"state":"rock_slide_graph","actor":deepcopy(base["own_actor"]),"conditional_probability":_fd(Fraction(1,1)),"frozen_scope_adapter_provenance":adapter.get("provenance"),"rock_slide_graph":deepcopy(graph)}
         _attach_probability_factorization(transition, plan)
@@ -94,3 +101,9 @@ def _attach_probability_factorization(transition, plan):
         "order_weighted_source_probability": _fd(order * first),
     }
 def _result(status,reason,base): return {"status":status,"schema_version":SCHEMA_VERSION,**deepcopy(dict(base)),"reason":reason}
+
+
+def _wide_guard_first_ledger(action: Mapping[str, Any], base: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    """A resolved status guard establishes timing but never fabricates damage leaves."""
+    leaf = {"leaf_id": "wide-guard:executed", "candidate_id": action["action_id"], "action_type": "status_protection", "move_id": "wide-guard", "branch_path": ("wide_guard", "executed"), "probability": _fd(Fraction(1, 1)), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": {"status": "not_applicable", "reason": "wide_guard_status_action_has_no_hit_critical_or_damage_roll"}, "consequences": {}, "wide_guard_spread_applicability_authority": deepcopy(dict(authority)) if isinstance(authority, Mapping) else None, "provenance": {"attacker": deepcopy(base["opponent_actor"]), "target": deepcopy(base["own_actor"]), "source": "canonical_wide_guard_status_action"}}
+    return {"status": "evaluable", "terminal_leaves": (leaf,), "terminal_probability_mass": _fd(Fraction(1, 1)), "provenance": "wide_guard_first_action_timing_only_v1"}

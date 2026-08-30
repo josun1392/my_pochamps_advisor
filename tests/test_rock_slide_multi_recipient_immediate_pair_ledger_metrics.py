@@ -15,7 +15,7 @@ from llm.advisor_rock_slide_multi_recipient_immediate_pair_outcome_ledger import
     normalize_rock_slide_multi_recipient_immediate_pair_outcome_ledger,
 )
 from tests.test_detached_rock_slide_multi_recipient_immediate_move_pair import _high_hp_rock_slide_inputs, _opponent_action, _pair
-from tests.test_detached_rock_slide_multi_recipient_predictive_graph_materialization import _inputs
+from tests.test_detached_rock_slide_multi_recipient_predictive_graph_materialization import _inputs, _wide_guard_authority
 from tests.test_fixed_two_hit_immediate_move_pair_integration import _order
 from llm.advisor_detached_rock_slide_multi_recipient_immediate_move_pair import materialize_detached_rock_slide_multi_recipient_immediate_move_pair
 
@@ -95,3 +95,24 @@ def test_rock_slide_second_and_equal_speed_order_masses_are_exact():
     assert {row["order_probability"]["numerator"] for row in equal["order_branches"]} == {1}
     assert {row["order_probability"]["denominator"] for row in equal["order_branches"]} == {2}
     assert equal["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+
+
+def test_wide_guard_nested_pair_ledger_preserves_prevention_provenance_and_equal_speed_metrics():
+    _state, snapshot, d0, action, scope = _inputs(accuracy=100)
+    opponent = _opponent_action(d0, "wide-guard")
+    authority = _wide_guard_authority(d0, snapshot, action, scope)
+    pair = materialize_detached_rock_slide_multi_recipient_immediate_move_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=action, opponent_action=opponent, action_order_authority={**_order(d0, action, opponent, "own_first"), "order": "unresolved_tie", "order_engine": {"status": "speed_tie"}}, execution_scope_authority=scope, wide_guard_spread_applicability_authority=authority)
+    ledger = normalize_rock_slide_multi_recipient_immediate_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable", ledger.get("reason")
+    rows = tuple(iter_rock_slide_multi_recipient_immediate_pair_terminal_rows(ledger=ledger))
+    assert sum(row["probability"] for row in rows) == 1
+    protected = [row for row in rows if row["order"] == "opponent_first"]
+    assert protected and all(all(state["hp"] == 100 and not state["fainted"] for state in row["ordered_recipient_states"]) for row in protected)
+    metrics = project_rock_slide_multi_recipient_immediate_pair_descriptive_metrics(ledger=ledger)
+    assert metrics["status"] == "resolved", metrics.get("reason")
+    assert metrics["joint_final_states"]["probability_mass"] == {"numerator": 1, "denominator": 1}
+
+    malformed = deepcopy(pair)
+    leaf = malformed["order_graphs"][1]["first_action"]["first_action_ledger"]["terminal_leaves"][0]
+    leaf["wide_guard_spread_applicability_authority"] = {"status": "resolved"}
+    assert normalize_rock_slide_multi_recipient_immediate_pair_outcome_ledger(pair=malformed)["status"] == "rejected"

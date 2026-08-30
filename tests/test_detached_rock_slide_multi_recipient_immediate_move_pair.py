@@ -15,7 +15,7 @@ from llm.advisor_runtime_d0_multi_recipient_action_execution_scope_authority imp
 )
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import _equal_speed_order, _metadata
-from tests.test_detached_rock_slide_multi_recipient_predictive_graph_materialization import _inputs
+from tests.test_detached_rock_slide_multi_recipient_predictive_graph_materialization import _inputs, _wide_guard_authority
 from tests.test_fixed_two_hit_immediate_move_pair_integration import _order
 
 
@@ -109,3 +109,31 @@ def test_mismatched_frozen_scope_fails_closed():
         action_order_authority=_order(d0, action, opponent, "own_first"), execution_scope_authority=invalid,
     )
     assert pair["status"] == "rejected"
+
+
+def test_wide_guard_first_prevents_frozen_rock_slide_recipients_and_later_guard_is_not_retroactive():
+    _state, snapshot, d0, action, scope = _inputs(accuracy=100)
+    opponent = _opponent_action(d0, "wide-guard")
+    wide_guard = _wide_guard_authority(d0, snapshot, action, scope)
+    guarded = materialize_detached_rock_slide_multi_recipient_immediate_move_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=action, opponent_action=opponent, action_order_authority=_order(d0, action, opponent, "opponent_first"), execution_scope_authority=scope, wide_guard_spread_applicability_authority=wide_guard)
+    assert guarded["status"] == "evaluable", guarded.get("reason")
+    graph = guarded["order_graphs"][0]["terminal_transitions"][0]["second_action"]["rock_slide_graph"]
+    assert {edge["recipient_outcome"]["outcome"] for edge in graph["terminal_leaf_edges"]} == {"prevented_by_wide_guard"}
+
+    later = materialize_detached_rock_slide_multi_recipient_immediate_move_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=action, opponent_action=opponent, action_order_authority=_order(d0, action, opponent, "own_first"), execution_scope_authority=scope, wide_guard_spread_applicability_authority=wide_guard)
+    assert later["status"] == "evaluable", later.get("reason")
+    assert {row["second_action"]["state"] for row in later["order_graphs"][0]["terminal_transitions"]} == {"wide_guard_no_retroactive_effect"}
+
+
+def test_equal_speed_wide_guard_protects_only_its_first_order_branch_and_pair_mass_stays_exact():
+    _state, snapshot, d0, action, scope = _inputs(accuracy=100)
+    opponent = _opponent_action(d0, "wide-guard")
+    wide_guard = _wide_guard_authority(d0, snapshot, action, scope)
+    pair = materialize_detached_rock_slide_multi_recipient_immediate_move_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=action, opponent_action=opponent, action_order_authority=_equal_speed_order(d0, action, opponent), execution_scope_authority=scope, wide_guard_spread_applicability_authority=wide_guard)
+    assert pair["status"] == "evaluable", pair.get("reason")
+    branches = {branch["action_order"]: branch for branch in pair["order_graphs"]}
+    assert {name for name in branches} == {"own_first", "opponent_first"}
+    assert all(branch["order_conditional_probability"] == {"numerator": 1, "denominator": 2} for branch in branches.values())
+    protected_graph = branches["opponent_first"]["terminal_transitions"][0]["second_action"]["rock_slide_graph"]
+    assert all(edge["recipient_outcome"]["outcome"] == "prevented_by_wide_guard" for edge in protected_graph["terminal_leaf_edges"])
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}

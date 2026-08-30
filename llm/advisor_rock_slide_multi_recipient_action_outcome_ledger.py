@@ -27,7 +27,7 @@ def normalize_rock_slide_multi_recipient_action_outcome_ledger(*, graph: Mapping
     if not _scope(scope, base):
         return _result("rejected", "rock_slide_graph_execution_scope_binding_mismatch", base)
     nodes = graph.get("terminal_leaf_nodes"); edges = graph.get("terminal_leaf_edges"); roots = graph.get("terminal_leaf_roots")
-    parsed = _validate_topology(nodes=nodes, edges=edges, roots=roots, recipients=base["recipients"])
+    parsed = _validate_topology(nodes=nodes, edges=edges, roots=roots, recipients=base["recipients"], wide_guard_authority=graph.get("wide_guard_spread_applicability_authority"))
     if isinstance(parsed, str):
         return _result("rejected", parsed, base)
     terminal_mass, terminal_ids = parsed["terminal_mass"], parsed["terminal_edge_ids"]
@@ -51,7 +51,7 @@ def graph_terminal_rows(*, ledger: Mapping[str, Any]) -> tuple[dict[str, Any], .
     base = _base(ledger)
     if not isinstance(graph, Mapping) or base is None or _base(graph) != base:
         return "rock_slide_multi_recipient_ledger_graph_binding_invalid"
-    parsed = _validate_topology(nodes=graph.get("terminal_leaf_nodes"), edges=graph.get("terminal_leaf_edges"), roots=graph.get("terminal_leaf_roots"), recipients=base["recipients"])
+    parsed = _validate_topology(nodes=graph.get("terminal_leaf_nodes"), edges=graph.get("terminal_leaf_edges"), roots=graph.get("terminal_leaf_roots"), recipients=base["recipients"], wide_guard_authority=graph.get("wide_guard_spread_applicability_authority"))
     if isinstance(parsed, str) or parsed["terminal_mass"] != Fraction(1, 1):
         return parsed if isinstance(parsed, str) else "rock_slide_multi_recipient_ledger_graph_mass_invalid"
     wanted = ledger.get("terminal_edge_ids")
@@ -61,7 +61,7 @@ def graph_terminal_rows(*, ledger: Mapping[str, Any]) -> tuple[dict[str, Any], .
     return rows if sum((row["probability"] for row in rows), Fraction()) == Fraction(1, 1) else "rock_slide_multi_recipient_terminal_row_mass_invalid"
 
 
-def _validate_topology(*, nodes: Any, edges: Any, roots: Any, recipients: tuple[Mapping[str, Any], ...]) -> dict[str, Any] | str:
+def _validate_topology(*, nodes: Any, edges: Any, roots: Any, recipients: tuple[Mapping[str, Any], ...], wide_guard_authority: Any) -> dict[str, Any] | str:
     if not isinstance(nodes, tuple) or not isinstance(edges, tuple) or not isinstance(roots, tuple) or len(roots) != 1 or not nodes or not edges:
         return "rock_slide_graph_topology_missing"
     node_map: dict[str, Mapping[str, Any]] = {}
@@ -82,7 +82,7 @@ def _validate_topology(*, nodes: Any, edges: Any, roots: Any, recipients: tuple[
             return "rock_slide_graph_dangling_or_duplicate_edge"
         edge_ids.add(edge["edge_id"])
         probability = _fraction(edge.get("conditional_probability"))
-        if probability <= 0 or probability > 1 or not _outcome(edge.get("recipient_outcome"), node_map[edge["from_node_id"]], recipients, probability):
+        if probability <= 0 or probability > 1 or not _outcome(edge.get("recipient_outcome"), node_map[edge["from_node_id"]], recipients, probability, wide_guard_authority):
             return "rock_slide_graph_edge_probability_or_recipient_outcome_invalid"
         terminal = edge.get("terminal")
         if not isinstance(terminal, bool): return "rock_slide_graph_terminal_flag_invalid"
@@ -123,10 +123,12 @@ def _scope(value: Any, base: Mapping[str, Any]) -> bool:
 
 def _prior(rows: tuple[Any, ...], expected: tuple[Mapping[str, Any], ...]) -> bool:
     return all(isinstance(row, Mapping) and row.get("recipient") == recipient and row.get("recipient_index") == index for index, (row, recipient) in enumerate(zip(rows, expected), 1))
-def _outcome(value: Any, node: Mapping[str, Any], recipients: tuple[Mapping[str, Any], ...], probability: Fraction) -> bool:
+def _outcome(value: Any, node: Mapping[str, Any], recipients: tuple[Mapping[str, Any], ...], probability: Fraction, wide_guard_authority: Any) -> bool:
     cursor = node["recipient_cursor"]
-    if not isinstance(value, Mapping) or value.get("recipient_index") != cursor + 1 or value.get("recipient") != recipients[cursor] or _fraction(value.get("probability")) != probability or value.get("outcome") not in {"hit", "miss", "immune"} or not isinstance(value.get("pre_hp"), int) or not isinstance(value.get("post_hp"), int) or value["pre_hp"] < 0 or value["post_hp"] < 0 or value["post_hp"] > value["pre_hp"] or value.get("fainted") is not (value["post_hp"] == 0): return False
+    if not isinstance(value, Mapping) or value.get("recipient_index") != cursor + 1 or value.get("recipient") != recipients[cursor] or _fraction(value.get("probability")) != probability or value.get("outcome") not in {"hit", "miss", "immune", "prevented_by_wide_guard"} or not isinstance(value.get("pre_hp"), int) or not isinstance(value.get("post_hp"), int) or value["pre_hp"] < 0 or value["post_hp"] < 0 or value["post_hp"] > value["pre_hp"] or value.get("fainted") is not (value["post_hp"] == 0): return False
     if value["outcome"] == "hit": return value.get("hit_state") == "hit" and value.get("critical_state") in {"critical", "non_critical"} and isinstance(value.get("damage_roll"), Mapping)
+    if value["outcome"] == "prevented_by_wide_guard":
+        return value.get("hit_state") == "not_applicable" and value.get("critical_state") == "not_applicable" and isinstance(value.get("damage_roll"), Mapping) and value["damage_roll"].get("status") == "not_applicable" and value.get("raw_damage") == 0 and value.get("actual_damage") == 0 and value.get("pre_hp") == value.get("post_hp") and value.get("wide_guard_applicability_authority") == wide_guard_authority and value.get("wide_guard_protected_recipient") == recipients[cursor]
     return value.get("critical_state") == "not_applicable" and isinstance(value.get("damage_roll"), Mapping) and value["damage_roll"].get("status") == "not_applicable"
 def _terminal(value: Any, node: Mapping[str, Any], outcome: Mapping[str, Any], recipients: tuple[Mapping[str, Any], ...]) -> bool:
     rows = value.get("ordered_recipient_outcomes") if isinstance(value, Mapping) else None
