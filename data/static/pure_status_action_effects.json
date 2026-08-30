@@ -1,0 +1,14 @@
+{
+  "schema_version": "pure-status-action-effects-catalog-v1",
+  "source": "canonical-maintained-gen9-mechanics-catalog-v1",
+  "moves": {
+    "tail-whip": {
+      "category": "status",
+      "target": "selected-pokemon",
+      "consequence_family": "target_stage_change",
+      "stat": "defense",
+      "delta": -1,
+      "accuracy_contract": "strict_status_accuracy_authority_required"
+    }
+  }
+}

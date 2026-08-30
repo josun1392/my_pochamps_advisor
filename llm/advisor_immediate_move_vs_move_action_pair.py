@@ -60,6 +60,7 @@ from llm.advisor_runtime_d0_burning_bulwark_reactive_burn_authority import (
 )
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
+from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
@@ -98,6 +99,7 @@ def materialize_immediate_move_vs_move_action_pair(
     burning_bulwark_reactive_burn_authority: Mapping[str, Any] | None = None,
     quick_guard_priority_applicability_authority: Mapping[str, Any] | None = None,
     mat_block_direct_damage_applicability_authority: Mapping[str, Any] | None = None,
+    pure_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
@@ -109,6 +111,8 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    if own_meta.get("metadata", {}).get("move_id") == "tail-whip" and opponent_meta.get("metadata", {}).get("move_id") == "tail-whip":
+        return _materialize_tail_whip_status_pair(base=base, strategy_d0=strategy_d0, own_action=own_action, opponent_action=opponent_action, orders=orders, authorities=pure_status_execution_authorities)
     if canonical_quick_guard_protection_metadata(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None:
         return _materialize_quick_guard_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_meta=own_meta, orders=orders, authority=quick_guard_priority_applicability_authority)
     if opponent_meta.get("metadata", {}).get("move_id") == "mat-block":
@@ -146,6 +150,44 @@ def materialize_immediate_move_vs_move_action_pair(
             "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass),
             "aggregation": "none_preserve_first_and_second_leaf_identity",
             "provenance": "strict_detached_immediate_move_vs_move_pair_materialization_v1"}
+
+
+def _materialize_tail_whip_status_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
+    """Narrow no-damage pair branch; effects never leave the status materializer."""
+    if not isinstance(authorities, Mapping): return _result("incomplete", "pure_status_execution_authorities_required", base)
+    materialized: dict[str, Mapping[str, Any]] = {}
+    for action, actor, target in ((own_action, base["own_actor"], base["opponent_actor"]), (opponent_action, base["opponent_actor"], base["own_actor"])):
+        authority = authorities.get(action.get("action_id"))
+        if not isinstance(authority, Mapping): return _result("incomplete", "pure_status_execution_authority_missing", base)
+        leaf = materialize_detached_pure_status_action(execution_authority=authority)
+        if leaf.get("status") != "resolved": return _result(_status(leaf), leaf.get("reason", "pure_status_materialization_unavailable"), base)
+        if leaf.get("actor") != actor or leaf.get("target") != target or leaf.get("action_id") != action.get("action_id") or leaf.get("move_id") != "tail-whip": return _result("rejected", "pure_status_materialization_binding_mismatch", base)
+        materialized[action["action_id"]] = leaf
+    branches = []
+    for plan in orders:
+        first_action, second_action = (own_action, opponent_action) if plan["order"] == "own_first" else (opponent_action, own_action)
+        first = _pure_status_pair_leaf(materialized[first_action["action_id"]], strategy_d0)
+        second = _pure_status_pair_leaf(materialized[second_action["action_id"]], strategy_d0)
+        if isinstance(first, str) or isinstance(second, str): return _result("rejected", first if isinstance(first, str) else second, base)
+        branches.append(_branch(base, plan["order"], first, {}, second, second["provenance"]["attacker"], plan))
+    mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
+    if mass != Fraction(1, 1): return _result("rejected", "pure_status_pair_probability_mass_not_one", base)
+    return {"status":"evaluable", "schema_version":SCHEMA_VERSION, "horizon":HORIZON, **deepcopy(dict(base)), "action_order": {"pure_status": "external_exact_order_authority"}, "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass), "aggregation":"none_preserve_pure_status_leaf_identity", "provenance":"strict_tail_whip_pure_status_pair_materialization_v1"}
+
+
+def _pure_status_pair_leaf(materialized: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any] | str:
+    actor, target = materialized.get("actor"), materialized.get("target")
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    own_hp = active.get(actor.get("side"), {}).get("current_hp") if isinstance(actor, Mapping) else None
+    target_hp = active.get(target.get("side"), {}).get("current_hp") if isinstance(target, Mapping) else None
+    if not _hp(own_hp) or not _hp(target_hp): return "pure_status_pair_hp_authority_missing"
+    transition = materialized.get("stage_transition")
+    if not isinstance(transition, Mapping): return "pure_status_stage_transition_missing"
+    return {"leaf_id": f"{materialized['action_id']}:{materialized['outcome']}", "candidate_id": materialized["action_id"], "branch_path": (materialized["outcome"],), "probability": deepcopy(materialized["probability"]), "hit_state":"not_applicable", "critical_state":"not_applicable", "damage_roll":"not_applicable", "consequences":{"own_final_hp":own_hp,"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":own_hp==0,"deterministic_stage_effect":deepcopy(dict(transition)),"secondary":None,"pure_status_outcome":materialized["outcome"]}, "provenance":{"session_id":materialized["session_id"],"source_runtime_fingerprint":materialized["source_runtime_fingerprint"],"source_branch_fingerprint":materialized["source_branch_fingerprint"],"decision_owner":deepcopy(materialized["decision_owner"]),"attacker":deepcopy(actor),"target":deepcopy(target),"move_id":materialized["move_id"],"pure_status_execution_authority":deepcopy(materialized["execution_authority"])}}
+
+
+def _hp(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
 def _materialize_protection_response_pair(
