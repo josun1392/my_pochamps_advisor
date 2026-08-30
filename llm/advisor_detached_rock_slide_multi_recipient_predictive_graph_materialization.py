@@ -12,6 +12,7 @@ from llm.advisor_predictive_normal_formula_post_hit import compose_predictive_no
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_d0_multi_recipient_action_execution_scope_authority import SCHEMA_VERSION as EXECUTION_SCOPE_SCHEMA
 from llm.advisor_runtime_d0_wide_guard_spread_applicability_authority import SCHEMA_VERSION as WIDE_GUARD_SCHEMA
+from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA
 from llm.advisor_detached_rock_slide_intermediate_state_vector import CONSUMER_SCHEMA_VERSION
 from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_native_damage_context,
@@ -27,7 +28,7 @@ HORIZON = "immediate_action_consequence"
 _MOVE_ID = "rock-slide"
 
 
-def materialize_detached_rock_slide_multi_recipient_predictive_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], execution_scope_authority: Mapping[str, Any], frozen_scope_consumer_adapter: Mapping[str, Any] | None = None, wide_guard_spread_applicability_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def materialize_detached_rock_slide_multi_recipient_predictive_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], execution_scope_authority: Mapping[str, Any], frozen_scope_consumer_adapter: Mapping[str, Any] | None = None, wide_guard_spread_applicability_authority: Mapping[str, Any] | None = None, mat_block_direct_damage_applicability_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Expand frozen recipients in order, retaining a graph rather than leaves."""
     adapter = _consumer_adapter(frozen_scope_consumer_adapter, action, execution_scope_authority)
     if isinstance(adapter, str): return _result("rejected", adapter, {})
@@ -40,9 +41,11 @@ def materialize_detached_rock_slide_multi_recipient_predictive_graph(*, strategy
     wide_guard = _wide_guard(wide_guard_spread_applicability_authority, base)
     if isinstance(wide_guard, Mapping) and "status" in wide_guard:
         return _result(wide_guard["status"], wide_guard["reason"], base)
+    mat_block = _mat_block(mat_block_direct_damage_applicability_authority, base)
+    if isinstance(mat_block, Mapping) and "status" in mat_block: return _result(mat_block["status"], mat_block["reason"], base)
     if _has_life_orb(strategy_d0, runtime_snapshot, base["attacker"]):
         return _result("unsupported", "rock_slide_multi_recipient_item_consumption_unsupported", base)
-    roots, nodes, edges, mass = _graph(strategy_d0, runtime_snapshot, base, wide_guard)
+    roots, nodes, edges, mass = _graph(strategy_d0, runtime_snapshot, base, wide_guard, mat_block)
     if isinstance(roots, Mapping):
         return _result(roots["status"], roots["reason"], base)
     if mass != Fraction(1, 1):
@@ -57,6 +60,7 @@ def materialize_detached_rock_slide_multi_recipient_predictive_graph(*, strategy
         "aggregation": "none_preserve_ordered_recipient_local_accuracy_critical_roll_damage_and_hp_identity_as_graph_paths",
         "provenance": "runtime_d0_rock_slide_execution_scope_to_detached_multi_recipient_path_graph_v1",
         **({"wide_guard_spread_applicability_authority": deepcopy(dict(wide_guard["authority"]))} if wide_guard is not None else {}),
+        **({"mat_block_direct_damage_applicability_authority": deepcopy(dict(mat_block["authority"]))} if mat_block is not None else {}),
     }
 
 
@@ -72,7 +76,7 @@ def _consumer_adapter(value: Any, action: Mapping[str, Any], scope: Mapping[str,
     return {"strategy_d0": d0, "runtime_snapshot": snapshot, "scope": scope, "base": {"session_id": scope["session_id"], "source_runtime_fingerprint": scope["source_runtime_fingerprint"], "source_branch_fingerprint": scope["source_branch_fingerprint"], "decision_owner": deepcopy(scope["decision_owner"]), "attacker": deepcopy(scope["acting_owner"]), "action_id": scope["action_id"], "move_id": "rock-slide", "recipients": deepcopy(scope["recipients"]), "move_metadata": deepcopy(dict(metadata)), "spread_damage_modifier_authority": deepcopy(scope["spread_damage_modifier_authority"]), "execution_scope_authority": deepcopy(dict(scope)), "attacker_hp": value["rock_slide_actor_state"]["hp"], "attacker_max_hp": value["rock_slide_actor_state"]["max_hp"]}}
 
 
-def _graph(d0: Mapping[str, Any], snapshot: Mapping[str, Any], base: Mapping[str, Any], wide_guard: Mapping[str, Any] | None):
+def _graph(d0: Mapping[str, Any], snapshot: Mapping[str, Any], base: Mapping[str, Any], wide_guard: Mapping[str, Any] | None, mat_block: Mapping[str, Any] | None):
     roots: list[dict[str, Any]] = []
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
@@ -106,7 +110,7 @@ def _graph(d0: Mapping[str, Any], snapshot: Mapping[str, Any], base: Mapping[str
         owner = recipient["owner"]
         events = cache.get((owner["pokemon_id"], owner["slot_index"]))
         if events is None:
-            events = _recipient_events(d0, snapshot, base, owner, wide_guard)
+            events = _recipient_events(d0, snapshot, base, owner, wide_guard, mat_block)
             cache[(owner["pokemon_id"], owner["slot_index"])] = events
         if isinstance(events, Mapping):
             return {"status": events["status"], "reason": events["reason"]}, None, None, None
@@ -134,11 +138,15 @@ def _graph(d0: Mapping[str, Any], snapshot: Mapping[str, Any], base: Mapping[str
     return roots, nodes, edges, terminal_mass
 
 
-def _recipient_events(d0: Mapping[str, Any], snapshot: Mapping[str, Any], base: Mapping[str, Any], recipient: Mapping[str, Any], wide_guard: Mapping[str, Any] | None) -> list[dict[str, Any]] | dict[str, str]:
+def _recipient_events(d0: Mapping[str, Any], snapshot: Mapping[str, Any], base: Mapping[str, Any], recipient: Mapping[str, Any], wide_guard: Mapping[str, Any] | None, mat_block: Mapping[str, Any] | None) -> list[dict[str, Any]] | dict[str, str]:
     protected = wide_guard.get("protected_recipients", {}).get(_owner_key(recipient)) if isinstance(wide_guard, Mapping) else None
     if isinstance(protected, Mapping) and protected.get("owner") == recipient:
         hp = _hp(d0, recipient)
         return [{"probability": Fraction(1, 1), "outcome": "prevented_by_wide_guard", "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": {"status": "not_applicable", "reason": "wide_guard_prevented_recipient_has_no_critical_or_damage_roll"}, "raw_damage": 0, "actual_damage": 0, "pre_hp": hp, "post_hp": hp, "fainted": False, "wide_guard_applicability_authority": deepcopy(dict(wide_guard["authority"])), "wide_guard_protected_recipient": deepcopy(dict(protected))}]
+    protected = mat_block.get("protected_recipients", {}).get(_owner_key(recipient)) if isinstance(mat_block, Mapping) else None
+    if isinstance(protected, Mapping) and protected == recipient:
+        hp = _hp(d0, recipient)
+        return [{"probability": Fraction(1, 1), "outcome": "prevented_by_mat_block", "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": {"status": "not_applicable", "reason": "mat_block_prevented_recipient_has_no_critical_or_damage_roll"}, "raw_damage": 0, "actual_damage": 0, "pre_hp": hp, "post_hp": hp, "fainted": False, "mat_block_applicability_authority": deepcopy(dict(mat_block["authority"])), "mat_block_protected_recipient": deepcopy(dict(protected))}]
     local_d0, local_snapshot = _recipient_d0_view(d0, snapshot, base["attacker"], recipient)
     if local_d0 is None or local_snapshot is None:
         return {"status": "incomplete", "reason": "rock_slide_recipient_private_d0_view_unavailable"}
@@ -260,6 +268,26 @@ def _wide_guard(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | None:
     return {"authority": value, "protected_recipients": protected}
 
 
+def _mat_block(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | None:
+    if value is None: return None
+    if not isinstance(value, Mapping): return {"status": "rejected", "reason": "mat_block_applicability_authority_invalid"}
+    if value.get("status") in {"incomplete", "rejected"}: return {"status": value["status"], "reason": value.get("reason", "mat_block_applicability_authority_unavailable")}
+    if value.get("status") != "resolved" or value.get("schema_version") != MAT_BLOCK_SCHEMA: return {"status": "rejected", "reason": "mat_block_applicability_authority_schema_invalid"}
+    incoming = value.get("incoming_action")
+    if value.get("session_id") != base.get("session_id") or not isinstance(incoming, Mapping) or incoming.get("action_id") != base.get("action_id") or incoming.get("move_id") != "rock-slide": return {"status": "rejected", "reason": "mat_block_applicability_authority_binding_mismatch"}
+    if value.get("outcome") == "not_applicable": return {"authority": value, "protected_recipients": {}}
+    if value.get("outcome") != "applies": return {"status": "rejected", "reason": "mat_block_applicability_result_invalid"}
+    expected = {_owner_key(row["owner"]): row["owner"] for row in base["recipients"]}
+    rows = value.get("protected_recipients")
+    if not isinstance(rows, tuple) or not rows: return {"status": "rejected", "reason": "mat_block_protected_recipient_binding_invalid"}
+    protected = {}
+    for row in rows:
+        key = _owner_key(row)
+        if key not in expected or row != expected[key] or key in protected: return {"status": "rejected", "reason": "mat_block_protected_recipient_binding_invalid"}
+        protected[key] = deepcopy(dict(row))
+    return {"authority": value, "protected_recipients": protected}
+
+
 def _owner_key(recipient: Mapping[str, Any]) -> tuple[Any, ...]:
     owner = recipient.get("owner") if isinstance(recipient, Mapping) and isinstance(recipient.get("owner"), Mapping) else recipient
     return (owner.get("session_id"), owner.get("side"), owner.get("slot_index"), owner.get("pokemon_id")) if isinstance(owner, Mapping) else (None,)
@@ -271,6 +299,7 @@ def _hp(d0: Mapping[str, Any], recipient: Mapping[str, Any]) -> int:
 def _outcome_id(row: Mapping[str, Any]) -> str:
     if row["outcome"] == "prevented_by_wide_guard":
         return "prevented_by_wide_guard"
+    if row["outcome"] == "prevented_by_mat_block": return "prevented_by_mat_block"
     if row["outcome"] == "miss":
         return "miss"
     if row["outcome"] == "immune":

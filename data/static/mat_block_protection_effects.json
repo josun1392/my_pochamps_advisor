@@ -1,0 +1,10 @@
+{
+  "schema_version": "canonical-mat-block-protection-v1",
+  "moves": {
+    "mat-block": {
+      "protection_class": "active_entry_direct_damage_guard",
+      "requires_explicit_active_entry_eligibility": true,
+      "supported_incoming_categories": ["physical", "special"]
+    }
+  }
+}

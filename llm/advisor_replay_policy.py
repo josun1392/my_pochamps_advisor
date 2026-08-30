@@ -2,6 +2,7 @@ from copy import deepcopy
 
 REPLAY_POLICY_VERSION = "v1"
 _EFFECTS = {"exact_hp_transition_observed":"apply_exact_hp_transition","exact_hp_recovery_observed":"apply_exact_hp_recovery","current_type_observed":"set_current_type","current_condition_observed":"set_current_condition","pending_status_action_execution_observed":"set_pending_status_action_execution","doubles_active_topology_observed":"set_doubles_active_topology","selected_action_targeting_observed":"set_selected_action_targeting","current_weather_observed":"set_current_weather","current_ability_observed":"set_current_ability","current_item_observed":"set_current_item","current_terrain_observed":"set_current_terrain","current_side_conditions_observed":"set_current_side_conditions","current_battle_format_observed":"set_current_battle_format","current_level_observed":"set_current_level","current_final_combat_stat_observed":"set_current_final_combat_stat","current_opponent_response_set_observed":"set_current_opponent_response_set","current_opponent_switch_response_set_observed":"set_current_opponent_switch_response_set","current_opponent_switch_target_combat_observed":"set_current_opponent_switch_target_combat","substitute_state_observed":"set_current_substitute","used_move_observed":"record_known_move","condition_applied_observed":"set_condition","stat_stage_observed":"set_current_stat_stage","switch_hazards_observed":"set_switch_hazards","tailwind_side_condition_observed":"set_observed_tailwind","trick_room_field_observed":"set_observed_trick_room","same_turn_event_observed":"set_same_turn_event","first_end_of_turn_reached_observed":"mark_first_end_of_turn_reached","condition_removed_observed":"clear_condition","item_consumption_observed":"consume_item","item_removed_observed":"remove_item","weather_started_observed":"start_weather","weather_ended_observed":"end_weather","terrain_started_observed":"start_terrain","terrain_ended_observed":"end_terrain","side_condition_started_observed":"start_side_condition","side_condition_ended_observed":"end_side_condition","pokemon_switch_observed":"switch_active","pokemon_faint_observed":"mark_fainted"}
+_EFFECTS["mat_block_active_entry_eligibility_observed"] = "set_mat_block_active_entry_eligibility"
 
 def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolver=None):
     """Pure, non-mutating future-reducer planning only."""
@@ -43,6 +44,8 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
         elif event.get("event_kind") == "current_opponent_switch_target_combat_observed":
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
         elif event.get("event_kind") == "pending_status_action_execution_observed":
+            step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
+        elif event.get("event_kind") == "mat_block_active_entry_eligibility_observed":
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
         elif event.get("event_kind") == "doubles_active_topology_observed":
             step.update(**deepcopy(event.get("payload", {})))

@@ -59,6 +59,7 @@ from llm.advisor_runtime_d0_burning_bulwark_reactive_burn_authority import (
     materialize_detached_burning_bulwark_reactive_burn,
 )
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
+from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
@@ -96,6 +97,7 @@ def materialize_immediate_move_vs_move_action_pair(
     baneful_bunker_reactive_poison_authority: Mapping[str, Any] | None = None,
     burning_bulwark_reactive_burn_authority: Mapping[str, Any] | None = None,
     quick_guard_priority_applicability_authority: Mapping[str, Any] | None = None,
+    mat_block_direct_damage_applicability_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
@@ -109,6 +111,8 @@ def materialize_immediate_move_vs_move_action_pair(
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
     if canonical_quick_guard_protection_metadata(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None:
         return _materialize_quick_guard_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_meta=own_meta, orders=orders, authority=quick_guard_priority_applicability_authority)
+    if opponent_meta.get("metadata", {}).get("move_id") == "mat-block":
+        return _materialize_mat_block_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_meta=own_meta, orders=orders, authority=mat_block_direct_damage_applicability_authority)
     if _is_protection_metadata(opponent_meta.get("metadata")) or any(candidate(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None for candidate in (canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata, canonical_spiky_shield_reactive_damage_metadata, canonical_baneful_bunker_reactive_poison_metadata, canonical_burning_bulwark_reactive_burn_metadata)):
         return _materialize_protection_response_pair(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
@@ -279,6 +283,32 @@ def _materialize_quick_guard_pair(*, base: Mapping[str, Any], strategy_d0: Mappi
     mass=sum((_fraction(row["probability"]) for row in branches),Fraction())
     if mass!=Fraction(1,1):return _result("rejected","pair_terminal_probability_mass_not_one",base)
     return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**base,"conditional_on":"opponent_selected_exact_known_usable_move","terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_quick_guard_applicability_provenance","provenance":"strict_detached_quick_guard_protection_pair_materialization_v1"}
+
+
+def _materialize_mat_block_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(authority, Mapping): return _result("incomplete", "mat_block_direct_damage_applicability_authority_missing", base)
+    expected = {"schema_version": MAT_BLOCK_SCHEMA_VERSION, "session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": base["decision_owner"], "mat_block_user": base["opponent_actor"], "mat_block_action_id": base["opponent_action_id"], "mat_block_move_id": "mat-block"}
+    if any(authority.get(key) != value for key, value in expected.items()): return _result("rejected", "mat_block_direct_damage_applicability_authority_binding_mismatch", base)
+    incoming = authority.get("incoming_action")
+    if not isinstance(incoming, Mapping) or incoming.get("action_id") != base["own_action_id"] or incoming.get("move_id") != own_meta["metadata"].get("move_id"): return _result("rejected", "mat_block_incoming_action_binding_mismatch", base)
+    if authority.get("status") != "resolved": return _result(_status(authority), authority.get("reason", "mat_block_direct_damage_applicability_unavailable"), base)
+    recipients = authority.get("protected_recipients")
+    if not isinstance(recipients, tuple) or base["opponent_actor"] not in recipients: return _result("rejected", "mat_block_protected_target_binding_mismatch", base)
+    branches=[]
+    for plan in orders:
+        ledger=_attack_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,actor=base["own_actor"],target=base["opponent_actor"],metadata_authority=own_meta)
+        if ledger.get("status")!="evaluable": return _result(_status(ledger), "mat_block_incoming_attack_ledger_unavailable", base)
+        if plan["order"]=="opponent_first" and authority.get("outcome")=="applies":
+            leaf=_protection_leaf(base,strategy_d0,{"move_id":"mat-block"})
+            if leaf is None:return _result("incomplete","mat_block_protection_leaf_unavailable",base)
+            leaf["consequences"]["mat_block_direct_damage_applicability"]=deepcopy(dict(authority))
+            branches.append(_protection_branch(base,plan,leaf,"prevented_by_mat_block"))
+        elif authority.get("outcome")=="not_applicable" or plan["order"]=="own_first":
+            for leaf in ledger["terminal_leaves"]: branches.append(_protection_branch(base,plan,leaf,"executed_protection"))
+        else:return _result("rejected","mat_block_direct_damage_applicability_outcome_invalid",base)
+    mass=sum((_fraction(row["probability"]) for row in branches),Fraction())
+    if mass!=Fraction(1,1):return _result("rejected","pair_terminal_probability_mass_not_one",base)
+    return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**base,"conditional_on":"opponent_selected_exact_known_usable_move","terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_mat_block_applicability_provenance","provenance":"strict_detached_mat_block_protection_pair_materialization_v1"}
 
 
 def _resolved_protection(*, strategy_d0: Mapping[str, Any], opponent: Mapping[str, Any], own: Mapping[str, Any], metadata: Mapping[str, Any], success_authority: Mapping[str, Any] | None) -> dict[str, Any]:

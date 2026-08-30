@@ -18,6 +18,7 @@ STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
 _TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_recovery": "pokemon.current_hp", "set_current_type": "pokemon.current_type", "set_current_condition": "pokemon.condition", "set_pending_status_action_execution": "state.pending_status_action_execution_context", "set_doubles_active_topology": "state.doubles_active_topology_context", "set_selected_action_targeting": "state.selected_action_targeting_context", "set_current_ability": "pokemon.current_ability", "set_current_item": "pokemon.known_item", "set_current_level": "pokemon.current_level", "set_current_final_combat_stat": "pokemon.current_final_stats", "set_current_move_usability": "pokemon.current_move_usability", "set_current_substitute": "state.substitute_state_context", "set_condition": "pokemon.condition", "clear_condition": "pokemon.condition", "set_current_stat_stage": "pokemon.stat_stages", "set_current_crit_volatiles": "pokemon.current_crit_volatiles", "consume_item": "pokemon.known_item", "remove_item": "pokemon.known_item", "set_current_weather": "field.weather", "start_weather": "field.weather", "end_weather": "field.weather", "set_current_terrain": "field.terrain", "start_terrain": "field.terrain", "end_terrain": "field.terrain", "set_current_battle_format": "field.battle_format", "set_current_side_conditions": "side.side_conditions", "start_side_condition": "side.side_conditions", "end_side_condition": "side.side_conditions", "set_observed_tailwind": "side.tailwind_status", "set_observed_trick_room": "field.trick_room_status", "set_same_turn_event": "state.same_turn_event_context", "mark_first_end_of_turn_reached": "state.first_end_of_turn_context", "switch_active": "side.active_slot_index", "mark_fainted": "pokemon.fainted", "record_known_move": "pokemon.known_move_ids", "set_switch_permission": "side.switch_permission_context", "clear_switch_permission": "side.switch_permission_context", "set_ability_applicability": "state.ability_applicability_context", "clear_ability_applicability": "state.ability_applicability_context", "set_ability_interaction": "state.ability_interaction_context", "clear_ability_interaction": "state.ability_interaction_context", "set_identity_groundedness": "state.identity_groundedness_context", "clear_identity_groundedness": "state.identity_groundedness_context", "set_prospective_groundedness": "pokemon.prospective_groundedness_context", "clear_prospective_groundedness": "pokemon.prospective_groundedness_context", "set_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "clear_prospective_speed_stage": "pokemon.prospective_speed_stage_context", "set_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "clear_prospective_offensive_stages": "pokemon.prospective_offensive_stages_context", "set_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "clear_prospective_entry_interactions": "pokemon.prospective_entry_interactions_context", "set_switch_hazards": "state.switch_hazard_context", "clear_switch_hazards": "state.switch_hazard_context", "set_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "clear_switch_entry_intimidate": "state.switch_entry_intimidate_authority", "set_switch_entry_download": "state.switch_entry_download_authority", "clear_switch_entry_download": "state.switch_entry_download_authority"}
 _TARGETS = {**_TARGETS, "set_current_opponent_response_set": "pokemon.current_opponent_response_set", "set_current_opponent_switch_response_set": "side.current_opponent_switch_response_set", "set_current_opponent_switch_target_combat": "pokemon.current_combat"}
+_TARGETS["set_mat_block_active_entry_eligibility"] = "state.mat_block_active_entry_eligibility_context"
 
 
 def make_unknown_battle_fact():
@@ -101,6 +102,8 @@ def validate_battle_state_unknown_markers(state):
     pending = state.get("pending_status_action_execution_context")
     if pending is not None and not _valid_pending_status_action_execution_context(state, pending):
         return False
+    mat_block = state.get("mat_block_active_entry_eligibility_context")
+    if mat_block is not None and not _valid_mat_block_active_entry_eligibility_context(state, mat_block): return False
     topology = state.get("doubles_active_topology_context")
     targeting = state.get("selected_action_targeting_context")
     if topology is not None and not _valid_doubles_active_topology_context(state, topology): return False
@@ -125,6 +128,13 @@ def _valid_pending_status_action_execution_context(state, value):
     if (value["execution_state"] == "executable" and value.get("blocker") is not None) or (value["execution_state"] == "blocked" and value.get("blocker") != value["condition"]):
         return False
     return isinstance(provenance, dict) and provenance.get("event_kind") == "pending_status_action_execution_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0 and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool) and provenance["source_sequence"] > 0
+
+
+def _valid_mat_block_active_entry_eligibility_context(state, value):
+    required = {"schema_version", "session_id", "decision_point", "actor", "action_id", "move_id", "active_entry_token", "eligibility", "provenance"}
+    if not isinstance(value, dict) or set(value) != required: return False
+    actor, provenance = value.get("actor"), value.get("provenance")
+    return value.get("schema_version") == "mat-block-active-entry-eligibility-context-v1" and value.get("session_id") == state.get("session_id") and isinstance(actor, dict) and set(actor) == {"session_id", "side", "slot_index", "pokemon_id"} and actor.get("session_id") == state.get("session_id") and _active_identity_matches(state, actor.get("side"), actor.get("slot_index"), actor.get("pokemon_id")) and all(isinstance(value.get(key), str) and bool(value[key]) for key in ("decision_point", "action_id", "active_entry_token")) and value.get("move_id") == "mat-block" and value.get("eligibility") in {"eligible", "ineligible"} and isinstance(provenance, dict) and provenance.get("event_kind") == "mat_block_active_entry_eligibility_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool)
 
 
 def _valid_doubles_active_topology_context(state, value):
@@ -608,6 +618,8 @@ def _apply(state, event):
         return _set_current_condition(state, event)
     if effect == "set_pending_status_action_execution":
         return _set_pending_status_action_execution(state, event)
+    if effect == "set_mat_block_active_entry_eligibility":
+        return _set_mat_block_active_entry_eligibility(state, event)
     if effect == "set_doubles_active_topology":
         return _set_doubles_active_topology(state, event)
     if effect == "set_selected_action_targeting":
@@ -906,6 +918,23 @@ def _set_pending_status_action_execution(state, event):
         if isinstance(prior_sequence, int) and prior_sequence > candidate["provenance"]["source_sequence"]:
             return _conflict(event, "stale_pending_status_action_execution_observation")
     state["pending_status_action_execution_context"] = candidate
+    return None
+
+
+def _set_mat_block_active_entry_eligibility(state, event):
+    pokemon = _pokemon(state, event)
+    side, slot, pokemon_id = _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id")
+    decision_point, action_id, move_id = _value(event, "decision_point"), _value(event, "action_id"), _value(event, "move_id")
+    token, eligibility, turn = _value(event, "active_entry_token"), _value(event, "eligibility"), _value(event, "turn_number")
+    if pokemon is None or not _active_identity_matches(state, side, slot, pokemon_id) or not all(isinstance(v, str) and v for v in (decision_point, action_id, token)) or move_id != "mat-block" or eligibility not in {"eligible", "ineligible"} or _value(event, "trust") != "user_confirmed_observation" or not isinstance(turn, int) or isinstance(turn, bool) or turn < 1:
+        return _conflict(event, "invalid_mat_block_active_entry_eligibility_observation")
+    candidate = {"schema_version": "mat-block-active-entry-eligibility-context-v1", "session_id": state["session_id"], "decision_point": decision_point, "actor": {"session_id": state["session_id"], "side": side, "slot_index": slot, "pokemon_id": pokemon_id}, "action_id": action_id, "move_id": move_id, "active_entry_token": token, "eligibility": eligibility, "provenance": _provenance(event) | {"event_kind": "mat_block_active_entry_eligibility_observed", "trust": "user_confirmed_observation", "turn_number": turn}}
+    prior = state.get("mat_block_active_entry_eligibility_context")
+    if isinstance(prior, dict):
+        prior_sequence = prior.get("provenance", {}).get("source_sequence")
+        if prior_sequence == candidate["provenance"]["source_sequence"] and prior != candidate: return _conflict(event, "conflicting_mat_block_active_entry_eligibility_sequence")
+        if isinstance(prior_sequence, int) and prior_sequence > candidate["provenance"]["source_sequence"]: return _conflict(event, "stale_mat_block_active_entry_eligibility_observation")
+    state["mat_block_active_entry_eligibility_context"] = candidate
     return None
 
 
@@ -1974,6 +2003,9 @@ def _switch(state, event):
             return _conflict(event, "invalid_substitute_switch_lifecycle")
         state["substitute_state_context"] = context
     _invalidate_same_turn_events(state, _value(event, "side"), out_slot, out_id)
+    context = state.get("mat_block_active_entry_eligibility_context")
+    if isinstance(context, dict) and context.get("actor", {}).get("side") == _value(event, "side"):
+        state.pop("mat_block_active_entry_eligibility_context", None)
     return None
 
 
