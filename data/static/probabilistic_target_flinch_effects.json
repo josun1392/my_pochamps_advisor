@@ -3,6 +3,15 @@
   "source": "canonical-maintained-gen9-mechanics-catalog-v1",
   "rules": [
     {
+      "rule_id": "rock-slide-recipient-target-flinch-v1",
+      "move_id": "rock-slide",
+      "category": "physical",
+      "target_scope": "all-opponents",
+      "effect_chance": 30,
+      "effect": {"owner": "target", "state": "flinch"},
+      "conditions": {"requires_successful_damaging_hit": true, "blocked_by_substitute": true, "target_must_survive": true, "recipient_local": true}
+    },
+    {
       "rule_id": "fake-out-target-flinch-v1",
       "move_id": "fake-out",
       "category": "physical",

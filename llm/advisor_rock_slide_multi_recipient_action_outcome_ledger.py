@@ -126,7 +126,15 @@ def _prior(rows: tuple[Any, ...], expected: tuple[Mapping[str, Any], ...]) -> bo
 def _outcome(value: Any, node: Mapping[str, Any], recipients: tuple[Mapping[str, Any], ...], probability: Fraction, wide_guard_authority: Any, mat_block_authority: Any = None) -> bool:
     cursor = node["recipient_cursor"]
     if not isinstance(value, Mapping) or value.get("recipient_index") != cursor + 1 or value.get("recipient") != recipients[cursor] or _fraction(value.get("probability")) != probability or value.get("outcome") not in {"hit", "miss", "immune", "prevented_by_wide_guard", "prevented_by_mat_block"} or not isinstance(value.get("pre_hp"), int) or not isinstance(value.get("post_hp"), int) or value["pre_hp"] < 0 or value["post_hp"] < 0 or value["post_hp"] > value["pre_hp"] or value.get("fainted") is not (value["post_hp"] == 0): return False
-    if value["outcome"] == "hit": return value.get("hit_state") == "hit" and value.get("critical_state") in {"critical", "non_critical"} and isinstance(value.get("damage_roll"), Mapping)
+    if value["outcome"] == "hit":
+        flinch = value.get("flinch")
+        if flinch is None:
+            return value.get("hit_state") == "hit" and value.get("critical_state") in {"critical", "non_critical"} and isinstance(value.get("damage_roll"), Mapping)
+        if not isinstance(flinch, Mapping) or flinch.get("state") not in {"flinched", "not_flinched"}: return False
+        if flinch["state"] == "flinched":
+            marker = flinch.get("hypothetical_target_flinch")
+            if value.get("fainted") is True or not isinstance(marker, Mapping) or marker.get("state") != "flinched" or marker.get("provenance") != "rock_slide_recipient_successful_damage_roll_secondary_v1": return False
+        return value.get("hit_state") == "hit" and value.get("critical_state") in {"critical", "non_critical"} and isinstance(value.get("damage_roll"), Mapping)
     if value["outcome"] == "prevented_by_wide_guard":
         return value.get("hit_state") == "not_applicable" and value.get("critical_state") == "not_applicable" and isinstance(value.get("damage_roll"), Mapping) and value["damage_roll"].get("status") == "not_applicable" and value.get("raw_damage") == 0 and value.get("actual_damage") == 0 and value.get("pre_hp") == value.get("post_hp") and value.get("wide_guard_applicability_authority") == wide_guard_authority and value.get("wide_guard_protected_recipient") == recipients[cursor]
     if value["outcome"] == "prevented_by_mat_block":

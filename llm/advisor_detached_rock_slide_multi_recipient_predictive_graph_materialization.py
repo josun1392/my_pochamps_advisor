@@ -20,7 +20,12 @@ from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_strict_hit_probability_assessment,
     freeze_runtime_strategy_d0,
     runtime_strategy_d0_freshness,
+    freeze_runtime_current_condition_authority,
+    _runtime_probabilistic_target_status_source_authority,
+    _runtime_target_substitute_authority,
 )
+from llm.advisor_substitute import substitute_state
+from advisor.probabilistic_target_flinch_effect_capabilities import resolve_probabilistic_target_flinch_effect_capability
 
 
 SCHEMA_VERSION = "detached-rock-slide-multi-recipient-predictive-graph-materialization-v1"
@@ -154,6 +159,8 @@ def _recipient_events(d0: Mapping[str, Any], snapshot: Mapping[str, Any], base: 
     if isinstance(raw_recipient, Mapping) and raw_recipient.get("current_ability") == "sturdy":
         return {"status": "incomplete", "reason": "rock_slide_recipient_sturdy_survival_authority_required"}
     metadata = base["move_metadata"]
+    flinch = _recipient_flinch_authority(local_d0, local_snapshot, base["attacker"], recipient, metadata)
+    if isinstance(flinch, Mapping) and flinch.get("status") != "resolved": return {"status": flinch.get("status", "rejected"), "reason": flinch.get("reason", "rock_slide_recipient_flinch_authority_unavailable")}
     hit = build_runtime_d0_strict_hit_probability_assessment(strategy_d0=local_d0, runtime_snapshot=local_snapshot, attacker=base["attacker"], target=recipient, selected_move=metadata)
     if hit.get("status") != "resolved": return {"status": hit.get("status", "rejected"), "reason": hit.get("reason", "rock_slide_recipient_hit_authority_unavailable")}
     native = build_runtime_d0_native_damage_context(strategy_d0=local_d0, runtime_snapshot=local_snapshot, attacker=base["attacker"], target=recipient, move_metadata=metadata)
@@ -200,8 +207,42 @@ def _recipient_events(d0: Mapping[str, Any], snapshot: Mapping[str, Any], base: 
             raw_rolls = raw_interval.get("exact_damage_rolls")
             raw_pre_spread = raw_rolls[roll["roll_index"]] if isinstance(raw_rolls, tuple) and len(raw_rolls) == 16 else None
             if not isinstance(raw_pre_spread, int): return {"status": "rejected", "reason": "rock_slide_pre_spread_roll_binding_invalid"}
-            result.append({"probability": hit_probability * factor * Fraction(1, 16), "outcome": "hit", "hit_state": "hit", "critical_state": state, "damage_roll": {"roll_index": roll["roll_index"], "random_factor_percent": roll["random_factor_percent"]}, "raw_pre_spread_damage": raw_pre_spread, "raw_damage": consequence["raw_damage"], "actual_damage": consequence["actual_damage"], "pre_hp": before, "post_hp": before - consequence["actual_damage"], "fainted": before == consequence["actual_damage"], "spread_modifier": deepcopy(base["spread_damage_modifier_authority"])})
+            event = {"probability": hit_probability * factor * Fraction(1, 16), "outcome": "hit", "hit_state": "hit", "critical_state": state, "damage_roll": {"roll_index": roll["roll_index"], "random_factor_percent": roll["random_factor_percent"]}, "raw_pre_spread_damage": raw_pre_spread, "raw_damage": consequence["raw_damage"], "actual_damage": consequence["actual_damage"], "pre_hp": before, "post_hp": before - consequence["actual_damage"], "fainted": before == consequence["actual_damage"], "spread_modifier": deepcopy(base["spread_damage_modifier_authority"])}
+            result.extend(_recipient_flinch_branches(event, flinch))
     return result
+
+
+def _recipient_flinch_authority(d0: Mapping[str, Any], snapshot: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any]) -> dict[str, Any]:
+    # Older detached Rock Slide fixtures intentionally model damage-only move
+    # metadata.  They remain valid damage graphs; flinch is materialized only
+    # when the maintained secondary fields are present.
+    if metadata.get("effect_chance") is None and metadata.get("ailment") is None:
+        return {"status": "resolved", "applicable": False, "provenance": "rock_slide_damage_only_metadata_no_secondary_materialization"}
+    state = snapshot.get("state") if isinstance(snapshot, Mapping) else None
+    if not isinstance(state, Mapping): return {"status": "rejected", "reason": "rock_slide_recipient_runtime_snapshot_invalid"}
+    raw_attacker = state.get(f"{attacker['side']}_side", {}).get("pokemon", {}).get(attacker.get("slot_index"))
+    raw_target = state.get(f"{target['side']}_side", {}).get("pokemon", {}).get(target.get("slot_index"))
+    if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping): return {"status": "rejected", "reason": "rock_slide_recipient_flinch_owner_mismatch"}
+    condition = freeze_runtime_current_condition_authority(strategy_d0=d0, runtime_snapshot=snapshot, owner=target)
+    source = _runtime_probabilistic_target_status_source_authority(state=state, raw_attacker=raw_attacker, raw_target=raw_target, attacker=attacker, target=target, target_condition=condition)
+    capability = resolve_probabilistic_target_flinch_effect_capability(move=metadata, source_authority=source)
+    substitute = _runtime_target_substitute_authority(substitute_state(state, target))
+    if capability.get("status") != "resolved": return capability
+    if condition.get("status") == "rejected": return {"status": "rejected", "reason": condition.get("reason", "rock_slide_recipient_condition_authority_invalid")}
+    if substitute.get("status") != "known": return {"status": "incomplete", "reason": "rock_slide_recipient_substitute_unknown"}
+    return {"status": "resolved", "applicable": True, "capability": capability, "target_substitute_authority": substitute, "provenance": "rock_slide_recipient_local_catalogued_flinch_authority_v1"}
+
+
+def _recipient_flinch_branches(event: Mapping[str, Any], authority: Mapping[str, Any]) -> list[dict[str, Any]]:
+    if authority.get("applicable") is False:
+        return [deepcopy(dict(event))]
+    if event.get("outcome") != "hit" or event.get("fainted") is True or authority["target_substitute_authority"].get("state") == "known_active":
+        return [{**deepcopy(dict(event)), "flinch": {"state": "not_flinched", "reason": "hit_required_target_survival_and_substitute_applicability"}}]
+    probability = authority["capability"]["probability"]
+    chance = Fraction(probability["numerator"], probability["denominator"])
+    no = {**deepcopy(dict(event)), "probability": event["probability"] * (1 - chance), "flinch": {"state": "not_flinched", "conditional_probability": deepcopy(probability), "provenance": authority["provenance"]}}
+    yes = {**deepcopy(dict(event)), "probability": event["probability"] * chance, "flinch": {"state": "flinched", "conditional_probability": deepcopy(probability), "hypothetical_target_flinch": {"schema_version": "detached-hypothetical-immediate-flinch-v1", "state": "flinched", "provenance": "rock_slide_recipient_successful_damage_roll_secondary_v1"}, "provenance": authority["provenance"]}}
+    return [row for row in (no, yes) if row["probability"]]
 
 
 def _recipient_d0_view(d0: Mapping[str, Any], snapshot: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any]):
@@ -304,7 +345,9 @@ def _outcome_id(row: Mapping[str, Any]) -> str:
         return "miss"
     if row["outcome"] == "immune":
         return "immune"
-    return f"hit:{row['critical_state']}:roll:{row['damage_roll']['roll_index']}"
+    flinch = row.get("flinch") if isinstance(row.get("flinch"), Mapping) else {}
+    flinch_state = flinch.get("state", "not_flinched")
+    return f"hit:{row['critical_state']}:roll:{row['damage_roll']['roll_index']}:flinch:{flinch_state}"
 def _root(row: Mapping[str, Any]) -> dict[str, Any]:
     result = deepcopy(dict(row)); result["probability"] = _fd(result["probability"]); return result
 def _edge(row: Mapping[str, Any]) -> dict[str, Any]:

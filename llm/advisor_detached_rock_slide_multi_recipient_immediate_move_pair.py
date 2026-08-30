@@ -48,6 +48,7 @@ def _order(d0,snapshot,base,own,opponent,own_meta,opponent_meta,plan,scope,wide_
             transition={"first_terminal_source_id":source["terminal_edge_id"],"incoming_path_probability":_fd(source["probability"]),"rock_slide_terminal_source":deepcopy(source),"recipient_vector":deepcopy(vector),"pending_actor":deepcopy(pending)}
             if builder.get("status") != "resolved": return builder
             if not builder["actor_can_act"]: transition["second_action"]={"state":"cancelled_due_to_faint","actor":deepcopy(pending),"conditional_probability":_fd(Fraction(1,1)),"reason":"second_action_cancelled_due_to_faint"}
+            elif _pending_recipient_flinched(source, pending): transition["second_action"]={"state":"cancelled_due_to_flinch","actor":deepcopy(pending),"conditional_probability":_fd(Fraction(1,1)),"reason":"second_action_cancelled_due_to_flinch","flinch_provenance":"rock_slide_recipient_successful_damage_roll_secondary_v1"}
             else:
                 if opponent_is_wide_guard or opponent_is_mat_block:
                     guard = "wide_guard" if opponent_is_wide_guard else "mat_block"
@@ -102,6 +103,13 @@ def _attach_probability_factorization(transition, plan):
         "second_action_conditional_probability_mass": _fd(Fraction(1, 1)),
         "order_weighted_source_probability": _fd(order * first),
     }
+def _pending_recipient_flinched(source, pending):
+    outcomes = source.get("ordered_recipient_outcomes") if isinstance(source, Mapping) else None
+    if not isinstance(outcomes, tuple): return False
+    matches = [row for row in outcomes if isinstance(row, Mapping) and isinstance(row.get("recipient"), Mapping) and row["recipient"].get("owner") == pending]
+    if len(matches) != 1: return False
+    row = matches[0]; flinch = row.get("flinch")
+    return row.get("fainted") is False and isinstance(flinch, Mapping) and flinch.get("state") == "flinched" and isinstance(flinch.get("hypothetical_target_flinch"), Mapping) and flinch["hypothetical_target_flinch"].get("provenance") == "rock_slide_recipient_successful_damage_roll_secondary_v1"
 def _result(status,reason,base): return {"status":status,"schema_version":SCHEMA_VERSION,**deepcopy(dict(base)),"reason":reason}
 
 
