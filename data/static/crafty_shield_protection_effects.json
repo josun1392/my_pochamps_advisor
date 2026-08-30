@@ -1,0 +1,5 @@
+{
+  "schema_version": "canonical-crafty-shield-protection-v1",
+  "authority": "pokemon-showdown/data/moves.ts (Crafty Shield)",
+  "moves": {"crafty-shield": {"protects_side": true, "protection_kind": "status_action_guard", "blocks_supported_pure_status_actions": true, "target_requirement": "protected_recipient"}}
+}

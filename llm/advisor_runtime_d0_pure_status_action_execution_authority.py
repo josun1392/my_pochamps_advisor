@@ -72,6 +72,9 @@ def _accuracy(value: Any, base: Mapping[str, Any]) -> str | dict[str, Any]:
 
 
 def _prevention(value: Any, base: Mapping[str, Any]) -> bool | dict[str, Any]:
+    if value.get("schema_version") == "runtime-d0-crafty-shield-pure-status-applicability-authority-v1":
+        mapped = {**value, "schema_version": "crafty-shield-prevention-adapter-v1", "actor": value.get("incoming_actor"), "target": value.get("selected_target"), "action_id": value.get("incoming_action_id"), "move_id": value.get("incoming_move_id")}
+        return _prevention(mapped, base)
     for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "actor", "target", "action_id", "move_id"):
         if value.get(key) != base.get(key): return {"status": "rejected", "reason": "status_prevention_authority_binding_mismatch"}
     if value.get("status") != "resolved": return {"status": _status(value), "reason": value.get("reason", "status_prevention_authority_unavailable")}

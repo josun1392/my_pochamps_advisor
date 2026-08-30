@@ -100,6 +100,7 @@ def materialize_immediate_move_vs_move_action_pair(
     quick_guard_priority_applicability_authority: Mapping[str, Any] | None = None,
     mat_block_direct_damage_applicability_authority: Mapping[str, Any] | None = None,
     pure_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    crafty_shield_pure_status_applicability_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
@@ -111,6 +112,8 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    if own_meta.get("metadata", {}).get("move_id") == "tail-whip" and opponent_meta.get("metadata", {}).get("move_id") == "crafty-shield":
+        return _materialize_crafty_shield_tail_whip_pair(base=base, strategy_d0=strategy_d0, own_action=own_action, opponent_action=opponent_action, orders=orders, authorities=pure_status_execution_authorities, crafty=crafty_shield_pure_status_applicability_authority)
     if own_meta.get("metadata", {}).get("move_id") == "tail-whip" and opponent_meta.get("metadata", {}).get("move_id") == "tail-whip":
         return _materialize_tail_whip_status_pair(base=base, strategy_d0=strategy_d0, own_action=own_action, opponent_action=opponent_action, orders=orders, authorities=pure_status_execution_authorities)
     if canonical_quick_guard_protection_metadata(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None:
@@ -173,6 +176,31 @@ def _materialize_tail_whip_status_pair(*, base: Mapping[str, Any], strategy_d0: 
     mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
     if mass != Fraction(1, 1): return _result("rejected", "pure_status_pair_probability_mass_not_one", base)
     return {"status":"evaluable", "schema_version":SCHEMA_VERSION, "horizon":HORIZON, **deepcopy(dict(base)), "action_order": {"pure_status": "external_exact_order_authority"}, "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass), "aggregation":"none_preserve_pure_status_leaf_identity", "provenance":"strict_tail_whip_pure_status_pair_materialization_v1"}
+
+def _materialize_crafty_shield_tail_whip_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None, crafty: Mapping[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(authorities, Mapping) or not isinstance(authorities.get(own_action.get("action_id")), Mapping): return _result("incomplete","pure_status_execution_authority_missing",base)
+    if not isinstance(crafty, Mapping): return _result("incomplete","crafty_shield_applicability_authority_missing",base)
+    if crafty.get("status") != "resolved": return _result(_status(crafty),crafty.get("reason","crafty_shield_applicability_unavailable"),base)
+    auth=deepcopy(dict(authorities[own_action["action_id"]])); branches=[]
+    for plan in orders:
+        if plan["order"]=="opponent_first":
+            if crafty.get("outcome") not in {"prevented","not_applicable"}: return _result("rejected","crafty_shield_outcome_invalid",base)
+            if crafty.get("outcome")=="prevented": auth["accuracy_or_prevention_outcome"]="prevented";auth["prevention_authority"]=deepcopy(dict(crafty))
+            status=materialize_detached_pure_status_action(execution_authority=auth)
+            if status.get("status")!="resolved":return _result(_status(status),status.get("reason","pure_status_materialization_unavailable"),base)
+            second=_pure_status_pair_leaf(status,strategy_d0); first=_crafty_timing_leaf(base, strategy_d0, opponent_action, None, crafty)
+        else:
+            status=materialize_detached_pure_status_action(execution_authority=auth)
+            if status.get("status")!="resolved":return _result(_status(status),status.get("reason","pure_status_materialization_unavailable"),base)
+            first=_pure_status_pair_leaf(status,strategy_d0); second=_crafty_timing_leaf(base, strategy_d0, opponent_action, first.get("consequences",{}).get("deterministic_stage_effect"), crafty)
+        if isinstance(first,str) or isinstance(second,str):return _result("rejected",first if isinstance(first,str) else second,base)
+        branches.append(_branch(base,plan["order"],first,{},second,base["opponent_actor"],plan))
+    mass=sum((_fraction(x["probability"]) for x in branches),Fraction())
+    return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**deepcopy(dict(base)),"action_order":deepcopy(dict(crafty)),"terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"provenance":"strict_crafty_shield_tail_whip_pair_v1"} if mass==Fraction(1,1) else _result("rejected","crafty_shield_pair_mass_invalid",base)
+
+def _crafty_timing_leaf(base:Mapping[str,Any], d0:Mapping[str,Any], action:Mapping[str,Any], stage:Any, crafty:Mapping[str,Any])->dict[str,Any]:
+    active=d0.get("strategy_state",{}).get("active",{}); own=active.get("opponent",{}).get("current_hp"); target=active.get("self",{}).get("current_hp")
+    return {"leaf_id":"crafty_shield_no_retroactive_effect","candidate_id":action["action_id"],"branch_path":("crafty_shield_no_retroactive_effect",),"probability":_fd(Fraction(1,1)),"hit_state":"not_applicable","critical_state":"not_applicable","damage_roll":"not_applicable","consequences":{"own_final_hp":own,"target_final_hp":target,"target_ko":target==0,"self_fainted":own==0,"deterministic_stage_effect":deepcopy(stage),"secondary":None,"crafty_shield_timing":"no_retroactive_effect"},"provenance":{"session_id":base["session_id"],"source_runtime_fingerprint":base["source_runtime_fingerprint"],"source_branch_fingerprint":base["source_branch_fingerprint"],"decision_owner":deepcopy(base["decision_owner"]),"attacker":deepcopy(base["opponent_actor"]),"target":deepcopy(base["own_actor"]),"move_id":"crafty-shield","crafty_shield_applicability_authority":deepcopy(dict(crafty))}}
 
 
 def _pure_status_pair_leaf(materialized: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any] | str:
