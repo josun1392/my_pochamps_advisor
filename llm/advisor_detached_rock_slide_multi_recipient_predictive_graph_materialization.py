@@ -43,7 +43,7 @@ def materialize_detached_rock_slide_multi_recipient_predictive_graph(*, strategy
         "status": "evaluable", "schema_version": SCHEMA_VERSION, "horizon": HORIZON, **base,
         "terminal_leaf_representation": "exact_root_to_terminal_ordered_multi_recipient_path_graph_no_terminal_flattening",
         "terminal_leaf_roots": tuple(_root(row) for row in roots),
-        "terminal_leaf_nodes": tuple(deepcopy(row) for row in nodes),
+        "terminal_leaf_nodes": tuple(_node(row) for row in nodes),
         "terminal_leaf_edges": tuple(_edge(row) for row in edges),
         "terminal_probability_mass": _fd(mass),
         "aggregation": "none_preserve_ordered_recipient_local_accuracy_critical_roll_damage_and_hp_identity_as_graph_paths",
@@ -203,12 +203,27 @@ def _hp(d0: Mapping[str, Any], recipient: Mapping[str, Any]) -> int:
     value = d0.get("strategy_state", {}).get("active", {}).get(recipient.get("side"), {}).get("current_hp")
     return value if isinstance(value, int) else 0
 def _outcome_id(row: Mapping[str, Any]) -> str:
-    return "miss" if row["outcome"] == "miss" else f"hit:{row['critical_state']}:roll:{row['damage_roll']['roll_index']}"
+    if row["outcome"] == "miss":
+        return "miss"
+    if row["outcome"] == "immune":
+        return "immune"
+    return f"hit:{row['critical_state']}:roll:{row['damage_roll']['roll_index']}"
 def _root(row: Mapping[str, Any]) -> dict[str, Any]:
     result = deepcopy(dict(row)); result["probability"] = _fd(result["probability"]); return result
 def _edge(row: Mapping[str, Any]) -> dict[str, Any]:
     result = deepcopy(dict(row)); result["conditional_probability"] = _fd(result["conditional_probability"]); outcome = result.get("recipient_outcome")
-    if isinstance(outcome, Mapping): outcome["probability"] = _fd(outcome["probability"])
+    if isinstance(outcome, Mapping): result["recipient_outcome"] = _outcome(outcome)
+    consequences = result.get("terminal_consequences")
+    if isinstance(consequences, Mapping) and isinstance(consequences.get("ordered_recipient_outcomes"), tuple):
+        result["terminal_consequences"] = {**consequences, "ordered_recipient_outcomes": tuple(_outcome(value) for value in consequences["ordered_recipient_outcomes"])}
+    return result
+def _node(row: Mapping[str, Any]) -> dict[str, Any]:
+    result = deepcopy(dict(row)); prior = result.get("prior_recipient_outcomes")
+    if isinstance(prior, tuple): result["prior_recipient_outcomes"] = tuple(_outcome(value) for value in prior)
+    return result
+def _outcome(row: Mapping[str, Any]) -> dict[str, Any]:
+    result = deepcopy(dict(row))
+    if isinstance(result.get("probability"), Fraction): result["probability"] = _fd(result["probability"])
     return result
 def _fd(value: Fraction) -> dict[str, int]: return {"numerator": value.numerator, "denominator": value.denominator}
 def _result(status: str, reason: str, base: Mapping[str, Any], **extra: Any) -> dict[str, Any]: return {"status": status, "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "reason": reason, **deepcopy(extra)}
