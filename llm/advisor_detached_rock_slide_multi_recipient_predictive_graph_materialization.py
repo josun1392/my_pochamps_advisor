@@ -11,6 +11,7 @@ from llm.advisor_predictive_normal_formula_interval import build_predictive_norm
 from llm.advisor_predictive_normal_formula_post_hit import compose_predictive_normal_formula_post_hit
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_d0_multi_recipient_action_execution_scope_authority import SCHEMA_VERSION as EXECUTION_SCOPE_SCHEMA
+from llm.advisor_detached_rock_slide_intermediate_state_vector import CONSUMER_SCHEMA_VERSION
 from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_native_damage_context,
     build_runtime_d0_strict_critical_hit_probability_assessment,
@@ -25,12 +26,15 @@ HORIZON = "immediate_action_consequence"
 _MOVE_ID = "rock-slide"
 
 
-def materialize_detached_rock_slide_multi_recipient_predictive_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], execution_scope_authority: Mapping[str, Any]) -> dict[str, Any]:
+def materialize_detached_rock_slide_multi_recipient_predictive_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], execution_scope_authority: Mapping[str, Any], frozen_scope_consumer_adapter: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Expand frozen recipients in order, retaining a graph rather than leaves."""
-    base = _base(strategy_d0, action, execution_scope_authority)
+    adapter = _consumer_adapter(frozen_scope_consumer_adapter, action, execution_scope_authority)
+    if isinstance(adapter, str): return _result("rejected", adapter, {})
+    if isinstance(adapter, Mapping): strategy_d0, runtime_snapshot, execution_scope_authority, base = adapter["strategy_d0"], adapter["runtime_snapshot"], adapter["scope"], adapter["base"]
+    else: base = _base(strategy_d0, action, execution_scope_authority)
     if base is None:
         return _result("rejected", "invalid_rock_slide_multi_recipient_graph_request", {})
-    if runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot).get("status") != "current":
+    if frozen_scope_consumer_adapter is None and runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot).get("status") != "current":
         return _result("rejected", "stale_runtime_d0", base)
     if _has_life_orb(strategy_d0, runtime_snapshot, base["attacker"]):
         return _result("unsupported", "rock_slide_multi_recipient_item_consumption_unsupported", base)
@@ -49,6 +53,18 @@ def materialize_detached_rock_slide_multi_recipient_predictive_graph(*, strategy
         "aggregation": "none_preserve_ordered_recipient_local_accuracy_critical_roll_damage_and_hp_identity_as_graph_paths",
         "provenance": "runtime_d0_rock_slide_execution_scope_to_detached_multi_recipient_path_graph_v1",
     }
+
+
+def _consumer_adapter(value: Any, action: Mapping[str, Any], scope: Mapping[str, Any]) -> dict[str, Any] | str | None:
+    if value is None: return None
+    if not isinstance(value, Mapping) or value.get("status") != "resolved" or value.get("schema_version") != CONSUMER_SCHEMA_VERSION or value.get("hypothetical") is not True or value.get("current_authority") is not False: return "rock_slide_frozen_scope_consumer_adapter_invalid"
+    if value.get("frozen_execution_scope_authority") != scope or action.get("action_id") != value.get("action_id") or action.get("identity") != "rock-slide": return "rock_slide_frozen_scope_consumer_binding_mismatch"
+    d0, snapshot = value.get("predictive_strategy_d0"), value.get("predictive_runtime_snapshot")
+    if not isinstance(d0, Mapping) or not isinstance(snapshot, Mapping) or d0.get("status") != "resolved" or d0.get("decision_owner") != value.get("rock_slide_actor"): return "rock_slide_frozen_scope_consumer_private_state_invalid"
+    metadata = scope.get("move_metadata_authority", {}).get("metadata") if isinstance(scope.get("move_metadata_authority"), Mapping) else None
+    recipients = value.get("ordered_recipient_states")
+    if not isinstance(metadata, Mapping) or not isinstance(recipients, tuple) or tuple(row.get("recipient") for row in recipients) != scope.get("recipients"): return "rock_slide_frozen_scope_consumer_recipient_order_mismatch"
+    return {"strategy_d0": d0, "runtime_snapshot": snapshot, "scope": scope, "base": {"session_id": scope["session_id"], "source_runtime_fingerprint": scope["source_runtime_fingerprint"], "source_branch_fingerprint": scope["source_branch_fingerprint"], "decision_owner": deepcopy(scope["decision_owner"]), "attacker": deepcopy(scope["acting_owner"]), "action_id": scope["action_id"], "move_id": "rock-slide", "recipients": deepcopy(scope["recipients"]), "move_metadata": deepcopy(dict(metadata)), "spread_damage_modifier_authority": deepcopy(scope["spread_damage_modifier_authority"]), "execution_scope_authority": deepcopy(dict(scope)), "attacker_hp": value["rock_slide_actor_state"]["hp"], "attacker_max_hp": value["rock_slide_actor_state"]["max_hp"]}}
 
 
 def _graph(d0: Mapping[str, Any], snapshot: Mapping[str, Any], base: Mapping[str, Any]):

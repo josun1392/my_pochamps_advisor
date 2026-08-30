@@ -7,6 +7,8 @@ from typing import Any, Mapping
 from llm.advisor_runtime_d0_doubles_action_target_set_authority import SCHEMA_VERSION as TARGET_SET_SCHEMA
 from llm.advisor_runtime_d0_multi_recipient_action_execution_scope_authority import SCHEMA_VERSION as SCOPE_SCHEMA
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
+from llm.advisor_reducer_state_model import state_fingerprint
+from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 
 
 SCHEMA_VERSION = "detached-rock-slide-multi-recipient-intermediate-state-vector-v1"
@@ -44,9 +46,12 @@ def materialize_detached_rock_slide_intermediate_state_vector(*, strategy_d0: Ma
         return _result("rejected", overlay, base)
     if overlay is not None:
         matched = [index for index, row in enumerate(rows) if row["owner"] == overlay["owner"]]
-        if len(matched) != 1:
+        if len(matched) == 1:
+            rows[matched[0]] = {**rows[matched[0]], **overlay["state"], "state_provenance": "exact_scalar_intermediate_overlay"}
+        elif actor["owner"] == overlay["owner"]:
+            actor = {**actor, **overlay["state"], "state_provenance": "exact_scalar_intermediate_overlay"}
+        else:
             return _result("incomplete", "scalar_overlay_owner_not_exactly_one_frozen_recipient", base)
-        rows[matched[0]] = {**rows[matched[0]], **overlay["state"], "state_provenance": "exact_scalar_intermediate_overlay"}
     return {
         "status": "resolved", "schema_version": SCHEMA_VERSION, "hypothetical": True,
         "horizon": "immediate_action_consequence", **base,
@@ -80,6 +85,45 @@ def freeze_detached_rock_slide_execution_scope_consumer_view(*, vector: Mapping[
     if isinstance(parsed, str):
         return _view_result("rejected", parsed, {})
     return {"status": "resolved", "schema_version": CONSUMER_SCHEMA_VERSION, "hypothetical": True, **parsed["base"], "ordered_recipient_states": deepcopy(parsed["rows"]), "rock_slide_actor_state": deepcopy(parsed["actor"]), "frozen_execution_scope_authority": deepcopy(vector["frozen_execution_scope_authority"]), "provenance": "detached_multi_recipient_vector_to_frozen_scope_consumer_view_v1"}
+
+
+def build_detached_rock_slide_vector_predictive_builder_view(*, vector: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], pending_actor: Mapping[str, Any], pending_target: Mapping[str, Any]) -> dict[str, Any]:
+    """Build a private, explicitly non-current two-owner predictive input."""
+    scalar = extract_detached_rock_slide_pending_actor_scalar_view(vector=vector, pending_actor=pending_actor, pending_target=pending_target)
+    if scalar.get("status") != "resolved": return _view_result(scalar.get("status", "rejected"), scalar.get("reason", "pending_scalar_view_unavailable"), scalar)
+    snapshot = _private_snapshot(runtime_snapshot, (scalar["actor_state"], scalar["target_state"]), scalar["pending_actor"])
+    if isinstance(snapshot, str): return _view_result("incomplete", snapshot, scalar)
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=scalar["pending_actor"])
+    if d0.get("status") != "resolved": return _view_result("incomplete", d0.get("reason", "private_predictive_d0_unavailable"), scalar)
+    return {"status": "resolved", "schema_version": CONSUMER_SCHEMA_VERSION, "hypothetical": True, "current_authority": False, **{key: deepcopy(scalar[key]) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "decision_point", "rock_slide_actor", "action_id", "move_id")}, "pending_actor": deepcopy(scalar["pending_actor"]), "pending_target": deepcopy(scalar["pending_target"]), "actor_state": deepcopy(scalar["actor_state"]), "target_state": deepcopy(scalar["target_state"]), "actor_can_act": scalar["actor_can_act"], "predictive_runtime_snapshot": snapshot, "predictive_strategy_d0": d0, "intermediate_overrides": {"actor": deepcopy(scalar["actor_state"]), "target": deepcopy(scalar["target_state"]), "condition_override_requires_direct_consumer": True}, "frozen_execution_scope_authority": deepcopy(scalar["frozen_execution_scope_authority"]), "provenance": "detached_rock_slide_vector_to_private_scalar_predictive_builder_view_v1"}
+
+
+def freeze_detached_rock_slide_frozen_scope_graph_consumer_adapter(*, vector: Mapping[str, Any], runtime_snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    """Bind private vector state to the unchanged original Rock Slide scope."""
+    parsed = _vector(vector)
+    if isinstance(parsed, str): return _view_result("rejected", parsed, {})
+    scope = vector.get("frozen_execution_scope_authority")
+    if not isinstance(scope, Mapping) or _scope(scope, parsed["base"]) is None or isinstance(_scope(scope, parsed["base"]), str): return _view_result("rejected", "frozen_scope_consumer_scope_binding_mismatch", parsed["base"])
+    snapshot = _private_snapshot(runtime_snapshot, (*parsed["rows"], parsed["actor"]), parsed["base"]["rock_slide_actor"])
+    if isinstance(snapshot, str): return _view_result("incomplete", snapshot, parsed["base"])
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=parsed["base"]["rock_slide_actor"])
+    if d0.get("status") != "resolved": return _view_result("incomplete", d0.get("reason", "private_rock_slide_d0_unavailable"), parsed["base"])
+    return {"status": "resolved", "schema_version": CONSUMER_SCHEMA_VERSION, "hypothetical": True, "current_authority": False, **parsed["base"], "ordered_recipient_states": deepcopy(parsed["rows"]), "rock_slide_actor_state": deepcopy(parsed["actor"]), "frozen_execution_scope_authority": deepcopy(dict(scope)), "predictive_runtime_snapshot": snapshot, "predictive_strategy_d0": d0, "target_set_rule": vector.get("target_set_rule"), "vector_provenance": vector.get("provenance"), "provenance": "detached_rock_slide_vector_to_unchanged_frozen_scope_graph_consumer_adapter_v1"}
+
+
+def _private_snapshot(runtime_snapshot: Any, rows: tuple[Mapping[str, Any], ...], decision_owner: Mapping[str, Any]) -> dict[str, Any] | str:
+    state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, Mapping) else None
+    if not isinstance(state, Mapping): return "private_vector_runtime_snapshot_missing"
+    synthetic = deepcopy(dict(state))
+    seen = set()
+    for row in rows:
+        if not isinstance(row, Mapping) or not _owner(row.get("owner")): return "private_vector_state_row_invalid"
+        owner = row["owner"]; identity = tuple(owner[key] for key in _OWNER_KEYS)
+        if identity in seen: continue
+        seen.add(identity); raw = _pokemon(synthetic, owner)
+        if raw is None or not _hp(row.get("hp")) or not _hp(row.get("max_hp")) or row["hp"] > row["max_hp"] or row.get("fainted") is not (row["hp"] == 0) or not isinstance(row.get("stages"), Mapping): return "private_vector_state_override_invalid"
+        raw["current_hp"] = row["hp"]; raw["max_hp"] = row["max_hp"]; raw["fainted"] = row["fainted"]; raw["stat_stages"] = deepcopy(dict(row["stages"])); raw["detached_vector_private_state"] = True
+    return {"status": "runtime_snapshot_ready", "session_id": state.get("session_id"), "state": synthetic, "state_fingerprint": state_fingerprint(synthetic), "hypothetical": True, "current_authority": False}
 
 
 def _base(d0: Any, scope: Any) -> dict[str, Any] | None:
