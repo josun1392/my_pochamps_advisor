@@ -100,6 +100,7 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     elif second["state"] == "cancelled_due_to_paralysis":
         if second_leaf is not None or conditional != Fraction(1, 4) or execution_probability != Fraction(1, 4) or second.get("reason") != "second_action_cancelled_due_to_paralysis": return "cancelled_second_action_branch_invalid"
     elif second_leaf is not None or conditional != Fraction(1, 1) or execution_probability != Fraction(1, 1) or second.get("reason") != "second_action_cancelled_due_to_flinch": return "cancelled_second_action_branch_invalid"
+    elif _flinch_cancellation_binding(first, second) is not None: return _flinch_cancellation_binding(first, second)
     probability = _fraction(value.get("probability"))
     if probability != order_probability * _fraction(first["probability"]) * conditional: return "pair_leaf_probability_composition_invalid"
     final_source = second_leaf if isinstance(second_leaf, Mapping) else first
@@ -151,6 +152,19 @@ def _execution_probability(second: Mapping[str, Any]) -> Fraction | str:
     if second["state"] == "executed":
         return parsed if branch.get("execution_branch_id") == "second_action:can_act_after_paralysis" and parsed == Fraction(3, 4) else "second_action_execution_probability_invalid"
     return "second_action_execution_branch_invalid"
+
+
+def _flinch_cancellation_binding(first: Mapping[str, Any], second: Mapping[str, Any]) -> str | None:
+    """A flinch cancellation must be a surviving first-hit consequence on this actor."""
+    consequences, provenance = first.get("consequences"), first.get("provenance")
+    secondary = consequences.get("secondary") if isinstance(consequences, Mapping) else None
+    marker = secondary.get("hypothetical_target_flinch") if isinstance(secondary, Mapping) else None
+    if not isinstance(provenance, Mapping) or not isinstance(marker, Mapping) or secondary.get("branch") != "effect": return "flinch_cancellation_missing_exact_provenance"
+    if marker.get("schema_version") != "detached-hypothetical-immediate-flinch-v1" or marker.get("state") != "flinched" or marker.get("provenance") not in {"iron_head_successful_damage_roll_secondary_v1", "fake_out_successful_damage_roll_secondary_v1"}: return "flinch_cancellation_provenance_invalid"
+    if provenance.get("target") != second.get("actor"): return "flinch_cancellation_wrong_pending_actor"
+    target_hp = consequences.get("target_final_hp")
+    if not isinstance(target_hp, int) or target_hp <= 0: return "flinch_cancellation_after_target_faint"
+    return None
 
 
 def _final(source: Mapping[str, Any], base: Mapping[str, Any]) -> dict[str, Any] | str:

@@ -1,4 +1,4 @@
-"""Detached exact Iron Head flinch branches over already-computed hit rolls."""
+"""Detached exact catalogued target-flinch branches over already-computed hit rolls."""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -15,7 +15,7 @@ def compose_predictive_iron_head_flinch_uncertainty(*, candidate: Mapping[str, A
     authority = _authority(runtime_authority)
     if authority.get("status") != "resolved": return authority
     if not _candidate(candidate, authority) or not _interval(interval, authority):
-        return _result("rejected", "iron_head_flinch_candidate_or_hit_leaf_binding_mismatch")
+        return _result("rejected", "catalogued_target_flinch_candidate_or_hit_leaf_binding_mismatch")
     outcomes = resolve_predictive_post_hit_target_outcomes(interval=interval, post_hit=post_hit)
     if outcomes.get("status") != "resolved": return outcomes
     numerator, denominator = authority["probability"]["numerator"], authority["probability"]["denominator"]
@@ -29,34 +29,38 @@ def compose_predictive_iron_head_flinch_uncertainty(*, candidate: Mapping[str, A
         elif blocked:
             leaf.update(secondary_eligibility="blocked_by_substitute", secondary_branches=(_branch("no_effect", 1, 1),))
         else:
-            no_effect, effect = _branch("no_effect", denominator - numerator, denominator), _branch("effect", numerator, denominator)
+            no_effect, effect = _branch("no_effect", denominator - numerator, denominator, authority["move_id"]), _branch("effect", numerator, denominator, authority["move_id"])
             leaf.update(secondary_eligibility="eligible", secondary_branches=(no_effect, effect))
         leaves.append(leaf)
-    return {"status": "resolved", "schema_version": SCHEMA_VERSION, "horizon": HORIZON, "session_id": authority["session_id"], "source_runtime_fingerprint": authority["source_runtime_fingerprint"], "source_branch_fingerprint": authority["source_branch_fingerprint"], "decision_owner": deepcopy(dict(authority["decision_owner"])), "attacker": deepcopy(dict(authority["attacker"])), "target": deepcopy(dict(authority["target"])), "move_id": "iron-head", "runtime_authority": deepcopy(dict(runtime_authority)), "effect_probability": deepcopy(dict(authority["probability"])), "target_substitute_authority": deepcopy(dict(authority["target_substitute"])), "damage_roll_leaves": tuple(leaves), "provenance": "runtime_d0_iron_head_flinch_capability_to_detached_predictive_per_roll_branches_v1"}
+    return {"status": "resolved", "schema_version": SCHEMA_VERSION, "horizon": HORIZON, "session_id": authority["session_id"], "source_runtime_fingerprint": authority["source_runtime_fingerprint"], "source_branch_fingerprint": authority["source_branch_fingerprint"], "decision_owner": deepcopy(dict(authority["decision_owner"])), "attacker": deepcopy(dict(authority["attacker"])), "target": deepcopy(dict(authority["target"])), "move_id": authority["move_id"], "runtime_authority": deepcopy(dict(runtime_authority)), "effect_probability": deepcopy(dict(authority["probability"])), "target_substitute_authority": deepcopy(dict(authority["target_substitute"])), "damage_roll_leaves": tuple(leaves), "provenance": "runtime_d0_catalogued_target_flinch_capability_to_detached_predictive_per_roll_branches_v1"}
 
 
 def _authority(value: Any) -> dict[str, Any]:
     if not isinstance(value, Mapping): return _result("rejected", "invalid_runtime_iron_head_flinch_authority")
-    if value.get("status") in {"incomplete", "unsupported", "rejected"}: return _result(value["status"], value.get("reason", "runtime_iron_head_flinch_authority_unavailable"))
+    if value.get("status") in {"incomplete", "unsupported", "rejected", "ineligible"}: return _result(value["status"], value.get("reason", "runtime_catalogued_target_flinch_authority_unavailable"))
     required = ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "attacker", "target", "move", "capability_resolution", "target_substitute_authority")
-    if value.get("status") != "resolved" or value.get("schema_version") != "runtime-d0-iron-head-flinch-authority-v1" or not all(key in value for key in required): return _result("rejected", "invalid_resolved_runtime_iron_head_flinch_authority")
+    if value.get("status") != "resolved" or value.get("schema_version") not in {"runtime-d0-iron-head-flinch-authority-v1", "runtime-d0-fake-out-flinch-authority-v1"} or not all(key in value for key in required): return _result("rejected", "invalid_resolved_runtime_catalogued_target_flinch_authority")
     capability, substitute = value["capability_resolution"], value["target_substitute_authority"]
-    if not isinstance(capability, Mapping) or capability.get("status") != "resolved" or capability.get("effect") != {"owner": "target", "state": "flinch"} or not _fraction(capability.get("probability")) or not _substitute(substitute): return _result("rejected", "invalid_iron_head_flinch_capability_resolution")
-    return {"status": "resolved", **{key: value[key] for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "attacker", "target")}, "probability": capability["probability"], "target_substitute": substitute}
+    move = value.get("move")
+    if not isinstance(capability, Mapping) or capability.get("status") != "resolved" or capability.get("effect") != {"owner": "target", "state": "flinch"} or not _fraction(capability.get("probability")) or not _substitute(substitute) or not isinstance(move, Mapping) or capability.get("move_id") != move.get("move_id"): return _result("rejected", "invalid_catalogued_target_flinch_capability_resolution")
+    if capability.get("conditions", {}).get("requires_active_entry_eligibility"):
+        entry = value.get("active_entry_eligibility_authority")
+        if not isinstance(entry, Mapping) or entry.get("status") != "resolved" or entry.get("eligibility") != "eligible": return _result("rejected", "fake_out_active_entry_eligibility_authority_invalid")
+    return {"status": "resolved", **{key: value[key] for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "attacker", "target")}, "move_id": move["move_id"], "probability": capability["probability"], "target_substitute": substitute}
 
 
 def _candidate(value: Any, authority: Mapping[str, Any]) -> bool:
-    return isinstance(value, Mapping) and value.get("candidate_id") == "attack:iron-head" and value.get("action_type") == "attack" and all(value.get(key) == authority[key] for key in ("session_id", "source_branch_fingerprint", "decision_owner"))
+    return isinstance(value, Mapping) and value.get("candidate_id") == f"attack:{authority['move_id']}" and value.get("action_type") == "attack" and all(value.get(key) == authority[key] for key in ("session_id", "source_branch_fingerprint", "decision_owner"))
 
 
 def _interval(value: Any, authority: Mapping[str, Any]) -> bool:
     rolls = value.get("exact_damage_rolls") if isinstance(value, Mapping) else None
-    return isinstance(value, Mapping) and value.get("completeness") == "exact_complete" and value.get("move_id") == "iron-head" and all(value.get(key) == authority[key] for key in ("session_id", "source_branch_fingerprint", "decision_owner")) and value.get("target_routing") == "target" and isinstance(value.get("target_hp_before"), int) and not isinstance(value["target_hp_before"], bool) and value["target_hp_before"] > 0 and isinstance(rolls, tuple) and len(rolls) == 16 and all(isinstance(damage, int) and not isinstance(damage, bool) and damage > 0 for damage in rolls)
+    return isinstance(value, Mapping) and value.get("completeness") == "exact_complete" and value.get("move_id") == authority["move_id"] and all(value.get(key) == authority[key] for key in ("session_id", "source_branch_fingerprint", "decision_owner")) and value.get("target_routing") == "target" and isinstance(value.get("target_hp_before"), int) and not isinstance(value["target_hp_before"], bool) and value["target_hp_before"] > 0 and isinstance(rolls, tuple) and len(rolls) == 16 and all(isinstance(damage, int) and not isinstance(damage, bool) and damage > 0 for damage in rolls)
 
 
-def _branch(name: str, numerator: int, denominator: int) -> dict[str, Any]:
+def _branch(name: str, numerator: int, denominator: int, move_id: str) -> dict[str, Any]:
     result = {"branch": name, "conditional_secondary_probability": {"numerator": numerator, "denominator": denominator}}
-    if name == "effect": result["hypothetical_target_flinch"] = {"schema_version": "detached-hypothetical-immediate-flinch-v1", "state": "flinched", "provenance": "iron_head_successful_damage_roll_secondary_v1"}
+    if name == "effect": result["hypothetical_target_flinch"] = {"schema_version": "detached-hypothetical-immediate-flinch-v1", "state": "flinched", "provenance": "iron_head_successful_damage_roll_secondary_v1" if move_id == "iron-head" else "fake_out_successful_damage_roll_secondary_v1"}
     return result
 
 

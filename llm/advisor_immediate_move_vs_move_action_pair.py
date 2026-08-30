@@ -70,6 +70,7 @@ from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_strict_hit_probability_assessment,
     freeze_runtime_d0_thunderbolt_paralysis_authority,
     freeze_runtime_d0_iron_head_flinch_authority,
+    freeze_runtime_d0_fake_out_flinch_authority,
     freeze_runtime_d0_sparkling_aria_burn_clearing_authority,
     freeze_runtime_d0_probabilistic_self_stage_effect_authority,
     freeze_runtime_d0_probabilistic_target_stage_effect_authority,
@@ -574,9 +575,10 @@ def _materialize_order(
         root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
         if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "opponent_root_predictive_authority_unavailable"), base)
         first_d0, first_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
+    first_action = own_action if order == "own_first" else opponent_action
     first = _attack_ledger(strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
                                    target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"], metadata_authority=first_meta,
-                                   sturdy_survival_authority=first_action_sturdy_survival_authority)
+                                   sturdy_survival_authority=first_action_sturdy_survival_authority, action=first_action)
     if first.get("status") != "evaluable": return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base, first_action_ledger=first)
     branches: list[dict[str, Any]] = []
     second_actor = base["opponent_actor"] if order == "own_first" else base["own_actor"]
@@ -614,7 +616,7 @@ def _materialize_order(
         second = None
         if executable:
             second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
-                actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs))
+                actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs), action=opponent_action if order == "own_first" else own_action)
             if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
         for execution_branch in execution:
             if execution_branch["state"] == "cancelled_due_to_paralysis":
@@ -624,7 +626,7 @@ def _materialize_order(
     return branches
 
 
-def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     if metadata.get("move_id") == "seismic-toss":
@@ -635,7 +637,7 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
             target=target, metadata_authority=metadata_authority,
             sturdy_survival_authority=sturdy_survival_authority,
         )
-    return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority)
+    return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, action=action)
 
 
 def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -692,7 +694,7 @@ def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Ma
     return leaf
 
 
-def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     sparkling_aria = None
@@ -712,6 +714,7 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         return _result(_status(row), row.get("reason", "normal_formula_predictive_authority_unavailable"), {})
     thunderbolt = None
     iron_head_flinch = None
+    fake_out_flinch = None
     self_stage = None
     target_stage = None
     if metadata["move_id"] == "thunderbolt":
@@ -728,6 +731,11 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         )
         if iron_head_flinch.get("status") != "resolved":
             return _result(_status(iron_head_flinch), iron_head_flinch.get("reason", "iron_head_flinch_authority_unavailable"), {})
+    if metadata["move_id"] == "fake-out":
+        if not isinstance(action, Mapping): return _result("incomplete", "fake_out_action_identity_required", {})
+        fake_out_flinch = freeze_runtime_d0_fake_out_flinch_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, fake_out_action=action)
+        if fake_out_flinch.get("status") == "ineligible": fake_out_flinch = None
+        elif fake_out_flinch.get("status") != "resolved": return _result(_status(fake_out_flinch), fake_out_flinch.get("reason", "fake_out_flinch_authority_unavailable"), {})
     if metadata["move_id"] == "metal-claw":
         self_stage = freeze_runtime_d0_probabilistic_self_stage_effect_authority(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
@@ -751,11 +759,11 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     non = _normal_formula_facts(candidate, paired["non_critical_context"], own_hp, post_input, normal,
         probabilistic_self_stage_effect_authority=self_stage,
         probabilistic_target_stage_effect_authority=target_stage,
-        thunderbolt_paralysis_authority=thunderbolt, iron_head_flinch_authority=iron_head_flinch, sparkling_aria_burn_clearing_authority=sparkling_aria, sturdy_survival_authority=sturdy_survival_authority)
+        thunderbolt_paralysis_authority=thunderbolt, iron_head_flinch_authority=iron_head_flinch or fake_out_flinch, sparkling_aria_burn_clearing_authority=sparkling_aria, sturdy_survival_authority=sturdy_survival_authority)
     critical = _normal_formula_facts(candidate, paired["critical_context"], own_hp, post_input, normal,
         probabilistic_self_stage_effect_authority=self_stage,
         probabilistic_target_stage_effect_authority=target_stage,
-        thunderbolt_paralysis_authority=thunderbolt, iron_head_flinch_authority=iron_head_flinch, sparkling_aria_burn_clearing_authority=sparkling_aria, sturdy_survival_authority=sturdy_survival_authority)
+        thunderbolt_paralysis_authority=thunderbolt, iron_head_flinch_authority=iron_head_flinch or fake_out_flinch, sparkling_aria_burn_clearing_authority=sparkling_aria, sturdy_survival_authority=sturdy_survival_authority)
     if isinstance(sturdy_survival_authority, Mapping) and sturdy_survival_authority.get("status") == "ready":
         failed = next((fact.get("post_hit_failure") for fact in (non, critical) if isinstance(fact.get("post_hit_failure"), Mapping)), None)
         if failed is not None:
@@ -770,7 +778,7 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     if uncertainty.get("status") != "resolved": return _result(_status(uncertainty), uncertainty.get("reason", "hit_miss_uncertainty_unavailable"), {})
     bindings = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "attacker": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "move_id": metadata["move_id"]}
     return normalize_exact_predictive_outcome_ledger(candidate=candidate, predictive_consequence=uncertainty,
-        component_manifest={"accuracy": {"status": "resolved"}, "critical": {"status": "resolved"}, "damage_roll": {"status": "resolved"}, "secondary": {"status": "resolved" if any(item is not None for item in (thunderbolt, iron_head_flinch, sparkling_aria, self_stage, target_stage)) else "not_applicable"}}, bindings=bindings)
+        component_manifest={"accuracy": {"status": "resolved"}, "critical": {"status": "resolved"}, "damage_roll": {"status": "resolved"}, "secondary": {"status": "resolved" if any(item is not None for item in (thunderbolt, iron_head_flinch, fake_out_flinch, sparkling_aria, self_stage, target_stage)) else "not_applicable"}}, bindings=bindings)
 
 
 def _consequences(interval: Mapping[str, Any], facts: Mapping[str, Any]) -> dict[str, Any]:

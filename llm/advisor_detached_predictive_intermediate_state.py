@@ -201,9 +201,10 @@ def _flinch_cancellation_consequence(consequences: Mapping[str, Any], target: Ma
     if not isinstance(secondary, Mapping) or "hypothetical_target_flinch" not in secondary:
         return {"status": "resolved", "affected_owner": deepcopy(dict(target)), "state": "not_flinched", "provenance": "no_exact_first_action_flinch_consequence"}
     marker = secondary.get("hypothetical_target_flinch")
-    if secondary.get("branch") != "effect" or not isinstance(marker, Mapping) or marker.get("schema_version") != "detached-hypothetical-immediate-flinch-v1" or marker.get("state") != "flinched" or marker.get("provenance") != "iron_head_successful_damage_roll_secondary_v1":
+    provenance = marker.get("provenance") if isinstance(marker, Mapping) else None
+    if secondary.get("branch") != "effect" or not isinstance(marker, Mapping) or marker.get("schema_version") != "detached-hypothetical-immediate-flinch-v1" or marker.get("state") != "flinched" or provenance not in {"iron_head_successful_damage_roll_secondary_v1", "fake_out_successful_damage_roll_secondary_v1"}:
         return "terminal_leaf_flinch_consequence_invalid"
-    return {"status": "resolved", "affected_owner": deepcopy(dict(target)), "state": "flinched", "provenance": "exact_terminal_leaf_iron_head_flinch_secondary"}
+    return {"status": "resolved", "affected_owner": deepcopy(dict(target)), "state": "flinched", "provenance": "exact_terminal_leaf_iron_head_flinch_secondary" if provenance == "iron_head_successful_damage_roll_secondary_v1" else "exact_terminal_leaf_fake_out_flinch_secondary"}
 
 
 def _unchanged_authority(d0: Mapping[str, Any]) -> dict[str, Any]:

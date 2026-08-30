@@ -44,7 +44,7 @@ def resolve_probabilistic_target_flinch_effect_capability(*, move: Mapping[str, 
         **base, "status": "resolved", "rule_id": rule["rule_id"],
         "probability": {"numerator": rule["effect_chance"], "denominator": 100},
         "effect": deepcopy(rule["effect"]), "conditions": deepcopy(rule["conditions"]),
-        "provenance": "canonical_iron_head_flinch_catalog_v1",
+        "provenance": "canonical_catalogued_target_flinch_effect_v1",
     }
 
 
