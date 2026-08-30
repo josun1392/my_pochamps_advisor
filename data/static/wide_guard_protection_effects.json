@@ -1,0 +1,10 @@
+{
+  "moves": {
+    "wide-guard": {
+      "protects_side": true,
+      "protection_kind": "spread_action_guard",
+      "requires_spread_multi_target": true,
+      "blocks_supported_direct_damage": true
+    }
+  }
+}
