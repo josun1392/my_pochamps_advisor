@@ -2,6 +2,7 @@ from copy import deepcopy
 
 from llm.advisor_runtime_d0_population_bomb_per_hit_accuracy_execution_authority import (
     SCHEMA_VERSION,
+    freeze_runtime_d0_population_bomb_hit_count_modifier_authority,
     freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority,
 )
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
@@ -50,16 +51,24 @@ def test_canonical_base_population_bomb_freezes_ten_independent_accuracy_attempt
     assert result["execution_exclusions"]["action_level_accuracy"] == "forbidden"
 
 
-def test_relevant_or_unknown_count_modifiers_and_noncanonical_metadata_fail_closed():
+def test_modifier_authority_resolves_skill_link_loaded_dice_and_precedence():
     state = _state(); pokemon = state["self_side"]["pokemon"][0]; pokemon["current_ability"] = "skill-link"
     snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state))
     result = freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=_action(d0))
-    assert result["status"] == "unsupported" and result["reason"] == "population_bomb_skill_link_requires_separate_execution_authority"
+    assert result["status"] == "resolved"
+    assert result["modifier_authority"]["modifier_execution_plan"] == {"kind": "single_accuracy_then_fixed_guaranteed_hits", "count": 10, "semantics": "skill_link_fixed_ten"}
 
     state = _state(); pokemon = state["self_side"]["pokemon"][0]; pokemon["known_item"] = "loaded-dice"; pokemon["known_item_provenance"]["status"] = "known"
     snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state))
     result = freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=_action(d0))
-    assert result["status"] == "unsupported" and result["reason"] == "population_bomb_loaded_dice_requires_separate_execution_authority"
+    assert result["status"] == "resolved"
+    plan = result["modifier_authority"]["modifier_execution_plan"]
+    assert plan["kind"] == "single_accuracy_then_uniform_guaranteed_hits" and plan["support"] == tuple(range(4, 11)) and plan["conditional_probability"] == {"numerator": 1, "denominator": 7}
+
+    state["self_side"]["pokemon"][0]["current_ability"] = "skill-link"
+    snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state))
+    plan = freeze_runtime_d0_population_bomb_hit_count_modifier_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=_action(d0))["modifier_execution_plan"]
+    assert plan["kind"] == "single_accuracy_then_uniform_guaranteed_hits" and plan["semantics"] == "loaded_dice_precedes_skill_link"
 
     state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state))
     assert freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=_action(d0, multiaccuracy=False))["status"] == "unsupported"

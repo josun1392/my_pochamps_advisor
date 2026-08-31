@@ -63,29 +63,43 @@ def materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
 
 
 def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], target_hp: int, sturdy_survival_authority: Mapping[str, Any] | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], Fraction] | tuple[dict[str, str], None, None, None]:
-    roots = [{"root_id": "attempt:1", "probability": Fraction(1, 1), "terminal": False, "node_id": "attempt:1/landed:0/hp:" + str(target_hp) + "/sturdy:available"}]
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
-    node_index: dict[tuple[int, int, int, bool], str] = {}
+    plan = _mapping(_mapping(base["execution_authority"]).get("modifier_authority")).get("modifier_execution_plan")
+    kind = _mapping(plan).get("kind")
+    if kind == "existing_independent_multiaccuracy":
+        planned_counts = ((_MAX_ATTEMPTS, Fraction(1, 1)),)
+    elif kind == "single_accuracy_then_fixed_guaranteed_hits" and plan.get("count") == _MAX_ATTEMPTS:
+        planned_counts = ((_MAX_ATTEMPTS, Fraction(1, 1)),)
+    elif kind == "single_accuracy_then_uniform_guaranteed_hits" and tuple(plan.get("support", ())) == tuple(range(4, 11)) and _fraction_value(plan.get("conditional_probability")) == Fraction(1, 7):
+        planned_counts = tuple((count, Fraction(1, 7)) for count in range(4, 11))
+    else:
+        return {"status": "rejected", "reason": "population_bomb_modifier_execution_plan_invalid"}, None, None, None
+    roots = [{"root_id": f"planned-hits:{count}", "probability": probability, "terminal": False,
+              "node_id": f"attempt:1/landed:0/max:{count}/hp:{target_hp}/sturdy:available",
+              "modifier_execution_plan": kind, "selected_hit_count": count if kind == "single_accuracy_then_uniform_guaranteed_hits" else None}
+             for count, probability in planned_counts]
+    node_index: dict[tuple[int, int, int, int, bool], str] = {}
     node_mass: dict[str, Fraction] = {}
     terminal_mass = Fraction()
     hit_factor, miss_factor = base["per_attempt_hit_probability"], base["per_attempt_miss_probability"]
 
-    def add_node(attempt: int, landed: int, hp: int, consumed: bool) -> str:
-        key = (attempt, landed, hp, consumed)
+    def add_node(attempt: int, landed: int, maximum: int, hp: int, consumed: bool) -> str:
+        key = (attempt, landed, maximum, hp, consumed)
         existing = node_index.get(key)
         if existing is not None:
             return existing
-        node_id = f"attempt:{attempt}/landed:{landed}/hp:{hp}/sturdy:{'consumed' if consumed else 'available'}"
+        node_id = f"attempt:{attempt}/landed:{landed}/max:{maximum}/hp:{hp}/sturdy:{'consumed' if consumed else 'available'}"
         node_index[key] = node_id
-        nodes.append({"node_id": node_id, "attempt_index": attempt, "landed_hit_count": landed, "target_hp": hp, "sturdy_consumed": consumed})
+        nodes.append({"node_id": node_id, "attempt_index": attempt, "landed_hit_count": landed, "maximum_attempts": maximum, "target_hp": hp, "sturdy_consumed": consumed})
         node_mass[node_id] = Fraction()
         return node_id
 
-    root = add_node(1, 0, target_hp, False)
-    if roots[0]["node_id"] != root:
-        return {"status": "rejected", "reason": "population_bomb_root_node_identity_invalid"}, None, None, None
-    node_mass[root] = Fraction(1, 1)
+    for root_row, (maximum, probability) in zip(roots, planned_counts):
+        root = add_node(1, 0, maximum, target_hp, False)
+        if root_row["node_id"] != root:
+            return {"status": "rejected", "reason": "population_bomb_root_node_identity_invalid"}, None, None, None
+        node_mass[root] += probability
     event_cache: dict[tuple[int, bool], list[dict[str, Any]] | dict[str, str]] = {}
     cursor = 0
     while cursor < len(nodes):
@@ -94,15 +108,17 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
         if not source_mass:
             continue
         attempt = node["attempt_index"]
-        if miss_factor:
+        hit_probability = hit_factor if kind == "existing_independent_multiaccuracy" or attempt == 1 else Fraction(1, 1)
+        miss_probability = miss_factor if kind == "existing_independent_multiaccuracy" or attempt == 1 else Fraction()
+        if miss_probability:
             edges.append({
                 "edge_id": f"{node['node_id']}/attempt:{attempt}:miss", "from_node_id": node["node_id"],
-                "conditional_probability": miss_factor, "attempt_outcome": {"attempt_index": attempt, "outcome": "miss"},
+                "conditional_probability": miss_probability, "attempt_outcome": {"attempt_index": attempt, "outcome": "miss"},
                 "terminal": True, "terminal_reason": "first_miss_terminates_remaining_attempts",
                 "terminal_consequences": _consequences(base, node["target_hp"], sturdy_survival_authority, node["sturdy_consumed"], node["landed_hit_count"]),
             })
-            terminal_mass += source_mass * miss_factor
-        if not hit_factor:
+            terminal_mass += source_mass * miss_probability
+        if not hit_probability:
             continue
         can_use_sturdy = not node["sturdy_consumed"] and _sturdy_full_hp(sturdy_survival_authority, node["target_hp"])
         cache_key = (node["target_hp"], can_use_sturdy)
@@ -129,20 +145,20 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             row["attempt_index"] = attempt
             row["hit_index"] = node["landed_hit_count"] + 1
             consumed = bool(node["sturdy_consumed"] or row["sturdy_applied"])
-            terminal = row["post_hp"] == 0 or attempt == _MAX_ATTEMPTS
+            terminal = row["post_hp"] == 0 or attempt == node["maximum_attempts"]
             edge = {
                 "edge_id": f"{node['node_id']}/attempt:{attempt}:hit:{row['critical_state']}:roll:{row['roll_index']}",
-                "from_node_id": node["node_id"], "conditional_probability": hit_factor * factor,
+                "from_node_id": node["node_id"], "conditional_probability": hit_probability * factor,
                 "attempt_outcome": {"attempt_index": attempt, "outcome": "hit", "ordered_hit": row}, "terminal": terminal,
             }
             if terminal:
-                edge["terminal_reason"] = "target_fainted" if row["post_hp"] == 0 else "maximum_ten_attempts_reached"
+                edge["terminal_reason"] = "target_fainted" if row["post_hp"] == 0 else ("maximum_ten_attempts_reached" if kind == "existing_independent_multiaccuracy" else "planned_hit_count_reached")
                 edge["terminal_consequences"] = _consequences(base, row["post_hp"], sturdy_survival_authority, consumed, node["landed_hit_count"] + 1)
-                terminal_mass += source_mass * hit_factor * factor
+                terminal_mass += source_mass * hit_probability * factor
             else:
-                next_node = add_node(attempt + 1, node["landed_hit_count"] + 1, row["post_hp"], consumed)
+                next_node = add_node(attempt + 1, node["landed_hit_count"] + 1, node["maximum_attempts"], row["post_hp"], consumed)
                 edge["to_node_id"] = next_node
-                node_mass[next_node] += source_mass * hit_factor * factor
+                node_mass[next_node] += source_mass * hit_probability * factor
             edges.append(edge)
     return roots, nodes, edges, terminal_mass
 
@@ -160,6 +176,10 @@ def _base(d0: Any, action: Any, authority: Any) -> dict[str, Any] | None:
     accuracy = _mapping(authority.get("per_attempt_accuracy_execution"))
     critical = _mapping(authority.get("per_hit_critical_execution"))
     probabilities = _probabilities(accuracy)
+    modifier = _mapping(authority.get("modifier_authority"))
+    plan = _mapping(modifier.get("modifier_execution_plan"))
+    if plan.get("kind") not in {"existing_independent_multiaccuracy", "single_accuracy_then_fixed_guaranteed_hits", "single_accuracy_then_uniform_guaranteed_hits"}:
+        return None
     if not isinstance(metadata, Mapping) or metadata.get("move_id") != action.get("identity") or metadata.get("move_id") != _MOVE_ID or maximum.get("status") != "resolved" or maximum.get("maximum_attempts") != _MAX_ATTEMPTS or maximum.get("semantics") != "canonical_fixed_ten_attempt_multiaccuracy" or accuracy.get("semantics") != "independent_accuracy_check_per_attempt_stop_on_first_miss" or probabilities is None or critical.get("semantics") != "independent_canonical_critical_roll_per_landed_hit" or not isinstance(critical.get("per_hit_critical_probability"), Mapping):
         return None
     own_hp = _mapping(_mapping(d0.get("strategy_state")).get("active")).get(attacker.get("side") if isinstance(attacker, Mapping) else None)
@@ -176,6 +196,13 @@ def _probabilities(value: Mapping[str, Any]) -> tuple[Fraction, Fraction] | None
     except (KeyError, TypeError, ValueError, ZeroDivisionError):
         return None
     return (hit, miss) if hit >= 0 and miss >= 0 and hit + miss == Fraction(1, 1) and value.get("root_mass") == {"numerator": 1, "denominator": 1} else None
+
+
+def _fraction_value(value: Any) -> Fraction | None:
+    try:
+        return Fraction(value["numerator"], value["denominator"])
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return None
 
 
 def _sturdy_full_hp(authority: Mapping[str, Any] | None, hp: int) -> bool:

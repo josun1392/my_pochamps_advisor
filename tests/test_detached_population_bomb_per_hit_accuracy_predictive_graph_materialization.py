@@ -12,10 +12,16 @@ from tests.test_detached_variable_two_to_five_hit_per_hit_predictive_materializa
 from tests.test_immediate_attack_vs_opponent_switch_action_pair import _owner, _state
 
 
-def _inputs(*, accuracy=100, power=20, target_hp=100):
+def _inputs(*, accuracy=100, power=20, target_hp=100, ability=None, item=None):
     state = _state()
     target = state["opponent_side"]["pokemon"][0]
     target.update(current_hp=target_hp, max_hp=max(target_hp, 100), fainted=False)
+    attacker = state["self_side"]["pokemon"][0]
+    if ability is not None:
+        attacker["current_ability"] = ability
+    if item is not None:
+        attacker["known_item"] = item
+        attacker.setdefault("known_item_provenance", {})["status"] = "known"
     snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
     own, foe = _owner(state, "self"), _owner(state, "opponent")
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=own)
@@ -66,3 +72,21 @@ def test_stale_or_foreign_authority_rejects():
     assert materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=bad)["status"] == "rejected"
     stale = deepcopy(snapshot); stale["state"]["self_side"]["pokemon"][0]["current_hp"] = 1; stale["state_fingerprint"] = state_fingerprint(stale["state"])
     assert materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(strategy_d0=d0, runtime_snapshot=stale, action=action, execution_authority=execution)["status"] == "rejected"
+
+
+def test_skill_link_and_loaded_dice_use_one_initial_accuracy_then_guaranteed_planned_hits():
+    _state0, snapshot, d0, action, execution, _own, _foe = _inputs(accuracy=50, power=1, target_hp=1000, ability="skill-link")
+    result = materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=execution)
+    assert result["status"] == "evaluable"
+    assert len(result["terminal_leaf_roots"]) == 1
+    misses = [edge for edge in result["terminal_leaf_edges"] if edge["attempt_outcome"]["outcome"] == "miss"]
+    assert len(misses) == 1 and misses[0]["terminal_consequences"]["landed_hit_count"] == 0
+    assert all(edge["attempt_outcome"]["outcome"] != "miss" or edge["from_node_id"].startswith("attempt:1/") for edge in result["terminal_leaf_edges"])
+
+    _state0, snapshot, d0, action, execution, _own, _foe = _inputs(accuracy=100, power=1, target_hp=1000, ability="skill-link", item="loaded-dice")
+    result = materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=execution)
+    assert result["status"] == "evaluable" and result["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    roots = result["terminal_leaf_roots"]
+    assert [root["selected_hit_count"] for root in roots] == list(range(4, 11))
+    assert all(root["probability"] == {"numerator": 1, "denominator": 7} for root in roots)
+    assert not [edge for edge in result["terminal_leaf_edges"] if edge["attempt_outcome"]["outcome"] == "miss"]

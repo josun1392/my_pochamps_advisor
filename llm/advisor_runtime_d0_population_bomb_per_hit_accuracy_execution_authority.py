@@ -57,7 +57,9 @@ def freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
         attacker=attacker, target=target, move_metadata=metadata,
     )
-    modifier = _base_modifier_authority(critical_source)
+    modifier = freeze_runtime_d0_population_bomb_hit_count_modifier_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
+    )
     if modifier.get("status") != "resolved":
         return _result(modifier.get("status", "rejected"), modifier.get("reason", "population_bomb_modifier_authority_unavailable"), {
             **common, "classification": classification, "modifier_authority": deepcopy(modifier),
@@ -106,7 +108,53 @@ def freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority(
             "contact_or_item_consumption": "requires_separate_exact_owner",
             "substitute_or_replacement": "requires_separate_exact_owner",
         },
-    }
+}
+
+
+def freeze_runtime_d0_population_bomb_hit_count_modifier_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    action: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Freeze the current D0 Skill Link/Loaded Dice execution modifier.
+
+    This intentionally owns only Population Bomb's hit-count modifier; it does
+    not turn the descriptive multi-hit helper into runtime authority.
+    """
+    base = _base(strategy_d0)
+    if base is None:
+        return _result("rejected", "invalid_runtime_strategy_d0", {})
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"), base)
+    attacker = strategy_d0.get("decision_owner")
+    active = strategy_d0.get("active_owners", {})
+    target = active.get("opponent" if isinstance(attacker, Mapping) and attacker.get("side") == "self" else "self")
+    if not _owner(attacker) or not _owner(target) or attacker != active.get(attacker["side"]):
+        return _result("rejected", "runtime_population_bomb_active_identity_unavailable", base)
+    metadata_authority = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=action)
+    common = {**base, "action_id": action.get("action_id"), "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move_metadata_authority": deepcopy(metadata_authority)}
+    if metadata_authority.get("status") != "resolved":
+        return _result(metadata_authority.get("status", "rejected"), metadata_authority.get("reason", "population_bomb_move_metadata_unavailable"), common)
+    classification = _classification(metadata_authority.get("metadata"), action.get("identity"))
+    if classification.get("status") != "resolved":
+        return _result(classification["status"], classification["reason"], {**common, "classification": classification})
+    critical = freeze_runtime_d0_critical_hit_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=attacker, target=target, move_metadata=metadata_authority["metadata"])
+    source = _mapping(critical.get("source_authority"))
+    ability, item = _mapping(source.get("attacker_ability")), _mapping(source.get("attacker_item"))
+    if ability.get("status") == "unknown": return _result("incomplete", "population_bomb_attacker_ability_unknown", common)
+    if item.get("status") == "unknown": return _result("incomplete", "population_bomb_attacker_item_unknown", common)
+    if ability.get("status") not in {"known", "known_absent"} or item.get("status") not in {"known", "known_absent"}:
+        return _result("rejected", "population_bomb_modifier_source_authority_invalid", common)
+    skill_link, loaded_dice = ability.get("value") == "skill-link", item.get("value") == "loaded-dice"
+    if loaded_dice:
+        plan = {"kind": "single_accuracy_then_uniform_guaranteed_hits", "support": tuple(range(4, 11)), "conditional_probability": _fraction(Fraction(1, 7)), "semantics": "loaded_dice_precedes_skill_link", "selected_count_source": "loaded-dice"}
+    elif skill_link:
+        plan = {"kind": "single_accuracy_then_fixed_guaranteed_hits", "count": _MAX_ATTEMPTS, "semantics": "skill_link_fixed_ten"}
+    else:
+        plan = {"kind": "existing_independent_multiaccuracy", "count": _MAX_ATTEMPTS, "semantics": "exact_known_non_applicability"}
+    return {"status": "resolved", "schema_version": SCHEMA_VERSION, **common, "classification": classification,
+            "attacker_ability": deepcopy(dict(ability)), "attacker_item": deepcopy(dict(item)),
+            "modifier_execution_plan": plan, "provenance": "runtime_d0_population_bomb_hit_count_modifier_authority_v1"}
 
 
 def _classification(metadata: Any, expected_move_id: Any) -> dict[str, Any]:
