@@ -34,6 +34,7 @@ def materialize_detached_opponent_response_profile(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     own_action: Mapping[str, Any], response_set_authority: Mapping[str, Any],
     action_order_authorities: Mapping[str, Mapping[str, Any]],
+    quick_claw_action_order_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build every required pair, ledger, and metric without response policy."""
     base = _base(strategy_d0, own_action, response_set_authority)
@@ -60,6 +61,8 @@ def materialize_detached_opponent_response_profile(
     move_ids = tuple(action_id for action_id in expected if action_by_id[action_id].get("response_kind", "move") == "move")
     if not isinstance(action_order_authorities, Mapping) or set(action_order_authorities) != set(move_ids):
         return _result("rejected", "response_profile_action_order_set_mismatch", base)
+    if quick_claw_action_order_authorities is not None and set(quick_claw_action_order_authorities) != set(move_ids):
+        return _result("rejected", "response_profile_quick_claw_order_set_mismatch", base)
     entries = []
     profile_status = "evaluable"
     for action_id in expected:
@@ -72,7 +75,8 @@ def materialize_detached_opponent_response_profile(
                 return _result("rejected", "selectable_move_response_usability_invalid", base)
             pair_builder = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair if own_action.get("identity") in {"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"} else materialize_immediate_move_vs_move_action_pair
             pair = pair_builder(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own_action,
-                                opponent_action=action, action_order_authority=action_order_authorities[action_id])
+                                opponent_action=action, action_order_authority=action_order_authorities[action_id],
+                                **({"quick_claw_action_order_authority": quick_claw_action_order_authorities[action_id]} if quick_claw_action_order_authorities is not None else {}))
         else:
             switch_authority = response_set_authority.get("source_switch_response_authority")
             if not isinstance(switch_authority, Mapping):

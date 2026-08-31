@@ -522,6 +522,8 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
         for key, reason in (("ability", "ability_modifier"), ("item", "item_modifier"), ("status", "major_status_modifier")):
             value = side.get(key)
             if isinstance(value, Mapping) and value.get("status") == "known" and _nonempty_str(value.get("value")):
+                if key == "item" and value.get("value") == "quick-claw":
+                    continue
                 # Detached intermediate major conditions are exact terminal
                 # consequences, not current-runtime observations.  They may
                 # be consumed only through the tagged private calculator view.
@@ -770,7 +772,7 @@ def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
     # Loaded Dice only alters the multi-hit count.  The count modifier owner
     # supplies that effect separately, so it has no direct single-hit damage
     # modifier to apply here.
-    if item_id == "loaded-dice":
+    if item_id in {"loaded-dice", "quick-claw"}:
         return result
     if item_id not in STATIC_ATTACKER_DAMAGE_ITEMS:
         result["unsupported_reason"] = "item_modifier"
@@ -827,6 +829,9 @@ def _defender_item_modifier_context(
         result["missing_inputs"].append("defender.item")
         return result
     item_id = item["value"]
+    # Quick Claw changes only the separately-owned action-order branch.
+    if item_id == "quick-claw":
+        return result
     effect = get_item(item_id)
     if effect is None:
         result["unsupported_reason"] = "defender_item_modifier"

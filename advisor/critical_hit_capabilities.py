@@ -220,6 +220,9 @@ def _attacker_item(source: Mapping[str, Any], ledger: list[dict[str, Any]]) -> d
     if source["status"] == "known_absent":
         ledger.append(_row("attacker_item", "known_neutral", reason="proven_item_absent")); return _resolved(None)
     item = source["value"]
+    # Quick Claw is consumed exclusively by the action-order branch owner.
+    if item == "quick-claw":
+        ledger.append(_row("attacker_item", "known_neutral", source_value=item, reason="quick_claw_order_only")); return _resolved(None)
     if item not in _SUPPORTED_ATTACKER_ITEMS:
         ledger.append(_row("attacker_item", "unsupported", source_value=item)); return _unsupported("attacker_item_not_in_supported_critical_hit_catalog")
     ledger.append(_row("attacker_item", "applicable", source_value=item)); return _resolved(item)

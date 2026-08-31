@@ -50,6 +50,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
     action_order_authority: Mapping[str, Any],
+    quick_claw_action_order_authority: Mapping[str, Any] | None = None,
     first_action_sturdy_survival_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -57,7 +58,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
     base = _base(strategy_d0, own_action, opponent_action)
     if base is None:
         return _result("rejected", "invalid_variable_graph_pair_request", {})
-    orders = _orders(action_order_authority, base)
+    orders = _orders(action_order_authority, base, quick_claw_action_order_authority)
     if isinstance(orders, tuple):
         return _result(*orders, base)
     own_metadata = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)

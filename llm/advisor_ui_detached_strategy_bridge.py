@@ -13,6 +13,7 @@ from llm.advisor_current_execution_authority import freeze_current_execution_aut
 from llm.advisor_detached_strategy_orchestration import run_detached_strategy_orchestration
 from llm.advisor_detached_opponent_response_profile import materialize_detached_opponent_response_profile
 from llm.advisor_runtime_d0_action_order_authority import freeze_runtime_d0_action_order_authority
+from llm.advisor_runtime_d0_quick_claw_action_order_authority import freeze_runtime_d0_quick_claw_action_order_authority
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
 from llm.advisor_runtime_d0_combined_opponent_response_universe_authority import freeze_runtime_d0_combined_opponent_response_universe_authority
 from llm.advisor_runtime_d0_opponent_action_authority import freeze_runtime_d0_opponent_known_move_action_authority
@@ -188,9 +189,17 @@ def _project_live_opponent_response_profiles(
             for response_id in response_set.get("selectable_response_action_ids", ())
             if by_id.get(response_id, {}).get("response_kind") == "move"
         }
+        quick_claw_orders = {
+            response_id: freeze_runtime_d0_quick_claw_action_order_authority(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own,
+                opponent_action=by_id.get(response_id, {}), action_order_authority=orders[response_id],
+            )
+            for response_id in orders
+        }
         result[action_id] = materialize_detached_opponent_response_profile(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own,
             response_set_authority=response_set, action_order_authorities=orders,
+            quick_claw_action_order_authorities=quick_claw_orders,
         )
     return result
 

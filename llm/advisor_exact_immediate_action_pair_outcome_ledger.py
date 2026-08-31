@@ -129,10 +129,23 @@ def _order_probability(value: Mapping[str, Any]) -> Fraction | str:
     probability = value.get("action_order_conditional_probability")
     if branch is None and probability is None:
         return Fraction(1, 1)
-    if not isinstance(branch, Mapping) or branch.get("order") != value.get("action_order") or branch.get("order_branch_id") not in {"equal_speed:own_first", "equal_speed:opponent_first"}:
+    if not isinstance(branch, Mapping) or branch.get("order") != value.get("action_order"):
         return "pair_order_branch_invalid"
     parsed = _fraction(probability)
-    return parsed if parsed == Fraction(1, 2) else "pair_order_probability_invalid"
+    if branch.get("order_branch_id") in {"equal_speed:own_first", "equal_speed:opponent_first"}:
+        return parsed if parsed == Fraction(1, 2) else "pair_order_probability_invalid"
+    if branch.get("mechanic") != "quick_claw" or branch.get("activation_state") not in {"activated", "not_activated"} or not isinstance(branch.get("holder"), Mapping): return "pair_order_branch_invalid"
+    provenance = value.get("provenance")
+    if not isinstance(provenance, Mapping) or branch["holder"] not in (provenance.get("own_actor"), provenance.get("opponent_actor")):
+        return "quick_claw_order_holder_identity_invalid"
+    holder_order = "own_first" if branch["holder"] == provenance.get("own_actor") else "opponent_first"
+    if branch["activation_state"] == "activated":
+        return parsed if parsed == Fraction(1, 5) and value.get("action_order") == holder_order else "quick_claw_activation_probability_invalid"
+    tie = branch.get("non_activation_order_branch")
+    if tie is None:
+        return parsed if parsed == Fraction(4, 5) else "quick_claw_non_activation_probability_invalid"
+    if not isinstance(tie, Mapping) or tie.get("order") != value.get("action_order") or tie.get("order_branch_id") not in {"equal_speed:own_first", "equal_speed:opponent_first"}: return "quick_claw_non_activation_tie_binding_invalid"
+    return parsed if parsed == Fraction(2, 5) else "quick_claw_non_activation_tie_probability_invalid"
 
 
 def _execution_probability(second: Mapping[str, Any]) -> Fraction | str:

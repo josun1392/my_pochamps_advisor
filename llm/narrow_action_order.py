@@ -25,7 +25,7 @@ _TERRAIN_AUTHORITY_NOT_SUPPLIED = object()
 _GROUNDED_AUTHORITY_NOT_SUPPLIED = object()
 _SUPPORTED_SPEED_ABILITIES = frozenset({"swift-swim", "chlorophyll", "sand-rush", "slush-rush"})
 _UNSUPPORTED_SPEED_ABILITIES = frozenset({"surge-surfer", "unburden", "speed-boost", "slow-start", "protosynthesis", "quark-drive"})
-_UNSUPPORTED_SPEED_ITEMS = frozenset({"iron-ball", "macho-brace", "power-anklet", "power-band", "power-belt", "power-bracer", "power-lens", "power-weight", "lagging-tail", "full-incense", "quick-claw", "custap-berry"})
+_UNSUPPORTED_SPEED_ITEMS = frozenset({"iron-ball", "macho-brace", "power-anklet", "power-band", "power-belt", "power-bracer", "power-lens", "power-weight", "lagging-tail", "full-incense", "custap-berry"})
 _UNSUPPORTED_PRIORITY_ABILITIES = frozenset({"stall", "mycelium-might"})
 
 
