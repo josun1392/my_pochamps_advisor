@@ -12,7 +12,7 @@ from llm.advisor_exact_immediate_action_pair_outcome_ledger import (
 from llm.advisor_immediate_move_vs_move_action_pair import (
     materialize_immediate_move_vs_move_action_pair,
 )
-from tests.test_detached_fixed_two_hit_per_hit_predictive_materialization import _sturdy
+from tests.test_detached_fixed_two_hit_per_hit_predictive_materialization import _focus_sash, _sturdy
 from tests.test_detached_opponent_response_profile import _equal_speed_order, _inputs, _metadata, _owner
 
 
@@ -60,6 +60,33 @@ def test_double_hit_own_first_survival_reuses_pair_ledger_and_metrics_without_lo
     assert all(len(row["first_action"]["ordered_hits"]) == 2 for row in ledger["terminal_leaves"])
     assert project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)["status"] == "resolved"
     assert snapshot == before and state["opponent_side"]["pokemon"][0]["current_hp"] == 100
+
+
+def test_focus_sash_single_hit_pair_survival_allows_pending_action_to_execute():
+    _state, snapshot, d0, own_action, response_set, _orders = _inputs(opponent_hp=100)
+    own_action = deepcopy(own_action)
+    own_action["move_metadata_authority"]["metadata"]["power"] = 500
+    opponent_action = next(row for row in response_set["actions"] if row["action_id"] == "opponent_attack:tackle")
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0,
+        runtime_snapshot=snapshot,
+        own_action=own_action,
+        opponent_action=opponent_action,
+        action_order_authority=_order(d0, own_action, opponent_action, "own_first"),
+        first_action_focus_sash_survival_authority=_focus_sash(d0, d0["active_owners"]["self"], d0["active_owners"]["opponent"], own_action),
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert all(row["first_action_leaf"]["consequences"]["target_final_hp"] == 1 for row in pair["terminal_branches"])
+    assert all(row["first_action_leaf"]["consequences"]["focus_sash_survival"]["outcome"] == "applied" for row in pair["terminal_branches"])
+    assert all(row["second_action"]["state"] == "executed" for row in pair["terminal_branches"])
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable"
+    assert project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)["status"] == "resolved"
+    forged = deepcopy(pair)
+    first = deepcopy(forged["terminal_branches"][0])
+    first["first_action_leaf"]["consequences"]["focus_sash_survival"]["source_hit"]["move_id"] = "foreign"
+    forged["terminal_branches"] = (first,) + forged["terminal_branches"][1:]
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=forged)["status"] == "rejected"
 
 
 def test_double_kick_own_first_ko_cancels_and_opponent_first_fixed_two_hit_is_actor_neutral():
@@ -117,3 +144,21 @@ def test_sturdy_saved_first_hit_allows_second_fixed_two_hit_to_ko_in_the_pair():
     assert all(row["second_action"]["state"] == "cancelled_due_to_faint" for row in pair["terminal_branches"])
     ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
     assert ledger["status"] == "evaluable" and ledger["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+
+
+def test_focus_sash_saved_first_hit_then_later_fixed_two_hit_ko_cancels_pending_action():
+    _state, snapshot, d0, _own_action, response_set, _orders = _inputs(opponent_hp=100)
+    own_action = _fixed_two_action(d0, move_id="double-hit", power=500)
+    opponent_action = next(row for row in response_set["actions"] if row["action_id"] == "opponent_attack:tackle")
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0,
+        runtime_snapshot=snapshot,
+        own_action=own_action,
+        opponent_action=opponent_action,
+        action_order_authority=_order(d0, own_action, opponent_action, "own_first"),
+        first_action_focus_sash_survival_authority=_focus_sash(d0, d0["active_owners"]["self"], d0["active_owners"]["opponent"], own_action),
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert all(row["first_action_leaf"]["ordered_hits"][0]["focus_sash_applied"] for row in pair["terminal_branches"])
+    assert all(row["first_action_leaf"]["consequences"]["target_ko"] is True for row in pair["terminal_branches"])
+    assert all(row["second_action"]["state"] == "cancelled_due_to_faint" for row in pair["terminal_branches"])

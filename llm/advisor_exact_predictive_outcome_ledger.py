@@ -194,6 +194,7 @@ def _leaf(candidate: Mapping[str, Any], bound: Mapping[str, Any], path: tuple, c
     own_hp = post.get("attacker_post_hit_hp") if isinstance(post, Mapping) else consequence.get("attacker_hp_after")
     if own_hp is None and isinstance(post, Mapping):
         own_hp = post.get("attacker_hp_after")
+    focus_sash_survival = _focus_sash_survival(post, bound, hp_before, damage, target_hp)
     leaf_id = "/".join(name for name, _ in path)
     rendered_secondary = deepcopy(dict(secondary)) if isinstance(secondary, Mapping) else None
     removal = rendered_secondary.get("hypothetical_target_condition_removal") if isinstance(rendered_secondary, Mapping) else None
@@ -205,9 +206,38 @@ def _leaf(candidate: Mapping[str, Any], bound: Mapping[str, Any], path: tuple, c
         "conditional_factors": tuple(factor for _, factor in path), "probability": _fraction_dict(probability),
         "hit_state": next((name for name, _ in path if name in {"hit", "miss"}), None), "critical_state": critical_state,
         "damage_roll": None if roll is None else {"roll_index": roll["roll_index"], "random_factor_percent": roll["random_factor_percent"], "damage": roll["damage"]},
-        "consequences": {"damage": damage, "target_final_hp": target_hp, "target_ko": target_hp == 0 if isinstance(target_hp, int) else None, "own_final_hp": own_hp, "self_fainted": own_hp == 0 if isinstance(own_hp, int) else None, "post_hit": deepcopy(dict(post)) if isinstance(post, Mapping) else None, "sturdy_survival": deepcopy(post.get("sturdy_survival")) if isinstance(post, Mapping) and isinstance(post.get("sturdy_survival"), Mapping) else None, "deterministic_stage_effect": deepcopy(dict(consequence["stage_effects"])) if isinstance(consequence.get("stage_effects"), Mapping) else None, "secondary": rendered_secondary},
+        "consequences": {"damage": damage, "target_final_hp": target_hp, "target_ko": target_hp == 0 if isinstance(target_hp, int) else None, "own_final_hp": own_hp, "self_fainted": own_hp == 0 if isinstance(own_hp, int) else None, "post_hit": deepcopy(dict(post)) if isinstance(post, Mapping) else None, "sturdy_survival": deepcopy(post.get("sturdy_survival")) if isinstance(post, Mapping) and isinstance(post.get("sturdy_survival"), Mapping) else None, "focus_sash_survival": focus_sash_survival, "deterministic_stage_effect": deepcopy(dict(consequence["stage_effects"])) if isinstance(consequence.get("stage_effects"), Mapping) else None, "secondary": rendered_secondary},
         "provenance": deepcopy(dict(bound)),
     }
+
+
+def _focus_sash_survival(post: Any, bound: Mapping[str, Any], hp_before: Any, damage: Any, target_hp: Any) -> dict[str, Any] | None:
+    if not isinstance(post, Mapping) or not isinstance(post.get("focus_sash_survival"), Mapping):
+        return None
+    focus = post["focus_sash_survival"]
+    if focus.get("outcome") != "applied":
+        return deepcopy(dict(focus))
+    item_after = focus.get("item_after")
+    source = focus.get("source_hit")
+    if (
+        focus.get("item_before") != "focus-sash"
+        or not isinstance(item_after, Mapping)
+        or item_after.get("status") != "known_absent"
+        or focus.get("focus_sash_eligible") is not True
+        or focus.get("holder") != bound.get("target")
+        or focus.get("hp_before") != hp_before
+        or focus.get("target_final_hp") != target_hp
+        or focus.get("actual_damage") != damage
+        or focus.get("pre_survival_lethal") is not True
+        or not isinstance(focus.get("raw_damage"), int)
+        or isinstance(focus.get("raw_damage"), bool)
+        or focus.get("raw_damage") < hp_before
+        or not isinstance(source, Mapping)
+        or source.get("move_id") != bound.get("move_id")
+        or focus.get("provenance") != "exact_detached_focus_sash_survival_consumption_v1"
+    ):
+        raise _NormalizationError("focus_sash_survival_record_invalid")
+    return deepcopy(dict(focus))
 
 
 def _deterministic_switch(candidate: Mapping[str, Any], root: Any, manifest: Mapping[str, Any], bound: Mapping[str, Any]) -> dict[str, Any]:

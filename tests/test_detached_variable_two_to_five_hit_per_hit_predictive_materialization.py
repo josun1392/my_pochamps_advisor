@@ -6,6 +6,7 @@ from llm.advisor_detached_variable_two_to_five_hit_per_hit_predictive_materializ
 from llm.advisor_runtime_d0_variable_two_to_five_hit_count_execution_authority import freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
+from tests.test_detached_fixed_two_hit_per_hit_predictive_materialization import _focus_sash
 from tests.test_immediate_attack_vs_opponent_switch_action_pair import _owner, _state
 
 
@@ -56,6 +57,24 @@ def test_early_ko_stops_scheduled_hits_and_sturdy_saved_first_hit_can_reach_late
     first = [edge for edge in saved["terminal_leaf_edges"] if edge["ordered_hit"]["hit_index"] == 1]
     assert first and all(edge["ordered_hit"]["post_hp"] == 1 and edge["ordered_hit"]["sturdy_applied"] for edge in first)
     assert any(edge["ordered_hit"]["hit_index"] == 2 and edge["terminal"] for edge in saved["terminal_leaf_edges"])
+
+
+def test_focus_sash_consumption_is_path_local_in_variable_multi_hit_graph():
+    _state0, snapshot, d0, action, execution, own, foe = _inputs(power=500)
+    saved = materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
+        strategy_d0=d0,
+        runtime_snapshot=snapshot,
+        action=action,
+        execution_authority=execution,
+        focus_sash_survival_authority=_focus_sash(d0, own, foe, action),
+    )
+    assert saved["status"] == "evaluable", saved.get("reason")
+    assert saved["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    first = [edge for edge in saved["terminal_leaf_edges"] if edge["ordered_hit"]["hit_index"] == 1]
+    second = [edge for edge in saved["terminal_leaf_edges"] if edge["ordered_hit"]["hit_index"] == 2]
+    assert first and all(edge["ordered_hit"]["post_hp"] == 1 and edge["ordered_hit"]["focus_sash_applied"] for edge in first)
+    assert second and all(edge["terminal"] and edge["terminal_consequences"]["target_ko"] for edge in second)
+    assert all(edge["terminal_consequences"]["focus_sash"]["state"] == "consumed" for edge in second)
 
 
 def test_miss_and_stale_or_wrong_authority_fail_closed():

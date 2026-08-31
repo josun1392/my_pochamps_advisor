@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any, Mapping
+from llm.advisor_focus_sash_survival import apply_focus_sash_to_hit
 
 
 SCHEMA_VERSION = "detached-deterministic-fixed-damage-attack-leaf-v1"
@@ -13,6 +14,7 @@ def materialize_detached_deterministic_fixed_damage_attack_leaf(
     *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any],
     move_id: str, predictive_authority: Mapping[str, Any],
     sturdy_survival_authority: Mapping[str, Any] | None = None,
+    focus_sash_survival_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Project one already-exact fixed-damage result into one ``1/1`` leaf.
 
@@ -34,7 +36,12 @@ def materialize_detached_deterministic_fixed_damage_attack_leaf(
     sturdy = _sturdy(sturdy_survival_authority, base)
     if isinstance(sturdy, Mapping):
         return _result(sturdy["status"], sturdy["reason"], base)
-    projected = _consequences(strategy_d0, attacker, target, result, sturdy)
+    focus = _focus(focus_sash_survival_authority, base)
+    if isinstance(focus, Mapping):
+        return _result(focus["status"], focus["reason"], base)
+    if sturdy and focus:
+        return _result("unsupported", "simultaneous_sturdy_focus_sash_survival_precedence_unsupported", base)
+    projected = _consequences(strategy_d0, attacker, target, result, sturdy, focus_sash_survival_authority if focus else None)
     if isinstance(projected, str):
         return _result("rejected", projected, base)
     leaf = {
@@ -89,7 +96,7 @@ def _authority(value: Any, base: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _consequences(d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], result: Mapping[str, Any], sturdy: bool) -> dict[str, Any] | str:
+def _consequences(d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], result: Mapping[str, Any], sturdy: bool, focus_sash: Mapping[str, Any] | None) -> dict[str, Any] | str:
     damage = result.get("damage")
     active = d0.get("strategy_state", {}).get("active", {})
     own = active.get(attacker["side"]) if isinstance(active, Mapping) else None
@@ -103,7 +110,15 @@ def _consequences(d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Ma
             return "fixed_damage_target_result_mismatch"
         sturdy_applied = sturdy and damage >= before
         actual_damage = before - 1 if sturdy_applied else damage
+        focus_row = apply_focus_sash_to_hit(authority=focus_sash, consumed=False, hp_before=before, raw_damage=damage, actual_damage=actual_damage, source_hit={"move_id": "seismic-toss", "damage_route": "target"})
+        if isinstance(focus_row, Mapping) and focus_row.get("status") in {"incomplete", "unsupported", "rejected"}:
+            return str(focus_row["reason"])
+        focus_applied = isinstance(focus_row, Mapping) and focus_row.get("activated") is True
+        if focus_applied:
+            actual_damage = focus_row["actual_damage"]
         target_hp, target_ko = max(0, before - actual_damage), not sturdy_applied and fainted
+        if focus_applied:
+            target_ko = False
     elif route == "substitute":
         before, after, fainted = result.get("substitute_hp_before"), result.get("substitute_hp_after"), result.get("target_fainted")
         if not isinstance(before, int) or isinstance(before, bool) or not isinstance(after, int) or isinstance(after, bool) or after != max(0, before - damage) or fainted is not False:
@@ -119,6 +134,7 @@ def _consequences(d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Ma
             if sturdy_applied else
             {"outcome": "not_triggered"} if sturdy else {"outcome": "not_applicable"}
         ),
+        "focus_sash_survival": deepcopy(focus_row["survival"]) if isinstance(focus_row, Mapping) else {"outcome": "not_applicable"},
         "deterministic_fixed_damage": {
             "damage_route": route, "raw_damage": damage, "actual_damage": actual_damage,
             "predicted_result": deepcopy(dict(result)),
@@ -147,6 +163,22 @@ def _sturdy(value: Mapping[str, Any] | None, base: Mapping[str, Any]) -> bool | 
     hp, maximum = value.get("post_entry_hp"), value.get("maximum_hp")
     if not isinstance(hp, int) or isinstance(hp, bool) or not isinstance(maximum, int) or isinstance(maximum, bool) or hp != maximum or hp <= 1:
         return {"status": "rejected", "reason": "sturdy_post_entry_hp_invalid"}
+    return True
+
+
+def _focus(value: Mapping[str, Any] | None, base: Mapping[str, Any]) -> bool | dict[str, str]:
+    if value is None:
+        return False
+    if not isinstance(value, Mapping):
+        return {"status": "rejected", "reason": "focus_sash_survival_authority_invalid"}
+    if value.get("status") == "resolved" and value.get("outcome") == "known_no_effect":
+        return False
+    if value.get("status") in {"incomplete", "unsupported", "rejected"}:
+        return {"status": value["status"], "reason": value.get("reason", "focus_sash_survival_authority_unavailable")}
+    if value.get("status") != "ready" or value.get("schema_version") != "runtime-d0-focus-sash-survival-authority-v1":
+        return {"status": "rejected", "reason": "focus_sash_survival_authority_invalid"}
+    if any(value.get(key) != base.get(key) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "attacker", "move_id")) or value.get("holder") != base["target"]:
+        return {"status": "rejected", "reason": "focus_sash_survival_authority_binding_mismatch"}
     return True
 
 

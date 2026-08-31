@@ -71,6 +71,8 @@ def _switch_leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if not isinstance(attack, Mapping) or not isinstance(attack.get("leaf_id"), str) or _fraction(attack.get("probability")) <= 0 or probability != _fraction(attack["probability"]): return "switch_pair_attack_leaf_invalid"
     final = _final(attack, base)
     if isinstance(final, str): return final
+    focus_error = _focus_sash_leaf(attack)
+    if focus_error is not None: return focus_error
     incoming = value.get("incoming_target")
     if incoming != base["opponent_actor"]: return "switch_pair_incoming_target_identity_mismatch"
     return {"pair_leaf_id": value["pair_leaf_id"], "action_order": value["action_order"], "probability": _fd(probability),
@@ -93,6 +95,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     second_leaf = second.get("leaf")
     if second["state"] == "executed":
         if not isinstance(second_leaf, Mapping) or not isinstance(second_leaf.get("leaf_id"), str) or _fraction(second_leaf.get("probability")) * execution_probability != conditional: return "executed_second_action_leaf_invalid"
+        focus_error = _focus_sash_leaf(second_leaf)
+        if focus_error is not None: return focus_error
     elif second["state"] == "cancelled_due_to_faint":
         if second_leaf is not None or conditional != Fraction(1, 1) or execution_probability != Fraction(1, 1) or second.get("reason") != "second_action_cancelled_due_to_faint": return "cancelled_second_action_branch_invalid"
     elif second["state"] in {"executed_protection", "prevented_by_protection"}:
@@ -103,6 +107,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     elif _flinch_cancellation_binding(first, second) is not None: return _flinch_cancellation_binding(first, second)
     probability = _fraction(value.get("probability"))
     if probability != order_probability * _fraction(first["probability"]) * conditional: return "pair_leaf_probability_composition_invalid"
+    focus_error = _focus_sash_leaf(first)
+    if focus_error is not None: return focus_error
     final_source = second_leaf if isinstance(second_leaf, Mapping) else first
     final = _final(final_source, base)
     if isinstance(final, str): return final
@@ -122,6 +128,58 @@ def _action_leaf(leaf: Mapping[str, Any]) -> dict[str, Any]:
         **({"ordered_hits": deepcopy(leaf["ordered_hits"])} if "ordered_hits" in leaf else {}),
         "consequences": deepcopy(leaf.get("consequences")), "provenance": deepcopy(leaf.get("provenance")),
     }
+
+
+def _focus_sash_leaf(leaf: Mapping[str, Any]) -> str | None:
+    consequences = leaf.get("consequences")
+    provenance = leaf.get("provenance")
+    if not isinstance(consequences, Mapping) or not isinstance(provenance, Mapping):
+        return "focus_sash_leaf_consequence_missing"
+    focus = consequences.get("focus_sash_survival")
+    if focus is None:
+        return None
+    if not isinstance(focus, Mapping):
+        return "focus_sash_survival_record_invalid"
+    if focus.get("outcome") != "applied":
+        return None
+    item_after = focus.get("item_after")
+    source = focus.get("source_hit")
+    damage = consequences.get("damage")
+    target_hp = consequences.get("target_final_hp")
+    hp_before = focus.get("hp_before")
+    ordered = leaf.get("ordered_hits")
+    if isinstance(ordered, tuple):
+        applied = [row for row in ordered if isinstance(row, Mapping) and isinstance(row.get("focus_sash_survival"), Mapping) and row["focus_sash_survival"].get("outcome") == "applied"]
+        if len(applied) != 1 or applied[0].get("focus_sash_survival") != focus:
+            return "focus_sash_survival_record_invalid"
+        hit = applied[0]
+        return None if (
+            hit.get("pre_hp") == hp_before
+            and hit.get("post_hp") == focus.get("target_final_hp") == 1
+            and hit.get("actual_damage") == focus.get("actual_damage")
+            and isinstance(source, Mapping)
+            and source.get("move_id") == provenance.get("move_id")
+            and item_after.get("status") == "known_absent" if isinstance(item_after, Mapping) else False
+        ) else "focus_sash_survival_record_invalid"
+    if (
+        focus.get("item_before") != "focus-sash"
+        or not isinstance(item_after, Mapping)
+        or item_after.get("status") != "known_absent"
+        or focus.get("focus_sash_eligible") is not True
+        or focus.get("holder") != provenance.get("target")
+        or not _hp(hp_before)
+        or focus.get("target_final_hp") != target_hp
+        or focus.get("actual_damage") != damage
+        or focus.get("pre_survival_lethal") is not True
+        or not isinstance(focus.get("raw_damage"), int)
+        or isinstance(focus.get("raw_damage"), bool)
+        or focus.get("raw_damage") < hp_before
+        or not isinstance(source, Mapping)
+        or source.get("move_id") != provenance.get("move_id")
+        or focus.get("provenance") != "exact_detached_focus_sash_survival_consumption_v1"
+    ):
+        return "focus_sash_survival_record_invalid"
+    return None
 
 
 def _order_probability(value: Mapping[str, Any]) -> Fraction | str:

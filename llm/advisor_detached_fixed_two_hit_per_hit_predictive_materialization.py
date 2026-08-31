@@ -10,6 +10,7 @@ from llm.advisor_predictive_damage_roll_uncertainty import project_predictive_da
 from llm.advisor_predictive_normal_formula_post_hit import compose_predictive_normal_formula_post_hit
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_d0_fixed_two_hit_multi_hit_execution_authority import SCHEMA_VERSION as EXECUTION_SCHEMA
+from llm.advisor_focus_sash_survival import focus_sash_state
 from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_native_damage_context,
     build_runtime_d0_strict_hit_probability_assessment,
@@ -27,6 +28,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     action: Mapping[str, Any], execution_authority: Mapping[str, Any],
     sturdy_survival_authority: Mapping[str, Any] | None = None,
+    focus_sash_survival_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Materialize ordered hit leaves without mutating current D0/runtime.
 
@@ -59,32 +61,38 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     miss_probability = Fraction(100 - probability, 100)
     target_hp = strategy_d0["strategy_state"]["active"][base["target"]["side"]]["current_hp"]
     if miss_probability:
-        leaves.append(_leaf(base, "miss", miss_probability, (), target_hp, _sturdy_state(sturdy_survival_authority, consumed=False)))
+        leaves.append(_leaf(base, "miss", miss_probability, (), target_hp, _sturdy_state(sturdy_survival_authority, consumed=False), focus_sash_state(focus_sash_survival_authority, consumed=False)))
     hit_probability = Fraction(probability, 100)
     if hit_probability:
         first = _hit_events(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
             single_metadata=single, sturdy_survival_authority=sturdy_survival_authority,
+            focus_sash_survival_authority=focus_sash_survival_authority,
         )
         if isinstance(first, Mapping):
             return _result(first["status"], first["reason"], base)
         for first_event in first:
             first_probability = hit_probability * first_event["probability"]
             if first_event["post_hp"] == 0:
-                leaves.append(_leaf(base, "hit", first_probability, (first_event,), 0, _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"])))
+                leaves.append(_leaf(base, "hit", first_probability, (first_event,), 0, _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"]), focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"])))
                 continue
             second_d0, second_snapshot = _detached_target_hp_view(
                 runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"],
                 target=base["target"], target_hp=first_event["post_hp"],
+                focus_sash_consumed=first_event["focus_sash_applied"],
             )
             if second_d0 is None:
                 return _result("rejected", "fixed_two_hit_intermediate_target_state_invalid", base)
             second_sturdy = sturdy_survival_authority if (
                 first_event["post_hp"] == first_event["target_max_hp"] and not first_event["sturdy_applied"]
             ) else None
+            second_focus_sash = focus_sash_survival_authority if (
+                first_event["post_hp"] == first_event["target_max_hp"] and not first_event["focus_sash_applied"]
+            ) else None
             second = _hit_events(
                 strategy_d0=second_d0, runtime_snapshot=second_snapshot, base=base,
                 single_metadata=single, sturdy_survival_authority=second_sturdy,
+                focus_sash_survival_authority=second_focus_sash,
             )
             if isinstance(second, Mapping):
                 return _result(second["status"], second["reason"], base)
@@ -93,6 +101,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
                     base, "hit", first_probability * second_event["probability"],
                     (first_event, second_event), second_event["post_hp"],
                     _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"] or second_event["sturdy_applied"]),
+                    focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"] or second_event["focus_sash_applied"]),
                 ))
     mass = sum((row["probability"] for row in leaves), Fraction())
     if mass != Fraction(1, 1):
@@ -107,7 +116,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     }
 
 
-def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None) -> list[dict[str, Any]] | dict[str, str]:
+def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
     native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"], move_metadata=single_metadata)
     normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"], move_metadata=single_metadata, native_damage_context=native)
     if normal.get("status") != "resolved":
@@ -134,6 +143,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             attacker_item=normal["post_hit_authority"]["attacker_item"], attacker_ability=normal["post_hit_authority"]["attacker_ability"],
             target_ability=normal["post_hit_authority"]["target_ability"], attacker_item_known=normal["post_hit_authority"]["attacker_item_known"],
             target_sturdy_survival_authority=sturdy_survival_authority,
+            target_focus_sash_survival_authority=focus_sash_survival_authority,
         )
         if post.get("status") != "resolved":
             return {"status": post.get("status", "rejected"), "reason": post.get("reason", "fixed_two_hit_post_hit_unavailable")}
@@ -149,13 +159,16 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             if not isinstance(before, int) or isinstance(before, bool) or before < 0 or actual < 0 or actual > before:
                 return {"status": "rejected", "reason": "fixed_two_hit_target_hp_transition_invalid"}
             sturdy = post_row.get("sturdy_survival")
+            focus = post_row.get("focus_sash_survival")
             events.append({
                 "probability": critical_factor * Fraction(1, 16), "critical_state": critical_state,
                 "roll_index": roll["roll_index"], "random_factor_percent": roll["random_factor_percent"],
                 "raw_damage": post_row["raw_damage"], "actual_damage": actual, "pre_hp": before,
-                "post_hp": before - actual, "target_max_hp": before if sturdy_survival_authority is not None else None,
+                "post_hp": before - actual, "target_max_hp": before if sturdy_survival_authority is not None or focus_sash_survival_authority is not None else None,
                 "sturdy_applied": isinstance(sturdy, Mapping) and sturdy.get("outcome") == "applied",
                 "sturdy_survival": deepcopy(dict(sturdy)) if isinstance(sturdy, Mapping) else {"outcome": "not_applicable"},
+                "focus_sash_applied": isinstance(focus, Mapping) and focus.get("outcome") == "applied",
+                "focus_sash_survival": deepcopy(dict(focus)) if isinstance(focus, Mapping) else {"outcome": "not_applicable"},
             })
     if not events or sum((row["probability"] for row in events), Fraction()) != Fraction(1, 1):
         return {"status": "rejected", "reason": "fixed_two_hit_per_hit_probability_mass_invalid"}
@@ -186,7 +199,7 @@ def _single_hit_metadata(metadata: Mapping[str, Any]) -> dict[str, Any] | None:
     return value if value.get("move_id") in {"double-hit", "double-kick"} else None
 
 
-def _detached_target_hp_view(*, runtime_snapshot: Mapping[str, Any], decision_owner: Mapping[str, Any], target: Mapping[str, Any], target_hp: int) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+def _detached_target_hp_view(*, runtime_snapshot: Mapping[str, Any], decision_owner: Mapping[str, Any], target: Mapping[str, Any], target_hp: int, focus_sash_consumed: bool = False) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, Mapping) else None
     if not isinstance(state, Mapping) or not isinstance(target_hp, int) or target_hp < 0:
         return None, None
@@ -194,6 +207,9 @@ def _detached_target_hp_view(*, runtime_snapshot: Mapping[str, Any], decision_ow
     if not isinstance(pokemon, Mapping) or pokemon.get("pokemon_id") != target["pokemon_id"]:
         return None, None
     pokemon["current_hp"] = target_hp; pokemon["fainted"] = target_hp == 0
+    if focus_sash_consumed:
+        pokemon["known_item"] = None
+        pokemon["known_item_provenance"] = {"event_kind": "item_consumption_observed", "turn_number": 1, "trust": "detached_hypothetical", "source": "exact_per_hit_focus_sash_consumption"}
     snapshot = {"status": "runtime_snapshot_ready", "session_id": decision_owner["session_id"], "state": synthetic, "state_fingerprint": state_fingerprint(synthetic)}
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=decision_owner)
     return (d0, snapshot) if d0.get("status") == "resolved" else (None, None)
@@ -208,7 +224,7 @@ def _sturdy_state(authority: Mapping[str, Any] | None, *, consumed: bool) -> dic
     return {"state": "consumed" if consumed else "ready_or_not_applicable", "authority_present": isinstance(authority, Mapping)}
 
 
-def _leaf(base: Mapping[str, Any], hit_state: str, probability: Fraction, events: tuple[Mapping[str, Any], ...], target_hp: int, sturdy: Mapping[str, Any]) -> dict[str, Any]:
+def _leaf(base: Mapping[str, Any], hit_state: str, probability: Fraction, events: tuple[Mapping[str, Any], ...], target_hp: int, sturdy: Mapping[str, Any], focus_sash: Mapping[str, Any] | None = None) -> dict[str, Any]:
     path = [hit_state]
     for index, event in enumerate(events, 1): path.extend((f"hit_{index}:{event['critical_state']}", f"hit_{index}:roll:{event['roll_index']}"))
     # The fixed-two-hit authority deliberately owns no recoil, drain, or
@@ -225,6 +241,8 @@ def _leaf(base: Mapping[str, Any], hit_state: str, probability: Fraction, events
             "target_final_hp": target_hp, "target_ko": target_hp == 0,
             "deterministic_stage_effect": None, "secondary": None,
             "sturdy": deepcopy(dict(sturdy)),
+            "focus_sash": deepcopy(dict(focus_sash)) if isinstance(focus_sash, Mapping) else {"state": "not_applicable", "authority_present": False},
+            "focus_sash_survival": _applied_focus_sash_survival(events),
         },
         "provenance": {
             key: deepcopy(base[key])
@@ -234,6 +252,14 @@ def _leaf(base: Mapping[str, Any], hit_state: str, probability: Fraction, events
             )
         },
     }
+
+
+def _applied_focus_sash_survival(events: tuple[Mapping[str, Any], ...]) -> dict[str, Any] | None:
+    for event in events:
+        focus = event.get("focus_sash_survival")
+        if isinstance(focus, Mapping) and focus.get("outcome") == "applied":
+            return deepcopy(dict(focus))
+    return None
 
 
 def _serialize_leaf(value: Mapping[str, Any]) -> dict[str, Any]:

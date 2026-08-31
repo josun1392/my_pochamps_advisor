@@ -117,10 +117,13 @@ def freeze_detached_actor_neutral_root_predictive_authority(
 def _participant(d0: Mapping[str, Any], owner: Mapping[str, Any], hp: int, effects: tuple[Mapping[str, Any], ...], role: str) -> dict[str, Any]:
     current_stages = d0.get("current_stage_authority", {}).get(owner["side"], {})
     current_condition = d0.get("current_condition_authority", {}).get(owner["side"], {})
+    current_item = d0.get("strategy_state", {}).get("current_state", {}).get("runtime_strategy_d0_authority", {}).get("active", {}).get(owner["side"], {}).get("known_item", {})
     return {
         "owner": deepcopy(dict(owner)),
         "hypothetical_hp": {"status": "known", "value": hp, "source": "exact_terminal_leaf"},
         "hypothetical_fainted": {"status": "known", "value": hp == 0, "source": "exact_terminal_leaf"},
+        "current_item_authority": deepcopy(current_item) if isinstance(current_item, Mapping) else {"status": "unknown"},
+        "hypothetical_item": _item(current_item, effects, role),
         "current_stage_authority": deepcopy(current_stages),
         "hypothetical_stages": _stages(current_stages, effects, role),
         "current_condition_authority": deepcopy(current_condition),
@@ -159,6 +162,15 @@ def _condition(authority: Any, effects: tuple[Mapping[str, Any], ...], role: str
     return result
 
 
+def _item(authority: Any, effects: tuple[Mapping[str, Any], ...], role: str) -> dict[str, Any]:
+    result = deepcopy(dict(authority)) if isinstance(authority, Mapping) else {"status": "unknown", "reason": "current_item_authority_unknown"}
+    for effect in effects:
+        item = effect.get("hypothetical_target_item")
+        if role == "target" and isinstance(item, Mapping):
+            return deepcopy(dict(item))
+    return result
+
+
 def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...] | str:
     result: list[Mapping[str, Any]] = []
     deterministic = consequences.get("deterministic_stage_effect")
@@ -182,6 +194,10 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
             if not _condition_removal(removal, leaf.get("leaf_id")):
                 return "terminal_leaf_condition_removal_consequence_invalid"
             result.append({"owner": "target", "hypothetical_target_condition_removal": removal})
+    focus = consequences.get("focus_sash_survival")
+    item_after = focus.get("item_after") if isinstance(focus, Mapping) else None
+    if isinstance(focus, Mapping) and focus.get("outcome") == "applied" and isinstance(item_after, Mapping) and item_after.get("status") == "known_absent":
+        result.append({"owner": "target", "hypothetical_target_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_focus_sash_consumption", "effect": deepcopy(dict(focus))}})
     return tuple(deepcopy(dict(effect)) for effect in result)
 
 

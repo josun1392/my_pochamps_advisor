@@ -25,6 +25,10 @@ def _sturdy(d0, own, foe, hp=100):
     return {"status": "ready", "schema_version": "detached-switch-in-sturdy-survival-authority-v1", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": own, "defender": foe, "attacker": own, "post_entry_hp": hp, "maximum_hp": hp, "provenance": "test"}
 
 
+def _focus_sash(d0, own, foe, action, hp=100):
+    return {"status": "ready", "schema_version": "runtime-d0-focus-sash-survival-authority-v1", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": own, "holder": foe, "attacker": own, "action_id": action["action_id"], "move_id": action["identity"], "current_hp": hp, "maximum_hp": hp, "current_item_authority": {"status": "known", "value": "focus-sash"}, "outcome": "available", "focus_sash_available": True, "eligible": True, "item_before": "focus-sash", "provenance": "test"}
+
+
 def test_double_hit_and_double_kick_materialize_ordered_independent_hit_leaves_without_mutation():
     for move in ("double-hit", "double-kick"):
         state, snapshot, d0, action, execution, own, foe = _inputs(move_id=move); before = deepcopy(snapshot)
@@ -48,6 +52,22 @@ def test_first_hit_ko_stops_second_hit_and_sturdy_first_hit_survival_allows_seco
     assert saved["status"] == "evaluable"
     assert all(leaf["ordered_hits"][0]["post_hp"] == 1 and leaf["ordered_hits"][0]["sturdy_applied"] for leaf in saved["terminal_leaves"])
     assert all(len(leaf["ordered_hits"]) == 2 and leaf["consequences"]["target_ko"] is True for leaf in saved["terminal_leaves"])
+
+
+def test_focus_sash_saved_first_hit_is_consumed_before_second_fixed_hit():
+    _state0, snapshot, d0, action, execution, own, foe = _inputs(power=500)
+    saved = materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
+        strategy_d0=d0,
+        runtime_snapshot=snapshot,
+        action=action,
+        execution_authority=execution,
+        focus_sash_survival_authority=_focus_sash(d0, own, foe, action),
+    )
+    assert saved["status"] == "evaluable", saved.get("reason")
+    assert saved["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert all(leaf["ordered_hits"][0]["post_hp"] == 1 and leaf["ordered_hits"][0]["focus_sash_applied"] for leaf in saved["terminal_leaves"])
+    assert all(not leaf["ordered_hits"][1]["focus_sash_applied"] for leaf in saved["terminal_leaves"])
+    assert all(leaf["consequences"]["target_ko"] and leaf["consequences"]["focus_sash"]["state"] == "consumed" for leaf in saved["terminal_leaves"])
 
 
 def test_nonlethal_first_hit_and_miss_do_not_fabricate_or_consume_sturdy():

@@ -52,6 +52,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
     action_order_authority: Mapping[str, Any],
     quick_claw_action_order_authority: Mapping[str, Any] | None = None,
     first_action_sturdy_survival_authority: Mapping[str, Any] | None = None,
+    first_action_focus_sash_survival_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Attach exact second-action outcomes to a variable first-action graph."""
@@ -75,6 +76,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
             own_action=own_action, opponent_action=opponent_action,
             own_metadata=own_metadata, opponent_metadata=opponent_metadata,
             order_plan=plan, first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
+            first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority,
             pending_status_execution_authorities=pending_status_execution_authorities,
         )
         if graph.get("status") != "evaluable":
@@ -95,7 +97,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
     }
 
 
-def _materialize_order_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_metadata: Mapping[str, Any], opponent_metadata: Mapping[str, Any], order_plan: Mapping[str, Any], first_action_sturdy_survival_authority: Mapping[str, Any] | None, pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
+def _materialize_order_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_metadata: Mapping[str, Any], opponent_metadata: Mapping[str, Any], order_plan: Mapping[str, Any], first_action_sturdy_survival_authority: Mapping[str, Any] | None, first_action_focus_sash_survival_authority: Mapping[str, Any] | None, pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
     order = order_plan["order"]
     first_actor = base["own_actor"] if order == "own_first" else base["opponent_actor"]
     first_metadata = own_metadata if order == "own_first" else opponent_metadata
@@ -111,6 +113,7 @@ def _materialize_order_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot
         strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
         target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"],
         metadata_authority=first_metadata, sturdy_survival_authority=first_action_sturdy_survival_authority,
+        focus_sash_survival_authority=first_action_focus_sash_survival_authority,
     )
     if first.get("status") != "evaluable":
         return _result(_status(first), first.get("reason", "variable_first_action_graph_unavailable"), {})
@@ -142,7 +145,7 @@ def _materialize_order_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot
     }
 
 
-def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None) -> dict[str, Any]:
+def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     opponent_side = "opponent" if isinstance(actor, Mapping) and actor.get("side") == "self" else "self"
     if metadata is None or metadata.get("move_id") not in _GRAPH_MOVES or actor != strategy_d0.get("decision_owner") or target != strategy_d0.get("active_owners", {}).get(opponent_side):
@@ -167,11 +170,11 @@ def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     if execution.get("status") != "resolved":
         return _result(_status(execution), execution.get("reason", "variable_multi_hit_execution_authority_unavailable"), {})
     graph = (materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority,
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority,
     ) if metadata["move_id"] == "population-bomb" else materialize_detached_escalating_three_hit_predictive_graph(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority,
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority,
     ) if metadata["move_id"] in _ESCALATING_MOVES else materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority,
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority,
     ))
     return graph if graph.get("status") == "evaluable" else _result(_status(graph), graph.get("reason", "variable_multi_hit_path_graph_unavailable"), {})
 
@@ -290,7 +293,12 @@ def _attach_second_actions(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
 
 
 def _synthetic_terminal_leaf(*, first_graph: Mapping[str, Any], source: Mapping[str, Any]) -> dict[str, Any]:
-    return {"leaf_id": f"variable_graph:{source['source_id']}", "candidate_id": f"attack:{first_graph['move_id']}", "action_type": "attack", "branch_path": ("variable_multi_hit_graph", source["source_id"]), "probability": _fd(source["path_probability"]), "hit_state": "miss" if source.get("ordered_hit") is None else "hit", "critical_state": "per_hit_independent" if source.get("ordered_hit") is not None else "not_applicable", "damage_roll": "per_hit_independent" if source.get("ordered_hit") is not None else "not_applicable", "consequences": deepcopy(dict(source["consequences"])), "provenance": {key: deepcopy(first_graph[key]) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "attacker", "target", "move_id")}}
+    consequences = deepcopy(dict(source["consequences"]))
+    ordered = source.get("ordered_hit")
+    focus = ordered.get("focus_sash_survival") if isinstance(ordered, Mapping) else None
+    if isinstance(focus, Mapping) and focus.get("outcome") == "applied":
+        consequences["focus_sash_survival"] = deepcopy(dict(focus))
+    return {"leaf_id": f"variable_graph:{source['source_id']}", "candidate_id": f"attack:{first_graph['move_id']}", "action_type": "attack", "branch_path": ("variable_multi_hit_graph", source["source_id"]), "probability": _fd(source["path_probability"]), "hit_state": "miss" if source.get("ordered_hit") is None else "hit", "critical_state": "per_hit_independent" if source.get("ordered_hit") is not None else "not_applicable", "damage_roll": "per_hit_independent" if source.get("ordered_hit") is not None else "not_applicable", "consequences": consequences, "provenance": {key: deepcopy(first_graph[key]) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "attacker", "target", "move_id")}}
 
 
 def _second_cache_key(intermediate: Mapping[str, Any], actor: Mapping[str, Any], metadata: Mapping[str, Any]) -> tuple[Any, ...]:

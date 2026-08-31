@@ -8,6 +8,7 @@ from llm.advisor_runtime_d0_population_bomb_per_hit_accuracy_execution_authority
     freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority,
 )
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
+from tests.test_detached_fixed_two_hit_per_hit_predictive_materialization import _focus_sash
 from tests.test_detached_variable_two_to_five_hit_per_hit_predictive_materialization import _sturdy
 from tests.test_immediate_attack_vs_opponent_switch_action_pair import _owner, _state
 
@@ -64,6 +65,22 @@ def test_early_ko_and_sturdy_saved_first_hit_then_later_ko_terminate_the_attempt
     first = [edge for edge in saved["terminal_leaf_edges"] if edge["from_node_id"].startswith("attempt:1/")]
     assert first and all(edge["attempt_outcome"]["ordered_hit"]["post_hp"] == 1 and edge["attempt_outcome"]["ordered_hit"]["sturdy_applied"] for edge in first)
     assert any(edge.get("terminal_reason") == "target_fainted" and edge["attempt_outcome"]["ordered_hit"]["attempt_index"] == 2 for edge in saved["terminal_leaf_edges"])
+
+
+def test_focus_sash_consumes_on_first_population_bomb_hit_and_next_hit_can_ko():
+    _state0, snapshot, d0, action, execution, own, foe = _inputs(accuracy=100, power=500, target_hp=100)
+    saved = materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
+        strategy_d0=d0,
+        runtime_snapshot=snapshot,
+        action=action,
+        execution_authority=execution,
+        focus_sash_survival_authority=_focus_sash(d0, own, foe, action),
+    )
+    assert saved["status"] == "evaluable", saved.get("reason")
+    assert saved["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    first = [edge for edge in saved["terminal_leaf_edges"] if edge["from_node_id"].startswith("attempt:1/")]
+    assert first and all(edge["attempt_outcome"]["ordered_hit"]["post_hp"] == 1 and edge["attempt_outcome"]["ordered_hit"]["focus_sash_applied"] for edge in first)
+    assert any(edge.get("terminal_reason") == "target_fainted" and edge["attempt_outcome"]["ordered_hit"]["attempt_index"] == 2 and edge["terminal_consequences"]["focus_sash"]["state"] == "consumed" for edge in saved["terminal_leaf_edges"])
 
 
 def test_stale_or_foreign_authority_rejects():

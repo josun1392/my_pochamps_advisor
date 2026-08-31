@@ -52,6 +52,14 @@ def freeze_detached_intermediate_predictive_authority(
         raw["current_hp"] = values["hp"]
         raw["fainted"] = values["fainted"]
         raw["stat_stages"] = deepcopy(values["stages"])
+        if values["item"].get("source") == "exact_terminal_leaf_focus_sash_consumption":
+            raw["known_item"] = None
+            raw["known_item_provenance"] = {
+                "event_kind": "item_consumption_observed",
+                "turn_number": 1,
+                "trust": "detached_hypothetical",
+                "source": "exact_terminal_leaf_focus_sash_consumption",
+            }
         raw["detached_intermediate_predictive_authority"] = True
     # A status change has exact hypothetical provenance but cannot be written
     # into a runtime-shaped snapshot as if it were an observed condition.
@@ -113,7 +121,9 @@ def _intermediate(value: Any, d0: Mapping[str, Any], actor: Mapping[str, Any], t
         if not isinstance(stages, Mapping) or any(stages.get(stat, {}).get("status") != "known" or not isinstance(stages[stat].get("value"), int) or not -6 <= stages[stat]["value"] <= 6 for stat in _STAGES): return "intermediate_exact_stage_missing"
         condition = row.get("hypothetical_condition")
         if not isinstance(condition, Mapping): condition = {"status": "unknown", "reason": "intermediate_condition_missing"}
-        return {"hp": hp["value"], "fainted": fainted["value"], "stages": {stat: stages[stat]["value"] for stat in _STAGES}, "condition": deepcopy(dict(condition)), "condition_changed": condition.get("source") in {"exact_terminal_leaf_condition_effect", "exact_terminal_leaf_condition_removal"}}
+        item = row.get("hypothetical_item")
+        if not isinstance(item, Mapping): item = {"status": "unknown", "reason": "intermediate_item_missing"}
+        return {"hp": hp["value"], "fainted": fainted["value"], "stages": {stat: stages[stat]["value"] for stat in _STAGES}, "condition": deepcopy(dict(condition)), "item": deepcopy(dict(item)), "condition_changed": condition.get("source") in {"exact_terminal_leaf_condition_effect", "exact_terminal_leaf_condition_removal"}}
     parsed_actor, parsed_target = participant(actor), participant(target)
     if isinstance(parsed_actor, str) or isinstance(parsed_target, str): return parsed_actor if isinstance(parsed_actor, str) else parsed_target
     first = value.get("first_action")
