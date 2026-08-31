@@ -14,14 +14,16 @@ from tests.test_detached_variable_two_to_five_hit_per_hit_predictive_materializa
 from tests.test_immediate_attack_vs_opponent_switch_action_pair import _owner, _state
 
 
-def _inputs(*, move_id="triple-axel", accuracy=100, target_hp=100):
+def _inputs(*, move_id="triple-axel", accuracy=100, target_hp=100, ability=None, item=None):
     state = _state(); target = state["opponent_side"]["pokemon"][0]
     target.update(current_hp=target_hp, max_hp=target_hp, fainted=False)
+    attacker = state["self_side"]["pokemon"][0]; attacker["current_ability"] = ability or attacker.get("current_ability")
+    if item: attacker["known_item"] = item; attacker.setdefault("known_item_provenance", {})["status"] = "known"
     snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
     own, foe = _owner(state, "self"), _owner(state, "opponent")
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=own)
     power, move_type = {"triple-axel": (20, "ice"), "triple-kick": (10, "fighting")}[move_id]
-    metadata = {"move_id": move_id, "category": "physical", "power": power, "type": move_type, "accuracy": accuracy, "priority": 0, "min_hits": 3, "max_hits": 3, "bp_escalation": True, "multiaccuracy": False}
+    metadata = {"move_id": move_id, "category": "physical", "power": power, "type": move_type, "accuracy": accuracy, "priority": 0, "min_hits": 3, "max_hits": 3, "bp_escalation": True, "multiaccuracy": True}
     move_authority = {"status": "resolved", "schema_version": "runtime-d0-selectable-move-metadata-authority-v1", "candidate_id": f"attack:{move_id}", "move_id": move_id, "metadata": metadata, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(own), "active_attacker": deepcopy(own)}
     action = {"action_id": f"attack:{move_id}", "action_type": "attack", "identity": move_id, "move_metadata_authority": move_authority}
     execution = freeze_runtime_d0_escalating_three_hit_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action)
@@ -70,3 +72,11 @@ def test_stale_or_tampered_authority_rejects():
     assert materialize_detached_escalating_three_hit_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=bad)["status"] == "rejected"
     stale = deepcopy(snapshot); stale["state"]["self_side"]["pokemon"][0]["current_hp"] = 1; stale["state_fingerprint"] = state_fingerprint(stale["state"])
     assert materialize_detached_escalating_three_hit_predictive_graph(strategy_d0=d0, runtime_snapshot=stale, action=action, execution_authority=execution)["status"] == "rejected"
+
+
+def test_loaded_dice_removes_later_accuracy_branches_without_count_expansion():
+    _state0, snapshot, d0, action, execution, _own, _foe = _inputs(accuracy=50, target_hp=1000, item="loaded-dice")
+    result = materialize_detached_escalating_three_hit_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=execution)
+    misses = [edge for edge in result["terminal_leaf_edges"] if edge["hit_outcome"]["outcome"] == "miss"]
+    assert len(misses) == 1 and misses[0]["terminal_consequences"]["landed_hit_count"] == 0
+    assert result["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}

@@ -88,16 +88,18 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             continue
         hit_index = node["hit_index"]
         power = base["powers"][hit_index - 1]
-        if miss_factor:
+        hit_probability = hit_factor if base["execution_plan"] == "sequential_accuracy_per_hit" or hit_index == 1 else Fraction(1, 1)
+        miss_probability = miss_factor if base["execution_plan"] == "sequential_accuracy_per_hit" or hit_index == 1 else Fraction()
+        if miss_probability:
             edges.append({
                 "edge_id": f"{node['node_id']}/hit:{hit_index}:miss", "from_node_id": node["node_id"],
-                "conditional_probability": miss_factor,
+                "conditional_probability": miss_probability,
                 "hit_outcome": {"hit_index": hit_index, "base_power": power, "outcome": "miss"},
                 "terminal": True, "terminal_reason": "first_miss_terminates_remaining_hits",
                 "terminal_consequences": _consequences(base, node["target_hp"], sturdy_survival_authority, node["sturdy_consumed"], hit_index - 1),
             })
-            terminal_mass += source_mass * miss_factor
-        if not hit_factor:
+            terminal_mass += source_mass * miss_probability
+        if not hit_probability:
             continue
         can_use_sturdy = not node["sturdy_consumed"] and _sturdy_full_hp(sturdy_survival_authority, node["target_hp"])
         cache_key = (node["target_hp"], can_use_sturdy, power)
@@ -118,15 +120,15 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             row = deepcopy(dict(event)); row["hit_index"] = hit_index; row["base_power"] = power
             consumed = bool(node["sturdy_consumed"] or row["sturdy_applied"])
             terminal = row["post_hp"] == 0 or hit_index == 3
-            edge = {"edge_id": f"{node['node_id']}/hit:{hit_index}:landed:{row['critical_state']}:roll:{row['roll_index']}", "from_node_id": node["node_id"], "conditional_probability": hit_factor * factor, "hit_outcome": {"hit_index": hit_index, "base_power": power, "outcome": "hit", "ordered_hit": row}, "terminal": terminal}
+            edge = {"edge_id": f"{node['node_id']}/hit:{hit_index}:landed:{row['critical_state']}:roll:{row['roll_index']}", "from_node_id": node["node_id"], "conditional_probability": hit_probability * factor, "hit_outcome": {"hit_index": hit_index, "base_power": power, "outcome": "hit", "ordered_hit": row}, "terminal": terminal}
             if terminal:
                 edge["terminal_reason"] = "target_fainted" if row["post_hp"] == 0 else "all_three_hits_landed"
                 edge["terminal_consequences"] = _consequences(base, row["post_hp"], sturdy_survival_authority, consumed, hit_index)
-                terminal_mass += source_mass * hit_factor * factor
+                terminal_mass += source_mass * hit_probability * factor
             else:
                 next_node = add_node(hit_index + 1, row["post_hp"], consumed)
                 edge["to_node_id"] = next_node
-                node_mass[next_node] += source_mass * hit_factor * factor
+                node_mass[next_node] += source_mass * hit_probability * factor
             edges.append(edge)
     return roots, nodes, edges, terminal_mass
 
@@ -143,13 +145,14 @@ def _base(d0: Any, action: Any, authority: Any) -> dict[str, Any] | None:
     powers = _powers(authority.get("per_hit_power_execution"), metadata.get("move_id"))
     accuracy = _probabilities(_mapping(authority.get("per_attempt_accuracy_execution")))
     critical = _mapping(authority.get("per_hit_critical_execution"))
-    if metadata.get("move_id") != action.get("identity") or metadata.get("move_id") not in _MOVE_IDS or powers is None or accuracy is None or critical.get("semantics") != "independent_canonical_critical_roll_per_landed_hit" or not isinstance(critical.get("per_hit_critical_probability"), Mapping):
+    modifier = _mapping(authority.get("modifier_authority")); execution_plan = modifier.get("execution_plan")
+    if metadata.get("move_id") != action.get("identity") or metadata.get("move_id") not in _MOVE_IDS or powers is None or accuracy is None or execution_plan not in {"sequential_accuracy_per_hit", "single_initial_accuracy_then_guaranteed_remaining_hits"} or critical.get("semantics") != "independent_canonical_critical_roll_per_landed_hit" or not isinstance(critical.get("per_hit_critical_probability"), Mapping):
         return None
     own = _mapping(_mapping(_mapping(d0.get("strategy_state")).get("active")).get(attacker.get("side") if isinstance(attacker, Mapping) else None)).get("current_hp")
     if not _integer(own) or own < 0:
         return None
     single = deepcopy(dict(metadata)); single.pop("min_hits", None); single.pop("max_hits", None)
-    return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(attacker)), "action_id": action["action_id"], "move_id": metadata["move_id"], "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "own_current_hp": own, "powers": powers, "per_attempt_hit_probability": accuracy[0], "per_attempt_miss_probability": accuracy[1], "per_hit_critical_execution": deepcopy(dict(critical)), "single_hit_metadata_view": single, "execution_authority": deepcopy(dict(authority))}
+    return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(attacker)), "action_id": action["action_id"], "move_id": metadata["move_id"], "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "own_current_hp": own, "powers": powers, "execution_plan": execution_plan, "per_attempt_hit_probability": accuracy[0], "per_attempt_miss_probability": accuracy[1], "per_hit_critical_execution": deepcopy(dict(critical)), "single_hit_metadata_view": single, "execution_authority": deepcopy(dict(authority))}
 
 
 def _powers(value: Any, move_id: Any) -> tuple[int, int, int] | None:

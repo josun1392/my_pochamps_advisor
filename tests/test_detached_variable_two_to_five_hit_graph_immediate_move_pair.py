@@ -25,7 +25,7 @@ def _population_bomb_action(d0, power=500, accuracy=100):
 def _escalating_action(d0, move_id="triple-axel", accuracy=100):
     authority = deepcopy(_metadata(move_id))
     power, move_type = {"triple-axel": (20, "ice"), "triple-kick": (10, "fighting")}[move_id]
-    authority["metadata"].update({"min_hits": 3, "max_hits": 3, "bp_escalation": True, "multiaccuracy": False, "power": power, "type": move_type, "accuracy": accuracy})
+    authority["metadata"].update({"min_hits": 3, "max_hits": 3, "bp_escalation": True, "multiaccuracy": True, "power": power, "type": move_type, "accuracy": accuracy})
     authority.update({"candidate_id": f"attack:{move_id}", "active_attacker": d0["decision_owner"], "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]})
     return {"action_id": f"attack:{move_id}", "action_type": "attack", "identity": move_id, "move_metadata_authority": authority}
 

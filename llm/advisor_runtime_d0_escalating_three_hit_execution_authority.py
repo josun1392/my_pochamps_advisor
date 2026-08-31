@@ -83,6 +83,9 @@ def freeze_runtime_d0_escalating_three_hit_execution_authority(
             **common, "classification": classification, "per_attempt_hit_authority": deepcopy(hit),
             "critical_hit_authority": deepcopy(critical),
         })
+    modifier = _modifier_execution_plan(critical)
+    if modifier.get("status") != "resolved":
+        return _result(modifier.get("status", "rejected"), modifier.get("reason", "escalating_three_hit_modifier_authority_unavailable"), {**common, "classification": classification, "critical_hit_authority": deepcopy(critical), "modifier_authority": deepcopy(modifier)})
     powers = _SUPPORTED_MOVES[metadata["move_id"]]
     return {
         "status": "resolved", "schema_version": SCHEMA_VERSION, **common,
@@ -109,9 +112,10 @@ def freeze_runtime_d0_escalating_three_hit_execution_authority(
             "per_hit_critical_probability": deepcopy(critical["critical_probability"]),
             "critical_hit_authority": deepcopy(critical),
         },
+        "modifier_authority": modifier,
         "execution_exclusions": {
             "action_level_accuracy": "forbidden", "aggregate_total_damage": "forbidden",
-            "skill_link_or_loaded_dice": "canonically_non_applicable_to_fixed_three_hit_count",
+            "skill_link_or_loaded_dice": "resolved_by_exact_current_modifier_execution_plan",
             "per_hit_secondary": "unsupported", "drain_or_recoil": "unsupported",
             "contact_or_item_consumption": "requires_separate_exact_owner",
             "substitute_or_replacement": "requires_separate_exact_owner",
@@ -132,7 +136,7 @@ def _classification(metadata: Any, expected_move_id: Any) -> dict[str, Any]:
         return {"status": "incomplete", "reason": "escalating_three_hit_count_metadata_invalid"}
     if (minimum, maximum) != (3, 3):
         return {"status": "unsupported", "reason": "escalating_three_hit_noncanonical_hit_count"}
-    if metadata.get("bp_escalation") is not True or metadata.get("multiaccuracy") is True:
+    if metadata.get("bp_escalation") is not True or metadata.get("multiaccuracy") is not True:
         return {"status": "unsupported", "reason": "escalating_three_hit_noncanonical_timing_metadata"}
     if metadata.get("category") not in {"physical", "special"} or not _positive_int(metadata.get("power")) or not isinstance(metadata.get("type"), str) or not metadata["type"]:
         return {"status": "incomplete", "reason": "escalating_three_hit_normal_formula_metadata_missing"}
@@ -145,6 +149,20 @@ def _classification(metadata: Any, expected_move_id: Any) -> dict[str, Any]:
     if not _neutral_secondary_metadata(metadata):
         return {"status": "unsupported", "reason": "escalating_three_hit_per_hit_secondary_unsupported"}
     return {"status": "resolved", "move_id": move_id, "damage_model": "ordinary_normal_formula_per_landed_hit"}
+
+
+def _modifier_execution_plan(critical: Any) -> dict[str, Any]:
+    source = _mapping(_mapping(critical.get("critical_hit_authority") if isinstance(critical, Mapping) else None).get("source_authority"))
+    ability, item = _mapping(source.get("attacker_ability")), _mapping(source.get("attacker_item"))
+    if ability.get("status") == "unknown": return {"status": "incomplete", "reason": "escalating_three_hit_attacker_ability_unknown"}
+    if item.get("status") == "unknown": return {"status": "incomplete", "reason": "escalating_three_hit_attacker_item_unknown"}
+    if ability.get("status") not in {"known", "known_absent"} or item.get("status") not in {"known", "known_absent"}:
+        return {"status": "rejected", "reason": "escalating_three_hit_modifier_source_authority_invalid"}
+    skill, dice = ability.get("value") == "skill-link", item.get("value") == "loaded-dice"
+    return {"status": "resolved", "attacker_ability": deepcopy(dict(ability)), "attacker_item": deepcopy(dict(item)),
+            "execution_plan": "single_initial_accuracy_then_guaranteed_remaining_hits" if skill or dice else "sequential_accuracy_per_hit",
+            "skill_link_applies": skill, "loaded_dice_applies": dice,
+            "provenance": "runtime_d0_current_attacker_modifier_observation_v1"}
 
 
 def _per_attempt_probability(hit: Any, base: Mapping[str, Any], move_id: str) -> dict[str, Any]:
@@ -186,6 +204,10 @@ def _int(value: Any) -> bool:
 
 def _positive_int(value: Any) -> bool:
     return _int(value) and value > 0
+
+
+def _mapping(value: Any) -> Mapping[str, Any]:
+    return value if isinstance(value, Mapping) else {}
 
 
 def _result(status: str, reason: str, base: Mapping[str, Any]) -> dict[str, Any]:
