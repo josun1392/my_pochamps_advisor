@@ -167,7 +167,7 @@ def _final_from_consequences(consequences: Any, actor: Mapping[str, Any], base: 
     elif actor == base["opponent_actor"]: own, opponent = consequences.get("target_final_hp"), consequences.get("own_final_hp")
     else: return "variable_graph_final_actor_identity_mismatch"
     if not _hp(own) or not _hp(opponent): return "variable_graph_final_hp_invalid"
-    return {"own_final_hp": own, "opponent_final_hp": opponent, "own_fainted": own == 0, "opponent_fainted": opponent == 0, "supported_stage_consequence": deepcopy(consequences.get("deterministic_stage_effect")), "supported_secondary_consequence": deepcopy(consequences.get("secondary"))}
+    return {"own_final_hp": own, "opponent_final_hp": opponent, "own_fainted": own == 0, "opponent_fainted": opponent == 0, "supported_stage_consequence": deepcopy(consequences.get("deterministic_stage_effect")), "supported_secondary_consequence": deepcopy(consequences.get("secondary")), "contact_reactive_damage_consequence": deepcopy(consequences.get("contact_reactive_damage"))}
 
 
 def _final_from_leaf(leaf: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:

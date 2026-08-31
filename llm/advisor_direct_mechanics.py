@@ -522,7 +522,7 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
         for key, reason in (("ability", "ability_modifier"), ("item", "item_modifier"), ("status", "major_status_modifier")):
             value = side.get(key)
             if isinstance(value, Mapping) and value.get("status") == "known" and _nonempty_str(value.get("value")):
-                if key == "item" and value.get("value") == "quick-claw":
+                if key == "item" and value.get("value") in {"quick-claw", "rocky-helmet"}:
                     continue
                 # Detached intermediate major conditions are exact terminal
                 # consequences, not current-runtime observations.  They may
@@ -830,7 +830,7 @@ def _defender_item_modifier_context(
         return result
     item_id = item["value"]
     # Quick Claw changes only the separately-owned action-order branch.
-    if item_id == "quick-claw":
+    if item_id in {"quick-claw", "rocky-helmet"}:
         return result
     effect = get_item(item_id)
     if effect is None:
@@ -1204,6 +1204,6 @@ def _fixed_unsupported(reason: str) -> dict[str, Any]:
 # invented absence authority.
 _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({
     "intimidate", "pressure", "drizzle", "drought", "sand-stream", "snow-warning",
-    "skill-link",
+    "skill-link", "rough-skin", "iron-barbs",
 })
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

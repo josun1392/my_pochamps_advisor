@@ -28,6 +28,8 @@ from llm.advisor_detached_population_bomb_per_hit_accuracy_predictive_graph_mate
 from llm.advisor_detached_escalating_three_hit_predictive_graph_materialization import materialize_detached_escalating_three_hit_predictive_graph
 from llm.advisor_runtime_d0_population_bomb_per_hit_accuracy_execution_authority import freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority
 from llm.advisor_runtime_d0_escalating_three_hit_execution_authority import freeze_runtime_d0_escalating_three_hit_execution_authority
+from llm.advisor_runtime_d0_canonical_contact_classification_authority import freeze_runtime_d0_canonical_contact_classification_authority
+from llm.advisor_runtime_d0_contact_reactive_damage_authority import contact_reactive_damage_relevance
 from llm.advisor_immediate_move_vs_move_action_pair import (
     _attack_ledger, _base, _fainted, _metadata_for_inputs, _opponent_metadata,
     _orders, _status,
@@ -161,6 +163,14 @@ def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         "provenance": "strict_detached_pair_metadata_to_variable_multi_hit_d0_selection_view_v1",
     }
     action = {"action_id": action_id, "action_type": "attack", "identity": metadata["move_id"], "move_metadata_authority": projection}
+    relevance = contact_reactive_damage_relevance(runtime_snapshot=runtime_snapshot, defender=target)
+    if relevance.get("status") != "resolved":
+        return _result(_status(relevance), relevance.get("reason", "variable_multi_hit_contact_reactive_relevance_unknown"), {})
+    contact = None
+    if relevance.get("relevant") is True:
+        contact = freeze_runtime_d0_canonical_contact_classification_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, attacker=actor, target=target)
+        if contact.get("status") != "resolved":
+            return _result(_status(contact), contact.get("reason", "variable_multi_hit_contact_authority_unavailable"), {})
     if metadata["move_id"] == "population-bomb":
         execution = freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action)
     elif metadata["move_id"] in _ESCALATING_MOVES:
@@ -170,11 +180,11 @@ def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     if execution.get("status") != "resolved":
         return _result(_status(execution), execution.get("reason", "variable_multi_hit_execution_authority_unavailable"), {})
     graph = (materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority,
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, contact_reactive_contact_authority=contact,
     ) if metadata["move_id"] == "population-bomb" else materialize_detached_escalating_three_hit_predictive_graph(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority,
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, contact_reactive_contact_authority=contact,
     ) if metadata["move_id"] in _ESCALATING_MOVES else materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority,
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, contact_reactive_contact_authority=contact,
     ))
     return graph if graph.get("status") == "evaluable" else _result(_status(graph), graph.get("reason", "variable_multi_hit_path_graph_unavailable"), {})
 
@@ -252,6 +262,9 @@ def _attach_second_actions(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
             return _result(_status(intermediate), intermediate.get("reason", "variable_graph_intermediate_state_unavailable"), {}, first_terminal_source=source["source_id"]), None
         transition = {"first_terminal_source_id": source["source_id"], "incoming_path_probability": _fd(source["path_probability"]), "first_terminal_consequences": deepcopy(dict(source["consequences"])), "intermediate_state_id": intermediate.get("first_action", {}).get("leaf_id"), "ordered_terminal_hit": deepcopy(source.get("ordered_hit"))}
         if _fainted(intermediate, second_actor):
+            transition["second_action"] = {"state": "cancelled_due_to_faint", "actor": deepcopy(dict(second_actor)), "conditional_probability": _fd(Fraction(1, 1)), "reason": "second_action_cancelled_due_to_faint"}
+            transitions.append(transition); mass += source["path_probability"]; continue
+        if _fainted(intermediate, first_actor):
             transition["second_action"] = {"state": "cancelled_due_to_faint", "actor": deepcopy(dict(second_actor)), "conditional_probability": _fd(Fraction(1, 1)), "reason": "second_action_cancelled_due_to_faint"}
             transitions.append(transition); mass += source["path_probability"]; continue
         key = _second_cache_key(intermediate, second_actor, second_metadata)

@@ -10,6 +10,10 @@ from llm.advisor_predictive_damage_roll_uncertainty import project_predictive_da
 from llm.advisor_predictive_normal_formula_post_hit import compose_predictive_normal_formula_post_hit
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_d0_fixed_two_hit_multi_hit_execution_authority import SCHEMA_VERSION as EXECUTION_SCHEMA
+from llm.advisor_runtime_d0_contact_reactive_damage_authority import (
+    freeze_runtime_d0_contact_reactive_damage_authority,
+    materialize_detached_contact_reactive_damage,
+)
 from llm.advisor_focus_sash_survival import focus_sash_state
 from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_native_damage_context,
@@ -29,6 +33,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     action: Mapping[str, Any], execution_authority: Mapping[str, Any],
     sturdy_survival_authority: Mapping[str, Any] | None = None,
     focus_sash_survival_authority: Mapping[str, Any] | None = None,
+    contact_reactive_contact_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Materialize ordered hit leaves without mutating current D0/runtime.
 
@@ -73,8 +78,18 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
             return _result(first["status"], first["reason"], base)
         for first_event in first:
             first_probability = hit_probability * first_event["probability"]
-            if first_event["post_hp"] == 0:
-                leaves.append(_leaf(base, "hit", first_probability, (first_event,), 0, _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"]), focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"])))
+            first_reactive = _apply_reactive(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action,
+                contact_authority=contact_reactive_contact_authority, event=first_event,
+                hit_index=1, attacker_hp=base["own_current_hp"],
+            )
+            if isinstance(first_reactive, Mapping) and first_reactive.get("status") != "resolved":
+                return _result(first_reactive.get("status", "rejected"), first_reactive.get("reason", "fixed_two_hit_contact_reactive_damage_unavailable"), base)
+            first_attacker_hp = first_reactive["post_hp"] if isinstance(first_reactive, Mapping) else base["own_current_hp"]
+            first_event = _event_with_reactive(first_event, first_reactive)
+            if first_event["post_hp"] == 0 or first_attacker_hp == 0:
+                reason = "target_fainted" if first_event["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage"
+                leaves.append(_leaf(base, "hit", first_probability, (first_event,), first_event["post_hp"], _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"]), focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"]), own_final_hp=first_attacker_hp, terminal_reason=reason))
                 continue
             second_d0, second_snapshot = _detached_target_hp_view(
                 runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"],
@@ -97,11 +112,22 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
             if isinstance(second, Mapping):
                 return _result(second["status"], second["reason"], base)
             for second_event in second:
+                second_reactive = _apply_reactive(
+                    strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action,
+                    contact_authority=contact_reactive_contact_authority, event=second_event,
+                    hit_index=2, attacker_hp=first_attacker_hp,
+                )
+                if isinstance(second_reactive, Mapping) and second_reactive.get("status") != "resolved":
+                    return _result(second_reactive.get("status", "rejected"), second_reactive.get("reason", "fixed_two_hit_contact_reactive_damage_unavailable"), base)
+                second_attacker_hp = second_reactive["post_hp"] if isinstance(second_reactive, Mapping) else first_attacker_hp
+                second_event = _event_with_reactive(second_event, second_reactive)
                 leaves.append(_leaf(
                     base, "hit", first_probability * second_event["probability"],
                     (first_event, second_event), second_event["post_hp"],
                     _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"] or second_event["sturdy_applied"]),
                     focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"] or second_event["focus_sash_applied"]),
+                    own_final_hp=second_attacker_hp,
+                    terminal_reason="target_fainted" if second_event["post_hp"] == 0 else "all_hits_landed",
                 ))
     mass = sum((row["probability"] for row in leaves), Fraction())
     if mass != Fraction(1, 1):
@@ -165,6 +191,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
                 "roll_index": roll["roll_index"], "random_factor_percent": roll["random_factor_percent"],
                 "raw_damage": post_row["raw_damage"], "actual_damage": actual, "pre_hp": before,
                 "post_hp": before - actual, "target_max_hp": before if sturdy_survival_authority is not None or focus_sash_survival_authority is not None else None,
+                "target_routing": interval.get("target_routing", "target"),
                 "sturdy_applied": isinstance(sturdy, Mapping) and sturdy.get("outcome") == "applied",
                 "sturdy_survival": deepcopy(dict(sturdy)) if isinstance(sturdy, Mapping) else {"outcome": "not_applicable"},
                 "focus_sash_applied": isinstance(focus, Mapping) and focus.get("outcome") == "applied",
@@ -224,21 +251,23 @@ def _sturdy_state(authority: Mapping[str, Any] | None, *, consumed: bool) -> dic
     return {"state": "consumed" if consumed else "ready_or_not_applicable", "authority_present": isinstance(authority, Mapping)}
 
 
-def _leaf(base: Mapping[str, Any], hit_state: str, probability: Fraction, events: tuple[Mapping[str, Any], ...], target_hp: int, sturdy: Mapping[str, Any], focus_sash: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _leaf(base: Mapping[str, Any], hit_state: str, probability: Fraction, events: tuple[Mapping[str, Any], ...], target_hp: int, sturdy: Mapping[str, Any], focus_sash: Mapping[str, Any] | None = None, *, own_final_hp: int | None = None, terminal_reason: str | None = None) -> dict[str, Any]:
     path = [hit_state]
     for index, event in enumerate(events, 1): path.extend((f"hit_{index}:{event['critical_state']}", f"hit_{index}:roll:{event['roll_index']}"))
     # The fixed-two-hit authority deliberately owns no recoil, drain, or
     # self-KO behavior.  The current attacker HP is therefore an exact
     # unchanged consequence, but it must still be exposed in the common
     # terminal-leaf shape used by detached pair composition.
+    own_hp = base["own_current_hp"] if own_final_hp is None else own_final_hp
     return {
         "leaf_id": "/".join(path), "candidate_id": f"attack:{base['move_id']}",
         "action_type": "attack", "branch_path": tuple(path), "hit_state": hit_state,
         "critical_state": "per_hit_independent", "damage_roll": "per_hit_independent",
         "probability": probability, "ordered_hits": tuple(deepcopy(dict(event)) for event in events),
         "consequences": {
-            "own_final_hp": base["own_current_hp"], "self_fainted": False,
+            "own_final_hp": own_hp, "self_fainted": own_hp == 0,
             "target_final_hp": target_hp, "target_ko": target_hp == 0,
+            **({"terminal_reason": terminal_reason} if terminal_reason else {}),
             "deterministic_stage_effect": None, "secondary": None,
             "sturdy": deepcopy(dict(sturdy)),
             "focus_sash": deepcopy(dict(focus_sash)) if isinstance(focus_sash, Mapping) else {"state": "not_applicable", "authority_present": False},
@@ -252,6 +281,49 @@ def _leaf(base: Mapping[str, Any], hit_state: str, probability: Fraction, events
             )
         },
     }
+
+
+def _apply_reactive(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], action: Mapping[str, Any], contact_authority: Mapping[str, Any] | None, event: Mapping[str, Any], hit_index: int, attacker_hp: int) -> dict[str, Any] | None:
+    if contact_authority is None:
+        return None
+    source_hit = {
+        "source_action_id": action["action_id"], "source_move_id": action["identity"],
+        "hit_index": hit_index, "critical_state": event.get("critical_state"),
+        "roll_index": event.get("roll_index"), "raw_damage": event.get("raw_damage"),
+        "actual_damage": event.get("actual_damage"), "target_routing": event.get("target_routing", "target"),
+        "target_pre_hp": event.get("pre_hp"), "target_post_hp": event.get("post_hp"),
+    }
+    maximum = _attacker_max_hp(runtime_snapshot, base["attacker"])
+    if maximum is None:
+        return {"status": "incomplete", "reason": "fixed_two_hit_contact_reactive_attacker_max_hp_unknown"}
+    authority = freeze_runtime_d0_contact_reactive_damage_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], defender=base["target"],
+        source_action=action, contact_authority=contact_authority, source_hit=source_hit,
+        attacker_hp_authority={"status": "resolved", "current_hp": attacker_hp, "maximum_hp": maximum, "fainted": attacker_hp == 0, "provenance": "fixed_two_hit_path_attacker_hp_v1"},
+    )
+    if authority.get("status") != "resolved":
+        return authority
+    if authority.get("outcome") != "applies":
+        return {"status": "resolved", "post_hp": attacker_hp, "fainted": attacker_hp == 0, "authority": authority, "overlay": None}
+    overlay = materialize_detached_contact_reactive_damage(authority=authority)
+    if overlay.get("status") != "resolved":
+        return overlay
+    return {"status": "resolved", "post_hp": overlay["hypothetical_hp_authority"]["current_hp"], "fainted": overlay["hypothetical_fainted_authority"]["value"], "authority": authority, "overlay": overlay}
+
+
+def _event_with_reactive(event: Mapping[str, Any], reactive: Mapping[str, Any] | None) -> dict[str, Any]:
+    result = deepcopy(dict(event))
+    if isinstance(reactive, Mapping):
+        result["contact_reactive_damage"] = {"outcome": reactive["authority"]["outcome"], "ordered_sources": deepcopy(reactive["authority"].get("ordered_sources", ())), "authority": deepcopy(dict(reactive["authority"])), "overlay": deepcopy(dict(reactive["overlay"])) if isinstance(reactive.get("overlay"), Mapping) else None}
+        result["attacker_post_reactive_hp"] = reactive["post_hp"]
+        result["attacker_fainted_from_reactive"] = reactive["fainted"]
+    return result
+
+
+def _attacker_max_hp(snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> int | None:
+    state = snapshot.get("state") if isinstance(snapshot, Mapping) else None; side = state.get(f"{owner.get('side')}_side") if isinstance(state, Mapping) else None; roster = side.get("pokemon") if isinstance(side, Mapping) else None; pokemon = roster.get(owner.get("slot_index")) if isinstance(roster, Mapping) else None
+    maximum = pokemon.get("max_hp") if isinstance(pokemon, Mapping) and pokemon.get("pokemon_id") == owner.get("pokemon_id") else None
+    return maximum if isinstance(maximum, int) and not isinstance(maximum, bool) and maximum > 0 else None
 
 
 def _applied_focus_sash_survival(events: tuple[Mapping[str, Any], ...]) -> dict[str, Any] | None:

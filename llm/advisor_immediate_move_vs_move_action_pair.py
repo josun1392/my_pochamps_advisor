@@ -61,6 +61,13 @@ from llm.advisor_runtime_d0_burning_bulwark_reactive_burn_authority import (
     SCHEMA_VERSION as BURNING_BULWARK_BURN_SCHEMA_VERSION,
     materialize_detached_burning_bulwark_reactive_burn,
 )
+from llm.advisor_runtime_d0_canonical_contact_classification_authority import (
+    freeze_runtime_d0_canonical_contact_classification_authority,
+)
+from llm.advisor_runtime_d0_contact_reactive_damage_authority import (
+    apply_contact_reactive_damage_to_consequences,
+    contact_reactive_damage_relevance,
+)
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
@@ -597,6 +604,8 @@ def _materialize_order(
         if intermediate.get("status") != "resolved": return _result(_status(intermediate), intermediate.get("reason", "intermediate_state_unavailable"), base)
         if _fainted(intermediate, second_actor):
             branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan)); continue
+        if _fainted(intermediate, first_actor):
+            branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan)); continue
         flinch = _pending_second_action_flinch(intermediate, second_actor)
         if isinstance(flinch, str):
             return _result("rejected", flinch, base, first_leaf_id=leaf["leaf_id"])
@@ -645,11 +654,12 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
             target=target, metadata_authority=metadata_authority,
             sturdy_survival_authority=sturdy_survival_authority,
             focus_sash_survival_authority=focus_sash_survival_authority,
+            action=action,
         )
     return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, action=action)
 
 
-def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Adapt already-validated canonical metadata to the fixed-two-hit owner.
 
     This is only a tagged D0-local selection view.  It neither looks up move
@@ -670,6 +680,16 @@ def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: M
         "provenance": "strict_detached_pair_metadata_to_fixed_two_hit_d0_selection_view_v1",
     }
     action = {"action_id": action_id, "action_type": "attack", "identity": metadata["move_id"], "move_metadata_authority": projection}
+    relevance = contact_reactive_damage_relevance(runtime_snapshot=runtime_snapshot, defender=target)
+    if relevance.get("status") != "resolved":
+        return _result(_status(relevance), relevance.get("reason", "fixed_two_hit_contact_reactive_relevance_unknown"), {})
+    contact = None
+    if relevance.get("relevant") is True:
+        contact = freeze_runtime_d0_canonical_contact_classification_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, attacker=actor, target=target,
+        )
+        if contact.get("status") not in {"resolved"}:
+            return _result(_status(contact), contact.get("reason", "fixed_two_hit_contact_authority_unavailable"), {})
     execution = freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
     )
@@ -679,6 +699,7 @@ def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: M
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
         execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority,
         focus_sash_survival_authority=focus_sash_survival_authority,
+        contact_reactive_contact_authority=contact,
     )
     if leaves.get("status") != "evaluable":
         return _result(_status(leaves), leaves.get("reason", "fixed_two_hit_terminal_leaves_unavailable"), {})
@@ -720,9 +741,18 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, native_damage_context=native)
     hit = build_runtime_d0_strict_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, selected_move=metadata)
     crit = build_runtime_d0_strict_critical_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata)
+    source_action = action if isinstance(action, Mapping) else {"action_id": f"attack:{metadata['move_id']}", "action_type": "attack", "identity": metadata["move_id"]}
     if any(row.get("status") != "resolved" for row in (normal, hit, crit)):
         row = next(row for row in (normal, hit, crit) if row.get("status") != "resolved")
         return _result(_status(row), row.get("reason", "normal_formula_predictive_authority_unavailable"), {})
+    relevance = contact_reactive_damage_relevance(runtime_snapshot=runtime_snapshot, defender=target)
+    if relevance.get("status") != "resolved":
+        return _result(_status(relevance), relevance.get("reason", "contact_reactive_relevance_unknown"), {})
+    contact = None
+    if relevance.get("relevant") is True:
+        contact = freeze_runtime_d0_canonical_contact_classification_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=source_action, attacker=actor, target=target)
+        if contact.get("status") != "resolved":
+            return _result(_status(contact), contact.get("reason", "contact_authority_unavailable"), {})
     thunderbolt = None
     iron_head_flinch = None
     fake_out_flinch = None
@@ -788,8 +818,43 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         miss_baseline={"attacker_current_hp": own_hp, "target_current_hp": strategy_d0["strategy_state"]["active"][target["side"]]["current_hp"]})
     if uncertainty.get("status") != "resolved": return _result(_status(uncertainty), uncertainty.get("reason", "hit_miss_uncertainty_unavailable"), {})
     bindings = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "attacker": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "move_id": metadata["move_id"]}
-    return normalize_exact_predictive_outcome_ledger(candidate=candidate, predictive_consequence=uncertainty,
+    ledger = normalize_exact_predictive_outcome_ledger(candidate=candidate, predictive_consequence=uncertainty,
         component_manifest={"accuracy": {"status": "resolved"}, "critical": {"status": "resolved"}, "damage_roll": {"status": "resolved"}, "secondary": {"status": "resolved" if any(item is not None for item in (thunderbolt, iron_head_flinch, fake_out_flinch, sparkling_aria, self_stage, target_stage)) else "not_applicable"}}, bindings=bindings)
+    return _apply_contact_reactive_to_normal_ledger(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
+        attacker=actor, defender=target, source_action=source_action, contact_authority=contact,
+    )
+
+
+def _apply_contact_reactive_to_normal_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], ledger: Mapping[str, Any], attacker: Mapping[str, Any], defender: Mapping[str, Any], source_action: Mapping[str, Any], contact_authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    if ledger.get("status") != "evaluable":
+        return deepcopy(dict(ledger))
+    if contact_authority is None:
+        return deepcopy(dict(ledger))
+    leaves = ledger.get("terminal_leaves")
+    if not isinstance(leaves, tuple):
+        return _result("rejected", "contact_reactive_normal_ledger_leaves_invalid", {})
+    updated = []
+    for leaf in leaves:
+        if not isinstance(leaf, Mapping):
+            return _result("rejected", "contact_reactive_normal_leaf_invalid", {})
+        if leaf.get("hit_state") != "hit":
+            updated.append(deepcopy(dict(leaf))); continue
+        consequences = leaf.get("consequences")
+        source_hit = consequences.get("source_hit_context") if isinstance(consequences, Mapping) else None
+        if isinstance(source_hit, Mapping):
+            source_hit = {**deepcopy(dict(source_hit)), "source_action_id": source_action["action_id"], "source_move_id": source_action["identity"]}
+        result = apply_contact_reactive_damage_to_consequences(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=attacker, defender=defender,
+            source_action=source_action, contact_authority=contact_authority, source_hit=source_hit or {},
+            consequences=consequences or {},
+        )
+        if result.get("status") != "resolved":
+            return _result(_status(result), result.get("reason", "contact_reactive_damage_unavailable"), {})
+        row = deepcopy(dict(leaf)); row["consequences"] = result["consequences"]; updated.append(row)
+    result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(updated)
+    result["component_manifest"] = {**deepcopy(dict(result.get("component_manifest", {}))), "contact_reactive_damage": {"status": "resolved"}}
+    return result
 
 
 def _consequences(interval: Mapping[str, Any], facts: Mapping[str, Any]) -> dict[str, Any]:

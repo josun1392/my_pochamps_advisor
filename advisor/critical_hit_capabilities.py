@@ -41,7 +41,7 @@ _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
 _SUPPORTED_ATTACKER_ABILITIES = frozenset({"pressure", "super-luck", "merciless", "sniper", "guts", "skill-link"})
 _SUPPORTED_DEFENDER_ABILITIES = frozenset({
     "pressure", "intimidate", "drizzle", "drought", "sand-stream", "snow-warning",
-    "battle-armor", "shell-armor", "guts", "sturdy",
+    "battle-armor", "shell-armor", "guts", "sturdy", "rough-skin", "iron-barbs",
 })
 _SUPPORTED_ATTACKER_ITEMS = frozenset({"scope-lens", "razor-claw", "loaded-dice"})
 _POISONED = frozenset({"poison", "poisoned", "toxic", "badly-poisoned"})

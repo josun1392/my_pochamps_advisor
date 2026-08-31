@@ -11,7 +11,7 @@ from fractions import Fraction
 from typing import Any, Mapping
 
 from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import (
-    _detached_target_hp_view, _has_life_orb, _hit_events, _sturdy_state,
+    _apply_reactive, _detached_target_hp_view, _event_with_reactive, _has_life_orb, _hit_events, _sturdy_state,
 )
 from llm.advisor_focus_sash_survival import focus_sash_state
 from llm.advisor_runtime_d0_population_bomb_per_hit_accuracy_execution_authority import (
@@ -31,6 +31,7 @@ def materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
     action: Mapping[str, Any], execution_authority: Mapping[str, Any],
     sturdy_survival_authority: Mapping[str, Any] | None = None,
     focus_sash_survival_authority: Mapping[str, Any] | None = None,
+    contact_reactive_contact_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Materialize one exact independent-accuracy graph for Population Bomb."""
     base = _base(strategy_d0, action, execution_authority)
@@ -47,6 +48,7 @@ def materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
         target_hp=target_hp, sturdy_survival_authority=sturdy_survival_authority,
         focus_sash_survival_authority=focus_sash_survival_authority,
+        contact_reactive_contact_authority=contact_reactive_contact_authority,
     )
     if isinstance(roots, Mapping):
         return _result(roots["status"], roots["reason"], base)
@@ -65,7 +67,7 @@ def materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
     }
 
 
-def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], target_hp: int, sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], Fraction] | tuple[dict[str, str], None, None, None]:
+def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], target_hp: int, sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None, contact_reactive_contact_authority: Mapping[str, Any] | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], Fraction] | tuple[dict[str, str], None, None, None]:
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
     plan = _mapping(_mapping(base["execution_authority"]).get("modifier_authority")).get("modifier_execution_plan")
@@ -82,26 +84,25 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
               "node_id": f"attempt:1/landed:0/max:{count}/hp:{target_hp}/sturdy:available/focus-sash:available",
               "modifier_execution_plan": kind, "selected_hit_count": count if kind == "single_accuracy_then_uniform_guaranteed_hits" else None}
              for count, probability in planned_counts]
-    node_index: dict[tuple[int, int, int, int, bool, bool], str] = {}
+    node_index: dict[tuple[int, int, int, int, bool, bool, int], str] = {}
     node_mass: dict[str, Fraction] = {}
     terminal_mass = Fraction()
     hit_factor, miss_factor = base["per_attempt_hit_probability"], base["per_attempt_miss_probability"]
 
-    def add_node(attempt: int, landed: int, maximum: int, hp: int, sturdy_consumed: bool, focus_sash_consumed: bool) -> str:
-        key = (attempt, landed, maximum, hp, sturdy_consumed, focus_sash_consumed)
+    def add_node(attempt: int, landed: int, maximum: int, hp: int, sturdy_consumed: bool, focus_sash_consumed: bool, attacker_hp: int) -> str:
+        key = (attempt, landed, maximum, hp, sturdy_consumed, focus_sash_consumed, attacker_hp)
         existing = node_index.get(key)
         if existing is not None:
             return existing
-        node_id = f"attempt:{attempt}/landed:{landed}/max:{maximum}/hp:{hp}/sturdy:{'consumed' if sturdy_consumed else 'available'}/focus-sash:{'consumed' if focus_sash_consumed else 'available'}"
+        node_id = f"attempt:{attempt}/landed:{landed}/max:{maximum}/hp:{hp}/attacker-hp:{attacker_hp}/sturdy:{'consumed' if sturdy_consumed else 'available'}/focus-sash:{'consumed' if focus_sash_consumed else 'available'}"
         node_index[key] = node_id
-        nodes.append({"node_id": node_id, "attempt_index": attempt, "landed_hit_count": landed, "maximum_attempts": maximum, "target_hp": hp, "sturdy_consumed": sturdy_consumed, "focus_sash_consumed": focus_sash_consumed})
+        nodes.append({"node_id": node_id, "attempt_index": attempt, "landed_hit_count": landed, "maximum_attempts": maximum, "target_hp": hp, "attacker_hp": attacker_hp, "sturdy_consumed": sturdy_consumed, "focus_sash_consumed": focus_sash_consumed})
         node_mass[node_id] = Fraction()
         return node_id
 
     for root_row, (maximum, probability) in zip(roots, planned_counts):
-        root = add_node(1, 0, maximum, target_hp, False, False)
-        if root_row["node_id"] != root:
-            return {"status": "rejected", "reason": "population_bomb_root_node_identity_invalid"}, None, None, None
+        root = add_node(1, 0, maximum, target_hp, False, False, base["own_current_hp"])
+        root_row["node_id"] = root
         node_mass[root] += probability
     event_cache: dict[tuple[int, bool, bool, bool], list[dict[str, Any]] | dict[str, str]] = {}
     cursor = 0
@@ -149,20 +150,25 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             row = deepcopy(dict(event))
             row["attempt_index"] = attempt
             row["hit_index"] = node["landed_hit_count"] + 1
+            reactive = _apply_reactive(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action={"action_id": base["action_id"], "identity": base["move_id"]}, contact_authority=contact_reactive_contact_authority, event=row, hit_index=row["hit_index"], attacker_hp=node["attacker_hp"])
+            if isinstance(reactive, Mapping) and reactive.get("status") != "resolved":
+                return {"status": reactive.get("status", "rejected"), "reason": reactive.get("reason", "population_bomb_contact_reactive_damage_unavailable")}, None, None, None
+            attacker_hp = reactive["post_hp"] if isinstance(reactive, Mapping) else node["attacker_hp"]
+            row = _event_with_reactive(row, reactive)
             sturdy_consumed = bool(node["sturdy_consumed"] or row["sturdy_applied"])
             focus_sash_consumed = bool(node["focus_sash_consumed"] or row["focus_sash_applied"])
-            terminal = row["post_hp"] == 0 or attempt == node["maximum_attempts"]
+            terminal = row["post_hp"] == 0 or attacker_hp == 0 or attempt == node["maximum_attempts"]
             edge = {
                 "edge_id": f"{node['node_id']}/attempt:{attempt}:hit:{row['critical_state']}:roll:{row['roll_index']}",
                 "from_node_id": node["node_id"], "conditional_probability": hit_probability * factor,
                 "attempt_outcome": {"attempt_index": attempt, "outcome": "hit", "ordered_hit": row}, "terminal": terminal,
             }
             if terminal:
-                edge["terminal_reason"] = "target_fainted" if row["post_hp"] == 0 else ("maximum_ten_attempts_reached" if kind == "existing_independent_multiaccuracy" else "planned_hit_count_reached")
-                edge["terminal_consequences"] = _consequences(base, row["post_hp"], sturdy_survival_authority, sturdy_consumed, focus_sash_survival_authority, focus_sash_consumed, node["landed_hit_count"] + 1)
+                edge["terminal_reason"] = "target_fainted" if row["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if attacker_hp == 0 else ("maximum_ten_attempts_reached" if kind == "existing_independent_multiaccuracy" else "planned_hit_count_reached")
+                edge["terminal_consequences"] = _consequences(base, row["post_hp"], sturdy_survival_authority, sturdy_consumed, focus_sash_survival_authority, focus_sash_consumed, node["landed_hit_count"] + 1, attacker_hp=attacker_hp, terminal_reason=edge["terminal_reason"])
                 terminal_mass += source_mass * hit_probability * factor
             else:
-                next_node = add_node(attempt + 1, node["landed_hit_count"] + 1, node["maximum_attempts"], row["post_hp"], sturdy_consumed, focus_sash_consumed)
+                next_node = add_node(attempt + 1, node["landed_hit_count"] + 1, node["maximum_attempts"], row["post_hp"], sturdy_consumed, focus_sash_consumed, attacker_hp)
                 edge["to_node_id"] = next_node
                 node_mass[next_node] += source_mass * hit_probability * factor
             edges.append(edge)
@@ -219,8 +225,9 @@ def _focus_sash_full_hp(authority: Mapping[str, Any] | None, hp: int) -> bool:
     return isinstance(authority, Mapping) and authority.get("status") == "ready" and authority.get("current_hp") == authority.get("maximum_hp") == hp
 
 
-def _consequences(base: Mapping[str, Any], target_hp: int, sturdy_authority: Mapping[str, Any] | None, sturdy_consumed: bool, focus_sash_authority: Mapping[str, Any] | None, focus_sash_consumed: bool, landed: int) -> dict[str, Any]:
-    return {"own_final_hp": base["own_current_hp"], "self_fainted": False, "target_final_hp": target_hp, "target_ko": target_hp == 0, "landed_hit_count": landed, "deterministic_stage_effect": None, "secondary": None, "sturdy": _sturdy_state(sturdy_authority, consumed=sturdy_consumed), "focus_sash": focus_sash_state(focus_sash_authority, consumed=focus_sash_consumed)}
+def _consequences(base: Mapping[str, Any], target_hp: int, sturdy_authority: Mapping[str, Any] | None, sturdy_consumed: bool, focus_sash_authority: Mapping[str, Any] | None, focus_sash_consumed: bool, landed: int, *, attacker_hp: int | None = None, terminal_reason: str | None = None) -> dict[str, Any]:
+    own_hp = base["own_current_hp"] if attacker_hp is None else attacker_hp
+    return {"own_final_hp": own_hp, "self_fainted": own_hp == 0, "target_final_hp": target_hp, "target_ko": target_hp == 0, "landed_hit_count": landed, **({"terminal_reason": terminal_reason} if terminal_reason else {}), "deterministic_stage_effect": None, "secondary": None, "sturdy": _sturdy_state(sturdy_authority, consumed=sturdy_consumed), "focus_sash": focus_sash_state(focus_sash_authority, consumed=focus_sash_consumed)}
 
 
 def _serialize_root(value: Mapping[str, Any]) -> dict[str, Any]:
