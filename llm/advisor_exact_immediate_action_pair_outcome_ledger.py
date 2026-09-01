@@ -248,15 +248,35 @@ def _final(source: Mapping[str, Any], base: Mapping[str, Any]) -> dict[str, Any]
         own_hp, opponent_hp = consequences.get("target_final_hp"), consequences.get("own_final_hp")
     else: return "pair_final_actor_identity_mismatch"
     if not _hp(own_hp) or not _hp(opponent_hp): return "pair_final_hp_missing"
+    if isinstance(consequences.get("life_orb"), Mapping) and not _life_orb(consequences["life_orb"]):
+        return "pair_final_life_orb_consequence_invalid"
     return {"own_final_hp": own_hp, "opponent_final_hp": opponent_hp,
             "own_fainted": own_hp == 0, "opponent_fainted": opponent_hp == 0,
             "supported_stage_consequence": deepcopy(consequences.get("deterministic_stage_effect")),
             "supported_secondary_consequence": deepcopy(consequences.get("secondary")),
             "reactive_shield_condition_consequence": deepcopy(consequences.get("reactive_shield_condition_transition")),
-            "contact_reactive_damage_consequence": deepcopy(consequences.get("contact_reactive_damage"))}
+            "contact_reactive_damage_consequence": deepcopy(consequences.get("contact_reactive_damage")),
+            "life_orb_consequence": deepcopy(consequences.get("life_orb"))}
 
 
 def _hp(value: Any) -> bool: return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+def _life_orb(value: Any) -> bool:
+    authority = value.get("authority") if isinstance(value, Mapping) else None
+    overlay = value.get("overlay") if isinstance(value, Mapping) else None
+    modifier = authority.get("damage_modifier") if isinstance(authority, Mapping) else None
+    recoil = authority.get("recoil") if isinstance(authority, Mapping) else None
+    fraction = modifier.get("fraction") if isinstance(modifier, Mapping) else None
+    if not isinstance(authority, Mapping) or authority.get("schema_version") != "runtime-d0-life-orb-immediate-authority-v1" or authority.get("status") != "resolved":
+        return False
+    if modifier.get("applies") is True and (modifier.get("modifier_q12") != 5324 or fraction != {"numerator": 5324, "denominator": 4096}): return False
+    if modifier.get("applies") is False and (modifier.get("modifier_q12") != 4096 or fraction != {"numerator": 4096, "denominator": 4096}): return False
+    if not isinstance(recoil, Mapping) or recoil.get("suppressed_by") not in {None, "sheer-force", "magic-guard"}: return False
+    if not all(isinstance(recoil.get(key), int) and not isinstance(recoil.get(key), bool) and recoil[key] >= 0 for key in ("pre_hp", "max_hp", "recoil_damage", "post_hp")): return False
+    if recoil["max_hp"] < 1 or recoil["post_hp"] != max(0, recoil["pre_hp"] - recoil["recoil_damage"]) or recoil.get("fainted") is not (recoil["post_hp"] == 0): return False
+    if recoil.get("outcome") == "recoiled" and recoil["recoil_damage"] != max(1, recoil["max_hp"] // 10): return False
+    if recoil.get("suppressed_by") is not None and (recoil["recoil_damage"] != 0 or recoil["post_hp"] != recoil["pre_hp"]): return False
+    hp = overlay.get("hypothetical_hp_authority") if isinstance(overlay, Mapping) and overlay.get("schema_version") == "detached-life-orb-attacker-hp-overlay-v1" else None
+    return isinstance(hp, Mapping) and hp.get("current_hp") == recoil["post_hp"] and hp.get("maximum_hp") == recoil["max_hp"]
 def _fraction(value: Any) -> Fraction:
     if not isinstance(value, Mapping) or not isinstance(value.get("numerator"), int) or not isinstance(value.get("denominator"), int) or value["denominator"] <= 0 or value["numerator"] <= 0: return Fraction(-1, 1)
     return Fraction(value["numerator"], value["denominator"])

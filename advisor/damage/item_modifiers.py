@@ -4,7 +4,7 @@ from advisor.damage.items import ItemEffect
 from advisor.damage.q12 import M_DOUBLE, M_HALF, M_STAB, Q12_ONE
 
 
-M_LIFE_ORB = 5325
+M_LIFE_ORB = 5324
 M_CHOICE = 6144
 M_TYPE_PLATE = 4915
 M_EXPERT_BELT = 4915

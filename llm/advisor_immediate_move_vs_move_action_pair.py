@@ -68,6 +68,7 @@ from llm.advisor_runtime_d0_contact_reactive_damage_authority import (
     apply_contact_reactive_damage_to_consequences,
     contact_reactive_damage_relevance,
 )
+from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
@@ -723,7 +724,21 @@ def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Ma
         focus_sash_survival_authority=focus_sash_survival_authority,
     )
     if leaf.get("status") != "evaluable": return _result(_status(leaf), leaf.get("reason", "fixed_damage_terminal_leaf_unavailable"), {})
-    return leaf
+    action = {"action_id": "attack:seismic-toss", "action_type": "attack", "identity": "seismic-toss"}
+    move = {"move_id": "seismic-toss", "category": "physical", "damage": "level"}
+    updated = []
+    for row in leaf["terminal_leaves"]:
+        consequences = row.get("consequences", {})
+        applied = apply_life_orb_recoil_to_consequences(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target,
+            source_action=action, move_metadata=move,
+            qualifying_damage=isinstance(consequences.get("damage"), int) and consequences["damage"] > 0,
+            consequences=consequences,
+        )
+        if applied.get("status") != "resolved":
+            return _result(_status(applied), applied.get("reason", "fixed_damage_life_orb_recoil_unavailable"), {})
+        updated_row = deepcopy(dict(row)); updated_row["consequences"] = applied["consequences"]; updated.append(updated_row)
+    result = deepcopy(dict(leaf)); result["terminal_leaves"] = tuple(updated); return result
 
 
 def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -820,9 +835,13 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     bindings = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "attacker": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "move_id": metadata["move_id"]}
     ledger = normalize_exact_predictive_outcome_ledger(candidate=candidate, predictive_consequence=uncertainty,
         component_manifest={"accuracy": {"status": "resolved"}, "critical": {"status": "resolved"}, "damage_roll": {"status": "resolved"}, "secondary": {"status": "resolved" if any(item is not None for item in (thunderbolt, iron_head_flinch, fake_out_flinch, sparkling_aria, self_stage, target_stage)) else "not_applicable"}}, bindings=bindings)
-    return _apply_contact_reactive_to_normal_ledger(
+    ledger = _apply_contact_reactive_to_normal_ledger(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
         attacker=actor, defender=target, source_action=source_action, contact_authority=contact,
+    )
+    return _apply_life_orb_to_normal_ledger(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
+        attacker=actor, target=target, source_action=source_action, move_metadata=metadata,
     )
 
 
@@ -854,6 +873,33 @@ def _apply_contact_reactive_to_normal_ledger(*, strategy_d0: Mapping[str, Any], 
         row = deepcopy(dict(leaf)); row["consequences"] = result["consequences"]; updated.append(row)
     result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(updated)
     result["component_manifest"] = {**deepcopy(dict(result.get("component_manifest", {}))), "contact_reactive_damage": {"status": "resolved"}}
+    return result
+
+
+def _apply_life_orb_to_normal_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], ledger: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], source_action: Mapping[str, Any], move_metadata: Mapping[str, Any]) -> dict[str, Any]:
+    if ledger.get("status") != "evaluable":
+        return deepcopy(dict(ledger))
+    leaves = ledger.get("terminal_leaves")
+    if not isinstance(leaves, tuple):
+        return _result("rejected", "life_orb_normal_ledger_leaves_invalid", {})
+    updated = []
+    for leaf in leaves:
+        if not isinstance(leaf, Mapping):
+            return _result("rejected", "life_orb_normal_leaf_invalid", {})
+        if leaf.get("hit_state") != "hit":
+            updated.append(deepcopy(dict(leaf))); continue
+        consequences = leaf.get("consequences")
+        applied = apply_life_orb_recoil_to_consequences(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=attacker, target=target,
+            source_action=source_action, move_metadata=move_metadata,
+            qualifying_damage=isinstance(consequences, Mapping) and isinstance(consequences.get("damage"), int) and consequences["damage"] > 0,
+            consequences=consequences or {},
+        )
+        if applied.get("status") != "resolved":
+            return _result(_status(applied), applied.get("reason", "life_orb_recoil_unavailable"), {})
+        row = deepcopy(dict(leaf)); row["consequences"] = applied["consequences"]; updated.append(row)
+    result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(updated)
+    result["component_manifest"] = {**deepcopy(dict(result.get("component_manifest", {}))), "life_orb": {"status": "resolved"}}
     return result
 
 

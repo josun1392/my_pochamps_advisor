@@ -38,7 +38,7 @@ _BASE_MOVE_IDS = frozenset({
 })
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
-_SUPPORTED_ATTACKER_ABILITIES = frozenset({"pressure", "super-luck", "merciless", "sniper", "guts", "skill-link"})
+_SUPPORTED_ATTACKER_ABILITIES = frozenset({"pressure", "super-luck", "merciless", "sniper", "guts", "skill-link", "magic-guard", "sheer-force"})
 _SUPPORTED_DEFENDER_ABILITIES = frozenset({
     "pressure", "intimidate", "drizzle", "drought", "sand-stream", "snow-warning",
     "battle-armor", "shell-armor", "guts", "sturdy", "rough-skin", "iron-barbs",
@@ -220,9 +220,10 @@ def _attacker_item(source: Mapping[str, Any], ledger: list[dict[str, Any]]) -> d
     if source["status"] == "known_absent":
         ledger.append(_row("attacker_item", "known_neutral", reason="proven_item_absent")); return _resolved(None)
     item = source["value"]
-    # Quick Claw is consumed exclusively by the action-order branch owner.
-    if item == "quick-claw":
-        ledger.append(_row("attacker_item", "known_neutral", source_value=item, reason="quick_claw_order_only")); return _resolved(None)
+    # Quick Claw and Life Orb are consumed by non-critical owners.
+    if item in {"quick-claw", "life-orb"}:
+        reason = "quick_claw_order_only" if item == "quick-claw" else "life_orb_damage_and_recoil_only"
+        ledger.append(_row("attacker_item", "known_neutral", source_value=item, reason=reason)); return _resolved(None)
     if item not in _SUPPORTED_ATTACKER_ITEMS:
         ledger.append(_row("attacker_item", "unsupported", source_value=item)); return _unsupported("attacker_item_not_in_supported_critical_hit_catalog")
     ledger.append(_row("attacker_item", "applicable", source_value=item)); return _resolved(item)

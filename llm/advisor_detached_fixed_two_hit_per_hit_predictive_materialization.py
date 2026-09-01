@@ -14,6 +14,7 @@ from llm.advisor_runtime_d0_contact_reactive_damage_authority import (
     freeze_runtime_d0_contact_reactive_damage_authority,
     materialize_detached_contact_reactive_damage,
 )
+from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_focus_sash_survival import focus_sash_state
 from llm.advisor_runtime_strategy_d0 import (
     build_runtime_d0_native_damage_context,
@@ -59,9 +60,6 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     probability = hit.get("probability_percent")
     if not isinstance(probability, int) or isinstance(probability, bool) or not 0 <= probability <= 100:
         return _result("rejected", "fixed_two_hit_action_accuracy_invalid", base)
-    if _has_life_orb(strategy_d0, runtime_snapshot, base["attacker"]):
-        return _result("unsupported", "fixed_two_hit_item_consumption_unsupported", base)
-
     leaves: list[dict[str, Any]] = []
     miss_probability = Fraction(100 - probability, 100)
     target_hp = strategy_d0["strategy_state"]["active"][base["target"]["side"]]["current_hp"]
@@ -89,7 +87,12 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
             first_event = _event_with_reactive(first_event, first_reactive)
             if first_event["post_hp"] == 0 or first_attacker_hp == 0:
                 reason = "target_fainted" if first_event["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage"
-                leaves.append(_leaf(base, "hit", first_probability, (first_event,), first_event["post_hp"], _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"]), focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"]), own_final_hp=first_attacker_hp, terminal_reason=reason))
+                leaf = _leaf(base, "hit", first_probability, (first_event,), first_event["post_hp"], _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"]), focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"]), own_final_hp=first_attacker_hp, terminal_reason=reason)
+                if first_attacker_hp != 0:
+                    leaf = _apply_life_orb_to_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action, move_metadata=metadata, leaf=leaf)
+                    if leaf.get("status") in {"incomplete", "unsupported", "rejected"}:
+                        return _result(leaf.get("status", "rejected"), leaf.get("reason", "fixed_two_hit_life_orb_recoil_unavailable"), base)
+                leaves.append(leaf)
                 continue
             second_d0, second_snapshot = _detached_target_hp_view(
                 runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"],
@@ -121,14 +124,20 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
                     return _result(second_reactive.get("status", "rejected"), second_reactive.get("reason", "fixed_two_hit_contact_reactive_damage_unavailable"), base)
                 second_attacker_hp = second_reactive["post_hp"] if isinstance(second_reactive, Mapping) else first_attacker_hp
                 second_event = _event_with_reactive(second_event, second_reactive)
-                leaves.append(_leaf(
+                reason = "target_fainted" if second_event["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if second_attacker_hp == 0 else "all_hits_landed"
+                leaf = _leaf(
                     base, "hit", first_probability * second_event["probability"],
                     (first_event, second_event), second_event["post_hp"],
                     _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"] or second_event["sturdy_applied"]),
                     focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"] or second_event["focus_sash_applied"]),
                     own_final_hp=second_attacker_hp,
-                    terminal_reason="target_fainted" if second_event["post_hp"] == 0 else "all_hits_landed",
-                ))
+                    terminal_reason=reason,
+                )
+                if second_attacker_hp != 0:
+                    leaf = _apply_life_orb_to_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action, move_metadata=metadata, leaf=leaf)
+                    if leaf.get("status") in {"incomplete", "unsupported", "rejected"}:
+                        return _result(leaf.get("status", "rejected"), leaf.get("reason", "fixed_two_hit_life_orb_recoil_unavailable"), base)
+                leaves.append(leaf)
     mass = sum((row["probability"] for row in leaves), Fraction())
     if mass != Fraction(1, 1):
         return _result("rejected", "fixed_two_hit_terminal_probability_mass_not_one", base, terminal_probability_mass=_fd(mass))
@@ -166,7 +175,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             continue
         post = compose_predictive_normal_formula_post_hit(
             interval=interval, move_metadata=single_metadata, attacker_hp=normal["post_hit_authority"]["attacker_hp"],
-            attacker_item=normal["post_hit_authority"]["attacker_item"], attacker_ability=normal["post_hit_authority"]["attacker_ability"],
+            attacker_item=None, attacker_ability=normal["post_hit_authority"]["attacker_ability"],
             target_ability=normal["post_hit_authority"]["target_ability"], attacker_item_known=normal["post_hit_authority"]["attacker_item_known"],
             target_sturdy_survival_authority=sturdy_survival_authority,
             target_focus_sash_survival_authority=focus_sash_survival_authority,
@@ -245,6 +254,21 @@ def _detached_target_hp_view(*, runtime_snapshot: Mapping[str, Any], decision_ow
 def _has_life_orb(d0: Mapping[str, Any], snapshot: Mapping[str, Any], attacker: Mapping[str, Any]) -> bool:
     state = snapshot.get("state") if isinstance(snapshot, Mapping) else None; side = state.get(f"{attacker['side']}_side") if isinstance(state, Mapping) else None; roster = side.get("pokemon") if isinstance(side, Mapping) else None; pokemon = roster.get(attacker["slot_index"]) if isinstance(roster, Mapping) else None
     return isinstance(pokemon, Mapping) and pokemon.get("pokemon_id") == attacker["pokemon_id"] and pokemon.get("known_item") == "life-orb"
+
+
+def _apply_life_orb_to_leaf(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], action: Mapping[str, Any], move_metadata: Mapping[str, Any], leaf: Mapping[str, Any]) -> dict[str, Any]:
+    if not _has_life_orb(strategy_d0, runtime_snapshot, base["attacker"]):
+        return deepcopy(dict(leaf))
+    hits = leaf.get("ordered_hits")
+    qualifying = isinstance(hits, tuple) and any(isinstance(row, Mapping) and isinstance(row.get("actual_damage"), int) and row["actual_damage"] > 0 for row in hits)
+    result = apply_life_orb_recoil_to_consequences(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"],
+        source_action=action, move_metadata=move_metadata, qualifying_damage=qualifying,
+        consequences=leaf.get("consequences", {}),
+    )
+    if result.get("status") != "resolved":
+        return result
+    updated = deepcopy(dict(leaf)); updated["consequences"] = result["consequences"]; return updated
 
 
 def _sturdy_state(authority: Mapping[str, Any] | None, *, consumed: bool) -> dict[str, Any]:

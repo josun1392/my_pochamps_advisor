@@ -2,11 +2,15 @@
 from copy import deepcopy
 from typing import Any, Mapping
 from advisor.damage.recoil import HitResult, RecoilMove, RecoilPokemon, compute_life_orb_recoil
+from llm.advisor_runtime_d0_life_orb_immediate_authority import (
+    freeze_runtime_d0_life_orb_immediate_authority,
+    materialize_detached_life_orb_recoil,
+)
 from llm.advisor_focus_sash_survival import apply_focus_sash_to_hit
 
 _UNSUPPORTED_RECOIL={"struggle","mind-blown","steel-beam","chloroblast","high-jump-kick","jump-kick"}
 
-def compose_predictive_normal_formula_post_hit(*, interval: Mapping[str, Any], move_metadata: Mapping[str, Any], attacker_hp: Mapping[str, Any], attacker_item: str | None, attacker_ability: str | None, target_ability: str | None = None, attacker_item_known: bool = True, target_sturdy_survival_authority: Mapping[str, Any] | None = None, target_focus_sash_survival_authority: Mapping[str, Any] | None = None, focus_sash_consumed: bool = False) -> dict[str, Any]:
+def compose_predictive_normal_formula_post_hit(*, interval: Mapping[str, Any], move_metadata: Mapping[str, Any], attacker_hp: Mapping[str, Any], attacker_item: str | None, attacker_ability: str | None, target_ability: str | None = None, attacker_item_known: bool = True, target_sturdy_survival_authority: Mapping[str, Any] | None = None, target_focus_sash_survival_authority: Mapping[str, Any] | None = None, focus_sash_consumed: bool = False, life_orb_authority_context: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Apply move drain/recoil then Life Orb to each exact direct-damage branch."""
     if not isinstance(interval,Mapping) or interval.get("schema_version")!="deterministic-predictive-normal-formula-interval-v1" or interval.get("completeness")!="exact_complete": return _r("incomplete","normal_formula_interval_incomplete")
     if not isinstance(move_metadata,Mapping) or move_metadata.get("move_id")!=interval.get("move_id"): return _r("rejected","post_hit_move_binding_mismatch")
@@ -36,9 +40,20 @@ def compose_predictive_normal_formula_post_hit(*, interval: Mapping[str, Any], m
         if isinstance(focus_row,Mapping): actual=focus_row["actual_damage"]
         native=actual*abs(drain)//100 if drain else 0
         after_native=min(maximum,current+native) if drain>0 else max(0,current-native) if drain<0 else current
-        effective_ability=None if target_ability=="neutralizing-gas" else attacker_ability
-        life=compute_life_orb_recoil(RecoilPokemon(max_hp=maximum,item=attacker_item,ability=effective_ability),RecoilMove(move_id=interval["move_id"],category=move_metadata.get("category","status")),HitResult(targets_hit=1 if actual>0 else 0)) if attacker_item=="life-orb" else 0
-        branches.append({"raw_damage":raw,"actual_damage":actual,"move_native_hp_delta":native if drain>0 else -native,"life_orb_recoil":life,"attacker_post_hit_hp":max(0,after_native-life),"sturdy_survival":({"outcome":"applied","target_final_hp":1,"provenance":"exact_detached_opponent_switch_in_sturdy_survival_v1"} if activated else {"outcome":"not_triggered"} if sturdy is True else {"outcome":"not_applicable"}),"focus_sash_survival":(deepcopy(focus_row["survival"]) if isinstance(focus_row,Mapping) else {"outcome":"not_applicable"})})
+        life_authority = _life_orb_authority(life_orb_authority_context, interval, move_metadata, current=after_native, maximum=maximum, qualifying_damage=actual > 0)
+        if isinstance(life_authority, Mapping) and life_authority.get("status") != "resolved": return _r(life_authority.get("status", "rejected"), life_authority.get("reason", "life_orb_immediate_authority_unavailable"))
+        if isinstance(life_authority, Mapping):
+            overlay = materialize_detached_life_orb_recoil(authority=life_authority)
+            if overlay.get("status") != "resolved": return _r(overlay.get("status", "rejected"), overlay.get("reason", "life_orb_overlay_unavailable"))
+            life = life_authority["recoil"]["recoil_damage"]
+            post_life = overlay["hypothetical_hp_authority"]["current_hp"]
+            life_record = {"outcome": life_authority["outcome"], "authority": deepcopy(dict(life_authority)), "overlay": overlay}
+        else:
+            effective_ability=None if target_ability=="neutralizing-gas" else attacker_ability
+            life=compute_life_orb_recoil(RecoilPokemon(max_hp=maximum,item=attacker_item,ability=effective_ability),RecoilMove(move_id=interval["move_id"],category=move_metadata.get("category","status")),HitResult(targets_hit=1 if actual>0 else 0)) if attacker_item=="life-orb" else 0
+            post_life = max(0, after_native-life)
+            life_record = None
+        branches.append({"raw_damage":raw,"actual_damage":actual,"move_native_hp_delta":native if drain>0 else -native,"life_orb_recoil":life,"life_orb":life_record,"attacker_post_hit_hp":post_life,"sturdy_survival":({"outcome":"applied","target_final_hp":1,"provenance":"exact_detached_opponent_switch_in_sturdy_survival_v1"} if activated else {"outcome":"not_triggered"} if sturdy is True else {"outcome":"not_applicable"}),"focus_sash_survival":(deepcopy(focus_row["survival"]) if isinstance(focus_row,Mapping) else {"outcome":"not_applicable"})})
     hp_values=tuple(sorted({row["attacker_post_hit_hp"] for row in branches})); faints=[value==0 for value in hp_values]
     return {"status":"resolved","schema_version":"deterministic-predictive-normal-formula-post-hit-v1","session_id":interval["session_id"],"source_branch_fingerprint":interval["source_branch_fingerprint"],"decision_owner":deepcopy(dict(interval["decision_owner"])),"move_id":interval["move_id"],"ordering":["direct_damage","move_native_hp_effect","life_orb_post_hit"],"branches":tuple(branches),"attacker_post_hit_hp_values":hp_values,"attacker_post_hit_hp_range":{"minimum":min(hp_values),"maximum":max(hp_values)},"guaranteed_attacker_faint":all(faints),"possible_attacker_faint":any(faints) and not all(faints),"guaranteed_attacker_survival":not any(faints),"provenance":"existing_drain_recoil_then_life_orb_v1"}
 def _target_hp(interval):
@@ -74,4 +89,13 @@ def _focus(value,interval,move,target_hp):
  if not ((minimum is None and maximum is None) or (minimum==maximum==1)):return "focus_sash_multi_hit_unsupported"
  return True
 def _hp(value): return isinstance(value,Mapping) and all(isinstance(value.get(k),int) and not isinstance(value.get(k),bool) for k in ("current_hp","max_hp")) and 0<=value["current_hp"]<=value["max_hp"] and value["max_hp"]>0
+def _life_orb_authority(context, interval, move, *, current, maximum, qualifying_damage):
+ if context is None:return None
+ if not isinstance(context,Mapping):return {"status":"rejected","reason":"life_orb_authority_context_invalid"}
+ return freeze_runtime_d0_life_orb_immediate_authority(
+  strategy_d0=context.get("strategy_d0",{}),runtime_snapshot=context.get("runtime_snapshot",{}),
+  attacker=context.get("attacker",{}),target=context.get("target",{}),
+  source_action=context.get("source_action",{}),move_metadata=move,qualifying_damage=qualifying_damage,
+  attacker_hp_authority={"status":"resolved","current_hp":current,"maximum_hp":maximum,"fainted":current==0,"provenance":"normal_formula_post_hit_path_attacker_hp_v1"},
+ )
 def _r(status,reason): return {"status":status,"reason":reason}

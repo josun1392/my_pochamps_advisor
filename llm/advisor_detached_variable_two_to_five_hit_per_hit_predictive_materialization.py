@@ -15,6 +15,7 @@ from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization impor
     _apply_reactive, _detached_target_hp_view, _event_with_reactive, _has_life_orb, _hit_events, _sturdy_state,
 )
 from llm.advisor_focus_sash_survival import focus_sash_state
+from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_d0_variable_two_to_five_hit_count_execution_authority import SCHEMA_VERSION as EXECUTION_SCHEMA
 from llm.advisor_runtime_strategy_d0 import (
@@ -54,8 +55,6 @@ def materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
     accuracy = hit.get("probability_percent")
     if not _percent(accuracy):
         return _result("rejected", "variable_multi_hit_action_accuracy_invalid", base)
-    if _has_life_orb(strategy_d0, runtime_snapshot, base["attacker"]):
-        return _result("unsupported", "variable_multi_hit_item_consumption_unsupported", base)
     target_hp = strategy_d0.get("strategy_state", {}).get("active", {}).get(base["target"]["side"], {}).get("current_hp")
     if not _integer(target_hp) or target_hp < 0:
         return _result("incomplete", "variable_multi_hit_target_hp_unknown", base)
@@ -152,7 +151,13 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             edge = {"edge_id": f"{node['node_id']}/hit:{hit_index}:{event_row['critical_state']}:roll:{event_row['roll_index']}", "from_node_id": node["node_id"], "conditional_probability": probability, "ordered_hit": event_row, "terminal": terminal}
             if terminal:
                 edge["terminal_reason"] = "target_fainted" if event_row["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if attacker_hp == 0 else "selected_hit_count_reached"
-                edge["terminal_consequences"] = _consequences(base, event_row["post_hp"], sturdy_survival_authority, sturdy_consumed, focus_sash_survival_authority, focus_sash_consumed, attacker_hp=attacker_hp, terminal_reason=edge["terminal_reason"])
+                consequences = _consequences(base, event_row["post_hp"], sturdy_survival_authority, sturdy_consumed, focus_sash_survival_authority, focus_sash_consumed, attacker_hp=attacker_hp, terminal_reason=edge["terminal_reason"])
+                if attacker_hp != 0:
+                    applied = _apply_life_orb_to_consequences(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, move_metadata=base["execution_authority"]["move_metadata_authority"]["metadata"], consequences=consequences, qualifying_damage=event_row["actual_damage"] > 0)
+                    if applied.get("status") in {"incomplete", "unsupported", "rejected"}:
+                        return {"status": applied.get("status", "rejected"), "reason": applied.get("reason", "variable_multi_hit_life_orb_recoil_unavailable")}, None, None, None
+                    consequences = applied
+                edge["terminal_consequences"] = consequences
                 terminal_mass += source_mass * probability
             else:
                 next_node = add_node(node["selected_hit_count"], hit_index, event_row["post_hp"], sturdy_consumed, focus_sash_consumed, attacker_hp)
@@ -219,6 +224,19 @@ def _consequences(base: Mapping[str, Any], target_hp: int, sturdy_authority: Map
 
 def _miss_consequences(base: Mapping[str, Any], target_hp: int, sturdy_authority: Mapping[str, Any] | None, focus_sash_authority: Mapping[str, Any] | None) -> dict[str, Any]:
     return _consequences(base, target_hp, sturdy_authority, False, focus_sash_authority, False)
+
+
+def _apply_life_orb_to_consequences(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], move_metadata: Mapping[str, Any], consequences: Mapping[str, Any], qualifying_damage: bool) -> dict[str, Any]:
+    if not _has_life_orb(strategy_d0, runtime_snapshot, base["attacker"]):
+        return deepcopy(dict(consequences))
+    result = apply_life_orb_recoil_to_consequences(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"],
+        source_action={"action_id": base["action_id"], "action_type": "attack", "identity": base["move_id"]},
+        move_metadata=move_metadata, qualifying_damage=qualifying_damage, consequences=consequences,
+    )
+    if result.get("status") != "resolved":
+        return result
+    return result["consequences"]
 
 
 def _serialize_root(value: Mapping[str, Any]) -> dict[str, Any]:

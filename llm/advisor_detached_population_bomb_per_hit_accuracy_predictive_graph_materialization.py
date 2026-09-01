@@ -14,6 +14,7 @@ from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization impor
     _apply_reactive, _detached_target_hp_view, _event_with_reactive, _has_life_orb, _hit_events, _sturdy_state,
 )
 from llm.advisor_focus_sash_survival import focus_sash_state
+from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_runtime_d0_population_bomb_per_hit_accuracy_execution_authority import (
     SCHEMA_VERSION as EXECUTION_SCHEMA,
 )
@@ -39,8 +40,6 @@ def materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
         return _result("rejected", "invalid_population_bomb_materialization_request", {})
     if runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot).get("status") != "current":
         return _result("rejected", "stale_runtime_d0", base)
-    if _has_life_orb(strategy_d0, runtime_snapshot, base["attacker"]):
-        return _result("unsupported", "population_bomb_item_consumption_unsupported", base)
     target_hp = strategy_d0.get("strategy_state", {}).get("active", {}).get(base["target"]["side"], {}).get("current_hp")
     if not _integer(target_hp) or target_hp < 0:
         return _result("incomplete", "population_bomb_target_hp_unknown", base)
@@ -115,11 +114,17 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
         hit_probability = hit_factor if kind == "existing_independent_multiaccuracy" or attempt == 1 else Fraction(1, 1)
         miss_probability = miss_factor if kind == "existing_independent_multiaccuracy" or attempt == 1 else Fraction()
         if miss_probability:
+            consequences = _consequences(base, node["target_hp"], sturdy_survival_authority, node["sturdy_consumed"], focus_sash_survival_authority, node["focus_sash_consumed"], node["landed_hit_count"], attacker_hp=node["attacker_hp"])
+            if node["landed_hit_count"] > 0 and node["attacker_hp"] != 0:
+                applied = _apply_life_orb_to_consequences(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, consequences=consequences, qualifying_damage=True)
+                if applied.get("status") in {"incomplete", "unsupported", "rejected"}:
+                    return {"status": applied.get("status", "rejected"), "reason": applied.get("reason", "population_bomb_life_orb_recoil_unavailable")}, None, None, None
+                consequences = applied
             edges.append({
                 "edge_id": f"{node['node_id']}/attempt:{attempt}:miss", "from_node_id": node["node_id"],
                 "conditional_probability": miss_probability, "attempt_outcome": {"attempt_index": attempt, "outcome": "miss"},
                 "terminal": True, "terminal_reason": "first_miss_terminates_remaining_attempts",
-                "terminal_consequences": _consequences(base, node["target_hp"], sturdy_survival_authority, node["sturdy_consumed"], focus_sash_survival_authority, node["focus_sash_consumed"], node["landed_hit_count"]),
+                "terminal_consequences": consequences,
             })
             terminal_mass += source_mass * miss_probability
         if not hit_probability:
@@ -165,7 +170,13 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             }
             if terminal:
                 edge["terminal_reason"] = "target_fainted" if row["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if attacker_hp == 0 else ("maximum_ten_attempts_reached" if kind == "existing_independent_multiaccuracy" else "planned_hit_count_reached")
-                edge["terminal_consequences"] = _consequences(base, row["post_hp"], sturdy_survival_authority, sturdy_consumed, focus_sash_survival_authority, focus_sash_consumed, node["landed_hit_count"] + 1, attacker_hp=attacker_hp, terminal_reason=edge["terminal_reason"])
+                consequences = _consequences(base, row["post_hp"], sturdy_survival_authority, sturdy_consumed, focus_sash_survival_authority, focus_sash_consumed, node["landed_hit_count"] + 1, attacker_hp=attacker_hp, terminal_reason=edge["terminal_reason"])
+                if attacker_hp != 0:
+                    applied = _apply_life_orb_to_consequences(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, consequences=consequences, qualifying_damage=row["actual_damage"] > 0)
+                    if applied.get("status") in {"incomplete", "unsupported", "rejected"}:
+                        return {"status": applied.get("status", "rejected"), "reason": applied.get("reason", "population_bomb_life_orb_recoil_unavailable")}, None, None, None
+                    consequences = applied
+                edge["terminal_consequences"] = consequences
                 terminal_mass += source_mass * hit_probability * factor
             else:
                 next_node = add_node(attempt + 1, node["landed_hit_count"] + 1, node["maximum_attempts"], row["post_hp"], sturdy_consumed, focus_sash_consumed, attacker_hp)
@@ -241,6 +252,19 @@ def _serialize_edge(value: Mapping[str, Any]) -> dict[str, Any]:
         hit["probability"] = _fd(hit["probability"])
         result["attempt_outcome"]["ordered_hit"] = hit
     return result
+
+
+def _apply_life_orb_to_consequences(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], consequences: Mapping[str, Any], qualifying_damage: bool) -> dict[str, Any]:
+    if not _has_life_orb(strategy_d0, runtime_snapshot, base["attacker"]):
+        return deepcopy(dict(consequences))
+    result = apply_life_orb_recoil_to_consequences(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"],
+        source_action={"action_id": base["action_id"], "action_type": "attack", "identity": base["move_id"]},
+        move_metadata=base["single_hit_metadata_view"], qualifying_damage=qualifying_damage, consequences=consequences,
+    )
+    if result.get("status") != "resolved":
+        return result
+    return result["consequences"]
 
 
 def _mapping(value: Any) -> Mapping[str, Any]: return value if isinstance(value, Mapping) else {}

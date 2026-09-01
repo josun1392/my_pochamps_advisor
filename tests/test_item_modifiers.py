@@ -12,10 +12,10 @@ from advisor.damage.q12 import Q12_ONE
 
 
 def test_life_orb_boosts_final_mods() -> None:
-    assert get_final_atk_item_modifier("life-orb", type_effectiveness_q12=Q12_ONE) == 5325
-    assert get_final_atk_item_modifier("life-orb", type_effectiveness_q12=8192) == 5325
-    assert attacker_damage_item_mod(get_item("life-orb"), False) == 5325
-    assert attacker_damage_item_mod(get_item("life-orb"), True) == 5325
+    assert get_final_atk_item_modifier("life-orb", type_effectiveness_q12=Q12_ONE) == 5324
+    assert get_final_atk_item_modifier("life-orb", type_effectiveness_q12=8192) == 5324
+    assert attacker_damage_item_mod(get_item("life-orb"), False) == 5324
+    assert attacker_damage_item_mod(get_item("life-orb"), True) == 5324
     assert get_atk_item_modifier("life-orb", "physical") == Q12_ONE
     assert get_spa_item_modifier("life-orb") == Q12_ONE
 

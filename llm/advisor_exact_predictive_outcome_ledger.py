@@ -194,6 +194,9 @@ def _leaf(candidate: Mapping[str, Any], bound: Mapping[str, Any], path: tuple, c
     own_hp = post.get("attacker_post_hit_hp") if isinstance(post, Mapping) else consequence.get("attacker_hp_after")
     if own_hp is None and isinstance(post, Mapping):
         own_hp = post.get("attacker_hp_after")
+    life_orb = post.get("life_orb") if isinstance(post, Mapping) and isinstance(post.get("life_orb"), Mapping) else None
+    if life_orb is not None and not _life_orb(life_orb):
+        raise _NormalizationError("life_orb_consequence_invalid")
     focus_sash_survival = _focus_sash_survival(post, bound, hp_before, damage, target_hp)
     leaf_id = "/".join(name for name, _ in path)
     rendered_secondary = deepcopy(dict(secondary)) if isinstance(secondary, Mapping) else None
@@ -206,7 +209,7 @@ def _leaf(candidate: Mapping[str, Any], bound: Mapping[str, Any], path: tuple, c
         "conditional_factors": tuple(factor for _, factor in path), "probability": _fraction_dict(probability),
         "hit_state": next((name for name, _ in path if name in {"hit", "miss"}), None), "critical_state": critical_state,
         "damage_roll": None if roll is None else {"roll_index": roll["roll_index"], "random_factor_percent": roll["random_factor_percent"], "damage": roll["damage"]},
-        "consequences": {"damage": damage, "target_final_hp": target_hp, "target_ko": target_hp == 0 if isinstance(target_hp, int) else None, "own_final_hp": own_hp, "self_fainted": own_hp == 0 if isinstance(own_hp, int) else None, "post_hit": deepcopy(dict(post)) if isinstance(post, Mapping) else None, "source_hit_context": {"source_action_id": candidate["candidate_id"], "source_move_id": bound.get("move_id"), "actual_damage": damage, "target_routing": interval.get("target_routing", "target"), "target_pre_hp": hp_before, "target_post_hp": target_hp, "critical_state": critical_state, "roll_index": roll.get("roll_index") if isinstance(roll, Mapping) else None}, "sturdy_survival": deepcopy(post.get("sturdy_survival")) if isinstance(post, Mapping) and isinstance(post.get("sturdy_survival"), Mapping) else None, "focus_sash_survival": focus_sash_survival, "deterministic_stage_effect": deepcopy(dict(consequence["stage_effects"])) if isinstance(consequence.get("stage_effects"), Mapping) else None, "secondary": rendered_secondary},
+        "consequences": {"damage": damage, "target_final_hp": target_hp, "target_ko": target_hp == 0 if isinstance(target_hp, int) else None, "own_final_hp": own_hp, "self_fainted": own_hp == 0 if isinstance(own_hp, int) else None, "post_hit": deepcopy(dict(post)) if isinstance(post, Mapping) else None, "source_hit_context": {"source_action_id": candidate["candidate_id"], "source_move_id": bound.get("move_id"), "actual_damage": damage, "target_routing": interval.get("target_routing", "target"), "target_pre_hp": hp_before, "target_post_hp": target_hp, "critical_state": critical_state, "roll_index": roll.get("roll_index") if isinstance(roll, Mapping) else None}, "sturdy_survival": deepcopy(post.get("sturdy_survival")) if isinstance(post, Mapping) and isinstance(post.get("sturdy_survival"), Mapping) else None, "focus_sash_survival": focus_sash_survival, "life_orb": deepcopy(life_orb), "deterministic_stage_effect": deepcopy(dict(consequence["stage_effects"])) if isinstance(consequence.get("stage_effects"), Mapping) else None, "secondary": rendered_secondary},
         "provenance": deepcopy(dict(bound)),
     }
 
@@ -238,6 +241,40 @@ def _focus_sash_survival(post: Any, bound: Mapping[str, Any], hp_before: Any, da
     ):
         raise _NormalizationError("focus_sash_survival_record_invalid")
     return deepcopy(dict(focus))
+
+
+def _life_orb(value: Any) -> bool:
+    if not isinstance(value, Mapping) or value.get("outcome") not in {"known_no_effect", "fainted_before_recoil", "recoil_suppressed", "not_triggered", "recoiled"}:
+        return False
+    authority, overlay = value.get("authority"), value.get("overlay")
+    if not isinstance(authority, Mapping) or authority.get("schema_version") != "runtime-d0-life-orb-immediate-authority-v1" or authority.get("status") != "resolved":
+        return False
+    modifier = authority.get("damage_modifier")
+    if not isinstance(modifier, Mapping):
+        return False
+    fraction = modifier.get("fraction")
+    if not isinstance(fraction, Mapping) or set(fraction) != {"numerator", "denominator"}:
+        return False
+    if modifier.get("applies") is True and (modifier.get("modifier_q12") != 5324 or fraction != {"numerator": 5324, "denominator": 4096}):
+        return False
+    if modifier.get("applies") is False and (modifier.get("modifier_q12") != 4096 or fraction != {"numerator": 4096, "denominator": 4096}):
+        return False
+    recoil = authority.get("recoil")
+    if not isinstance(recoil, Mapping) or recoil.get("suppressed_by") not in {None, "sheer-force", "magic-guard"}:
+        return False
+    if not all(isinstance(recoil.get(key), int) and not isinstance(recoil.get(key), bool) and recoil[key] >= 0 for key in ("pre_hp", "max_hp", "recoil_damage", "post_hp")):
+        return False
+    if recoil["max_hp"] < 1 or recoil["pre_hp"] > recoil["max_hp"] or recoil["post_hp"] != max(0, recoil["pre_hp"] - recoil["recoil_damage"]) or recoil.get("fainted") is not (recoil["post_hp"] == 0):
+        return False
+    if recoil.get("outcome") == "recoiled" and recoil["recoil_damage"] != max(1, recoil["max_hp"] // 10):
+        return False
+    if recoil.get("suppressed_by") is not None and (recoil["recoil_damage"] != 0 or recoil["post_hp"] != recoil["pre_hp"]):
+        return False
+    if not isinstance(overlay, Mapping) or overlay.get("schema_version") != "detached-life-orb-attacker-hp-overlay-v1":
+        return False
+    hp = overlay.get("hypothetical_hp_authority")
+    fainted = overlay.get("hypothetical_fainted_authority")
+    return isinstance(hp, Mapping) and hp.get("current_hp") == recoil["post_hp"] and hp.get("maximum_hp") == recoil["max_hp"] and isinstance(fainted, Mapping) and fainted.get("value") is (recoil["post_hp"] == 0)
 
 
 def _deterministic_switch(candidate: Mapping[str, Any], root: Any, manifest: Mapping[str, Any], bound: Mapping[str, Any]) -> dict[str, Any]:
