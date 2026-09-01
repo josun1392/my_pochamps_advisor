@@ -48,7 +48,7 @@ def _direct_result(battle):
     return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
 
 
-def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_item=None, defender_ability=None, defender_types=None, defender_current_hp=None, stages=None, is_critical=False):
+def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_item=None, defender_ability=None, defender_types=None, attacker_current_hp=None, attacker_max_hp=None, defender_current_hp=None, stages=None, is_critical=False):
     """Exercise only the frozen request-start modifier authority inputs."""
     battle = _battle()
     battle["moves"]["my_available_moves"][0]["move_id"] = move_id
@@ -66,6 +66,10 @@ def _modifier_result(*, category="physical", move_type="normal", move_id="tackle
     if min_hits is not None: metadata.update(min_hits=min_hits, max_hits=max_hits)
     damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id=move_id, selectable_moves=(move_id,), move_metadata=metadata)
     current = damage["battle_context"]["current_state"]
+    if attacker_current_hp is not None:
+        current["direct_mechanics_context"]["attacker"]["current_hp"] = attacker_current_hp
+    if attacker_max_hp is not None:
+        current["direct_mechanics_context"]["attacker"]["max_hp"] = attacker_max_hp
     if defender_current_hp is not None:
         current["direct_mechanics_context"]["defender"]["current_hp"] = defender_current_hp
     if weather is not None or side_effects is not None:
@@ -701,6 +705,49 @@ def test_move_flag_offensive_abilities_are_production_reachable_through_strict_d
     assert sheer_force_ineligible["status"] == "known" and sheer_force_ineligible["applied_damage_modifiers"] == []
     assert sheer_force_life_orb["status"] == "known"
     assert sheer_force_life_orb["applied_damage_modifiers"] == ["ability_sheer_force_secondary_boost", "item_life_orb_boost"]
+
+
+def test_low_hp_type_offensive_abilities_use_exact_request_start_hp_and_effective_type():
+    cases = [
+        ("blaze", "flamethrower", "fire", "ability_blaze_low_hp_fire_boost"),
+        ("torrent", "water-gun", "water", "ability_torrent_low_hp_water_boost"),
+        ("overgrow", "bullet-seed", "grass", "ability_overgrow_low_hp_grass_boost"),
+        ("swarm", "bug-bite", "bug", "ability_swarm_low_hp_bug_boost"),
+    ]
+    for ability, move_id, move_type, tag in cases:
+        active = _modifier_result(category="special", move_type=move_type, move_id=move_id, power=60, ability=ability, attacker_current_hp=33, attacker_max_hp=100, weather="none", side_effects=[])
+        inactive = _modifier_result(category="special", move_type=move_type, move_id=move_id, power=60, ability=ability, attacker_current_hp=34, attacker_max_hp=100, weather="none", side_effects=[])
+        wrong_type = _modifier_result(category="special", move_type="normal", move_id=move_id, power=60, ability=ability, attacker_current_hp=33, attacker_max_hp=100, weather="none", side_effects=[])
+
+        assert active["status"] == "known"
+        assert tag in active["applied_damage_modifiers"]
+        assert active["low_hp_type_ability_evidence"]["threshold"]["active"] is True
+        assert active["low_hp_type_ability_evidence"]["modifier_q12"] == 6144
+        assert active["low_hp_type_ability_evidence"]["hp_source"] == "runtime_strategy_d0_v1"
+        assert inactive["status"] == "known"
+        assert tag not in inactive["applied_damage_modifiers"]
+        assert inactive["low_hp_type_ability_evidence"]["threshold"]["active"] is False
+        assert wrong_type["status"] == "known"
+        assert tag not in wrong_type["applied_damage_modifiers"]
+        assert wrong_type["low_hp_type_ability_evidence"]["type_matches"] is False
+
+
+def test_low_hp_type_offensive_modifier_composes_with_life_orb_and_fixed_damage_stays_unboosted():
+    boosted = _modifier_result(category="special", move_type="fire", move_id="flamethrower", power=60, ability="blaze", item="life-orb", attacker_current_hp=33, attacker_max_hp=100, weather="none", side_effects=[])
+    fixed = _modifier_result(category="physical", move_type="fire", move_id="seismic-toss", power=1, ability="blaze", attacker_current_hp=33, attacker_max_hp=100)
+
+    assert boosted["status"] == "known"
+    assert boosted["applied_damage_modifiers"] == ["ability_blaze_low_hp_fire_boost", "item_life_orb_boost"]
+    assert fixed["status"] == "known"
+    assert fixed["mechanics_source"] == "native_level_based_fixed_damage"
+    assert "low_hp_type_ability_evidence" not in fixed
+
+
+def test_low_hp_type_offensive_ability_suppressed_by_exact_neutralizing_gas():
+    suppressed = _modifier_result(category="special", move_type="fire", move_id="flamethrower", power=60, ability="blaze", defender_ability="neutralizing-gas", attacker_current_hp=33, attacker_max_hp=100, weather="none", side_effects=[])
+
+    assert suppressed["status"] == "known"
+    assert suppressed["applied_damage_modifiers"] == []
 
 
 def test_move_flag_offensive_abilities_fail_closed_when_required_classification_is_unknown():

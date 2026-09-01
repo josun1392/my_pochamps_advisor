@@ -3,6 +3,9 @@ from copy import deepcopy
 import pytest
 
 from llm.advisor_detached_variable_two_to_five_hit_per_hit_predictive_materialization import materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves
+from llm.advisor_runtime_d0_canonical_contact_classification_authority import (
+    freeze_runtime_d0_canonical_contact_classification_authority,
+)
 from llm.advisor_runtime_d0_variable_two_to_five_hit_count_execution_authority import freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
@@ -10,10 +13,17 @@ from tests.test_detached_fixed_two_hit_per_hit_predictive_materialization import
 from tests.test_immediate_attack_vs_opponent_switch_action_pair import _owner, _state
 
 
-def _inputs(*, move_id="bullet-seed", power=25, accuracy=100, target_hp=100, attacker_ability=None, attacker_item=None):
+def _inputs(*, move_id="bullet-seed", power=25, accuracy=100, target_hp=100, attacker_hp=None, attacker_max_hp=None, attacker_ability=None, attacker_item=None, target_ability=None):
     state = _state(); target = state["opponent_side"]["pokemon"][0]
     target["current_hp"] = target_hp; target["max_hp"] = max(100, target_hp); target["fainted"] = False
+    if target_ability is not None:
+        target["current_ability"] = target_ability
     attacker = state["self_side"]["pokemon"][0]
+    if attacker_max_hp is not None:
+        attacker["max_hp"] = attacker_max_hp
+    if attacker_hp is not None:
+        attacker["current_hp"] = attacker_hp
+        attacker["fainted"] = attacker_hp == 0
     if attacker_ability is not None: attacker["current_ability"] = attacker_ability
     if attacker_item is not None:
         attacker["known_item"] = attacker_item
@@ -98,3 +108,51 @@ def test_exact_modifier_authority_flows_unchanged_into_existing_graph_materializ
     assert execution["hit_count_modifier_authority"]["status"] == "resolved"
     assert result["status"] == "evaluable", result.get("reason")
     assert {row["selected_hit_count"] for row in result["terminal_leaf_roots"] if row["selected_hit_count"] is not None} == expected_counts
+
+
+def test_path_local_attacker_hp_can_cross_low_hp_threshold_between_variable_hits():
+    _state0, snapshot, d0, action, execution, _own, _foe = _inputs(
+        attacker_hp=34,
+        attacker_max_hp=100,
+        attacker_ability="overgrow",
+        target_ability="rough-skin",
+        power=1,
+        target_hp=1000,
+    )
+    contact = freeze_runtime_d0_canonical_contact_classification_authority(
+        strategy_d0=d0,
+        runtime_snapshot=snapshot,
+        action=action,
+        attacker=d0["active_owners"]["self"],
+        target=d0["active_owners"]["opponent"],
+    )
+    contact = deepcopy(contact)
+    contact["status"] = "resolved"
+    contact["contact_state"] = "contact"
+    contact.pop("reason", None)
+
+    result = materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
+        strategy_d0=d0,
+        runtime_snapshot=snapshot,
+        action=action,
+        execution_authority=execution,
+        contact_reactive_contact_authority=contact,
+    )
+
+    assert result["status"] == "evaluable", result.get("reason")
+    first_hits = [
+        edge["ordered_hit"] for edge in result["terminal_leaf_edges"]
+        if edge["ordered_hit"]["hit_index"] == 1 and not edge["terminal"]
+    ]
+    second_hits = [
+        edge["ordered_hit"] for edge in result["terminal_leaf_edges"]
+        if edge["ordered_hit"]["hit_index"] == 2 and edge["from_node_id"].find("attacker-hp:22") >= 0
+    ]
+    assert first_hits and second_hits
+    assert all(hit["low_hp_type_ability"]["threshold"]["current_hp"] == 34 for hit in first_hits)
+    assert all(hit["low_hp_type_ability"]["outcome"] == "not_applicable" for hit in first_hits)
+    assert all(hit["attacker_post_reactive_hp"] == 22 for hit in first_hits)
+    assert all(hit["low_hp_type_ability"]["threshold"]["current_hp"] == 22 for hit in second_hits)
+    assert all(hit["low_hp_type_ability"]["hp_source"] == "detached_path_local_attacker_hp_v1" for hit in second_hits)
+    assert all(hit["low_hp_type_ability"]["modifier_q12"] == 6144 for hit in second_hits)
+    assert result["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}

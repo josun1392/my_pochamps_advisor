@@ -11,6 +11,9 @@ from fractions import Fraction
 from typing import Any, Mapping
 
 from llm.advisor_detached_variable_two_to_five_hit_graph_immediate_move_pair import _terminal_sources
+from llm.advisor_low_hp_type_offensive_ability import (
+    validate_low_hp_type_offensive_ability_applicability,
+)
 
 
 PAIR_SCHEMA = "detached-variable-two-to-five-hit-graph-immediate-move-pair-v1"
@@ -123,6 +126,9 @@ def _order_graph(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         source = source_by_id.get(transition["first_terminal_source_id"])
         if source is None or _fraction(transition.get("incoming_path_probability")) != source["path_probability"] or transition.get("first_terminal_consequences") != source["consequences"]:
             return "variable_graph_terminal_transition_source_mismatch"
+        low_hp_error = _low_hp_type_hit(source.get("ordered_hit"))
+        if low_hp_error is not None:
+            return low_hp_error
         second = _validate_second(transition.get("second_action"))
         if isinstance(second, str): return second
         parsed.append({"first_terminal_source_id": transition["first_terminal_source_id"], "incoming_path_probability": source["path_probability"], "first_terminal_consequences": deepcopy(dict(source["consequences"])), "ordered_terminal_hit": deepcopy(source.get("ordered_hit")), "second_action": second})
@@ -152,6 +158,10 @@ def _validate_second(value: Any) -> dict[str, Any] | str:
         elif outcome.get("state") == "executed":
             leaves = outcome.get("second_action_terminal_leaves")
             if not isinstance(leaves, tuple) or not leaves or sum((_fraction(leaf.get("probability")) for leaf in leaves if isinstance(leaf, Mapping)), Fraction()) != Fraction(1, 1): return "variable_graph_second_action_leaf_set_invalid"
+            for leaf in leaves:
+                error = _low_hp_type_leaf(leaf)
+                if error is not None:
+                    return error
         else: return "variable_graph_second_action_outcome_state_invalid"
     return deepcopy(dict(value)) if mass == Fraction(1, 1) else "variable_graph_second_action_outcome_mass_not_one"
 
@@ -220,6 +230,31 @@ def _contact_reactive_status(value: Any) -> bool:
     if overlay.get("transition_applied") is True:
         return isinstance(transition, Mapping) and transition.get("status") == "known_present" and transition.get("condition") == authority.get("attempted_condition")
     return overlay.get("transition_applied") is False
+
+
+def _low_hp_type_leaf(leaf: Any) -> str | None:
+    ordered = leaf.get("ordered_hits") if isinstance(leaf, Mapping) else None
+    if not isinstance(ordered, (tuple, list)):
+        return None
+    for hit in ordered:
+        error = _low_hp_type_hit(hit)
+        if error is not None:
+            return error
+    return None
+
+
+def _low_hp_type_hit(hit: Any) -> str | None:
+    evidence = hit.get("low_hp_type_ability") if isinstance(hit, Mapping) else None
+    if evidence is None:
+        return None
+    source_hit = evidence.get("source_hit") if isinstance(evidence, Mapping) else None
+    if (
+        not validate_low_hp_type_offensive_ability_applicability(evidence)
+        or not isinstance(source_hit, Mapping)
+        or source_hit.get("hit_index") != hit.get("hit_index")
+    ):
+        return "variable_graph_low_hp_type_ability_consequence_invalid"
+    return None
 
 
 def _fraction(value: Any) -> Fraction:

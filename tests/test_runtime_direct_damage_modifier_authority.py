@@ -52,11 +52,15 @@ def _apply(state: dict, events: list[dict]) -> dict:
     return projected["projected_state"]
 
 
-def _context(state: dict, move_metadata: dict | None = None) -> dict:
+def _context(state: dict, move_metadata: dict | None = None, *, attacker_hp_authority: dict | None = None, low_hp_source_hit: dict | None = None) -> dict:
     snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
     metadata = move_metadata or {"move_id": "water-gun", "category": "special", "power": 40, "type": "water"}
-    return build_runtime_d0_native_damage_context(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=metadata)
+    return build_runtime_d0_native_damage_context(
+        strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"),
+        target=_owner(state, "opponent"), move_metadata=metadata,
+        attacker_hp_authority=attacker_hp_authority, low_hp_source_hit=low_hp_source_hit,
+    )
 
 
 def test_known_item_absence_and_complete_modifier_authority_reach_native_water_gun() -> None:
@@ -106,6 +110,76 @@ def test_runtime_d0_move_flag_damage_abilities_reach_native_direct_modifier_path
         assert context["status"] == "resolved", context
         assert tag in context["native_evaluation"]["applied_damage_modifiers"]
         assert context["modifier_authority"]["attacker"]["ability"]["value"] == ability
+
+
+def test_runtime_d0_low_hp_type_offensive_abilities_use_exact_hp_and_emit_evidence() -> None:
+    base = _base()
+    state = _apply(
+        base,
+        _confirmations(
+            base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+            attacker_ability="torrent", target_ability="pressure",
+        ),
+    )
+    state["self_side"]["pokemon"][0].update(current_hp=40, max_hp=120, fainted=False)
+    active = _context(state, {"move_id": "water-gun", "category": "special", "power": 40, "type": "water"})
+    state["self_side"]["pokemon"][0].update(current_hp=41, max_hp=120, fainted=False)
+    inactive = _context(state, {"move_id": "water-gun", "category": "special", "power": 40, "type": "water"})
+
+    assert active["status"] == "resolved"
+    assert active["native_evaluation"]["applied_damage_modifiers"] == ["ability_torrent_low_hp_water_boost"]
+    evidence = active["native_evaluation"]["low_hp_type_ability_evidence"]
+    assert evidence["threshold"] == {"expression": "current_hp * 3 <= max_hp", "current_hp": 40, "max_hp": 120, "active": True}
+    assert evidence["hp_source"] == "runtime_strategy_d0_v1"
+    assert evidence["modifier_q12"] == 6144
+    assert inactive["status"] == "resolved"
+    assert inactive["native_evaluation"]["applied_damage_modifiers"] == []
+    assert inactive["native_evaluation"]["low_hp_type_ability_evidence"]["threshold"]["active"] is False
+
+
+def test_runtime_native_damage_context_uses_detached_path_local_attacker_hp_override_for_low_hp() -> None:
+    base = _base()
+    state = _apply(
+        base,
+        _confirmations(
+            base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+            attacker_ability="torrent", target_ability="pressure",
+        ),
+    )
+    state["self_side"]["pokemon"][0].update(current_hp=41, max_hp=120, fainted=False)
+    context = _context(
+        state, {"move_id": "water-gun", "category": "special", "power": 40, "type": "water"},
+        attacker_hp_authority={"status": "resolved", "current_hp": 40, "maximum_hp": 120, "fainted": False},
+        low_hp_source_hit={"hit_index": 2, "path_id": "path-local-hit-2"},
+    )
+
+    assert context["status"] == "resolved"
+    assert context["attacker_hp_authority"] == {"status": "resolved", "current_hp": 40, "max_hp": 120, "fainted": False, "provenance": "detached_path_local_attacker_hp_v1"}
+    evidence = context["native_evaluation"]["low_hp_type_ability_evidence"]
+    assert evidence["hp_source"] == "detached_path_local_attacker_hp_v1"
+    assert evidence["source_hit"] == {"hit_index": 2, "path_id": "path-local-hit-2"}
+    assert evidence["outcome"] == "applicable"
+
+
+def test_runtime_native_damage_context_rejects_invalid_detached_attacker_hp_authority() -> None:
+    base = _base()
+    state = _apply(
+        base,
+        _confirmations(
+            base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+            attacker_ability="torrent", target_ability="pressure",
+        ),
+    )
+    bad = _context(
+        state, {"move_id": "water-gun", "category": "special", "power": 40, "type": "water"},
+        attacker_hp_authority={"status": "resolved", "current_hp": 121, "maximum_hp": 120, "fainted": False},
+    )
+
+    assert bad == {
+        "status": "rejected",
+        "schema_version": "runtime-d0-native-damage-context-v1",
+        "reason": "runtime_native_attacker_hp_authority_invalid",
+    }
 
 
 def test_unknown_item_and_partial_side_knowledge_stay_incomplete() -> None:

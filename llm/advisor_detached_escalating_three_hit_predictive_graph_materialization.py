@@ -7,7 +7,7 @@ from typing import Any, Mapping
 
 from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import (
     _apply_reactive, _apply_reactive_status, _detached_target_hp_view, _event_with_reactive,
-    _event_with_reactive_status, _has_life_orb, _hit_events, _sturdy_state,
+    _event_with_reactive_status, _has_life_orb, _hit_events, _path_attacker_hp_authority, _sturdy_state,
 )
 from llm.advisor_focus_sash_survival import focus_sash_state
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
@@ -84,7 +84,7 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
     root = add_node(1, target_hp, False, False, base["own_current_hp"], "none")
     roots.append({"root_id": "hit:1", "probability": Fraction(1, 1), "terminal": False, "node_id": root})
     node_mass[root] = Fraction(1, 1)
-    event_cache: dict[tuple[int, bool, int], list[dict[str, Any]] | dict[str, str]] = {}
+    event_cache: dict[tuple[int, int, bool, bool, int, int], list[dict[str, Any]] | dict[str, str]] = {}
     cursor = 0
     while cursor < len(nodes):
         node = nodes[cursor]; cursor += 1
@@ -114,14 +114,20 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             continue
         can_use_sturdy = not node["sturdy_consumed"] and _sturdy_full_hp(sturdy_survival_authority, node["target_hp"])
         can_use_focus_sash = not node["focus_sash_consumed"] and _focus_sash_full_hp(focus_sash_survival_authority, node["target_hp"])
-        cache_key = (node["target_hp"], can_use_sturdy, can_use_focus_sash, power)
+        cache_key = (node["target_hp"], node["attacker_hp"], can_use_sturdy, can_use_focus_sash, power, hit_index)
         events = event_cache.get(cache_key)
         if events is None:
             current_d0, current_snapshot = (strategy_d0, runtime_snapshot) if node["target_hp"] == target_hp and not node["focus_sash_consumed"] else _detached_target_hp_view(runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"], target=base["target"], target_hp=node["target_hp"], focus_sash_consumed=bool(node["focus_sash_consumed"]))
             if current_d0 is None or current_snapshot is None:
                 return {"status": "rejected", "reason": "escalating_three_hit_intermediate_target_state_invalid"}, None, None, None
             move = deepcopy(base["single_hit_metadata_view"]); move["power"] = power
-            events = _hit_events(strategy_d0=current_d0, runtime_snapshot=current_snapshot, base=base, single_metadata=move, sturdy_survival_authority=sturdy_survival_authority if can_use_sturdy else None, focus_sash_survival_authority=focus_sash_survival_authority if can_use_focus_sash else None)
+            events = _hit_events(
+                strategy_d0=current_d0, runtime_snapshot=current_snapshot, base=base, single_metadata=move,
+                sturdy_survival_authority=sturdy_survival_authority if can_use_sturdy else None,
+                focus_sash_survival_authority=focus_sash_survival_authority if can_use_focus_sash else None,
+                attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], node["attacker_hp"]),
+                low_hp_source_hit={"hit_index": hit_index, "path_id": f"escalating-three-hit:hit:{hit_index}/target-hp:{node['target_hp']}/attacker-hp:{node['attacker_hp']}/power:{power}"},
+            )
             event_cache[cache_key] = events
         if isinstance(events, Mapping):
             return {"status": events["status"], "reason": events["reason"]}, None, None, None

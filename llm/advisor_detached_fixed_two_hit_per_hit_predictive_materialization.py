@@ -76,10 +76,13 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
             single_metadata=single, sturdy_survival_authority=sturdy_survival_authority,
             focus_sash_survival_authority=focus_sash_survival_authority,
+            attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], base["own_current_hp"]),
+            low_hp_source_hit={"hit_index": 1, "path_id": "fixed-two-hit:hit:1"},
         )
         if isinstance(first, Mapping):
             return _result(first["status"], first["reason"], base)
         for first_event in first:
+            first_event = deepcopy(dict(first_event)); first_event["hit_index"] = 1
             first_probability = hit_probability * first_event["probability"]
             first_reactive = _apply_reactive(
                 strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action,
@@ -127,10 +130,13 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
                     strategy_d0=second_d0, runtime_snapshot=second_snapshot, base=base,
                     single_metadata=single, sturdy_survival_authority=second_sturdy,
                     focus_sash_survival_authority=second_focus_sash,
+                    attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], first_attacker_hp),
+                    low_hp_source_hit={"hit_index": 2, "path_id": "fixed-two-hit:hit:2"},
                 )
                 if isinstance(second, Mapping):
                     return _result(second["status"], second["reason"], base)
                 for second_event in second:
+                    second_event = deepcopy(dict(second_event)); second_event["hit_index"] = 2
                     second_reactive = _apply_reactive(
                         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action,
                         contact_authority=contact_reactive_contact_authority, event=second_event,
@@ -177,8 +183,16 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     }
 
 
-def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
-    native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"], move_metadata=single_metadata)
+def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
+    if attacker_hp_authority is None:
+        attacker_hp_authority = _path_attacker_hp_authority(runtime_snapshot, base["attacker"], base["own_current_hp"])
+    if attacker_hp_authority is None:
+        return {"status": "incomplete", "reason": "per_hit_attacker_hp_authority_unavailable"}
+    native = build_runtime_d0_native_damage_context(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        attacker=base["attacker"], target=base["target"], move_metadata=single_metadata,
+        attacker_hp_authority=attacker_hp_authority, low_hp_source_hit=low_hp_source_hit,
+    )
     normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"], move_metadata=single_metadata, native_damage_context=native)
     if normal.get("status") != "resolved":
         return {"status": normal.get("status", "rejected"), "reason": normal.get("reason", "fixed_two_hit_normal_formula_input_unavailable")}
@@ -189,6 +203,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
     )
     if paired.get("status") != "resolved":
         return {"status": paired.get("status", "rejected"), "reason": paired.get("reason", "fixed_two_hit_critical_damage_context_unavailable")}
+    low_hp = native.get("native_evaluation", {}).get("low_hp_type_ability_evidence") if isinstance(native.get("native_evaluation"), Mapping) else None
     critical = base["per_hit_critical_execution"]["per_hit_critical_probability"]
     try:
         critical_probability = Fraction(critical["numerator"], critical["denominator"])
@@ -231,6 +246,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
                 "sturdy_survival": deepcopy(dict(sturdy)) if isinstance(sturdy, Mapping) else {"outcome": "not_applicable"},
                 "focus_sash_applied": isinstance(focus, Mapping) and focus.get("outcome") == "applied",
                 "focus_sash_survival": deepcopy(dict(focus)) if isinstance(focus, Mapping) else {"outcome": "not_applicable"},
+                **({"low_hp_type_ability": deepcopy(dict(low_hp))} if isinstance(low_hp, Mapping) else {}),
             })
     if not events or sum((row["probability"] for row in events), Fraction()) != Fraction(1, 1):
         return {"status": "rejected", "reason": "fixed_two_hit_per_hit_probability_mass_invalid"}
@@ -280,6 +296,19 @@ def _detached_target_hp_view(*, runtime_snapshot: Mapping[str, Any], decision_ow
 def _has_life_orb(d0: Mapping[str, Any], snapshot: Mapping[str, Any], attacker: Mapping[str, Any]) -> bool:
     state = snapshot.get("state") if isinstance(snapshot, Mapping) else None; side = state.get(f"{attacker['side']}_side") if isinstance(state, Mapping) else None; roster = side.get("pokemon") if isinstance(side, Mapping) else None; pokemon = roster.get(attacker["slot_index"]) if isinstance(roster, Mapping) else None
     return isinstance(pokemon, Mapping) and pokemon.get("pokemon_id") == attacker["pokemon_id"] and pokemon.get("known_item") == "life-orb"
+
+
+def _path_attacker_hp_authority(snapshot: Mapping[str, Any], attacker: Mapping[str, Any], current_hp: Any) -> dict[str, Any] | None:
+    maximum = _attacker_max_hp(snapshot, attacker)
+    if maximum is None or not isinstance(current_hp, int) or isinstance(current_hp, bool) or not 0 <= current_hp <= maximum:
+        return None
+    return {
+        "status": "resolved",
+        "current_hp": current_hp,
+        "maximum_hp": maximum,
+        "fainted": current_hp == 0,
+        "provenance": "detached_path_local_attacker_hp_v1",
+    }
 
 
 def _apply_life_orb_to_leaf(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], action: Mapping[str, Any], move_metadata: Mapping[str, Any], leaf: Mapping[str, Any]) -> dict[str, Any]:

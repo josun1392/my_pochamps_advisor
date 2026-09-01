@@ -27,6 +27,10 @@ from llm.advisor_battle_state_context import (
     normalize_user_confirmed_current_field_state,
     normalize_user_confirmed_current_stat_stage,
 )
+from llm.advisor_low_hp_type_offensive_ability import (
+    LOW_HP_TYPE_OFFENSIVE_ABILITIES,
+    resolve_low_hp_type_offensive_ability_applicability,
+)
 
 
 _STAT_KEYS = ("hp", "attack", "defense", "special-attack", "special-defense", "speed")
@@ -41,7 +45,7 @@ UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS = frozenset({
 NATIVE_DIRECT_MECHANICS_SOURCES = frozenset({"native_q12_direct_damage", "native_level_based_fixed_damage"})
 STATIC_ATTACKER_DAMAGE_ABILITIES = frozenset({
     "adaptability", "iron-fist", "strong-jaw", "mega-launcher", "technician", "tinted-lens", "sniper", "guts",
-    "tough-claws", "reckless", "punk-rock", "sheer-force",
+    "tough-claws", "reckless", "punk-rock", "sheer-force", "blaze", "torrent", "overgrow", "swarm",
 })
 STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({
     "thick-fat", "fur-coat", "ice-scales", "filter", "solid-rock", "prism-armor",
@@ -59,6 +63,10 @@ ABILITY_MODIFIER_TAGS = {
     "reckless": "ability_reckless_boost",
     "punk-rock": "ability_punk_rock_sound_boost",
     "sheer-force": "ability_sheer_force_secondary_boost",
+    "blaze": "ability_blaze_low_hp_fire_boost",
+    "torrent": "ability_torrent_low_hp_water_boost",
+    "overgrow": "ability_overgrow_low_hp_grass_boost",
+    "swarm": "ability_swarm_low_hp_bug_boost",
 }
 STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band", "wise-glasses", "expert-belt"})
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
@@ -238,6 +246,7 @@ def evaluate_direct_damage_mechanics(
         current=current, direct_attacker=direct_attacker, move_id=move_id, power=power,
         move_type=move_type, attacker_types=attacker["types"] if attacker is not None else (), is_critical=is_critical,
         defender_types=defender["types"] if defender is not None else (),
+        low_hp_source_hit=current.get("low_hp_source_hit"),
     )
     modifier = _modifier_context(
         current=current, direct=direct, category=category, move_type=move_type,
@@ -340,6 +349,7 @@ def evaluate_direct_damage_mechanics(
             defender_item=defender_item_modifier["item_effect"],
             defender_ability=defender_ability_modifier["ability_effect"],
             defender_hp_current=direct_defender["current_hp"], defender_hp_max=direct_defender["max_hp"],
+            attacker_hp_current=direct_attacker["current_hp"], attacker_hp_max=direct_attacker["max_hp"],
             attacker_condition=ability_modifier["attacker_condition"],
             is_contact=defender_ability_modifier["is_contact"] is True,
         ))
@@ -377,6 +387,8 @@ def evaluate_direct_damage_mechanics(
         result["dynamic_power_evidence"] = deepcopy(dict(environment_transformation))
     if isinstance(turn_event_power, Mapping) and turn_event_power.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(turn_event_power))
+    if isinstance(ability_modifier.get("low_hp_type_applicability"), Mapping):
+        result["low_hp_type_ability_evidence"] = deepcopy(dict(ability_modifier["low_hp_type_applicability"]))
     if hit_count == 1:
         result["exact_damage_rolls"] = tuple(rolls)
     return result
@@ -559,9 +571,9 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
     return None
 
 
-def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_attacker: Mapping[str, Any], move_id: str, power: Any, move_type: Any, attacker_types: tuple[str, ...] | list[str], defender_types: tuple[str, ...] | list[str], is_critical: bool = False) -> dict[str, Any]:
+def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_attacker: Mapping[str, Any], move_id: str, power: Any, move_type: Any, attacker_types: tuple[str, ...] | list[str], defender_types: tuple[str, ...] | list[str], is_critical: bool = False, low_hp_source_hit: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Resolve only static request-start attacker ability effects already owned by Q12."""
-    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None, "attacker_condition": "none"}
+    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None, "attacker_condition": "none", "low_hp_type_applicability": None}
     context = current.get("ability_context")
     if not isinstance(context, Mapping):
         if direct_attacker.get("ability") == _KNOWN_ABSENT:
@@ -593,6 +605,34 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
     effect = get_ability(ability_id)
     if effect is None:
         result["unsupported_reason"] = "ability_modifier"
+        return result
+    if ability_id in LOW_HP_TYPE_OFFENSIVE_ABILITIES:
+        if _current_ability_id(current, "opponent") == "neutralizing-gas":
+            return result
+        applicability = resolve_low_hp_type_offensive_ability_applicability(
+            ability=ability_id,
+            effective_move_type=move_type,
+            current_hp=direct_attacker.get("current_hp"),
+            max_hp=direct_attacker.get("max_hp"),
+            hp_source=direct_attacker.get("hp_source", "runtime_strategy_d0_v1"),
+            source_hit=low_hp_source_hit,
+        )
+        if applicability.get("status") == "incomplete":
+            reason = applicability.get("reason")
+            if reason == "low_hp_type_effective_move_type_unknown":
+                result["missing_inputs"].append("selected_move_metadata")
+            elif reason == "low_hp_type_attacker_ability_unknown":
+                result["missing_inputs"].append("attacker.ability")
+            else:
+                result["missing_inputs"].append("attacker.current_hp")
+            return result
+        if applicability.get("status") == "rejected":
+            result["unsupported_reason"] = "low_hp_type_ability_context"
+            return result
+        result["ability_effect"] = effect
+        result["low_hp_type_applicability"] = applicability
+        if applicability.get("outcome") == "applicable":
+            result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
         return result
     if ability_id == "sniper":
         result["ability_effect"] = effect
@@ -1254,6 +1294,6 @@ def _fixed_unsupported(reason: str) -> dict[str, Any]:
 _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({
     "intimidate", "pressure", "drizzle", "drought", "sand-stream", "snow-warning",
     "skill-link", "rough-skin", "iron-barbs", "static", "flame-body", "poison-point",
-    "mold-breaker",
+    "mold-breaker", "neutralizing-gas",
 })
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

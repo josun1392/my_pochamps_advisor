@@ -82,7 +82,7 @@ def test_intimidate_is_a_known_neutral_defender_critical_hit_source():
 
 
 def test_move_flag_damage_abilities_are_known_neutral_critical_hit_sources():
-    for ability in ("tough-claws", "reckless", "punk-rock", "sheer-force", "mold-breaker"):
+    for ability in ("tough-claws", "reckless", "punk-rock", "sheer-force", "mold-breaker", "blaze", "torrent", "overgrow", "swarm"):
         result = _resolve(attacker_ability=ability)
         assert result["status"] == "resolved"
         assert result["crit_stage"] == 0

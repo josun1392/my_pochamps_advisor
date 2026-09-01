@@ -41,7 +41,7 @@ _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
 _SUPPORTED_ATTACKER_ABILITIES = frozenset({
     "pressure", "super-luck", "merciless", "sniper", "guts", "skill-link", "magic-guard",
     "sheer-force", "static", "flame-body", "poison-point", "tough-claws", "reckless", "punk-rock",
-    "mold-breaker",
+    "mold-breaker", "blaze", "torrent", "overgrow", "swarm",
 })
 _SUPPORTED_DEFENDER_ABILITIES = frozenset({
     "pressure", "intimidate", "drizzle", "drought", "sand-stream", "snow-warning",

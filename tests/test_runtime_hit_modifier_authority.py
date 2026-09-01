@@ -63,7 +63,7 @@ def test_runtime_pressure_is_catalogued_as_known_accuracy_neutral() -> None:
 
 
 def test_runtime_move_flag_damage_abilities_are_catalogued_as_known_accuracy_neutral() -> None:
-    for ability in ("tough-claws", "reckless", "punk-rock", "sheer-force", "mold-breaker"):
+    for ability in ("tough-claws", "reckless", "punk-rock", "sheer-force", "mold-breaker", "blaze", "torrent", "overgrow", "swarm"):
         state = _state()
         pokemon = state["self_side"]["pokemon"][0]
         pokemon.update(

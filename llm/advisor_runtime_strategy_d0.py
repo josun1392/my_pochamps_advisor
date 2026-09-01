@@ -916,6 +916,8 @@ def build_runtime_d0_native_damage_context(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     attacker: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any],
     sparkling_aria_burn_clearing_authority: Mapping[str, Any] | None = None,
+    attacker_hp_authority: Mapping[str, Any] | None = None,
+    low_hp_source_hit: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -948,7 +950,10 @@ def build_runtime_d0_native_damage_context(
     target_stages = target_adapter.get("stages") if target_adapter.get("status") == "resolved" else None
     preview = strategy_d0["strategy_state"].get("active", {})
     preview_attacker, preview_target = preview.get(attacker["side"]), preview.get(target["side"])
-    attacker_side = _native_runtime_side(raw_attacker, preview_attacker, attacker, attacker_stages)
+    path_attacker, path_hp_authority = _native_attacker_hp_preview(preview_attacker, attacker_hp_authority)
+    if path_attacker is None:
+        return _native_context_result("rejected", "runtime_native_attacker_hp_authority_invalid")
+    attacker_side = _native_runtime_side(raw_attacker, path_attacker, attacker, attacker_stages)
     target_side = _native_runtime_side(raw_target, preview_target, target, target_stages)
     modifier_authority = _runtime_direct_damage_modifier_authority(
         state=state, attacker=attacker, target=target,
@@ -957,10 +962,11 @@ def build_runtime_d0_native_damage_context(
     current = {
         "direct_mechanics_context": {
             "generation": "gen9",
-            "attacker": _native_direct_side(raw_attacker, preview_attacker, attacker_stages),
+            "attacker": _native_direct_side(raw_attacker, path_attacker, attacker_stages, hp_source=path_hp_authority["provenance"]),
             "defender": _native_direct_side(raw_target, preview_target, target_stages),
             "field": _native_field_direct_context(state),
         },
+        "low_hp_source_hit": deepcopy(dict(low_hp_source_hit)) if isinstance(low_hp_source_hit, Mapping) else None,
         "current_type_context": {"current_types": _native_type_entries(raw_attacker, raw_target)},
         "stat_stage_context": {"current_stages": _native_stage_entries(attacker_stages, target_stages)},
         "field_state_context": {"current_field": _native_field_state(state)},
@@ -1004,6 +1010,7 @@ def build_runtime_d0_native_damage_context(
         "snapshot_damage_input": deepcopy(damage_input), "stat_provenance": deepcopy(provenance),
         "trusted_level": level, "native_evaluation": deepcopy(native), "missing_authority": missing,
         "modifier_authority": deepcopy(modifier_authority),
+        "attacker_hp_authority": deepcopy(path_hp_authority),
         "provenance": "runtime_battle_state_v1_native_damage_context_v1",
     }
     if result["status"] != "resolved":
@@ -1250,7 +1257,7 @@ def _native_stage_map(raw: Mapping[str, Any]) -> dict[str, int] | None:
     return result if all(isinstance(value, int) and not isinstance(value, bool) and -6 <= value <= 6 for value in result.values()) else None
 
 
-def _native_direct_side(raw: Mapping[str, Any], preview: Any, stage_map: Mapping[str, int] | None = None) -> dict[str, Any]:
+def _native_direct_side(raw: Mapping[str, Any], preview: Any, stage_map: Mapping[str, int] | None = None, *, hp_source: str = "runtime_strategy_d0_v1") -> dict[str, Any]:
     hp = preview if _exact_preview_hp(preview) else {}
     condition = _runtime_known_string(raw.get("condition"))
     ability = _runtime_known_string(raw.get("current_ability"))
@@ -1263,7 +1270,7 @@ def _native_direct_side(raw: Mapping[str, Any], preview: Any, stage_map: Mapping
         # separately-authoritative full stage map is exact; evaluator stage
         # application continues to happen only in its canonical stage path.
         "boosts": {key: 0 for key in _NATIVE_STAGE_KEYS} if stage_map is not None else {"status": "unknown"},
-        "current_hp": hp.get("current_hp"), "max_hp": hp.get("max_hp"),
+        "current_hp": hp.get("current_hp"), "max_hp": hp.get("max_hp"), "hp_source": hp_source,
         "status": {"status": "known_absent"} if condition == "none" else ({"status": "known", "value": condition} if condition else {"status": "unknown"}),
     }
 
@@ -1760,6 +1767,43 @@ def _exact_preview_hp(value: Any) -> bool:
         and value["max_hp"] > 0 and 0 <= value["current_hp"] <= value["max_hp"]
         and value.get("fainted") is (value["current_hp"] == 0)
     )
+
+
+def _native_attacker_hp_preview(preview: Any, authority: Mapping[str, Any] | None) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    if not _exact_preview_hp(preview):
+        return None, None
+    if authority is None:
+        return deepcopy(dict(preview)), {
+            "status": "resolved",
+            "current_hp": preview["current_hp"],
+            "max_hp": preview["max_hp"],
+            "fainted": preview["fainted"],
+            "provenance": "runtime_strategy_d0_v1",
+        }
+    current = authority.get("current_hp") if isinstance(authority, Mapping) else None
+    maximum = authority.get("maximum_hp") if isinstance(authority, Mapping) else None
+    fainted = authority.get("fainted") if isinstance(authority, Mapping) else None
+    if (
+        not isinstance(authority, Mapping)
+        or authority.get("status") != "resolved"
+        or not isinstance(current, int) or isinstance(current, bool)
+        or not isinstance(maximum, int) or isinstance(maximum, bool)
+        or maximum != preview["max_hp"]
+        or not 0 <= current <= maximum
+        or not isinstance(fainted, bool)
+        or fainted is not (current == 0)
+    ):
+        return None, None
+    path = deepcopy(dict(preview))
+    path["current_hp"] = current
+    path["fainted"] = fainted
+    return path, {
+        "status": "resolved",
+        "current_hp": current,
+        "max_hp": maximum,
+        "fainted": fainted,
+        "provenance": "detached_path_local_attacker_hp_v1",
+    }
 
 
 def _runtime_current_type(value: Mapping[str, Any]) -> list[str] | None:

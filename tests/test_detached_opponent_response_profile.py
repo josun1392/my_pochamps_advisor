@@ -74,9 +74,10 @@ def _complete_state(state):
     return result["projected_state"]
 
 
-def _inputs(*, equal_speed=False, own_hp=100, opponent_hp=100, own_move="tackle"):
+def _inputs(*, equal_speed=False, own_hp=100, opponent_hp=100, own_move="tackle", own_ability="pressure"):
     state = _complete_state(_state())
     state["self_side"]["pokemon"][0]["current_hp"] = own_hp
+    state["self_side"]["pokemon"][0]["current_ability"] = own_ability
     state["opponent_side"]["pokemon"][0]["current_hp"] = opponent_hp
     if equal_speed:
         state["opponent_side"]["pokemon"][0]["current_final_stats"]["speed"]["value"] = 100
