@@ -844,6 +844,109 @@ def test_static_defender_ability_modifiers_apply_only_to_matching_candidates():
     assert wonder_guard_super["applied_damage_modifiers"] == []
 
 
+def test_type_specific_defender_damage_abilities_reach_strict_direct_gate():
+    fire_baseline = _modifier_result(category="special", move_type="fire", move_id="flamethrower", power=90, weather="none", side_effects=[])
+    water_baseline = _modifier_result(category="special", move_type="water", move_id="water-pulse", power=60, weather="none", side_effects=[])
+    sound_baseline = _modifier_result(category="special", move_type="normal", move_id="boomburst", power=140)
+
+    heatproof = _modifier_result(category="special", move_type="fire", move_id="flamethrower", power=90, weather="none", side_effects=[], defender_ability="heatproof")
+    heatproof_nonfire = _modifier_result(category="special", move_type="water", move_id="water-pulse", power=60, weather="none", side_effects=[], defender_ability="heatproof")
+    water_bubble = _modifier_result(category="special", move_type="fire", move_id="flamethrower", power=90, weather="none", side_effects=[], defender_ability="water-bubble")
+    water_bubble_nonfire = _modifier_result(category="special", move_type="water", move_id="water-pulse", power=60, weather="none", side_effects=[], defender_ability="water-bubble")
+    punk_rock = _modifier_result(category="special", move_type="normal", move_id="boomburst", power=140, defender_ability="punk-rock")
+    punk_rock_nonsound = _modifier_result(category="physical", move_type="normal", move_id="tackle", power=40, defender_ability="punk-rock")
+
+    assert heatproof["status"] == water_bubble["status"] == punk_rock["status"] == "known"
+    assert heatproof["damage_range"]["maximum"] < fire_baseline["damage_range"]["maximum"]
+    assert heatproof["applied_damage_modifiers"] == ["defender_ability_heatproof_fire_reduction"]
+    assert heatproof_nonfire["damage_range"] == water_baseline["damage_range"]
+    assert heatproof_nonfire["applied_damage_modifiers"] == []
+    assert water_bubble["damage_range"]["maximum"] < fire_baseline["damage_range"]["maximum"]
+    assert water_bubble["applied_damage_modifiers"] == ["defender_ability_water_bubble_fire_reduction"]
+    assert water_bubble_nonfire["damage_range"] == water_baseline["damage_range"]
+    assert water_bubble_nonfire["applied_damage_modifiers"] == []
+    assert punk_rock["damage_range"]["maximum"] < sound_baseline["damage_range"]["maximum"]
+    assert punk_rock["applied_damage_modifiers"] == ["defender_ability_punk_rock_sound_reduction"]
+    assert punk_rock_nonsound["applied_damage_modifiers"] == []
+
+
+def test_fluffy_defensive_damage_matrix_uses_exact_contact_and_fire_inputs():
+    tackle_baseline = _modifier_result(category="physical", move_type="normal", move_id="tackle", power=40)
+    tackle_fluffy = _modifier_result(category="physical", move_type="normal", move_id="tackle", power=40, defender_ability="fluffy")
+    hyper_voice_baseline = _modifier_result(category="special", move_type="normal", move_id="hyper-voice", power=90)
+    hyper_voice_fluffy = _modifier_result(category="special", move_type="normal", move_id="hyper-voice", power=90, defender_ability="fluffy")
+    flamethrower_baseline = _modifier_result(category="special", move_type="fire", move_id="flamethrower", power=90, weather="none", side_effects=[])
+    flamethrower_fluffy = _modifier_result(category="special", move_type="fire", move_id="flamethrower", power=90, weather="none", side_effects=[], defender_ability="fluffy")
+    fire_punch_baseline = _modifier_result(category="physical", move_type="fire", move_id="fire-punch", power=75, weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}])
+    fire_punch_fluffy = _modifier_result(category="physical", move_type="fire", move_id="fire-punch", power=75, weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}], defender_ability="fluffy")
+
+    assert tackle_fluffy["damage_range"]["maximum"] < tackle_baseline["damage_range"]["maximum"]
+    assert tackle_fluffy["applied_damage_modifiers"] == ["defender_ability_fluffy_contact_reduction"]
+    assert hyper_voice_fluffy["damage_range"] == hyper_voice_baseline["damage_range"]
+    assert hyper_voice_fluffy["applied_damage_modifiers"] == []
+    assert flamethrower_fluffy["damage_range"]["minimum"] > flamethrower_baseline["damage_range"]["minimum"]
+    assert flamethrower_fluffy["applied_damage_modifiers"] == ["defender_ability_fluffy_fire_vulnerability"]
+    assert fire_punch_fluffy["damage_range"] == fire_punch_baseline["damage_range"]
+    assert fire_punch_fluffy["applied_damage_modifiers"] == [
+        "defender_ability_fluffy_contact_reduction",
+        "defender_ability_fluffy_fire_vulnerability",
+    ]
+
+
+def test_type_specific_defender_damage_abilities_fail_closed_and_preserve_scope():
+    fluffy_unknown_flags = _modifier_result(move_id="missing-flags", defender_ability="fluffy")
+    punk_rock_unknown_flags = _modifier_result(move_id="missing-flags", defender_ability="punk-rock")
+    heatproof_unknown_type = _modifier_result(category="special", move_type="unknown", move_id="flamethrower", defender_ability="heatproof")
+    suppressed_heatproof = _modifier_result(category="special", move_type="fire", move_id="flamethrower", power=90, weather="none", side_effects=[], ability="mold-breaker", defender_ability="heatproof")
+    fire_baseline = _modifier_result(category="special", move_type="fire", move_id="flamethrower", power=90, weather="none", side_effects=[])
+    suppressed_fluffy = _modifier_result(category="physical", move_type="fire", move_id="fire-punch", power=75, weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}], ability="mold-breaker", defender_ability="fluffy")
+    fire_punch_baseline = _modifier_result(category="physical", move_type="fire", move_id="fire-punch", power=75, weather="none", side_effects=[], conditions=[{"side": "self", "condition_type": "none"}])
+    water_bubble_offense = _modifier_result(category="special", move_type="water", move_id="water-pulse", power=60, ability="water-bubble", weather="none", side_effects=[])
+    punk_rock_offense = _modifier_result(category="special", move_type="normal", move_id="boomburst", power=140, ability="punk-rock")
+
+    assert fluffy_unknown_flags["status"] == "unsupported_mechanic"
+    assert fluffy_unknown_flags["unsupported_reason"] == "move_flag_metadata"
+    assert punk_rock_unknown_flags["status"] == "unsupported_mechanic"
+    assert punk_rock_unknown_flags["unsupported_reason"] == "move_flag_metadata"
+    assert heatproof_unknown_type["status"] == "unsupported_mechanic"
+    assert heatproof_unknown_type["unsupported_reason"] == "native_direct_damage"
+    assert suppressed_heatproof["damage_range"] == fire_baseline["damage_range"]
+    assert suppressed_heatproof["applied_damage_modifiers"] == []
+    assert suppressed_fluffy["damage_range"] == fire_punch_baseline["damage_range"]
+    assert suppressed_fluffy["applied_damage_modifiers"] == []
+    assert water_bubble_offense["status"] == "unsupported_mechanic"
+    assert water_bubble_offense["unsupported_reason"] == "ability_modifier"
+    assert punk_rock_offense["status"] == "known"
+    assert punk_rock_offense["applied_damage_modifiers"] == ["ability_punk_rock_sound_boost"]
+
+
+def test_type_specific_defender_damage_abilities_preserve_critical_multihit_and_fixed_damage_boundaries():
+    critical = _modifier_result(
+        category="special", move_type="fire", move_id="flamethrower", power=90,
+        weather="none", side_effects=[], defender_ability="heatproof", is_critical=True,
+    )
+    fixed_two_hit = _modifier_result(
+        move_id="double-hit", power=35, min_hits=2, max_hits=2,
+        conditions=[{"side": "self", "condition_type": "none"}], defender_ability="fluffy",
+    )
+
+    assert critical["status"] == "known"
+    assert critical["applied_damage_modifiers"] == ["defender_ability_heatproof_fire_reduction"]
+    assert fixed_two_hit["status"] == "known" and fixed_two_hit["hit_count"] == 2
+    assert fixed_two_hit["damage_range"]["minimum"] == fixed_two_hit["per_hit_damage_range"]["minimum"] * 2
+    assert fixed_two_hit["applied_damage_modifiers"] == ["defender_ability_fluffy_contact_reduction"]
+
+    battle = _battle()
+    battle["moves"]["my_available_moves"][0]["move_id"] = "seismic-toss"
+    snapshot = build_request_start_recommendation_snapshot(battle, selectable_moves=("seismic-toss",))
+    damage = build_snapshot_damage_input(snapshot, candidate_slot_index=0, candidate_move_id="seismic-toss", selectable_moves=("seismic-toss",), move_metadata={"category": "physical", "type": "fire"})
+    damage["battle_context"]["current_state"]["ability_context"] = {"current_abilities": [{"side": "opponent", "ability": "fluffy"}]}
+    result = evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
+    assert result["status"] == "known" and result["damage_model"] == "level_based_fixed"
+    assert result["fixed_damage"] == 50
+    assert "applied_damage_modifiers" not in result
+
+
 def test_static_attacker_type_effectiveness_abilities_use_exact_current_types():
     baseline_stab = _modifier_result(category="special", move_type="normal", move_id="swift", power=60)
     adaptability = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, ability="adaptability")

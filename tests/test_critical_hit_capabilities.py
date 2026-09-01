@@ -82,12 +82,25 @@ def test_intimidate_is_a_known_neutral_defender_critical_hit_source():
 
 
 def test_move_flag_damage_abilities_are_known_neutral_critical_hit_sources():
-    for ability in ("tough-claws", "reckless", "punk-rock", "sheer-force"):
+    for ability in ("tough-claws", "reckless", "punk-rock", "sheer-force", "mold-breaker"):
         result = _resolve(attacker_ability=ability)
         assert result["status"] == "resolved"
         assert result["crit_stage"] == 0
         assert any(
             row["slot"] == "attacker_ability"
+            and row["state"] == "known_neutral"
+            and row["source_value"] == ability
+            for row in result["ledger"]
+        )
+
+
+def test_type_specific_defensive_damage_abilities_are_known_neutral_critical_hit_sources():
+    for ability in ("heatproof", "water-bubble", "fluffy", "punk-rock"):
+        result = _resolve(defender_ability=ability)
+        assert result["status"] == "resolved"
+        assert result["crit_stage"] == 0
+        assert any(
+            row["slot"] == "defender_ability"
             and row["state"] == "known_neutral"
             and row["source_value"] == ability
             for row in result["ledger"]

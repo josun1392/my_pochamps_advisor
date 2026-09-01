@@ -22,7 +22,7 @@ _APPLICABILITY = frozenset({"applicable", "not_applicable", "unknown"})
 # because the current resolver has no rule for it.
 _KNOWN_NEUTRAL_ABILITY_IDS = frozenset({
     "pressure", "guts", "skill-link", "static", "flame-body", "poison-point",
-    "tough-claws", "reckless", "punk-rock", "sheer-force",
+    "tough-claws", "reckless", "punk-rock", "sheer-force", "mold-breaker",
 })
 
 

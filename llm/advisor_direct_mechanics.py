@@ -16,6 +16,7 @@ from advisor.damage.q12 import M_HALF, Q12_ONE
 from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.move_categories import load_move_flags as load_move_category_flags
+from advisor.damage.mold_breaker import is_mold_breaker_active
 from advisor.damage.types import type_effectiveness_multiplier
 from advisor.probability.single_hit import ko_chance_from_outcomes
 from llm.advisor_battle_state_context import (
@@ -42,7 +43,10 @@ STATIC_ATTACKER_DAMAGE_ABILITIES = frozenset({
     "adaptability", "iron-fist", "strong-jaw", "mega-launcher", "technician", "tinted-lens", "sniper", "guts",
     "tough-claws", "reckless", "punk-rock", "sheer-force",
 })
-STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({"thick-fat", "fur-coat", "ice-scales", "filter", "solid-rock", "prism-armor", "wonder-guard", "multiscale", "shadow-shield"})
+STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({
+    "thick-fat", "fur-coat", "ice-scales", "filter", "solid-rock", "prism-armor",
+    "wonder-guard", "multiscale", "shadow-shield", "heatproof", "water-bubble", "fluffy", "punk-rock",
+})
 ABILITY_MODIFIER_TAGS = {
     "adaptability": "ability_adaptability_stab_boost",
     "iron-fist": "ability_iron_fist_boost",
@@ -84,6 +88,9 @@ DEFENDER_ABILITY_MODIFIER_TAGS = {
     "wonder-guard": "defender_ability_wonder_guard_immunity",
     "multiscale": "defender_ability_multiscale_reduction",
     "shadow-shield": "defender_ability_shadow_shield_reduction",
+    "heatproof": "defender_ability_heatproof_fire_reduction",
+    "water-bubble": "defender_ability_water_bubble_fire_reduction",
+    "punk-rock": "defender_ability_punk_rock_sound_reduction",
 }
 
 
@@ -251,6 +258,7 @@ def evaluate_direct_damage_mechanics(
     defender_ability_modifier = _defender_ability_modifier_context(
         current=current, direct_defender=direct_defender, category=category, move_type=move_type,
         defender_types=defender["types"] if defender is not None else (),
+        move_id=move_id, attacker_ability_id=_current_ability_id(current, "self"),
     )
     stage_context = _relevant_stage_context(current=current, category=category)
     legacy_modifier_reason = _unsupported_modifier(
@@ -333,6 +341,7 @@ def evaluate_direct_damage_mechanics(
             defender_ability=defender_ability_modifier["ability_effect"],
             defender_hp_current=direct_defender["current_hp"], defender_hp_max=direct_defender["max_hp"],
             attacker_condition=ability_modifier["attacker_condition"],
+            is_contact=defender_ability_modifier["is_contact"] is True,
         ))
     except (TypeError, ValueError, KeyError):
         return _unsupported("native_direct_damage")
@@ -704,9 +713,9 @@ def _is_detached_intermediate_view(current: Mapping[str, Any]) -> bool:
     )
 
 
-def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_defender: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str]) -> dict[str, Any]:
+def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_defender: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str], move_id: str, attacker_ability_id: str | None = None) -> dict[str, Any]:
     """Resolve only static, request-start target ability effects already owned by Q12."""
-    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None, "authority_explicit": False}
+    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None, "authority_explicit": False, "is_contact": False}
     context = current.get("ability_context")
     if not isinstance(context, Mapping):
         if direct_defender.get("ability") == _KNOWN_ABSENT:
@@ -742,19 +751,45 @@ def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_def
     if effect is None:
         result["unsupported_reason"] = "defender_ability_modifier"
         return result
+    if is_mold_breaker_active(attacker_ability_id) and effect.raw_data.get("ignored_by_mold_breaker", True):
+        return result
+    flags_by_move = load_move_flags()
+    flags = set(flags_by_move.get(move_id, ()))
+    if ability_id in {"fluffy", "punk-rock"} and move_id not in flags_by_move:
+        result["unsupported_reason"] = "move_flag_metadata"
+        return result
+    result["is_contact"] = "contact" in flags
     applies = (
         (ability_id == "thick-fat" and move_type in {"fire", "ice"})
+        or (ability_id in {"heatproof", "water-bubble"} and move_type == "fire")
         or (ability_id == "fur-coat" and category == "physical")
         or (ability_id == "ice-scales" and category == "special")
         or (ability_id in {"filter", "solid-rock", "prism-armor"} and _nonempty_str(move_type) and type_effectiveness_multiplier(move_type, tuple(defender_types)) > 1)
         or (ability_id == "wonder-guard" and _nonempty_str(move_type) and type_effectiveness_multiplier(move_type, tuple(defender_types)) <= 1)
         or (ability_id in {"multiscale", "shadow-shield"})
+        or (ability_id == "fluffy" and ("contact" in flags or move_type == "fire"))
+        or (ability_id == "punk-rock" and "sound" in flags)
     )
     if not applies:
         return result
     result["ability_effect"] = effect
-    result["applied"].append(DEFENDER_ABILITY_MODIFIER_TAGS[ability_id])
+    if ability_id == "fluffy":
+        if "contact" in flags:
+            result["applied"].append("defender_ability_fluffy_contact_reduction")
+        if move_type == "fire":
+            result["applied"].append("defender_ability_fluffy_fire_vulnerability")
+    else:
+        result["applied"].append(DEFENDER_ABILITY_MODIFIER_TAGS[ability_id])
     return result
+
+
+def _current_ability_id(current: Mapping[str, Any], side: str) -> str | None:
+    context = current.get("ability_context")
+    entries = context.get("current_abilities") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        return None
+    matches = [entry.get("ability") for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
+    return matches[0] if len(matches) == 1 and _nonempty_str(matches[0]) and matches[0] != "unknown" else None
 
 
 def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direct_attacker: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str]) -> dict[str, Any]:
@@ -1219,5 +1254,6 @@ def _fixed_unsupported(reason: str) -> dict[str, Any]:
 _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({
     "intimidate", "pressure", "drizzle", "drought", "sand-stream", "snow-warning",
     "skill-link", "rough-skin", "iron-barbs", "static", "flame-body", "poison-point",
+    "mold-breaker",
 })
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})
