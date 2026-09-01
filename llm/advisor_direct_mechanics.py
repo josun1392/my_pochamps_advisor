@@ -15,6 +15,7 @@ from advisor.damage.items import get_item
 from advisor.damage.q12 import M_HALF, Q12_ONE
 from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
+from advisor.damage.move_categories import load_move_flags as load_move_category_flags
 from advisor.damage.types import type_effectiveness_multiplier
 from advisor.probability.single_hit import ko_chance_from_outcomes
 from llm.advisor_battle_state_context import (
@@ -39,6 +40,7 @@ UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS = frozenset({
 NATIVE_DIRECT_MECHANICS_SOURCES = frozenset({"native_q12_direct_damage", "native_level_based_fixed_damage"})
 STATIC_ATTACKER_DAMAGE_ABILITIES = frozenset({
     "adaptability", "iron-fist", "strong-jaw", "mega-launcher", "technician", "tinted-lens", "sniper", "guts",
+    "tough-claws", "reckless", "punk-rock", "sheer-force",
 })
 STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({"thick-fat", "fur-coat", "ice-scales", "filter", "solid-rock", "prism-armor", "wonder-guard", "multiscale", "shadow-shield"})
 ABILITY_MODIFIER_TAGS = {
@@ -49,6 +51,10 @@ ABILITY_MODIFIER_TAGS = {
     "technician": "ability_technician_boost",
     "tinted-lens": "ability_tinted_lens_not_very_effective_boost",
     "guts": "ability_guts_status_attack_boost",
+    "tough-claws": "ability_tough_claws_boost",
+    "reckless": "ability_reckless_boost",
+    "punk-rock": "ability_punk_rock_sound_boost",
+    "sheer-force": "ability_sheer_force_secondary_boost",
 }
 STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band", "wise-glasses", "expert-belt"})
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
@@ -609,10 +615,18 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
         result["missing_inputs"].append("selected_move_metadata")
         return result
     flags_by_move = load_move_flags()
-    if ability_id != "technician" and move_id not in flags_by_move:
+    category_flags = load_move_category_flags()
+    secondary_moves = set(category_flags.get("secondary_effect_moves", ()))
+    if ability_id != "technician" and move_id not in flags_by_move and not (ability_id == "sheer-force" and move_id in secondary_moves):
         result["unsupported_reason"] = "move_flag_metadata"
         return result
     flags = set(flags_by_move.get(move_id, ()))
+    if ability_id == "sheer-force":
+        if move_id in secondary_moves:
+            flags.add("has_secondary")
+        elif move_id not in flags_by_move:
+            result["unsupported_reason"] = "move_flag_metadata"
+            return result
     modifier = get_bp_ability_modifier(ability_id, base_power=power, move_flags=flags, move_id=move_id)
     if modifier == Q12_ONE:
         return result

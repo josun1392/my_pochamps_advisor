@@ -38,7 +38,10 @@ _BASE_MOVE_IDS = frozenset({
 })
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
-_SUPPORTED_ATTACKER_ABILITIES = frozenset({"pressure", "super-luck", "merciless", "sniper", "guts", "skill-link", "magic-guard", "sheer-force", "static", "flame-body", "poison-point"})
+_SUPPORTED_ATTACKER_ABILITIES = frozenset({
+    "pressure", "super-luck", "merciless", "sniper", "guts", "skill-link", "magic-guard",
+    "sheer-force", "static", "flame-body", "poison-point", "tough-claws", "reckless", "punk-rock",
+})
 _SUPPORTED_DEFENDER_ABILITIES = frozenset({
     "pressure", "intimidate", "drizzle", "drought", "sand-stream", "snow-warning",
     "battle-armor", "shell-armor", "guts", "sturdy", "rough-skin", "iron-barbs",

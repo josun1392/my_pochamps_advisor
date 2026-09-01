@@ -20,7 +20,10 @@ _APPLICABILITY = frozenset({"applicable", "not_applicable", "unknown"})
 # These identities have maintained Gen 9 semantics, but no accuracy effect.
 # Keeping this explicit is important: a known ability is not neutral merely
 # because the current resolver has no rule for it.
-_KNOWN_NEUTRAL_ABILITY_IDS = frozenset({"pressure", "guts", "skill-link", "static", "flame-body", "poison-point"})
+_KNOWN_NEUTRAL_ABILITY_IDS = frozenset({
+    "pressure", "guts", "skill-link", "static", "flame-body", "poison-point",
+    "tough-claws", "reckless", "punk-rock", "sheer-force",
+})
 
 
 def resolve_hit_modifier_capabilities(*, move: Mapping[str, Any], source_authority: Mapping[str, Any]) -> dict[str, Any]:

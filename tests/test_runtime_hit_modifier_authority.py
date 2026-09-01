@@ -62,6 +62,25 @@ def test_runtime_pressure_is_catalogued_as_known_accuracy_neutral() -> None:
     )
 
 
+def test_runtime_move_flag_damage_abilities_are_catalogued_as_known_accuracy_neutral() -> None:
+    for ability in ("tough-claws", "reckless", "punk-rock", "sheer-force"):
+        state = _state()
+        pokemon = state["self_side"]["pokemon"][0]
+        pokemon.update(
+            current_ability=ability,
+            current_ability_provenance={"event_kind": "current_ability_observed", "trust": "user_confirmed_observation", "turn_number": 1},
+        )
+        snapshot, d0 = _d0(state)
+        result = freeze_runtime_d0_hit_modifier_authority(
+            strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state),
+            target=_owner(state, "opponent"), move_metadata=_move(),
+        )
+        assert result["status"] == "resolved"
+        assert result["capability_resolution"]["ledger"] == (
+            {"slot": "attacker_ability", "state": "known_neutral", "reason": "catalog_known_no_accuracy_effect", "source_value": ability},
+        )
+
+
 def test_neutral_category_stale_identity_move_and_detachment_contracts():
     state=_state(); _hustle(state); snapshot,d0=_d0(state)
     neutral=freeze_runtime_d0_hit_modifier_authority(strategy_d0=d0,runtime_snapshot=snapshot,attacker=_owner(state),target=_owner(state,"opponent"),move_metadata=_move("special"))

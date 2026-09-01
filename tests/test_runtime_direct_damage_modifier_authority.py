@@ -52,10 +52,11 @@ def _apply(state: dict, events: list[dict]) -> dict:
     return projected["projected_state"]
 
 
-def _context(state: dict) -> dict:
+def _context(state: dict, move_metadata: dict | None = None) -> dict:
     snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
-    return build_runtime_d0_native_damage_context(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata={"move_id": "water-gun", "category": "special", "power": 40, "type": "water"})
+    metadata = move_metadata or {"move_id": "water-gun", "category": "special", "power": 40, "type": "water"}
+    return build_runtime_d0_native_damage_context(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"), target=_owner(state, "opponent"), move_metadata=metadata)
 
 
 def test_known_item_absence_and_complete_modifier_authority_reach_native_water_gun() -> None:
@@ -83,6 +84,28 @@ def test_pressure_is_catalogued_as_known_neutral_for_both_direct_damage_roles() 
     context = _context(state)
     assert context["status"] == "resolved"
     assert context["native_evaluation"]["applied_damage_modifiers"] == []
+
+
+def test_runtime_d0_move_flag_damage_abilities_reach_native_direct_modifier_path() -> None:
+    cases = [
+        ("tough-claws", {"move_id": "dragon-claw", "category": "physical", "power": 80, "type": "dragon"}, "ability_tough_claws_boost"),
+        ("reckless", {"move_id": "double-edge", "category": "physical", "power": 120, "type": "normal"}, "ability_reckless_boost"),
+        ("punk-rock", {"move_id": "boomburst", "category": "special", "power": 140, "type": "normal"}, "ability_punk_rock_sound_boost"),
+        ("sheer-force", {"move_id": "iron-head", "category": "physical", "power": 80, "type": "steel"}, "ability_sheer_force_secondary_boost"),
+    ]
+    for ability, metadata, tag in cases:
+        base = _base()
+        state = _apply(
+            base,
+            _confirmations(
+                base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+                attacker_ability=ability, target_ability="pressure",
+            ),
+        )
+        context = _context(state, metadata)
+        assert context["status"] == "resolved", context
+        assert tag in context["native_evaluation"]["applied_damage_modifiers"]
+        assert context["modifier_authority"]["attacker"]["ability"]["value"] == ability
 
 
 def test_unknown_item_and_partial_side_knowledge_stay_incomplete() -> None:

@@ -48,7 +48,7 @@ def _direct_result(battle):
     return evaluate_direct_damage_mechanics(damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=_Species()), trusted_level=50)
 
 
-def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_item=None, defender_ability=None, defender_types=None, defender_current_hp=None, stages=None):
+def _modifier_result(*, category="physical", move_type="normal", move_id="tackle", power=40, min_hits=None, max_hits=None, weather=None, conditions=None, side_effects=None, battle_format=None, ability=None, item=None, defender_item=None, defender_ability=None, defender_types=None, defender_current_hp=None, stages=None, is_critical=False):
     """Exercise only the frozen request-start modifier authority inputs."""
     battle = _battle()
     battle["moves"]["my_available_moves"][0]["move_id"] = move_id
@@ -88,7 +88,7 @@ def _modifier_result(*, category="physical", move_type="normal", move_id="tackle
         provenance["defender"]["types"] = {"available": True, "value": defender_types}
     if defender_item is not None:
         provenance["defender"]["known_item"] = {"status": "unknown", "profile_source": "frozen_candidate_item_authority"} if defender_item == "unknown" else {"status": "known", "value": defender_item}
-    return evaluate_direct_damage_mechanics(damage, stat_provenance=provenance, trusted_level=50)
+    return evaluate_direct_damage_mechanics(damage, stat_provenance=provenance, trusted_level=50, is_critical=is_critical)
 
 
 def test_complete_direct_input_returns_native_damage_type_and_ko_result():
@@ -676,6 +676,47 @@ def test_static_self_ability_boosts_use_canonical_move_conditions_only():
     assert "ability_mega_launcher_boost" in mega_launcher["applied_damage_modifiers"]
     assert "ability_technician_boost" in technician["applied_damage_modifiers"]
     assert technician_mismatch["status"] == "known" and "ability_technician_boost" not in technician_mismatch["applied_damage_modifiers"]
+
+
+def test_move_flag_offensive_abilities_are_production_reachable_through_strict_direct_gate():
+    baseline_contact = _modifier_result(move_id="dragon-claw", power=80)
+    tough_claws = _modifier_result(move_id="dragon-claw", power=80, ability="tough-claws")
+    tough_claws_noncontact = _modifier_result(category="special", move_type="normal", move_id="hyper-voice", power=90, ability="tough-claws")
+    reckless = _modifier_result(move_id="double-edge", power=120, ability="reckless")
+    reckless_ineligible = _modifier_result(move_id="dragon-claw", power=80, ability="reckless")
+    punk_rock = _modifier_result(category="special", move_type="normal", move_id="boomburst", power=140, ability="punk-rock")
+    punk_rock_nonsound = _modifier_result(move_id="dragon-claw", power=80, ability="punk-rock")
+    sheer_force = _modifier_result(move_id="iron-head", power=80, ability="sheer-force")
+    sheer_force_ineligible = _modifier_result(move_id="dragon-claw", power=80, ability="sheer-force")
+    sheer_force_life_orb = _modifier_result(move_id="iron-head", power=80, ability="sheer-force", item="life-orb")
+
+    assert tough_claws["status"] == "known" and tough_claws["damage_range"]["maximum"] > baseline_contact["damage_range"]["maximum"]
+    assert tough_claws["applied_damage_modifiers"] == ["ability_tough_claws_boost"]
+    assert tough_claws_noncontact["status"] == "known" and tough_claws_noncontact["applied_damage_modifiers"] == []
+    assert reckless["status"] == "known" and reckless["applied_damage_modifiers"] == ["ability_reckless_boost"]
+    assert reckless_ineligible["status"] == "known" and reckless_ineligible["applied_damage_modifiers"] == []
+    assert punk_rock["status"] == "known" and punk_rock["applied_damage_modifiers"] == ["ability_punk_rock_sound_boost"]
+    assert punk_rock_nonsound["status"] == "known" and punk_rock_nonsound["applied_damage_modifiers"] == []
+    assert sheer_force["status"] == "known" and sheer_force["applied_damage_modifiers"] == ["ability_sheer_force_secondary_boost"]
+    assert sheer_force_ineligible["status"] == "known" and sheer_force_ineligible["applied_damage_modifiers"] == []
+    assert sheer_force_life_orb["status"] == "known"
+    assert sheer_force_life_orb["applied_damage_modifiers"] == ["ability_sheer_force_secondary_boost", "item_life_orb_boost"]
+
+
+def test_move_flag_offensive_abilities_fail_closed_when_required_classification_is_unknown():
+    for ability in ("tough-claws", "reckless", "punk-rock", "sheer-force"):
+        result = _modifier_result(move_id="unmapped-move", power=80, ability=ability)
+        assert result["status"] == "unsupported_mechanic"
+        assert result["unsupported_reason"] == "move_flag_metadata"
+
+
+def test_move_flag_offensive_ability_modifiers_preserve_critical_and_multihit_paths():
+    critical = _modifier_result(move_id="dragon-claw", power=80, ability="tough-claws", is_critical=True)
+    fixed_two_hit = _modifier_result(move_id="double-hit", power=35, min_hits=2, max_hits=2, ability="tough-claws")
+    assert critical["status"] == "known"
+    assert critical["applied_damage_modifiers"] == ["ability_tough_claws_boost"]
+    assert fixed_two_hit["status"] == "known" and fixed_two_hit["hit_count"] == 2
+    assert fixed_two_hit["applied_damage_modifiers"] == ["ability_tough_claws_boost"]
 
 
 def test_ability_context_fails_closed_for_unknown_unsupported_and_missing_flag_metadata():

@@ -81,6 +81,19 @@ def test_intimidate_is_a_known_neutral_defender_critical_hit_source():
     assert result["crit_blocker"]["status"] == "known_absent"
 
 
+def test_move_flag_damage_abilities_are_known_neutral_critical_hit_sources():
+    for ability in ("tough-claws", "reckless", "punk-rock", "sheer-force"):
+        result = _resolve(attacker_ability=ability)
+        assert result["status"] == "resolved"
+        assert result["crit_stage"] == 0
+        assert any(
+            row["slot"] == "attacker_ability"
+            and row["state"] == "known_neutral"
+            and row["source_value"] == ability
+            for row in result["ledger"]
+        )
+
+
 def test_missing_authority_fails_closed_without_neutral_fabrication():
     state = _state(); state["attacker"]["crit_volatiles"]["volatiles"]["focus-energy"] = {"status": "unknown"}
     volatile = resolve_critical_hit_capabilities(move={"move_id": "tackle"}, source_authority=_source(), critical_state_authority=state)
