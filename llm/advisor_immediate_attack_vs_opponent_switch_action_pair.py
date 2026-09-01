@@ -86,6 +86,18 @@ def _switch_first_predictive_view(strategy_d0: Mapping[str, Any], runtime_snapsh
         return _result("rejected", "switch_in_hypothetical_state_invalid", {})
     side["active_slot_index"] = incoming["slot_index"]
     target["current_hp"], target["max_hp"], target["fainted"] = hp["current_hp"], hp["maximum_hp"], False
+    ability = hypothetical.get("ability_authority")
+    item = hypothetical.get("item_authority")
+    if not isinstance(ability, Mapping) or ability.get("status") != "known" or not isinstance(ability.get("value"), str) or not ability["value"]:
+        return _result("incomplete", "switch_in_hypothetical_ability_authority_unknown", {})
+    if not isinstance(item, Mapping) or item.get("status") != "known":
+        return _result("incomplete", "switch_in_hypothetical_item_authority_unknown", {})
+    target["known_item"] = item.get("value")
+    target["known_item_provenance"] = {
+        "event_kind": "current_item_observed", "trust": "user_confirmed_observation", "turn_number": 1,
+        "status": "known" if isinstance(item.get("value"), str) else "known_absent",
+        "hypothetical_provenance": "exact_detached_switch_first_active_item",
+    }
     stages = hypothetical.get("stage_authority")
     stage_values = stages.get("value") if isinstance(stages, Mapping) and stages.get("status") == "known" else None
     if not isinstance(stage_values, Mapping) or any(not isinstance(stage_values.get(stat), int) or isinstance(stage_values.get(stat), bool) or not -6 <= stage_values[stat] <= 6 for stat in ("attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion")):
@@ -104,6 +116,11 @@ def _switch_first_predictive_view(strategy_d0: Mapping[str, Any], runtime_snapsh
         target["detached_switch_first_hypothetical_trace_authority"] = True
     elif isinstance(trace, Mapping) and trace.get("status") not in {"not_applicable"}:
         return _result("incomplete", "switch_in_trace_overlay_unknown", {})
+    target["current_ability"] = ability["value"]
+    target["current_ability_provenance"] = {
+        "event_kind": "current_ability_observed", "trust": "user_confirmed_observation", "turn_number": 1,
+        "hypothetical_provenance": "exact_detached_switch_first_active_ability",
+    }
     overlay = hypothetical.get("own_attack_stage_overlay")
     if isinstance(overlay, Mapping) and overlay.get("status") == "known":
         own_side = synthetic.get("self_side") if isinstance(synthetic, Mapping) else None
