@@ -68,6 +68,11 @@ from llm.advisor_runtime_d0_contact_reactive_damage_authority import (
     apply_contact_reactive_damage_to_consequences,
     contact_reactive_damage_relevance,
 )
+from llm.advisor_runtime_d0_contact_reactive_status_authority import (
+    contact_reactive_status_branches,
+    contact_reactive_status_relevance,
+    freeze_runtime_d0_contact_reactive_status_authority,
+)
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
@@ -684,8 +689,11 @@ def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: M
     relevance = contact_reactive_damage_relevance(runtime_snapshot=runtime_snapshot, defender=target)
     if relevance.get("status") != "resolved":
         return _result(_status(relevance), relevance.get("reason", "fixed_two_hit_contact_reactive_relevance_unknown"), {})
+    status_relevance = contact_reactive_status_relevance(runtime_snapshot=runtime_snapshot, defender=target)
+    if status_relevance.get("status") != "resolved":
+        return _result(_status(status_relevance), status_relevance.get("reason", "fixed_two_hit_contact_reactive_status_relevance_unknown"), {})
     contact = None
-    if relevance.get("relevant") is True:
+    if relevance.get("relevant") is True or status_relevance.get("relevant") is True:
         contact = freeze_runtime_d0_canonical_contact_classification_authority(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, attacker=actor, target=target,
         )
@@ -763,8 +771,11 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     relevance = contact_reactive_damage_relevance(runtime_snapshot=runtime_snapshot, defender=target)
     if relevance.get("status") != "resolved":
         return _result(_status(relevance), relevance.get("reason", "contact_reactive_relevance_unknown"), {})
+    status_relevance = contact_reactive_status_relevance(runtime_snapshot=runtime_snapshot, defender=target)
+    if status_relevance.get("status") != "resolved":
+        return _result(_status(status_relevance), status_relevance.get("reason", "contact_reactive_status_relevance_unknown"), {})
     contact = None
-    if relevance.get("relevant") is True:
+    if relevance.get("relevant") is True or status_relevance.get("relevant") is True:
         contact = freeze_runtime_d0_canonical_contact_classification_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=source_action, attacker=actor, target=target)
         if contact.get("status") != "resolved":
             return _result(_status(contact), contact.get("reason", "contact_authority_unavailable"), {})
@@ -839,6 +850,10 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
         attacker=actor, defender=target, source_action=source_action, contact_authority=contact,
     )
+    ledger = _apply_contact_reactive_status_to_normal_ledger(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
+        attacker=actor, defender=target, source_action=source_action, contact_authority=contact,
+    )
     return _apply_life_orb_to_normal_ledger(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
         attacker=actor, target=target, source_action=source_action, move_metadata=metadata,
@@ -873,6 +888,63 @@ def _apply_contact_reactive_to_normal_ledger(*, strategy_d0: Mapping[str, Any], 
         row = deepcopy(dict(leaf)); row["consequences"] = result["consequences"]; updated.append(row)
     result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(updated)
     result["component_manifest"] = {**deepcopy(dict(result.get("component_manifest", {}))), "contact_reactive_damage": {"status": "resolved"}}
+    return result
+
+
+def _apply_contact_reactive_status_to_normal_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], ledger: Mapping[str, Any], attacker: Mapping[str, Any], defender: Mapping[str, Any], source_action: Mapping[str, Any], contact_authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    if ledger.get("status") != "evaluable":
+        return deepcopy(dict(ledger))
+    if contact_authority is None:
+        return deepcopy(dict(ledger))
+    leaves = ledger.get("terminal_leaves")
+    if not isinstance(leaves, tuple):
+        return _result("rejected", "contact_reactive_status_normal_ledger_leaves_invalid", {})
+    updated = []
+    for leaf in leaves:
+        if not isinstance(leaf, Mapping):
+            return _result("rejected", "contact_reactive_status_normal_leaf_invalid", {})
+        if leaf.get("hit_state") != "hit":
+            updated.append(deepcopy(dict(leaf))); continue
+        consequences = leaf.get("consequences")
+        source_hit = consequences.get("source_hit_context") if isinstance(consequences, Mapping) else None
+        if isinstance(source_hit, Mapping):
+            source_hit = {**deepcopy(dict(source_hit)), "source_action_id": source_action["action_id"], "source_move_id": source_action["identity"]}
+        authority = freeze_runtime_d0_contact_reactive_status_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=attacker, defender=defender,
+            source_action=source_action, contact_authority=contact_authority, source_hit=source_hit or {},
+            attacker_fainted_authority={"status": "known", "value": bool(isinstance(consequences, Mapping) and consequences.get("self_fainted") is True)},
+        )
+        if authority.get("status") != "resolved":
+            return _result(_status(authority), authority.get("reason", "contact_reactive_status_unavailable"), {})
+        if authority.get("outcome") != "applies":
+            row = deepcopy(dict(leaf))
+            row["consequences"] = {**deepcopy(dict(consequences or {})), "contact_reactive_status": {"outcome": authority["outcome"], "authority": deepcopy(dict(authority)), "overlay": None}}
+            updated.append(row)
+            continue
+        for branch in contact_reactive_status_branches(authority=authority):
+            overlay = branch.get("overlay")
+            if not isinstance(overlay, Mapping) or overlay.get("status") != "resolved":
+                return _result("rejected", "contact_reactive_status_overlay_invalid", {})
+            row = _multiply_leaf_probability(leaf, branch["factor"], f"contact_reactive_status:{branch['branch']}")
+            row["consequences"] = {**deepcopy(dict(consequences or {})), "contact_reactive_status": {"outcome": "applies", "branch": branch["branch"], "authority": deepcopy(dict(authority)), "overlay": deepcopy(dict(overlay))}}
+            updated.append(row)
+    result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(updated)
+    result["component_manifest"] = {**deepcopy(dict(result.get("component_manifest", {}))), "contact_reactive_status": {"status": "resolved"}}
+    return result
+
+
+def _multiply_leaf_probability(leaf: Mapping[str, Any], factor: Fraction, branch_name: str) -> dict[str, Any]:
+    result = deepcopy(dict(leaf))
+    current = _fraction(result.get("probability"))
+    probability = current * factor
+    result["probability"] = _fd(probability)
+    result["leaf_id"] = f"{result['leaf_id']}/{branch_name}"
+    branch_path = result.get("branch_path")
+    if isinstance(branch_path, tuple):
+        result["branch_path"] = branch_path + ({"branch": branch_name, "conditional_probability": _fd(factor)},)
+    conditional = result.get("conditional_factors")
+    if isinstance(conditional, tuple):
+        result["conditional_factors"] = conditional + (_fd(factor),)
     return result
 
 

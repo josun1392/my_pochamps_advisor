@@ -169,7 +169,9 @@ def _final_from_consequences(consequences: Any, actor: Mapping[str, Any], base: 
     if not _hp(own) or not _hp(opponent): return "variable_graph_final_hp_invalid"
     if isinstance(consequences.get("life_orb"), Mapping) and not _life_orb(consequences["life_orb"]):
         return "variable_graph_final_life_orb_consequence_invalid"
-    return {"own_final_hp": own, "opponent_final_hp": opponent, "own_fainted": own == 0, "opponent_fainted": opponent == 0, "supported_stage_consequence": deepcopy(consequences.get("deterministic_stage_effect")), "supported_secondary_consequence": deepcopy(consequences.get("secondary")), "contact_reactive_damage_consequence": deepcopy(consequences.get("contact_reactive_damage")), "life_orb_consequence": deepcopy(consequences.get("life_orb"))}
+    if isinstance(consequences.get("contact_reactive_status"), Mapping) and not _contact_reactive_status(consequences["contact_reactive_status"]):
+        return "variable_graph_final_contact_reactive_status_consequence_invalid"
+    return {"own_final_hp": own, "opponent_final_hp": opponent, "own_fainted": own == 0, "opponent_fainted": opponent == 0, "supported_stage_consequence": deepcopy(consequences.get("deterministic_stage_effect")), "supported_secondary_consequence": deepcopy(consequences.get("secondary")), "contact_reactive_damage_consequence": deepcopy(consequences.get("contact_reactive_damage")), "contact_reactive_status_consequence": deepcopy(consequences.get("contact_reactive_status")), "life_orb_consequence": deepcopy(consequences.get("life_orb"))}
 
 
 def _final_from_leaf(leaf: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
@@ -193,6 +195,31 @@ def _life_orb(value: Any) -> bool:
     if recoil.get("suppressed_by") is not None and (recoil["recoil_damage"] != 0 or recoil["post_hp"] != recoil["pre_hp"]): return False
     hp = overlay.get("hypothetical_hp_authority") if isinstance(overlay, Mapping) and overlay.get("schema_version") == "detached-life-orb-attacker-hp-overlay-v1" else None
     return isinstance(hp, Mapping) and hp.get("current_hp") == recoil["post_hp"] and hp.get("maximum_hp") == recoil["max_hp"]
+
+
+def _contact_reactive_status(value: Any) -> bool:
+    authority = value.get("authority") if isinstance(value, Mapping) else None
+    overlay = value.get("overlay") if isinstance(value, Mapping) else None
+    branch = value.get("branch") if isinstance(value, Mapping) else None
+    if not isinstance(authority, Mapping) or authority.get("schema_version") != "runtime-d0-contact-reactive-status-authority-v1" or authority.get("status") != "resolved":
+        return False
+    if authority.get("outcome") != "applies":
+        return overlay is None
+    if branch not in {"activation", "no_activation"}:
+        return False
+    if authority.get("activation_probability") != {"numerator": 3, "denominator": 10} or authority.get("no_activation_probability") != {"numerator": 7, "denominator": 10}:
+        return False
+    if authority.get("reactive_ability") not in {"static", "flame-body", "poison-point"} or authority.get("attempted_condition") not in {"paralysis", "burn", "poison"}:
+        return False
+    if not isinstance(overlay, Mapping) or overlay.get("schema_version") != "detached-contact-reactive-status-overlay-v1" or overlay.get("branch") != branch:
+        return False
+    expected = authority["activation_probability"] if branch == "activation" else authority["no_activation_probability"]
+    if overlay.get("probability") != expected:
+        return False
+    transition = overlay.get("hypothetical_condition_authority")
+    if overlay.get("transition_applied") is True:
+        return isinstance(transition, Mapping) and transition.get("status") == "known_present" and transition.get("condition") == authority.get("attempted_condition")
+    return overlay.get("transition_applied") is False
 
 
 def _fraction(value: Any) -> Fraction:

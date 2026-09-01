@@ -14,6 +14,11 @@ from llm.advisor_runtime_d0_contact_reactive_damage_authority import (
     freeze_runtime_d0_contact_reactive_damage_authority,
     materialize_detached_contact_reactive_damage,
 )
+from llm.advisor_runtime_d0_contact_reactive_status_authority import (
+    condition_from_overlay,
+    contact_reactive_status_branches,
+    freeze_runtime_d0_contact_reactive_status_authority,
+)
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_focus_sash_survival import focus_sash_state
 from llm.advisor_runtime_strategy_d0 import (
@@ -85,59 +90,80 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
                 return _result(first_reactive.get("status", "rejected"), first_reactive.get("reason", "fixed_two_hit_contact_reactive_damage_unavailable"), base)
             first_attacker_hp = first_reactive["post_hp"] if isinstance(first_reactive, Mapping) else base["own_current_hp"]
             first_event = _event_with_reactive(first_event, first_reactive)
-            if first_event["post_hp"] == 0 or first_attacker_hp == 0:
-                reason = "target_fainted" if first_event["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage"
-                leaf = _leaf(base, "hit", first_probability, (first_event,), first_event["post_hp"], _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"]), focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"]), own_final_hp=first_attacker_hp, terminal_reason=reason)
-                if first_attacker_hp != 0:
-                    leaf = _apply_life_orb_to_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action, move_metadata=metadata, leaf=leaf)
-                    if leaf.get("status") in {"incomplete", "unsupported", "rejected"}:
-                        return _result(leaf.get("status", "rejected"), leaf.get("reason", "fixed_two_hit_life_orb_recoil_unavailable"), base)
-                leaves.append(leaf)
-                continue
-            second_d0, second_snapshot = _detached_target_hp_view(
-                runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"],
-                target=base["target"], target_hp=first_event["post_hp"],
-                focus_sash_consumed=first_event["focus_sash_applied"],
+            first_status_branches = _apply_reactive_status(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action,
+                contact_authority=contact_reactive_contact_authority, event=first_event,
+                hit_index=1, condition_state="none", attacker_fainted=first_attacker_hp == 0,
             )
-            if second_d0 is None:
-                return _result("rejected", "fixed_two_hit_intermediate_target_state_invalid", base)
-            second_sturdy = sturdy_survival_authority if (
-                first_event["post_hp"] == first_event["target_max_hp"] and not first_event["sturdy_applied"]
-            ) else None
-            second_focus_sash = focus_sash_survival_authority if (
-                first_event["post_hp"] == first_event["target_max_hp"] and not first_event["focus_sash_applied"]
-            ) else None
-            second = _hit_events(
-                strategy_d0=second_d0, runtime_snapshot=second_snapshot, base=base,
-                single_metadata=single, sturdy_survival_authority=second_sturdy,
-                focus_sash_survival_authority=second_focus_sash,
-            )
-            if isinstance(second, Mapping):
-                return _result(second["status"], second["reason"], base)
-            for second_event in second:
-                second_reactive = _apply_reactive(
-                    strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action,
-                    contact_authority=contact_reactive_contact_authority, event=second_event,
-                    hit_index=2, attacker_hp=first_attacker_hp,
+            if isinstance(first_status_branches, Mapping):
+                return _result(first_status_branches.get("status", "rejected"), first_status_branches.get("reason", "fixed_two_hit_contact_reactive_status_unavailable"), base)
+            for first_status in first_status_branches:
+                first_status_probability = first_probability * first_status["factor"]
+                first_event_with_status = _event_with_reactive_status(first_event, first_status)
+                first_condition = first_status["post_condition"]
+                if first_event["post_hp"] == 0 or first_attacker_hp == 0:
+                    reason = "target_fainted" if first_event["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage"
+                    leaf = _leaf(base, "hit", first_status_probability, (first_event_with_status,), first_event["post_hp"], _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"]), focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"]), own_final_hp=first_attacker_hp, terminal_reason=reason)
+                    if first_attacker_hp != 0:
+                        leaf = _apply_life_orb_to_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action, move_metadata=metadata, leaf=leaf)
+                        if leaf.get("status") in {"incomplete", "unsupported", "rejected"}:
+                            return _result(leaf.get("status", "rejected"), leaf.get("reason", "fixed_two_hit_life_orb_recoil_unavailable"), base)
+                    leaves.append(leaf)
+                    continue
+                second_d0, second_snapshot = _detached_target_hp_view(
+                    runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"],
+                    target=base["target"], target_hp=first_event["post_hp"],
+                    focus_sash_consumed=first_event["focus_sash_applied"],
                 )
-                if isinstance(second_reactive, Mapping) and second_reactive.get("status") != "resolved":
-                    return _result(second_reactive.get("status", "rejected"), second_reactive.get("reason", "fixed_two_hit_contact_reactive_damage_unavailable"), base)
-                second_attacker_hp = second_reactive["post_hp"] if isinstance(second_reactive, Mapping) else first_attacker_hp
-                second_event = _event_with_reactive(second_event, second_reactive)
-                reason = "target_fainted" if second_event["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if second_attacker_hp == 0 else "all_hits_landed"
-                leaf = _leaf(
-                    base, "hit", first_probability * second_event["probability"],
-                    (first_event, second_event), second_event["post_hp"],
-                    _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"] or second_event["sturdy_applied"]),
-                    focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"] or second_event["focus_sash_applied"]),
-                    own_final_hp=second_attacker_hp,
-                    terminal_reason=reason,
+                if second_d0 is None:
+                    return _result("rejected", "fixed_two_hit_intermediate_target_state_invalid", base)
+                second_sturdy = sturdy_survival_authority if (
+                    first_event["post_hp"] == first_event["target_max_hp"] and not first_event["sturdy_applied"]
+                ) else None
+                second_focus_sash = focus_sash_survival_authority if (
+                    first_event["post_hp"] == first_event["target_max_hp"] and not first_event["focus_sash_applied"]
+                ) else None
+                second = _hit_events(
+                    strategy_d0=second_d0, runtime_snapshot=second_snapshot, base=base,
+                    single_metadata=single, sturdy_survival_authority=second_sturdy,
+                    focus_sash_survival_authority=second_focus_sash,
                 )
-                if second_attacker_hp != 0:
-                    leaf = _apply_life_orb_to_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action, move_metadata=metadata, leaf=leaf)
-                    if leaf.get("status") in {"incomplete", "unsupported", "rejected"}:
-                        return _result(leaf.get("status", "rejected"), leaf.get("reason", "fixed_two_hit_life_orb_recoil_unavailable"), base)
-                leaves.append(leaf)
+                if isinstance(second, Mapping):
+                    return _result(second["status"], second["reason"], base)
+                for second_event in second:
+                    second_reactive = _apply_reactive(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action,
+                        contact_authority=contact_reactive_contact_authority, event=second_event,
+                        hit_index=2, attacker_hp=first_attacker_hp,
+                    )
+                    if isinstance(second_reactive, Mapping) and second_reactive.get("status") != "resolved":
+                        return _result(second_reactive.get("status", "rejected"), second_reactive.get("reason", "fixed_two_hit_contact_reactive_damage_unavailable"), base)
+                    second_attacker_hp = second_reactive["post_hp"] if isinstance(second_reactive, Mapping) else first_attacker_hp
+                    second_event = _event_with_reactive(second_event, second_reactive)
+                    second_status_branches = _apply_reactive_status(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action,
+                        contact_authority=contact_reactive_contact_authority, event=second_event,
+                        hit_index=2, condition_state=first_condition, attacker_fainted=second_attacker_hp == 0,
+                    )
+                    if isinstance(second_status_branches, Mapping):
+                        return _result(second_status_branches.get("status", "rejected"), second_status_branches.get("reason", "fixed_two_hit_contact_reactive_status_unavailable"), base)
+                    for second_status in second_status_branches:
+                        second_event_with_status = _event_with_reactive_status(second_event, second_status)
+                        reason = "target_fainted" if second_event["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if second_attacker_hp == 0 else "all_hits_landed"
+                        leaf = _leaf(
+                            base, "hit", first_status_probability * second_event["probability"] * second_status["factor"],
+                            (first_event_with_status, second_event_with_status), second_event["post_hp"],
+                            _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"] or second_event["sturdy_applied"]),
+                            focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"] or second_event["focus_sash_applied"]),
+                            own_final_hp=second_attacker_hp,
+                            terminal_reason=reason,
+                        )
+                        if second_attacker_hp != 0:
+                            leaf = _apply_life_orb_to_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action, move_metadata=metadata, leaf=leaf)
+                            if leaf.get("status") in {"incomplete", "unsupported", "rejected"}:
+                                return _result(leaf.get("status", "rejected"), leaf.get("reason", "fixed_two_hit_life_orb_recoil_unavailable"), base)
+                        leaves.append(leaf)
+            continue
     mass = sum((row["probability"] for row in leaves), Fraction())
     if mass != Fraction(1, 1):
         return _result("rejected", "fixed_two_hit_terminal_probability_mass_not_one", base, terminal_probability_mass=_fd(mass))
@@ -342,6 +368,62 @@ def _event_with_reactive(event: Mapping[str, Any], reactive: Mapping[str, Any] |
         result["attacker_post_reactive_hp"] = reactive["post_hp"]
         result["attacker_fainted_from_reactive"] = reactive["fainted"]
     return result
+
+
+def _apply_reactive_status(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], action: Mapping[str, Any], contact_authority: Mapping[str, Any] | None, event: Mapping[str, Any], hit_index: int, condition_state: str, attacker_fainted: bool) -> tuple[dict[str, Any], ...] | dict[str, Any]:
+    if contact_authority is None:
+        return ({"branch": "not_applicable", "factor": Fraction(1, 1), "post_condition": condition_state, "overlay": None, "authority": None},)
+    authority = freeze_runtime_d0_contact_reactive_status_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], defender=base["target"],
+        source_action=action, contact_authority=contact_authority,
+        source_hit={
+            "source_action_id": action["action_id"], "source_move_id": action["identity"],
+            "hit_index": hit_index, "critical_state": event.get("critical_state"),
+            "roll_index": event.get("roll_index"), "raw_damage": event.get("raw_damage"),
+            "actual_damage": event.get("actual_damage"), "target_routing": event.get("target_routing", "target"),
+            "target_pre_hp": event.get("pre_hp"), "target_post_hp": event.get("post_hp"),
+        },
+        attacker_condition_authority=_path_condition_authority(strategy_d0, base["attacker"], condition_state),
+        attacker_fainted_authority={"status": "known", "value": attacker_fainted},
+    )
+    if authority.get("status") != "resolved":
+        return authority
+    rows = []
+    for branch in contact_reactive_status_branches(authority=authority):
+        overlay = branch.get("overlay")
+        if not isinstance(overlay, Mapping) and branch["branch"] != "not_applicable":
+            return {"status": "rejected", "reason": "contact_reactive_status_overlay_invalid"}
+        rows.append({
+            "branch": branch["branch"], "factor": branch["factor"],
+            "post_condition": condition_from_overlay(overlay if isinstance(overlay, Mapping) else None, condition_state),
+            "authority": authority, "overlay": overlay,
+        })
+    return tuple(rows)
+
+
+def _event_with_reactive_status(event: Mapping[str, Any], status: Mapping[str, Any]) -> dict[str, Any]:
+    result = deepcopy(dict(event))
+    authority, overlay = status.get("authority"), status.get("overlay")
+    if isinstance(authority, Mapping):
+        result["contact_reactive_status"] = {
+            "outcome": authority.get("outcome"), "branch": status.get("branch"),
+            "post_condition": status.get("post_condition"),
+            "authority": deepcopy(dict(authority)),
+            "overlay": deepcopy(dict(overlay)) if isinstance(overlay, Mapping) else None,
+        }
+        result["attacker_post_reactive_condition"] = status.get("post_condition")
+    return result
+
+
+def _path_condition_authority(d0: Mapping[str, Any], owner: Mapping[str, Any], condition: str) -> dict[str, Any]:
+    base = {
+        "status": "resolved", "schema_version": "runtime-current-condition-authority-v1",
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "owner": deepcopy(dict(owner)),
+    }
+    if condition == "none":
+        return {**base, "condition": {"status": "known_none", "provenance": "detached_contact_reactive_status_path_state_v1"}}
+    return {**base, "condition": {"status": "known_present", "condition": condition, "provenance": "detached_contact_reactive_status_path_state_v1"}}
 
 
 def _attacker_max_hp(snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> int | None:

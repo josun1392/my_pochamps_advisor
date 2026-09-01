@@ -1204,6 +1204,6 @@ def _fixed_unsupported(reason: str) -> dict[str, Any]:
 # invented absence authority.
 _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({
     "intimidate", "pressure", "drizzle", "drought", "sand-stream", "snow-warning",
-    "skill-link", "rough-skin", "iron-barbs",
+    "skill-link", "rough-skin", "iron-barbs", "static", "flame-body", "poison-point",
 })
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

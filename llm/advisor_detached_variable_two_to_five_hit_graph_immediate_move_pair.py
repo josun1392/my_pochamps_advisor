@@ -30,6 +30,7 @@ from llm.advisor_runtime_d0_population_bomb_per_hit_accuracy_execution_authority
 from llm.advisor_runtime_d0_escalating_three_hit_execution_authority import freeze_runtime_d0_escalating_three_hit_execution_authority
 from llm.advisor_runtime_d0_canonical_contact_classification_authority import freeze_runtime_d0_canonical_contact_classification_authority
 from llm.advisor_runtime_d0_contact_reactive_damage_authority import contact_reactive_damage_relevance
+from llm.advisor_runtime_d0_contact_reactive_status_authority import contact_reactive_status_relevance
 from llm.advisor_immediate_move_vs_move_action_pair import (
     _attack_ledger, _base, _fainted, _metadata_for_inputs, _opponent_metadata,
     _orders, _status,
@@ -166,8 +167,11 @@ def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     relevance = contact_reactive_damage_relevance(runtime_snapshot=runtime_snapshot, defender=target)
     if relevance.get("status") != "resolved":
         return _result(_status(relevance), relevance.get("reason", "variable_multi_hit_contact_reactive_relevance_unknown"), {})
+    status_relevance = contact_reactive_status_relevance(runtime_snapshot=runtime_snapshot, defender=target)
+    if status_relevance.get("status") != "resolved":
+        return _result(_status(status_relevance), status_relevance.get("reason", "variable_multi_hit_contact_reactive_status_relevance_unknown"), {})
     contact = None
-    if relevance.get("relevant") is True:
+    if relevance.get("relevant") is True or status_relevance.get("relevant") is True:
         contact = freeze_runtime_d0_canonical_contact_classification_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, attacker=actor, target=target)
         if contact.get("status") != "resolved":
             return _result(_status(contact), contact.get("reason", "variable_multi_hit_contact_authority_unavailable"), {})

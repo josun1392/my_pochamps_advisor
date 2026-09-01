@@ -153,6 +153,9 @@ def _condition(authority: Any, effects: tuple[Mapping[str, Any], ...], role: str
     current = authority.get("condition") if isinstance(authority, Mapping) else None
     result = deepcopy(dict(current)) if isinstance(current, Mapping) else {"status": "unknown", "reason": "current_condition_authority_unknown"}
     for effect in effects:
+        condition = effect.get("hypothetical_self_condition")
+        if role == "self" and isinstance(condition, Mapping) and isinstance(condition.get("resulting_condition"), str):
+            return {"status": "known_present", "condition": condition["resulting_condition"], "source": "exact_terminal_leaf_condition_effect", "effect": deepcopy(dict(condition))}
         condition = effect.get("hypothetical_target_condition")
         if role == "target" and isinstance(condition, Mapping) and isinstance(condition.get("resulting_condition"), str):
             return {"status": "known_present", "condition": condition["resulting_condition"], "source": "exact_terminal_leaf_condition_effect", "effect": deepcopy(dict(condition))}
@@ -198,6 +201,20 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
     item_after = focus.get("item_after") if isinstance(focus, Mapping) else None
     if isinstance(focus, Mapping) and focus.get("outcome") == "applied" and isinstance(item_after, Mapping) and item_after.get("status") == "known_absent":
         result.append({"owner": "target", "hypothetical_target_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_focus_sash_consumption", "effect": deepcopy(dict(focus))}})
+    status = consequences.get("contact_reactive_status")
+    overlay = status.get("overlay") if isinstance(status, Mapping) else None
+    transition = overlay.get("hypothetical_condition_authority") if isinstance(overlay, Mapping) else None
+    if isinstance(transition, Mapping) and overlay.get("transition_applied") is True and transition.get("status") == "known_present" and isinstance(transition.get("condition"), str):
+        result.append({
+            "owner": "self",
+            "hypothetical_self_condition": {
+                "schema_version": "detached-hypothetical-current-condition-v1",
+                "previous_condition": {"status": "known_none"},
+                "resulting_condition": transition["condition"],
+                "source_reactive_status": deepcopy(dict(status)),
+                "provenance": "contact_reactive_status_successful_damage_roll_v1",
+            },
+        })
     return tuple(deepcopy(dict(effect)) for effect in result)
 
 

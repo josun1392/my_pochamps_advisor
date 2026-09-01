@@ -12,7 +12,8 @@ from fractions import Fraction
 from typing import Any, Mapping
 
 from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import (
-    _apply_reactive, _detached_target_hp_view, _event_with_reactive, _has_life_orb, _hit_events, _sturdy_state,
+    _apply_reactive, _apply_reactive_status, _detached_target_hp_view, _event_with_reactive,
+    _event_with_reactive_status, _has_life_orb, _hit_events, _sturdy_state,
 )
 from llm.advisor_focus_sash_survival import focus_sash_state
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
@@ -87,7 +88,7 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
     roots: list[dict[str, Any]] = []
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
-    node_index: dict[tuple[int, int, int, bool, bool, int], str] = {}
+    node_index: dict[tuple[int, int, int, bool, bool, int, str], str] = {}
     node_mass: dict[str, Fraction] = {}
     terminal_mass = Fraction()
     hit_factor = Fraction(action_accuracy, 100)
@@ -96,19 +97,19 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
         roots.append({"root_id": "miss", "probability": miss_factor, "terminal": True, "selected_hit_count": None, "consequences": _miss_consequences(base, target_hp, sturdy_survival_authority, focus_sash_survival_authority)})
         terminal_mass += miss_factor
 
-    def add_node(selected: int, completed: int, hp: int, sturdy_consumed: bool, focus_sash_consumed: bool, attacker_hp: int) -> str:
-        key = (selected, completed, hp, sturdy_consumed, focus_sash_consumed, attacker_hp)
+    def add_node(selected: int, completed: int, hp: int, sturdy_consumed: bool, focus_sash_consumed: bool, attacker_hp: int, condition: str) -> str:
+        key = (selected, completed, hp, sturdy_consumed, focus_sash_consumed, attacker_hp, condition)
         existing = node_index.get(key)
         if existing is not None:
             return existing
-        node_id = f"hits:{selected}/completed:{completed}/hp:{hp}/attacker-hp:{attacker_hp}/sturdy:{'consumed' if sturdy_consumed else 'available'}/focus-sash:{'consumed' if focus_sash_consumed else 'available'}"
+        node_id = f"hits:{selected}/completed:{completed}/hp:{hp}/attacker-hp:{attacker_hp}/condition:{condition}/sturdy:{'consumed' if sturdy_consumed else 'available'}/focus-sash:{'consumed' if focus_sash_consumed else 'available'}"
         node_index[key] = node_id
-        nodes.append({"node_id": node_id, "selected_hit_count": selected, "completed_hit_count": completed, "target_hp": hp, "attacker_hp": attacker_hp, "sturdy_consumed": sturdy_consumed, "focus_sash_consumed": focus_sash_consumed})
+        nodes.append({"node_id": node_id, "selected_hit_count": selected, "completed_hit_count": completed, "target_hp": hp, "attacker_hp": attacker_hp, "attacker_condition": condition, "sturdy_consumed": sturdy_consumed, "focus_sash_consumed": focus_sash_consumed})
         node_mass[node_id] = Fraction()
         return node_id
 
     for selected, factor in hit_count_distribution:
-        node = add_node(selected, 0, target_hp, False, False, base["own_current_hp"])
+        node = add_node(selected, 0, target_hp, False, False, base["own_current_hp"], "none")
         probability = hit_factor * factor
         roots.append({"root_id": f"hit_count:{selected}", "probability": probability, "terminal": False, "selected_hit_count": selected, "node_id": node})
         node_mass[node] += probability
@@ -145,25 +146,37 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
                 return {"status": reactive.get("status", "rejected"), "reason": reactive.get("reason", "variable_multi_hit_contact_reactive_damage_unavailable")}, None, None, None
             attacker_hp = reactive["post_hp"] if isinstance(reactive, Mapping) else node["attacker_hp"]
             event_row = _event_with_reactive(event_row, reactive)
+            status_branches = _apply_reactive_status(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
+                action={"action_id": base["action_id"], "identity": base["move_id"]},
+                contact_authority=contact_reactive_contact_authority, event=event_row,
+                hit_index=hit_index, condition_state=node["attacker_condition"], attacker_fainted=attacker_hp == 0,
+            )
+            if isinstance(status_branches, Mapping):
+                return {"status": status_branches.get("status", "rejected"), "reason": status_branches.get("reason", "variable_multi_hit_contact_reactive_status_unavailable")}, None, None, None
             sturdy_consumed = bool(node["sturdy_consumed"] or event_row["sturdy_applied"])
             focus_sash_consumed = bool(node["focus_sash_consumed"] or event_row["focus_sash_applied"])
-            terminal = event_row["post_hp"] == 0 or attacker_hp == 0 or hit_index == node["selected_hit_count"]
-            edge = {"edge_id": f"{node['node_id']}/hit:{hit_index}:{event_row['critical_state']}:roll:{event_row['roll_index']}", "from_node_id": node["node_id"], "conditional_probability": probability, "ordered_hit": event_row, "terminal": terminal}
-            if terminal:
-                edge["terminal_reason"] = "target_fainted" if event_row["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if attacker_hp == 0 else "selected_hit_count_reached"
-                consequences = _consequences(base, event_row["post_hp"], sturdy_survival_authority, sturdy_consumed, focus_sash_survival_authority, focus_sash_consumed, attacker_hp=attacker_hp, terminal_reason=edge["terminal_reason"])
-                if attacker_hp != 0:
-                    applied = _apply_life_orb_to_consequences(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, move_metadata=base["execution_authority"]["move_metadata_authority"]["metadata"], consequences=consequences, qualifying_damage=event_row["actual_damage"] > 0)
-                    if applied.get("status") in {"incomplete", "unsupported", "rejected"}:
-                        return {"status": applied.get("status", "rejected"), "reason": applied.get("reason", "variable_multi_hit_life_orb_recoil_unavailable")}, None, None, None
-                    consequences = applied
-                edge["terminal_consequences"] = consequences
-                terminal_mass += source_mass * probability
-            else:
-                next_node = add_node(node["selected_hit_count"], hit_index, event_row["post_hp"], sturdy_consumed, focus_sash_consumed, attacker_hp)
-                edge["to_node_id"] = next_node
-                node_mass[next_node] += source_mass * probability
-            edges.append(edge)
+            for status in status_branches:
+                status_event = _event_with_reactive_status(event_row, status)
+                factor = probability * status["factor"]
+                terminal = event_row["post_hp"] == 0 or attacker_hp == 0 or hit_index == node["selected_hit_count"]
+                edge = {"edge_id": f"{node['node_id']}/hit:{hit_index}:{event_row['critical_state']}:roll:{event_row['roll_index']}:status:{status['branch']}", "from_node_id": node["node_id"], "conditional_probability": factor, "ordered_hit": status_event, "terminal": terminal}
+                if terminal:
+                    edge["terminal_reason"] = "target_fainted" if event_row["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if attacker_hp == 0 else "selected_hit_count_reached"
+                    consequences = _consequences(base, event_row["post_hp"], sturdy_survival_authority, sturdy_consumed, focus_sash_survival_authority, focus_sash_consumed, attacker_hp=attacker_hp, terminal_reason=edge["terminal_reason"])
+                    consequences["contact_reactive_status"] = deepcopy(status_event.get("contact_reactive_status"))
+                    if attacker_hp != 0:
+                        applied = _apply_life_orb_to_consequences(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, move_metadata=base["execution_authority"]["move_metadata_authority"]["metadata"], consequences=consequences, qualifying_damage=event_row["actual_damage"] > 0)
+                        if applied.get("status") in {"incomplete", "unsupported", "rejected"}:
+                            return {"status": applied.get("status", "rejected"), "reason": applied.get("reason", "variable_multi_hit_life_orb_recoil_unavailable")}, None, None, None
+                        consequences = applied
+                    edge["terminal_consequences"] = consequences
+                    terminal_mass += source_mass * factor
+                else:
+                    next_node = add_node(node["selected_hit_count"], hit_index, event_row["post_hp"], sturdy_consumed, focus_sash_consumed, attacker_hp, status["post_condition"])
+                    edge["to_node_id"] = next_node
+                    node_mass[next_node] += source_mass * factor
+                edges.append(edge)
     return roots, nodes, edges, terminal_mass
 
 

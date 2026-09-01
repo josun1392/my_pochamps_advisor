@@ -109,7 +109,12 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if probability != order_probability * _fraction(first["probability"]) * conditional: return "pair_leaf_probability_composition_invalid"
     focus_error = _focus_sash_leaf(first)
     if focus_error is not None: return focus_error
+    first_status_error = _contact_reactive_status_leaf(first)
+    if first_status_error is not None: return first_status_error
     final_source = second_leaf if isinstance(second_leaf, Mapping) else first
+    if isinstance(second_leaf, Mapping):
+        second_status_error = _contact_reactive_status_leaf(second_leaf)
+        if second_status_error is not None: return second_status_error
     final = _final(final_source, base)
     if isinstance(final, str): return final
     return {"pair_leaf_id": value["pair_leaf_id"], "action_order": value["action_order"],
@@ -250,16 +255,48 @@ def _final(source: Mapping[str, Any], base: Mapping[str, Any]) -> dict[str, Any]
     if not _hp(own_hp) or not _hp(opponent_hp): return "pair_final_hp_missing"
     if isinstance(consequences.get("life_orb"), Mapping) and not _life_orb(consequences["life_orb"]):
         return "pair_final_life_orb_consequence_invalid"
+    if isinstance(consequences.get("contact_reactive_status"), Mapping) and not _contact_reactive_status(consequences["contact_reactive_status"]):
+        return "pair_final_contact_reactive_status_consequence_invalid"
     return {"own_final_hp": own_hp, "opponent_final_hp": opponent_hp,
             "own_fainted": own_hp == 0, "opponent_fainted": opponent_hp == 0,
             "supported_stage_consequence": deepcopy(consequences.get("deterministic_stage_effect")),
             "supported_secondary_consequence": deepcopy(consequences.get("secondary")),
             "reactive_shield_condition_consequence": deepcopy(consequences.get("reactive_shield_condition_transition")),
             "contact_reactive_damage_consequence": deepcopy(consequences.get("contact_reactive_damage")),
+            "contact_reactive_status_consequence": deepcopy(consequences.get("contact_reactive_status")),
             "life_orb_consequence": deepcopy(consequences.get("life_orb"))}
 
 
 def _hp(value: Any) -> bool: return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+def _contact_reactive_status_leaf(leaf: Mapping[str, Any]) -> str | None:
+    consequences = leaf.get("consequences")
+    status = consequences.get("contact_reactive_status") if isinstance(consequences, Mapping) else None
+    if isinstance(status, Mapping) and not _contact_reactive_status(status):
+        return "pair_final_contact_reactive_status_consequence_invalid"
+    return None
+def _contact_reactive_status(value: Any) -> bool:
+    authority = value.get("authority") if isinstance(value, Mapping) else None
+    overlay = value.get("overlay") if isinstance(value, Mapping) else None
+    branch = value.get("branch") if isinstance(value, Mapping) else None
+    if not isinstance(authority, Mapping) or authority.get("schema_version") != "runtime-d0-contact-reactive-status-authority-v1" or authority.get("status") != "resolved":
+        return False
+    if authority.get("outcome") != "applies":
+        return overlay is None
+    if branch not in {"activation", "no_activation"}:
+        return False
+    if authority.get("activation_probability") != {"numerator": 3, "denominator": 10} or authority.get("no_activation_probability") != {"numerator": 7, "denominator": 10}:
+        return False
+    if authority.get("reactive_ability") not in {"static", "flame-body", "poison-point"} or authority.get("attempted_condition") not in {"paralysis", "burn", "poison"}:
+        return False
+    if not isinstance(overlay, Mapping) or overlay.get("schema_version") != "detached-contact-reactive-status-overlay-v1" or overlay.get("branch") != branch:
+        return False
+    expected = authority["activation_probability"] if branch == "activation" else authority["no_activation_probability"]
+    if overlay.get("probability") != expected:
+        return False
+    transition = overlay.get("hypothetical_condition_authority")
+    if overlay.get("transition_applied") is True:
+        return isinstance(transition, Mapping) and transition.get("status") == "known_present" and transition.get("condition") == authority.get("attempted_condition")
+    return overlay.get("transition_applied") is False
 def _life_orb(value: Any) -> bool:
     authority = value.get("authority") if isinstance(value, Mapping) else None
     overlay = value.get("overlay") if isinstance(value, Mapping) else None
