@@ -632,6 +632,54 @@ def test_known_ability_exception_remains_unsupported_instead_of_applying_burn():
     assert result["unsupported_reason"] == "ability_modifier"
 
 
+def test_guts_request_start_conditions_apply_only_to_physical_attack_and_bypass_burn_penalty():
+    conditions = ("burn", "paralysis", "poison", "toxic", "sleep", "freeze")
+    baseline = _modifier_result(
+        conditions=[{"side": "self", "condition_type": "none", "status": "user_confirmed", "source": "user_confirmed_current_condition"}],
+    )
+    for condition in conditions:
+        result = _modifier_result(
+            ability="guts",
+            conditions=[{"side": "self", "condition_type": condition, "status": "user_confirmed", "source": "user_confirmed_current_condition"}],
+        )
+        assert result["status"] == "known", (condition, result)
+        assert "ability_guts_status_attack_boost" in result["applied_damage_modifiers"]
+        assert "burn_physical_reduction" not in result["applied_damage_modifiers"]
+        assert result["damage_range"]["minimum"] > baseline["damage_range"]["minimum"]
+        evidence = result["guts_status_attack_ability_evidence"]
+        assert evidence["attacker_condition"] == condition
+        assert evidence["condition_source"] == "runtime_strategy_d0_v1"
+        assert evidence["modifier_q12"] == 6144
+
+    special = _modifier_result(
+        category="special", move_type="normal", move_id="swift", power=60, ability="guts",
+        conditions=[{"side": "self", "condition_type": "burn", "status": "user_confirmed", "source": "user_confirmed_current_condition"}],
+    )
+    fixed = _modifier_result(
+        category="physical", move_type="normal", move_id="seismic-toss", power=1, ability="guts",
+        conditions=[{"side": "self", "condition_type": "burn", "status": "user_confirmed", "source": "user_confirmed_current_condition"}],
+    )
+    assert special["status"] == "known"
+    assert "ability_guts_status_attack_boost" not in special["applied_damage_modifiers"]
+    assert special["guts_status_attack_ability_evidence"]["physical_attack"] is False
+    assert fixed["status"] == "known"
+    assert fixed["mechanics_source"] == "native_level_based_fixed_damage"
+    assert "guts_status_attack_ability_evidence" not in fixed
+
+
+def test_guts_suppression_and_unknown_suppression_fail_closed():
+    condition = [{"side": "self", "condition_type": "burn", "status": "user_confirmed", "source": "user_confirmed_current_condition"}]
+    suppressed = _modifier_result(ability="guts", defender_ability="neutralizing-gas", conditions=condition)
+    assert suppressed["status"] == "known"
+    assert suppressed["applied_damage_modifiers"] == ["burn_physical_reduction"]
+    assert suppressed["guts_status_attack_ability_evidence"]["suppression_status"] == "suppressed"
+    assert suppressed["guts_status_attack_ability_evidence"]["modifier_q12"] == 4096
+
+    unknown = _modifier_result(ability="guts", defender_ability="unknown", conditions=condition)
+    assert unknown["status"] == "insufficient_context"
+    assert "defender.ability" in unknown["missing_inputs"]
+
+
 def test_full_hp_defender_multiscale_and_shadow_shield_use_existing_formula_reduction():
     baseline = _modifier_result(category="special", move_type="normal", move_id="swift", power=60)
     multiscale = _modifier_result(category="special", move_type="normal", move_id="swift", power=60, defender_ability="multiscale")

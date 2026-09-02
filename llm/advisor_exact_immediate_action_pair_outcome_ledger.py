@@ -12,6 +12,9 @@ from llm.advisor_variable_two_to_five_hit_graph_shared_pair_ledger import (
 from llm.advisor_low_hp_type_offensive_ability import (
     validate_low_hp_type_offensive_ability_applicability,
 )
+from llm.advisor_guts_status_attack_ability import (
+    validate_guts_status_attack_ability_applicability,
+)
 
 
 SCHEMA_VERSION = "exact-immediate-action-pair-outcome-ledger-v1"
@@ -78,6 +81,8 @@ def _switch_leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if focus_error is not None: return focus_error
     low_hp_error = _low_hp_type_leaf(attack)
     if low_hp_error is not None: return low_hp_error
+    guts_error = _guts_status_attack_leaf(attack)
+    if guts_error is not None: return guts_error
     incoming = value.get("incoming_target")
     if incoming != base["opponent_actor"]: return "switch_pair_incoming_target_identity_mismatch"
     return {"pair_leaf_id": value["pair_leaf_id"], "action_order": value["action_order"], "probability": _fd(probability),
@@ -104,6 +109,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if focus_error is not None: return focus_error
         low_hp_error = _low_hp_type_leaf(second_leaf)
         if low_hp_error is not None: return low_hp_error
+        guts_error = _guts_status_attack_leaf(second_leaf)
+        if guts_error is not None: return guts_error
     elif second["state"] == "cancelled_due_to_faint":
         if second_leaf is not None or conditional != Fraction(1, 1) or execution_probability != Fraction(1, 1) or second.get("reason") != "second_action_cancelled_due_to_faint": return "cancelled_second_action_branch_invalid"
     elif second["state"] in {"executed_protection", "prevented_by_protection"}:
@@ -118,6 +125,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if focus_error is not None: return focus_error
     low_hp_error = _low_hp_type_leaf(first)
     if low_hp_error is not None: return low_hp_error
+    guts_error = _guts_status_attack_leaf(first)
+    if guts_error is not None: return guts_error
     first_status_error = _contact_reactive_status_leaf(first)
     if first_status_error is not None: return first_status_error
     final_source = second_leaf if isinstance(second_leaf, Mapping) else first
@@ -126,6 +135,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
         if second_low_hp_error is not None: return second_low_hp_error
+        second_guts_error = _guts_status_attack_leaf(second_leaf)
+        if second_guts_error is not None: return second_guts_error
     final = _final(final_source, base)
     if isinstance(final, str): return final
     return {"pair_leaf_id": value["pair_leaf_id"], "action_order": value["action_order"],
@@ -213,6 +224,23 @@ def _low_hp_type_leaf(leaf: Mapping[str, Any]) -> str | None:
             or source_hit.get("hit_index") != hit.get("hit_index")
         ):
             return "pair_final_low_hp_type_ability_consequence_invalid"
+    return None
+
+
+def _guts_status_attack_leaf(leaf: Mapping[str, Any]) -> str | None:
+    ordered = leaf.get("ordered_hits")
+    if not isinstance(ordered, (tuple, list)):
+        return None
+    for hit in ordered:
+        evidence = hit.get("guts_status_attack_ability") if isinstance(hit, Mapping) else None
+        if evidence is None:
+            continue
+        source_hit = evidence.get("source_hit") if isinstance(evidence, Mapping) else None
+        if (
+            not validate_guts_status_attack_ability_applicability(evidence)
+            or (source_hit is not None and source_hit.get("hit_index") != hit.get("hit_index"))
+        ):
+            return "pair_final_guts_status_attack_ability_consequence_invalid"
     return None
 
 

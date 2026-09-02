@@ -14,6 +14,9 @@ from llm.advisor_detached_variable_two_to_five_hit_graph_immediate_move_pair imp
 from llm.advisor_low_hp_type_offensive_ability import (
     validate_low_hp_type_offensive_ability_applicability,
 )
+from llm.advisor_guts_status_attack_ability import (
+    validate_guts_status_attack_ability_applicability,
+)
 
 
 PAIR_SCHEMA = "detached-variable-two-to-five-hit-graph-immediate-move-pair-v1"
@@ -129,6 +132,9 @@ def _order_graph(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         low_hp_error = _low_hp_type_hit(source.get("ordered_hit"))
         if low_hp_error is not None:
             return low_hp_error
+        guts_error = _guts_status_attack_hit(source.get("ordered_hit"))
+        if guts_error is not None:
+            return guts_error
         second = _validate_second(transition.get("second_action"))
         if isinstance(second, str): return second
         parsed.append({"first_terminal_source_id": transition["first_terminal_source_id"], "incoming_path_probability": source["path_probability"], "first_terminal_consequences": deepcopy(dict(source["consequences"])), "ordered_terminal_hit": deepcopy(source.get("ordered_hit")), "second_action": second})
@@ -160,6 +166,9 @@ def _validate_second(value: Any) -> dict[str, Any] | str:
             if not isinstance(leaves, tuple) or not leaves or sum((_fraction(leaf.get("probability")) for leaf in leaves if isinstance(leaf, Mapping)), Fraction()) != Fraction(1, 1): return "variable_graph_second_action_leaf_set_invalid"
             for leaf in leaves:
                 error = _low_hp_type_leaf(leaf)
+                if error is not None:
+                    return error
+                error = _guts_status_attack_leaf(leaf)
                 if error is not None:
                     return error
         else: return "variable_graph_second_action_outcome_state_invalid"
@@ -243,6 +252,17 @@ def _low_hp_type_leaf(leaf: Any) -> str | None:
     return None
 
 
+def _guts_status_attack_leaf(leaf: Any) -> str | None:
+    ordered = leaf.get("ordered_hits") if isinstance(leaf, Mapping) else None
+    if not isinstance(ordered, (tuple, list)):
+        return None
+    for hit in ordered:
+        error = _guts_status_attack_hit(hit)
+        if error is not None:
+            return error
+    return None
+
+
 def _low_hp_type_hit(hit: Any) -> str | None:
     evidence = hit.get("low_hp_type_ability") if isinstance(hit, Mapping) else None
     if evidence is None:
@@ -254,6 +274,19 @@ def _low_hp_type_hit(hit: Any) -> str | None:
         or source_hit.get("hit_index") != hit.get("hit_index")
     ):
         return "variable_graph_low_hp_type_ability_consequence_invalid"
+    return None
+
+
+def _guts_status_attack_hit(hit: Any) -> str | None:
+    evidence = hit.get("guts_status_attack_ability") if isinstance(hit, Mapping) else None
+    if evidence is None:
+        return None
+    source_hit = evidence.get("source_hit") if isinstance(evidence, Mapping) else None
+    if (
+        not validate_guts_status_attack_ability_applicability(evidence)
+        or (source_hit is not None and source_hit.get("hit_index") != hit.get("hit_index"))
+    ):
+        return "variable_graph_guts_status_attack_ability_consequence_invalid"
     return None
 
 

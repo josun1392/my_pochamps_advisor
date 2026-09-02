@@ -7,7 +7,8 @@ from typing import Any, Mapping
 
 from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import (
     _apply_reactive, _apply_reactive_status, _detached_target_hp_view, _event_with_reactive,
-    _event_with_reactive_status, _has_life_orb, _hit_events, _path_attacker_hp_authority, _sturdy_state,
+    _event_with_reactive_status, _has_life_orb, _hit_events, _path_attacker_hp_authority,
+    _execution_attacker_ability, _guts_path_condition_authority, _snapshot_attacker_condition, _sturdy_state,
 )
 from llm.advisor_focus_sash_survival import focus_sash_state
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
@@ -81,10 +82,10 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
         node_mass[node_id] = Fraction()
         return node_id
 
-    root = add_node(1, target_hp, False, False, base["own_current_hp"], "none")
+    root = add_node(1, target_hp, False, False, base["own_current_hp"], base["attacker_condition"])
     roots.append({"root_id": "hit:1", "probability": Fraction(1, 1), "terminal": False, "node_id": root})
     node_mass[root] = Fraction(1, 1)
-    event_cache: dict[tuple[int, int, bool, bool, int, int], list[dict[str, Any]] | dict[str, str]] = {}
+    event_cache: dict[tuple[int, int, str, bool, bool, int, int], list[dict[str, Any]] | dict[str, str]] = {}
     cursor = 0
     while cursor < len(nodes):
         node = nodes[cursor]; cursor += 1
@@ -114,7 +115,7 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             continue
         can_use_sturdy = not node["sturdy_consumed"] and _sturdy_full_hp(sturdy_survival_authority, node["target_hp"])
         can_use_focus_sash = not node["focus_sash_consumed"] and _focus_sash_full_hp(focus_sash_survival_authority, node["target_hp"])
-        cache_key = (node["target_hp"], node["attacker_hp"], can_use_sturdy, can_use_focus_sash, power, hit_index)
+        cache_key = (node["target_hp"], node["attacker_hp"], node["attacker_condition"], can_use_sturdy, can_use_focus_sash, power, hit_index)
         events = event_cache.get(cache_key)
         if events is None:
             current_d0, current_snapshot = (strategy_d0, runtime_snapshot) if node["target_hp"] == target_hp and not node["focus_sash_consumed"] else _detached_target_hp_view(runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"], target=base["target"], target_hp=node["target_hp"], focus_sash_consumed=bool(node["focus_sash_consumed"]))
@@ -127,6 +128,7 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
                 focus_sash_survival_authority=focus_sash_survival_authority if can_use_focus_sash else None,
                 attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], node["attacker_hp"]),
                 low_hp_source_hit={"hit_index": hit_index, "path_id": f"escalating-three-hit:hit:{hit_index}/target-hp:{node['target_hp']}/attacker-hp:{node['attacker_hp']}/power:{power}"},
+                attacker_condition_authority=_guts_path_condition_authority(current_d0, base, node["attacker_condition"]),
             )
             event_cache[cache_key] = events
         if isinstance(events, Mapping):
@@ -194,7 +196,10 @@ def _base(d0: Any, action: Any, authority: Any) -> dict[str, Any] | None:
     if not _integer(own) or own < 0:
         return None
     single = deepcopy(dict(metadata)); single.pop("min_hits", None); single.pop("max_hits", None)
-    return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(attacker)), "action_id": action["action_id"], "move_id": metadata["move_id"], "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "own_current_hp": own, "powers": powers, "execution_plan": execution_plan, "per_attempt_hit_probability": accuracy[0], "per_attempt_miss_probability": accuracy[1], "per_hit_critical_execution": deepcopy(dict(critical)), "single_hit_metadata_view": single, "execution_authority": deepcopy(dict(authority))}
+    condition = _snapshot_attacker_condition(d0)
+    if condition is None:
+        return None
+    return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(attacker)), "action_id": action["action_id"], "move_id": metadata["move_id"], "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "own_current_hp": own, "attacker_condition": condition, "attacker_ability": _execution_attacker_ability(critical), "powers": powers, "execution_plan": execution_plan, "per_attempt_hit_probability": accuracy[0], "per_attempt_miss_probability": accuracy[1], "per_hit_critical_execution": deepcopy(dict(critical)), "single_hit_metadata_view": single, "execution_authority": deepcopy(dict(authority))}
 
 
 def _powers(value: Any, move_id: Any) -> tuple[int, int, int] | None:

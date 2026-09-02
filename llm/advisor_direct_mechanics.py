@@ -31,6 +31,9 @@ from llm.advisor_low_hp_type_offensive_ability import (
     LOW_HP_TYPE_OFFENSIVE_ABILITIES,
     resolve_low_hp_type_offensive_ability_applicability,
 )
+from llm.advisor_guts_status_attack_ability import (
+    resolve_guts_status_attack_ability_applicability,
+)
 
 
 _STAT_KEYS = ("hp", "attack", "defense", "special-attack", "special-defense", "speed")
@@ -244,7 +247,8 @@ def evaluate_direct_damage_mechanics(
     direct_defender = _mapping(direct.get("defender"))
     ability_modifier = _attacker_ability_modifier_context(
         current=current, direct_attacker=direct_attacker, move_id=move_id, power=power,
-        move_type=move_type, attacker_types=attacker["types"] if attacker is not None else (), is_critical=is_critical,
+        move_type=move_type, move_category=category,
+        attacker_types=attacker["types"] if attacker is not None else (), is_critical=is_critical,
         defender_types=defender["types"] if defender is not None else (),
         low_hp_source_hit=current.get("low_hp_source_hit"),
     )
@@ -273,6 +277,7 @@ def evaluate_direct_damage_mechanics(
     legacy_modifier_reason = _unsupported_modifier(
         {**direct_attacker, "ability": _KNOWN_ABSENT, "item": _KNOWN_ABSENT}, {**direct_defender, "ability": _KNOWN_ABSENT}, {},
         allow_exact_detached_condition=_has_exact_detached_condition(current),
+        allow_exact_guts_condition=isinstance(ability_modifier.get("guts_applicability"), Mapping),
         allow_exact_detached_switch_entry_condition=_has_exact_detached_switch_entry_condition(current),
         allow_exact_detached_defender_condition=_has_exact_detached_sparkling_aria_pre_hit_burn(current),
     )
@@ -305,6 +310,8 @@ def evaluate_direct_damage_mechanics(
         _require_zero_boosts(side.get("boosts"), f"{side_name}.boosts", missing)
         _require_hp(side, side_name, missing)
         if side_name == "attacker" and modifier.get("burn_known"):
+            pass
+        elif side_name == "attacker" and isinstance(ability_modifier.get("guts_applicability"), Mapping):
             pass
         elif _side_has_exact_detached_condition(current, "self" if side_name == "attacker" else "opponent"):
             pass
@@ -389,6 +396,8 @@ def evaluate_direct_damage_mechanics(
         result["dynamic_power_evidence"] = deepcopy(dict(turn_event_power))
     if isinstance(ability_modifier.get("low_hp_type_applicability"), Mapping):
         result["low_hp_type_ability_evidence"] = deepcopy(dict(ability_modifier["low_hp_type_applicability"]))
+    if isinstance(ability_modifier.get("guts_applicability"), Mapping):
+        result["guts_status_attack_ability_evidence"] = deepcopy(dict(ability_modifier["guts_applicability"]))
     if hit_count == 1:
         result["exact_damage_rolls"] = tuple(rolls)
     return result
@@ -544,7 +553,7 @@ def _require_hp(value: Mapping[str, Any], side: str, missing: list[str]) -> None
     if _positive_int(current) and _positive_int(maximum) and current > maximum: missing.append(f"{side}.current_hp")
 
 
-def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False, allow_exact_detached_defender_condition: bool = False) -> str | None:
+def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_guts_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False, allow_exact_detached_defender_condition: bool = False) -> str | None:
     for is_defender, side in ((False, attacker), (True, defender)):
         for key, reason in (("ability", "ability_modifier"), ("item", "item_modifier"), ("status", "major_status_modifier")):
             value = side.get(key)
@@ -555,6 +564,8 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
                 # consequences, not current-runtime observations.  They may
                 # be consumed only through the tagged private calculator view.
                 if key == "status" and value.get("value") in {"paralysis", "burn", "poison", "toxic"} and allow_exact_detached_condition:
+                    continue
+                if key == "status" and not is_defender and value.get("value") in {"paralysis", "burn", "poison", "toxic", "sleep", "freeze"} and allow_exact_guts_condition:
                     continue
                 if key == "status" and value.get("value") in {"poison", "toxic"} and allow_exact_detached_switch_entry_condition:
                     continue
@@ -571,9 +582,9 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
     return None
 
 
-def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_attacker: Mapping[str, Any], move_id: str, power: Any, move_type: Any, attacker_types: tuple[str, ...] | list[str], defender_types: tuple[str, ...] | list[str], is_critical: bool = False, low_hp_source_hit: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_attacker: Mapping[str, Any], move_id: str, power: Any, move_type: Any, move_category: Any, attacker_types: tuple[str, ...] | list[str], defender_types: tuple[str, ...] | list[str], is_critical: bool = False, low_hp_source_hit: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Resolve only static request-start attacker ability effects already owned by Q12."""
-    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None, "attacker_condition": "none", "low_hp_type_applicability": None}
+    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None, "attacker_condition": "none", "low_hp_type_applicability": None, "guts_applicability": None}
     context = current.get("ability_context")
     if not isinstance(context, Mapping):
         if direct_attacker.get("ability") == _KNOWN_ABSENT:
@@ -640,12 +651,32 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
             result["applied"].append("ability_sniper_critical_damage")
         return result
     if ability_id == "guts":
-        condition = _attacker_condition(current)
-        if not _is_detached_intermediate_view(current) or condition not in {"none", "burn", "poison", "toxic", "paralysis"}:
+        condition_context = _guts_condition_context(current)
+        if condition_context is None:
+            result["unsupported_reason"] = "ability_modifier"
+            return result
+        condition, condition_source = condition_context
+        suppression = _guts_suppression_status(current)
+        if suppression is None:
+            result["missing_inputs"].append("defender.ability")
+            return result
+        applicability = resolve_guts_status_attack_ability_applicability(
+            ability=ability_id,
+            attacker_condition=condition,
+            condition_source=condition_source,
+            move_category=move_category,
+            suppression_status=suppression,
+            source_hit=low_hp_source_hit,
+        )
+        if applicability.get("status") == "incomplete":
+            result["missing_inputs"].append("attacker.condition" if applicability.get("reason") != "guts_move_category_unknown" else "selected_move_metadata")
+            return result
+        if applicability.get("status") == "rejected":
             result["unsupported_reason"] = "ability_modifier"
             return result
         result["attacker_condition"] = condition
-        if condition in {"burn", "poison", "toxic", "paralysis"} and _has_exact_detached_condition(current):
+        result["guts_applicability"] = applicability
+        if applicability.get("outcome") == "applicable":
             result["ability_effect"] = effect
             result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
         return result
@@ -694,6 +725,27 @@ def _attacker_condition(current: Mapping[str, Any]) -> str | None:
         return None
     condition = rows[0].get("condition_type")
     return condition if condition in {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"} else None
+
+
+def _guts_condition_context(current: Mapping[str, Any]) -> tuple[str, str] | None:
+    context = current.get("condition_context")
+    entries = context.get("current_conditions") if isinstance(context, Mapping) else None
+    if not isinstance(entries, list):
+        return None
+    rows = [row for row in entries if isinstance(row, Mapping) and row.get("side") == "self"]
+    if len(rows) != 1:
+        return None
+    row = rows[0]
+    condition = row.get("condition_type")
+    if condition not in {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}:
+        return None
+    if row.get("hypothetical_source") == "exact_detached_path_local_attacker_condition":
+        return condition, "detached_path_local_attacker_condition_v1"
+    if row.get("hypothetical_source") == "exact_detached_intermediate_condition":
+        return condition, "detached_intermediate_condition_v1"
+    if row.get("source") == "user_confirmed_current_condition" and row.get("status") == "user_confirmed":
+        return condition, "runtime_strategy_d0_v1"
+    return None
 
 
 def _has_exact_detached_condition(current: Mapping[str, Any]) -> bool:
@@ -830,6 +882,19 @@ def _current_ability_id(current: Mapping[str, Any], side: str) -> str | None:
         return None
     matches = [entry.get("ability") for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
     return matches[0] if len(matches) == 1 and _nonempty_str(matches[0]) and matches[0] != "unknown" else None
+
+
+def _guts_suppression_status(current: Mapping[str, Any]) -> str | None:
+    context = current.get("ability_context")
+    entries = context.get("current_abilities") if isinstance(context, Mapping) else None
+    if isinstance(entries, list):
+        rows = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == "opponent"]
+        if len(rows) == 1:
+            value = rows[0].get("ability")
+            if not _nonempty_str(value) or value == "unknown":
+                return None
+            return "suppressed" if value == "neutralizing-gas" else "active"
+    return "active"
 
 
 def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direct_attacker: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str]) -> dict[str, Any]:

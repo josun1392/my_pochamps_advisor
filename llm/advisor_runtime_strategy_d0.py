@@ -918,6 +918,7 @@ def build_runtime_d0_native_damage_context(
     sparkling_aria_burn_clearing_authority: Mapping[str, Any] | None = None,
     attacker_hp_authority: Mapping[str, Any] | None = None,
     low_hp_source_hit: Mapping[str, Any] | None = None,
+    attacker_condition_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -944,6 +945,9 @@ def build_runtime_d0_native_damage_context(
     raw_target = _roster(state, target["side"]).get(target["slot_index"])
     if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_attacker, attacker) or not _same_runtime_owner(raw_target, target):
         return _native_context_result("rejected", "runtime_native_damage_identity_mismatch")
+    raw_attacker, path_condition_authority = _native_attacker_condition_preview(raw_attacker, attacker_condition_authority, strategy_d0=strategy_d0, attacker=attacker)
+    if raw_attacker is None:
+        return _native_context_result("rejected", "runtime_native_attacker_condition_authority_invalid")
     attacker_adapter = native_damage_stage_authority(strategy_d0.get("current_stage_authority", {}).get(attacker["side"], {}))
     target_adapter = native_damage_stage_authority(strategy_d0.get("current_stage_authority", {}).get(target["side"], {}))
     attacker_stages = attacker_adapter.get("stages") if attacker_adapter.get("status") == "resolved" else None
@@ -1011,6 +1015,7 @@ def build_runtime_d0_native_damage_context(
         "trusted_level": level, "native_evaluation": deepcopy(native), "missing_authority": missing,
         "modifier_authority": deepcopy(modifier_authority),
         "attacker_hp_authority": deepcopy(path_hp_authority),
+        "attacker_condition_authority": deepcopy(path_condition_authority),
         "provenance": "runtime_battle_state_v1_native_damage_context_v1",
     }
     if result["status"] != "resolved":
@@ -1297,7 +1302,11 @@ def _native_condition_entries(attacker: Mapping[str, Any], target: Mapping[str, 
         condition = _runtime_known_string(raw.get("condition"))
         exact_intermediate_condition = (
             raw.get("detached_exact_intermediate_condition_authority") is True
-            and condition in {"paralysis", "burn", "poison", "toxic"}
+            and condition in {"paralysis", "burn", "poison", "toxic", "sleep", "freeze"}
+        )
+        exact_path_condition = (
+            raw.get("detached_path_local_condition_authority") is True
+            and condition in {"none", "paralysis", "burn", "poison", "toxic", "sleep", "freeze"}
         )
         exact_switch_entry_condition = (
             raw.get("detached_switch_first_hypothetical_condition_authority") is True
@@ -1308,11 +1317,43 @@ def _native_condition_entries(attacker: Mapping[str, Any], target: Mapping[str, 
             "side": side, "condition_type": condition or "unknown",
             "status": "user_confirmed" if condition else "unknown",
             "source": "user_confirmed_current_condition" if condition else "unknown",
-            "hypothetical_source": "exact_detached_intermediate_condition" if exact_intermediate_condition else None,
+            "hypothetical_source": "exact_detached_path_local_attacker_condition" if exact_path_condition else ("exact_detached_intermediate_condition" if exact_intermediate_condition else None),
             "switch_entry_hypothetical_source": "exact_detached_switch_entry_toxic_spikes" if exact_switch_entry_condition else None,
             "hypothetical_view": "detached_intermediate_predictive_authority" if detached_intermediate_view else None,
         })
     return rows
+
+
+def _native_attacker_condition_preview(raw_attacker: Mapping[str, Any], authority: Mapping[str, Any] | None, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    if authority is None:
+        return deepcopy(dict(raw_attacker)), None
+    if (
+        not isinstance(authority, Mapping)
+        or authority.get("status") != "resolved"
+        or authority.get("schema_version") != "runtime-current-condition-authority-v1"
+        or authority.get("session_id") != strategy_d0["session_id"]
+        or authority.get("source_runtime_fingerprint") != strategy_d0["source_runtime_fingerprint"]
+        or authority.get("source_branch_fingerprint") != strategy_d0["strategy_preview_fingerprint"]
+        or authority.get("owner") != dict(attacker)
+    ):
+        return None, None
+    condition_authority = authority.get("condition")
+    if not isinstance(condition_authority, Mapping):
+        return None, None
+    if condition_authority.get("status") == "known_none":
+        condition = "none"
+    elif condition_authority.get("status") == "known_present":
+        condition = condition_authority.get("condition")
+    else:
+        return None, None
+    if condition not in {"none", "paralysis", "burn", "poison", "toxic", "sleep", "freeze"}:
+        return None, None
+    if condition_authority.get("provenance") != "detached_contact_reactive_status_path_state_v1":
+        return None, None
+    patched = deepcopy(dict(raw_attacker))
+    patched["condition"] = condition
+    patched["detached_path_local_condition_authority"] = True
+    return patched, deepcopy(dict(authority))
 
 
 def _native_ability_entries(attacker: Mapping[str, Any], target: Mapping[str, Any]) -> list[dict[str, Any]]:

@@ -3,7 +3,7 @@ from copy import deepcopy
 
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_lifecycle_confirmation import (
-    CURRENT_ABILITY_SOURCE, CURRENT_ITEM_SOURCE, CURRENT_SIDE_CONDITIONS_SOURCE,
+    CURRENT_ABILITY_SOURCE, CURRENT_CONDITION_SOURCE, CURRENT_ITEM_SOURCE, CURRENT_SIDE_CONDITIONS_SOURCE,
     CURRENT_BATTLE_FORMAT_SOURCE, CURRENT_TERRAIN_SOURCE, CURRENT_WEATHER_SOURCE, LifecycleConfirmationBoundary,
     USER_TRUST,
 )
@@ -44,6 +44,18 @@ def _confirmations(state: dict, *, attacker_item: dict, target_item: dict, terra
     ]
     assert all(value["status"] == "confirmed" for value in values)
     return [value["observation"] for value in values]
+
+
+def _condition_confirmation(state: dict, *, side: str, condition: str) -> dict:
+    owners = {name: {"slot_index": 0, "pokemon_id": _owner(state, name)["pokemon_id"]} for name in ("self", "opponent")}
+    boundary = LifecycleConfirmationBoundary(state["session_id"], owners)
+    confirmed = boundary.confirm(
+        event_kind="current_condition_observed", payload={"condition": condition},
+        session_id=state["session_id"], source=CURRENT_CONDITION_SOURCE, trust=USER_TRUST,
+        confirmed=True, side=side, slot_index=0, pokemon_id=_owner(state, side)["pokemon_id"], turn_number=2,
+    )
+    assert confirmed["status"] == "confirmed"
+    return confirmed["observation"]
 
 
 def _apply(state: dict, events: list[dict]) -> dict:
@@ -135,6 +147,27 @@ def test_runtime_d0_low_hp_type_offensive_abilities_use_exact_hp_and_emit_eviden
     assert inactive["status"] == "resolved"
     assert inactive["native_evaluation"]["applied_damage_modifiers"] == []
     assert inactive["native_evaluation"]["low_hp_type_ability_evidence"]["threshold"]["active"] is False
+
+
+def test_runtime_d0_current_condition_authority_drives_request_start_guts() -> None:
+    base = _base()
+    state = _apply(
+        base,
+        _confirmations(
+            base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+            attacker_ability="guts", target_ability="pressure",
+        ),
+    )
+    state = _apply(state, [_condition_confirmation(state, side="self", condition="burn")])
+    context = _context(state, {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal"})
+
+    assert context["status"] == "resolved"
+    assert context["native_evaluation"]["applied_damage_modifiers"] == ["ability_guts_status_attack_boost"]
+    evidence = context["native_evaluation"]["guts_status_attack_ability_evidence"]
+    assert evidence["attacker_condition"] == "burn"
+    assert evidence["condition_source"] == "runtime_strategy_d0_v1"
+    assert evidence["burn_penalty_bypassed"] is True
+    assert evidence["modifier_q12"] == 6144
 
 
 def test_runtime_native_damage_context_uses_detached_path_local_attacker_hp_override_for_low_hp() -> None:

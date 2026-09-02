@@ -4,13 +4,50 @@ from llm.advisor_detached_opponent_response_profile import materialize_detached_
 from llm.advisor_detached_variable_two_to_five_hit_graph_immediate_move_pair import materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair
 from llm.advisor_exact_action_pair_descriptive_metrics import project_exact_immediate_action_pair_descriptive_metrics
 from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
+from llm.advisor_reducer_state_model import state_fingerprint
+from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import _inputs
 from tests.test_detached_variable_two_to_five_hit_graph_immediate_move_pair import _population_bomb_action, _variable_action
 from tests.test_fixed_two_hit_immediate_move_pair_integration import _order
 
 
-def _graph_pair(*, move_id="bullet-seed", power=25, own_hp=100, opponent_hp=100, own_ability="pressure"):
+def _owner(state, side):
+    slot = state[f"{side}_side"]["active_slot_index"]
+    row = state[f"{side}_side"]["pokemon"][slot]
+    return {"session_id": state["session_id"], "side": side, "slot_index": slot, "pokemon_id": row["pokemon_id"]}
+
+
+def _refresh(state):
+    snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    return snapshot, d0
+
+
+def _rebind_response_set(response_set, d0):
+    return {
+        **response_set,
+        "session_id": d0["session_id"],
+        "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"],
+        "decision_owner": d0["decision_owner"],
+        "actions": tuple({
+            **row,
+            "session_id": d0["session_id"],
+            "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+            "source_branch_fingerprint": d0["strategy_preview_fingerprint"],
+            "decision_owner": d0["decision_owner"],
+        } for row in response_set["actions"]),
+    }
+
+
+def _graph_pair(*, move_id="bullet-seed", power=25, own_hp=100, opponent_hp=100, own_ability="pressure", own_condition=None):
     _state, snapshot, d0, _own, response_set, _orders = _inputs(own_hp=own_hp, opponent_hp=opponent_hp, own_ability=own_ability)
+    if own_condition is not None:
+        row = _state["self_side"]["pokemon"][0]
+        row["condition"] = own_condition
+        row["condition_provenance"]["condition"] = own_condition
+        snapshot, d0 = _refresh(_state)
+        response_set = _rebind_response_set(response_set, d0)
     own = _variable_action(d0, move_id, power)
     opponent = next(row for row in response_set["actions"] if row["action_id"] == "opponent_attack:tackle")
     pair = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
@@ -76,6 +113,29 @@ def test_variable_graph_pair_ledger_rejects_forged_low_hp_type_evidence():
     rejected = normalize_exact_immediate_action_pair_outcome_ledger(pair=forged)
     assert rejected["status"] == "rejected"
     assert rejected["reason"] == "variable_graph_low_hp_type_ability_consequence_invalid"
+
+
+def test_variable_graph_pair_ledger_rejects_forged_guts_evidence():
+    _snapshot, _d0, _own, _opponent, _set, pair = _graph_pair(
+        power=500,
+        opponent_hp=1,
+        own_ability="guts",
+        own_condition="burn",
+    )
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable", ledger.get("reason")
+
+    forged = deepcopy(pair)
+    edge = forged["order_graphs"][0]["first_action_graph"]["terminal_leaf_edges"][0]
+    evidence = edge["ordered_hit"]["guts_status_attack_ability"]
+    edge["ordered_hit"]["guts_status_attack_ability"] = {
+        **evidence,
+        "modifier_q12": 4096,
+    }
+
+    rejected = normalize_exact_immediate_action_pair_outcome_ledger(pair=forged)
+    assert rejected["status"] == "rejected"
+    assert rejected["reason"] == "variable_graph_guts_status_attack_ability_consequence_invalid"
 
 
 def test_response_profile_consumes_graph_derived_metrics_without_changing_profile_contract():

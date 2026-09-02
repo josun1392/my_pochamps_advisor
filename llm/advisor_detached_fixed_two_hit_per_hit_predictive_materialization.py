@@ -78,6 +78,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
             focus_sash_survival_authority=focus_sash_survival_authority,
             attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], base["own_current_hp"]),
             low_hp_source_hit={"hit_index": 1, "path_id": "fixed-two-hit:hit:1"},
+            attacker_condition_authority=_guts_path_condition_authority(strategy_d0, base, base["attacker_condition"]),
         )
         if isinstance(first, Mapping):
             return _result(first["status"], first["reason"], base)
@@ -132,6 +133,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
                     focus_sash_survival_authority=second_focus_sash,
                     attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], first_attacker_hp),
                     low_hp_source_hit={"hit_index": 2, "path_id": "fixed-two-hit:hit:2"},
+                    attacker_condition_authority=_guts_path_condition_authority(second_d0, base, first_condition),
                 )
                 if isinstance(second, Mapping):
                     return _result(second["status"], second["reason"], base)
@@ -183,7 +185,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     }
 
 
-def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
+def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None, attacker_condition_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
     if attacker_hp_authority is None:
         attacker_hp_authority = _path_attacker_hp_authority(runtime_snapshot, base["attacker"], base["own_current_hp"])
     if attacker_hp_authority is None:
@@ -192,6 +194,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
         attacker=base["attacker"], target=base["target"], move_metadata=single_metadata,
         attacker_hp_authority=attacker_hp_authority, low_hp_source_hit=low_hp_source_hit,
+        attacker_condition_authority=attacker_condition_authority,
     )
     normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"], move_metadata=single_metadata, native_damage_context=native)
     if normal.get("status") != "resolved":
@@ -247,6 +250,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
                 "focus_sash_applied": isinstance(focus, Mapping) and focus.get("outcome") == "applied",
                 "focus_sash_survival": deepcopy(dict(focus)) if isinstance(focus, Mapping) else {"outcome": "not_applicable"},
                 **({"low_hp_type_ability": deepcopy(dict(low_hp))} if isinstance(low_hp, Mapping) else {}),
+                **({"guts_status_attack_ability": deepcopy(dict(native["native_evaluation"]["guts_status_attack_ability_evidence"]))} if isinstance(native.get("native_evaluation"), Mapping) and isinstance(native["native_evaluation"].get("guts_status_attack_ability_evidence"), Mapping) else {}),
             })
     if not events or sum((row["probability"] for row in events), Fraction()) != Fraction(1, 1):
         return {"status": "rejected", "reason": "fixed_two_hit_per_hit_probability_mass_invalid"}
@@ -269,7 +273,37 @@ def _base(d0: Any, action: Any, authority: Any) -> dict[str, Any] | None:
     own_hp = d0.get("strategy_state", {}).get("active", {}).get(attacker["side"], {}).get("current_hp")
     if not isinstance(own_hp, int) or isinstance(own_hp, bool) or own_hp < 0:
         return None
-    return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "action_id": action["action_id"], "move_id": metadata["move_id"], "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(authority["target"])), "own_current_hp": own_hp, "per_hit_critical_execution": deepcopy(dict(critical)), "execution_authority": deepcopy(dict(authority))}
+    condition = _snapshot_attacker_condition(d0)
+    if condition is None:
+        return None
+    return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "action_id": action["action_id"], "move_id": metadata["move_id"], "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(authority["target"])), "own_current_hp": own_hp, "attacker_condition": condition, "attacker_ability": _execution_attacker_ability(critical), "per_hit_critical_execution": deepcopy(dict(critical)), "execution_authority": deepcopy(dict(authority))}
+
+
+def _guts_path_condition_authority(d0: Mapping[str, Any], base: Mapping[str, Any], condition: str) -> dict[str, Any] | None:
+    if base.get("attacker_ability") != "guts":
+        return None
+    return _path_condition_authority(d0, base["attacker"], condition)
+
+
+def _execution_attacker_ability(critical: Mapping[str, Any]) -> str | None:
+    source = _mapping(_mapping(_mapping(critical.get("critical_hit_authority")).get("critical_hit_authority")).get("source_authority"))
+    ability = _mapping(source.get("attacker_ability")).get("value")
+    return ability if isinstance(ability, str) and ability else None
+
+
+def _snapshot_attacker_condition(d0: Mapping[str, Any]) -> str | None:
+    owner = d0.get("decision_owner")
+    side = owner.get("side") if isinstance(owner, Mapping) else None
+    authorities = d0.get("current_condition_authority") if isinstance(d0.get("current_condition_authority"), Mapping) else {}
+    authority = authorities.get(side) if isinstance(authorities, Mapping) else None
+    condition_authority = authority.get("condition") if isinstance(authority, Mapping) and authority.get("status") == "resolved" else None
+    if isinstance(condition_authority, Mapping):
+        if condition_authority.get("status") == "known_none":
+            return "none"
+        condition = condition_authority.get("condition")
+        if condition_authority.get("status") == "known_present" and condition in {"paralysis", "burn", "poison", "toxic", "sleep", "freeze"}:
+            return condition
+    return None
 
 
 def _single_hit_metadata(metadata: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -476,4 +510,5 @@ def _serialize_leaf(value: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 def _fd(value: Fraction) -> dict[str, int]: return {"numerator": value.numerator, "denominator": value.denominator}
+def _mapping(value: Any) -> Mapping[str, Any]: return value if isinstance(value, Mapping) else {}
 def _result(status: str, reason: str, base: Mapping[str, Any], **extra: Any) -> dict[str, Any]: return {"status": status, "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "reason": reason, **deepcopy(extra)}

@@ -226,7 +226,7 @@ def test_supported_multihit_graphs_branch_contact_status_without_renormalizing_o
     cases.append(("escalating", state, action))
 
     for name, state, action in cases:
-        _set_active(state, "self", hp=80)
+        _set_active(state, "self", ability="guts", hp=80)
         _set_active(state, "opponent", ability="static", item_marker="rocky-helmet")
         snapshot, d0 = _refresh(state)
         action = _rebind_action(action, d0)
@@ -253,3 +253,11 @@ def test_supported_multihit_graphs_branch_contact_status_without_renormalizing_o
         assert result["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
         assert any(hit["contact_reactive_status"]["branch"] == "activation" for hit in hits)
         assert any(hit["contact_reactive_damage"]["ordered_sources"][0]["source_kind"] == "rocky-helmet" for hit in hits)
+        assert any(
+            hit.get("hit_index", 0) > 1
+            and hit.get("guts_status_attack_ability", {}).get("outcome") == "applicable"
+            and hit["guts_status_attack_ability"]["attacker_condition"] == "paralysis"
+            and hit["guts_status_attack_ability"]["condition_source"] == "detached_path_local_attacker_condition_v1"
+            and hit["guts_status_attack_ability"]["modifier_q12"] == 6144
+            for hit in hits
+        ), name
