@@ -130,6 +130,32 @@ def test_switch_first_pair_uses_incoming_target_and_preserves_exact_attack_leave
     assert snapshot == before and state["opponent_side"]["active_slot_index"] == 0
 
 
+def test_switch_first_hazard_hp_controls_multiscale_full_hp_eligibility():
+    def pair(*, ability: str, stealth_rock: str):
+        state = _state()
+        state["opponent_side"]["pokemon"][1]["current_ability"] = ability
+        state["switch_hazard_context"] = build_switch_hazard_context(
+            session_id=state["session_id"], affected_side="opponent",
+            stealth_rock=stealth_rock, spikes_layers=0,
+            toxic_spikes_layers=0, sticky_web="absent",
+        )
+        d0, snapshot, action, switch, switch_id = _inputs(state)
+        return materialize_immediate_attack_vs_opponent_switch_action_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+            switch_response_authority=switch,
+            selected_switch_response_action_id=switch_id,
+        )
+
+    baseline = pair(ability="pressure", stealth_rock="absent")
+    full_hp = pair(ability="multiscale", stealth_rock="absent")
+    chipped = pair(ability="multiscale", stealth_rock="present")
+
+    assert all(row["status"] == "evaluable" for row in (baseline, full_hp, chipped))
+    assert all(scaled < normal for scaled, normal in zip(_hit_rolls(full_hp), _hit_rolls(baseline)))
+    assert _hit_rolls(chipped) == _hit_rolls(baseline)
+    assert all(row["entry_consequence"]["post_hp"] == 88 for row in chipped["terminal_branches"])
+
+
 def test_trace_switch_in_copies_only_into_the_private_attack_view_and_preserves_pair_mass():
     state = _trace_ready(_state(), copied_ability="pressure")
     d0, snapshot, action, switch, switch_id = _inputs(state)
