@@ -51,7 +51,7 @@ UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS = frozenset({
 NATIVE_DIRECT_MECHANICS_SOURCES = frozenset({"native_q12_direct_damage", "native_level_based_fixed_damage"})
 STATIC_ATTACKER_DAMAGE_ABILITIES = frozenset({
     "adaptability", "iron-fist", "strong-jaw", "mega-launcher", "technician", "tinted-lens", "sniper", "guts",
-    "tough-claws", "reckless", "punk-rock", "sheer-force", "blaze", "torrent", "overgrow", "swarm",
+    "tough-claws", "reckless", "punk-rock", "sharpness", "sheer-force", "blaze", "torrent", "overgrow", "swarm",
 })
 STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({
     "thick-fat", "fur-coat", "ice-scales", "filter", "solid-rock", "prism-armor",
@@ -68,6 +68,7 @@ ABILITY_MODIFIER_TAGS = {
     "tough-claws": "ability_tough_claws_boost",
     "reckless": "ability_reckless_boost",
     "punk-rock": "ability_punk_rock_sound_boost",
+    "sharpness": "ability_sharpness_slicing_boost",
     "sheer-force": "ability_sheer_force_secondary_boost",
     "blaze": "ability_blaze_low_hp_fire_boost",
     "torrent": "ability_torrent_low_hp_water_boost",
@@ -696,6 +697,13 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
             result["ability_effect"] = effect
             result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
         return result
+    if ability_id == "sharpness":
+        suppression = _guts_suppression_status(current)
+        if suppression is None:
+            result["missing_inputs"].append("defender.ability")
+            return result
+        if suppression == "suppressed":
+            return result
     if not _positive_int(power):
         result["missing_inputs"].append("selected_move_metadata")
         return result

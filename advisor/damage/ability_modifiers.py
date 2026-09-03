@@ -197,6 +197,8 @@ def get_bp_ability_modifier(
         return Q12_ONE
     if effect.ability_id == "punk-rock" and "sound" in move_flags:
         return int(effect.raw_data.get("attacker_multiplier_q12", Q12_ONE))
+    if effect.ability_id == "sharpness":
+        return M_STAB if "slicing" in move_flags else Q12_ONE
     if effect.category != "bp_modifier":
         return Q12_ONE
     condition = effect.raw_data.get("condition")
@@ -211,6 +213,8 @@ def get_bp_ability_modifier(
     if condition == "recoil" and "recoil" in move_flags and move_id != "struggle":
         return effect.multiplier_q12
     if condition == "sound_move" and "sound" in move_flags:
+        return effect.multiplier_q12
+    if condition == "slicing" and "slicing" in move_flags:
         return effect.multiplier_q12
     if condition == "has_secondary" and "has_secondary" in move_flags:
         return effect.multiplier_q12

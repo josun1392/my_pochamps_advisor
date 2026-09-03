@@ -285,6 +285,12 @@ def test_tough_claws_boosts_contact():
 def test_tough_claws_no_effect_without_contact():
     assert get_bp_ability_modifier("tough-claws", base_power=80, move_flags=set()) == 4096
 
+
+def test_sharpness_boosts_only_canonical_slicing_moves():
+    assert get_bp_ability_modifier("sharpness", base_power=80, move_flags={"slicing"}) == 6144
+    assert get_bp_ability_modifier("sharpness", base_power=80, move_flags={"contact"}) == 4096
+
+
 def test_iron_fist_boosts_punch():
     assert get_bp_ability_modifier("iron-fist", base_power=40, move_flags={"contact", "punch"}) == 4915
 

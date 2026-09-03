@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from advisor.damage.q12 import Q12_ONE
+from advisor.damage.q12 import M_STAB, Q12_ONE
 
 
 ABILITIES_PATH = Path("data/static/abilities.json")
@@ -24,6 +24,20 @@ class AbilityEffect:
     boosted_stats: tuple[str, ...] = ()
     multiplier_q12: int = Q12_ONE
     raw_data: dict[str, Any] = field(default_factory=dict)
+
+
+# ``abilities.json`` is intentionally local/protected on this deployment.
+# Keep the one production-ready mechanics addition code-owned until the static
+# catalog can be updated through its separate data workflow.
+_CANONICAL_ABILITY_OVERRIDES = {
+    "sharpness": AbilityEffect(
+        ability_id="sharpness",
+        category="bp_modifier",
+        implemented=True,
+        multiplier_q12=M_STAB,
+        raw_data={"condition": "slicing", "provenance": "canonical_sharpness_v1"},
+    ),
+}
 
 
 @lru_cache(maxsize=1)
@@ -50,7 +64,7 @@ def load_abilities_catalog() -> dict[str, AbilityEffect]:
 def get_ability(ability_id: str | None) -> AbilityEffect | None:
     if ability_id is None:
         return None
-    return load_abilities_catalog().get(ability_id)
+    return _CANONICAL_ABILITY_OVERRIDES.get(ability_id, load_abilities_catalog().get(ability_id))
 
 
 def is_weather_suppressed(

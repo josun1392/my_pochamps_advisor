@@ -805,6 +805,31 @@ def test_move_flag_offensive_abilities_fail_closed_when_required_classification_
         assert result["unsupported_reason"] == "move_flag_metadata"
 
 
+def test_sharpness_uses_exact_slicing_metadata_for_physical_and_special_moves():
+    physical_base = _modifier_result(move_id="x-scissor", power=80)
+    physical = _modifier_result(move_id="x-scissor", power=80, ability="sharpness")
+    special_base = _modifier_result(category="special", move_type="flying", move_id="air-slash", power=75)
+    special = _modifier_result(category="special", move_type="flying", move_id="air-slash", power=75, ability="sharpness")
+    non_slicing = _modifier_result(move_id="tackle", power=40, ability="sharpness")
+    suppressed = _modifier_result(move_id="x-scissor", power=80, ability="sharpness", defender_ability="neutralizing-gas")
+    unknown_suppression = _modifier_result(move_id="x-scissor", power=80, ability="sharpness", defender_ability="unknown")
+    unknown_slicing = _modifier_result(move_id="unmapped-slicing-move", power=80, ability="sharpness")
+    critical = _modifier_result(move_id="x-scissor", power=80, ability="sharpness", is_critical=True)
+    fixed = _modifier_result(move_id="seismic-toss", power=1, ability="sharpness")
+
+    assert physical["status"] == special["status"] == "known"
+    assert physical["damage_range"]["maximum"] > physical_base["damage_range"]["maximum"]
+    assert special["damage_range"]["maximum"] > special_base["damage_range"]["maximum"]
+    assert physical["applied_damage_modifiers"] == special["applied_damage_modifiers"] == ["ability_sharpness_slicing_boost"]
+    assert non_slicing["status"] == "known" and non_slicing["applied_damage_modifiers"] == []
+    assert suppressed["status"] == "known" and suppressed["applied_damage_modifiers"] == []
+    assert unknown_suppression["status"] == "insufficient_context" and unknown_suppression["missing_inputs"] == ["defender.ability"]
+    assert unknown_slicing["status"] == "unsupported_mechanic" and unknown_slicing["unsupported_reason"] == "move_flag_metadata"
+    assert critical["status"] == "known" and critical["applied_damage_modifiers"] == ["ability_sharpness_slicing_boost"]
+    assert fixed["status"] == "known" and fixed["mechanics_source"] == "native_level_based_fixed_damage"
+    assert "applied_damage_modifiers" not in fixed
+
+
 def test_move_flag_offensive_ability_modifiers_preserve_critical_and_multihit_paths():
     critical = _modifier_result(move_id="dragon-claw", power=80, ability="tough-claws", is_critical=True)
     fixed_two_hit = _modifier_result(move_id="double-hit", power=35, min_hits=2, max_hits=2, ability="tough-claws")

@@ -210,6 +210,7 @@ def calc_damage_rolls(
         "mega-launcher",
         "reckless",
         "punk-rock",
+        "sharpness",
         "sheer-force",
     ):
         bp_mod = get_bp_ability_modifier(

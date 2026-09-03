@@ -55,6 +55,34 @@ def test_ten_landed_attempts_keep_ordered_crit_roll_identity_and_stop_at_limit()
     assert result["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
 
 
+def test_sharpness_applies_to_every_population_bomb_hit_without_changing_graph_mass():
+    def graph(ability):
+        _state0, snapshot, d0, action, execution, _own, _foe = _inputs(
+            accuracy=100, power=20, target_hp=1000, ability=ability,
+        )
+        return materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
+            strategy_d0=d0, runtime_snapshot=snapshot, action=action,
+            execution_authority=execution,
+        )
+
+    baseline, sharpness = graph("pressure"), graph("sharpness")
+    assert baseline["status"] == sharpness["status"] == "evaluable"
+    assert baseline["terminal_probability_mass"] == sharpness["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+
+    def rolls(result):
+        return {
+            (hit["attempt_index"], hit["critical_state"], hit["roll_index"]): hit["raw_damage"]
+            for edge in result["terminal_leaf_edges"]
+            if edge["attempt_outcome"]["outcome"] == "hit"
+            for hit in (edge["attempt_outcome"]["ordered_hit"],)
+        }
+
+    baseline_rolls, sharpness_rolls = rolls(baseline), rolls(sharpness)
+    assert baseline_rolls.keys() == sharpness_rolls.keys()
+    assert {key[0] for key in sharpness_rolls} == set(range(1, 11))
+    assert all(sharpness_rolls[key] > baseline_rolls[key] for key in baseline_rolls)
+
+
 def test_early_ko_and_sturdy_saved_first_hit_then_later_ko_terminate_the_attempt_graph():
     _state0, snapshot, d0, action, execution, _own, _foe = _inputs(accuracy=100, power=500, target_hp=10)
     ko = materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=execution)
