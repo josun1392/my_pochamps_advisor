@@ -1396,6 +1396,6 @@ def _fixed_unsupported(reason: str) -> dict[str, Any]:
 _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({
     "intimidate", "pressure", "drizzle", "drought", "sand-stream", "snow-warning",
     "skill-link", "rough-skin", "iron-barbs", "static", "flame-body", "poison-point", "effect-spore",
-    "mold-breaker", "neutralizing-gas", "overcoat",
+    "mold-breaker", "neutralizing-gas", "overcoat", "insomnia", "vital-spirit",
 })
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

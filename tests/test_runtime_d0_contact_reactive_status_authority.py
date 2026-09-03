@@ -302,6 +302,33 @@ def test_fixed_two_hit_effect_spore_sleep_cancels_only_the_remaining_hits():
         and leaf["ordered_hits"][1]["guts_status_attack_ability"]["attacker_condition"] == leaf["ordered_hits"][0]["contact_reactive_status"]["branch"]
         for leaf in result["terminal_leaves"]
     )
+    assert any(
+        leaf["ordered_hits"][0]["contact_reactive_status"]["branch"] == "none" and len(leaf["ordered_hits"]) == 2
+        for leaf in result["terminal_leaves"]
+    )
+
+
+def test_effect_spore_prevented_sleep_keeps_its_exact_branch_and_continues():
+    from llm.advisor_runtime_d0_fixed_two_hit_multi_hit_execution_authority import freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority
+    from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import materialize_detached_fixed_two_hit_per_hit_predictive_leaves
+    for ability in ("insomnia", "vital-spirit"):
+        state, snapshot, d0, action, _execution, _own, _foe = _fixed_inputs(power=1, target_hp=1000)
+        _set_active(state, "opponent", ability="effect-spore")
+        _set_active(state, "self", ability=ability)
+        snapshot, d0 = _refresh(state); action = _rebind_action(action, d0)
+        execution = freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action)
+        result = materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
+            strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=execution,
+            contact_reactive_contact_authority=_contact(d0, snapshot, action, force_contact=True),
+        )
+        assert result["status"] == "evaluable", result.get("reason")
+        sleep = [leaf for leaf in result["terminal_leaves"] if leaf["ordered_hits"][0]["contact_reactive_status"]["branch"] == "sleep"]
+        assert sleep and all(
+            leaf["ordered_hits"][0]["contact_reactive_status"]["overlay"]["probability"] == {"numerator": 11, "denominator": 100}
+            and leaf["ordered_hits"][0]["contact_reactive_status"]["overlay"]["transition_applied"] is False
+            and len(leaf["ordered_hits"]) == 2
+            for leaf in sleep
+        )
 
 
 def test_effect_spore_overcoat_and_safety_goggles_remain_evaluable_in_the_hit_pipeline():

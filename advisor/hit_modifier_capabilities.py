@@ -21,7 +21,7 @@ _APPLICABILITY = frozenset({"applicable", "not_applicable", "unknown"})
 # Keeping this explicit is important: a known ability is not neutral merely
 # because the current resolver has no rule for it.
 _KNOWN_NEUTRAL_ABILITY_IDS = frozenset({
-    "pressure", "guts", "skill-link", "static", "flame-body", "poison-point", "overcoat",
+    "pressure", "guts", "skill-link", "static", "flame-body", "poison-point", "overcoat", "insomnia", "vital-spirit",
     "tough-claws", "reckless", "punk-rock", "sharpness", "sheer-force", "mold-breaker",
     "blaze", "torrent", "overgrow", "swarm",
 })
