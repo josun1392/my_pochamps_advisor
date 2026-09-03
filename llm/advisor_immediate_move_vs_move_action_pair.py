@@ -128,6 +128,7 @@ def materialize_immediate_move_vs_move_action_pair(
     crafty_shield_pure_status_applicability_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
     base = _base(strategy_d0, own_action, opponent_action)
@@ -170,6 +171,7 @@ def materialize_immediate_move_vs_move_action_pair(
             first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority,
             pending_status_execution_authorities=pending_status_execution_authorities,
             pivot_replacement_authorities=pivot_replacement_authorities,
+            pivot_entry_authorities=pivot_entry_authorities,
         )
         if isinstance(materialized, Mapping): return materialized
         branches.extend(materialized)
@@ -597,6 +599,7 @@ def _materialize_order(
     first_action_focus_sash_survival_authority: Mapping[str, Any] | None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None,
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None,
+    pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None,
 ) -> list[dict[str, Any]] | dict[str, Any]:
     order = order_plan["order"]
     first_actor = base["own_actor"] if order == "own_first" else base["opponent_actor"]
@@ -641,7 +644,7 @@ def _materialize_order(
                     move_metadata_authority=own_meta,
                 )
                 if precursor.get("status") != "resolved": return _result(_status(precursor), precursor.get("reason", "pivot_post_attack_authority_unavailable"), base, first_leaf_id=leaf["leaf_id"])
-                switched = materialize_detached_damage_pivot_switch(intermediate_authority=precursor, pivot_authority=pivot)
+                switched = materialize_detached_damage_pivot_switch(intermediate_authority=precursor, pivot_authority=pivot, entry_authority=(pivot_entry_authorities or {}).get(leaf["leaf_id"]))
                 if switched.get("status") != "resolved": return _result(_status(switched), switched.get("reason", "pivot_switch_transition_unavailable"), base, first_leaf_id=leaf["leaf_id"])
                 incoming = switched.get("resulting_active_owner")
                 post_snapshot = switched.get("runtime_snapshot")

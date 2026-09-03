@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_incoming_active_materialization import materialize_incoming_active_branch
+from llm.advisor_executable_switch_transition import execute_materialized_switch_entry
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_incoming_current_state_authority
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
@@ -13,7 +14,7 @@ from llm.advisor_transition_preview import fingerprint_transition_preview_state
 SCHEMA_VERSION = "detached-damage-pivot-switch-transition-v1"
 
 
-def materialize_detached_damage_pivot_switch(*, intermediate_authority: Mapping[str, Any], pivot_authority: Mapping[str, Any]) -> dict[str, Any]:
+def materialize_detached_damage_pivot_switch(*, intermediate_authority: Mapping[str, Any], pivot_authority: Mapping[str, Any], entry_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Apply one already-authorized voluntary pivot to an exact post-hit branch.
 
     The incoming authority is frozen from the post-hit hypothetical runtime
@@ -39,6 +40,11 @@ def materialize_detached_damage_pivot_switch(*, intermediate_authority: Mapping[
     materialized = materialize_incoming_active_branch(source_branch=source, source_branch_fingerprint=fingerprint, incoming_authority=incoming)
     if materialized.get("status") != "resolved":
         return _result(materialized.get("status", "rejected"), materialized.get("reason", "pivot_switch_materialization_unavailable"))
+    if entry_authority is not None:
+        entered = execute_materialized_switch_entry(materialized_switch=materialized, entry_authority=entry_authority)
+        if entered.get("status") != "resolved":
+            return _result(entered.get("status", "incomplete"), entered.get("reason", "pivot_switch_entry_unavailable"))
+        materialized = {**materialized, "next_state": entered["next_state"], "resulting_branch_fingerprint": entered["resulting_branch_fingerprint"], "materialization_trace": entered.get("consequence_trace", materialized.get("materialization_trace", []))}
     state = materialized["next_state"]
     runtime_state = deepcopy(dict(snapshot["state"]))
     runtime_state["self_side"]["active_slot_index"] = incoming_owner["slot_index"]
