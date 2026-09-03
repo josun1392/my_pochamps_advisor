@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from advisor.damage.q12 import M_STAB, Q12_ONE
+from advisor.damage.modifiers._q12 import MUL_1_3
 
 
 ABILITIES_PATH = Path("data/static/abilities.json")
@@ -36,6 +37,13 @@ _CANONICAL_ABILITY_OVERRIDES = {
         implemented=True,
         multiplier_q12=M_STAB,
         raw_data={"condition": "slicing", "provenance": "canonical_sharpness_v1"},
+    ),
+    "analytic": AbilityEffect(
+        ability_id="analytic",
+        category="bp_modifier",
+        implemented=True,
+        multiplier_q12=MUL_1_3,
+        raw_data={"condition": "exact_immediate_action_order_opponent_first", "provenance": "canonical_analytic_v1"},
     ),
 }
 

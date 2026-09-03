@@ -919,6 +919,7 @@ def build_runtime_d0_native_damage_context(
     attacker_hp_authority: Mapping[str, Any] | None = None,
     low_hp_source_hit: Mapping[str, Any] | None = None,
     attacker_condition_authority: Mapping[str, Any] | None = None,
+    analytic_action_order_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -986,6 +987,9 @@ def build_runtime_d0_native_damage_context(
         "battle_format_context": _native_battle_format_context(state),
         "condition_context": {"current_conditions": _native_condition_entries(raw_attacker, raw_target)},
         "ability_context": {"current_abilities": _native_ability_entries(raw_attacker, raw_target)},
+        "runtime_strategy_d0": deepcopy(dict(strategy_d0)),
+        "runtime_target_owner": deepcopy(dict(target)),
+        "analytic_action_order_authority": deepcopy(dict(analytic_action_order_authority)) if isinstance(analytic_action_order_authority, Mapping) else None,
     }
     if move["move_id"] == "sparkling-aria" and sparkling_aria_burn_clearing_authority is not None:
         if not _exact_sparkling_aria_pre_hit_burn_authority(

@@ -199,6 +199,10 @@ def get_bp_ability_modifier(
         return int(effect.raw_data.get("attacker_multiplier_q12", Q12_ONE))
     if effect.ability_id == "sharpness":
         return M_STAB if "slicing" in move_flags else Q12_ONE
+    if effect.ability_id == "analytic":
+        # Applicability is fail-closed by the runtime action-order authority;
+        # this formula seam receives the effect only once that authority won.
+        return effect.multiplier_q12
     if effect.category != "bp_modifier":
         return Q12_ONE
     condition = effect.raw_data.get("condition")

@@ -37,6 +37,9 @@ from llm.advisor_guts_status_attack_ability import (
 from llm.advisor_full_hp_defender_ability import (
     resolve_full_hp_defender_ability_applicability,
 )
+from llm.advisor_runtime_d0_analytic_action_order_authority import (
+    valid_runtime_d0_analytic_action_order_authority,
+)
 
 
 _STAT_KEYS = ("hp", "attack", "defense", "special-attack", "special-defense", "speed")
@@ -51,7 +54,7 @@ UNSUPPORTED_SPECIAL_FIXED_DAMAGE_MOVE_IDS = frozenset({
 NATIVE_DIRECT_MECHANICS_SOURCES = frozenset({"native_q12_direct_damage", "native_level_based_fixed_damage"})
 STATIC_ATTACKER_DAMAGE_ABILITIES = frozenset({
     "adaptability", "iron-fist", "strong-jaw", "mega-launcher", "technician", "tinted-lens", "sniper", "guts",
-    "tough-claws", "reckless", "punk-rock", "sharpness", "sheer-force", "blaze", "torrent", "overgrow", "swarm",
+    "tough-claws", "reckless", "punk-rock", "sharpness", "sheer-force", "blaze", "torrent", "overgrow", "swarm", "analytic",
 })
 STATIC_DEFENDER_DAMAGE_ABILITIES = frozenset({
     "thick-fat", "fur-coat", "ice-scales", "filter", "solid-rock", "prism-armor",
@@ -74,6 +77,7 @@ ABILITY_MODIFIER_TAGS = {
     "torrent": "ability_torrent_low_hp_water_boost",
     "overgrow": "ability_overgrow_low_hp_grass_boost",
     "swarm": "ability_swarm_low_hp_bug_boost",
+    "analytic": "ability_analytic_late_action_boost",
 }
 STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-specs", "muscle-band", "wise-glasses", "expert-belt"})
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
@@ -696,6 +700,24 @@ def _attacker_ability_modifier_context(*, current: Mapping[str, Any], direct_att
         if effectiveness is not None and 0 < effectiveness < 1:
             result["ability_effect"] = effect
             result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
+        return result
+    if ability_id == "analytic":
+        authority = current.get("analytic_action_order_authority")
+        strategy_d0 = current.get("runtime_strategy_d0")
+        target = current.get("runtime_target_owner")
+        if not isinstance(strategy_d0, Mapping) or not isinstance(target, Mapping) or not valid_runtime_d0_analytic_action_order_authority(
+            authority, strategy_d0=strategy_d0, attacker=strategy_d0.get("decision_owner", {}), target=target, move_id=move_id,
+        ):
+            result["missing_inputs"].append("analytic.action_order_authority")
+            return result
+        suppression = _guts_suppression_status(current)
+        if suppression is None:
+            result["missing_inputs"].append("defender.ability")
+            return result
+        if suppression == "suppressed" or authority.get("outcome") != "applicable":
+            return result
+        result["ability_effect"] = effect
+        result["applied"].append(ABILITY_MODIFIER_TAGS[ability_id])
         return result
     if ability_id == "sharpness":
         suppression = _guts_suppression_status(current)

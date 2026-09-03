@@ -75,6 +75,9 @@ from llm.advisor_runtime_d0_contact_reactive_status_authority import (
 )
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
+from llm.advisor_runtime_d0_analytic_action_order_authority import (
+    freeze_runtime_d0_analytic_action_order_authority,
+)
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
@@ -158,6 +161,7 @@ def materialize_immediate_move_vs_move_action_pair(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta,
             opponent_meta=opponent_meta, order_plan=order_plan,
+            action_order_authority=action_order_authority,
             first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
             first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority,
             pending_status_execution_authorities=pending_status_execution_authorities,
@@ -583,6 +587,7 @@ def _materialize_order(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
     own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], order_plan: Mapping[str, Any],
+    action_order_authority: Mapping[str, Any],
     first_action_sturdy_survival_authority: Mapping[str, Any] | None,
     first_action_focus_sash_survival_authority: Mapping[str, Any] | None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None,
@@ -596,10 +601,15 @@ def _materialize_order(
         if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "opponent_root_predictive_authority_unavailable"), base)
         first_d0, first_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
     first_action = own_action if order == "own_first" else opponent_action
+    first_analytic = _analytic_order_authority(
+        strategy_d0=first_d0, actor=first_actor, target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"],
+        base=base, plan=order_plan, source_action_order_authority=action_order_authority,
+    ) if first_actor == base["own_actor"] else None
     first = _attack_ledger(strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
                                    target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"], metadata_authority=first_meta,
                                    sturdy_survival_authority=first_action_sturdy_survival_authority,
-                                   focus_sash_survival_authority=first_action_focus_sash_survival_authority, action=first_action)
+                                   focus_sash_survival_authority=first_action_focus_sash_survival_authority, action=first_action,
+                                   analytic_action_order_authority=first_analytic)
     if first.get("status") != "evaluable": return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base, first_action_ledger=first)
     branches: list[dict[str, Any]] = []
     second_actor = base["opponent_actor"] if order == "own_first" else base["own_actor"]
@@ -638,8 +648,12 @@ def _materialize_order(
         executable = [row for row in execution if isinstance(row, Mapping) and row.get("state") == "executed"]
         second = None
         if executable:
+            second_analytic = _analytic_order_authority(
+                strategy_d0=inputs["strategy_d0"], actor=inputs["attacker"], target=inputs["target"], base=base, plan=order_plan, source_action_order_authority=action_order_authority,
+            ) if second_actor == base["own_actor"] else None
             second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
-                actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs), action=opponent_action if order == "own_first" else own_action)
+                actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs), action=opponent_action if order == "own_first" else own_action,
+                analytic_action_order_authority=second_analytic)
             if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
         for execution_branch in execution:
             if execution_branch["state"] == "cancelled_due_to_paralysis":
@@ -649,7 +663,7 @@ def _materialize_order(
     return branches
 
 
-def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     if metadata.get("move_id") == "seismic-toss":
@@ -661,11 +675,12 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
             sturdy_survival_authority=sturdy_survival_authority,
             focus_sash_survival_authority=focus_sash_survival_authority,
             action=action,
+            analytic_action_order_authority=analytic_action_order_authority,
         )
-    return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, action=action)
+    return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority)
 
 
-def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Adapt already-validated canonical metadata to the fixed-two-hit owner.
 
     This is only a tagged D0-local selection view.  It neither looks up move
@@ -709,6 +724,7 @@ def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: M
         execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority,
         focus_sash_survival_authority=focus_sash_survival_authority,
         contact_reactive_contact_authority=contact,
+        analytic_action_order_authority=analytic_action_order_authority,
     )
     if leaves.get("status") != "evaluable":
         return _result(_status(leaves), leaves.get("reason", "fixed_two_hit_terminal_leaves_unavailable"), {})
@@ -749,7 +765,7 @@ def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Ma
     result = deepcopy(dict(leaf)); result["terminal_leaves"] = tuple(updated); return result
 
 
-def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     sparkling_aria = None
@@ -760,7 +776,7 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         )
         if sparkling_aria.get("status") != "resolved":
             return _result(_status(sparkling_aria), sparkling_aria.get("reason", "sparkling_aria_burn_clearing_authority_unavailable"), {})
-    native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, sparkling_aria_burn_clearing_authority=sparkling_aria)
+    native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, sparkling_aria_burn_clearing_authority=sparkling_aria, analytic_action_order_authority=analytic_action_order_authority)
     normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, native_damage_context=native)
     hit = build_runtime_d0_strict_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, selected_move=metadata)
     crit = build_runtime_d0_strict_critical_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata)
@@ -1074,6 +1090,16 @@ def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], inter
         second_action["execution_conditional_probability"] = _fd(execution_p)
         if second is not None: second_action["mechanical_leaf_probability"] = _fd(second_p)
     return {"pair_leaf_id": (f"{source_branch['order_branch_id']}/" if isinstance(source_branch, Mapping) else "") + path, "action_order": order, **({"action_order_branch": deepcopy(dict(source_branch)), "action_order_conditional_probability": _fd(order_p)} if isinstance(source_branch, Mapping) else {}), "first_action_leaf": deepcopy(dict(first)), "intermediate_state_id": f"intermediate:{first['candidate_id']}:{first['leaf_id']}", "second_action": second_action, "probability": _fd(order_p * first_p * execution_p * second_p), "provenance": deepcopy(dict(base))}
+
+
+def _analytic_order_authority(*, strategy_d0: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], base: Mapping[str, Any], plan: Mapping[str, Any], source_action_order_authority: Mapping[str, Any]) -> dict[str, Any]:
+    """Project the chosen order branch; the direct evaluator validates it again."""
+    return freeze_runtime_d0_analytic_action_order_authority(
+        strategy_d0=strategy_d0, attacker=actor, target=target,
+        own_action_id=base["own_action_id"], opponent_action_id=base["opponent_action_id"],
+        action_order=plan["order"], source_action_order_authority=source_action_order_authority,
+        action_order_branch=plan.get("source_branch"),
+    )
 
 
 def _execution_branch(value: Any) -> bool:

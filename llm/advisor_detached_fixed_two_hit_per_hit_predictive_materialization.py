@@ -28,6 +28,9 @@ from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_strategy_d0,
     runtime_strategy_d0_freshness,
 )
+from llm.advisor_runtime_d0_analytic_action_order_authority import (
+    freeze_runtime_d0_analytic_action_order_authority,
+)
 
 
 SCHEMA_VERSION = "detached-fixed-two-hit-per-hit-predictive-materialization-v1"
@@ -40,6 +43,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     sturdy_survival_authority: Mapping[str, Any] | None = None,
     focus_sash_survival_authority: Mapping[str, Any] | None = None,
     contact_reactive_contact_authority: Mapping[str, Any] | None = None,
+    analytic_action_order_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Materialize ordered hit leaves without mutating current D0/runtime.
 
@@ -79,6 +83,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
             attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], base["own_current_hp"]),
             low_hp_source_hit={"hit_index": 1, "path_id": "fixed-two-hit:hit:1"},
             attacker_condition_authority=_guts_path_condition_authority(strategy_d0, base, base["attacker_condition"]),
+            analytic_action_order_authority=_rebind_analytic(analytic_action_order_authority, strategy_d0, base),
         )
         if isinstance(first, Mapping):
             return _result(first["status"], first["reason"], base)
@@ -134,6 +139,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
                     attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], first_attacker_hp),
                     low_hp_source_hit={"hit_index": 2, "path_id": "fixed-two-hit:hit:2"},
                     attacker_condition_authority=_guts_path_condition_authority(second_d0, base, first_condition),
+                    analytic_action_order_authority=_rebind_analytic(analytic_action_order_authority, second_d0, base),
                 )
                 if isinstance(second, Mapping):
                     return _result(second["status"], second["reason"], base)
@@ -185,7 +191,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     }
 
 
-def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None, attacker_condition_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
+def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None, attacker_condition_authority: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
     if attacker_hp_authority is None:
         attacker_hp_authority = _path_attacker_hp_authority(runtime_snapshot, base["attacker"], base["own_current_hp"])
     if attacker_hp_authority is None:
@@ -195,6 +201,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
         attacker=base["attacker"], target=base["target"], move_metadata=single_metadata,
         attacker_hp_authority=attacker_hp_authority, low_hp_source_hit=low_hp_source_hit,
         attacker_condition_authority=attacker_condition_authority,
+        analytic_action_order_authority=analytic_action_order_authority,
     )
     normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"], move_metadata=single_metadata, native_damage_context=native)
     if normal.get("status") != "resolved":
@@ -335,6 +342,18 @@ def _detached_target_hp_view(*, runtime_snapshot: Mapping[str, Any], decision_ow
 def _has_life_orb(d0: Mapping[str, Any], snapshot: Mapping[str, Any], attacker: Mapping[str, Any]) -> bool:
     state = snapshot.get("state") if isinstance(snapshot, Mapping) else None; side = state.get(f"{attacker['side']}_side") if isinstance(state, Mapping) else None; roster = side.get("pokemon") if isinstance(side, Mapping) else None; pokemon = roster.get(attacker["slot_index"]) if isinstance(roster, Mapping) else None
     return isinstance(pokemon, Mapping) and pokemon.get("pokemon_id") == attacker["pokemon_id"] and pokemon.get("known_item") == "life-orb"
+
+
+def _rebind_analytic(value: Mapping[str, Any] | None, strategy_d0: Mapping[str, Any], base: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    if not isinstance(value, Mapping):
+        return None
+    return freeze_runtime_d0_analytic_action_order_authority(
+        strategy_d0=strategy_d0, attacker=base["attacker"], target=base["target"],
+        own_action_id=value.get("own_action_id"), opponent_action_id=value.get("opponent_action_id"),
+        action_order=value.get("action_order"),
+        source_action_order_authority=value.get("source_action_order_authority"),
+        action_order_branch=value.get("action_order_branch"),
+    )
 
 
 def _path_attacker_hp_authority(snapshot: Mapping[str, Any], attacker: Mapping[str, Any], current_hp: Any) -> dict[str, Any] | None:

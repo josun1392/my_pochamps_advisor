@@ -10,6 +10,7 @@ from llm.advisor_lifecycle_confirmation import (
 from llm.advisor_reducer_state_model import project_atomic_transition, state_fingerprint
 from llm.advisor_replay_policy import build_replay_plan
 from llm.advisor_runtime_strategy_d0 import build_runtime_d0_native_damage_context, freeze_runtime_normal_formula_predictive_input, freeze_runtime_strategy_d0
+from llm.advisor_runtime_d0_analytic_action_order_authority import freeze_runtime_d0_analytic_action_order_authority
 
 
 def _base() -> dict:
@@ -64,7 +65,7 @@ def _apply(state: dict, events: list[dict]) -> dict:
     return projected["projected_state"]
 
 
-def _context(state: dict, move_metadata: dict | None = None, *, attacker_hp_authority: dict | None = None, low_hp_source_hit: dict | None = None) -> dict:
+def _context(state: dict, move_metadata: dict | None = None, *, attacker_hp_authority: dict | None = None, low_hp_source_hit: dict | None = None, analytic_action_order_authority: dict | None = None) -> dict:
     snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
     metadata = move_metadata or {"move_id": "water-gun", "category": "special", "power": 40, "type": "water"}
@@ -72,6 +73,7 @@ def _context(state: dict, move_metadata: dict | None = None, *, attacker_hp_auth
         strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "self"),
         target=_owner(state, "opponent"), move_metadata=metadata,
         attacker_hp_authority=attacker_hp_authority, low_hp_source_hit=low_hp_source_hit,
+        analytic_action_order_authority=analytic_action_order_authority,
     )
 
 
@@ -168,6 +170,33 @@ def test_runtime_d0_current_condition_authority_drives_request_start_guts() -> N
     assert evidence["condition_source"] == "runtime_strategy_d0_v1"
     assert evidence["burn_penalty_bypassed"] is True
     assert evidence["modifier_q12"] == 6144
+
+
+def test_runtime_d0_analytic_consumes_exact_late_action_authority_and_fails_closed() -> None:
+    base = _base()
+    state = _apply(base, _confirmations(
+        base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+        attacker_ability="analytic", target_ability="pressure",
+    ))
+    snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    active = freeze_runtime_d0_analytic_action_order_authority(
+        strategy_d0=d0, attacker=_owner(state, "self"), target=_owner(state, "opponent"),
+        own_action_id="water-gun", opponent_action_id="switch:bench", action_order="opponent_switch_first",
+    )
+    active_context = _context(state, analytic_action_order_authority=active)
+    assert active_context["status"] == "resolved"
+    assert "ability_analytic_late_action_boost" in active_context["native_evaluation"]["applied_damage_modifiers"]
+
+    inactive = {**active, "action_order": "own_first", "outcome": "not_applicable"}
+    inactive_context = _context(state, analytic_action_order_authority=inactive)
+    assert inactive_context["status"] == "resolved"
+    assert "ability_analytic_late_action_boost" not in inactive_context["native_evaluation"]["applied_damage_modifiers"]
+
+    forged = {**active, "target": _owner(state, "self")}
+    rejected = _context(state, analytic_action_order_authority=forged)
+    assert rejected["status"] == "incomplete"
+    assert "analytic.action_order_authority" in rejected["missing_authority"]
 
 
 def test_runtime_native_damage_context_uses_detached_path_local_attacker_hp_override_for_low_hp() -> None:

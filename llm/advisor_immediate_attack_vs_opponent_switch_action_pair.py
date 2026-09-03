@@ -16,6 +16,9 @@ from llm.advisor_runtime_strategy_d0 import (
     resolve_runtime_d0_selectable_move_metadata_authority,
     runtime_strategy_d0_freshness,
 )
+from llm.advisor_runtime_d0_analytic_action_order_authority import (
+    freeze_runtime_d0_analytic_action_order_authority,
+)
 
 
 SCHEMA_VERSION = "immediate-attack-vs-opponent-switch-action-pair-v1"
@@ -47,11 +50,17 @@ def materialize_immediate_attack_vs_opponent_switch_action_pair(
     predictive = _switch_first_predictive_view(strategy_d0, runtime_snapshot, switch_in)
     if predictive.get("status") != "resolved":
         return _result(_status(predictive), predictive.get("reason", "switch_first_predictive_view_unavailable"), base)
+    analytic_order = freeze_runtime_d0_analytic_action_order_authority(
+        strategy_d0=predictive["strategy_d0"], attacker=predictive["own_actor"], target=predictive["incoming_target"],
+        own_action_id=own_action["action_id"], opponent_action_id=selected_switch_response_action_id,
+        action_order="opponent_switch_first",
+    )
     attack = _attack_ledger(
         strategy_d0=predictive["strategy_d0"], runtime_snapshot=predictive["runtime_snapshot"],
         actor=predictive["own_actor"], target=predictive["incoming_target"],
         metadata_authority=metadata["metadata"],
         sturdy_survival_authority=switch_in["hypothetical_switch_in_state"].get("sturdy_survival_authority"),
+        analytic_action_order_authority=analytic_order,
     )
     if attack.get("status") != "evaluable":
         return _result(_status(attack), attack.get("reason", "own_attack_ledger_unavailable"), base, switch_in_authority=deepcopy(switch_in))
