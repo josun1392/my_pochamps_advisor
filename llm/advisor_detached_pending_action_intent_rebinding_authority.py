@@ -29,6 +29,7 @@ def freeze_pending_action_intent_rebinding_authority(*, original_strategy_d0: Ma
         "selected_replacement_owner": deepcopy(original["replacement_owner"]),
         "original_intent": deepcopy(original),
         "source_first_action_leaf_id": branch["source_first_action_leaf_id"],
+        "source_runtime_fingerprint": branch["source_runtime_fingerprint"],
         "source_branch_fingerprint": branch["source_branch_fingerprint"],
         "predictive_runtime_fingerprint": branch["predictive_runtime_fingerprint"],
         "current_actor": deepcopy(branch["actor"]), "current_target": deepcopy(branch["target"]),
@@ -64,7 +65,7 @@ def _branch(value: Any, original: Mapping[str, Any]) -> dict[str, Any] | str:
     if not isinstance(snapshot, Mapping) or not isinstance(snapshot.get("state_fingerprint"), str): return "missing_branch_runtime_fingerprint"
     if value.get("session_id") != original["session_id"] or d0.get("session_id") != original["session_id"]: return "foreign_session"
     if not isinstance(value.get("source_first_action_leaf_id"), str) or not isinstance(d0.get("strategy_preview_fingerprint"), str): return "missing_branch_evidence"
-    return {"source_first_action_leaf_id": value["source_first_action_leaf_id"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "predictive_runtime_fingerprint": snapshot["state_fingerprint"], "actor": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "predictive_strategy_d0": deepcopy(dict(d0)), "predictive_runtime_snapshot": deepcopy(dict(snapshot))}
+    return {"source_first_action_leaf_id": value["source_first_action_leaf_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "predictive_runtime_fingerprint": snapshot["state_fingerprint"], "actor": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "predictive_strategy_d0": deepcopy(dict(d0)), "predictive_runtime_snapshot": deepcopy(dict(snapshot))}
 
 
 def _owner(value: Any) -> bool:

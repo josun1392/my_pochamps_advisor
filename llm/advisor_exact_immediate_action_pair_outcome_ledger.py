@@ -391,32 +391,6 @@ def _effect_spore_contact_reactive_status(authority: Mapping[str, Any], overlay:
         "none": {"numerator": 7, "denominator": 10},
     }
 
-
-def _pivot_second_action_target_binding(branch: Mapping[str, Any], base: Mapping[str, Any], first: Mapping[str, Any], second: Mapping[str, Any]) -> str | None:
-    """Validate the narrow changed-target exception owned by a pivot transition."""
-    pivot = branch.get("pivot_transition")
-    if pivot is None:
-        return None
-    authority = pivot.get("pivot_authority") if isinstance(pivot, Mapping) else None
-    incoming = pivot.get("resulting_active_owner") if isinstance(pivot, Mapping) else None
-    provenance = second.get("provenance") if isinstance(second, Mapping) else None
-    if (
-        branch.get("action_order") != "own_first"
-        or not isinstance(authority, Mapping) or authority.get("status") != "applies"
-        or not isinstance(incoming, Mapping) or not isinstance(provenance, Mapping)
-        or first.get("provenance", {}).get("attacker") != base["own_actor"]
-        or provenance.get("attacker") != base["opponent_actor"]
-        or not _same_owner_identity(authority.get("selected_replacement_owner"), incoming)
-        or not _same_owner_identity(provenance.get("target"), incoming)
-        or _same_owner_identity(incoming, base["own_actor"])
-    ):
-        return "pivot_second_action_target_binding_invalid"
-    return None
-
-
-def _same_owner_identity(left: Any, right: Any) -> bool:
-    keys = ("session_id", "side", "slot_index", "pokemon_id")
-    return isinstance(left, Mapping) and isinstance(right, Mapping) and all(left.get(key) == right.get(key) for key in keys)
     outcomes = authority.get("effect_spore_outcomes")
     contact = authority.get("contact_authority")
     source_hit = authority.get("source_hit")
@@ -450,6 +424,35 @@ def _same_owner_identity(left: Any, right: Any) -> bool:
             and overlay.get("cancellation_reason") == ("effect_spore_sleep_cancels_remaining_hits" if branch == "sleep" else None)
         )
     return rows[branch].get("transition_applies") is False and overlay.get("transition_applied") is False and overlay.get("cancels_remaining_hits") in {None, False}
+
+
+def _pivot_second_action_target_binding(branch: Mapping[str, Any], base: Mapping[str, Any], first: Mapping[str, Any], second: Mapping[str, Any]) -> str | None:
+    """Validate the narrow changed-target exception owned by a pivot transition."""
+    pivot = branch.get("pivot_transition")
+    if pivot is None:
+        return None
+    authority = pivot.get("pivot_authority") if isinstance(pivot, Mapping) else None
+    incoming = pivot.get("resulting_active_owner") if isinstance(pivot, Mapping) else None
+    provenance = second.get("provenance") if isinstance(second, Mapping) else None
+    if (
+        branch.get("action_order") != "own_first"
+        or not isinstance(authority, Mapping) or authority.get("status") != "applies"
+        or not isinstance(incoming, Mapping) or not isinstance(provenance, Mapping)
+        or first.get("provenance", {}).get("attacker") != base["own_actor"]
+        or provenance.get("attacker") != base["opponent_actor"]
+        or not _same_owner_identity(authority.get("selected_replacement_owner"), incoming)
+        or not _same_owner_identity(provenance.get("target"), incoming)
+        or _same_owner_identity(incoming, base["own_actor"])
+    ):
+        return "pivot_second_action_target_binding_invalid"
+    return None
+
+
+def _same_owner_identity(left: Any, right: Any) -> bool:
+    keys = ("session_id", "side", "slot_index", "pokemon_id")
+    return isinstance(left, Mapping) and isinstance(right, Mapping) and all(left.get(key) == right.get(key) for key in keys)
+
+
 def _life_orb(value: Any) -> bool:
     authority = value.get("authority") if isinstance(value, Mapping) else None
     overlay = value.get("overlay") if isinstance(value, Mapping) else None

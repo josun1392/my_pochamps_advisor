@@ -53,6 +53,24 @@ def _base(d0: Any, action: Any, move: Any, leaf: Any) -> dict[str, Any] | None:
 def _replacement(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | None | str:
     if value is None: return "pivot_replacement_authority_missing"
     if not isinstance(value, Mapping): return "pivot_replacement_authority_invalid"
+    if value.get("schema_version") == "detached-pending-action-intent-rebinding-authority-v1":
+        original = value.get("original_intent")
+        owner = value.get("selected_replacement_owner")
+        if (
+            value.get("status") != "resolved"
+            or not isinstance(original, Mapping)
+            or not isinstance(owner, Mapping)
+            or original.get("action_id") != base.get("action_id")
+            or original.get("move_id") != base.get("move_id")
+            or value.get("session_id") != base.get("session_id")
+            or value.get("source_runtime_fingerprint") != base.get("source_runtime_fingerprint")
+            or value.get("source_branch_fingerprint") != base.get("source_branch_fingerprint")
+            or value.get("decision_owner") != base.get("decision_owner")
+            or owner.get("side") != "self"
+            or owner == base.get("attacker")
+        ):
+            return "pivot_replacement_authority_invalid"
+        return {"status": "resolved", **{key: deepcopy(base[key]) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")}, "owner": deepcopy(dict(owner)), "provenance": "pending_action_intent_rebinding_authority"}
     if value.get("status") == "known_none": return None
     owner = value.get("owner")
     expected = {key: base.get(key) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")}

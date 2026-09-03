@@ -80,6 +80,9 @@ from llm.advisor_runtime_d0_analytic_action_order_authority import (
 )
 from llm.advisor_damage_pivot_continuation import freeze_damage_pivot_continuation_authority
 from llm.advisor_detached_pivot_switch_transition import materialize_detached_damage_pivot_switch
+from llm.advisor_detached_pending_action_intent_rebinding_authority import (
+    freeze_pending_action_intent_rebinding_authority,
+)
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
@@ -692,18 +695,45 @@ def _materialize_order(
             return _result("rejected", "second_action_execution_branch_mass_invalid", base, first_leaf_id=leaf["leaf_id"])
         executable = [row for row in execution if isinstance(row, Mapping) and row.get("state") == "executed"]
         second = None
+        rebound = None
         if executable:
-            second_analytic = _analytic_order_authority(
-                strategy_d0=inputs["strategy_d0"], actor=inputs["attacker"], target=inputs["target"], base=base, plan=order_plan, source_action_order_authority=action_order_authority,
-            ) if second_actor == base["own_actor"] else None
-            second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
-                actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs), action=opponent_action if order == "own_first" else own_action,
-                analytic_action_order_authority=second_analytic)
+            if order == "opponent_first" and own_meta["metadata"].get("move_id") in {"u-turn", "volt-switch", "flip-turn"}:
+                replacement = _pending_pivot_replacement_authority(pivot_replacement_authorities, own_action)
+                rebound = freeze_pending_action_intent_rebinding_authority(
+                    original_strategy_d0=strategy_d0, action=own_action,
+                    move_metadata_authority=own_meta, replacement_authority=replacement,
+                    intermediate_authority=authority,
+                )
+                if rebound.get("status") != "resolved": return _result(_status(rebound), rebound.get("reason", "pending_action_intent_rebinding_unavailable"), base, first_leaf_id=leaf["leaf_id"])
+                second = _attack_ledger(
+                    strategy_d0=rebound["predictive_strategy_d0"], runtime_snapshot=rebound["predictive_runtime_snapshot"],
+                    actor=rebound["current_actor"], target=rebound["current_target"], metadata_authority=rebound["move_metadata"], action=own_action,
+                )
+            else:
+                second_analytic = _analytic_order_authority(
+                    strategy_d0=inputs["strategy_d0"], actor=inputs["attacker"], target=inputs["target"], base=base, plan=order_plan, source_action_order_authority=action_order_authority,
+                ) if second_actor == base["own_actor"] else None
+                second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
+                    actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs), action=opponent_action if order == "own_first" else own_action,
+                    analytic_action_order_authority=second_analytic)
             if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
         for execution_branch in execution:
             if execution_branch["state"] == "cancelled_due_to_paralysis":
                 branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan, execution_branch)); continue
             for second_leaf in second["terminal_leaves"]:
+                if rebound is not None:
+                    pivot = freeze_damage_pivot_continuation_authority(
+                        strategy_d0=rebound["predictive_strategy_d0"], action=own_action,
+                        move_metadata=rebound["move_metadata"], attack_terminal_leaf=second_leaf,
+                        replacement_authority=rebound,
+                    )
+                    if pivot.get("status") == "applies":
+                        entry = _pivot_entry_authority(pivot_entry_authorities, second_leaf, own_action)
+                        if not isinstance(entry, Mapping): return _result("incomplete", "pivot_switch_entry_authority_missing", base, first_leaf_id=leaf["leaf_id"])
+                        switched = materialize_detached_damage_pivot_switch(intermediate_authority=rebound, pivot_authority=pivot, entry_authority=entry)
+                        if switched.get("status") != "resolved": return _result(_status(switched), switched.get("reason", "pivot_switch_transition_unavailable"), base, first_leaf_id=leaf["leaf_id"])
+                        branches.append(_branch(base, order, leaf, intermediate, second_leaf, second_actor, order_plan, execution_branch, pivot_transition=switched)); continue
+                    if pivot.get("status") in {"incomplete", "rejected"}: return _result(_status(pivot), pivot.get("reason", "pivot_continuation_unavailable"), base, first_leaf_id=leaf["leaf_id"])
                 branches.append(_branch(base, order, leaf, intermediate, second_leaf, second_actor, order_plan, execution_branch))
     return branches
 
@@ -1114,6 +1144,19 @@ def _metadata_for_inputs(authority: Any, inputs: Mapping[str, Any] | None) -> Ma
     metadata = authority["metadata"]
     if inputs is not None and metadata.get("move_id") != inputs.get("move_metadata", {}).get("move_id"): return None
     return deepcopy(dict(metadata))
+def _pending_pivot_replacement_authority(authorities: Mapping[str, Mapping[str, Any]] | None, action: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    if not isinstance(authorities, Mapping): return None
+    direct = authorities.get(action.get("action_id"))
+    if isinstance(direct, Mapping): return direct
+    candidates = [value for value in authorities.values() if isinstance(value, Mapping) and value.get("status") in {"resolved", "known_none"}]
+    if len(candidates) == 1: return candidates[0]
+    return None
+def _pivot_entry_authority(authorities: Mapping[str, Mapping[str, Any]] | None, leaf: Mapping[str, Any], action: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    if not isinstance(authorities, Mapping): return None
+    value = authorities.get(leaf.get("leaf_id"))
+    if isinstance(value, Mapping): return value
+    value = authorities.get(action.get("action_id"))
+    return value if isinstance(value, Mapping) else None
 def _fainted(state: Mapping[str, Any], owner: Mapping[str, Any]) -> bool:
     row = state.get("active", {}).get(owner.get("side"), {}) if isinstance(state.get("active"), Mapping) else {}; return isinstance(row, Mapping) and row.get("hypothetical_fainted", {}).get("value") is True
 def _owner_identity(value: Mapping[str, Any]) -> dict[str, Any]:
