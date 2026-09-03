@@ -199,6 +199,17 @@ def test_runtime_d0_analytic_consumes_exact_late_action_authority_and_fails_clos
     assert "analytic.action_order_authority" in rejected["missing_authority"]
 
 
+def test_runtime_d0_stakeout_requires_exact_same_turn_switch_authority() -> None:
+    base = _base()
+    state = _apply(base, _confirmations(
+        base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+        attacker_ability="stakeout", target_ability="pressure",
+    ))
+    context = _context(state, {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal"})
+    assert context["status"] == "incomplete"
+    assert "stakeout.same_turn_switch_authority" in context["missing_authority"]
+
+
 def test_runtime_native_damage_context_uses_detached_path_local_attacker_hp_override_for_low_hp() -> None:
     base = _base()
     state = _apply(

@@ -278,6 +278,10 @@ def attack_stat_ability_mod(
         and attacker_condition in set(ability.raw_data.get("trigger_status", ()))
     ):
         return ability.multiplier_q12
+    if ability_id == "stakeout":
+        # The runtime direct-mechanics adapter exposes this effect only after
+        # exact same-turn switch provenance has been validated.
+        return ability.multiplier_q12
     if not ability.implemented:
         return Q12_ONE
     stat_multiplier = get_atk_ability_modifier(

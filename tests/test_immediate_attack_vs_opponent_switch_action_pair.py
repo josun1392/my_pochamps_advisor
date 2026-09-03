@@ -4,6 +4,7 @@ from llm.advisor_detached_opponent_switch_in_intermediate_authority import SCHEM
 from llm.advisor_exact_action_pair_descriptive_metrics import project_exact_immediate_action_pair_descriptive_metrics
 from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
 from llm.advisor_immediate_attack_vs_opponent_switch_action_pair import materialize_immediate_attack_vs_opponent_switch_action_pair
+from llm.advisor_runtime_d0_stakeout_switch_authority import valid_runtime_d0_stakeout_switch_authority
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
@@ -128,6 +129,66 @@ def test_switch_first_pair_uses_incoming_target_and_preserves_exact_attack_leave
     assert all(row["attack_leaf"]["damage_roll"] is not None for row in result["terminal_branches"] if row["attack_leaf"]["hit_state"] == "hit")
     assert result["switch_in_authority"]["schema_version"] == SWITCH_IN_SCHEMA
     assert snapshot == before and state["opponent_side"]["active_slot_index"] == 0
+
+
+def test_stakeout_switch_first_uses_exact_incoming_target_for_physical_and_special_damage():
+    baseline_state = _state(); base_d0, base_snapshot, base_action, base_switch, base_switch_id = _inputs(baseline_state)
+    baseline = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=base_d0, runtime_snapshot=base_snapshot, own_action=base_action,
+        switch_response_authority=base_switch, selected_switch_response_action_id=base_switch_id,
+    )
+    for special in (False, True):
+        state = _state(); state["self_side"]["pokemon"][0]["current_ability"] = "stakeout"
+        d0, snapshot, action, switch, switch_id = _inputs(state)
+        if special:
+            action = _water_gun_action(action)
+        pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+            switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+        )
+        assert pair["status"] == "evaluable", pair.get("reason")
+        authority = pair["stakeout_switch_authority"]
+        assert authority["outcome"] == "applicable"
+        assert authority["modifier_q12"] == 8192
+        assert authority["incoming_target"] == authority["post_switch_attack_target"]
+        assert authority["incoming_target"]["pokemon_id"] == "bench"
+        if action["identity"] == "tackle":
+            assert min(_hit_rolls(pair)) >= min(_hit_rolls(baseline)) * 2 - 2
+
+
+def test_stakeout_rejects_forged_incoming_target_provenance():
+    state = _state(); state["self_side"]["pokemon"][0]["current_ability"] = "stakeout"
+    d0, snapshot, action, switch, switch_id = _inputs(state)
+    pair = materialize_immediate_attack_vs_opponent_switch_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+        switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+    )
+    assert pair["status"] == "evaluable"
+    authority = pair["stakeout_switch_authority"]
+    post = pair["switch_first_condition_consumer"]["strategy_d0"]
+    assert valid_runtime_d0_stakeout_switch_authority(
+        authority, strategy_d0=post, attacker=post["decision_owner"], target=post["active_owners"]["opponent"], move_id="tackle",
+    )
+    forged = deepcopy(authority)
+    forged["switch_in_authority"]["target_owner"] = deepcopy(post["decision_owner"])
+    assert not valid_runtime_d0_stakeout_switch_authority(
+        forged, strategy_d0=post, attacker=post["decision_owner"], target=post["active_owners"]["opponent"], move_id="tackle",
+    )
+
+
+def test_stakeout_is_suppressed_by_incoming_neutralizing_gas():
+    def pair(attacker_ability: str):
+        state = _state()
+        state["self_side"]["pokemon"][0]["current_ability"] = attacker_ability
+        state["opponent_side"]["pokemon"][1]["current_ability"] = "neutralizing-gas"
+        d0, snapshot, action, switch, switch_id = _inputs(state)
+        return materialize_immediate_attack_vs_opponent_switch_action_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=action,
+            switch_response_authority=switch, selected_switch_response_action_id=switch_id,
+        )
+    baseline, suppressed = pair("pressure"), pair("stakeout")
+    assert baseline["status"] == suppressed["status"] == "evaluable"
+    assert _hit_rolls(suppressed) == _hit_rolls(baseline)
 
 
 def test_switch_first_hazard_hp_controls_multiscale_full_hp_eligibility():

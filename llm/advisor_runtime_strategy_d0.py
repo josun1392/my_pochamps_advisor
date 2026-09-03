@@ -920,6 +920,7 @@ def build_runtime_d0_native_damage_context(
     low_hp_source_hit: Mapping[str, Any] | None = None,
     attacker_condition_authority: Mapping[str, Any] | None = None,
     analytic_action_order_authority: Mapping[str, Any] | None = None,
+    stakeout_switch_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -990,6 +991,7 @@ def build_runtime_d0_native_damage_context(
         "runtime_strategy_d0": deepcopy(dict(strategy_d0)),
         "runtime_target_owner": deepcopy(dict(target)),
         "analytic_action_order_authority": deepcopy(dict(analytic_action_order_authority)) if isinstance(analytic_action_order_authority, Mapping) else None,
+        "stakeout_switch_authority": deepcopy(dict(stakeout_switch_authority)) if isinstance(stakeout_switch_authority, Mapping) else None,
     }
     if move["move_id"] == "sparkling-aria" and sparkling_aria_burn_clearing_authority is not None:
         if not _exact_sparkling_aria_pre_hit_burn_authority(

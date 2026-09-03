@@ -663,7 +663,7 @@ def _materialize_order(
     return branches
 
 
-def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     if metadata.get("move_id") == "seismic-toss":
@@ -676,11 +676,12 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
             focus_sash_survival_authority=focus_sash_survival_authority,
             action=action,
             analytic_action_order_authority=analytic_action_order_authority,
+            stakeout_switch_authority=stakeout_switch_authority,
         )
-    return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority)
+    return _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority)
 
 
-def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Adapt already-validated canonical metadata to the fixed-two-hit owner.
 
     This is only a tagged D0-local selection view.  It neither looks up move
@@ -725,6 +726,7 @@ def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: M
         focus_sash_survival_authority=focus_sash_survival_authority,
         contact_reactive_contact_authority=contact,
         analytic_action_order_authority=analytic_action_order_authority,
+        stakeout_switch_authority=stakeout_switch_authority,
     )
     if leaves.get("status") != "evaluable":
         return _result(_status(leaves), leaves.get("reason", "fixed_two_hit_terminal_leaves_unavailable"), {})
@@ -765,7 +767,7 @@ def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Ma
     result = deepcopy(dict(leaf)); result["terminal_leaves"] = tuple(updated); return result
 
 
-def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     sparkling_aria = None
@@ -776,7 +778,7 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         )
         if sparkling_aria.get("status") != "resolved":
             return _result(_status(sparkling_aria), sparkling_aria.get("reason", "sparkling_aria_burn_clearing_authority_unavailable"), {})
-    native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, sparkling_aria_burn_clearing_authority=sparkling_aria, analytic_action_order_authority=analytic_action_order_authority)
+    native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, sparkling_aria_burn_clearing_authority=sparkling_aria, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority)
     normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, native_damage_context=native)
     hit = build_runtime_d0_strict_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, selected_move=metadata)
     crit = build_runtime_d0_strict_critical_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata)

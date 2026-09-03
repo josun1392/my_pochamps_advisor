@@ -19,6 +19,9 @@ from llm.advisor_runtime_strategy_d0 import (
 from llm.advisor_runtime_d0_analytic_action_order_authority import (
     freeze_runtime_d0_analytic_action_order_authority,
 )
+from llm.advisor_runtime_d0_stakeout_switch_authority import (
+    freeze_runtime_d0_stakeout_switch_authority,
+)
 
 
 SCHEMA_VERSION = "immediate-attack-vs-opponent-switch-action-pair-v1"
@@ -55,15 +58,22 @@ def materialize_immediate_attack_vs_opponent_switch_action_pair(
         own_action_id=own_action["action_id"], opponent_action_id=selected_switch_response_action_id,
         action_order="opponent_switch_first",
     )
+    stakeout = freeze_runtime_d0_stakeout_switch_authority(
+        root_strategy_d0=strategy_d0, post_switch_strategy_d0=predictive["strategy_d0"],
+        post_switch_runtime_snapshot=predictive["runtime_snapshot"], own_action=own_action,
+        switch_response_authority=switch_response_authority, switch_in_authority=switch_in,
+        pair_id=base["pair_id"], response_action_id=selected_switch_response_action_id,
+    )
     attack = _attack_ledger(
         strategy_d0=predictive["strategy_d0"], runtime_snapshot=predictive["runtime_snapshot"],
         actor=predictive["own_actor"], target=predictive["incoming_target"],
         metadata_authority=metadata["metadata"],
         sturdy_survival_authority=switch_in["hypothetical_switch_in_state"].get("sturdy_survival_authority"),
         analytic_action_order_authority=analytic_order,
+        stakeout_switch_authority=stakeout,
     )
     if attack.get("status") != "evaluable":
-        return _result(_status(attack), attack.get("reason", "own_attack_ledger_unavailable"), base, switch_in_authority=deepcopy(switch_in))
+        return _result(_status(attack), attack.get("reason", "own_attack_ledger_unavailable"), base, switch_in_authority=deepcopy(switch_in), stakeout_switch_authority=deepcopy(stakeout))
     branches = tuple(_branch(base, switch_in, leaf) for leaf in attack["terminal_leaves"])
     mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
     if mass != Fraction(1, 1):
@@ -73,6 +83,7 @@ def materialize_immediate_attack_vs_opponent_switch_action_pair(
         **base, "action_order": "opponent_switch_first",
         "conditional_on": "opponent_selected_exact_selectable_switch_response",
         "switch_in_authority": deepcopy(switch_in), "terminal_branches": branches,
+        "stakeout_switch_authority": deepcopy(stakeout),
         "switch_first_condition_consumer": deepcopy(predictive["condition_consumer"]),
         "terminal_probability_mass": _fd(mass),
         "aggregation": "none_preserve_switch_and_attack_leaf_identity",

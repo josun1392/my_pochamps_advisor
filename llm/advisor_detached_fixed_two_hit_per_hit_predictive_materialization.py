@@ -44,6 +44,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     focus_sash_survival_authority: Mapping[str, Any] | None = None,
     contact_reactive_contact_authority: Mapping[str, Any] | None = None,
     analytic_action_order_authority: Mapping[str, Any] | None = None,
+    stakeout_switch_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Materialize ordered hit leaves without mutating current D0/runtime.
 
@@ -84,6 +85,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
             low_hp_source_hit={"hit_index": 1, "path_id": "fixed-two-hit:hit:1"},
             attacker_condition_authority=_guts_path_condition_authority(strategy_d0, base, base["attacker_condition"]),
             analytic_action_order_authority=_rebind_analytic(analytic_action_order_authority, strategy_d0, base),
+            stakeout_switch_authority=_rebind_stakeout(stakeout_switch_authority, strategy_d0, base),
         )
         if isinstance(first, Mapping):
             return _result(first["status"], first["reason"], base)
@@ -140,6 +142,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
                     low_hp_source_hit={"hit_index": 2, "path_id": "fixed-two-hit:hit:2"},
                     attacker_condition_authority=_guts_path_condition_authority(second_d0, base, first_condition),
                     analytic_action_order_authority=_rebind_analytic(analytic_action_order_authority, second_d0, base),
+                    stakeout_switch_authority=_rebind_stakeout(stakeout_switch_authority, second_d0, base),
                 )
                 if isinstance(second, Mapping):
                     return _result(second["status"], second["reason"], base)
@@ -191,7 +194,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     }
 
 
-def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None, attacker_condition_authority: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
+def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None, attacker_condition_authority: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
     if attacker_hp_authority is None:
         attacker_hp_authority = _path_attacker_hp_authority(runtime_snapshot, base["attacker"], base["own_current_hp"])
     if attacker_hp_authority is None:
@@ -202,6 +205,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
         attacker_hp_authority=attacker_hp_authority, low_hp_source_hit=low_hp_source_hit,
         attacker_condition_authority=attacker_condition_authority,
         analytic_action_order_authority=analytic_action_order_authority,
+        stakeout_switch_authority=stakeout_switch_authority,
     )
     normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"], move_metadata=single_metadata, native_damage_context=native)
     if normal.get("status") != "resolved":
@@ -354,6 +358,22 @@ def _rebind_analytic(value: Mapping[str, Any] | None, strategy_d0: Mapping[str, 
         source_action_order_authority=value.get("source_action_order_authority"),
         action_order_branch=value.get("action_order_branch"),
     )
+
+
+def _rebind_stakeout(value: Mapping[str, Any] | None, strategy_d0: Mapping[str, Any], base: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """Retain one move-level switch result across per-hit private D0 views."""
+    if not isinstance(value, Mapping):
+        return None
+    rebound = deepcopy(dict(value))
+    rebound.update(
+        post_switch_session_id=strategy_d0.get("session_id"),
+        post_switch_runtime_fingerprint=strategy_d0.get("source_runtime_fingerprint"),
+        post_switch_branch_fingerprint=strategy_d0.get("strategy_preview_fingerprint"),
+        post_switch_decision_owner=deepcopy(strategy_d0.get("decision_owner")),
+        attacker=deepcopy(dict(base["attacker"])), target=deepcopy(dict(base["target"])),
+        incoming_target=deepcopy(dict(base["target"])), post_switch_attack_target=deepcopy(dict(base["target"])),
+    )
+    return rebound
 
 
 def _path_attacker_hp_authority(snapshot: Mapping[str, Any], attacker: Mapping[str, Any], current_hp: Any) -> dict[str, Any] | None:

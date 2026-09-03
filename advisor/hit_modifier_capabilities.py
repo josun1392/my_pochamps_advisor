@@ -23,7 +23,7 @@ _APPLICABILITY = frozenset({"applicable", "not_applicable", "unknown"})
 _KNOWN_NEUTRAL_ABILITY_IDS = frozenset({
     "pressure", "guts", "skill-link", "static", "flame-body", "poison-point", "overcoat", "insomnia", "vital-spirit",
     "tough-claws", "reckless", "punk-rock", "sharpness", "sheer-force", "mold-breaker",
-    "blaze", "torrent", "overgrow", "swarm",
+    "blaze", "torrent", "overgrow", "swarm", "analytic", "stakeout",
 })
 
 
