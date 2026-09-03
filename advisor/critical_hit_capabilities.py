@@ -14,6 +14,9 @@ CATALOG_VERSION = "critical-hit-capability-catalog-v1"
 # delegated to ``move_crit_rule`` below.
 _BASE_MOVE_IDS = frozenset({
     "tackle", "water-gun", "thunderbolt", "facade", "sparkling-aria",
+    # The ordinary-damage pivot family uses the same base Gen 9 critical
+    # rule.  Its post-damage switch continuation is owned separately.
+    "u-turn", "volt-switch", "flip-turn",
     # Rock Slide is the explicitly scoped direct-damage move for the first
     # frozen-recipient doubles execution graph.
     "rock-slide",

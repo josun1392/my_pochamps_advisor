@@ -42,6 +42,10 @@ def materialize_detached_damage_pivot_switch(*, intermediate_authority: Mapping[
     state = materialized["next_state"]
     runtime_state = deepcopy(dict(snapshot["state"]))
     runtime_state["self_side"]["active_slot_index"] = incoming_owner["slot_index"]
+    # A manual-switch permission is identity-bound to the outgoing active.
+    # Keeping it after the forced post-damage replacement would both leak a
+    # stale authority and make the runtime-shaped handoff invalid.
+    runtime_state["self_side"].pop("switch_permission_context", None)
     raw_incoming = runtime_state["self_side"]["pokemon"][incoming_owner["slot_index"]]
     raw_incoming["current_hp"] = state["active"]["self"]["current_hp"]
     raw_incoming["max_hp"] = state["active"]["self"]["max_hp"]

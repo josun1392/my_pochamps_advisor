@@ -406,12 +406,17 @@ def _pivot_second_action_target_binding(branch: Mapping[str, Any], base: Mapping
         or not isinstance(incoming, Mapping) or not isinstance(provenance, Mapping)
         or first.get("provenance", {}).get("attacker") != base["own_actor"]
         or provenance.get("attacker") != base["opponent_actor"]
-        or authority.get("selected_replacement_owner") != incoming
-        or provenance.get("target") != incoming
-        or incoming == base["own_actor"]
+        or not _same_owner_identity(authority.get("selected_replacement_owner"), incoming)
+        or not _same_owner_identity(provenance.get("target"), incoming)
+        or _same_owner_identity(incoming, base["own_actor"])
     ):
         return "pivot_second_action_target_binding_invalid"
     return None
+
+
+def _same_owner_identity(left: Any, right: Any) -> bool:
+    keys = ("session_id", "side", "slot_index", "pokemon_id")
+    return isinstance(left, Mapping) and isinstance(right, Mapping) and all(left.get(key) == right.get(key) for key in keys)
     outcomes = authority.get("effect_spore_outcomes")
     contact = authority.get("contact_authority")
     source_hit = authority.get("source_hit")

@@ -650,7 +650,7 @@ def _materialize_order(
                     branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan, pivot_transition=switched)); continue
                 post_d0 = freeze_runtime_strategy_d0(runtime_snapshot=post_snapshot, decision_owner=second_actor)
                 if post_d0.get("status") != "resolved": return _result(_status(post_d0), post_d0.get("reason", "pivot_post_switch_d0_unavailable"), base, first_leaf_id=leaf["leaf_id"])
-                second = _attack_ledger(strategy_d0=post_d0, runtime_snapshot=post_snapshot, actor=second_actor, target=incoming,
+                second = _attack_ledger(strategy_d0=post_d0, runtime_snapshot=post_snapshot, actor=second_actor, target=_owner_identity(incoming),
                     metadata_authority=opponent_meta, action=opponent_action)
                 if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
                 for second_leaf in second["terminal_leaves"]:
@@ -1111,6 +1111,8 @@ def _metadata_for_inputs(authority: Any, inputs: Mapping[str, Any] | None) -> Ma
     return deepcopy(dict(metadata))
 def _fainted(state: Mapping[str, Any], owner: Mapping[str, Any]) -> bool:
     row = state.get("active", {}).get(owner.get("side"), {}) if isinstance(state.get("active"), Mapping) else {}; return isinstance(row, Mapping) and row.get("hypothetical_fainted", {}).get("value") is True
+def _owner_identity(value: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: value[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}
 def _pending_second_action_flinch(state: Mapping[str, Any], actor: Mapping[str, Any]) -> bool | str:
     compatibility = state.get("second_action_compatibility") if isinstance(state, Mapping) else None
     flinch = compatibility.get("flinch_cancellation") if isinstance(compatibility, Mapping) else None
