@@ -108,6 +108,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     second_leaf = second.get("leaf")
     if second["state"] == "executed":
         if not isinstance(second_leaf, Mapping) or not isinstance(second_leaf.get("leaf_id"), str) or _fraction(second_leaf.get("probability")) * execution_probability != conditional: return "executed_second_action_leaf_invalid"
+        pivot_error = _pivot_second_action_target_binding(value, base, first, second_leaf)
+        if pivot_error is not None: return pivot_error
         focus_error = _focus_sash_leaf(second_leaf)
         if focus_error is not None: return focus_error
         low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -388,6 +390,28 @@ def _effect_spore_contact_reactive_status(authority: Mapping[str, Any], overlay:
         "poison": {"numerator": 9, "denominator": 100},
         "none": {"numerator": 7, "denominator": 10},
     }
+
+
+def _pivot_second_action_target_binding(branch: Mapping[str, Any], base: Mapping[str, Any], first: Mapping[str, Any], second: Mapping[str, Any]) -> str | None:
+    """Validate the narrow changed-target exception owned by a pivot transition."""
+    pivot = branch.get("pivot_transition")
+    if pivot is None:
+        return None
+    authority = pivot.get("pivot_authority") if isinstance(pivot, Mapping) else None
+    incoming = pivot.get("resulting_active_owner") if isinstance(pivot, Mapping) else None
+    provenance = second.get("provenance") if isinstance(second, Mapping) else None
+    if (
+        branch.get("action_order") != "own_first"
+        or not isinstance(authority, Mapping) or authority.get("status") != "applies"
+        or not isinstance(incoming, Mapping) or not isinstance(provenance, Mapping)
+        or first.get("provenance", {}).get("attacker") != base["own_actor"]
+        or provenance.get("attacker") != base["opponent_actor"]
+        or authority.get("selected_replacement_owner") != incoming
+        or provenance.get("target") != incoming
+        or incoming == base["own_actor"]
+    ):
+        return "pivot_second_action_target_binding_invalid"
+    return None
     outcomes = authority.get("effect_spore_outcomes")
     contact = authority.get("contact_authority")
     source_hit = authority.get("source_hit")

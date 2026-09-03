@@ -78,6 +78,8 @@ from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import 
 from llm.advisor_runtime_d0_analytic_action_order_authority import (
     freeze_runtime_d0_analytic_action_order_authority,
 )
+from llm.advisor_damage_pivot_continuation import freeze_damage_pivot_continuation_authority
+from llm.advisor_detached_pivot_switch_transition import materialize_detached_damage_pivot_switch
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
@@ -96,6 +98,7 @@ from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_normal_formula_predictive_input,
     freeze_runtime_seismic_toss_predictive_input,
     resolve_runtime_d0_selectable_move_metadata_authority,
+    freeze_runtime_strategy_d0,
 )
 
 
@@ -124,6 +127,7 @@ def materialize_immediate_move_vs_move_action_pair(
     pure_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     crafty_shield_pure_status_applicability_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
     base = _base(strategy_d0, own_action, opponent_action)
@@ -165,6 +169,7 @@ def materialize_immediate_move_vs_move_action_pair(
             first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
             first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority,
             pending_status_execution_authorities=pending_status_execution_authorities,
+            pivot_replacement_authorities=pivot_replacement_authorities,
         )
         if isinstance(materialized, Mapping): return materialized
         branches.extend(materialized)
@@ -591,6 +596,7 @@ def _materialize_order(
     first_action_sturdy_survival_authority: Mapping[str, Any] | None,
     first_action_focus_sash_survival_authority: Mapping[str, Any] | None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None,
+    pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None,
 ) -> list[dict[str, Any]] | dict[str, Any]:
     order = order_plan["order"]
     first_actor = base["own_actor"] if order == "own_first" else base["opponent_actor"]
@@ -618,6 +624,40 @@ def _materialize_order(
     for leaf in first["terminal_leaves"]:
         intermediate = materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=leaf, root_predictive_authority=root)
         if intermediate.get("status") != "resolved": return _result(_status(intermediate), intermediate.get("reason", "intermediate_state_unavailable"), base)
+        # A self-switching damaging move changes the defensive owner for the
+        # already-selected opposing action.  This belongs after the complete
+        # terminal leaf (including recoil/contact consequences), before the
+        # ordinary second-action actor/target handoff.
+        if order == "own_first":
+            pivot = freeze_damage_pivot_continuation_authority(
+                strategy_d0=strategy_d0, action=own_action,
+                move_metadata=own_meta["metadata"], attack_terminal_leaf=leaf,
+                replacement_authority=(pivot_replacement_authorities or {}).get(leaf["leaf_id"]),
+            )
+            if pivot.get("status") == "applies":
+                precursor = freeze_detached_intermediate_predictive_authority(
+                    strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                    intermediate_state=intermediate, actor=first_actor, target=second_actor,
+                    move_metadata_authority=own_meta,
+                )
+                if precursor.get("status") != "resolved": return _result(_status(precursor), precursor.get("reason", "pivot_post_attack_authority_unavailable"), base, first_leaf_id=leaf["leaf_id"])
+                switched = materialize_detached_damage_pivot_switch(intermediate_authority=precursor, pivot_authority=pivot)
+                if switched.get("status") != "resolved": return _result(_status(switched), switched.get("reason", "pivot_switch_transition_unavailable"), base, first_leaf_id=leaf["leaf_id"])
+                incoming = switched.get("resulting_active_owner")
+                post_snapshot = switched.get("runtime_snapshot")
+                if not isinstance(incoming, Mapping) or not isinstance(post_snapshot, Mapping): return _result("rejected", "pivot_post_switch_target_missing", base, first_leaf_id=leaf["leaf_id"])
+                if _fainted(intermediate, second_actor):
+                    branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan, pivot_transition=switched)); continue
+                post_d0 = freeze_runtime_strategy_d0(runtime_snapshot=post_snapshot, decision_owner=second_actor)
+                if post_d0.get("status") != "resolved": return _result(_status(post_d0), post_d0.get("reason", "pivot_post_switch_d0_unavailable"), base, first_leaf_id=leaf["leaf_id"])
+                second = _attack_ledger(strategy_d0=post_d0, runtime_snapshot=post_snapshot, actor=second_actor, target=incoming,
+                    metadata_authority=opponent_meta, action=opponent_action)
+                if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
+                for second_leaf in second["terminal_leaves"]:
+                    branches.append(_branch(base, order, leaf, intermediate, second_leaf, second_actor, order_plan, pivot_transition=switched))
+                continue
+            if pivot.get("status") in {"incomplete", "rejected"} and own_meta["metadata"].get("move_id") in {"u-turn", "volt-switch", "flip-turn"}:
+                return _result(_status(pivot), pivot.get("reason", "pivot_continuation_unavailable"), base, first_leaf_id=leaf["leaf_id"])
         if _fainted(intermediate, second_actor):
             branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan)); continue
         if _fainted(intermediate, first_actor):
@@ -1079,7 +1119,7 @@ def _pending_second_action_flinch(state: Mapping[str, Any], actor: Mapping[str, 
     if flinch.get("state") == "not_flinched": return False
     if flinch.get("state") == "flinched" and flinch.get("provenance") == "exact_terminal_leaf_iron_head_flinch_secondary": return True
     return "intermediate_flinch_cancellation_state_invalid"
-def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], intermediate: Mapping[str, Any], second: Mapping[str, Any] | None, second_actor: Mapping[str, Any], order_plan: Mapping[str, Any], execution_branch: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], intermediate: Mapping[str, Any], second: Mapping[str, Any] | None, second_actor: Mapping[str, Any], order_plan: Mapping[str, Any], execution_branch: Mapping[str, Any] | None = None, pivot_transition: Mapping[str, Any] | None = None) -> dict[str, Any]:
     first_p = _fraction(first["probability"]); second_p = Fraction(1, 1) if second is None else _fraction(second["probability"])
     order_p = order_plan["probability"]
     execution_p = Fraction(1, 1) if execution_branch is None else _fraction(execution_branch["conditional_probability"])
@@ -1091,7 +1131,7 @@ def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], inter
         second_action["execution_branch"] = deepcopy(dict(execution_branch))
         second_action["execution_conditional_probability"] = _fd(execution_p)
         if second is not None: second_action["mechanical_leaf_probability"] = _fd(second_p)
-    return {"pair_leaf_id": (f"{source_branch['order_branch_id']}/" if isinstance(source_branch, Mapping) else "") + path, "action_order": order, **({"action_order_branch": deepcopy(dict(source_branch)), "action_order_conditional_probability": _fd(order_p)} if isinstance(source_branch, Mapping) else {}), "first_action_leaf": deepcopy(dict(first)), "intermediate_state_id": f"intermediate:{first['candidate_id']}:{first['leaf_id']}", "second_action": second_action, "probability": _fd(order_p * first_p * execution_p * second_p), "provenance": deepcopy(dict(base))}
+    return {"pair_leaf_id": (f"{source_branch['order_branch_id']}/" if isinstance(source_branch, Mapping) else "") + path, "action_order": order, **({"action_order_branch": deepcopy(dict(source_branch)), "action_order_conditional_probability": _fd(order_p)} if isinstance(source_branch, Mapping) else {}), "first_action_leaf": deepcopy(dict(first)), "intermediate_state_id": f"intermediate:{first['candidate_id']}:{first['leaf_id']}", "second_action": second_action, **({"pivot_transition": deepcopy(dict(pivot_transition))} if isinstance(pivot_transition, Mapping) else {}), "probability": _fd(order_p * first_p * execution_p * second_p), "provenance": deepcopy(dict(base))}
 
 
 def _analytic_order_authority(*, strategy_d0: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], base: Mapping[str, Any], plan: Mapping[str, Any], source_action_order_authority: Mapping[str, Any]) -> dict[str, Any]:
