@@ -20,6 +20,7 @@ _TARGETS = {"apply_exact_hp_transition": "pokemon.current_hp", "apply_exact_hp_r
 _TARGETS = {**_TARGETS, "set_current_opponent_response_set": "pokemon.current_opponent_response_set", "set_current_opponent_switch_response_set": "side.current_opponent_switch_response_set", "set_current_opponent_switch_target_combat": "pokemon.current_combat"}
 _TARGETS["set_mat_block_active_entry_eligibility"] = "state.mat_block_active_entry_eligibility_context"
 _TARGETS["set_fake_out_active_entry_eligibility"] = "state.fake_out_active_entry_eligibility_context"
+_TARGETS["initialize_supreme_overlord_active_entry"] = "state.supreme_overlord_faint_history_context"
 
 
 def make_unknown_battle_fact():
@@ -107,11 +108,15 @@ def validate_battle_state_unknown_markers(state):
     if mat_block is not None and not _valid_mat_block_active_entry_eligibility_context(state, mat_block): return False
     fake_out = state.get("fake_out_active_entry_eligibility_context")
     if fake_out is not None and not _valid_fake_out_active_entry_eligibility_context(state, fake_out): return False
+    history = state.get("supreme_overlord_faint_history_context")
+    snapshots = state.get("supreme_overlord_entry_snapshots")
+    if history is not None and not _valid_supreme_overlord_history_context(state, history): return False
+    if snapshots is not None and not _valid_supreme_overlord_snapshots(state, snapshots, history): return False
     topology = state.get("doubles_active_topology_context")
     targeting = state.get("selected_action_targeting_context")
     if topology is not None and not _valid_doubles_active_topology_context(state, topology): return False
     if targeting is not None and not _valid_selected_action_targeting_context(state, targeting): return False
-    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "substitute_state_context", "pending_status_action_execution_context", "mat_block_active_entry_eligibility_context", "fake_out_active_entry_eligibility_context", "doubles_active_topology_context", "selected_action_targeting_context", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context", "rain_dish_end_of_turn_context", "ice_body_end_of_turn_context", "solar_power_end_of_turn_context", "dry_skin_end_of_turn_context", "life_orb_recoil_context"})
+    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "substitute_state_context", "pending_status_action_execution_context", "mat_block_active_entry_eligibility_context", "fake_out_active_entry_eligibility_context", "doubles_active_topology_context", "selected_action_targeting_context", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context", "rain_dish_end_of_turn_context", "ice_body_end_of_turn_context", "solar_power_end_of_turn_context", "dry_skin_end_of_turn_context", "life_orb_recoil_context", "supreme_overlord_faint_history_context", "supreme_overlord_entry_snapshots"})
 
 
 def _valid_fact_marker(value):
@@ -145,6 +150,27 @@ def _valid_fake_out_active_entry_eligibility_context(state, value):
     if not isinstance(value, dict) or set(value) != required: return False
     actor, provenance = value.get("actor"), value.get("provenance")
     return value.get("schema_version") == "fake-out-active-entry-eligibility-context-v1" and value.get("session_id") == state.get("session_id") and isinstance(actor, dict) and set(actor) == {"session_id", "side", "slot_index", "pokemon_id"} and actor.get("session_id") == state.get("session_id") and _active_identity_matches(state, actor.get("side"), actor.get("slot_index"), actor.get("pokemon_id")) and all(isinstance(value.get(key), str) and bool(value[key]) for key in ("decision_point", "action_id", "active_entry_token")) and value.get("move_id") == "fake-out" and value.get("eligibility") in {"eligible", "ineligible"} and isinstance(provenance, dict) and provenance.get("event_kind") == "fake_out_active_entry_eligibility_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool)
+
+
+def _valid_supreme_overlord_history_context(state, value):
+    if not isinstance(value, dict) or set(value) != {"schema_version", "session_id", "side_counts", "initialized_sides", "provenance"}:
+        return False
+    counts, initialized, provenance = value.get("side_counts"), value.get("initialized_sides"), value.get("provenance")
+    return value.get("schema_version") == "supreme-overlord-faint-history-context-v1" and value.get("session_id") == state.get("session_id") and isinstance(counts, dict) and set(counts) == {"self", "opponent"} and all(isinstance(item, int) and not isinstance(item, bool) and item >= 0 for item in counts.values()) and isinstance(initialized, list) and set(initialized) <= {"self", "opponent"} and len(initialized) == len(set(initialized)) and isinstance(provenance, dict)
+
+
+def _valid_supreme_overlord_snapshots(state, value, history):
+    if not isinstance(value, list): return False
+    seen = set()
+    for row in value:
+        owner = row.get("owner") if isinstance(row, dict) else None
+        if not isinstance(row, dict) or set(row) != {"schema_version", "session_id", "owner", "entry_token", "entry_kind", "raw_allied_faint_count", "fallen_allies_count", "source_sequence", "source_state_fingerprint", "status", "active", "provenance"} or row.get("schema_version") != "supreme-overlord-entry-snapshot-v1" or row.get("session_id") != state.get("session_id") or not isinstance(owner, dict) or set(owner) != {"session_id", "side", "slot_index", "pokemon_id"} or owner.get("session_id") != state.get("session_id") or owner.get("side") not in {"self", "opponent"} or not isinstance(owner.get("slot_index"), int) or isinstance(owner.get("slot_index"), bool) or not isinstance(owner.get("pokemon_id"), str) or not owner["pokemon_id"] or not isinstance(row.get("entry_token"), str) or not row["entry_token"] or row.get("entry_kind") not in {"initial_active", "switch_active"} or not isinstance(row.get("raw_allied_faint_count"), int) or isinstance(row.get("raw_allied_faint_count"), bool) or row["raw_allied_faint_count"] < 0 or row.get("fallen_allies_count") != min(row["raw_allied_faint_count"], 5) or not isinstance(row.get("source_sequence"), int) or isinstance(row.get("source_sequence"), bool) or row["source_sequence"] < 1 or not isinstance(row.get("source_state_fingerprint"), str) or not row["source_state_fingerprint"] or row.get("status") != "resolved" or not isinstance(row.get("active"), bool) or not isinstance(row.get("provenance"), dict):
+            return False
+        key = (owner["side"], owner["slot_index"], owner["pokemon_id"], row["entry_token"])
+        if key in seen: return False
+        seen.add(key)
+    active = [row for row in value if row["active"]]
+    return all(_active_identity_matches(state, row["owner"]["side"], row["owner"]["slot_index"], row["owner"]["pokemon_id"]) for row in active)
 
 
 def _valid_doubles_active_topology_context(state, value):
@@ -544,7 +570,7 @@ def _value(event, name):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_pending_status_action_execution", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions"}:
+    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_pending_status_action_execution", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect == "switch_active":
         return isinstance(_value(event, "side"), str) and all(_value(event, key) is not None for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id"))
@@ -642,6 +668,8 @@ def _apply(state, event):
         return _set_current_final_combat_stat(state, event)
     if effect == "set_current_substitute":
         return _set_current_substitute(state, event)
+    if effect == "initialize_supreme_overlord_active_entry":
+        return _initialize_supreme_overlord_active_entry(state, event)
     if effect == "set_current_weather":
         return _set_current_weather(state, event)
     if effect == "set_current_ability":
@@ -764,6 +792,7 @@ def _apply(state, event):
         if pokemon.get("fainted") is True: return _conflict(event, "already_fainted")
         if pokemon.get("current_hp") != 0: return _conflict(event, "faint_requires_exact_zero_hp")
         pokemon["fainted"] = True; _mark(pokemon, "fainted", event)
+        _increment_supreme_overlord_faint_history(state, _value(event, "side"), event)
         pokemon["toxic_progression"] = make_unknown_battle_fact()
         _invalidate_current_crit_volatiles(pokemon)
         context = state.get("substitute_state_context")
@@ -2032,6 +2061,7 @@ def _switch(state, event):
             return _conflict(event, "invalid_substitute_switch_lifecycle")
         state["substitute_state_context"] = context
     _invalidate_same_turn_events(state, _value(event, "side"), out_slot, out_id)
+    _supreme_overlord_switch_entry(state, event, incoming)
     context = state.get("mat_block_active_entry_eligibility_context")
     if isinstance(context, dict) and context.get("actor", {}).get("side") == _value(event, "side"):
         state.pop("mat_block_active_entry_eligibility_context", None)
@@ -2039,6 +2069,57 @@ def _switch(state, event):
     if isinstance(context, dict) and context.get("actor", {}).get("side") == _value(event, "side"):
         state.pop("fake_out_active_entry_eligibility_context", None)
     return None
+
+
+def _initialize_supreme_overlord_active_entry(state, event):
+    side, pokemon = _value(event, "side"), _pokemon(state, event)
+    count, token = _value(event, "cumulative_allied_faint_count"), _value(event, "entry_token")
+    if side not in {"self", "opponent"} or pokemon is None or not isinstance(count, int) or isinstance(count, bool) or count < 0 or not isinstance(token, str) or not token or not _active_identity_matches(state, side, _value(event, "slot_index"), _value(event, "pokemon_id")):
+        return _conflict(event, "invalid_supreme_overlord_initial_entry")
+    history = state.get("supreme_overlord_faint_history_context")
+    if history is None:
+        history = {"schema_version": "supreme-overlord-faint-history-context-v1", "session_id": state["session_id"], "side_counts": {"self": 0, "opponent": 0}, "initialized_sides": [], "provenance": {"event_kind": "supreme_overlord_initial_active_observed", "source_sequence": event["observation_sequence"]}}
+    if not _valid_supreme_overlord_history_context(state, history) or side in history["initialized_sides"]:
+        return _conflict(event, "supreme_overlord_faint_history_already_initialized")
+    history = deepcopy(history); history["side_counts"][side] = count; history["initialized_sides"].append(side); state["supreme_overlord_faint_history_context"] = history
+    _capture_supreme_overlord_snapshot(state, side, pokemon, token, "initial_active", event)
+    return None
+
+
+def _increment_supreme_overlord_faint_history(state, side, event):
+    history = state.get("supreme_overlord_faint_history_context")
+    if not _valid_supreme_overlord_history_context(state, history) or side not in history["initialized_sides"]:
+        return
+    history = deepcopy(history); history["side_counts"][side] += 1; history["provenance"] = {"event_kind": "pokemon_faint_observed", "source_sequence": event["observation_sequence"]}; state["supreme_overlord_faint_history_context"] = history
+
+
+def _supreme_overlord_switch_entry(state, event, incoming):
+    side = _value(event, "side"); history = state.get("supreme_overlord_faint_history_context")
+    if not _valid_supreme_overlord_history_context(state, history) or side not in history["initialized_sides"]:
+        return
+    snapshots = state.get("supreme_overlord_entry_snapshots")
+    if isinstance(snapshots, list):
+        retired = deepcopy(snapshots)
+        for row in retired:
+            if row.get("active") is True and isinstance(row.get("owner"), dict) and row["owner"].get("side") == side:
+                row["active"] = False
+        state["supreme_overlord_entry_snapshots"] = retired
+    _capture_supreme_overlord_snapshot(state, side, incoming, f"switch:{event['observation_id']}", "switch_active", event)
+
+
+def _capture_supreme_overlord_snapshot(state, side, pokemon, token, kind, event):
+    if not isinstance(pokemon, dict) or pokemon.get("current_ability") != "supreme-overlord": return
+    history = state.get("supreme_overlord_faint_history_context")
+    if not _valid_supreme_overlord_history_context(state, history): return
+    snapshots = deepcopy(state.get("supreme_overlord_entry_snapshots", []))
+    for row in snapshots:
+        if row.get("active") is True and isinstance(row.get("owner"), dict) and row["owner"].get("side") == side:
+            row["active"] = False
+    raw = history["side_counts"][side]
+    owner = {"session_id": state["session_id"], "side": side, "slot_index": next((slot for slot, row in state[f"{side}_side"]["pokemon"].items() if row is pokemon), None), "pokemon_id": pokemon["pokemon_id"]}
+    if not isinstance(owner["slot_index"], int): return
+    snapshots.append({"schema_version": "supreme-overlord-entry-snapshot-v1", "session_id": state["session_id"], "owner": owner, "entry_token": token, "entry_kind": kind, "raw_allied_faint_count": raw, "fallen_allies_count": min(raw, 5), "source_sequence": event["observation_sequence"], "source_state_fingerprint": state_fingerprint(state), "status": "resolved", "active": True, "provenance": {"event_kind": event.get("event_kind"), "source_sequence": event["observation_sequence"]}})
+    state["supreme_overlord_entry_snapshots"] = snapshots
 
 
 def _invalidate_same_turn_events(state, side, slot_index, pokemon_id):
