@@ -163,6 +163,15 @@ def test_effect_spore_immunities_and_prevented_outcomes_keep_exact_mass():
     assert all(overlay["transition_applied"] is False for overlay in overlays.values())
 
 
+def test_effect_spore_unknown_immunity_authority_fails_closed():
+    state, _snapshot, _d0, action, _response_set, _orders = _pair_inputs()
+    _set_active(state, "opponent", ability="effect-spore")
+    state["self_side"]["pokemon"][0]["known_item"] = None
+    state["self_side"]["pokemon"][0]["known_item_provenance"] = {"status": "unknown"}
+    _snapshot, d0 = _refresh(state)
+    assert d0["status"] == "rejected"
+
+
 def test_activation_branch_preserves_no_transition_for_already_statused_and_immunity_without_renormalizing():
     cases = (
         ("static", "none", ["electric"], "attacker_electric_type_immune"),
@@ -310,6 +319,62 @@ def test_effect_spore_overcoat_and_safety_goggles_remain_evaluable_in_the_hit_pi
         )
         assert result["status"] == "evaluable", result.get("reason")
         assert all(hit["contact_reactive_status"]["branch"] == "not_applicable" for leaf in result["terminal_leaves"] for hit in leaf["ordered_hits"])
+
+
+def test_effect_spore_ledger_rejects_forged_mass_cancellation_transition_and_hit_binding():
+    from llm.advisor_runtime_d0_fixed_two_hit_multi_hit_execution_authority import freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority
+    from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import materialize_detached_fixed_two_hit_per_hit_predictive_leaves
+    from llm.advisor_exact_immediate_action_pair_outcome_ledger import _contact_reactive_status as pair_status_valid
+    from llm.advisor_variable_two_to_five_hit_graph_shared_pair_ledger import _contact_reactive_status as graph_status_valid
+
+    state, snapshot, d0, action, _execution, _own, _foe = _fixed_inputs(power=1, target_hp=1000)
+    _set_active(state, "opponent", ability="effect-spore")
+    snapshot, d0 = _refresh(state); action = _rebind_action(action, d0)
+    execution = freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action)
+    result = materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=execution,
+        contact_reactive_contact_authority=_contact(d0, snapshot, action, force_contact=True),
+    )
+    status = next(leaf["ordered_hits"][0]["contact_reactive_status"] for leaf in result["terminal_leaves"] if leaf["ordered_hits"][0]["contact_reactive_status"]["branch"] == "sleep")
+    assert pair_status_valid(status) and graph_status_valid(status)
+    for mutate in (
+        lambda row: row["authority"]["effect_spore_outcomes"][0].update(probability={"numerator": 12, "denominator": 100}),
+        lambda row: row["overlay"].update(cancels_remaining_hits=False),
+        lambda row: row["overlay"]["hypothetical_condition_authority"].update(condition="poison"),
+        lambda row: row["authority"]["source_hit"].update(hit_index=2),
+    ):
+        forged = deepcopy(status)
+        mutate(forged)
+        assert not pair_status_valid(forged)
+        assert not graph_status_valid(forged)
+
+
+def test_effect_spore_sleep_cancels_variable_population_bomb_and_triple_hit_graphs():
+    cases = []
+    state, _snapshot, _d0, action, _execution, _own, _foe = _variable_inputs(power=1, target_hp=1000)
+    cases.append(("variable", state, action))
+    state, _snapshot, _d0, action, _execution, _own, _foe = _population_inputs(accuracy=100, power=1, target_hp=1000)
+    cases.append(("population", state, action))
+    state, _snapshot, _d0, action, _execution, _own, _foe = _escalating_inputs(accuracy=100, target_hp=1000)
+    cases.append(("triple", state, action))
+    for name, state, action in cases:
+        _set_active(state, "opponent", ability="effect-spore")
+        snapshot, d0 = _refresh(state); action = _rebind_action(action, d0)
+        if name == "variable":
+            from llm.advisor_detached_variable_two_to_five_hit_per_hit_predictive_materialization import materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves
+            from llm.advisor_runtime_d0_variable_two_to_five_hit_count_execution_authority import freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority
+            result = materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action), contact_reactive_contact_authority=_contact(d0, snapshot, action, force_contact=True))
+        elif name == "population":
+            from llm.advisor_detached_population_bomb_per_hit_accuracy_predictive_graph_materialization import materialize_detached_population_bomb_per_hit_accuracy_predictive_graph
+            from llm.advisor_runtime_d0_population_bomb_per_hit_accuracy_execution_authority import freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority
+            result = materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action), contact_reactive_contact_authority=_contact(d0, snapshot, action, force_contact=True))
+        else:
+            from llm.advisor_detached_escalating_three_hit_predictive_graph_materialization import materialize_detached_escalating_three_hit_predictive_graph
+            from llm.advisor_runtime_d0_escalating_three_hit_execution_authority import freeze_runtime_d0_escalating_three_hit_execution_authority
+            result = materialize_detached_escalating_three_hit_predictive_graph(strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=freeze_runtime_d0_escalating_three_hit_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action), contact_reactive_contact_authority=_contact(d0, snapshot, action, force_contact=True))
+        assert result["status"] == "evaluable", result.get("reason")
+        assert result["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+        assert any(edge.get("terminal_reason") == "effect_spore_sleep_cancels_remaining_hits" for edge in result["terminal_leaf_edges"]), name
 
 
 def test_supported_multihit_graphs_branch_contact_status_without_renormalizing_or_resetting_hp():

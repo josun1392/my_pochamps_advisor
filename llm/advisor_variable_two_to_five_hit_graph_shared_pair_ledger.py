@@ -228,24 +228,7 @@ def _contact_reactive_status(value: Any) -> bool:
     if authority.get("outcome") != "applies":
         return overlay is None
     if authority.get("reactive_ability") == "effect-spore":
-        expected = {
-            "sleep": {"numerator": 11, "denominator": 100},
-            "paralysis": {"numerator": 1, "denominator": 10},
-            "poison": {"numerator": 9, "denominator": 100},
-            "none": {"numerator": 7, "denominator": 10},
-        }
-        outcomes = authority.get("effect_spore_outcomes")
-        if branch not in expected or not isinstance(outcomes, (tuple, list)) or len(outcomes) != 4:
-            return False
-        rows = {row.get("outcome"): row for row in outcomes if isinstance(row, Mapping)}
-        if set(rows) != set(expected) or any(row.get("probability") != expected[outcome] for outcome, row in rows.items()):
-            return False
-        if not isinstance(overlay, Mapping) or overlay.get("schema_version") != "detached-contact-reactive-status-overlay-v1" or overlay.get("branch") != branch or overlay.get("probability") != expected[branch]:
-            return False
-        transition = overlay.get("hypothetical_condition_authority")
-        if overlay.get("transition_applied") is True:
-            return branch != "none" and isinstance(transition, Mapping) and transition.get("condition") == branch and overlay.get("cancels_remaining_hits") is (branch == "sleep")
-        return overlay.get("transition_applied") is False and overlay.get("cancels_remaining_hits") in {None, False}
+        return _effect_spore_contact_reactive_status(authority, overlay, branch)
     if branch not in {"activation", "no_activation"}:
         return False
     if authority.get("activation_probability") != {"numerator": 3, "denominator": 10} or authority.get("no_activation_probability") != {"numerator": 7, "denominator": 10}:
@@ -261,6 +244,48 @@ def _contact_reactive_status(value: Any) -> bool:
     if overlay.get("transition_applied") is True:
         return isinstance(transition, Mapping) and transition.get("status") == "known_present" and transition.get("condition") == authority.get("attempted_condition")
     return overlay.get("transition_applied") is False
+
+
+def _effect_spore_contact_reactive_status(authority: Mapping[str, Any], overlay: Any, branch: Any) -> bool:
+    expected = {
+        "sleep": {"numerator": 11, "denominator": 100},
+        "paralysis": {"numerator": 1, "denominator": 10},
+        "poison": {"numerator": 9, "denominator": 100},
+        "none": {"numerator": 7, "denominator": 10},
+    }
+    outcomes = authority.get("effect_spore_outcomes")
+    contact = authority.get("contact_authority")
+    source_hit = authority.get("source_hit")
+    if (
+        branch not in expected or not isinstance(outcomes, (tuple, list)) or len(outcomes) != 4
+        or not isinstance(contact, Mapping) or contact.get("status") != "resolved" or contact.get("contact_state") != "contact"
+        or not isinstance(source_hit, Mapping) or not isinstance(source_hit.get("hit_index"), int) or source_hit["hit_index"] < 1
+        or source_hit.get("source_action_id") != authority.get("source_action_id") or source_hit.get("source_move_id") != authority.get("source_move_id")
+        or contact.get("action_id") != authority.get("source_action_id") or contact.get("attacker") != authority.get("attacker") or contact.get("target") != authority.get("defender")
+        or authority.get("effect_spore_immunity", {}).get("outcome") != "not_immune"
+        or not isinstance(authority.get("type_authority"), Mapping) or authority["type_authority"].get("status") != "resolved"
+        or not isinstance(authority.get("attacker_modifier_authorities"), Mapping) or not isinstance(authority.get("defender_modifier_authorities"), Mapping)
+        or authority["defender_modifier_authorities"].get("ability_authority", {}).get("value") != "effect-spore"
+        or not all(authority.get(key) == contact.get(key) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner"))
+    ):
+        return False
+    rows = {row.get("outcome"): row for row in outcomes if isinstance(row, Mapping)}
+    if set(rows) != set(expected) or any(row.get("probability") != expected[outcome] or not isinstance(row.get("transition_applies"), bool) for outcome, row in rows.items()):
+        return False
+    if not isinstance(overlay, Mapping) or overlay.get("schema_version") != "detached-contact-reactive-status-overlay-v1" or overlay.get("branch") != branch or overlay.get("probability") != expected[branch] or overlay.get("source_authority") != authority or overlay.get("owner") != authority.get("attacker"):
+        return False
+    transition = overlay.get("hypothetical_condition_authority")
+    if overlay.get("transition_applied") is True:
+        return (
+            branch != "none" and rows[branch].get("transition_applies") is True
+            and authority.get("condition_before") == "none" and isinstance(transition, Mapping)
+            and transition.get("status") == "known_present" and transition.get("condition") == branch
+            and transition.get("condition_before") == "known_none" and transition.get("condition_after") == branch
+            and transition.get("source_hit") == source_hit
+            and overlay.get("cancels_remaining_hits") is (branch == "sleep")
+            and overlay.get("cancellation_reason") == ("effect_spore_sleep_cancels_remaining_hits" if branch == "sleep" else None)
+        )
+    return rows[branch].get("transition_applies") is False and overlay.get("transition_applied") is False and overlay.get("cancels_remaining_hits") in {None, False}
 
 
 def _low_hp_type_leaf(leaf: Any) -> str | None:
