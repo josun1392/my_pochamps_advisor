@@ -237,13 +237,16 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             actual = post_row["actual_damage"]
             if not isinstance(before, int) or isinstance(before, bool) or before < 0 or actual < 0 or actual > before:
                 return {"status": "rejected", "reason": "fixed_two_hit_target_hp_transition_invalid"}
+            target_max_hp = strategy_d0.get("strategy_state", {}).get("active", {}).get(base["target"]["side"], {}).get("max_hp")
+            if not isinstance(target_max_hp, int) or isinstance(target_max_hp, bool) or target_max_hp <= 0 or before > target_max_hp:
+                return {"status": "rejected", "reason": "fixed_two_hit_target_max_hp_authority_invalid"}
             sturdy = post_row.get("sturdy_survival")
             focus = post_row.get("focus_sash_survival")
             events.append({
                 "probability": critical_factor * Fraction(1, 16), "critical_state": critical_state,
                 "roll_index": roll["roll_index"], "random_factor_percent": roll["random_factor_percent"],
                 "raw_damage": post_row["raw_damage"], "actual_damage": actual, "pre_hp": before,
-                "post_hp": before - actual, "target_max_hp": before if sturdy_survival_authority is not None or focus_sash_survival_authority is not None else None,
+                "post_hp": before - actual, "target_max_hp": target_max_hp,
                 "target_routing": interval.get("target_routing", "target"),
                 "sturdy_applied": isinstance(sturdy, Mapping) and sturdy.get("outcome") == "applied",
                 "sturdy_survival": deepcopy(dict(sturdy)) if isinstance(sturdy, Mapping) else {"outcome": "not_applicable"},
@@ -251,6 +254,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
                 "focus_sash_survival": deepcopy(dict(focus)) if isinstance(focus, Mapping) else {"outcome": "not_applicable"},
                 **({"low_hp_type_ability": deepcopy(dict(low_hp))} if isinstance(low_hp, Mapping) else {}),
                 **({"guts_status_attack_ability": deepcopy(dict(native["native_evaluation"]["guts_status_attack_ability_evidence"]))} if isinstance(native.get("native_evaluation"), Mapping) and isinstance(native["native_evaluation"].get("guts_status_attack_ability_evidence"), Mapping) else {}),
+                **({"full_hp_defender_ability": deepcopy(dict(native["native_evaluation"]["full_hp_defender_ability_evidence"]))} if isinstance(native.get("native_evaluation"), Mapping) and isinstance(native["native_evaluation"].get("full_hp_defender_ability_evidence"), Mapping) else {}),
             })
     if not events or sum((row["probability"] for row in events), Fraction()) != Fraction(1, 1):
         return {"status": "rejected", "reason": "fixed_two_hit_per_hit_probability_mass_invalid"}
@@ -319,6 +323,7 @@ def _detached_target_hp_view(*, runtime_snapshot: Mapping[str, Any], decision_ow
     if not isinstance(pokemon, Mapping) or pokemon.get("pokemon_id") != target["pokemon_id"]:
         return None, None
     pokemon["current_hp"] = target_hp; pokemon["fainted"] = target_hp == 0
+    pokemon["detached_path_local_defender_hp_authority"] = True
     if focus_sash_consumed:
         pokemon["known_item"] = None
         pokemon["known_item_provenance"] = {"event_kind": "item_consumption_observed", "turn_number": 1, "trust": "detached_hypothetical", "source": "exact_per_hit_focus_sash_consumption"}

@@ -95,7 +95,7 @@ def test_move_flag_damage_abilities_are_known_neutral_critical_hit_sources():
 
 
 def test_type_specific_defensive_damage_abilities_are_known_neutral_critical_hit_sources():
-    for ability in ("heatproof", "water-bubble", "fluffy", "punk-rock"):
+    for ability in ("heatproof", "water-bubble", "fluffy", "punk-rock", "multiscale", "shadow-shield"):
         result = _resolve(defender_ability=ability)
         assert result["status"] == "resolved"
         assert result["crit_stage"] == 0

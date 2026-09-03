@@ -16,7 +16,7 @@ from advisor.damage.q12 import M_HALF, Q12_ONE
 from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.move_categories import load_move_flags as load_move_category_flags
-from advisor.damage.mold_breaker import is_mold_breaker_active
+from advisor.damage.mold_breaker import is_defender_ability_bypassed_by_mold_breaker, is_mold_breaker_active
 from advisor.damage.types import type_effectiveness_multiplier
 from advisor.probability.single_hit import ko_chance_from_outcomes
 from llm.advisor_battle_state_context import (
@@ -33,6 +33,9 @@ from llm.advisor_low_hp_type_offensive_ability import (
 )
 from llm.advisor_guts_status_attack_ability import (
     resolve_guts_status_attack_ability_applicability,
+)
+from llm.advisor_full_hp_defender_ability import (
+    resolve_full_hp_defender_ability_applicability,
 )
 
 
@@ -398,6 +401,8 @@ def evaluate_direct_damage_mechanics(
         result["low_hp_type_ability_evidence"] = deepcopy(dict(ability_modifier["low_hp_type_applicability"]))
     if isinstance(ability_modifier.get("guts_applicability"), Mapping):
         result["guts_status_attack_ability_evidence"] = deepcopy(dict(ability_modifier["guts_applicability"]))
+    if isinstance(defender_ability_modifier.get("full_hp_defender_ability_applicability"), Mapping):
+        result["full_hp_defender_ability_evidence"] = deepcopy(dict(defender_ability_modifier["full_hp_defender_ability_applicability"]))
     if hit_count == 1:
         result["exact_damage_rolls"] = tuple(rolls)
     return result
@@ -807,7 +812,7 @@ def _is_detached_intermediate_view(current: Mapping[str, Any]) -> bool:
 
 def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_defender: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str], move_id: str, attacker_ability_id: str | None = None) -> dict[str, Any]:
     """Resolve only static, request-start target ability effects already owned by Q12."""
-    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None, "authority_explicit": False, "is_contact": False}
+    result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None, "authority_explicit": False, "is_contact": False, "full_hp_defender_ability_applicability": None}
     context = current.get("ability_context")
     if not isinstance(context, Mapping):
         if direct_defender.get("ability") == _KNOWN_ABSENT:
@@ -843,7 +848,31 @@ def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_def
     if effect is None:
         result["unsupported_reason"] = "defender_ability_modifier"
         return result
-    if is_mold_breaker_active(attacker_ability_id) and effect.raw_data.get("ignored_by_mold_breaker", True):
+    if ability_id in {"multiscale", "shadow-shield"}:
+        attacker_id = _current_ability_id(current, "self")
+        suppression = "suppressed" if attacker_id == "neutralizing-gas" else "active"
+        bypass = "bypassed" if is_defender_ability_bypassed_by_mold_breaker(effect, attacker_id) else "not_bypassed"
+        applicability = resolve_full_hp_defender_ability_applicability(
+            ability=ability_id,
+            current_hp=direct_defender.get("current_hp"),
+            max_hp=direct_defender.get("max_hp"),
+            # Legacy direct inputs are request-start-only; unlike an HP ratio,
+            # this names their existing D0 ownership without deriving HP.
+            hp_source=direct_defender.get("hp_source") or "runtime_strategy_d0_v1",
+            suppression_status=suppression,
+            bypass_result=bypass,
+            source_hit=current.get("low_hp_source_hit") if isinstance(current.get("low_hp_source_hit"), Mapping) else None,
+        )
+        if applicability.get("status") == "incomplete":
+            result["missing_inputs"].append("defender.current_hp")
+            return result
+        if applicability.get("status") == "rejected":
+            result["unsupported_reason"] = "full_hp_defender_ability_context"
+            return result
+        result["full_hp_defender_ability_applicability"] = applicability
+        if applicability.get("outcome") != "applicable":
+            return result
+    elif is_defender_ability_bypassed_by_mold_breaker(effect, attacker_ability_id):
         return result
     flags_by_move = load_move_flags()
     flags = set(flags_by_move.get(move_id, ()))

@@ -86,6 +86,7 @@ def _switch_first_predictive_view(strategy_d0: Mapping[str, Any], runtime_snapsh
         return _result("rejected", "switch_in_hypothetical_state_invalid", {})
     side["active_slot_index"] = incoming["slot_index"]
     target["current_hp"], target["max_hp"], target["fainted"] = hp["current_hp"], hp["maximum_hp"], False
+    target["detached_switch_first_defender_hp_authority"] = True
     ability = hypothetical.get("ability_authority")
     item = hypothetical.get("item_authority")
     if not isinstance(ability, Mapping) or ability.get("status") != "known" or not isinstance(ability.get("value"), str) or not ability["value"]:

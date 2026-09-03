@@ -52,7 +52,15 @@ def apply_multiscale(
     defender_maxhp: int | None,
 ) -> int:
     """Multiscale / Shadow Shield: 0.5x damage if defender is at full HP."""
-    if defender_hp is None or defender_maxhp is None or defender_maxhp <= 0:
+    if (
+        not isinstance(defender_hp, int)
+        or isinstance(defender_hp, bool)
+        or not isinstance(defender_maxhp, int)
+        or isinstance(defender_maxhp, bool)
+        or defender_maxhp <= 0
+        or defender_hp < 0
+        or defender_hp > defender_maxhp
+    ):
         return damage
     if normalize_id(defender_ability) in {"multiscale", "shadow-shield"} and defender_hp == defender_maxhp:
         return (damage * MUL_0_5) // Q12_ONE

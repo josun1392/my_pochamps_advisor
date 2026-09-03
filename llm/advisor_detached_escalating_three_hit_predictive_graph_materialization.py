@@ -67,25 +67,25 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
     roots: list[dict[str, Any]] = []
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
-    node_index: dict[tuple[int, int, bool, bool, int, str], str] = {}
+    node_index: dict[tuple[int, int, bool, bool, int, str, bool], str] = {}
     node_mass: dict[str, Fraction] = {}
     terminal_mass = Fraction()
     hit_factor, miss_factor = base["per_attempt_hit_probability"], base["per_attempt_miss_probability"]
 
-    def add_node(index: int, hp: int, sturdy_consumed: bool, focus_sash_consumed: bool, attacker_hp: int, condition: str) -> str:
-        key = (index, hp, sturdy_consumed, focus_sash_consumed, attacker_hp, condition)
+    def add_node(index: int, hp: int, sturdy_consumed: bool, focus_sash_consumed: bool, attacker_hp: int, condition: str, path_local: bool) -> str:
+        key = (index, hp, sturdy_consumed, focus_sash_consumed, attacker_hp, condition, path_local)
         if key in node_index:
             return node_index[key]
         node_id = f"hit:{index}/hp:{hp}/attacker-hp:{attacker_hp}/condition:{condition}/sturdy:{'consumed' if sturdy_consumed else 'available'}/focus-sash:{'consumed' if focus_sash_consumed else 'available'}"
         node_index[key] = node_id
-        nodes.append({"node_id": node_id, "hit_index": index, "target_hp": hp, "attacker_hp": attacker_hp, "attacker_condition": condition, "sturdy_consumed": sturdy_consumed, "focus_sash_consumed": focus_sash_consumed})
+        nodes.append({"node_id": node_id, "hit_index": index, "target_hp": hp, "attacker_hp": attacker_hp, "attacker_condition": condition, "sturdy_consumed": sturdy_consumed, "focus_sash_consumed": focus_sash_consumed, "path_local": path_local})
         node_mass[node_id] = Fraction()
         return node_id
 
-    root = add_node(1, target_hp, False, False, base["own_current_hp"], base["attacker_condition"])
+    root = add_node(1, target_hp, False, False, base["own_current_hp"], base["attacker_condition"], False)
     roots.append({"root_id": "hit:1", "probability": Fraction(1, 1), "terminal": False, "node_id": root})
     node_mass[root] = Fraction(1, 1)
-    event_cache: dict[tuple[int, int, str, bool, bool, int, int], list[dict[str, Any]] | dict[str, str]] = {}
+    event_cache: dict[tuple[int, int, str, bool, bool, int, int, bool], list[dict[str, Any]] | dict[str, str]] = {}
     cursor = 0
     while cursor < len(nodes):
         node = nodes[cursor]; cursor += 1
@@ -115,10 +115,10 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             continue
         can_use_sturdy = not node["sturdy_consumed"] and _sturdy_full_hp(sturdy_survival_authority, node["target_hp"])
         can_use_focus_sash = not node["focus_sash_consumed"] and _focus_sash_full_hp(focus_sash_survival_authority, node["target_hp"])
-        cache_key = (node["target_hp"], node["attacker_hp"], node["attacker_condition"], can_use_sturdy, can_use_focus_sash, power, hit_index)
+        cache_key = (node["target_hp"], node["attacker_hp"], node["attacker_condition"], can_use_sturdy, can_use_focus_sash, power, hit_index, bool(node["path_local"]))
         events = event_cache.get(cache_key)
         if events is None:
-            current_d0, current_snapshot = (strategy_d0, runtime_snapshot) if node["target_hp"] == target_hp and not node["focus_sash_consumed"] else _detached_target_hp_view(runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"], target=base["target"], target_hp=node["target_hp"], focus_sash_consumed=bool(node["focus_sash_consumed"]))
+            current_d0, current_snapshot = (strategy_d0, runtime_snapshot) if not node["path_local"] else _detached_target_hp_view(runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"], target=base["target"], target_hp=node["target_hp"], focus_sash_consumed=bool(node["focus_sash_consumed"]))
             if current_d0 is None or current_snapshot is None:
                 return {"status": "rejected", "reason": "escalating_three_hit_intermediate_target_state_invalid"}, None, None, None
             move = deepcopy(base["single_hit_metadata_view"]); move["power"] = power
@@ -170,7 +170,7 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
                     edge["terminal_consequences"] = consequences
                     terminal_mass += source_mass * edge_factor
                 else:
-                    next_node = add_node(hit_index + 1, row["post_hp"], sturdy_consumed, focus_sash_consumed, attacker_hp, status["post_condition"])
+                    next_node = add_node(hit_index + 1, row["post_hp"], sturdy_consumed, focus_sash_consumed, attacker_hp, status["post_condition"], True)
                     edge["to_node_id"] = next_node
                     node_mass[next_node] += source_mass * edge_factor
                 edges.append(edge)

@@ -432,16 +432,11 @@ def calc_damage_rolls(
             damage = apply_damage_modifier(damage, stab_mod)
         damage = int(pokeround(damage) * effectiveness)
         damage = apply_damage_modifier(max(1, damage), final_mod)
-        defender_hp_current = ctx.defender_hp_current
-        defender_hp_max = ctx.defender_hp_max
-        if defender_hp_current is None or defender_hp_max is None:
-            defender_hp_current = 1 if ctx.defender_hp_ratio == 1.0 else 0
-            defender_hp_max = 1
         damage = apply_multiscale(
             damage,
             eff_defender_ability.ability_id if eff_defender_ability else None,
-            defender_hp_current,
-            defender_hp_max,
+            ctx.defender_hp_current,
+            ctx.defender_hp_max,
         )
         rolls.append(damage)
     return rolls

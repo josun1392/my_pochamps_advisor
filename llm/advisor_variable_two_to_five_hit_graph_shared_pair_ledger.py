@@ -17,6 +17,9 @@ from llm.advisor_low_hp_type_offensive_ability import (
 from llm.advisor_guts_status_attack_ability import (
     validate_guts_status_attack_ability_applicability,
 )
+from llm.advisor_full_hp_defender_ability import (
+    validate_full_hp_defender_ability_applicability,
+)
 
 
 PAIR_SCHEMA = "detached-variable-two-to-five-hit-graph-immediate-move-pair-v1"
@@ -260,6 +263,9 @@ def _guts_status_attack_leaf(leaf: Any) -> str | None:
         error = _guts_status_attack_hit(hit)
         if error is not None:
             return error
+        error = _full_hp_defender_ability_hit(hit)
+        if error is not None:
+            return error
     return None
 
 
@@ -287,6 +293,22 @@ def _guts_status_attack_hit(hit: Any) -> str | None:
         or (source_hit is not None and source_hit.get("hit_index") != hit.get("hit_index"))
     ):
         return "variable_graph_guts_status_attack_ability_consequence_invalid"
+    return None
+
+
+def _full_hp_defender_ability_hit(hit: Any) -> str | None:
+    evidence = hit.get("full_hp_defender_ability") if isinstance(hit, Mapping) else None
+    if evidence is None:
+        return None
+    source_hit = evidence.get("source_hit") if isinstance(evidence, Mapping) else None
+    if (
+        not validate_full_hp_defender_ability_applicability(evidence)
+        or not isinstance(source_hit, Mapping)
+        or source_hit.get("hit_index") != hit.get("hit_index")
+        or evidence.get("defender_current_hp") != hit.get("pre_hp")
+        or evidence.get("defender_max_hp") != hit.get("target_max_hp")
+    ):
+        return "variable_graph_full_hp_defender_ability_consequence_invalid"
     return None
 
 

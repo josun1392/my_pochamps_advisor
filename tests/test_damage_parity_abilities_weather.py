@@ -192,6 +192,8 @@ def _context_from_request(request: DamageRequest) -> DamageContext:
         defender_booster_active=request.defender.item == "booster-energy",
         attacker_hp_current=request.attacker.current_hp_pct,
         attacker_hp_max=100,
+        defender_hp_current=request.defender.current_hp_pct,
+        defender_hp_max=100,
         defender_hp_ratio=request.defender.current_hp_pct / 100,
         attacker_locked_paradox_stat=None
         if request.attacker.boosted_stat in (None, "auto")

@@ -47,6 +47,7 @@ _SUPPORTED_DEFENDER_ABILITIES = frozenset({
     "pressure", "intimidate", "drizzle", "drought", "sand-stream", "snow-warning",
     "battle-armor", "shell-armor", "guts", "sturdy", "rough-skin", "iron-barbs",
     "static", "flame-body", "poison-point", "heatproof", "water-bubble", "fluffy", "punk-rock",
+    "multiscale", "shadow-shield",
 })
 _SUPPORTED_ATTACKER_ITEMS = frozenset({"scope-lens", "razor-claw", "loaded-dice"})
 _POISONED = frozenset({"poison", "poisoned", "toxic", "badly-poisoned"})

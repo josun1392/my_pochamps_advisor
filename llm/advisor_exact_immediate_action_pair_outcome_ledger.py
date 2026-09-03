@@ -15,6 +15,9 @@ from llm.advisor_low_hp_type_offensive_ability import (
 from llm.advisor_guts_status_attack_ability import (
     validate_guts_status_attack_ability_applicability,
 )
+from llm.advisor_full_hp_defender_ability import (
+    validate_full_hp_defender_ability_applicability,
+)
 
 
 SCHEMA_VERSION = "exact-immediate-action-pair-outcome-ledger-v1"
@@ -241,6 +244,26 @@ def _guts_status_attack_leaf(leaf: Mapping[str, Any]) -> str | None:
             or (source_hit is not None and source_hit.get("hit_index") != hit.get("hit_index"))
         ):
             return "pair_final_guts_status_attack_ability_consequence_invalid"
+    full_hp_error = _full_hp_defender_ability_leaf(ordered)
+    if full_hp_error is not None:
+        return full_hp_error
+    return None
+
+
+def _full_hp_defender_ability_leaf(ordered: tuple | list) -> str | None:
+    for hit in ordered:
+        evidence = hit.get("full_hp_defender_ability") if isinstance(hit, Mapping) else None
+        if evidence is None:
+            continue
+        source_hit = evidence.get("source_hit") if isinstance(evidence, Mapping) else None
+        if (
+            not validate_full_hp_defender_ability_applicability(evidence)
+            or not isinstance(source_hit, Mapping)
+            or source_hit.get("hit_index") != hit.get("hit_index")
+            or evidence.get("defender_current_hp") != hit.get("pre_hp")
+            or evidence.get("defender_max_hp") != hit.get("target_max_hp")
+        ):
+            return "pair_final_full_hp_defender_ability_consequence_invalid"
     return None
 
 

@@ -967,7 +967,16 @@ def build_runtime_d0_native_damage_context(
         "direct_mechanics_context": {
             "generation": "gen9",
             "attacker": _native_direct_side(raw_attacker, path_attacker, attacker_stages, hp_source=path_hp_authority["provenance"]),
-            "defender": _native_direct_side(raw_target, preview_target, target_stages),
+            "defender": _native_direct_side(
+                raw_target, preview_target, target_stages,
+                hp_source=(
+                    "detached_path_local_defender_hp_v1"
+                    if raw_target.get("detached_path_local_defender_hp_authority") is True
+                    else "detached_switch_first_defender_hp_v1"
+                    if raw_target.get("detached_switch_first_defender_hp_authority") is True
+                    else "runtime_strategy_d0_v1"
+                ),
+            ),
             "field": _native_field_direct_context(state),
         },
         "low_hp_source_hit": deepcopy(dict(low_hp_source_hit)) if isinstance(low_hp_source_hit, Mapping) else None,

@@ -8,9 +8,10 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_immediate_attack_vs_opponent_switch_action_pair import _owner, _state
 
 
-def _inputs(*, move_id="double-hit", power=40, accuracy=100, target_hp=100):
+def _inputs(*, move_id="double-hit", power=40, accuracy=100, target_hp=100, target_ability="pressure"):
     state = _state(); target = state["opponent_side"]["pokemon"][0]
     target["current_hp"] = target_hp; target["max_hp"] = max(100, target_hp); target["fainted"] = False
+    target["current_ability"] = target_ability
     snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
     own, foe = _owner(state, "self"), _owner(state, "opponent")
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=own)
@@ -52,6 +53,25 @@ def test_first_hit_ko_stops_second_hit_and_sturdy_first_hit_survival_allows_seco
     assert saved["status"] == "evaluable"
     assert all(leaf["ordered_hits"][0]["post_hp"] == 1 and leaf["ordered_hits"][0]["sturdy_applied"] for leaf in saved["terminal_leaves"])
     assert all(len(leaf["ordered_hits"]) == 2 and leaf["consequences"]["target_ko"] is True for leaf in saved["terminal_leaves"])
+
+
+def test_multiscale_is_re_evaluated_from_exact_path_local_defender_hp_per_hit():
+    _state0, snapshot, d0, action, execution, _own, _foe = _inputs(target_ability="multiscale")
+    result = materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=execution,
+    )
+    assert result["status"] == "evaluable", result.get("reason")
+    for leaf in result["terminal_leaves"]:
+        first, second = leaf["ordered_hits"]
+        first_evidence = first["full_hp_defender_ability"]
+        second_evidence = second["full_hp_defender_ability"]
+        assert first_evidence["outcome"] == "applicable"
+        assert first_evidence["modifier_q12"] == 2048
+        assert first_evidence["defender_hp_source"] == "runtime_strategy_d0_v1"
+        assert second["pre_hp"] < second["target_max_hp"]
+        assert second_evidence["outcome"] == "not_applicable"
+        assert second_evidence["modifier_q12"] == 4096
+        assert second_evidence["defender_hp_source"] == "detached_path_local_defender_hp_v1"
 
 
 def test_focus_sash_saved_first_hit_is_consumed_before_second_fixed_hit():
