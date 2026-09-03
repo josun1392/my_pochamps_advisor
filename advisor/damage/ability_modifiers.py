@@ -235,6 +235,8 @@ def attacker_base_power_ability_mod(
 ) -> int:
     if ability is None or not ability.implemented:
         return Q12_ONE
+    if ability.ability_id == "supreme-overlord":
+        return ability.multiplier_q12
     if ability.ability_id == "sand-force":
         if weather == "sand" and not weather_suppressed:
             if move_type in ability.boosted_types:

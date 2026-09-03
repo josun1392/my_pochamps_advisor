@@ -65,7 +65,7 @@ def _apply(state: dict, events: list[dict]) -> dict:
     return projected["projected_state"]
 
 
-def _context(state: dict, move_metadata: dict | None = None, *, attacker_hp_authority: dict | None = None, low_hp_source_hit: dict | None = None, analytic_action_order_authority: dict | None = None) -> dict:
+def _context(state: dict, move_metadata: dict | None = None, *, attacker_hp_authority: dict | None = None, low_hp_source_hit: dict | None = None, analytic_action_order_authority: dict | None = None, supreme_overlord_damage_authority: dict | None = None) -> dict:
     snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
     metadata = move_metadata or {"move_id": "water-gun", "category": "special", "power": 40, "type": "water"}
@@ -74,6 +74,7 @@ def _context(state: dict, move_metadata: dict | None = None, *, attacker_hp_auth
         target=_owner(state, "opponent"), move_metadata=metadata,
         attacker_hp_authority=attacker_hp_authority, low_hp_source_hit=low_hp_source_hit,
         analytic_action_order_authority=analytic_action_order_authority,
+        supreme_overlord_damage_authority=supreme_overlord_damage_authority,
     )
 
 
@@ -208,6 +209,75 @@ def test_runtime_d0_stakeout_requires_exact_same_turn_switch_authority() -> None
     context = _context(state, {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal"})
     assert context["status"] == "incomplete"
     assert "stakeout.same_turn_switch_authority" in context["missing_authority"]
+
+
+def test_runtime_d0_supreme_overlord_uses_frozen_entry_snapshot_q12_map() -> None:
+    expected = (4096, 4506, 4915, 5325, 5734, 6144)
+    for fallen, modifier in enumerate(expected):
+        base = _base()
+        state = _apply(base, _confirmations(
+            base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+            attacker_ability="supreme-overlord", target_ability="pressure",
+        ))
+        owner = _owner(state, "self")
+        state["supreme_overlord_entry_snapshots"] = [{
+            "schema_version": "supreme-overlord-entry-snapshot-v1", "session_id": state["session_id"],
+            "owner": owner, "entry_token": f"entry:{fallen}", "entry_kind": "initial_active",
+            "raw_allied_faint_count": fallen, "fallen_allies_count": fallen,
+            "source_sequence": 1, "source_state_fingerprint": "fixture", "status": "resolved", "active": True,
+            "provenance": {"event_kind": "fixture", "source_sequence": 1},
+        }]
+        context = _context(state, {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal"})
+        assert context["status"] == "resolved", context
+        authority = context["snapshot_damage_input"]["battle_context"]["current_state"]["supreme_overlord_damage_authority"]
+        assert authority["modifier_q12"] == modifier
+        if fallen:
+            assert "ability_supreme_overlord_entry_boost" in context["native_evaluation"]["applied_damage_modifiers"]
+        else:
+            assert "ability_supreme_overlord_entry_boost" not in context["native_evaluation"]["applied_damage_modifiers"]
+
+
+def test_runtime_d0_supreme_overlord_applies_to_special_and_missing_snapshot_fails_closed() -> None:
+    base = _base()
+    state = _apply(base, _confirmations(
+        base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+        attacker_ability="supreme-overlord", target_ability="pressure",
+    ))
+    owner = _owner(state, "self")
+    state["supreme_overlord_entry_snapshots"] = [{
+        "schema_version": "supreme-overlord-entry-snapshot-v1", "session_id": state["session_id"], "owner": owner,
+        "entry_token": "special", "entry_kind": "initial_active", "raw_allied_faint_count": 2,
+        "fallen_allies_count": 2, "source_sequence": 1, "source_state_fingerprint": "fixture",
+        "status": "resolved", "active": True, "provenance": {"event_kind": "fixture", "source_sequence": 1},
+    }]
+    special = _context(state, {"move_id": "water-gun", "category": "special", "power": 40, "type": "water"})
+    assert special["status"] == "resolved"
+    assert "ability_supreme_overlord_entry_boost" in special["native_evaluation"]["applied_damage_modifiers"]
+    state.pop("supreme_overlord_entry_snapshots")
+    missing = _context(state, {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal"})
+    assert missing["status"] == "incomplete"
+    assert "supreme_overlord.entry_snapshot_authority" in missing["missing_authority"]
+
+
+def test_runtime_d0_supreme_overlord_rejects_forged_move_bound_authority() -> None:
+    base = _base()
+    state = _apply(base, _confirmations(
+        base, attacker_item={"status": "known_absent"}, target_item={"status": "known_absent"},
+        attacker_ability="supreme-overlord", target_ability="pressure",
+    ))
+    owner = _owner(state, "self")
+    state["supreme_overlord_entry_snapshots"] = [{
+        "schema_version": "supreme-overlord-entry-snapshot-v1", "session_id": state["session_id"], "owner": owner,
+        "entry_token": "frozen-entry", "entry_kind": "initial_active", "raw_allied_faint_count": 2,
+        "fallen_allies_count": 2, "source_sequence": 1, "source_state_fingerprint": "fixture",
+        "status": "resolved", "active": True, "provenance": {"event_kind": "fixture", "source_sequence": 1},
+    }]
+    valid = _context(state, {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal"})
+    authority = valid["snapshot_damage_input"]["battle_context"]["current_state"]["supreme_overlord_damage_authority"]
+    forged = {**authority, "move_id": "water-gun"}
+    rejected = _context(state, {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal"}, supreme_overlord_damage_authority=forged)
+    assert rejected["status"] == "incomplete"
+    assert "supreme_overlord.entry_snapshot_authority" in rejected["missing_authority"]
 
 
 def test_runtime_native_damage_context_uses_detached_path_local_attacker_hp_override_for_low_hp() -> None:

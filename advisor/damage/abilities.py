@@ -52,6 +52,12 @@ _CANONICAL_ABILITY_OVERRIDES = {
         multiplier_q12=MUL_2_0,
         raw_data={"condition": "exact_same_turn_opponent_switch_target", "provenance": "canonical_stakeout_v1"},
     ),
+    "supreme-overlord": AbilityEffect(
+        ability_id="supreme-overlord",
+        category="bp_modifier",
+        implemented=True,
+        raw_data={"condition": "frozen_entry_fallen_allies_count", "provenance": "canonical_supreme_overlord_v1"},
+    ),
 }
 
 
