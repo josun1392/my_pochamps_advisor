@@ -638,13 +638,15 @@ def _materialize_order(
                 replacement_authority=(pivot_replacement_authorities or {}).get(leaf["leaf_id"]),
             )
             if pivot.get("status") == "applies":
+                entry = (pivot_entry_authorities or {}).get(leaf["leaf_id"])
+                if not isinstance(entry, Mapping): return _result("incomplete", "pivot_switch_entry_authority_missing", base, first_leaf_id=leaf["leaf_id"])
                 precursor = freeze_detached_intermediate_predictive_authority(
                     strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
                     intermediate_state=intermediate, actor=first_actor, target=second_actor,
                     move_metadata_authority=own_meta,
                 )
                 if precursor.get("status") != "resolved": return _result(_status(precursor), precursor.get("reason", "pivot_post_attack_authority_unavailable"), base, first_leaf_id=leaf["leaf_id"])
-                switched = materialize_detached_damage_pivot_switch(intermediate_authority=precursor, pivot_authority=pivot, entry_authority=(pivot_entry_authorities or {}).get(leaf["leaf_id"]))
+                switched = materialize_detached_damage_pivot_switch(intermediate_authority=precursor, pivot_authority=pivot, entry_authority=entry)
                 if switched.get("status") != "resolved": return _result(_status(switched), switched.get("reason", "pivot_switch_transition_unavailable"), base, first_leaf_id=leaf["leaf_id"])
                 incoming = switched.get("resulting_active_owner")
                 post_snapshot = switched.get("runtime_snapshot")

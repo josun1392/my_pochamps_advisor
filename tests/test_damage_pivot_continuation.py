@@ -76,7 +76,7 @@ def test_pivot_first_rebinds_pending_second_action_to_the_exact_incoming_owner(m
     def ledger(*, actor, target, **_):
         return {"status": "evaluable", "terminal_leaves": (first if actor == own else second,)}
     monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair._attack_ledger", ledger)
-    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot={"state": {}}, own_action=own_action, opponent_action=opponent_action, action_order_authority=order, pivot_replacement_authorities={first["leaf_id"]: _replacement(d0)})
+    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot={"state": {}}, own_action=own_action, opponent_action=opponent_action, action_order_authority=order, pivot_replacement_authorities={first["leaf_id"]: _replacement(d0)}, pivot_entry_authorities={first["leaf_id"]: {}})
     assert pair["status"] == "evaluable", pair.get("reason")
     branch = pair["terminal_branches"][0]
     assert branch["second_action"]["leaf"]["provenance"]["target"] == incoming
