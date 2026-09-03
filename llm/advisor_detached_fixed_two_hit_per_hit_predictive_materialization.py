@@ -105,8 +105,8 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
                 first_status_probability = first_probability * first_status["factor"]
                 first_event_with_status = _event_with_reactive_status(first_event, first_status)
                 first_condition = first_status["post_condition"]
-                if first_event["post_hp"] == 0 or first_attacker_hp == 0:
-                    reason = "target_fainted" if first_event["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage"
+                if first_event["post_hp"] == 0 or first_attacker_hp == 0 or first_status.get("cancels_remaining_hits") is True:
+                    reason = "target_fainted" if first_event["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if first_attacker_hp == 0 else "effect_spore_sleep_cancels_remaining_hits"
                     leaf = _leaf(base, "hit", first_status_probability, (first_event_with_status,), first_event["post_hp"], _sturdy_state(sturdy_survival_authority, consumed=first_event["sturdy_applied"]), focus_sash_state(focus_sash_survival_authority, consumed=first_event["focus_sash_applied"]), own_final_hp=first_attacker_hp, terminal_reason=reason)
                     if first_attacker_hp != 0:
                         leaf = _apply_life_orb_to_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, action=action, move_metadata=metadata, leaf=leaf)
@@ -464,6 +464,7 @@ def _apply_reactive_status(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         rows.append({
             "branch": branch["branch"], "factor": branch["factor"],
             "post_condition": condition_from_overlay(overlay if isinstance(overlay, Mapping) else None, condition_state),
+            "cancels_remaining_hits": bool(isinstance(overlay, Mapping) and overlay.get("cancels_remaining_hits") is True),
             "authority": authority, "overlay": overlay,
         })
     return tuple(rows)

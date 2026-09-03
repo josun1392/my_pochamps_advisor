@@ -169,10 +169,10 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             for status in status_branches:
                 status_event = _event_with_reactive_status(event_row, status)
                 factor = probability * status["factor"]
-                terminal = event_row["post_hp"] == 0 or attacker_hp == 0 or hit_index == node["selected_hit_count"]
+                terminal = event_row["post_hp"] == 0 or attacker_hp == 0 or status.get("cancels_remaining_hits") is True or hit_index == node["selected_hit_count"]
                 edge = {"edge_id": f"{node['node_id']}/hit:{hit_index}:{event_row['critical_state']}:roll:{event_row['roll_index']}:status:{status['branch']}", "from_node_id": node["node_id"], "conditional_probability": factor, "ordered_hit": status_event, "terminal": terminal}
                 if terminal:
-                    edge["terminal_reason"] = "target_fainted" if event_row["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if attacker_hp == 0 else "selected_hit_count_reached"
+                    edge["terminal_reason"] = "target_fainted" if event_row["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if attacker_hp == 0 else "effect_spore_sleep_cancels_remaining_hits" if status.get("cancels_remaining_hits") is True else "selected_hit_count_reached"
                     consequences = _consequences(base, event_row["post_hp"], sturdy_survival_authority, sturdy_consumed, focus_sash_survival_authority, focus_sash_consumed, attacker_hp=attacker_hp, terminal_reason=edge["terminal_reason"])
                     consequences["contact_reactive_status"] = deepcopy(status_event.get("contact_reactive_status"))
                     if attacker_hp != 0:

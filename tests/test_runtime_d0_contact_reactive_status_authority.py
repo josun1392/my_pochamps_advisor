@@ -108,6 +108,61 @@ def test_static_flame_body_and_poison_point_resolve_exact_activation_branches():
         assert overlay["hypothetical_condition_authority"]["condition"] == condition
 
 
+def test_effect_spore_resolves_its_four_canonical_exact_outcomes():
+    state, _snapshot, _d0, action, _response_set, _orders = _pair_inputs()
+    _set_active(state, "opponent", ability="effect-spore")
+    snapshot, d0 = _refresh(state); action = _rebind_action(action, d0)
+    authority = freeze_runtime_d0_contact_reactive_status_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, attacker=d0["active_owners"]["self"],
+        defender=d0["active_owners"]["opponent"], source_action=action,
+        contact_authority=_contact(d0, snapshot, action), source_hit=_source_hit(action),
+    )
+    assert authority["status"] == "resolved", authority
+    assert authority["outcome"] == "applies" and authority["reactive_ability"] == "effect-spore"
+    branches = contact_reactive_status_branches(authority=authority)
+    assert [(row["branch"], row["factor"]) for row in branches] == [
+        ("sleep", Fraction(11, 100)), ("paralysis", Fraction(1, 10)),
+        ("poison", Fraction(9, 100)), ("none", Fraction(7, 10)),
+    ]
+    assert sum(row["factor"] for row in branches) == 1
+    sleep = materialize_detached_contact_reactive_status(authority=authority, branch="sleep")
+    assert sleep["transition_applied"] is True and sleep["cancels_remaining_hits"] is True
+    assert sleep["hypothetical_condition_authority"]["condition"] == "sleep"
+    for branch in ("paralysis", "poison"):
+        overlay = materialize_detached_contact_reactive_status(authority=authority, branch=branch)
+        assert overlay["transition_applied"] is True and overlay["cancels_remaining_hits"] is False
+    assert materialize_detached_contact_reactive_status(authority=authority, branch="none")["transition_applied"] is False
+
+
+def test_effect_spore_immunities_and_prevented_outcomes_keep_exact_mass():
+    for types, ability, item in ((["grass"], "pressure", None), (["normal"], "overcoat", None), (["normal"], "pressure", "safety-goggles")):
+        state, _snapshot, _d0, action, _response_set, _orders = _pair_inputs()
+        _set_active(state, "opponent", ability="effect-spore")
+        _set_active(state, "self", types=types, ability=ability, item_marker=item)
+        snapshot, d0 = _refresh(state); action = _rebind_action(action, d0)
+        authority = freeze_runtime_d0_contact_reactive_status_authority(
+            strategy_d0=d0, runtime_snapshot=snapshot, attacker=d0["active_owners"]["self"], defender=d0["active_owners"]["opponent"],
+            source_action=action, contact_authority=_contact(d0, snapshot, action), source_hit=_source_hit(action),
+        )
+        assert authority["outcome"] == "not_applicable", authority
+        assert contact_reactive_status_branches(authority=authority)[0]["overlay"]["transition_applied"] is False
+
+    state, _snapshot, _d0, action, _response_set, _orders = _pair_inputs()
+    _set_active(state, "opponent", ability="effect-spore")
+    _set_active(state, "self", types=["steel"], condition="burn")
+    snapshot, d0 = _refresh(state); action = _rebind_action(action, d0)
+    authority = freeze_runtime_d0_contact_reactive_status_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, attacker=d0["active_owners"]["self"], defender=d0["active_owners"]["opponent"],
+        source_action=action, contact_authority=_contact(d0, snapshot, action), source_hit=_source_hit(action),
+    )
+    overlays = {branch: materialize_detached_contact_reactive_status(authority=authority, branch=branch) for branch in ("sleep", "paralysis", "poison", "none")}
+    assert [overlays[key]["probability"] for key in overlays] == [
+        {"numerator": 11, "denominator": 100}, {"numerator": 1, "denominator": 10},
+        {"numerator": 9, "denominator": 100}, {"numerator": 7, "denominator": 10},
+    ]
+    assert all(overlay["transition_applied"] is False for overlay in overlays.values())
+
+
 def test_activation_branch_preserves_no_transition_for_already_statused_and_immunity_without_renormalizing():
     cases = (
         ("static", "none", ["electric"], "attacker_electric_type_immune"),
@@ -214,6 +269,47 @@ def test_fixed_two_hit_static_paralysis_persists_but_does_not_cancel_second_hit(
         and leaf["ordered_hits"][1]["contact_reactive_status"]["overlay"]["blocked_reason"] == "attacker_already_statused"
         for leaf in result["terminal_leaves"]
     )
+
+
+def test_fixed_two_hit_effect_spore_sleep_cancels_only_the_remaining_hits():
+    state, snapshot, d0, action, execution, _own, _foe = _fixed_inputs(power=1, target_hp=1000)
+    _set_active(state, "opponent", ability="effect-spore")
+    _set_active(state, "self", ability="guts")
+    snapshot, d0 = _refresh(state); action = _rebind_action(action, d0)
+    from llm.advisor_runtime_d0_fixed_two_hit_multi_hit_execution_authority import freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority
+    from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import materialize_detached_fixed_two_hit_per_hit_predictive_leaves
+    execution = freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action)
+    result = materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=execution,
+        contact_reactive_contact_authority=_contact(d0, snapshot, action, force_contact=True),
+    )
+    assert result["status"] == "evaluable", result.get("reason")
+    sleeping = [leaf for leaf in result["terminal_leaves"] if leaf["ordered_hits"][0]["contact_reactive_status"]["branch"] == "sleep"]
+    assert sleeping and all(len(leaf["ordered_hits"]) == 1 and leaf["consequences"]["terminal_reason"] == "effect_spore_sleep_cancels_remaining_hits" for leaf in sleeping)
+    assert any(
+        leaf["ordered_hits"][0]["contact_reactive_status"]["branch"] in {"paralysis", "poison"}
+        and len(leaf["ordered_hits"]) == 2
+        and leaf["ordered_hits"][1]["guts_status_attack_ability"]["outcome"] == "applicable"
+        and leaf["ordered_hits"][1]["guts_status_attack_ability"]["attacker_condition"] == leaf["ordered_hits"][0]["contact_reactive_status"]["branch"]
+        for leaf in result["terminal_leaves"]
+    )
+
+
+def test_effect_spore_overcoat_and_safety_goggles_remain_evaluable_in_the_hit_pipeline():
+    from llm.advisor_runtime_d0_fixed_two_hit_multi_hit_execution_authority import freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority
+    from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import materialize_detached_fixed_two_hit_per_hit_predictive_leaves
+    for ability, item in (("overcoat", "unchanged"), ("pressure", "safety-goggles")):
+        state, snapshot, d0, action, _execution, _own, _foe = _fixed_inputs(power=1, target_hp=1000)
+        _set_active(state, "opponent", ability="effect-spore")
+        _set_active(state, "self", ability=ability, item_marker=item)
+        snapshot, d0 = _refresh(state); action = _rebind_action(action, d0)
+        execution = freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action)
+        result = materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
+            strategy_d0=d0, runtime_snapshot=snapshot, action=action, execution_authority=execution,
+            contact_reactive_contact_authority=_contact(d0, snapshot, action, force_contact=True),
+        )
+        assert result["status"] == "evaluable", result.get("reason")
+        assert all(hit["contact_reactive_status"]["branch"] == "not_applicable" for leaf in result["terminal_leaves"] for hit in leaf["ordered_hits"])
 
 
 def test_supported_multihit_graphs_branch_contact_status_without_renormalizing_or_resetting_hp():

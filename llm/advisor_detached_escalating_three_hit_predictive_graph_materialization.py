@@ -156,10 +156,10 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             for status in status_branches:
                 status_row = _event_with_reactive_status(row, status)
                 edge_factor = hit_probability * factor * status["factor"]
-                terminal = row["post_hp"] == 0 or attacker_hp == 0 or hit_index == 3
+                terminal = row["post_hp"] == 0 or attacker_hp == 0 or status.get("cancels_remaining_hits") is True or hit_index == 3
                 edge = {"edge_id": f"{node['node_id']}/hit:{hit_index}:landed:{row['critical_state']}:roll:{row['roll_index']}:status:{status['branch']}", "from_node_id": node["node_id"], "conditional_probability": edge_factor, "hit_outcome": {"hit_index": hit_index, "base_power": power, "outcome": "hit", "ordered_hit": status_row}, "terminal": terminal}
                 if terminal:
-                    edge["terminal_reason"] = "target_fainted" if row["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if attacker_hp == 0 else "all_three_hits_landed"
+                    edge["terminal_reason"] = "target_fainted" if row["post_hp"] == 0 else "attacker_fainted_from_contact_reactive_damage" if attacker_hp == 0 else "effect_spore_sleep_cancels_remaining_hits" if status.get("cancels_remaining_hits") is True else "all_three_hits_landed"
                     consequences = _consequences(base, row["post_hp"], sturdy_survival_authority, sturdy_consumed, focus_sash_survival_authority, focus_sash_consumed, hit_index, attacker_hp=attacker_hp, terminal_reason=edge["terminal_reason"])
                     consequences["contact_reactive_status"] = deepcopy(status_row.get("contact_reactive_status"))
                     if attacker_hp != 0:

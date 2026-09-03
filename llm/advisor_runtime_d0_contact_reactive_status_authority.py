@@ -1,4 +1,4 @@
-"""Strict detached post-contact status authority for Static/Flame Body/Poison Point."""
+"""Strict detached post-contact status authority for contact-status abilities."""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -16,11 +16,19 @@ OVERLAY_SCHEMA_VERSION = "detached-contact-reactive-status-overlay-v1"
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _CONDITIONS = frozenset({"burn", "poison", "toxic", "paralysis", "sleep", "freeze"})
 _ABILITY_TO_CONDITION = {"static": "paralysis", "flame-body": "burn", "poison-point": "poison"}
-_ABILITY_ORDER = {"static": 0, "flame-body": 0, "poison-point": 0}
+_SUPPORTED_ABILITIES = frozenset({*_ABILITY_TO_CONDITION, "effect-spore"})
+_ABILITY_ORDER = {"static": 0, "flame-body": 0, "poison-point": 0, "effect-spore": 0}
+_EFFECT_SPORE_OUTCOMES = (
+    ("sleep", Fraction(11, 100)),
+    ("paralysis", Fraction(10, 100)),
+    ("poison", Fraction(9, 100)),
+    ("none", Fraction(70, 100)),
+)
 _PREVENTING_ABILITIES = {
     "paralysis": {"limber", "comatose", "purifying-salt"},
     "burn": {"water-veil", "water-bubble", "comatose", "purifying-salt", "thermal-exchange"},
     "poison": {"immunity", "comatose", "purifying-salt"},
+    "sleep": {"insomnia", "vital-spirit", "comatose", "purifying-salt"},
 }
 
 
@@ -32,7 +40,7 @@ def contact_reactive_status_relevance(*, runtime_snapshot: Mapping[str, Any], de
     ability = modifiers["ability_authority"].get("value")
     return {
         "status": "resolved",
-        "relevant": ability in _ABILITY_TO_CONDITION,
+        "relevant": ability in _SUPPORTED_ABILITIES,
         "defender_modifier_authorities": deepcopy(modifiers),
     }
 
@@ -77,7 +85,7 @@ def freeze_runtime_d0_contact_reactive_status_authority(
     if modifiers is None:
         return _result("incomplete", "contact_reactive_status_defender_ability_unknown", base)
     ability = modifiers["ability_authority"].get("value")
-    if ability not in _ABILITY_TO_CONDITION:
+    if ability not in _SUPPORTED_ABILITIES:
         return {
             "status": "resolved", "schema_version": SCHEMA_VERSION, **base,
             "outcome": "no_reactive_source", "reactive_ability": ability,
@@ -91,7 +99,6 @@ def freeze_runtime_d0_contact_reactive_status_authority(
     condition_before = _condition_state(current_condition)
     if condition_before is None:
         return _result("incomplete", "contact_reactive_status_attacker_condition_unknown", base)
-    attempted = _ABILITY_TO_CONDITION[ability]
     attacker_modifiers = _current_modifier_authorities(runtime_snapshot, base["attacker"])
     if attacker_modifiers is None:
         return _result("incomplete", "contact_reactive_status_prevention_authority_unknown", base)
@@ -99,6 +106,21 @@ def freeze_runtime_d0_contact_reactive_status_authority(
     if fainted is None:
         return _result("incomplete", "contact_reactive_status_attacker_fainted_authority_unknown", base)
     type_authority = None
+    if ability == "effect-spore":
+        type_authority = _runtime_type_authority(runtime_snapshot, base["attacker"])
+        if type_authority.get("status") != "resolved":
+            return _result(type_authority["status"], type_authority["reason"], base)
+        immunity = _effect_spore_immunity(type_authority, attacker_modifiers)
+        if immunity["outcome"] == "immune":
+            return _not_applicable(base, contact_authority, hit, immunity["reason"], reactive_ability=ability,
+                                   defender_modifier_authorities=modifiers, attacker_modifier_authorities=attacker_modifiers,
+                                   type_authority=type_authority, effect_spore_immunity=immunity)
+        return _effect_spore_authority(
+            base=base, contact_authority=contact_authority, hit=hit, modifiers=modifiers,
+            attacker_modifiers=attacker_modifiers, current_condition=current_condition,
+            condition_before=condition_before, type_authority=type_authority, fainted=fainted,
+        )
+    attempted = _ABILITY_TO_CONDITION[ability]
     prevention = {"status": "resolved", "outcome": "not_prevented", "reason": None}
     if condition_before == "none" and not fainted:
         type_authority = _runtime_type_authority(runtime_snapshot, base["attacker"])
@@ -136,10 +158,41 @@ def materialize_detached_contact_reactive_status(*, authority: Mapping[str, Any]
         return {"status": "rejected", "reason": "invalid_contact_reactive_status_authority"}
     if authority.get("status") != "resolved":
         return {"status": authority.get("status", "rejected"), "reason": authority.get("reason", "contact_reactive_status_unavailable")}
-    if branch not in {"activation", "no_activation"}:
+    allowed = {"activation", "no_activation"} if authority.get("reactive_ability") != "effect-spore" else {"sleep", "paralysis", "poison", "none"}
+    if branch not in allowed:
         return {"status": "rejected", "reason": "contact_reactive_status_branch_invalid"}
     if authority.get("outcome") != "applies":
         return _overlay_no_transition(authority, branch, authority.get("reason", authority.get("outcome", "not_applicable")))
+    if authority.get("reactive_ability") == "effect-spore":
+        if not _valid_effect_spore_outcomes(authority.get("effect_spore_outcomes")):
+            return {"status": "rejected", "reason": "effect_spore_outcomes_invalid"}
+        outcome = next((row for row in authority.get("effect_spore_outcomes", ()) if isinstance(row, Mapping) and row.get("outcome") == branch), None)
+        if not isinstance(outcome, Mapping):
+            return {"status": "rejected", "reason": "effect_spore_outcome_missing"}
+        probability = outcome.get("probability")
+        if not isinstance(probability, Mapping):
+            return {"status": "rejected", "reason": "effect_spore_outcome_probability_invalid"}
+        if branch == "none":
+            return _overlay_no_transition(authority, branch, "no_activation", probability=probability)
+        if outcome.get("transition_applies") is not True:
+            return _overlay_no_transition(authority, branch, outcome.get("blocked_reason", "activation_no_transition"), probability=probability)
+        transition = {
+            "status": "known_present", "condition": branch,
+            "condition_before": "known_none", "condition_after": branch,
+            "trigger": "successful_damaging_contact_hit",
+            "source_consequence_id": f"contact_reactive_status:effect-spore:{branch}",
+            "source_hit": deepcopy(dict(authority["source_hit"])),
+            "provenance": "detached_contact_reactive_status_condition_transition_v1",
+        }
+        return {
+            "status": "resolved", "schema_version": OVERLAY_SCHEMA_VERSION,
+            "branch": branch, "probability": deepcopy(dict(probability)),
+            "transition_applied": True, "owner": deepcopy(dict(authority["attacker"])),
+            "hypothetical_condition_authority": transition, "source_authority": deepcopy(dict(authority)),
+            "cancels_remaining_hits": branch == "sleep",
+            "cancellation_reason": "effect_spore_sleep_cancels_remaining_hits" if branch == "sleep" else None,
+            "provenance": "detached_contact_reactive_status_overlay_v1",
+        }
     probability = authority["activation_probability"] if branch == "activation" else authority["no_activation_probability"]
     if branch == "no_activation":
         return _overlay_no_transition(authority, branch, "no_activation", probability=probability)
@@ -171,8 +224,15 @@ def materialize_detached_contact_reactive_status(*, authority: Mapping[str, Any]
 def contact_reactive_status_branches(*, authority: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
     """Return serialized exact branches for an already-frozen event."""
     if not isinstance(authority, Mapping) or authority.get("status") != "resolved" or authority.get("outcome") != "applies":
-        overlay = materialize_detached_contact_reactive_status(authority=authority, branch="no_activation")
+        branch = "none" if isinstance(authority, Mapping) and authority.get("reactive_ability") == "effect-spore" else "no_activation"
+        overlay = materialize_detached_contact_reactive_status(authority=authority, branch=branch)
         return ({"branch": "not_applicable", "factor": Fraction(1, 1), "overlay": overlay},)
+    if authority.get("reactive_ability") == "effect-spore":
+        rows = []
+        for outcome, probability in _EFFECT_SPORE_OUTCOMES:
+            overlay = materialize_detached_contact_reactive_status(authority=authority, branch=outcome)
+            rows.append({"branch": outcome, "factor": probability, "overlay": overlay})
+        return tuple(rows)
     return (
         {"branch": "activation", "factor": Fraction(3, 10), "overlay": materialize_detached_contact_reactive_status(authority=authority, branch="activation")},
         {"branch": "no_activation", "factor": Fraction(7, 10), "overlay": materialize_detached_contact_reactive_status(authority=authority, branch="no_activation")},
@@ -185,6 +245,65 @@ def condition_from_overlay(overlay: Mapping[str, Any] | None, fallback: str) -> 
     condition = overlay.get("hypothetical_condition_authority")
     value = condition.get("condition") if isinstance(condition, Mapping) else None
     return value if value in _CONDITIONS else fallback
+
+
+def _valid_effect_spore_outcomes(value: Any) -> bool:
+    if not isinstance(value, (tuple, list)) or len(value) != len(_EFFECT_SPORE_OUTCOMES):
+        return False
+    expected = {
+        outcome: _fraction(probability)
+        for outcome, probability in _EFFECT_SPORE_OUTCOMES
+    }
+    actual: dict[str, Mapping[str, Any]] = {}
+    for row in value:
+        if not isinstance(row, Mapping) or row.get("outcome") not in expected or row["outcome"] in actual:
+            return False
+        actual[row["outcome"]] = row
+    return set(actual) == set(expected) and all(
+        row.get("probability") == expected[outcome]
+        and isinstance(row.get("transition_applies"), bool)
+        and (outcome != "none" or row.get("transition_applies") is False)
+        for outcome, row in actual.items()
+    )
+
+
+def _effect_spore_authority(*, base: Mapping[str, Any], contact_authority: Mapping[str, Any], hit: Mapping[str, Any], modifiers: Mapping[str, Any], attacker_modifiers: Mapping[str, Any], current_condition: Mapping[str, Any], condition_before: str, type_authority: Mapping[str, Any], fainted: bool) -> dict[str, Any]:
+    outcomes = []
+    for condition, probability in _EFFECT_SPORE_OUTCOMES:
+        if condition == "none":
+            outcomes.append({"outcome": condition, "probability": _fraction(probability), "transition_applies": False, "blocked_reason": "no_activation", "prevention_authority": None})
+            continue
+        prevention = _prevention(condition, type_authority, attacker_modifiers)
+        blocked = (
+            "attacker_fainted_before_reactive_status" if fainted else
+            "attacker_already_statused" if condition_before != "none" else
+            prevention["reason"] if prevention["outcome"] == "prevented" else None
+        )
+        outcomes.append({"outcome": condition, "probability": _fraction(probability), "transition_applies": blocked is None, "blocked_reason": blocked, "prevention_authority": deepcopy(dict(prevention))})
+    return {
+        "status": "resolved", "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)),
+        "outcome": "applies", "reactive_ability": "effect-spore", "condition_before": condition_before,
+        "effect_spore_immunity": {"status": "resolved", "outcome": "not_immune", "reason": None},
+        "effect_spore_outcomes": tuple(outcomes), "event_order": _ABILITY_ORDER["effect-spore"],
+        "contact_authority": deepcopy(dict(contact_authority)), "source_hit": deepcopy(dict(hit)),
+        "condition_authority": deepcopy(dict(current_condition)), "type_authority": deepcopy(dict(type_authority)),
+        "defender_modifier_authorities": deepcopy(dict(modifiers)), "attacker_modifier_authorities": deepcopy(dict(attacker_modifiers)),
+        "attacker_fainted_authority": {"status": "known", "value": fainted},
+        "provenance": "runtime_d0_canonical_contact_reactive_status_ability_family_v1",
+    }
+
+
+def _effect_spore_immunity(types: Mapping[str, Any], modifiers: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    values = set(types.get("types", ()))
+    ability = modifiers["ability_authority"].get("value")
+    item = modifiers["item_authority"].get("value")
+    if "grass" in values:
+        return {"status": "resolved", "outcome": "immune", "reason": "attacker_grass_type_immune"}
+    if ability == "overcoat":
+        return {"status": "resolved", "outcome": "immune", "reason": "attacker_overcoat_immune"}
+    if item == "safety-goggles":
+        return {"status": "resolved", "outcome": "immune", "reason": "attacker_safety_goggles_immune"}
+    return {"status": "resolved", "outcome": "not_immune", "reason": None}
 
 
 def _overlay_no_transition(authority: Mapping[str, Any], branch: str, reason: Any, *, probability: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -319,8 +438,12 @@ def _runtime_pokemon(snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> M
     return pokemon if isinstance(pokemon, Mapping) and pokemon.get("pokemon_id") == owner.get("pokemon_id") else None
 
 
-def _not_applicable(base: Mapping[str, Any], contact: Mapping[str, Any], hit: Mapping[str, Any], reason: str) -> dict[str, Any]:
-    return {"status": "resolved", "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "outcome": "not_applicable", "reason": reason, "contact_authority": deepcopy(dict(contact)), "source_hit": deepcopy(dict(hit)), "provenance": "runtime_d0_contact_reactive_status_not_applicable_v1"}
+def _not_applicable(base: Mapping[str, Any], contact: Mapping[str, Any], hit: Mapping[str, Any], reason: str, **extra: Any) -> dict[str, Any]:
+    return {"status": "resolved", "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "outcome": "not_applicable", "reason": reason, "contact_authority": deepcopy(dict(contact)), "source_hit": deepcopy(dict(hit)), **deepcopy(extra), "provenance": "runtime_d0_contact_reactive_status_not_applicable_v1"}
+
+
+def _fraction(value: Fraction) -> dict[str, int]:
+    return {"numerator": value.numerator, "denominator": value.denominator}
 
 
 def _trusted(value: Any, event_kind: str) -> bool:
