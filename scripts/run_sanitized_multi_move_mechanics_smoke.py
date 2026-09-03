@@ -204,7 +204,7 @@ def _prepared(fixture_id: str) -> dict[str, Any]:
         battle["trusted_level_context"]["current_levels"][0]["value"] = 1
         battle["ability_context"] = {"current_abilities": [_current_ability("iron-fist")]}
     if fixture_id == ABILITY_FIXTURES[1]:
-        battle["ability_context"] = {"current_abilities": [_current_ability("guts")]}
+        battle["ability_context"] = {"current_abilities": [_current_ability("mummy")]}
     if fixture_id == ITEM_FIXTURES[0]:
         battle["trusted_level_context"]["current_levels"][0]["value"] = 1
         battle["item_profiles"] = {"my_active": {"status": "user_confirmed", "source": "user_input", "item_id": "choice-band"}}
@@ -340,7 +340,7 @@ def _stage(side: str, stat: str, stage: int) -> dict[str, Any]:
 def offline_ability_authority_variants() -> dict[str, Any]:
     """Exercise non-provider ability states without converting them to absence."""
     variants: dict[str, dict[str, Any]] = {}
-    for name, ability in (("unknown", "unknown"), ("malformed", "bad/ability"), ("unsupported", "guts")):
+    for name, ability in (("unknown", "unknown"), ("malformed", "bad/ability"), ("unsupported", "mummy")):
         battle = _battle(known_action_order=True)
         battle["ability_context"] = {"current_abilities": [_current_ability(ability)]}
         battle["moves"]["my_available_moves"] = [{"slot_index": 0, "move_id": "tackle"}]
