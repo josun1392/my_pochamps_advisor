@@ -145,6 +145,18 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    # Sucker Punch's selected-action condition is prior to any special
+    # treatment of a non-damaging opponent move.  Tail Whip is the currently
+    # exact materialized pure-status family; protection selections use their
+    # established status-action path below.
+    if own_meta.get("metadata", {}).get("move_id") == "sucker-punch" and opponent_meta.get("metadata", {}).get("category") == "status" and opponent_meta.get("metadata", {}).get("move_id") == "tail-whip":
+        return _materialize_sucker_punch_vs_tail_whip_pair(
+            base=base, strategy_d0=strategy_d0, own_action=own_action,
+            opponent_action=opponent_action, own_meta=own_meta,
+            opponent_meta=opponent_meta, orders=orders,
+            action_order_authority=action_order_authority,
+            authorities=pure_status_execution_authorities,
+        )
     if own_meta.get("metadata", {}).get("move_id") == "tail-whip" and opponent_meta.get("metadata", {}).get("move_id") == "crafty-shield":
         return _materialize_crafty_shield_tail_whip_pair(base=base, strategy_d0=strategy_d0, own_action=own_action, opponent_action=opponent_action, orders=orders, authorities=pure_status_execution_authorities, crafty=crafty_shield_pure_status_applicability_authority)
     if own_meta.get("metadata", {}).get("move_id") == "tail-whip" and opponent_meta.get("metadata", {}).get("move_id") == "tail-whip":
@@ -215,6 +227,70 @@ def _materialize_tail_whip_status_pair(*, base: Mapping[str, Any], strategy_d0: 
     mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
     if mass != Fraction(1, 1): return _result("rejected", "pure_status_pair_probability_mass_not_one", base)
     return {"status":"evaluable", "schema_version":SCHEMA_VERSION, "horizon":HORIZON, **deepcopy(dict(base)), "action_order": {"pure_status": "external_exact_order_authority"}, "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass), "aggregation":"none_preserve_pure_status_leaf_identity", "provenance":"strict_tail_whip_pure_status_pair_materialization_v1"}
+
+
+def _materialize_sucker_punch_vs_tail_whip_pair(
+    *, base: Mapping[str, Any], strategy_d0: Mapping[str, Any],
+    own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
+    own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any],
+    orders: list[Mapping[str, Any]], action_order_authority: Mapping[str, Any],
+    authorities: Mapping[str, Mapping[str, Any]] | None,
+) -> dict[str, Any]:
+    """Execute Tail Whip while Sucker Punch fails before attack handling."""
+    if not isinstance(authorities, Mapping):
+        return _result("incomplete", "pure_status_execution_authorities_required", base)
+    authority = authorities.get(opponent_action.get("action_id"))
+    if not isinstance(authority, Mapping):
+        return _result("incomplete", "pure_status_execution_authority_missing", base)
+    materialized = materialize_detached_pure_status_action(execution_authority=authority)
+    if materialized.get("status") != "resolved":
+        return _result(_status(materialized), materialized.get("reason", "pure_status_materialization_unavailable"), base)
+    if (
+        materialized.get("actor") != base["opponent_actor"]
+        or materialized.get("target") != base["own_actor"]
+        or materialized.get("action_id") != opponent_action.get("action_id")
+        or materialized.get("move_id") != "tail-whip"
+    ):
+        return _result("rejected", "pure_status_materialization_binding_mismatch", base)
+    status_leaf = _pure_status_pair_leaf(materialized, strategy_d0)
+    if isinstance(status_leaf, str):
+        return _result("rejected", status_leaf, base)
+    branches: list[dict[str, Any]] = []
+    for plan in orders:
+        applicability = freeze_runtime_d0_sucker_punch_execution_applicability_authority(
+            strategy_d0=strategy_d0, own_action=own_action,
+            own_move_metadata_authority=own_meta, target_action=opponent_action,
+            target_move_metadata_authority=opponent_meta,
+            action_order_authority=action_order_authority, order=plan["order"],
+            action_order_branch=plan.get("source_branch"),
+        )
+        if applicability.get("status") in {"incomplete", "rejected"}:
+            return _result(_status(applicability), applicability.get("reason", "sucker_punch_execution_authority_unavailable"), base)
+        if applicability.get("status") != "not_applicable" or applicability.get("reason") != "sucker_punch_target_not_readying_attack":
+            return _result("rejected", "sucker_punch_status_target_condition_invalid", base)
+        failure = _sucker_punch_failure_ledger(
+            strategy_d0=strategy_d0, actor=base["own_actor"],
+            target=base["opponent_actor"], action=own_action,
+            applicability=applicability,
+        )
+        if failure.get("status") != "evaluable":
+            return _result(_status(failure), failure.get("reason", "sucker_punch_failure_leaf_unavailable"), base)
+        failed_leaf = failure["terminal_leaves"][0]
+        if plan["order"] == "own_first":
+            branches.append(_branch(base, plan["order"], failed_leaf, {}, status_leaf, base["opponent_actor"], plan))
+        else:
+            branches.append(_branch(base, plan["order"], status_leaf, {}, failed_leaf, base["own_actor"], plan))
+    mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
+    if mass != Fraction(1, 1):
+        return _result("rejected", "pair_terminal_probability_mass_not_one", base, terminal_probability_mass=_fd(mass))
+    return {
+        "status": "evaluable", "schema_version": SCHEMA_VERSION, "horizon": HORIZON,
+        **deepcopy(dict(base)), "action_order": deepcopy(dict(action_order_authority)),
+        "conditional_on": "opponent_selected_exact_known_usable_move",
+        "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass),
+        "aggregation": "none_preserve_sucker_punch_failure_and_pure_status_identity",
+        "provenance": "strict_sucker_punch_vs_tail_whip_conditional_failure_pair_v1",
+    }
 
 def _materialize_crafty_shield_tail_whip_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None, crafty: Mapping[str, Any] | None) -> dict[str, Any]:
     if not isinstance(authorities, Mapping) or not isinstance(authorities.get(own_action.get("action_id")), Mapping): return _result("incomplete","pure_status_execution_authority_missing",base)

@@ -9,6 +9,9 @@ from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate
 from llm.advisor_immediate_attack_vs_opponent_switch_action_pair import materialize_immediate_attack_vs_opponent_switch_action_pair
 from llm.advisor_immediate_move_vs_move_action_pair import _materialize_protection_response_pair
 from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
+from llm.advisor_runtime_d0_pure_status_action_execution_authority import (
+    freeze_runtime_d0_pure_status_action_execution_authority,
+)
 
 
 def _inputs(*, category="physical", order="own_first", action_type="attack"):
@@ -103,6 +106,82 @@ def test_opponent_switch_is_a_sucker_punch_failure_and_never_hits_the_incoming_t
     assert leaf["consequences"]["damage"] == 0 and leaf["hit_state"] == "not_applicable"
     assert leaf["consequences"]["contact"] == "not_applicable"
     assert pair["sucker_punch_execution_applicability"]["reason"] == "sucker_punch_target_not_readying_attack"
+
+
+def test_tail_whip_selection_fails_sucker_punch_then_executes_tail_whip():
+    from tests.test_tail_whip_pure_status_action_execution import _inputs as tail_whip_inputs
+    _state, snapshot, d0, _action, own, foe, _accuracy = tail_whip_inputs()
+    sucker_metadata = {"move_id": "sucker-punch", "category": "physical", "power": 70, "type": "dark", "accuracy": 100, "priority": 1}
+    own_action = {"action_id": "attack:sucker-punch", "action_type": "attack", "identity": "sucker-punch", "move_metadata_authority": {"status": "resolved", "candidate_id": "attack:sucker-punch", "move_id": "sucker-punch", "active_attacker": own, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "metadata": sucker_metadata}}
+    tail_metadata = {"move_id": "tail-whip", "category": "status", "target": "selected-pokemon", "accuracy": 100, "power": None, "priority": 0}
+    opponent = {"status": "resolved", "schema_version": "runtime-d0-opponent-known-move-action-authority-v1", "action_id": "opponent_attack:tail-whip", "action_type": "attack", "move_id": "tail-whip", "opponent_actor": foe, "target_owner": own, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "metadata_authority": {"status": "resolved", "move_id": "tail-whip", "metadata": tail_metadata}, "usability": {"status": "known_usable"}, "selectability": "selectable"}
+    status_action = {"action_id": opponent["action_id"], "action_type": "attack", "identity": "tail-whip", "metadata_authority": opponent["metadata_authority"]}
+    status_accuracy = {"status": "resolved", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "actor": foe, "target": own, "action_id": opponent["action_id"], "move_id": "tail-whip", "outcome": "hit"}
+    tail_whip = freeze_runtime_d0_pure_status_action_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=status_action, actor=foe, target=own, status_accuracy_authority=status_accuracy)
+    order = {"status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": "own_first", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "own_action_id": own_action["action_id"], "opponent_action_id": opponent["action_id"], "own_actor": own, "opponent_actor": foe}
+    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent, action_order_authority=order, pure_status_execution_authorities={opponent["action_id"]: tail_whip})
+    assert pair["status"] == "evaluable", pair.get("reason")
+    branch = pair["terminal_branches"][0]
+    failure, tail_whip_leaf = branch["first_action_leaf"], branch["second_action"]["leaf"]
+    assert failure["consequences"]["sucker_punch_execution"]["reason"] == "sucker_punch_target_not_readying_attack"
+    assert failure["hit_state"] == failure["critical_state"] == failure["damage_roll"] == "not_applicable"
+    assert failure["consequences"]["damage"] == 0 and failure["consequences"]["contact"] == "not_applicable"
+    assert tail_whip_leaf["consequences"]["pure_status_outcome"] == "status_action_applied"
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable", ledger.get("reason")
+
+
+def test_protect_selection_fails_before_protection_block_dispatch():
+    from tests.test_detached_immediate_protection_response_pair import _inputs as protection_inputs, _own_action, _protect_action
+    from tests.test_fixed_two_hit_immediate_move_pair_integration import _order
+    _state, snapshot, d0, _unused, _responses, _orders = protection_inputs()
+    own, protect = _own_action(d0, "sucker-punch"), _protect_action(d0, "protect")
+    own["move_metadata_authority"]["metadata"] = {"move_id": "sucker-punch", "category": "physical", "power": 70, "type": "dark", "accuracy": 100, "priority": 1}
+    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=protect, action_order_authority=_order(d0, own, protect, "own_first"))
+    assert pair["status"] == "evaluable", pair.get("reason")
+    branch = pair["terminal_branches"][0]
+    failure = branch["first_action_leaf"]
+    assert failure["consequences"]["sucker_punch_execution"]["reason"] == "sucker_punch_target_not_readying_attack"
+    assert failure["hit_state"] == failure["critical_state"] == failure["damage_roll"] == "not_applicable"
+    assert failure["consequences"]["damage"] == 0 and failure["consequences"]["contact"] == "not_applicable"
+    assert branch["second_action"]["state"] == "executed_protection"
+    assert branch["second_action"].get("reason") == "executed_protection"
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable", ledger.get("reason")
+
+
+def test_target_damaging_move_first_leaves_no_sucker_punch_rng_branches():
+    from tests.test_detached_opponent_response_profile import _inputs as pair_inputs
+    from tests.test_fixed_two_hit_immediate_move_pair_integration import _order
+    _state, snapshot, d0, own_action, response_set, _orders = pair_inputs()
+    own_action = deepcopy(own_action)
+    own_action.update(action_id="attack:sucker-punch", identity="sucker-punch")
+    own_action["move_metadata_authority"].update(candidate_id="attack:sucker-punch", move_id="sucker-punch")
+    own_action["move_metadata_authority"]["metadata"] = {"move_id": "sucker-punch", "category": "physical", "power": 70, "type": "dark", "accuracy": 100, "priority": 1}
+    opponent = next(row for row in response_set["actions"] if row["action_id"] == "opponent_attack:tackle")
+    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent, action_order_authority=_order(d0, own_action, opponent, "opponent_first"))
+    assert pair["status"] == "evaluable", pair.get("reason")
+    for branch in pair["terminal_branches"]:
+        failure = branch["second_action"]["leaf"]
+        assert failure["consequences"]["sucker_punch_execution"]["reason"] == "sucker_punch_target_already_acted"
+        assert failure["hit_state"] == failure["critical_state"] == failure["damage_roll"] == "not_applicable"
+        assert failure["consequences"]["damage"] == 0 and failure["consequences"]["contact"] == "not_applicable"
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable", ledger.get("reason")
+
+    forged = deepcopy(pair)
+    branch = deepcopy(forged["terminal_branches"][0])
+    failure = deepcopy(branch["second_action"]["leaf"])
+    forged_authority = deepcopy(failure["provenance"]["sucker_punch_execution_applicability"])
+    forged_authority.update(status="applies", target_already_acted=False)
+    failure["provenance"]["sucker_punch_execution_applicability"] = forged_authority
+    failure["consequences"]["sucker_punch_execution"] = deepcopy(forged_authority)
+    branch["second_action"] = {**branch["second_action"], "leaf": failure}
+    forged["terminal_branches"] = (branch, *forged["terminal_branches"][1:])
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=forged)["status"] == "rejected"
 
 
 def test_protect_selection_is_sucker_punch_failure_not_protection_block(monkeypatch):
