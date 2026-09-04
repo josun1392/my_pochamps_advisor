@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 from llm.advisor_variable_two_to_five_hit_graph_shared_pair_ledger import (
     PAIR_SCHEMA as VARIABLE_GRAPH_PAIR_SCHEMA,
+    _effect_spore_contact_reactive_status as _validate_effect_spore_contact_reactive_status,
     normalize_variable_two_to_five_hit_graph_pair,
 )
 from llm.advisor_low_hp_type_offensive_ability import (
@@ -390,12 +391,8 @@ def _contact_reactive_status(value: Any) -> bool:
 
 
 def _effect_spore_contact_reactive_status(authority: Mapping[str, Any], overlay: Any, branch: Any) -> bool:
-    expected = {
-        "sleep": {"numerator": 11, "denominator": 100},
-        "paralysis": {"numerator": 1, "denominator": 10},
-        "poison": {"numerator": 9, "denominator": 100},
-        "none": {"numerator": 7, "denominator": 10},
-    }
+    """Use the graph ledger's strict canonical Effect Spore row contract."""
+    return _validate_effect_spore_contact_reactive_status(authority, overlay, branch)
 
 
 def _sucker_punch_leaf(leaf: Mapping[str, Any], *, action_order: str, pair_base: Mapping[str, Any]) -> str | None:
