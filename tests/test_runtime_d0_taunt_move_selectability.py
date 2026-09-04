@@ -80,4 +80,15 @@ def test_active_taunt_blocks_only_exact_bound_status_metadata_without_mutation()
     assert resolve_taunt_move_selectability(taunt_authority=taunt, owner=owner, move_metadata_authority=unknown)["status"] == "incomplete"
     foreign = deepcopy(status); foreign["active_attacker"] = {**owner, "pokemon_id": "foreign"}
     assert resolve_taunt_move_selectability(taunt_authority=taunt, owner=owner, move_metadata_authority=foreign)["status"] == "rejected"
+    assert resolve_taunt_move_selectability(taunt_authority={"status": "incomplete"}, owner=owner, move_metadata_authority=status)["status"] == "incomplete"
     assert status == original
+
+
+def test_stale_runtime_and_foreign_current_identity_reject_d0_taunt_authority():
+    applied = _applied(_state("taunt-stale")); owner = _owner(applied); snapshot = _snapshot(applied)
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=owner)
+    advanced = deepcopy(applied); advanced["self_side"]["pokemon"][0]["current_hp"] -= 1
+    stale = freeze_runtime_d0_taunt_restriction_authority(strategy_d0=d0, runtime_snapshot=_snapshot(advanced), owner=owner)
+    assert stale["status"] == "rejected"
+    foreign = {**owner, "pokemon_id": "foreign"}
+    assert freeze_runtime_d0_taunt_restriction_authority(strategy_d0=d0, runtime_snapshot=snapshot, owner=foreign)["status"] == "rejected"
