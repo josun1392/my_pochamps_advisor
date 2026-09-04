@@ -21,6 +21,9 @@ def test_faster_encore_replaces_only_pending_selected_action_with_locked_priorit
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
     forged = deepcopy(pair); forged["terminal_branches"] = tuple({**branch, "second_action": {**branch["second_action"], "forced_execution_action": {**branch["second_action"]["forced_execution_action"], "selected_action_id": "forged"}}} for branch in pair["terminal_branches"])
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=forged)["status"] == "rejected"
+    missed = {**application, "outcome": "missed", "reason": "encore_missed"}
+    missed_pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action, opponent_action=opponent, action_order_authority=order, encore_application_authorities={"attack:encore": missed}, pure_status_execution_authorities=pure)
+    assert missed_pair["terminal_branches"][0]["first_action_leaf"]["hit_state"] == "missed"
 
 
 def test_slower_encore_does_not_retroactively_replace_executed_action(monkeypatch):
