@@ -5,7 +5,17 @@ from llm.advisor_end_of_turn_residual_phase import (
     freeze_end_of_turn_phase_input,
     materialize_end_of_turn_residual_phase,
     validate_end_of_turn_residual_phase_ledger,
+    materialize_detached_weather_residual,
 )
+
+
+def test_detached_weather_residual_uses_canonical_sandstorm_and_snow_contracts():
+    abilities = {"self": "pressure", "opponent": "pressure"}
+    active = {"side": "self", "types": ["normal"], "item": None, "current_hp": 50, "maximum_hp": 100}
+    sand = materialize_detached_weather_residual(weather_authority={"status": "known", "weather": "sandstorm"}, active=active, active_abilities=abilities)
+    assert sand["result"]["residual_damage"] == 6
+    assert materialize_detached_weather_residual(weather_authority={"status": "known", "weather": "snow"}, active=active, active_abilities=abilities)["outcome"] == "non_damaging_weather"
+    assert materialize_detached_weather_residual(weather_authority={"status": "unknown"}, active=active, active_abilities=abilities)["status"] == "incomplete"
 
 
 def _owner(side, pokemon_id):
@@ -36,11 +46,39 @@ def _row(side, pid, hp, *, maximum=100, condition=None, item=None, toxic=None, s
     }
 
 
-def _input(*, self_hp=50, opponent_hp=50, self_row=None, opponent_row=None):
+def _input(*, self_hp=50, opponent_hp=50, self_row=None, opponent_row=None, weather_authority=None):
     return freeze_end_of_turn_phase_input(
         terminal_ledger=_ledger(self_hp=self_hp, opponent_hp=opponent_hp), terminal_leaf_id="leaf",
-        active_states={"self": self_row or _row("self", "a", self_hp), "opponent": opponent_row or _row("opponent", "b", opponent_hp)},
+        active_states={"self": self_row or _row("self", "a", self_hp), "opponent": opponent_row or _row("opponent", "b", opponent_hp)}, weather_authority=weather_authority,
     )
+
+
+def _weather(weather):
+    return {"status": "known", "weather": weather, "source_binding": {"session_id": "s", "source_runtime_fingerprint": "runtime", "source_branch_fingerprint": "branch"}}
+
+
+def _weather_row(side, pid, hp, *, types, ability="pressure", item=None):
+    row = _row(side, pid, hp, item=item, ability=ability)
+    row["types"] = {"status": "known", "value": types, "source_binding": row["ability"]["source_binding"]}
+    return row
+
+
+def test_phase_integrates_sandstorm_with_immunities_and_snow_no_chip():
+    self_row = _weather_row("self", "a", 50, types=["normal"])
+    foe_row = _weather_row("opponent", "b", 50, types=["rock"])
+    result = materialize_end_of_turn_residual_phase(phase_input=_input(self_row=self_row, opponent_row=foe_row, weather_authority=_weather("sandstorm")))
+    assert [(event["event_kind"], event["affected_owner"]["side"], event["hp_delta"]) for event in result["events"]] == [("sandstorm", "self", -6)]
+    assert not materialize_end_of_turn_residual_phase(phase_input=_input(self_row=self_row, opponent_row=foe_row, weather_authority=_weather("snow")))["events"]
+
+
+def test_sandstorm_modifier_immunities_and_missing_authority_fail_closed():
+    foe = _weather_row("opponent", "b", 50, types=["normal"])
+    for types, ability, item in ((["ground"], "pressure", None), (["steel"], "pressure", None), (["normal"], "magic-guard", None), (["normal"], "overcoat", None), (["normal"], "pressure", "safety-goggles")):
+        row = _weather_row("self", "a", 50, types=types, ability=ability, item=item)
+        events = materialize_end_of_turn_residual_phase(phase_input=_input(self_row=row, opponent_row=foe, weather_authority=_weather("sandstorm")))["events"]
+        assert not [event for event in events if event["affected_owner"]["side"] == "self"]
+    row = _weather_row("self", "a", 50, types=["normal"]); row["ability"] = {"status": "unknown", "source_binding": row["types"]["source_binding"]}
+    assert materialize_end_of_turn_residual_phase(phase_input=_input(self_row=row, opponent_row=foe, weather_authority=_weather("sandstorm")))["status"] == "incomplete"
 
 
 def test_phase_binds_exact_terminal_leaf_and_uses_detached_post_action_hp():

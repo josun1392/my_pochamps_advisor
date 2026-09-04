@@ -10,6 +10,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 
+from llm.advisor_sandstorm_residual_core import evaluate_sandstorm_residual
+
 
 PHASE_INPUT_SCHEMA = "detached-end-of-turn-phase-input-v1"
 PHASE_LEDGER_SCHEMA = "exact-end-of-turn-residual-phase-ledger-v1"
@@ -19,6 +21,7 @@ HORIZON = "end_of_turn_residual_projection"
 # status residuals share a class and are followed by held-item recovery.  New
 # residual families get an explicit class here when they are supported.
 END_OF_TURN_EVENT_ORDER = {
+    "sandstorm": 50,
     "burn": 100,
     "poison": 100,
     "toxic": 100,
@@ -28,7 +31,25 @@ _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _CONDITIONS = {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}
 
 
-def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, active_states: Mapping[str, Any]) -> dict[str, Any]:
+def materialize_detached_weather_residual(*, weather_authority: Mapping[str, Any], active: Mapping[str, Any], active_abilities: Mapping[str, str]) -> dict[str, Any]:
+    """Resolve the weather consumer from exact detached terminal authority only.
+
+    This narrow helper is deliberately side-effect free; the phase ledger can
+    consume its result once terminal weather/type adapters are materialized.
+    Snow is exact non-damaging weather in the current ruleset.
+    """
+    if not isinstance(weather_authority, Mapping) or weather_authority.get("status") != "known":
+        return {"status": "incomplete", "reason": "end_of_turn_weather_unknown"}
+    weather = weather_authority.get("weather")
+    if weather in {"none", "rain", "sun", "snow"}:
+        return {"status": "resolved", "outcome": "non_damaging_weather", "weather": weather, "residual_damage": 0}
+    if weather != "sandstorm" or not isinstance(active, Mapping):
+        return {"status": "rejected", "reason": "end_of_turn_weather_authority_invalid"}
+    result = evaluate_sandstorm_residual(current_type=active.get("types"), item=active.get("item"), active_abilities=active_abilities, target_side=active.get("side"), current_hp=active.get("current_hp"), maximum_hp=active.get("maximum_hp"))
+    return {"status": result.get("status"), "weather": "sandstorm", "result": result, "provenance": "canonical_sandstorm_residual_core_v1"}
+
+
+def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, active_states: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Bind two exact detached active states to one normalized pair leaf.
 
     ``terminal_ledger`` is intentionally the output of the immediate-pair
@@ -46,11 +67,13 @@ def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], termin
         if isinstance(row, str):
             return _result("incomplete" if row.endswith("_unknown") else "rejected", row, base)
         rows[side] = row
+    weather = _weather_authority(weather_authority, base, terminal_leaf_id)
+    if isinstance(weather, str): return _result("incomplete" if weather.endswith("_unknown") else "rejected", weather, base)
     return {
         "status": "resolved", "schema_version": PHASE_INPUT_SCHEMA, "horizon": HORIZON,
         **base, "terminal_leaf_id": terminal_leaf_id,
         "terminal_probability_mass": deepcopy(terminal_ledger["terminal_probability_mass"]),
-        "terminal_branch": deepcopy(dict(leaf)), "active_states": rows,
+        "terminal_branch": deepcopy(dict(leaf)), "active_states": rows, "weather_authority": weather,
         "provenance": "strict_detached_immediate_terminal_to_end_of_turn_phase_input_v1",
     }
 
@@ -67,6 +90,9 @@ def materialize_end_of_turn_residual_phase(*, phase_input: Mapping[str, Any]) ->
         if isinstance(candidate, str):
             return _result("incomplete", candidate, _base_from_input(phase_input))
         candidates.extend(candidate)
+    weather_candidates = _weather_candidates(phase_input)
+    if isinstance(weather_candidates, str): return _result("incomplete", weather_candidates, _base_from_input(phase_input))
+    candidates.extend(weather_candidates)
     order_error = _require_residual_speed_authority(candidates)
     if order_error is not None:
         return _result("incomplete", order_error, _base_from_input(phase_input))
@@ -129,6 +155,9 @@ def materialize_end_of_turn_residual_phase_unvalidated(phase_input: Any) -> dict
         candidate = _candidate_for(phase_input["active_states"][side], phase_input)
         if isinstance(candidate, str): return candidate
         candidates.extend(candidate)
+    weather_candidates = _weather_candidates(phase_input)
+    if isinstance(weather_candidates, str): return weather_candidates
+    candidates.extend(weather_candidates)
     if _require_residual_speed_authority(candidates) is not None: return "end_of_turn_residual_speed_unknown"
     candidates.sort(key=_event_sort_key)
     mutable = {s: {"hp": phase_input["active_states"][s]["hp"]["current_hp"], "fainted": phase_input["active_states"][s]["fainted"]["value"]} for s in ("self", "opponent")}
@@ -154,7 +183,8 @@ def _terminal_leaf(ledger: Any, leaf_id: Any) -> tuple[dict[str, Any] | None, di
 
 
 def _active_state(value: Any, base: Mapping[str, Any], side: str, expected_hp: int, leaf_id: str) -> dict[str, Any] | str:
-    if not isinstance(value, Mapping) or set(value) != {"owner", "hp", "fainted", "condition", "item", "toxic_progression", "speed", "ability"}: return "end_of_turn_active_state_invalid"
+    allowed = {"owner", "hp", "fainted", "condition", "item", "toxic_progression", "speed", "ability", "types"}
+    if not isinstance(value, Mapping) or set(value) not in (allowed - {"types"}, allowed): return "end_of_turn_active_state_invalid"
     owner = value["owner"]
     expected_owner = base["own_actor"] if side == "self" else base["opponent_actor"]
     if not _owner(owner, base["session_id"]) or owner != expected_owner: return "end_of_turn_active_identity_mismatch"
@@ -173,7 +203,9 @@ def _active_state(value: Any, base: Mapping[str, Any], side: str, expected_hp: i
     if not isinstance(speed, Mapping) or speed.get("status") not in {"known", "unknown"} or not _bound_to_base(speed, base, owner) or (speed.get("status") == "known" and (not isinstance(speed.get("value"), int) or isinstance(speed["value"], bool) or speed["value"] < 0)): return "end_of_turn_speed_authority_invalid"
     ability = value["ability"]
     if not isinstance(ability, Mapping) or ability.get("status") not in {"known", "known_absent", "unknown"} or not _bound_to_base(ability, base, owner): return "end_of_turn_ability_authority_invalid"
-    return {"owner": deepcopy(dict(owner)), "hp": deepcopy(dict(hp)), "fainted": deepcopy(dict(fainted)), "condition": condition, "item": deepcopy(dict(item)), "toxic_progression": deepcopy(dict(toxic)), "speed": deepcopy(dict(speed)), "ability": deepcopy(dict(ability))}
+    types = value.get("types")
+    if types is not None and (not isinstance(types, Mapping) or types.get("status") not in {"known", "unknown"} or not _bound_to_base(types, base, owner) or (types.get("status") == "known" and (not isinstance(types.get("value"), list) or not types["value"]))): return "end_of_turn_type_authority_invalid"
+    return {"owner": deepcopy(dict(owner)), "hp": deepcopy(dict(hp)), "fainted": deepcopy(dict(fainted)), "condition": condition, "item": deepcopy(dict(item)), "toxic_progression": deepcopy(dict(toxic)), "speed": deepcopy(dict(speed)), "ability": deepcopy(dict(ability)), **({"types": deepcopy(dict(types))} if types is not None else {})}
 
 
 def _condition(value: Any, base: Mapping[str, Any], owner: Mapping[str, Any], leaf_id: str) -> dict[str, Any] | str:
@@ -210,6 +242,43 @@ def _candidate_for(row: Mapping[str, Any], phase_input: Mapping[str, Any]) -> li
             out.append(_candidate(kind, row, phase_input, lambda _hp, maximum, d=divisor: -(maximum // d), {"condition": deepcopy(condition), "divisor": divisor}))
     if row["item"].get("status") == "known" and row["item"].get("value") == "leftovers":
         out.append(_candidate("leftovers", row, phase_input, lambda hp, maximum: min(maximum, hp + maximum // 16) - hp, {"item": deepcopy(row["item"]), "divisor": 16}))
+    return out
+
+
+def _weather_authority(value: Any, base: Mapping[str, Any], leaf_id: str) -> dict[str, Any] | str:
+    if value is None: return {"status": "unknown"}
+    if not isinstance(value, Mapping) or value.get("status") not in {"known", "unknown"}: return "end_of_turn_weather_authority_invalid"
+    if value["status"] == "unknown": return {"status": "unknown"}
+    binding = value.get("source_binding")
+    expected = {"session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"]}
+    if binding != expected or value.get("weather") not in {"none", "rain", "sun", "snow", "sandstorm"}: return "end_of_turn_weather_authority_invalid"
+    if value.get("source_terminal_leaf_id") not in {None, leaf_id}: return "end_of_turn_weather_terminal_binding_mismatch"
+    return deepcopy(dict(value))
+
+
+def _weather_candidates(phase_input: Mapping[str, Any]) -> list[dict[str, Any]] | str:
+    weather = phase_input.get("weather_authority", {"status": "unknown"})
+    if weather.get("status") == "unknown": return []
+    if weather.get("weather") != "sandstorm": return []
+    abilities = {}
+    for side in ("self", "opponent"):
+        ability = phase_input["active_states"][side]["ability"]
+        if ability.get("status") != "known": return "end_of_turn_weather_ability_unknown"
+        abilities[side] = ability.get("value")
+    out = []
+    for side in ("self", "opponent"):
+        row = phase_input["active_states"][side]
+        if row["fainted"]["value"]: continue
+        types = row.get("types")
+        if not isinstance(types, Mapping) or types.get("status") != "known": return "end_of_turn_weather_type_unknown"
+        item = row["item"]
+        if item.get("status") == "unknown": return "end_of_turn_weather_item_unknown"
+        active = {"side": side, "types": types["value"], "item": item.get("value") if item.get("status") == "known" else None, "current_hp": row["hp"]["current_hp"], "maximum_hp": row["hp"]["maximum_hp"]}
+        resolved = materialize_detached_weather_residual(weather_authority=weather, active=active, active_abilities=abilities)
+        if resolved.get("status") != "complete": return "end_of_turn_weather_residual_unavailable"
+        result = resolved["result"]
+        if result["residual_damage"]:
+            out.append(_candidate("sandstorm", row, phase_input, lambda _hp, maximum: -(maximum // 16), {"weather": deepcopy(weather), "weather_residual": deepcopy(result), "types": deepcopy(types), "ability": deepcopy(row["ability"]), "item": deepcopy(item)}))
     return out
 
 
