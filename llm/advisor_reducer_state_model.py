@@ -26,6 +26,8 @@ _TARGETS["complete_restricted_active_turn"] = "state.current_taunt_restrictions"
 _TARGETS["record_executed_move"] = "pokemon.last_executed_move"
 _TARGETS["apply_encore_restriction"] = "state.current_encore_restrictions"
 _TARGETS["complete_encore_restricted_active_turn"] = "state.current_encore_restrictions"
+_TARGETS["apply_disable_restriction"] = "state.current_disable_restrictions"
+_TARGETS["complete_disable_restricted_active_turn"] = "state.current_disable_restrictions"
 
 
 def make_unknown_battle_fact():
@@ -119,16 +121,18 @@ def validate_battle_state_unknown_markers(state):
     history = state.get("supreme_overlord_faint_history_context")
     taunt = state.get("current_taunt_restrictions")
     encore = state.get("current_encore_restrictions")
+    disable = state.get("current_disable_restrictions")
     snapshots = state.get("supreme_overlord_entry_snapshots")
     if history is not None and not _valid_supreme_overlord_history_context(state, history): return False
     if taunt is not None and not _valid_taunt_restrictions(state, taunt): return False
     if encore is not None and not _valid_encore_restrictions(state, encore): return False
+    if disable is not None and not _valid_disable_restrictions(state, disable): return False
     if snapshots is not None and not _valid_supreme_overlord_snapshots(state, snapshots, history): return False
     topology = state.get("doubles_active_topology_context")
     targeting = state.get("selected_action_targeting_context")
     if topology is not None and not _valid_doubles_active_topology_context(state, topology): return False
     if targeting is not None and not _valid_selected_action_targeting_context(state, targeting): return False
-    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "substitute_state_context", "pending_status_action_execution_context", "mat_block_active_entry_eligibility_context", "fake_out_active_entry_eligibility_context", "doubles_active_topology_context", "selected_action_targeting_context", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context", "rain_dish_end_of_turn_context", "ice_body_end_of_turn_context", "solar_power_end_of_turn_context", "dry_skin_end_of_turn_context", "life_orb_recoil_context", "supreme_overlord_faint_history_context", "supreme_overlord_entry_snapshots", "current_taunt_restrictions", "current_encore_restrictions"})
+    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "substitute_state_context", "pending_status_action_execution_context", "mat_block_active_entry_eligibility_context", "fake_out_active_entry_eligibility_context", "doubles_active_topology_context", "selected_action_targeting_context", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context", "rain_dish_end_of_turn_context", "ice_body_end_of_turn_context", "solar_power_end_of_turn_context", "dry_skin_end_of_turn_context", "life_orb_recoil_context", "supreme_overlord_faint_history_context", "supreme_overlord_entry_snapshots", "current_taunt_restrictions", "current_encore_restrictions", "current_disable_restrictions"})
 
 
 def _valid_fact_marker(value):
@@ -174,6 +178,22 @@ def _valid_encore_restrictions(state, value):
         if active != (isinstance(remaining, int) and not isinstance(remaining, bool) and 1 <= remaining <= 3) or active != (row.get("retired_reason") is None): return False
         for provenance in (application, lifecycle):
             if provenance.get("trust") != "user_confirmed_observation" or not isinstance(provenance.get("source_sequence"), int) or isinstance(provenance.get("source_sequence"), bool) or provenance["source_sequence"] < 1: return False
+    return True
+
+
+def _valid_disable_restrictions(state, value):
+    if not isinstance(value, dict) or set(value) - {"self", "opponent"}: return False
+    for side, row in value.items():
+        required = {"schema_version", "owner", "restriction", "activation_id", "source_action_id", "source_move_id", "disabled_move_id", "last_used_execution_id", "state", "remaining_target_turns", "applied_turn", "last_completed_turn", "retired_reason", "application_provenance", "lifecycle_provenance"}
+        if not isinstance(row, dict) or set(row) != required: return False
+        owner = row.get("owner")
+        if row.get("schema_version") != "reducer-action-restriction-lifecycle-v1" or row.get("restriction") != "disable" or row.get("source_move_id") != "disable" or not isinstance(owner, dict) or set(owner) != {"session_id", "side", "slot_index", "pokemon_id"} or owner.get("session_id") != state.get("session_id") or owner.get("side") != side or (row.get("state") == "active" and not _active_identity_matches(state, side, owner.get("slot_index"), owner.get("pokemon_id"))) or not all(isinstance(row.get(key), str) and bool(row[key]) for key in ("activation_id", "source_action_id", "disabled_move_id", "last_used_execution_id")) or row.get("state") not in {"active", "not_active"}: return False
+        active, remaining = row["state"] == "active", row.get("remaining_target_turns")
+        if active != (isinstance(remaining, int) and not isinstance(remaining, bool) and 1 <= remaining <= 4) or active != (row.get("retired_reason") is None): return False
+        if not isinstance(row.get("applied_turn"), int) or isinstance(row.get("applied_turn"), bool) or row["applied_turn"] < 1: return False
+        for key in ("application_provenance", "lifecycle_provenance"):
+            p = row.get(key)
+            if not isinstance(p, dict) or p.get("trust") != "user_confirmed_observation" or not isinstance(p.get("source_sequence"), int) or isinstance(p.get("source_sequence"), bool) or p["source_sequence"] < 1: return False
     return True
 
 
@@ -624,7 +644,7 @@ def _value(event, name):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "apply_encore_restriction", "complete_encore_restricted_active_turn"}:
+    if effect in {"apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
     if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_pending_status_action_execution", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
@@ -739,6 +759,8 @@ def _apply(state, event):
     if effect == "record_executed_move": return _record_executed_move(state, event)
     if effect == "apply_encore_restriction": return _apply_encore_restriction(state, event)
     if effect == "complete_encore_restricted_active_turn": return _complete_encore_turn(state, event)
+    if effect == "apply_disable_restriction": return _apply_disable_restriction(state, event)
+    if effect == "complete_disable_restricted_active_turn": return _complete_disable_turn(state, event)
     if effect == "set_current_opponent_response_set":
         return _set_current_opponent_response_set(state, event)
     if effect == "set_current_opponent_switch_response_set":
@@ -2158,6 +2180,35 @@ def _complete_encore_turn(state, event):
     return None
 
 
+def _apply_disable_restriction(state, event):
+    side, pokemon, turn = _value(event, "side"), _pokemon(state, event), _value(event, "turn_number")
+    if side not in {"self", "opponent"} or pokemon is None or not _active_identity_matches(state, side, _value(event, "slot_index"), _value(event, "pokemon_id")) or _value(event, "trust") != "user_confirmed_observation" or _value(event, "source_move_id") != "disable" or not all(isinstance(_value(event, key), str) and bool(_value(event, key)) for key in ("source_action_id", "disabled_move_id", "last_used_execution_id")):
+        return _conflict(event, "invalid_disable_restriction_application")
+    history = pokemon.get("last_executed_move")
+    owner = {"session_id": state["session_id"], "side": side, "slot_index": _value(event, "slot_index"), "pokemon_id": _value(event, "pokemon_id")}
+    if not _valid_last_executed_move(state, history, owner) or history.get("move_id") != _value(event, "disabled_move_id") or history.get("execution_id") != _value(event, "last_used_execution_id"):
+        return _conflict(event, "disable_last_executed_move_binding_invalid")
+    rows = deepcopy(state.get("current_disable_restrictions", {})); existing = rows.get(side)
+    if isinstance(existing, dict) and existing.get("state") == "active": return _conflict(event, "disable_restriction_already_active")
+    provenance = _provenance(event)
+    rows[side] = {"schema_version": "reducer-action-restriction-lifecycle-v1", "owner": owner, "restriction": "disable", "activation_id": event["observation_id"], "source_action_id": _value(event, "source_action_id"), "source_move_id": "disable", "disabled_move_id": _value(event, "disabled_move_id"), "last_used_execution_id": _value(event, "last_used_execution_id"), "state": "active", "remaining_target_turns": 4, "applied_turn": turn, "last_completed_turn": None, "retired_reason": None, "application_provenance": provenance, "lifecycle_provenance": provenance}
+    state["current_disable_restrictions"] = rows
+    return None
+
+
+def _complete_disable_turn(state, event):
+    side, turn, rows = _value(event, "side"), _value(event, "turn_number"), state.get("current_disable_restrictions")
+    row = rows.get(side) if isinstance(rows, dict) else None
+    if not isinstance(row, dict) or row.get("state") != "active" or row.get("owner", {}).get("slot_index") != _value(event, "slot_index") or row.get("owner", {}).get("pokemon_id") != _value(event, "pokemon_id") or not _active_identity_matches(state, side, _value(event, "slot_index"), _value(event, "pokemon_id")) or _value(event, "trust") != "user_confirmed_observation" or _value(event, "completion_kind") != "affected_active_turn_completed" or turn <= row.get("applied_turn", turn): return _conflict(event, "invalid_disable_restriction_turn_completion")
+    if row.get("last_completed_turn") == turn: return None
+    if row.get("last_completed_turn") is not None and row["last_completed_turn"] >= turn: return _conflict(event, "stale_disable_restriction_turn_completion")
+    rows = deepcopy(rows); row = rows[side]; remaining = row["remaining_target_turns"] - 1; row["last_completed_turn"] = turn; row["lifecycle_provenance"] = _provenance(event)
+    if remaining == 0: row.update(state="not_active", remaining_target_turns=None, retired_reason="expired")
+    else: row["remaining_target_turns"] = remaining
+    state["current_disable_restrictions"] = rows
+    return None
+
+
 def _switch(state, event):
     side = _side(state, _value(event, "side")); out_slot, out_id = _value(event, "switch_out_slot_index"), _value(event, "switch_out_pokemon_id"); in_slot, in_id = _value(event, "switch_in_slot_index"), _value(event, "switch_in_pokemon_id")
     if side is None or not all(isinstance(v, int) and not isinstance(v, bool) for v in (out_slot, in_slot)) or not all(isinstance(v, str) and v for v in (out_id, in_id)) or (out_slot, out_id) == (in_slot, in_id): return _conflict(event, "invalid_switch_identity")
@@ -2178,6 +2229,9 @@ def _switch(state, event):
     encore_rows=state.get("current_encore_restrictions"); encore=encore_rows.get(_value(event,"side")) if isinstance(encore_rows,dict) else None
     if isinstance(encore,dict) and encore.get("state")=="active" and encore.get("owner",{}).get("slot_index")==out_slot and encore.get("owner",{}).get("pokemon_id")==out_id:
         encore_rows=deepcopy(encore_rows); encore_rows[_value(event,"side")]={**encore,"state":"not_active","remaining_target_turns":None,"retired_reason":"switch_out","lifecycle_provenance":_provenance(event)}; state["current_encore_restrictions"]=encore_rows
+    disable_rows=state.get("current_disable_restrictions"); disable=disable_rows.get(_value(event,"side")) if isinstance(disable_rows,dict) else None
+    if isinstance(disable,dict) and disable.get("state")=="active" and disable.get("owner",{}).get("slot_index")==out_slot and disable.get("owner",{}).get("pokemon_id")==out_id:
+        disable_rows=deepcopy(disable_rows); disable_rows[_value(event,"side")]={**disable,"state":"not_active","remaining_target_turns":None,"retired_reason":"switch_out","lifecycle_provenance":_provenance(event)}; state["current_disable_restrictions"]=disable_rows
     context = state.get("substitute_state_context")
     if isinstance(context, dict):
         outgoing_owner = {"session_id": state["session_id"], "side": _value(event, "side"), "slot_index": out_slot, "pokemon_id": out_id}

@@ -142,6 +142,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     first_status_error = _contact_reactive_status_leaf(first)
     if first_status_error is not None: return first_status_error
     final_source = second_leaf if isinstance(second_leaf, Mapping) else first
+    disable_error = _disable_restriction_leaf(first, second_leaf, base, value["action_order"])
+    if disable_error is not None: return disable_error
     if isinstance(second_leaf, Mapping):
         sucker_error = _sucker_punch_leaf(second_leaf, action_order=value["action_order"], pair_base=base)
         if sucker_error is not None: return sucker_error
@@ -395,6 +397,20 @@ def _contact_reactive_status(value: Any) -> bool:
 def _effect_spore_contact_reactive_status(authority: Mapping[str, Any], overlay: Any, branch: Any) -> bool:
     """Use the graph ledger's strict canonical Effect Spore row contract."""
     return _validate_effect_spore_contact_reactive_status(authority, overlay, branch)
+
+
+def _disable_restriction_leaf(first: Mapping[str, Any], second_leaf: Any, base: Mapping[str, Any], action_order: str) -> str | None:
+    if not isinstance(second_leaf, Mapping): return None
+    consequences, provenance = second_leaf.get("consequences"), second_leaf.get("provenance")
+    gate = consequences.get("disable_execution_gate") if isinstance(consequences, Mapping) else None
+    marker = provenance.get("disable_action_restriction") if isinstance(provenance, Mapping) else None
+    if gate is None and marker is None: return None
+    if action_order != "own_first" or not isinstance(gate, Mapping) or marker != gate or consequences.get("execution_failure") != "disable_action_restriction" or gate.get("actor") != base["opponent_actor"] or gate.get("selected_action_id") != base["opponent_action_id"] or gate.get("execution_state") != "restricted_by_disable": return "disable_restriction_ledger_binding_invalid"
+    first_app = first.get("consequences", {}).get("disable_application") if isinstance(first.get("consequences"), Mapping) else None
+    evidence = gate.get("restriction_evidence")
+    if not isinstance(first_app, Mapping) or first_app.get("outcome") != "applicable" or first_app.get("actor") != base["own_actor"] or first_app.get("target") != base["opponent_actor"] or first_app.get("disabled_move_id") != gate.get("selected_move_id") or not isinstance(evidence, tuple) or not evidence or evidence[0] != first_app: return "disable_restriction_ledger_application_invalid"
+    if any(second_leaf.get(key) != "not_applicable" for key in ("hit_state", "critical_state", "damage_roll")) or consequences.get("damage") != 0 or consequences.get("contact") != "not_applicable": return "disable_restriction_ledger_failure_identity_invalid"
+    return None
 
 
 def _encore_forced_execution_leaf(first: Mapping[str, Any], second: Mapping[str, Any], leaf: Mapping[str, Any], base: Mapping[str, Any], action_order: str) -> str | None:

@@ -92,6 +92,9 @@ from llm.advisor_detached_taunt_action_restriction import (
 from llm.advisor_detached_encore_action_restriction import (
     materialize_encore_forced_execution_action,
 )
+from llm.advisor_detached_disable_action_restriction import (
+    materialize_disable_execution_gate, disable_restriction_failure_leaf,
+)
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
@@ -141,6 +144,7 @@ def materialize_immediate_move_vs_move_action_pair(
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     taunt_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     encore_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    disable_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -163,6 +167,10 @@ def materialize_immediate_move_vs_move_action_pair(
             own_action=own_action, opponent_action=opponent_action, opponent_meta=opponent_meta,
             orders=orders, pure_status_authorities=pure_status_execution_authorities,
             applications=encore_application_authorities)
+    if own_meta.get("metadata", {}).get("move_id") == "disable":
+        return _materialize_disable_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            own_action=own_action, opponent_action=opponent_action, opponent_meta=opponent_meta, orders=orders,
+            pure_status_authorities=pure_status_execution_authorities, applications=disable_application_authorities)
     # Sucker Punch's selected-action condition is prior to any special
     # treatment of a non-damaging opponent move.  Tail Whip is the currently
     # exact materialized pure-status family; protection selections use their
@@ -305,6 +313,40 @@ def _materialize_encore_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[st
     mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
     if mass != Fraction(1, 1): return _result("rejected", "encore_pair_probability_mass_not_one", base)
     return {"status": "evaluable", "schema_version": SCHEMA_VERSION, "horizon": HORIZON, **deepcopy(dict(base)), "action_order": {"encore": "selected_order_then_pending_forced_move_priority"}, "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass), "aggregation": "none_preserve_selected_intent_and_encore_forced_execution", "provenance": "strict_encore_immediate_pair_materialization_v1"}
+
+
+def _materialize_disable_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None, applications: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
+    application = applications.get(own_action.get("action_id")) if isinstance(applications, Mapping) else None
+    if not isinstance(application, Mapping): return _result("incomplete", "disable_application_authority_missing", base)
+    if application.get("status") != "resolved" or application.get("actor") != base["own_actor"] or application.get("target") != base["opponent_actor"] or application.get("action_id") != own_action.get("action_id"): return _result(_status(application), application.get("reason", "disable_application_binding_mismatch"), base)
+    branches=[]
+    for plan in orders:
+        first_leaf=_disable_pair_leaf(application,strategy_d0)
+        if isinstance(first_leaf,str):return _result("incomplete",first_leaf,base)
+        if plan["order"]=="opponent_first":
+            first=_ordinary_selected_leaf(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=opponent_action,actor=base["opponent_actor"],target=base["own_actor"],metadata=opponent_meta,pure_status_authorities=pure_status_authorities)
+            if isinstance(first,str):return _result("incomplete",first,base)
+            branches.append(_branch(base,plan["order"],first["terminal_leaves"][0],{},first_leaf,base["own_actor"],plan));continue
+        pending={**deepcopy(dict(opponent_action)),"metadata_authority":deepcopy(dict(opponent_meta))}
+        gate=materialize_disable_execution_gate(selected_action=pending,actor=base["opponent_actor"],same_branch_application=application)
+        if gate.get("status")!="resolved":return _result(_status(gate),gate.get("reason","disable_execution_gate_unavailable"),base)
+        if gate.get("execution_state")=="restricted_by_disable":
+            failure=disable_restriction_failure_leaf(strategy_d0=strategy_d0,action=opponent_action,actor=base["opponent_actor"],target=base["own_actor"],gate=gate)
+            if failure.get("status")!="evaluable":return _result(_status(failure),failure.get("reason","disable_failure_leaf_unavailable"),base)
+            branches.append(_branch(base,plan["order"],first_leaf,{},failure["terminal_leaves"][0],base["opponent_actor"],plan));continue
+        second=_ordinary_selected_leaf(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=opponent_action,actor=base["opponent_actor"],target=base["own_actor"],metadata=opponent_meta,pure_status_authorities=pure_status_authorities)
+        if isinstance(second,str):return _result("incomplete",second,base)
+        branches.append(_branch(base,plan["order"],first_leaf,{},second["terminal_leaves"][0],base["opponent_actor"],plan))
+    mass=sum((_fraction(x["probability"]) for x in branches),Fraction())
+    if mass!=Fraction(1,1):return _result("rejected","disable_pair_probability_mass_not_one",base)
+    return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**deepcopy(dict(base)),"action_order":{"disable":"existing_exact_order_authority"},"terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_disable_application_and_selected_intent","provenance":"strict_disable_immediate_pair_materialization_v1"}
+
+
+def _disable_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any] | str:
+    active=strategy_d0.get("strategy_state",{}).get("active",{}); own=active.get(application.get("actor",{}).get("side"),{}).get("current_hp"); foe=active.get(application.get("target",{}).get("side"),{}).get("current_hp")
+    if not _hp(own) or not _hp(foe):return "disable_pair_hp_authority_missing"
+    outcome=application["outcome"]
+    return {"leaf_id":f"{application['action_id']}:{outcome}","candidate_id":application["action_id"],"branch_path":("disable","accuracy_miss" if outcome=="missed" else outcome),"probability":_fd(Fraction(1,1)),"hit_state":"missed" if outcome=="missed" else "not_applicable","critical_state":"not_applicable","damage_roll":"not_applicable","consequences":{"damage":0,"own_final_hp":own,"target_final_hp":foe,"target_ko":foe==0,"self_fainted":own==0,"secondary":None,"contact":"not_applicable","disable_application":deepcopy(dict(application))},"provenance":{"session_id":application["session_id"],"source_runtime_fingerprint":application["source_runtime_fingerprint"],"source_branch_fingerprint":application["source_branch_fingerprint"],"decision_owner":deepcopy(application["decision_owner"]),"attacker":deepcopy(application["actor"]),"target":deepcopy(application["target"]),"move_id":"disable","disable_application":deepcopy(dict(application))}}
 
 
 def _encore_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any] | str:
