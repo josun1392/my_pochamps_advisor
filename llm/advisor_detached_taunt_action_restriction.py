@@ -64,14 +64,15 @@ def taunt_restriction_failure_leaf(*, strategy_d0: Mapping[str, Any], action: Ma
 def _base(d0: Any, action: Any, actor: Any, target: Any) -> dict[str, Any] | None:
     if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or not isinstance(action, Mapping) or not isinstance(actor, Mapping) or not isinstance(target, Mapping): return None
     meta = action.get("metadata_authority", action.get("move_metadata_authority")); metadata = meta.get("metadata") if isinstance(meta, Mapping) else None
-    if d0.get("active_owners", {}).get(actor.get("side")) != dict(actor) or d0.get("active_owners", {}).get(target.get("side")) != dict(target) or not isinstance(metadata, Mapping) or metadata.get("move_id") != "taunt" or metadata.get("category") != "status": return None
+    canonical = {"move_id": "taunt", "category": "status", "type": "dark", "accuracy": 100, "priority": 0}
+    if d0.get("active_owners", {}).get(actor.get("side")) != dict(actor) or d0.get("active_owners", {}).get(target.get("side")) != dict(target) or not isinstance(metadata, Mapping) or any(metadata.get(key) != value for key, value in canonical.items()): return None
     return {**_binding(d0), "actor": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "action_id": action.get("action_id"), "move_id": "taunt"}
 
 def _binding(d0: Mapping[str, Any]) -> dict[str, Any]: return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"]))}
 def _bound_known(value: Any, base: Mapping[str, Any], label: str) -> tuple[str, str] | None:
     if not isinstance(value, Mapping): return ("incomplete", f"taunt_{label}_authority_missing")
     if value.get("status") != "resolved": return (value.get("status") if value.get("status") in {"incomplete", "rejected"} else "rejected", value.get("reason", f"taunt_{label}_authority_unavailable"))
-    if any(value.get(key) != base.get(key) for key in _BINDING): return ("rejected", f"taunt_{label}_authority_binding_mismatch")
+    if any(value.get(key) != base.get(key) for key in (*_BINDING, "actor", "target", "action_id", "move_id")): return ("rejected", f"taunt_{label}_authority_binding_mismatch")
     return None
 def _outcome(base: Mapping[str, Any], outcome: str, reason: str, authority: Mapping[str, Any], **extra: Any) -> dict[str, Any]: return {"status": "resolved", "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "outcome": outcome, "reason": reason, **deepcopy(extra), "authority": deepcopy(dict(authority)), "provenance": "strict_detached_taunt_application_v1"}
 def _result(status: str, reason: str, base: Mapping[str, Any]) -> dict[str, Any]: return {"status": status, "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "reason": reason}

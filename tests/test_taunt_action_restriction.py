@@ -13,7 +13,7 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 def _taunt_inputs(order="own_first", category="status"):
     _, snapshot, d0, _, own, foe, _ = _inputs()
     bindings = {"session_id":d0["session_id"],"source_runtime_fingerprint":d0["source_runtime_fingerprint"],"source_branch_fingerprint":d0["strategy_preview_fingerprint"],"decision_owner":d0["decision_owner"]}
-    taunt_meta = {"move_id":"taunt","category":"status","target":"selected-pokemon","accuracy":100,"power":None,"priority":0}
+    taunt_meta = {"move_id":"taunt","category":"status","type":"dark","target":"selected-pokemon","accuracy":100,"power":None,"priority":0}
     own_action = {"action_id":"attack:taunt","action_type":"attack","identity":"taunt","move_metadata_authority":{"status":"resolved","candidate_id":"attack:taunt","move_id":"taunt","active_attacker":own,**bindings,"metadata":taunt_meta}}
     if category == "status":
         move_id, metadata = "tail-whip", {"move_id":"tail-whip","category":"status","target":"selected-pokemon","accuracy":100,"power":None,"priority":0}
@@ -72,8 +72,12 @@ def test_oblivious_unknown_and_stale_current_restriction_fail_closed():
     known=lambda **extra:{"status":"resolved",**bindings,**extra}
     immune=materialize_detached_taunt_application(strategy_d0=d0,action=action,actor=own,target=foe,accuracy_authority=known(outcome="hit"),target_ability_authority=known(ability="oblivious"),target_side_ability_authority=known(ability="none"),reflection_authority=known(outcome="not_applicable"))
     assert immune["outcome"] == "no_effect"
+    aroma=materialize_detached_taunt_application(strategy_d0=d0,action=action,actor=own,target=foe,accuracy_authority=known(outcome="hit"),target_ability_authority=known(ability="pressure"),target_side_ability_authority=known(ability="aroma-veil"),reflection_authority=known(outcome="not_applicable"))
+    assert aroma["outcome"] == "no_effect" and aroma["reason"] == "taunt_target_protected_by_aroma_veil"
     unknown=materialize_detached_taunt_application(strategy_d0=d0,action=action,actor=own,target=foe,accuracy_authority=known(outcome="hit"),target_ability_authority={"status":"incomplete",**bindings},target_side_ability_authority=known(ability="none"),reflection_authority=known(outcome="not_applicable"))
     assert unknown["status"] == "incomplete"
+    foreign=materialize_detached_taunt_application(strategy_d0=d0,action=action,actor=own,target=foe,accuracy_authority={**known(outcome="hit"),"target":own},target_ability_authority=known(ability="pressure"),target_side_ability_authority=known(ability="none"),reflection_authority=known(outcome="not_applicable"))
+    assert foreign["status"] == "rejected" and foreign["reason"] == "taunt_accuracy_authority_binding_mismatch"
     state=deepcopy(snapshot["state"]); state["current_taunt_restrictions"]={"opponent":{"owner":foe,"state":"active","remaining_target_turns":3,"provenance":{}}}
     refreshed=_snapshot(state); current_d0=freeze_runtime_strategy_d0(runtime_snapshot=refreshed,decision_owner=own)
     current=freeze_runtime_d0_taunt_restriction_authority(strategy_d0=current_d0,runtime_snapshot=refreshed,owner=current_d0["active_owners"]["opponent"])
