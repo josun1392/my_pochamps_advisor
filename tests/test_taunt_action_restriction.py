@@ -78,7 +78,7 @@ def test_oblivious_unknown_and_stale_current_restriction_fail_closed():
     assert unknown["status"] == "incomplete"
     foreign=materialize_detached_taunt_application(strategy_d0=d0,action=action,actor=own,target=foe,accuracy_authority={**known(outcome="hit"),"target":own},target_ability_authority=known(ability="pressure"),target_side_ability_authority=known(ability="none"),reflection_authority=known(outcome="not_applicable"))
     assert foreign["status"] == "rejected" and foreign["reason"] == "taunt_accuracy_authority_binding_mismatch"
-    state=deepcopy(snapshot["state"]); state["current_taunt_restrictions"]={"opponent":{"owner":foe,"state":"active","remaining_target_turns":3,"provenance":{}}}
+    state=deepcopy(snapshot["state"]); provenance={"source_observation_id":"taunt-hit","source_sequence":1,"trust":"user_confirmed_observation"}; state["current_taunt_restrictions"]={"opponent":{"schema_version":"reducer-action-restriction-lifecycle-v1","owner":foe,"restriction":"taunt","activation_id":"taunt-hit","source_action_id":"attack:taunt","source_move_id":"taunt","state":"active","remaining_target_turns":3,"applied_turn":1,"last_completed_turn":None,"retired_reason":None,"application_provenance":provenance,"lifecycle_provenance":provenance}}
     refreshed=_snapshot(state); current_d0=freeze_runtime_strategy_d0(runtime_snapshot=refreshed,decision_owner=own)
     current=freeze_runtime_d0_taunt_restriction_authority(strategy_d0=current_d0,runtime_snapshot=refreshed,owner=current_d0["active_owners"]["opponent"])
     assert current["status"] == "resolved"

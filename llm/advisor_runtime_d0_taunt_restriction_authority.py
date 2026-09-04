@@ -30,8 +30,15 @@ def freeze_runtime_d0_taunt_restriction_authority(*, strategy_d0: Mapping[str, A
     row = rows.get(owner["side"])
     if not isinstance(row, Mapping):
         return _result("incomplete", "current_taunt_restriction_observation_missing", base)
-    if row.get("owner") != dict(owner):
-        return _result("rejected", "taunt_restriction_owner_binding_mismatch", base)
+    if not _valid_lifecycle_row(row):
+        return _result("rejected", "taunt_restriction_lifecycle_invalid", base)
+    activation_owner = row["owner"]
+    if activation_owner != dict(owner):
+        # The reducer's switch transition is explicit non-transfer evidence:
+        # the current active cannot inherit the retired outgoing activation.
+        if row.get("state") != "not_active" or row.get("retired_reason") != "switch_out":
+            return _result("rejected", "taunt_restriction_owner_binding_mismatch", base)
+        return _resolved(base, owner, row, activation_owner=activation_owner)
     state_name = row.get("state")
     if state_name not in {"active", "not_active"}:
         return _result("rejected", "taunt_restriction_state_invalid", base)
@@ -41,10 +48,33 @@ def freeze_runtime_d0_taunt_restriction_authority(*, strategy_d0: Mapping[str, A
             return _result("rejected", "taunt_restriction_duration_invalid", base)
     elif row.get("remaining_target_turns") is not None:
         return _result("rejected", "inactive_taunt_restriction_has_duration", base)
-    return {"status": "resolved", "schema_version": SCHEMA_VERSION, **base,
-            "state": state_name, "remaining_target_turns": row.get("remaining_target_turns"),
-            "reducer_lifecycle": deepcopy(dict(row.get("provenance", {}))),
+    return _resolved(base, owner, row)
+
+
+def _resolved(base: Mapping[str, Any], owner: Mapping[str, Any], row: Mapping[str, Any], *, activation_owner: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    result = {"status": "resolved", "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "owner": deepcopy(dict(owner)),
+            "state": row["state"], "remaining_target_turns": row.get("remaining_target_turns"),
+            "activation_id": row["activation_id"], "source_action_id": row["source_action_id"],
+            "source_move_id": row["source_move_id"], "applied_turn": row["applied_turn"],
+            "last_completed_turn": row["last_completed_turn"], "retired_reason": row["retired_reason"],
+            "reducer_lifecycle": {"application": deepcopy(dict(row["application_provenance"])), "current": deepcopy(dict(row["lifecycle_provenance"]))},
             "provenance": "strict_runtime_d0_current_taunt_restriction_v1"}
+    if activation_owner is not None:
+        result["retired_activation_owner"] = deepcopy(dict(activation_owner))
+    return result
+
+
+def _valid_lifecycle_row(row: Mapping[str, Any]) -> bool:
+    required = {"schema_version", "owner", "restriction", "activation_id", "source_action_id", "source_move_id", "state", "remaining_target_turns", "applied_turn", "last_completed_turn", "retired_reason", "application_provenance", "lifecycle_provenance"}
+    if set(row) != required or row.get("schema_version") != "reducer-action-restriction-lifecycle-v1" or row.get("restriction") != "taunt" or row.get("source_move_id") != "taunt": return False
+    if not all(isinstance(row.get(key), str) and bool(row[key]) for key in ("activation_id", "source_action_id", "source_move_id")): return False
+    if not isinstance(row.get("applied_turn"), int) or isinstance(row.get("applied_turn"), bool) or row["applied_turn"] < 1: return False
+    completed = row.get("last_completed_turn")
+    if completed is not None and (not isinstance(completed, int) or isinstance(completed, bool) or completed <= row["applied_turn"]): return False
+    for key in ("application_provenance", "lifecycle_provenance"):
+        provenance = row.get(key)
+        if not isinstance(provenance, Mapping) or provenance.get("trust") != "user_confirmed_observation" or not isinstance(provenance.get("source_observation_id"), str) or not provenance["source_observation_id"] or not isinstance(provenance.get("source_sequence"), int) or isinstance(provenance.get("source_sequence"), bool) or provenance["source_sequence"] < 1: return False
+    return True
 
 
 def _base(d0: Any, owner: Any) -> dict[str, Any] | None:
