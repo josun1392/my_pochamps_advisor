@@ -27,6 +27,7 @@ def materialize_detached_disable_application(*,strategy_d0,action,actor,target,a
     if not _owner_bound(current_known_moves_authority,base,target):return _result("incomplete","disable_current_known_moves_authority_missing",base)
     moves=current_known_moves_authority.get("move_ids")
     if not isinstance(moves,list) or any(not isinstance(x,str) or not x for x in moves):return _result("incomplete","disable_current_known_moves_incomplete",base)
+    if move not in moves and current_known_moves_authority.get("moveset_completeness") != "complete":return _result("incomplete","disable_current_known_moves_incomplete",base)
     if move not in moves:return _out(base,"canonical_failure","disable_target_no_longer_knows_last_move",current_known_moves_authority,disabled_move_id=move)
     return _out(base,"applicable","disable_applicable",accuracy_authority,disabled_move_id=move,last_used_execution_id=last_used_move_authority.get("execution_id"),remaining_target_turns=4)
 
