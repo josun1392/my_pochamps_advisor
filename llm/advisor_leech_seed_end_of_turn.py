@@ -36,22 +36,23 @@ def apply_owner_leech_seed_end_of_turn(*, state: dict[str, Any], side: str, owne
         return {"status": "resolved", "trace": {"effect": "leech_seed", "owner": deepcopy(dict(owner)), "source_slot": deepcopy(dict(seed["source_slot"])), "execution_status": "skipped", "reason": "source_slot_recipient_absent", "provenance": "detached_branch_leech_seed_v1"}}
     target, recipient = state["active"][side], state["active"][recipient_side]
     if target["fainted"]: return _result("rejected", "leech_seed_fainted_seeded_owner")
-    if recipient["fainted"]: return {"status": "resolved", "trace": {"effect": "leech_seed", "owner": deepcopy(dict(owner)), "recipient": deepcopy(owners[recipient_side]), "execution_status": "skipped", "reason": "source_slot_recipient_fainted", "provenance": "detached_branch_leech_seed_v1"}}
     if any(not isinstance(active.get(key), int) or isinstance(active.get(key), bool) for active in (target, recipient) for key in ("current_hp", "max_hp")): return _result("incomplete", "leech_seed_current_hp_authority")
-    if not 0 < target["current_hp"] <= target["max_hp"] or not 0 < recipient["current_hp"] <= recipient["max_hp"]: return _result("incomplete", "leech_seed_current_hp_authority")
+    if not 0 < target["current_hp"] <= target["max_hp"] or not 0 <= recipient["current_hp"] <= recipient["max_hp"]: return _result("incomplete", "leech_seed_current_hp_authority")
     recipient_item, target_ability = _item(state, recipient_side), _ability(state, side)
     if recipient_item is _UNKNOWN: return _result("incomplete", "leech_seed_recipient_item_authority")
     if target_ability is None: return _result("incomplete", "leech_seed_target_ability_authority")
-    drain = max(1, target["max_hp"] // 8)
+    nominal_drain = max(1, target["max_hp"] // 8)
     target_pre, recipient_pre = target["current_hp"], recipient["current_hp"]
-    target_post = max(0, target_pre - drain)
-    attempted_heal = (drain * 5324) // 4096 if recipient_item == "big-root" else drain
+    target_ability_name = target_ability
+    target_post = target_pre if target_ability_name == "magic-guard" else max(0, target_pre - nominal_drain)
+    actual_drain = target_pre - target_post
+    attempted_heal = (actual_drain * 5324) // 4096 if recipient_item == "big-root" else actual_drain
     liquid_ooze = target_ability == "liquid-ooze"
-    recipient_post = max(0, recipient_pre - attempted_heal) if liquid_ooze else min(recipient["max_hp"], recipient_pre + attempted_heal)
+    recipient_post = recipient_pre if recipient["fainted"] else (max(0, recipient_pre - attempted_heal) if liquid_ooze else min(recipient["max_hp"], recipient_pre + attempted_heal))
     target["current_hp"], target["fainted"] = target_post, target_post == 0
     recipient["current_hp"], recipient["fainted"] = recipient_post, recipient_post == 0
     _sync_hp(state, side, target_post, target["max_hp"]); _sync_hp(state, recipient_side, recipient_post, recipient["max_hp"])
-    return {"status": "resolved", "trace": {"effect": "leech_seed", "owner": deepcopy(dict(owner)), "recipient": deepcopy(owners[recipient_side]), "source_slot": deepcopy(dict(seed["source_slot"])), "target_pre_hp": target_pre, "target_post_hp": target_post, "target_damage": drain, "recipient_pre_hp": recipient_pre, "recipient_post_hp": recipient_post, "recipient_modifier": "big_root" if recipient_item == "big-root" else "none", "liquid_ooze": liquid_ooze, "attempted_recovery": attempted_heal, "recipient_outcome": "liquid_ooze_damage" if liquid_ooze else "recovered", "execution_status": "executed", "provenance": "detached_branch_leech_seed_v1"}}
+    return {"status": "resolved", "trace": {"effect": "leech_seed", "owner": deepcopy(dict(owner)), "recipient": deepcopy(owners[recipient_side]), "source_slot": deepcopy(dict(seed["source_slot"])), "target_pre_hp": target_pre, "target_post_hp": target_post, "target_damage": actual_drain, "nominal_drain": nominal_drain, "transfer_basis": actual_drain, "recipient_pre_hp": recipient_pre, "recipient_post_hp": recipient_post, "recipient_modifier": "big_root" if recipient_item == "big-root" else "none", "liquid_ooze": liquid_ooze, "target_ability": target_ability_name, "recipient_item": recipient_item, "attempted_recovery": attempted_heal, "recipient_outcome": "prevented_by_magic_guard" if target_ability_name == "magic-guard" else ("recipient_fainted" if recipient["fainted"] else ("liquid_ooze_damage" if liquid_ooze else "recovered")), "execution_status": "executed", "provenance": "detached_branch_leech_seed_v1"}}
 
 
 def _result(status: str, reason: str) -> dict[str, Any]: return {"status": status, "reason": reason}

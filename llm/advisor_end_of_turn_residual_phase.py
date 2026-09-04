@@ -22,6 +22,8 @@ HORIZON = "end_of_turn_residual_projection"
 # residual families get an explicit class here when they are supported.
 END_OF_TURN_EVENT_ORDER = {
     "sandstorm": 50,
+    # Linked target drain plus recipient transfer is an atomic residual tier.
+    "leech_seed": 80,
     "burn": 100,
     "poison": 100,
     "toxic": 100,
@@ -49,7 +51,31 @@ def materialize_detached_weather_residual(*, weather_authority: Mapping[str, Any
     return {"status": result.get("status"), "weather": "sandstorm", "result": result, "provenance": "canonical_sandstorm_residual_core_v1"}
 
 
-def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, active_states: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def materialize_detached_leech_seed_transfer(*, trace: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize the established tier-eight linked transfer trace for EOT use."""
+    required = {"effect", "owner", "recipient", "source_slot", "target_pre_hp", "target_post_hp", "target_damage", "recipient_pre_hp", "recipient_post_hp", "recipient_modifier", "liquid_ooze", "attempted_recovery", "recipient_outcome", "execution_status", "provenance"}
+    if not isinstance(trace, Mapping) or trace.get("effect") != "leech_seed" or trace.get("provenance") != "detached_branch_leech_seed_v1" or not required <= set(trace):
+        return {"status": "rejected", "reason": "invalid_leech_seed_transfer_trace"}
+    owner, recipient, slot = trace["owner"], trace["recipient"], trace["source_slot"]
+    if not all(isinstance(value, Mapping) for value in (owner, recipient, slot)) or owner.get("side") not in {"self", "opponent"} or recipient.get("side") not in {"self", "opponent"} or owner.get("side") == recipient.get("side") or slot.get("side") != recipient.get("side") or slot.get("session_id") != recipient.get("session_id") or slot.get("slot_index") != recipient.get("slot_index"):
+        return {"status": "rejected", "reason": "leech_seed_source_position_or_recipient_invalid"}
+    integers = ("target_pre_hp", "target_post_hp", "target_damage", "recipient_pre_hp", "recipient_post_hp", "attempted_recovery")
+    if any(not isinstance(trace[key], int) or isinstance(trace[key], bool) or trace[key] < 0 for key in integers):
+        return {"status": "rejected", "reason": "leech_seed_transfer_numeric_authority_invalid"}
+    if trace["target_post_hp"] != max(0, trace["target_pre_hp"] - trace["target_damage"]):
+        return {"status": "rejected", "reason": "leech_seed_target_hp_continuity_invalid"}
+    if trace["execution_status"] != "executed" or not isinstance(trace["liquid_ooze"], bool):
+        return {"status": "rejected", "reason": "leech_seed_transfer_execution_invalid"}
+    if trace["liquid_ooze"]:
+        recipient_valid = trace["recipient_post_hp"] == max(0, trace["recipient_pre_hp"] - trace["attempted_recovery"])
+    else:
+        recipient_valid = trace["recipient_pre_hp"] <= trace["recipient_post_hp"] <= trace["recipient_pre_hp"] + trace["attempted_recovery"]
+    if not recipient_valid:
+        return {"status": "rejected", "reason": "leech_seed_recipient_hp_continuity_invalid"}
+    return {"status": "resolved", "event_kind": "leech_seed", "order_class": END_OF_TURN_EVENT_ORDER["leech_seed"], "linked_transfer": deepcopy(dict(trace)), "provenance": "canonical_detached_leech_seed_transfer_adapter_v1"}
+
+
+def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, active_states: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None, leech_seed_transfers: tuple[Mapping[str, Any], ...] = ()) -> dict[str, Any]:
     """Bind two exact detached active states to one normalized pair leaf.
 
     ``terminal_ledger`` is intentionally the output of the immediate-pair
@@ -69,11 +95,13 @@ def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], termin
         rows[side] = row
     weather = _weather_authority(weather_authority, base, terminal_leaf_id)
     if isinstance(weather, str): return _result("incomplete" if weather.endswith("_unknown") else "rejected", weather, base)
+    transfers = tuple(materialize_detached_leech_seed_transfer(trace=row) for row in leech_seed_transfers)
+    if any(row.get("status") != "resolved" for row in transfers): return _result("rejected", "end_of_turn_leech_seed_transfer_invalid", base)
     return {
         "status": "resolved", "schema_version": PHASE_INPUT_SCHEMA, "horizon": HORIZON,
         **base, "terminal_leaf_id": terminal_leaf_id,
         "terminal_probability_mass": deepcopy(terminal_ledger["terminal_probability_mass"]),
-        "terminal_branch": deepcopy(dict(leaf)), "active_states": rows, "weather_authority": weather,
+        "terminal_branch": deepcopy(dict(leaf)), "active_states": rows, "weather_authority": weather, "leech_seed_transfers": transfers,
         "provenance": "strict_detached_immediate_terminal_to_end_of_turn_phase_input_v1",
     }
 
@@ -99,7 +127,16 @@ def materialize_end_of_turn_residual_phase(*, phase_input: Mapping[str, Any]) ->
     candidates.sort(key=_event_sort_key)
     mutable = {side: {"hp": phase_input["active_states"][side]["hp"]["current_hp"], "fainted": phase_input["active_states"][side]["fainted"]["value"]} for side in ("self", "opponent")}
     events = []
-    for ordinal, candidate in enumerate(candidates, start=1):
+    transfers_applied = False
+    for candidate in candidates:
+        # Tier eight is intentionally between weather and status residuals.
+        # The transfer is one atomic record: no unrelated event can split its
+        # target drain from its recipient consequence.
+        if not transfers_applied and END_OF_TURN_EVENT_ORDER[candidate["kind"]] > END_OF_TURN_EVENT_ORDER["leech_seed"]:
+            transfer_error = _apply_leech_seed_transfers(phase_input, mutable, events)
+            if transfer_error is not None:
+                return _result("incomplete", transfer_error, _base_from_input(phase_input))
+            transfers_applied = True
         side, row = candidate["side"], phase_input["active_states"][candidate["side"]]
         before, fainted = mutable[side]["hp"], mutable[side]["fainted"]
         # A normal residual/healing effect cannot revive or continue to affect
@@ -110,9 +147,9 @@ def materialize_end_of_turn_residual_phase(*, phase_input: Mapping[str, Any]) ->
         after = min(row["hp"]["maximum_hp"], max(0, before + delta))
         mutable[side] = {"hp": after, "fainted": after == 0}
         events.append({
-            "event_id": f"{phase_input['terminal_leaf_id']}:eot:{ordinal}:{candidate['kind']}:{side}",
+            "event_id": f"{phase_input['terminal_leaf_id']}:eot:{len(events)+1}:{candidate['kind']}:{side}",
             "event_kind": candidate["kind"], "order_class": END_OF_TURN_EVENT_ORDER[candidate["kind"]],
-            "ordinal": ordinal, "affected_owner": deepcopy(row["owner"]),
+            "ordinal": len(events)+1, "affected_owner": deepcopy(row["owner"]),
             "source_authority": deepcopy(candidate["source_authority"]),
             "source_terminal_leaf_id": phase_input["terminal_leaf_id"],
             "pre_hp": before, "max_hp": row["hp"]["maximum_hp"], "hp_delta": delta,
@@ -120,6 +157,10 @@ def materialize_end_of_turn_residual_phase(*, phase_input: Mapping[str, Any]) ->
             "terminal_reason": "residual_ko" if after == 0 and delta < 0 else ("already_full_hp" if delta == 0 and candidate["kind"] == "leftovers" else None),
             "ordering_authority": _ordering_authority(candidate, row),
         })
+    if not transfers_applied:
+        transfer_error = _apply_leech_seed_transfers(phase_input, mutable, events)
+        if transfer_error is not None:
+            return _result("incomplete", transfer_error, _base_from_input(phase_input))
     final_states = {
         side: {"owner": deepcopy(phase_input["active_states"][side]["owner"]), "current_hp": mutable[side]["hp"], "maximum_hp": phase_input["active_states"][side]["hp"]["maximum_hp"], "fainted": mutable[side]["fainted"], "condition": deepcopy(phase_input["active_states"][side]["condition"]), "item": deepcopy(phase_input["active_states"][side]["item"]), "toxic_progression": _post_toxic(phase_input["active_states"][side], events, side), "replacement_after_end_of_turn_faint": "deferred" if mutable[side]["fainted"] and not phase_input["active_states"][side]["fainted"]["value"] else None}
         for side in ("self", "opponent")
@@ -162,13 +203,64 @@ def materialize_end_of_turn_residual_phase_unvalidated(phase_input: Any) -> dict
     candidates.sort(key=_event_sort_key)
     mutable = {s: {"hp": phase_input["active_states"][s]["hp"]["current_hp"], "fainted": phase_input["active_states"][s]["fainted"]["value"]} for s in ("self", "opponent")}
     events = []
-    for ordinal, candidate in enumerate(candidates, 1):
+    transfers_applied = False
+    for candidate in candidates:
+        if not transfers_applied and END_OF_TURN_EVENT_ORDER[candidate["kind"]] > END_OF_TURN_EVENT_ORDER["leech_seed"]:
+            transfer_error = _apply_leech_seed_transfers(phase_input, mutable, events)
+            if transfer_error is not None: return transfer_error
+            transfers_applied = True
         side, row = candidate["side"], phase_input["active_states"][candidate["side"]]
         if mutable[side]["fainted"]: continue
         before = mutable[side]["hp"]; delta = candidate["delta"](before, row["hp"]["maximum_hp"]); after = min(row["hp"]["maximum_hp"], max(0, before + delta)); mutable[side] = {"hp": after, "fainted": after == 0}
-        events.append({"event_id": f"{phase_input['terminal_leaf_id']}:eot:{ordinal}:{candidate['kind']}:{side}", "event_kind": candidate["kind"], "order_class": END_OF_TURN_EVENT_ORDER[candidate["kind"]], "ordinal": ordinal, "affected_owner": deepcopy(row["owner"]), "source_authority": deepcopy(candidate["source_authority"]), "source_terminal_leaf_id": phase_input["terminal_leaf_id"], "pre_hp": before, "max_hp": row["hp"]["maximum_hp"], "hp_delta": delta, "post_hp": after, "fainted": after == 0, "terminal_reason": "residual_ko" if after == 0 and delta < 0 else ("already_full_hp" if delta == 0 and candidate["kind"] == "leftovers" else None), "ordering_authority": _ordering_authority(candidate, row)})
+        events.append({"event_id": f"{phase_input['terminal_leaf_id']}:eot:{len(events)+1}:{candidate['kind']}:{side}", "event_kind": candidate["kind"], "order_class": END_OF_TURN_EVENT_ORDER[candidate["kind"]], "ordinal": len(events)+1, "affected_owner": deepcopy(row["owner"]), "source_authority": deepcopy(candidate["source_authority"]), "source_terminal_leaf_id": phase_input["terminal_leaf_id"], "pre_hp": before, "max_hp": row["hp"]["maximum_hp"], "hp_delta": delta, "post_hp": after, "fainted": after == 0, "terminal_reason": "residual_ko" if after == 0 and delta < 0 else ("already_full_hp" if delta == 0 and candidate["kind"] == "leftovers" else None), "ordering_authority": _ordering_authority(candidate, row)})
+    if not transfers_applied:
+        transfer_error = _apply_leech_seed_transfers(phase_input, mutable, events)
+        if transfer_error is not None: return transfer_error
     final = {s: {"owner": deepcopy(phase_input["active_states"][s]["owner"]), "current_hp": mutable[s]["hp"], "maximum_hp": phase_input["active_states"][s]["hp"]["maximum_hp"], "fainted": mutable[s]["fainted"], "condition": deepcopy(phase_input["active_states"][s]["condition"]), "item": deepcopy(phase_input["active_states"][s]["item"]), "toxic_progression": _post_toxic(phase_input["active_states"][s], events, s), "replacement_after_end_of_turn_faint": "deferred" if mutable[s]["fainted"] and not phase_input["active_states"][s]["fainted"]["value"] else None} for s in ("self", "opponent")}
     return {"terminal_leaf_id": phase_input["terminal_leaf_id"], "events": tuple(events), "post_end_of_turn_active_states": final}
+
+
+def _apply_leech_seed_transfers(phase_input: Mapping[str, Any], mutable: dict[str, dict[str, Any]], events: list[dict[str, Any]]) -> str | None:
+    """Apply the already-materialized linked tier without splitting it.
+
+    The trace is produced by the reducer-owned Leech Seed lifecycle.  This
+    phase additionally binds both ends to the terminal active identities and
+    consumes the current mutable HPs, so a historical source identity can
+    never be used as the recipient after a position change.
+    """
+    for transfer in phase_input.get("leech_seed_transfers", ()):
+        trace = transfer["linked_transfer"]
+        target_side, recipient_side = trace["owner"]["side"], trace["recipient"]["side"]
+        target_row, recipient_row = phase_input["active_states"][target_side], phase_input["active_states"][recipient_side]
+        if trace["owner"] != target_row["owner"] or trace["recipient"] != recipient_row["owner"]:
+            return "leech_seed_transfer_terminal_identity_mismatch"
+        if mutable[target_side]["fainted"]:
+            # An earlier canonical residual KO prevents this later tier.
+            continue
+        if mutable[target_side]["hp"] != trace["target_pre_hp"]:
+            return "leech_seed_transfer_hp_continuity_unavailable"
+        # A fainted recipient remains fainted and is never revived.  The
+        # target drain still has its own resolved consequence.
+        if mutable[recipient_side]["fainted"]:
+            if trace["recipient_pre_hp"] != 0 or trace["recipient_post_hp"] != 0:
+                return "leech_seed_fainted_recipient_continuity_invalid"
+        elif mutable[recipient_side]["hp"] != trace["recipient_pre_hp"]:
+            return "leech_seed_transfer_hp_continuity_unavailable"
+        mutable[target_side] = {"hp": trace["target_post_hp"], "fainted": trace["target_post_hp"] == 0}
+        mutable[recipient_side] = {"hp": trace["recipient_post_hp"], "fainted": trace["recipient_post_hp"] == 0}
+        events.append({
+            "event_id": f"{phase_input['terminal_leaf_id']}:eot:{len(events)+1}:leech_seed:{target_side}",
+            "event_kind": "leech_seed", "order_class": END_OF_TURN_EVENT_ORDER["leech_seed"],
+            "ordinal": len(events)+1, "affected_owner": deepcopy(trace["owner"]),
+            "source_authority": deepcopy(transfer), "source_terminal_leaf_id": phase_input["terminal_leaf_id"],
+            "pre_hp": trace["target_pre_hp"], "max_hp": target_row["hp"]["maximum_hp"],
+            "hp_delta": -trace["target_damage"], "post_hp": trace["target_post_hp"],
+            "fainted": trace["target_post_hp"] == 0, "linked_recipient": deepcopy(trace["recipient"]),
+            "recipient_pre_hp": trace["recipient_pre_hp"], "recipient_post_hp": trace["recipient_post_hp"],
+            "recipient_fainted": trace["recipient_post_hp"] == 0,
+            "ordering_authority": {"catalog": "canonical_end_of_turn_residual_order_v1", "order_class": END_OF_TURN_EVENT_ORDER["leech_seed"]},
+        })
+    return None
 
 
 def _terminal_leaf(ledger: Any, leaf_id: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:

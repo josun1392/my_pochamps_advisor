@@ -46,10 +46,10 @@ def _row(side, pid, hp, *, maximum=100, condition=None, item=None, toxic=None, s
     }
 
 
-def _input(*, self_hp=50, opponent_hp=50, self_row=None, opponent_row=None, weather_authority=None):
+def _input(*, self_hp=50, opponent_hp=50, self_row=None, opponent_row=None, weather_authority=None, leech_seed_transfers=()):
     return freeze_end_of_turn_phase_input(
         terminal_ledger=_ledger(self_hp=self_hp, opponent_hp=opponent_hp), terminal_leaf_id="leaf",
-        active_states={"self": self_row or _row("self", "a", self_hp), "opponent": opponent_row or _row("opponent", "b", opponent_hp)}, weather_authority=weather_authority,
+        active_states={"self": self_row or _row("self", "a", self_hp), "opponent": opponent_row or _row("opponent", "b", opponent_hp)}, weather_authority=weather_authority, leech_seed_transfers=leech_seed_transfers,
     )
 
 
@@ -87,6 +87,45 @@ def test_phase_binds_exact_terminal_leaf_and_uses_detached_post_action_hp():
     assert result["status"] == "evaluable"
     event = result["events"][0]
     assert event["event_kind"] == "leftovers" and event["pre_hp"] == 50 and event["hp_delta"] == 6 and event["post_hp"] == 56
+
+
+def test_linked_leech_seed_transfer_updates_target_and_current_source_position_recipient():
+    trace = {"effect":"leech_seed","owner":_owner("self","a"),"recipient":_owner("opponent","b"),"source_slot":{"session_id":"s","side":"opponent","slot_index":0},"target_pre_hp":50,"target_post_hp":38,"target_damage":12,"recipient_pre_hp":50,"recipient_post_hp":62,"recipient_modifier":"none","liquid_ooze":False,"attempted_recovery":12,"recipient_outcome":"recovered","execution_status":"executed","provenance":"detached_branch_leech_seed_v1"}
+    phase = _input(leech_seed_transfers=(trace,))
+    result = materialize_end_of_turn_residual_phase(phase_input=phase)
+    assert result["status"] == "evaluable" and result["events"][0]["event_kind"] == "leech_seed"
+    assert result["post_end_of_turn_active_states"]["self"]["current_hp"] == 38
+    assert result["post_end_of_turn_active_states"]["opponent"]["current_hp"] == 62
+
+
+def test_linked_leech_seed_liquid_ooze_reversal_preserves_exact_recipient_damage():
+    trace = {"effect":"leech_seed","owner":_owner("self","a"),"recipient":_owner("opponent","b"),"source_slot":{"session_id":"s","side":"opponent","slot_index":0},"target_pre_hp":20,"target_post_hp":8,"target_damage":12,"recipient_pre_hp":15,"recipient_post_hp":0,"recipient_modifier":"big_root","liquid_ooze":True,"attempted_recovery":15,"recipient_outcome":"liquid_ooze_damage","execution_status":"executed","provenance":"detached_branch_leech_seed_v1"}
+    result = materialize_end_of_turn_residual_phase(phase_input=_input(self_hp=20, opponent_hp=15, leech_seed_transfers=(trace,)))
+    event = result["events"][0]
+    assert event["linked_recipient"] == _owner("opponent", "b")
+    assert result["post_end_of_turn_active_states"]["opponent"]["current_hp"] == 0
+
+
+def test_linked_leech_seed_magic_guard_prevention_keeps_both_hp_values():
+    trace = {"effect":"leech_seed","owner":_owner("self","a"),"recipient":_owner("opponent","b"),"source_slot":{"session_id":"s","side":"opponent","slot_index":0},"target_pre_hp":50,"target_post_hp":50,"target_damage":0,"recipient_pre_hp":50,"recipient_post_hp":50,"recipient_modifier":"none","liquid_ooze":False,"attempted_recovery":0,"recipient_outcome":"prevented_by_magic_guard","execution_status":"executed","provenance":"detached_branch_leech_seed_v1"}
+    result = materialize_end_of_turn_residual_phase(phase_input=_input(leech_seed_transfers=(trace,)))
+    assert result["post_end_of_turn_active_states"]["self"]["current_hp"] == 50
+    assert result["post_end_of_turn_active_states"]["opponent"]["current_hp"] == 50
+
+
+def test_leech_seed_is_atomic_tier_eight_before_conditions_and_uses_actual_drain_basis():
+    trace = {"effect":"leech_seed","owner":_owner("self","a"),"recipient":_owner("opponent","b"),"source_slot":{"session_id":"s","side":"opponent","slot_index":0},"target_pre_hp":5,"target_post_hp":0,"target_damage":5,"recipient_pre_hp":50,"recipient_post_hp":55,"recipient_modifier":"none","liquid_ooze":False,"attempted_recovery":5,"recipient_outcome":"recovered","execution_status":"executed","provenance":"detached_branch_leech_seed_v1"}
+    result = materialize_end_of_turn_residual_phase(phase_input=_input(
+        self_hp=5, opponent_hp=50, self_row=_row("self", "a", 5, condition="burn"), leech_seed_transfers=(trace,),
+    ))
+    assert [event["event_kind"] for event in result["events"]] == ["leech_seed"]
+    assert result["events"][0]["hp_delta"] == -5
+    assert result["post_end_of_turn_active_states"]["opponent"]["current_hp"] == 55
+
+
+def test_linked_transfer_rejects_terminal_recipient_identity_forgery():
+    trace = {"effect":"leech_seed","owner":_owner("self","a"),"recipient":_owner("opponent","foreign"),"source_slot":{"session_id":"s","side":"opponent","slot_index":0},"target_pre_hp":50,"target_post_hp":38,"target_damage":12,"recipient_pre_hp":50,"recipient_post_hp":62,"recipient_modifier":"none","liquid_ooze":False,"attempted_recovery":12,"recipient_outcome":"recovered","execution_status":"executed","provenance":"detached_branch_leech_seed_v1"}
+    assert materialize_end_of_turn_residual_phase(phase_input=_input(leech_seed_transfers=(trace,)))["reason"] == "leech_seed_transfer_terminal_identity_mismatch"
 
 
 def test_terminal_binding_and_missing_hp_fail_closed():

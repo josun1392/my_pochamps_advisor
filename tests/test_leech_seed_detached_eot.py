@@ -41,7 +41,9 @@ def test_leech_seed_unknown_skip_and_ordinary_switch_isolation():
     assert project_per_owner_end_of_turn(pre_end_of_turn=unknown,owner=_owner_id(unknown["next_state"],"self"))=={"status":"incomplete","reason":"leech_seed_persistent_effect_unknown"}
     skipped=_pre(self_item=None,self_condition="none",opponent_hp=0); _seed(skipped["next_state"])
     result=project_per_owner_end_of_turn(pre_end_of_turn=skipped,owner=_owner_id(skipped["next_state"],"self"))
-    assert result["status"]=="resolved" and result["eot_consequence_trace"][0]["reason"]=="source_slot_recipient_fainted"
+    row = result["eot_consequence_trace"][0]
+    assert result["status"] == "resolved" and row["target_post_hp"] == 38 and row["recipient_post_hp"] == 0
+    assert row["recipient_outcome"] == "recipient_fainted"
     absent=_pre(self_item=None,self_condition="none"); _seed(absent["next_state"])
     absent["next_state"]["leech_seed_persistent_effect_context"]["states"][0]["source_slot"]["slot_index"] = 9
     result=project_per_owner_end_of_turn(pre_end_of_turn=absent,owner=_owner_id(absent["next_state"],"self"))
