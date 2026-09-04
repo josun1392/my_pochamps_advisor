@@ -86,6 +86,9 @@ from llm.advisor_detached_pending_action_intent_rebinding_authority import (
 from llm.advisor_runtime_d0_sucker_punch_execution_applicability_authority import (
     freeze_runtime_d0_sucker_punch_execution_applicability_authority,
 )
+from llm.advisor_detached_taunt_action_restriction import (
+    materialize_taunt_execution_gate, taunt_restriction_failure_leaf,
+)
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
@@ -133,6 +136,7 @@ def materialize_immediate_move_vs_move_action_pair(
     pure_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     crafty_shield_pure_status_applicability_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    taunt_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -145,6 +149,11 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    if own_meta.get("metadata", {}).get("move_id") == "taunt":
+        return _materialize_taunt_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            own_action=own_action, opponent_action=opponent_action, own_meta=own_meta,
+            opponent_meta=opponent_meta, orders=orders, pure_status_authorities=pure_status_execution_authorities,
+            applications=taunt_application_authorities)
     # Sucker Punch's selected-action condition is prior to any special
     # treatment of a non-damaging opponent move.  Tail Whip is the currently
     # exact materialized pure-status family; protection selections use their
@@ -227,6 +236,61 @@ def _materialize_tail_whip_status_pair(*, base: Mapping[str, Any], strategy_d0: 
     mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
     if mass != Fraction(1, 1): return _result("rejected", "pure_status_pair_probability_mass_not_one", base)
     return {"status":"evaluable", "schema_version":SCHEMA_VERSION, "horizon":HORIZON, **deepcopy(dict(base)), "action_order": {"pure_status": "external_exact_order_authority"}, "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass), "aggregation":"none_preserve_pure_status_leaf_identity", "provenance":"strict_tail_whip_pure_status_pair_materialization_v1"}
+
+
+def _materialize_taunt_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None, applications: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
+    """Narrow Taunt timing adapter; selected intent is never overwritten."""
+    application = applications.get(own_action.get("action_id")) if isinstance(applications, Mapping) else None
+    if not isinstance(application, Mapping): return _result("incomplete", "taunt_application_authority_missing", base)
+    if application.get("status") != "resolved": return _result(_status(application), application.get("reason", "taunt_application_unavailable"), base)
+    if application.get("actor") != base["own_actor"] or application.get("target") != base["opponent_actor"] or application.get("action_id") != own_action.get("action_id"):
+        return _result("rejected", "taunt_application_binding_mismatch", base)
+    branches = []
+    for plan in orders:
+        taunt_leaf = _taunt_pair_leaf(application, strategy_d0)
+        if isinstance(taunt_leaf, str): return _result("incomplete", taunt_leaf, base)
+        if plan["order"] == "own_first":
+            second = _taunt_pending_second_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=opponent_action, actor=base["opponent_actor"], target=base["own_actor"], metadata=opponent_meta, application=application, pure_status_authorities=pure_status_authorities)
+            if isinstance(second, Mapping) and second.get("status") != "evaluable": return _result(_status(second), second.get("reason", "taunt_pending_action_unavailable"), base)
+            if isinstance(second, str): return _result("incomplete", second, base)
+            branches.append(_branch(base, plan["order"], taunt_leaf, {}, second["terminal_leaves"][0], base["opponent_actor"], plan))
+        else:
+            first = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=opponent_action, actor=base["opponent_actor"], target=base["own_actor"], metadata=opponent_meta, pure_status_authorities=pure_status_authorities)
+            if isinstance(first, Mapping) and first.get("status") != "evaluable": return _result(_status(first), first.get("reason", "taunt_first_action_unavailable"), base)
+            if isinstance(first, str): return _result("incomplete", first, base)
+            branches.append(_branch(base, plan["order"], first["terminal_leaves"][0], {}, taunt_leaf, base["own_actor"], plan))
+    mass=sum((_fraction(x["probability"]) for x in branches), Fraction())
+    if mass != Fraction(1,1): return _result("rejected", "taunt_pair_probability_mass_not_one", base)
+    return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**deepcopy(dict(base)),"action_order":{"taunt":"external_exact_order_authority"},"terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_taunt_application_and_selected_intent","provenance":"strict_taunt_immediate_pair_materialization_v1"}
+
+
+def _ordinary_selected_leaf(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any] | str:
+    category = metadata.get("metadata", {}).get("category") if isinstance(metadata.get("metadata"), Mapping) else None
+    if category in {"physical", "special"}: return _attack_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, action=action)
+    if category != "status": return "taunt_pending_move_category_unknown"
+    authority = pure_status_authorities.get(action.get("action_id")) if isinstance(pure_status_authorities, Mapping) else None
+    if not isinstance(authority, Mapping): return "taunt_pending_status_execution_authority_missing"
+    status = materialize_detached_pure_status_action(execution_authority=authority)
+    if status.get("status") != "resolved": return {"status": _status(status), "reason": status.get("reason", "taunt_pending_status_materialization_unavailable")}
+    leaf = _pure_status_pair_leaf(status, strategy_d0)
+    return {"status":"evaluable", "terminal_leaves": (leaf,)} if isinstance(leaf, Mapping) else leaf
+
+
+def _taunt_pending_second_leaf(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], application: Mapping[str, Any], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any] | str:
+    pending = {**deepcopy(dict(action)), "metadata_authority": deepcopy(dict(metadata))}
+    gate = materialize_taunt_execution_gate(selected_action=pending, actor=actor, same_branch_application=application)
+    if gate.get("status") != "resolved": return {"status": _status(gate), "reason": gate.get("reason", "taunt_execution_gate_unavailable")}
+    if gate.get("execution_state") == "restricted_by_taunt": return taunt_restriction_failure_leaf(strategy_d0=strategy_d0, action=action, actor=actor, target=target, gate=gate)
+    return _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, actor=actor, target=target, metadata=metadata, pure_status_authorities=pure_status_authorities)
+
+
+def _taunt_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any] | str:
+    actor, target = application.get("actor"), application.get("target")
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    own_hp = active.get(actor.get("side"), {}).get("current_hp") if isinstance(actor, Mapping) else None
+    target_hp = active.get(target.get("side"), {}).get("current_hp") if isinstance(target, Mapping) else None
+    if not _hp(own_hp) or not _hp(target_hp): return "taunt_pair_hp_authority_missing"
+    return {"leaf_id":f"{application['action_id']}:{application['outcome']}","candidate_id":application["action_id"],"branch_path":("taunt",application["outcome"]),"probability":_fd(Fraction(1,1)),"hit_state":"not_applicable","critical_state":"not_applicable","damage_roll":"not_applicable","consequences":{"damage":0,"own_final_hp":own_hp,"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":own_hp==0,"secondary":None,"contact":"not_applicable","taunt_application":deepcopy(dict(application))},"provenance":{"session_id":application["session_id"],"source_runtime_fingerprint":application["source_runtime_fingerprint"],"source_branch_fingerprint":application["source_branch_fingerprint"],"decision_owner":deepcopy(application["decision_owner"]),"attacker":deepcopy(actor),"target":deepcopy(target),"move_id":"taunt","taunt_application":deepcopy(dict(application))}}
 
 
 def _materialize_sucker_punch_vs_tail_whip_pair(
