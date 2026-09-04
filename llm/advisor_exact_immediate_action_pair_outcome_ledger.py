@@ -113,6 +113,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     second_leaf = second.get("leaf")
     if second["state"] == "executed":
         if not isinstance(second_leaf, Mapping) or not isinstance(second_leaf.get("leaf_id"), str) or _fraction(second_leaf.get("probability")) * execution_probability != conditional: return "executed_second_action_leaf_invalid"
+        encore_error = _encore_forced_execution_leaf(first, second, second_leaf, base, value["action_order"])
+        if encore_error is not None: return encore_error
         pivot_error = _pivot_second_action_target_binding(value, base, first, second_leaf)
         if pivot_error is not None: return pivot_error
         focus_error = _focus_sash_leaf(second_leaf)
@@ -393,6 +395,26 @@ def _contact_reactive_status(value: Any) -> bool:
 def _effect_spore_contact_reactive_status(authority: Mapping[str, Any], overlay: Any, branch: Any) -> bool:
     """Use the graph ledger's strict canonical Effect Spore row contract."""
     return _validate_effect_spore_contact_reactive_status(authority, overlay, branch)
+
+
+def _encore_forced_execution_leaf(first: Mapping[str, Any], second: Mapping[str, Any], leaf: Mapping[str, Any], base: Mapping[str, Any], action_order: str) -> str | None:
+    forced = second.get("forced_execution_action")
+    marker = leaf.get("consequences", {}).get("encore_forced_execution") if isinstance(leaf.get("consequences"), Mapping) else None
+    provenance = leaf.get("provenance") if isinstance(leaf.get("provenance"), Mapping) else None
+    if forced is None and marker is None and not (isinstance(provenance, Mapping) and "encore_forced_execution" in provenance): return None
+    if action_order != "own_first" or not isinstance(forced, Mapping) or marker != forced or not isinstance(provenance, Mapping) or provenance.get("encore_forced_execution") != forced:
+        return "encore_forced_execution_binding_invalid"
+    required = {"status", "schema_version", "actor", "selected_action_id", "selected_move_id", "execution_action_id", "execution_move_id", "execution_move_metadata", "execution_priority", "replacement_reason", "encore_application", "provenance"}
+    if set(forced) != required or forced.get("status") != "resolved" or forced.get("schema_version") != "detached-encore-action-restriction-v1" or forced.get("actor") != base["opponent_actor"] or forced.get("selected_action_id") != base["opponent_action_id"] or forced.get("replacement_reason") != "encore":
+        return "encore_forced_execution_binding_invalid"
+    meta, application = forced.get("execution_move_metadata"), forced.get("encore_application")
+    if not isinstance(meta, Mapping) or meta.get("move_id") != forced.get("execution_move_id") or meta.get("priority") != forced.get("execution_priority") or not isinstance(forced.get("execution_priority"), int) or isinstance(forced.get("execution_priority"), bool) or not isinstance(application, Mapping):
+        return "encore_forced_execution_metadata_invalid"
+    if application.get("status") != "resolved" or application.get("outcome") != "applicable" or application.get("actor") != base["own_actor"] or application.get("target") != base["opponent_actor"] or application.get("action_id") != base["own_action_id"] or application.get("locked_move_id") != forced.get("execution_move_id"):
+        return "encore_forced_execution_application_invalid"
+    if leaf.get("candidate_id") != forced.get("execution_action_id") or provenance.get("selected_action_id") != forced.get("selected_action_id") or provenance.get("execution_move_id") != forced.get("execution_move_id") or provenance.get("replacement_reason") != "encore":
+        return "encore_forced_execution_leaf_identity_invalid"
+    return None
 
 
 def _sucker_punch_leaf(leaf: Mapping[str, Any], *, action_order: str, pair_base: Mapping[str, Any]) -> str | None:

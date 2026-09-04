@@ -89,6 +89,9 @@ from llm.advisor_runtime_d0_sucker_punch_execution_applicability_authority impor
 from llm.advisor_detached_taunt_action_restriction import (
     materialize_taunt_execution_gate, taunt_restriction_failure_leaf,
 )
+from llm.advisor_detached_encore_action_restriction import (
+    materialize_encore_forced_execution_action,
+)
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
@@ -137,6 +140,7 @@ def materialize_immediate_move_vs_move_action_pair(
     crafty_shield_pure_status_applicability_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     taunt_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    encore_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -154,6 +158,11 @@ def materialize_immediate_move_vs_move_action_pair(
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta,
             opponent_meta=opponent_meta, orders=orders, pure_status_authorities=pure_status_execution_authorities,
             applications=taunt_application_authorities)
+    if own_meta.get("metadata", {}).get("move_id") == "encore":
+        return _materialize_encore_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            own_action=own_action, opponent_action=opponent_action, opponent_meta=opponent_meta,
+            orders=orders, pure_status_authorities=pure_status_execution_authorities,
+            applications=encore_application_authorities)
     # Sucker Punch's selected-action condition is prior to any special
     # treatment of a non-damaging opponent move.  Tail Whip is the currently
     # exact materialized pure-status family; protection selections use their
@@ -262,6 +271,54 @@ def _materialize_taunt_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str
     mass=sum((_fraction(x["probability"]) for x in branches), Fraction())
     if mass != Fraction(1,1): return _result("rejected", "taunt_pair_probability_mass_not_one", base)
     return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**deepcopy(dict(base)),"action_order":{"taunt":"external_exact_order_authority"},"terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_taunt_application_and_selected_intent","provenance":"strict_taunt_immediate_pair_materialization_v1"}
+
+
+def _materialize_encore_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None, applications: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
+    """Replace only a still-pending selected action; never retroactively reorder."""
+    application = applications.get(own_action.get("action_id")) if isinstance(applications, Mapping) else None
+    if not isinstance(application, Mapping): return _result("incomplete", "encore_application_authority_missing", base)
+    if application.get("status") != "resolved": return _result(_status(application), application.get("reason", "encore_application_unavailable"), base)
+    if application.get("actor") != base["own_actor"] or application.get("target") != base["opponent_actor"] or application.get("action_id") != own_action.get("action_id"):
+        return _result("rejected", "encore_application_binding_mismatch", base)
+    branches = []
+    for plan in orders:
+        encore_leaf = _encore_pair_leaf(application, strategy_d0)
+        if isinstance(encore_leaf, str): return _result("incomplete", encore_leaf, base)
+        if plan["order"] == "opponent_first":
+            first = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=opponent_action, actor=base["opponent_actor"], target=base["own_actor"], metadata=opponent_meta, pure_status_authorities=pure_status_authorities)
+            if isinstance(first, str): return _result("incomplete", first, base)
+            branches.append(_branch(base, plan["order"], first["terminal_leaves"][0], {}, encore_leaf, base["own_actor"], plan)); continue
+        if application.get("outcome") != "applicable":
+            second = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=opponent_action, actor=base["opponent_actor"], target=base["own_actor"], metadata=opponent_meta, pure_status_authorities=pure_status_authorities)
+            if isinstance(second, str): return _result("incomplete", second, base)
+            branches.append(_branch(base, plan["order"], encore_leaf, {}, second["terminal_leaves"][0], base["opponent_actor"], plan)); continue
+        forced = materialize_encore_forced_execution_action(selected_action=opponent_action, actor=base["opponent_actor"], encore_application=application)
+        if forced.get("status") != "resolved": return _result(_status(forced), forced.get("reason", "encore_forced_execution_unavailable"), base)
+        forced_meta = {"status": "resolved", "metadata": forced["execution_move_metadata"]}
+        forced_action = {**deepcopy(dict(opponent_action)), "action_id": forced["execution_action_id"], "move_id": forced["execution_move_id"], "identity": forced["execution_move_id"], "metadata_authority": forced_meta}
+        second = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=forced_action, actor=base["opponent_actor"], target=base["own_actor"], metadata=forced_meta, pure_status_authorities=pure_status_authorities)
+        if isinstance(second, str): return _result("incomplete", second, base)
+        branch = _branch(base, plan["order"], encore_leaf, {}, _bind_encore_forced_leaf(second["terminal_leaves"][0], forced), base["opponent_actor"], plan)
+        branch["second_action"]["forced_execution_action"] = deepcopy(dict(forced))
+        branch["second_action"]["execution_priority"] = forced["execution_priority"]
+        branches.append(branch)
+    mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
+    if mass != Fraction(1, 1): return _result("rejected", "encore_pair_probability_mass_not_one", base)
+    return {"status": "evaluable", "schema_version": SCHEMA_VERSION, "horizon": HORIZON, **deepcopy(dict(base)), "action_order": {"encore": "selected_order_then_pending_forced_move_priority"}, "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass), "aggregation": "none_preserve_selected_intent_and_encore_forced_execution", "provenance": "strict_encore_immediate_pair_materialization_v1"}
+
+
+def _encore_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any] | str:
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    own_hp, target_hp = active.get(application.get("actor", {}).get("side"), {}).get("current_hp"), active.get(application.get("target", {}).get("side"), {}).get("current_hp")
+    if not _hp(own_hp) or not _hp(target_hp): return "encore_pair_hp_authority_missing"
+    return {"leaf_id": f"{application['action_id']}:{application['outcome']}", "candidate_id": application["action_id"], "branch_path": ("encore", application["outcome"]), "probability": _fd(Fraction(1, 1)), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": own_hp, "target_final_hp": target_hp, "target_ko": target_hp == 0, "self_fainted": own_hp == 0, "secondary": None, "contact": "not_applicable", "encore_application": deepcopy(dict(application))}, "provenance": {"session_id": application["session_id"], "source_runtime_fingerprint": application["source_runtime_fingerprint"], "source_branch_fingerprint": application["source_branch_fingerprint"], "decision_owner": deepcopy(application["decision_owner"]), "attacker": deepcopy(application["actor"]), "target": deepcopy(application["target"]), "move_id": "encore", "encore_application": deepcopy(dict(application))}}
+
+
+def _bind_encore_forced_leaf(leaf: Mapping[str, Any], forced: Mapping[str, Any]) -> dict[str, Any]:
+    result = deepcopy(dict(leaf)); result["candidate_id"] = forced["execution_action_id"]
+    result["consequences"] = {**deepcopy(dict(result.get("consequences", {}))), "encore_forced_execution": deepcopy(dict(forced))}
+    result["provenance"] = {**deepcopy(dict(result.get("provenance", {}))), "encore_forced_execution": deepcopy(dict(forced)), "selected_action_id": forced["selected_action_id"], "execution_move_id": forced["execution_move_id"], "replacement_reason": "encore"}
+    return result
 
 
 def _ordinary_selected_leaf(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any] | str:
