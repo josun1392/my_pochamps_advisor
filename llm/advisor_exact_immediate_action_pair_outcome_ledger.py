@@ -78,6 +78,8 @@ def _switch_leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     attack = value.get("attack_leaf")
     probability = _fraction(value.get("probability"))
     if not isinstance(attack, Mapping) or not isinstance(attack.get("leaf_id"), str) or _fraction(attack.get("probability")) <= 0 or probability != _fraction(attack["probability"]): return "switch_pair_attack_leaf_invalid"
+    sucker_error = _sucker_punch_leaf(attack, action_order="opponent_switch_first")
+    if sucker_error is not None: return sucker_error
     final = _final(attack, base)
     if isinstance(final, str): return final
     focus_error = _focus_sash_leaf(attack)
@@ -98,6 +100,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if value.get("provenance") != dict(base): return "pair_terminal_branch_provenance_mismatch"
     first, second = value.get("first_action_leaf"), value.get("second_action")
     if not isinstance(first, Mapping) or not isinstance(first.get("leaf_id"), str) or _fraction(first.get("probability")) <= 0: return "first_action_leaf_invalid"
+    sucker_error = _sucker_punch_leaf(first, action_order=value["action_order"])
+    if sucker_error is not None: return sucker_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -136,6 +140,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if first_status_error is not None: return first_status_error
     final_source = second_leaf if isinstance(second_leaf, Mapping) else first
     if isinstance(second_leaf, Mapping):
+        sucker_error = _sucker_punch_leaf(second_leaf, action_order=value["action_order"])
+        if sucker_error is not None: return sucker_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -390,6 +396,37 @@ def _effect_spore_contact_reactive_status(authority: Mapping[str, Any], overlay:
         "poison": {"numerator": 9, "denominator": 100},
         "none": {"numerator": 7, "denominator": 10},
     }
+
+
+def _sucker_punch_leaf(leaf: Mapping[str, Any], *, action_order: str) -> str | None:
+    provenance = leaf.get("provenance") if isinstance(leaf, Mapping) else None
+    if not isinstance(provenance, Mapping) or provenance.get("move_id") != "sucker-punch": return None
+    applicability = provenance.get("sucker_punch_execution_applicability")
+    consequences = leaf.get("consequences")
+    if not isinstance(applicability, Mapping) or not isinstance(consequences, Mapping) or consequences.get("sucker_punch_execution") != applicability:
+        return "sucker_punch_execution_applicability_missing"
+    expected_metadata = {"move_id": "sucker-punch", "category": "physical", "power": 70, "type": "dark", "accuracy": 100, "priority": 1}
+    if (
+        applicability.get("schema_version") != "runtime-d0-sucker-punch-execution-applicability-authority-v1"
+        or applicability.get("move_id") != "sucker-punch"
+        or applicability.get("own_action_id") != "attack:sucker-punch"
+        or applicability.get("canonical_move_metadata") != expected_metadata
+        or applicability.get("sucker_punch_actor") != provenance.get("attacker")
+        or applicability.get("target") != provenance.get("target")
+        or any(applicability.get(key) != provenance.get(key) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner"))
+    ):
+        return "sucker_punch_execution_applicability_invalid"
+    if applicability.get("status") == "applies":
+        if action_order != "own_first" or applicability.get("action_order") != "own_first" or applicability.get("target_already_acted") is not False or applicability.get("target_selected_action_kind") != "attack" or applicability.get("target_selected_move_category") not in {"physical", "special"}:
+            return "sucker_punch_success_condition_invalid"
+        return None
+    if applicability.get("status") != "not_applicable" or applicability.get("reason") not in {"sucker_punch_target_not_readying_attack", "sucker_punch_target_already_acted"}:
+        return "sucker_punch_failure_condition_invalid"
+    if applicability.get("reason") == "sucker_punch_target_already_acted" and (action_order != "opponent_first" or applicability.get("action_order") != "opponent_first" or applicability.get("target_already_acted") is not True):
+        return "sucker_punch_failure_order_invalid"
+    if leaf.get("hit_state") != "not_applicable" or leaf.get("critical_state") != "not_applicable" or leaf.get("damage_roll") != "not_applicable" or consequences.get("damage") != 0 or consequences.get("contact") != "not_applicable":
+        return "sucker_punch_failure_leaf_not_deterministic"
+    return None
 
     outcomes = authority.get("effect_spore_outcomes")
     contact = authority.get("contact_authority")

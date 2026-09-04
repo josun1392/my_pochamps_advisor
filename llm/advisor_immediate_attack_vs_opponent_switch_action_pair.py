@@ -12,6 +12,10 @@ from llm.advisor_detached_switch_first_hypothetical_condition_predictive_consume
     materialize_detached_switch_first_hypothetical_condition_predictive_view,
 )
 from llm.advisor_immediate_move_vs_move_action_pair import _attack_ledger
+from llm.advisor_immediate_move_vs_move_action_pair import _sucker_punch_failure_ledger
+from llm.advisor_runtime_d0_sucker_punch_execution_applicability_authority import (
+    freeze_runtime_d0_sucker_punch_execution_applicability_authority,
+)
 from llm.advisor_runtime_strategy_d0 import (
     resolve_runtime_d0_selectable_move_metadata_authority,
     runtime_strategy_d0_freshness,
@@ -53,6 +57,22 @@ def materialize_immediate_attack_vs_opponent_switch_action_pair(
     predictive = _switch_first_predictive_view(strategy_d0, runtime_snapshot, switch_in)
     if predictive.get("status") != "resolved":
         return _result(_status(predictive), predictive.get("reason", "switch_first_predictive_view_unavailable"), base)
+    if metadata.get("metadata", {}).get("move_id") == "sucker-punch":
+        applicability = freeze_runtime_d0_sucker_punch_execution_applicability_authority(
+            strategy_d0=strategy_d0, own_action=own_action, own_move_metadata_authority=metadata,
+            target_action={"action_id": selected_switch_response_action_id, "action_type": "manual_switch"},
+            target_move_metadata_authority=None, action_order_authority=None, order="opponent_first",
+        )
+        if applicability.get("status") in {"incomplete", "rejected"}:
+            return _result(_status(applicability), applicability.get("reason", "sucker_punch_execution_authority_unavailable"), base)
+        failure = _sucker_punch_failure_ledger(
+            strategy_d0=predictive["strategy_d0"], actor=predictive["own_actor"], target=predictive["incoming_target"],
+            action=own_action, applicability=applicability,
+        )
+        if failure.get("status") != "evaluable":
+            return _result(_status(failure), failure.get("reason", "sucker_punch_failure_leaf_unavailable"), base)
+        branches = tuple(_branch(base, switch_in, leaf) for leaf in failure["terminal_leaves"])
+        return {"status": "evaluable", "schema_version": SCHEMA_VERSION, "horizon": HORIZON, **base, "action_order": "opponent_switch_first", "conditional_on": "opponent_selected_exact_selectable_switch_response", "switch_in_authority": deepcopy(switch_in), "terminal_branches": branches, "sucker_punch_execution_applicability": deepcopy(applicability), "terminal_probability_mass": _fd(Fraction(1, 1)), "aggregation": "none_preserve_switch_and_sucker_punch_failure_identity", "provenance": "strict_detached_immediate_attack_vs_opponent_switch_pair_v1"}
     analytic_order = freeze_runtime_d0_analytic_action_order_authority(
         strategy_d0=predictive["strategy_d0"], attacker=predictive["own_actor"], target=predictive["incoming_target"],
         own_action_id=own_action["action_id"], opponent_action_id=selected_switch_response_action_id,

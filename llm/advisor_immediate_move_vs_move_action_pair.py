@@ -83,6 +83,9 @@ from llm.advisor_detached_pivot_switch_transition import materialize_detached_da
 from llm.advisor_detached_pending_action_intent_rebinding_authority import (
     freeze_pending_action_intent_rebinding_authority,
 )
+from llm.advisor_runtime_d0_sucker_punch_execution_applicability_authority import (
+    freeze_runtime_d0_sucker_punch_execution_applicability_authority,
+)
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
@@ -153,7 +156,9 @@ def materialize_immediate_move_vs_move_action_pair(
     if _is_protection_metadata(opponent_meta.get("metadata")) or any(candidate(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None for candidate in (canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata, canonical_spiky_shield_reactive_damage_metadata, canonical_baneful_bunker_reactive_poison_metadata, canonical_burning_bulwark_reactive_burn_metadata)):
         return _materialize_protection_response_pair(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
+            own_action=own_action, opponent_action=opponent_action,
             own_meta=own_meta, opponent_meta=opponent_meta, orders=orders,
+            action_order_authority=action_order_authority,
             opponent_protection_success_authority=opponent_protection_success_authority,
             incoming_contact_authority=incoming_contact_authority,
             silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority,
@@ -254,7 +259,8 @@ def _hp(value: Any) -> bool:
 
 def _materialize_protection_response_pair(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any],
-    own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]],
+    own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
+    own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], action_order_authority: Mapping[str, Any],
     opponent_protection_success_authority: Mapping[str, Any] | None,
     incoming_contact_authority: Mapping[str, Any] | None,
     silk_trap_reactive_interaction_authority: Mapping[str, Any] | None,
@@ -267,7 +273,23 @@ def _materialize_protection_response_pair(
     """Materialize only the existing exact ordinary self-protection contract."""
     branches: list[dict[str, Any]] = []
     for plan in orders:
+        sucker = None
+        if own_meta["metadata"].get("move_id") == "sucker-punch":
+            sucker = freeze_runtime_d0_sucker_punch_execution_applicability_authority(
+                strategy_d0=strategy_d0, own_action=own_action, own_move_metadata_authority=own_meta,
+                target_action=opponent_action, target_move_metadata_authority=opponent_meta,
+                action_order_authority=action_order_authority if isinstance(action_order_authority, Mapping) else None,
+                order=plan["order"], action_order_branch=plan.get("source_branch"),
+            )
+            if sucker.get("status") in {"incomplete", "rejected"}:
+                return _result(_status(sucker), sucker.get("reason", "sucker_punch_execution_authority_unavailable"), base)
+            if sucker.get("status") != "not_applicable":
+                return _result("rejected", "sucker_punch_status_target_condition_invalid", base)
         if plan["order"] == "own_first":
+            if sucker is not None:
+                failed = _sucker_punch_failure_ledger(strategy_d0=strategy_d0, actor=base["own_actor"], target=base["opponent_actor"], action=own_action, applicability=sucker)
+                if failed.get("status") != "evaluable": return _result(_status(failed), failed.get("reason", "sucker_punch_failure_leaf_unavailable"), base)
+                branches.append(_protection_branch(base, plan, failed["terminal_leaves"][0], "executed_protection")); continue
             first = _attack_ledger(
                 strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
                 actor=base["own_actor"], target=base["opponent_actor"], metadata_authority=own_meta,
@@ -355,6 +377,10 @@ def _materialize_protection_response_pair(
         leaf = _protection_leaf(base, strategy_d0, opponent_meta["metadata"], reactive, spiky_damage, baneful_poison, burning_burn)
         if leaf is None:
             return _result("incomplete", "exact_protection_hp_authority_missing", base)
+        if sucker is not None:
+            failed = _sucker_punch_failure_ledger(strategy_d0=strategy_d0, actor=base["own_actor"], target=base["opponent_actor"], action=own_action, applicability=sucker)
+            if failed.get("status") != "evaluable": return _result(_status(failed), failed.get("reason", "sucker_punch_failure_leaf_unavailable"), base)
+            branches.append(_sucker_punch_second_failure_branch(base, plan, leaf, failed["terminal_leaves"][0])); continue
         branches.append(_protection_branch(base, plan, leaf, "prevented_by_protection"))
     mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
     if mass != Fraction(1, 1): return _result("rejected", "pair_terminal_probability_mass_not_one", base, terminal_probability_mass=_fd(mass))
@@ -593,6 +619,11 @@ def _protection_branch(base: Mapping[str, Any], plan: Mapping[str, Any], first: 
     }
 
 
+def _sucker_punch_second_failure_branch(base: Mapping[str, Any], plan: Mapping[str, Any], first: Mapping[str, Any], failure: Mapping[str, Any]) -> dict[str, Any]:
+    probability = plan["probability"] * _fraction(first["probability"])
+    return {"pair_leaf_id": f"{first['leaf_id']}/{failure['leaf_id']}", "action_order": plan["order"], **({"action_order_branch": deepcopy(dict(plan["source_branch"])), "action_order_conditional_probability": _fd(plan["probability"])} if isinstance(plan.get("source_branch"), Mapping) else {}), "first_action_leaf": deepcopy(dict(first)), "intermediate_state_id": f"intermediate:{first['candidate_id']}:{first['leaf_id']}", "second_action": {"state": "executed", "actor": deepcopy(dict(base["own_actor"])), "conditional_probability": deepcopy(failure["probability"]), "leaf": deepcopy(dict(failure))}, "probability": _fd(probability), "provenance": deepcopy(dict(base))}
+
+
 def _materialize_order(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
@@ -617,11 +648,24 @@ def _materialize_order(
         strategy_d0=first_d0, actor=first_actor, target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"],
         base=base, plan=order_plan, source_action_order_authority=action_order_authority,
     ) if first_actor == base["own_actor"] else None
-    first = _attack_ledger(strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
-                                   target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"], metadata_authority=first_meta,
-                                   sturdy_survival_authority=first_action_sturdy_survival_authority,
-                                   focus_sash_survival_authority=first_action_focus_sash_survival_authority, action=first_action,
-                                   analytic_action_order_authority=first_analytic)
+    first_gate = None
+    if order == "own_first" and own_meta["metadata"].get("move_id") == "sucker-punch":
+        first_gate = freeze_runtime_d0_sucker_punch_execution_applicability_authority(
+            strategy_d0=strategy_d0, own_action=own_action, own_move_metadata_authority=own_meta,
+            target_action=opponent_action, target_move_metadata_authority=opponent_meta,
+            action_order_authority=action_order_authority, order=order, action_order_branch=order_plan.get("source_branch"),
+        )
+        if first_gate.get("status") in {"incomplete", "rejected"}:
+            return _result(_status(first_gate), first_gate.get("reason", "sucker_punch_execution_authority_unavailable"), base)
+    first = (_sucker_punch_failure_ledger(strategy_d0=first_d0, actor=first_actor, target=base["opponent_actor"], action=own_action, applicability=first_gate)
+             if isinstance(first_gate, Mapping) and first_gate.get("status") == "not_applicable"
+             else _attack_ledger(strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
+                                 target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"], metadata_authority=first_meta,
+                                 sturdy_survival_authority=first_action_sturdy_survival_authority,
+                                 focus_sash_survival_authority=first_action_focus_sash_survival_authority, action=first_action,
+                                 analytic_action_order_authority=first_analytic))
+    if isinstance(first_gate, Mapping) and first_gate.get("status") == "applies":
+        first = _bind_sucker_punch_execution_ledger(first, first_gate)
     if first.get("status") != "evaluable": return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base, first_action_ledger=first)
     branches: list[dict[str, Any]] = []
     second_actor = base["opponent_actor"] if order == "own_first" else base["own_actor"]
@@ -697,7 +741,18 @@ def _materialize_order(
         second = None
         rebound = None
         if executable:
-            if order == "opponent_first" and own_meta["metadata"].get("move_id") in {"u-turn", "volt-switch", "flip-turn"}:
+            second_gate = None
+            if order == "opponent_first" and own_meta["metadata"].get("move_id") == "sucker-punch":
+                second_gate = freeze_runtime_d0_sucker_punch_execution_applicability_authority(
+                    strategy_d0=strategy_d0, own_action=own_action, own_move_metadata_authority=own_meta,
+                    target_action=opponent_action, target_move_metadata_authority=opponent_meta,
+                    action_order_authority=action_order_authority, order=order, action_order_branch=order_plan.get("source_branch"),
+                )
+                if second_gate.get("status") in {"incomplete", "rejected"}:
+                    return _result(_status(second_gate), second_gate.get("reason", "sucker_punch_execution_authority_unavailable"), base, first_leaf_id=leaf["leaf_id"])
+            if isinstance(second_gate, Mapping) and second_gate.get("status") == "not_applicable":
+                second = _sucker_punch_failure_ledger(strategy_d0=inputs["strategy_d0"], actor=inputs["attacker"], target=inputs["target"], action=own_action, applicability=second_gate)
+            elif order == "opponent_first" and own_meta["metadata"].get("move_id") in {"u-turn", "volt-switch", "flip-turn"}:
                 replacement = _pending_pivot_replacement_authority(pivot_replacement_authorities, own_action)
                 rebound = freeze_pending_action_intent_rebinding_authority(
                     original_strategy_d0=strategy_d0, action=own_action,
@@ -717,6 +772,8 @@ def _materialize_order(
                     actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs), action=opponent_action if order == "own_first" else own_action,
                     analytic_action_order_authority=second_analytic)
             if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
+            if isinstance(second_gate, Mapping) and second_gate.get("status") == "applies":
+                second = _bind_sucker_punch_execution_ledger(second, second_gate)
         for execution_branch in execution:
             if execution_branch["state"] == "cancelled_due_to_paralysis":
                 branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan, execution_branch)); continue
@@ -1144,6 +1201,25 @@ def _metadata_for_inputs(authority: Any, inputs: Mapping[str, Any] | None) -> Ma
     metadata = authority["metadata"]
     if inputs is not None and metadata.get("move_id") != inputs.get("move_metadata", {}).get("move_id"): return None
     return deepcopy(dict(metadata))
+def _sucker_punch_failure_ledger(*, strategy_d0: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], action: Mapping[str, Any], applicability: Mapping[str, Any]) -> dict[str, Any]:
+    """Represent an attempted but pre-execution Sucker Punch failure exactly."""
+    own_hp = strategy_d0.get("strategy_state", {}).get("active", {}).get(actor.get("side"), {}).get("current_hp")
+    target_hp = strategy_d0.get("strategy_state", {}).get("active", {}).get(target.get("side"), {}).get("current_hp")
+    if not _hp(own_hp) or not _hp(target_hp): return _result("incomplete", "sucker_punch_failure_hp_authority_missing", {})
+    reason = applicability.get("reason")
+    if applicability.get("status") != "not_applicable" or reason not in {"sucker_punch_target_not_readying_attack", "sucker_punch_target_already_acted"}:
+        return _result("rejected", "sucker_punch_failure_applicability_invalid", {})
+    leaf = {"leaf_id": f"{action['action_id']}:conditional_failure:{reason}", "candidate_id": action["action_id"], "action_type": "attack", "branch_path": ("conditional_failure", reason), "probability": _fd(Fraction(1, 1)), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": own_hp, "target_final_hp": target_hp, "target_ko": target_hp == 0, "self_fainted": own_hp == 0, "secondary": None, "sucker_punch_execution": deepcopy(dict(applicability)), "contact": "not_applicable"}, "provenance": {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "attacker": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "move_id": "sucker-punch", "sucker_punch_execution_applicability": deepcopy(dict(applicability))}}
+    return {"status": "evaluable", "terminal_leaves": (leaf,), "terminal_probability_mass": _fd(Fraction(1, 1)), "provenance": "deterministic_sucker_punch_conditional_failure_v1"}
+def _bind_sucker_punch_execution_ledger(ledger: Mapping[str, Any], applicability: Mapping[str, Any]) -> dict[str, Any]:
+    if ledger.get("status") != "evaluable" or applicability.get("status") != "applies": return deepcopy(dict(ledger))
+    leaves = ledger.get("terminal_leaves")
+    if not isinstance(leaves, tuple): return _result("rejected", "sucker_punch_attack_ledger_leaves_invalid", {})
+    bound = []
+    for leaf in leaves:
+        if not isinstance(leaf, Mapping): return _result("rejected", "sucker_punch_attack_leaf_invalid", {})
+        row = deepcopy(dict(leaf)); row["consequences"] = {**deepcopy(dict(row.get("consequences", {}))), "sucker_punch_execution": deepcopy(dict(applicability))}; row["provenance"] = {**deepcopy(dict(row.get("provenance", {}))), "sucker_punch_execution_applicability": deepcopy(dict(applicability))}; bound.append(row)
+    result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(bound); return result
 def _pending_pivot_replacement_authority(authorities: Mapping[str, Mapping[str, Any]] | None, action: Mapping[str, Any]) -> Mapping[str, Any] | None:
     if not isinstance(authorities, Mapping): return None
     direct = authorities.get(action.get("action_id"))
