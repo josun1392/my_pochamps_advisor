@@ -216,9 +216,11 @@ def _recent_damage_retaliation_leaf(leaf: Mapping[str, Any]) -> str | None:
     if move not in {"counter","mirror-coat"}: return "unexpected_recent_damage_retaliation_payload" if payload is not None else None
     if not isinstance(payload,Mapping): return "recent_damage_retaliation_consequence_missing"
     damage=c.get("damage"); event=payload.get("incoming_event"); outcome=payload.get("outcome")
+    family=payload.get("family"); expected_category="physical" if move=="counter" else "special"
     if not isinstance(damage,int) or isinstance(damage,bool) or damage<0 or leaf.get("critical_state")!="not_applicable" or leaf.get("damage_roll")!="not_applicable": return "recent_damage_retaliation_damage_shape_invalid"
+    if not isinstance(family,Mapping) or family.get("family")!="recent_damage_multiplier" or family.get("qualifying_category")!=expected_category or family.get("multiplier")!={"numerator":2,"denominator":1} or family.get("zero_loss_damage")!=1 or payload.get("retaliation_target")!=p.get("target"): return "recent_damage_retaliation_rule_or_target_binding_invalid"
     if outcome=="success":
-        if not isinstance(event,Mapping) or event.get("status")!="resolved" or event.get("recipient")!=p.get("attacker") or event.get("source_category") != ("physical" if move=="counter" else "special") or event.get("qualifying_event") is not True or not isinstance(event.get("hp_lost"),int) or event["hp_lost"]<0 or damage!=max(1,2*event["hp_lost"]): return "recent_damage_retaliation_event_binding_invalid"
+        if not isinstance(event,Mapping) or event.get("status")!="resolved" or event.get("recipient")!=p.get("attacker") or event.get("source_attacker")!=p.get("target") or event.get("source_category") != expected_category or event.get("qualifying_event") is not True or not isinstance(event.get("hp_lost"),int) or event["hp_lost"]<0 or damage!=max(1,2*event["hp_lost"]): return "recent_damage_retaliation_event_binding_invalid"
     elif damage != 0: return "recent_damage_retaliation_failure_damage_invalid"
     return None
 
