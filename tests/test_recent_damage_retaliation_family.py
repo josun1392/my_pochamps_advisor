@@ -1,10 +1,18 @@
 from llm.advisor_detached_recent_damage_retaliation_attack_leaf import materialize_detached_recent_damage_retaliation_attack_leaves
 from llm.advisor_detached_same_turn_last_incoming_attack_event import materialize_detached_same_turn_last_incoming_attack_event
+from advisor.canonical_recent_damage_retaliation_family import resolve_canonical_recent_damage_retaliation_move
 
 
 def _d0():
     a={"session_id":"s","side":"self","slot_index":0,"pokemon_id":"a"}; b={"session_id":"s","side":"opponent","slot_index":0,"pokemon_id":"b"}
     return {"session_id":"s","source_runtime_fingerprint":"r","strategy_preview_fingerprint":"p","decision_owner":a,"strategy_state":{"active":{"self":{"current_hp":80},"opponent":{"current_hp":100}}}},a,b
+
+def test_catalog_binds_both_moves_and_rejects_unrelated_move():
+    counter=resolve_canonical_recent_damage_retaliation_move(move={"move_id":"counter","priority":-5})
+    mirror=resolve_canonical_recent_damage_retaliation_move(move={"move_id":"mirror-coat","priority":-5})
+    assert counter["effect"]["qualifying_category"] == "physical" and counter["effect"]["multiplier"] == {"numerator":2,"denominator":1}
+    assert mirror["effect"]["qualifying_category"] == "special" and mirror["effect"]["priority"] == -5
+    assert resolve_canonical_recent_damage_retaliation_move(move={"move_id":"tackle"})["status"] == "unsupported"
 
 def test_counter_uses_last_physical_hp_loss_and_zero_loss_is_one():
     d0,a,b=_d0(); event={"status":"resolved","recipient":a,"source_attacker":b,"source_category":"physical","qualifying_event":True,"hp_lost":30}
