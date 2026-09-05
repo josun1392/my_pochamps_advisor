@@ -105,6 +105,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if sucker_error is not None: return sucker_error
     heal_error = _direct_heal_leaf(first)
     if heal_error is not None: return heal_error
+    drain_error = _drain_leaf(first)
+    if drain_error is not None: return drain_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -151,6 +153,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if sucker_error is not None: return sucker_error
         heal_error = _direct_heal_leaf(second_leaf)
         if heal_error is not None: return heal_error
+        drain_error = _drain_leaf(second_leaf)
+        if drain_error is not None: return drain_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -375,6 +379,27 @@ def _direct_heal_leaf(leaf: Mapping[str, Any]) -> str | None:
     if heal["max_hp"] < 1 or not 0 < heal["pre_hp"] <= heal["max_hp"] or heal["nominal_heal"] != (heal["max_hp"] + 1) // 2 or heal["actual_heal"] != min(heal["nominal_heal"], heal["max_hp"] - heal["pre_hp"]) or heal["post_hp"] != heal["pre_hp"] + heal["actual_heal"] or consequences.get("own_final_hp") != heal["post_hp"]: return "direct_heal_leaf_replay_invalid"
     authority = provenance.get("direct_heal_execution_authority")
     if not isinstance(authority, Mapping) or authority.get("actor") != provenance.get("attacker") or authority.get("action_id") != leaf.get("candidate_id") or authority.get("move_id") != provenance.get("move_id"): return "direct_heal_leaf_provenance_invalid"
+    return None
+def _drain_leaf(leaf: Mapping[str, Any]) -> str | None:
+    consequences = leaf.get("consequences")
+    drain = consequences.get("drain") if isinstance(consequences, Mapping) else None
+    if drain is None: return None
+    if not isinstance(drain, Mapping) or drain.get("drain_family") != "ordinary_damage_drain": return "drain_family_invalid"
+    fraction, source = drain.get("fraction"), drain.get("source_hit")
+    if not isinstance(fraction, Mapping) or (fraction.get("numerator"), fraction.get("denominator")) not in {(1,2),(3,4)} or not isinstance(source, Mapping): return "drain_fraction_or_source_invalid"
+    actual, pre, post = drain.get("actual_target_hp_loss"), source.get("target_pre_hp"), source.get("target_post_hp")
+    if not all(isinstance(x,int) and not isinstance(x,bool) for x in (actual,pre,post)) or actual != pre-post or actual < 1: return "drain_actual_damage_basis_invalid"
+    nominal = (actual*fraction["numerator"] + fraction["denominator"]//2)//fraction["denominator"]
+    big = drain.get("big_root")
+    if not isinstance(big,Mapping) or big.get("modifier") != {"numerator":5324,"denominator":4096} or not isinstance(big.get("applies"),bool) or big.get("would_be_recovery") != ((nominal*5324)//4096 if big["applies"] else nominal) or drain.get("nominal_recovery") != nominal: return "drain_big_root_replay_invalid"
+    own, maximum, post_own = drain.get("attacker_pre_hp"), drain.get("attacker_max_hp"), drain.get("attacker_post_hp")
+    if not all(isinstance(x,int) and not isinstance(x,bool) for x in (own,maximum,post_own)) or not 0 <= own <= maximum: return "drain_attacker_hp_invalid"
+    would = big["would_be_recovery"]
+    if drain.get("liquid_ooze") is True:
+        if post_own != max(0,own-would) or drain.get("reversed_damage") != would or drain.get("effective_heal") != 0: return "drain_liquid_ooze_replay_invalid"
+    elif drain.get("liquid_ooze") is False:
+        if post_own != min(maximum,own+would) or drain.get("effective_heal") != post_own-own or drain.get("reversed_damage") != 0: return "drain_heal_replay_invalid"
+    else: return "drain_liquid_ooze_state_invalid"
     return None
 def _contact_reactive_status_leaf(leaf: Mapping[str, Any]) -> str | None:
     consequences = leaf.get("consequences")
