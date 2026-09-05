@@ -7,7 +7,7 @@ def _d0():
     return {"session_id":"s","source_runtime_fingerprint":"r","strategy_preview_fingerprint":"p","decision_owner":a,"strategy_state":{"active":{"self":{"current_hp":80},"opponent":{"current_hp":100}}}},a,b
 
 def test_counter_uses_last_physical_hp_loss_and_zero_loss_is_one():
-    d0,a,b=_d0(); event={"status":"resolved","recipient":a,"source_category":"physical","qualifying_event":True,"hp_lost":30}
+    d0,a,b=_d0(); event={"status":"resolved","recipient":a,"source_attacker":b,"source_category":"physical","qualifying_event":True,"hp_lost":30}
     out=materialize_detached_recent_damage_retaliation_attack_leaves(strategy_d0=d0,attacker=a,target=b,move={"move_id":"counter","type":"fighting","category":"physical","accuracy":100,"priority":-5,"contact":True},strict_hit_probability={"result":"always_hit"},incoming_event=event,applicability="applicable")
     assert out["terminal_leaves"][0]["consequences"]["damage"] == 60
     event["hp_lost"]=0
