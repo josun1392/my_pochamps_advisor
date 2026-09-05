@@ -150,6 +150,7 @@ def _owner(value: Any) -> bool:
 def _move(value: Any) -> bool:
     if not isinstance(value, Mapping) or not isinstance(value.get("move_id"), str) or not value["move_id"] or value.get("category") not in {"physical", "special"} or not isinstance(value.get("type"), str) or not value["type"]: return False
     if value.get("move_id") == "endeavor": return value.get("type") == "normal" and value.get("category") == "physical" and value.get("accuracy") == 100
+    if value.get("move_id") == "final-gambit": return value.get("type") == "fighting" and value.get("category") == "special" and value.get("accuracy") == 100
     return isinstance(value.get("power"), int) and not isinstance(value.get("power"), bool) and value["power"] > 0
 
 

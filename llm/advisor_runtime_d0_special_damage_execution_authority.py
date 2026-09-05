@@ -6,6 +6,7 @@ from typing import Any, Mapping
 
 from advisor.canonical_fractional_target_hp_damage_family import resolve_canonical_fractional_target_hp_damage_move
 from advisor.canonical_endeavor_hp_difference_damage_family import resolve_canonical_endeavor_hp_difference_damage_move
+from advisor.canonical_final_gambit_self_hp_damage_family import resolve_canonical_final_gambit_self_hp_damage_move
 from advisor.damage.types import type_effectiveness_multiplier
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
 from llm.advisor_substitute import substitute_state
@@ -82,6 +83,21 @@ def freeze_runtime_d0_endeavor_hp_difference_damage_execution_authority(*, strat
     if substitute.get("state") == "known_active": return _result("incomplete", "endeavor_execution_substitute_route_transition_unsupported", base)
     immune = type_effectiveness_multiplier("normal", tuple(types)) == 0.0
     return {"status": "resolved", "schema_version": SCHEMA_VERSION, **base, "special_damage_family": "hp_difference_damage", "special_damage_rule_authority": deepcopy(canonical["effect"]), "target_type_authority": {"status": "known", "values": deepcopy(types), "provenance": "runtime_battle_state_v1"}, "applicability": "immune" if immune else "applicable", "target_route": "target", "execution_attacker_hp": attacker_preview["current_hp"], "execution_target_hp": target_preview["current_hp"], "attacker_hp_authority": {"status": "known", "current_hp": attacker_preview["current_hp"], "max_hp": attacker_preview["max_hp"]}, "target_hp_authority": {"status": "known", "current_hp": target_preview["current_hp"], "max_hp": target_preview["max_hp"]}, "substitute_authority": {"status": "known", "state": substitute["state"]}, "provenance": "runtime_d0_endeavor_hp_difference_special_damage_execution_envelope_v1"}
+
+def freeze_runtime_d0_final_gambit_self_hp_damage_execution_authority(*,strategy_d0:Mapping[str,Any],runtime_snapshot:Mapping[str,Any],attacker:Mapping[str,Any],target:Mapping[str,Any],move_metadata:Mapping[str,Any])->dict[str,Any]:
+ base=_base(strategy_d0,attacker,target,move_metadata)
+ if base is None:return _result("rejected","final_gambit_special_damage_identity_or_metadata_invalid",{})
+ if runtime_strategy_d0_freshness(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot).get("status")!="current":return _result("rejected","stale_runtime_d0",base)
+ c=resolve_canonical_final_gambit_self_hp_damage_move(move=move_metadata)
+ if c.get("status")!="resolved":return _result(c.get("status","rejected"),c.get("reason","final_gambit_catalog_unavailable"),base)
+ state=runtime_snapshot.get("state") if isinstance(runtime_snapshot,Mapping) else None; raw=_roster_row(state,target); active=strategy_d0.get("strategy_state",{}).get("active",{}); a,t=active.get(attacker["side"]),active.get(target["side"])
+ if not isinstance(raw,Mapping) or not _hp(a) or not _hp(t):return _result("incomplete","final_gambit_execution_attacker_or_target_hp_unknown",base)
+ types=raw.get("current_type")
+ if not isinstance(types,list) or not types or not all(isinstance(x,str) and x for x in types):return _result("incomplete","final_gambit_execution_target_type_unknown",base)
+ sub=substitute_state(strategy_d0["strategy_state"],target)
+ if sub.get("state") in {"unknown","legacy_untracked"}:return _result("incomplete","final_gambit_execution_substitute_state_unknown",base)
+ if sub.get("state")=="known_active":return _result("incomplete","final_gambit_execution_substitute_route_transition_unsupported",base)
+ return {"status":"resolved","schema_version":SCHEMA_VERSION,**base,"special_damage_family":"self_current_hp_damage","special_damage_rule_authority":deepcopy(c["effect"]),"target_type_authority":{"status":"known","values":deepcopy(types),"provenance":"runtime_battle_state_v1"},"applicability":"immune" if type_effectiveness_multiplier("fighting",tuple(types))==0.0 else "applicable","target_route":"target","execution_attacker_hp":a["current_hp"],"execution_target_hp":t["current_hp"],"attacker_hp_authority":{"status":"known","current_hp":a["current_hp"],"max_hp":a["max_hp"]},"target_hp_authority":{"status":"known","current_hp":t["current_hp"],"max_hp":t["max_hp"]},"substitute_authority":{"status":"known","state":sub["state"]},"provenance":"runtime_d0_final_gambit_self_hp_special_damage_execution_envelope_v1"}
 
 
 def _base(d0: Any, attacker: Any, target: Any, move: Any) -> dict[str, Any] | None:

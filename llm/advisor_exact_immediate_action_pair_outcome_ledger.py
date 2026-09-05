@@ -113,6 +113,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if fractional_error is not None: return fractional_error
     endeavor_error = _endeavor_hp_difference_damage_leaf(first)
     if endeavor_error is not None: return endeavor_error
+    final_gambit_error = _final_gambit_self_hp_damage_leaf(first)
+    if final_gambit_error is not None: return final_gambit_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -167,6 +169,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if fractional_error is not None: return fractional_error
         endeavor_error = _endeavor_hp_difference_damage_leaf(second_leaf)
         if endeavor_error is not None: return endeavor_error
+        final_gambit_error = _final_gambit_self_hp_damage_leaf(second_leaf)
+        if final_gambit_error is not None: return final_gambit_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -191,6 +195,17 @@ def _action_leaf(leaf: Mapping[str, Any]) -> dict[str, Any]:
         **({"ordered_hits": deepcopy(leaf["ordered_hits"])} if "ordered_hits" in leaf else {}),
         "consequences": deepcopy(leaf.get("consequences")), "provenance": deepcopy(leaf.get("provenance")),
     }
+
+def _final_gambit_self_hp_damage_leaf(leaf: Mapping[str, Any]) -> str | None:
+ p,c=leaf.get("provenance"),leaf.get("consequences"); move=p.get("move_id") if isinstance(p,Mapping) else None; payload=c.get("final_gambit_self_hp_damage") if isinstance(c,Mapping) else None
+ if move!="final-gambit":return "unexpected_final_gambit_payload" if payload is not None else None
+ a=p.get("execution_authority") if isinstance(p,Mapping) else None
+ if not isinstance(payload,Mapping) or not isinstance(a,Mapping) or a.get("special_damage_family")!="self_current_hp_damage" or payload.get("family")!=a.get("special_damage_rule_authority"):return "final_gambit_authority_binding_mismatch"
+ hp,target=payload.get("attacker_execution_hp"),payload.get("target_execution_hp")
+ if not all(isinstance(v,int) and not isinstance(v,bool) and v>=1 for v in (hp,target)) or hp!=a.get("execution_attacker_hp") or target!=a.get("execution_target_hp"):return "final_gambit_execution_hp_binding_mismatch"
+ success=payload.get("outcome")=="success"; raw=hp if success else 0; actual=min(raw,target) if success else 0; post=target-actual
+ if payload.get("raw_damage")!=raw or payload.get("actual_target_hp_loss")!=actual or payload.get("target_post_hp")!=post or c.get("damage")!=raw or c.get("target_final_hp")!=post or payload.get("attacker_post_hp")!=(0 if success else hp) or payload.get("attacker_fainted") is not success or c.get("self_fainted") is not success or payload.get("self_sacrifice",{}).get("outcome")!=("applied" if success else "not_applied") or leaf.get("critical_state")!="not_applicable" or leaf.get("damage_roll")!="not_applicable":return "final_gambit_derived_consequence_invalid"
+ return None
 
 
 def _endeavor_hp_difference_damage_leaf(leaf: Mapping[str, Any]) -> str | None:

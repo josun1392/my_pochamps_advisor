@@ -27,7 +27,8 @@ from llm.advisor_detached_deterministic_fixed_damage_attack_leaf import (
 )
 from llm.advisor_detached_fractional_target_hp_damage_attack_leaf import materialize_detached_fractional_target_hp_damage_attack_leaves
 from llm.advisor_detached_endeavor_hp_difference_damage_attack_leaf import materialize_detached_endeavor_hp_difference_damage_attack_leaves
-from llm.advisor_runtime_d0_special_damage_execution_authority import freeze_runtime_d0_fractional_target_hp_damage_execution_authority, freeze_runtime_d0_endeavor_hp_difference_damage_execution_authority
+from llm.advisor_detached_final_gambit_self_hp_damage_attack_leaf import materialize_detached_final_gambit_self_hp_damage_attack_leaves
+from llm.advisor_runtime_d0_special_damage_execution_authority import freeze_runtime_d0_fractional_target_hp_damage_execution_authority, freeze_runtime_d0_endeavor_hp_difference_damage_execution_authority, freeze_runtime_d0_final_gambit_self_hp_damage_execution_authority
 from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import (
     materialize_detached_fixed_two_hit_per_hit_predictive_leaves,
 )
@@ -1139,6 +1140,8 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
         return _fractional_target_hp_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata)
     if metadata.get("move_id") == "endeavor":
         return _endeavor_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata)
+    if metadata.get("move_id") == "final-gambit":
+        return _final_gambit_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,actor=actor,target=target,metadata=metadata)
     if metadata.get("move_id") in {"double-hit", "double-kick"}:
         return _fixed_two_hit_ledger(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor,
@@ -1278,6 +1281,14 @@ def _endeavor_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mappin
     leaves=_apply_contact_reactive_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,defender=target,source_action=source,contact_authority=contact)
     leaves=_apply_contact_reactive_status_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,defender=target,source_action=source,contact_authority=contact)
     return _apply_life_orb_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,target=target,source_action=source,move_metadata=metadata)
+
+def _final_gambit_ledger(*,strategy_d0:Mapping[str,Any],runtime_snapshot:Mapping[str,Any],actor:Mapping[str,Any],target:Mapping[str,Any],metadata:Mapping[str,Any])->dict[str,Any]:
+ e=freeze_runtime_d0_final_gambit_self_hp_damage_execution_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,attacker=actor,target=target,move_metadata=metadata)
+ if e.get("status")!="resolved":return _result(_status(e),e.get("reason","final_gambit_execution_authority_unavailable"),{})
+ h=build_runtime_d0_strict_hit_probability_assessment(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,attacker=actor,target=target,selected_move=metadata)
+ if h.get("status")!="resolved":return _result(_status(h),h.get("reason","final_gambit_hit_authority_unavailable"),{})
+ l=materialize_detached_final_gambit_self_hp_damage_attack_leaves(strategy_d0=strategy_d0,execution_authority=e,strict_hit_probability=h)
+ return l if l.get("status")=="evaluable" else _result(_status(l),l.get("reason","final_gambit_terminal_leaves_unavailable"),{})
 
 
 def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
