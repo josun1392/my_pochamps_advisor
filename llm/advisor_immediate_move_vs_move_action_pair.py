@@ -75,6 +75,7 @@ from llm.advisor_runtime_d0_contact_reactive_status_authority import (
 )
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_detached_drain_consequence import apply_detached_drain_consequence
+from llm.advisor_detached_damage_based_recoil_consequence import apply_detached_damage_based_recoil
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
 from llm.advisor_runtime_d0_analytic_action_order_authority import (
     freeze_runtime_d0_analytic_action_order_authority,
@@ -1339,6 +1340,7 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         runtime_snapshot=runtime_snapshot, ledger=ledger, attacker=actor, target=target,
         move_metadata=metadata,
     )
+    ledger = _apply_damage_based_recoil_to_normal_ledger(runtime_snapshot=runtime_snapshot, ledger=ledger, attacker=actor, move_metadata=metadata)
     return _apply_life_orb_to_normal_ledger(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
         attacker=actor, target=target, source_action=source_action, move_metadata=metadata,
@@ -1616,6 +1618,18 @@ def _apply_drain_to_normal_ledger(*, runtime_snapshot: Mapping[str, Any], ledger
         updated.append(result["leaf"])
     result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(updated)
     result["component_manifest"] = {**deepcopy(dict(result.get("component_manifest", {}))), "drain": {"status": "resolved"}}
+    return result
+
+def _apply_damage_based_recoil_to_normal_ledger(*, runtime_snapshot: Mapping[str, Any], ledger: Mapping[str, Any], attacker: Mapping[str, Any], move_metadata: Mapping[str, Any]) -> dict[str, Any]:
+    if ledger.get("status") != "evaluable": return deepcopy(dict(ledger))
+    leaves=ledger.get("terminal_leaves")
+    if not isinstance(leaves,tuple): return _result("rejected","recoil_normal_ledger_leaves_invalid",{})
+    updated=[]
+    for leaf in leaves:
+        result=apply_detached_damage_based_recoil(runtime_snapshot=runtime_snapshot,attacker=attacker,move_metadata=move_metadata,leaf=leaf)
+        if result.get("status")!="resolved": return _result(_status(result),result.get("reason","recoil_consequence_unavailable"),{})
+        updated.append(result["leaf"])
+    result=deepcopy(dict(ledger)); result["terminal_leaves"]=tuple(updated); result["component_manifest"]={**deepcopy(dict(result.get("component_manifest",{}))),"damage_based_recoil":{"status":"resolved"}}
     return result
 
 

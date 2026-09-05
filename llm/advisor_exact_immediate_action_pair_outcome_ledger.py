@@ -107,6 +107,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if heal_error is not None: return heal_error
     drain_error = _drain_leaf(first)
     if drain_error is not None: return drain_error
+    recoil_error = _damage_based_recoil_leaf(first)
+    if recoil_error is not None: return recoil_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -155,6 +157,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if heal_error is not None: return heal_error
         drain_error = _drain_leaf(second_leaf)
         if drain_error is not None: return drain_error
+        recoil_error = _damage_based_recoil_leaf(second_leaf)
+        if recoil_error is not None: return recoil_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -401,6 +405,19 @@ def _drain_leaf(leaf: Mapping[str, Any]) -> str | None:
         if post_own != min(maximum,own+would) or drain.get("effective_heal") != post_own-own or drain.get("reversed_damage") != 0: return "drain_heal_replay_invalid"
     else: return "drain_liquid_ooze_state_invalid"
     return None
+def _damage_based_recoil_leaf(leaf: Mapping[str, Any]) -> str | None:
+    c=leaf.get("consequences"); recoil=c.get("damage_based_recoil") if isinstance(c,Mapping) else None
+    if recoil is None:return None
+    if not isinstance(recoil,Mapping) or recoil.get("recoil_family")!="damage_based_recoil":return "recoil_family_invalid"
+    fraction,source=recoil.get("fraction"),recoil.get("source_hit")
+    if not isinstance(fraction,Mapping) or (fraction.get("numerator"),fraction.get("denominator")) not in {(1,4),(1,3),(1,2)} or not isinstance(source,Mapping):return "recoil_fraction_or_source_invalid"
+    actual,pre,post=recoil.get("actual_target_hp_loss"),source.get("target_pre_hp"),source.get("target_post_hp")
+    if not all(isinstance(x,int) and not isinstance(x,bool) for x in (actual,pre,post)) or actual<1 or actual!=pre-post:return "recoil_actual_damage_basis_invalid"
+    nominal=max(1,(actual*fraction["numerator"]+fraction["denominator"]//2)//fraction["denominator"])
+    own,after=recoil.get("attacker_pre_hp"),recoil.get("attacker_post_hp")
+    if not isinstance(own,int) or not isinstance(after,int) or recoil.get("nominal_recoil")!=nominal or recoil.get("prevention") not in {"none","rock_head","magic_guard"}:return "recoil_replay_invalid"
+    expected=0 if recoil["prevention"]!="none" else nominal
+    return None if recoil.get("recoil_damage")==expected and after==max(0,own-expected) else "recoil_post_hp_invalid"
 def _contact_reactive_status_leaf(leaf: Mapping[str, Any]) -> str | None:
     consequences = leaf.get("consequences")
     status = consequences.get("contact_reactive_status") if isinstance(consequences, Mapping) else None
