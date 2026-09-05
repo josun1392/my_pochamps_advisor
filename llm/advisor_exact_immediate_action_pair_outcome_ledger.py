@@ -111,6 +111,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if recoil_error is not None: return recoil_error
     fractional_error = _fractional_target_hp_damage_leaf(first)
     if fractional_error is not None: return fractional_error
+    endeavor_error = _endeavor_hp_difference_damage_leaf(first)
+    if endeavor_error is not None: return endeavor_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -163,6 +165,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if recoil_error is not None: return recoil_error
         fractional_error = _fractional_target_hp_damage_leaf(second_leaf)
         if fractional_error is not None: return fractional_error
+        endeavor_error = _endeavor_hp_difference_damage_leaf(second_leaf)
+        if endeavor_error is not None: return endeavor_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -187,6 +191,29 @@ def _action_leaf(leaf: Mapping[str, Any]) -> dict[str, Any]:
         **({"ordered_hits": deepcopy(leaf["ordered_hits"])} if "ordered_hits" in leaf else {}),
         "consequences": deepcopy(leaf.get("consequences")), "provenance": deepcopy(leaf.get("provenance")),
     }
+
+
+def _endeavor_hp_difference_damage_leaf(leaf: Mapping[str, Any]) -> str | None:
+    provenance, consequences = leaf.get("provenance"), leaf.get("consequences")
+    move_id = provenance.get("move_id") if isinstance(provenance, Mapping) else None
+    payload = consequences.get("endeavor_hp_difference_damage") if isinstance(consequences, Mapping) else None
+    if move_id != "endeavor": return "unexpected_endeavor_hp_difference_payload" if payload is not None else None
+    authority = provenance.get("execution_authority") if isinstance(provenance, Mapping) else None
+    if not isinstance(payload, Mapping) or not isinstance(authority, Mapping): return "endeavor_hp_difference_consequence_missing"
+    family = payload.get("family")
+    if authority.get("schema_version") != "runtime-d0-special-damage-execution-authority-v1" or authority.get("special_damage_family") != "hp_difference_damage" or authority.get("move_id") != "endeavor" or family != authority.get("special_damage_rule_authority"):
+        return "endeavor_hp_difference_authority_binding_mismatch"
+    if not isinstance(family, Mapping) or family.get("family") != "hp_difference_damage" or family.get("relation") != "target_hp_above_attacker_hp": return "endeavor_hp_difference_rule_invalid"
+    attacker, target = payload.get("attacker_execution_hp"), payload.get("target_execution_hp")
+    if not all(isinstance(value, int) and not isinstance(value, bool) and value >= 1 for value in (attacker, target)) or attacker != authority.get("execution_attacker_hp") or target != authority.get("execution_target_hp") or payload.get("target_route") != "target" or payload.get("hit_state") != leaf.get("hit_state") or payload.get("applicability") != authority.get("applicability"):
+        return "endeavor_hp_difference_execution_binding_mismatch"
+    successful = payload.get("outcome") == "success"
+    expected_damage = target-attacker if successful else 0
+    expected_post = attacker if successful else target
+    if successful != (payload.get("hit_state") == "hit" and payload.get("applicability") == "applicable" and target > attacker) or payload.get("relation") != ("target_hp_above_attacker_hp" if target > attacker else "target_hp_not_above_attacker_hp") or payload.get("derived_damage") != expected_damage or payload.get("damage") != expected_damage or consequences.get("damage") != expected_damage or payload.get("target_post_hp") != expected_post or consequences.get("target_final_hp") != expected_post or leaf.get("critical_state") != "not_applicable" or leaf.get("damage_roll") != "not_applicable":
+        return "endeavor_hp_difference_derived_result_invalid"
+    if payload.get("outcome") == "failure" and payload.get("reason") != "endeavor_target_hp_not_above_attacker_hp": return "endeavor_hp_difference_failure_reason_invalid"
+    return None
 
 
 def _fractional_target_hp_damage_leaf(leaf: Mapping[str, Any]) -> str | None:

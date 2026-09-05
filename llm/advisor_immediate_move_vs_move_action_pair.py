@@ -26,7 +26,8 @@ from llm.advisor_detached_deterministic_fixed_damage_attack_leaf import (
     materialize_detached_deterministic_fixed_damage_attack_leaf,
 )
 from llm.advisor_detached_fractional_target_hp_damage_attack_leaf import materialize_detached_fractional_target_hp_damage_attack_leaves
-from llm.advisor_runtime_d0_special_damage_execution_authority import freeze_runtime_d0_fractional_target_hp_damage_execution_authority
+from llm.advisor_detached_endeavor_hp_difference_damage_attack_leaf import materialize_detached_endeavor_hp_difference_damage_attack_leaves
+from llm.advisor_runtime_d0_special_damage_execution_authority import freeze_runtime_d0_fractional_target_hp_damage_execution_authority, freeze_runtime_d0_endeavor_hp_difference_damage_execution_authority
 from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import (
     materialize_detached_fixed_two_hit_per_hit_predictive_leaves,
 )
@@ -1136,6 +1137,8 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
         return _seismic_toss_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority)
     if metadata.get("move_id") in {"super-fang", "natures-madness", "ruination"}:
         return _fractional_target_hp_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata)
+    if metadata.get("move_id") == "endeavor":
+        return _endeavor_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata)
     if metadata.get("move_id") in {"double-hit", "double-kick"}:
         return _fixed_two_hit_ledger(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor,
@@ -1255,6 +1258,26 @@ def _fractional_target_hp_ledger(*, strategy_d0: Mapping[str, Any], runtime_snap
     leaves = _apply_contact_reactive_to_normal_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=leaves, attacker=actor, defender=target, source_action=source_action, contact_authority=contact)
     leaves = _apply_contact_reactive_status_to_normal_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=leaves, attacker=actor, defender=target, source_action=source_action, contact_authority=contact)
     return _apply_life_orb_to_normal_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=leaves, attacker=actor, target=target, source_action=source_action, move_metadata=metadata)
+
+
+def _endeavor_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any]) -> dict[str, Any]:
+    execution=freeze_runtime_d0_endeavor_hp_difference_damage_execution_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,attacker=actor,target=target,move_metadata=metadata)
+    if execution.get("status")!="resolved": return _result(_status(execution),execution.get("reason","endeavor_special_damage_execution_authority_unavailable"),{})
+    hit=build_runtime_d0_strict_hit_probability_assessment(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,attacker=actor,target=target,selected_move=metadata)
+    if hit.get("status")!="resolved": return _result(_status(hit),hit.get("reason","endeavor_strict_hit_probability_unavailable"),{})
+    leaves=materialize_detached_endeavor_hp_difference_damage_attack_leaves(strategy_d0=strategy_d0,execution_authority=execution,strict_hit_probability=hit)
+    if leaves.get("status")!="evaluable": return _result(_status(leaves),leaves.get("reason","endeavor_terminal_leaves_unavailable"),{})
+    source={"action_id":"attack:endeavor","action_type":"attack","identity":"endeavor","move_metadata_authority":{"status":"resolved","candidate_id":"attack:endeavor","move_id":"endeavor","metadata":deepcopy(dict(metadata)),"session_id":strategy_d0["session_id"],"source_runtime_fingerprint":strategy_d0["source_runtime_fingerprint"],"source_branch_fingerprint":strategy_d0["strategy_preview_fingerprint"],"decision_owner":deepcopy(dict(strategy_d0["decision_owner"])),"active_attacker":deepcopy(dict(actor)),"provenance":"strict_detached_pair_metadata_to_endeavor_special_damage_selection_view_v1"}}
+    relevance=contact_reactive_damage_relevance(runtime_snapshot=runtime_snapshot,defender=target); status_relevance=contact_reactive_status_relevance(runtime_snapshot=runtime_snapshot,defender=target)
+    if relevance.get("status")!="resolved" or status_relevance.get("status")!="resolved":
+        row=relevance if relevance.get("status")!="resolved" else status_relevance; return _result(_status(row),row.get("reason","endeavor_contact_reactive_relevance_unknown"),{})
+    contact=None
+    if relevance.get("relevant") is True or status_relevance.get("relevant") is True:
+        contact=freeze_runtime_d0_canonical_contact_classification_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=source,attacker=actor,target=target)
+        if contact.get("status")!="resolved": return _result(_status(contact),contact.get("reason","endeavor_contact_authority_unavailable"),{})
+    leaves=_apply_contact_reactive_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,defender=target,source_action=source,contact_authority=contact)
+    leaves=_apply_contact_reactive_status_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,defender=target,source_action=source,contact_authority=contact)
+    return _apply_life_orb_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,target=target,source_action=source,move_metadata=metadata)
 
 
 def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:

@@ -148,7 +148,9 @@ def _owner(value: Any) -> bool:
 
 
 def _move(value: Any) -> bool:
-    return isinstance(value, Mapping) and isinstance(value.get("move_id"), str) and bool(value["move_id"]) and value.get("category") in {"physical", "special"} and isinstance(value.get("power"), int) and not isinstance(value.get("power"), bool) and value["power"] > 0 and isinstance(value.get("type"), str) and bool(value["type"])
+    if not isinstance(value, Mapping) or not isinstance(value.get("move_id"), str) or not value["move_id"] or value.get("category") not in {"physical", "special"} or not isinstance(value.get("type"), str) or not value["type"]: return False
+    if value.get("move_id") == "endeavor": return value.get("type") == "normal" and value.get("category") == "physical" and value.get("accuracy") == 100
+    return isinstance(value.get("power"), int) and not isinstance(value.get("power"), bool) and value["power"] > 0
 
 
 def _metadata_authority(value: Any, base: Mapping[str, Any] | None) -> dict[str, Any] | None:
