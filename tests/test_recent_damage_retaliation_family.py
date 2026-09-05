@@ -34,3 +34,10 @@ def test_event_uses_last_direct_multi_hit_strike_not_sum():
     leaf={"action_type":"attack","leaf_id":"x","candidate_id":"attack:x","hit_state":"hit","ordered_hits":({"hit_index":1,"pre_hp":80,"post_hp":70,"target_routing":"target"},{"hit_index":2,"pre_hp":70,"post_hp":58,"target_routing":"target"}),"consequences":{"target_final_hp":58},"provenance":{"target":a,"attacker":b,"move_id":"x"}}
     event=materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=d0,terminal_leaf=leaf,recipient=a,source_move_metadata={"category":"physical"})
     assert event["status"] == "resolved" and event["hp_lost"] == 12 and event["source_hit_path"]["hit_index"] == 2
+
+def test_event_fails_closed_for_miss_or_substitute_route():
+    d0,a,b=_d0(); base={"action_type":"attack","leaf_id":"x","candidate_id":"attack:x","consequences":{"target_final_hp":80,"source_hit_context":{"damage_route":"substitute"}},"provenance":{"target":a,"attacker":b,"move_id":"x"}}
+    miss={**base,"hit_state":"miss"}
+    sub={**base,"hit_state":"hit"}
+    assert materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=d0,terminal_leaf=miss,recipient=a,source_move_metadata={"category":"physical"})["status"] == "not_applicable"
+    assert materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=d0,terminal_leaf=sub,recipient=a,source_move_metadata={"category":"physical"})["status"] == "not_applicable"
