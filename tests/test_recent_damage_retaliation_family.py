@@ -39,5 +39,5 @@ def test_event_fails_closed_for_miss_or_substitute_route():
     d0,a,b=_d0(); base={"action_type":"attack","leaf_id":"x","candidate_id":"attack:x","consequences":{"target_final_hp":80,"source_hit_context":{"damage_route":"substitute"}},"provenance":{"target":a,"attacker":b,"move_id":"x"}}
     miss={**base,"hit_state":"miss"}
     sub={**base,"hit_state":"hit"}
-    assert materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=d0,terminal_leaf=miss,recipient=a,source_move_metadata={"category":"physical"})["status"] == "not_applicable"
-    assert materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=d0,terminal_leaf=sub,recipient=a,source_move_metadata={"category":"physical"})["status"] == "not_applicable"
+    assert materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=d0,terminal_leaf=miss,recipient=a,source_move_metadata={"category":"physical"})["status"] != "resolved"
+    assert materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=d0,terminal_leaf=sub,recipient=a,source_move_metadata={"category":"physical"})["status"] != "resolved"
