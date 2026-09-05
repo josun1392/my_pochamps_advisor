@@ -8,6 +8,7 @@ from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate
 from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
 from copy import deepcopy
 from tests.test_detached_opponent_response_profile import _complete_state, _fixed_damage_inputs, _owner, _state
+from llm.advisor_substitute import update_substitute_state_context
 def _hp(n):return {"current_hp":n,"max_hp":100,"fainted":n==0}
 def test_catalog_and_half_minimum():
  assert resolve_canonical_fractional_target_hp_damage_move(move={"move_id":"super-fang","type":"normal","category":"physical","accuracy":90,"contact":True})["status"]=="resolved"
@@ -34,6 +35,12 @@ def test_execution_envelope_uses_immunity_without_effectiveness_scaling_and_reje
  d0,authority,hit=_execution(100,types=("ghost",)); leaves=materialize_detached_fractional_target_hp_damage_attack_leaves(strategy_d0=d0,execution_authority=authority,strict_hit_probability=hit)
  assert {row["consequences"]["damage"] for row in leaves["terminal_leaves"]}=={0}
  d0,authority,hit=_execution(2); forged={**authority,"execution_target_hp":100}; assert materialize_detached_fractional_target_hp_damage_attack_leaves(strategy_d0=d0,execution_authority=forged,strict_hit_probability=hit)["status"]=="rejected"
+
+def test_active_substitute_fails_closed_until_path_local_substitute_transition_exists():
+ state=_complete_state(_state()); target=_owner(state,"opponent"); state["substitute_state_context"]=update_substitute_state_context(context=state["substitute_state_context"],session_id=state["session_id"],owner=target,state="known_active",substitute_hp=25,provenance="test")
+ snapshot={"status":"runtime_snapshot_ready","session_id":state["session_id"],"state":state,"state_fingerprint":state_fingerprint(state)}; d0=freeze_runtime_strategy_d0(runtime_snapshot=snapshot,decision_owner=_owner(state,"self")); move={"move_id":"super-fang","type":"normal","category":"physical","accuracy":90,"contact":True}
+ result=freeze_runtime_d0_fractional_target_hp_damage_execution_authority(strategy_d0=d0,runtime_snapshot=snapshot,attacker=_owner(state,"self"),target=target,move_metadata=move)
+ assert result["status"]=="incomplete" and result["reason"]=="fractional_execution_substitute_route_transition_unsupported"
 
 def test_immediate_pair_dispatches_fractional_family_without_changing_seismic_path():
  _,snapshot,d0,own,opponent,order=_fixed_damage_inputs(own_first=True,opponent_hp=100)

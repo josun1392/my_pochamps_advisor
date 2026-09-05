@@ -38,6 +38,11 @@ def freeze_runtime_d0_fractional_target_hp_damage_execution_authority(
     substitute = substitute_state(strategy_d0["strategy_state"], target)
     if substitute.get("state") in {"unknown", "legacy_untracked"}:
         return _result("incomplete", "fractional_execution_substitute_state_unknown", base)
+    # The immediate-pair intermediate-state projection currently carries only
+    # active-Pokémon HP, not a path-local Substitute HP transition.  Claiming
+    # this route evaluable would let a later action read stale Substitute HP.
+    if substitute.get("state") == "known_active":
+        return _result("incomplete", "fractional_execution_substitute_route_transition_unsupported", base)
     route = "substitute" if substitute.get("state") == "known_active" else "target"
     hp = substitute.get("substitute_hp") if route == "substitute" else preview["current_hp"]
     if not isinstance(hp, int) or isinstance(hp, bool) or hp < 1:
