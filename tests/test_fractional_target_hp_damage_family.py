@@ -5,6 +5,8 @@ from llm.advisor_runtime_d0_special_damage_execution_authority import freeze_run
 from llm.advisor_runtime_strategy_d0 import build_runtime_d0_strict_hit_probability_assessment, freeze_runtime_strategy_d0
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
+from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
+from copy import deepcopy
 from tests.test_detached_opponent_response_profile import _complete_state, _fixed_damage_inputs, _owner, _state
 def _hp(n):return {"current_hp":n,"max_hp":100,"fainted":n==0}
 def test_catalog_and_half_minimum():
@@ -38,4 +40,6 @@ def test_immediate_pair_dispatches_fractional_family_without_changing_seismic_pa
  move={"move_id":"super-fang","type":"normal","category":"physical","accuracy":90,"contact":True}
  own={"action_id":"attack:super-fang","action_type":"attack","identity":"super-fang","move_metadata_authority":{"status":"resolved","candidate_id":"attack:super-fang","active_attacker":d0["decision_owner"],"move_id":"super-fang","metadata":move,"session_id":d0["session_id"],"source_runtime_fingerprint":d0["source_runtime_fingerprint"],"source_branch_fingerprint":d0["strategy_preview_fingerprint"],"decision_owner":d0["decision_owner"]}}
  order={**order,"own_action_id":"attack:super-fang"}; pair=materialize_immediate_move_vs_move_action_pair(strategy_d0=d0,runtime_snapshot=snapshot,own_action=own,opponent_action=opponent,action_order_authority=order)
- assert pair["status"]=="evaluable" and {row["first_action_leaf"]["consequences"]["damage"] for row in pair["terminal_branches"]}=={0,50}
+ assert pair["status"]=="evaluable" and {row["first_action_leaf"]["consequences"]["damage"] for row in pair["terminal_branches"]}=={0,50} and normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"]=="evaluable"
+ forged=deepcopy(pair); forged["terminal_branches"][0]["first_action_leaf"]["consequences"]["fractional_target_hp_damage"]["derived_damage"]=999
+ assert normalize_exact_immediate_action_pair_outcome_ledger(pair=forged)["status"]=="rejected"

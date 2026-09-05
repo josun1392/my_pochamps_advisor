@@ -109,6 +109,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if drain_error is not None: return drain_error
     recoil_error = _damage_based_recoil_leaf(first)
     if recoil_error is not None: return recoil_error
+    fractional_error = _fractional_target_hp_damage_leaf(first)
+    if fractional_error is not None: return fractional_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -159,6 +161,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if drain_error is not None: return drain_error
         recoil_error = _damage_based_recoil_leaf(second_leaf)
         if recoil_error is not None: return recoil_error
+        fractional_error = _fractional_target_hp_damage_leaf(second_leaf)
+        if fractional_error is not None: return fractional_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -183,6 +187,39 @@ def _action_leaf(leaf: Mapping[str, Any]) -> dict[str, Any]:
         **({"ordered_hits": deepcopy(leaf["ordered_hits"])} if "ordered_hits" in leaf else {}),
         "consequences": deepcopy(leaf.get("consequences")), "provenance": deepcopy(leaf.get("provenance")),
     }
+
+
+def _fractional_target_hp_damage_leaf(leaf: Mapping[str, Any]) -> str | None:
+    """Validate the opaque fractional-family consequence without recomputing it."""
+    provenance, consequences = leaf.get("provenance"), leaf.get("consequences")
+    move_id = provenance.get("move_id") if isinstance(provenance, Mapping) else None
+    payload = consequences.get("fractional_target_hp_damage") if isinstance(consequences, Mapping) else None
+    supported = {"super-fang", "natures-madness", "ruination"}
+    if move_id not in supported:
+        return "unexpected_fractional_target_hp_damage_payload" if payload is not None else None
+    if not isinstance(payload, Mapping) or not isinstance(provenance.get("execution_authority"), Mapping):
+        return "fractional_target_hp_damage_consequence_missing"
+    authority = provenance["execution_authority"]
+    family = payload.get("family")
+    expected = authority.get("special_damage_rule_authority")
+    if authority.get("schema_version") != "runtime-d0-special-damage-execution-authority-v1" or authority.get("special_damage_family") != "current_hp_fraction_damage" or authority.get("move_id") != move_id or family != expected:
+        return "fractional_target_hp_damage_authority_binding_mismatch"
+    if not isinstance(family, Mapping) or family.get("move_id") != move_id or family.get("numerator") != 1 or family.get("denominator") != 2 or family.get("minimum_damage") != 1:
+        return "fractional_target_hp_damage_rule_invalid"
+    route, hp, state, applicability = payload.get("target_route"), payload.get("execution_target_hp"), payload.get("hit_state"), payload.get("applicability")
+    if route not in {"target", "substitute"} or route != authority.get("target_route") or state != leaf.get("hit_state") or state not in {"hit", "miss"} or applicability != authority.get("applicability") or applicability not in {"applicable", "immune"} or not isinstance(hp, int) or isinstance(hp, bool) or hp < 1 or hp != authority.get("execution_target_hp"):
+        return "fractional_target_hp_damage_execution_binding_mismatch"
+    damage = payload.get("derived_damage")
+    success = state == "hit" and applicability == "applicable"
+    expected_damage = max(1, hp // 2) if success else 0
+    if damage != expected_damage or consequences.get("damage") != expected_damage or leaf.get("critical_state") != "not_applicable" or leaf.get("damage_roll") != "not_applicable":
+        return "fractional_target_hp_damage_derived_damage_invalid"
+    route_post = payload.get("route_post_hp")
+    if route_post != hp - damage or payload.get("target_post_hp") != consequences.get("target_final_hp"):
+        return "fractional_target_hp_damage_post_hp_invalid"
+    if route == "target" and consequences.get("target_final_hp") != hp - damage:
+        return "fractional_target_hp_damage_target_route_post_hp_invalid"
+    return None
 
 
 def _focus_sash_leaf(leaf: Mapping[str, Any]) -> str | None:
