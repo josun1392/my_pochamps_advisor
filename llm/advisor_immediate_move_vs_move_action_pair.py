@@ -159,6 +159,7 @@ def materialize_immediate_move_vs_move_action_pair(
     disable_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    post_source_retaliation_protection_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
     base = _base(strategy_d0, own_action, opponent_action)
@@ -234,6 +235,7 @@ def materialize_immediate_move_vs_move_action_pair(
             pending_status_execution_authorities=pending_status_execution_authorities,
             pivot_replacement_authorities=pivot_replacement_authorities,
             pivot_entry_authorities=pivot_entry_authorities,
+            post_source_retaliation_protection_authority=post_source_retaliation_protection_authority,
         )
         if isinstance(materialized, Mapping): return materialized
         branches.extend(materialized)
@@ -973,6 +975,7 @@ def _materialize_order(
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None,
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None,
     pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None,
+    post_source_retaliation_protection_authority: Mapping[str, Any] | None,
 ) -> list[dict[str, Any]] | dict[str, Any]:
     order = order_plan["order"]
     first_actor = base["own_actor"] if order == "own_first" else base["opponent_actor"]
@@ -1110,7 +1113,7 @@ def _materialize_order(
                 recent_event = materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=strategy_d0, terminal_leaf=leaf, recipient=inputs["attacker"], source_move_metadata=first_meta["metadata"])
                 second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
                     actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs), action=opponent_action if order == "own_first" else own_action,
-                    analytic_action_order_authority=second_analytic, same_turn_last_incoming_attack_event=recent_event)
+                    analytic_action_order_authority=second_analytic, same_turn_last_incoming_attack_event=recent_event, post_source_retaliation_protection_authority=post_source_retaliation_protection_authority)
             if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
             if isinstance(second_gate, Mapping) and second_gate.get("status") == "applies":
                 second = _bind_sucker_punch_execution_ledger(second, second_gate)
@@ -1135,7 +1138,7 @@ def _materialize_order(
     return branches
 
 
-def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     if metadata.get("move_id") == "seismic-toss":
@@ -1147,7 +1150,7 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
     if metadata.get("move_id") == "final-gambit":
         return _final_gambit_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,actor=actor,target=target,metadata=metadata)
     if metadata.get("move_id") in {"counter", "mirror-coat"}:
-        return _recent_damage_retaliation_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata, incoming_event=same_turn_last_incoming_attack_event)
+        return _recent_damage_retaliation_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata, incoming_event=same_turn_last_incoming_attack_event, protection_authority=post_source_retaliation_protection_authority)
     if metadata.get("move_id") in {"double-hit", "double-kick"}:
         return _fixed_two_hit_ledger(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor,
@@ -1296,7 +1299,7 @@ def _final_gambit_ledger(*,strategy_d0:Mapping[str,Any],runtime_snapshot:Mapping
  l=materialize_detached_final_gambit_self_hp_damage_attack_leaves(strategy_d0=strategy_d0,execution_authority=e,strict_hit_probability=h)
  return l if l.get("status")=="evaluable" else _result(_status(l),l.get("reason","final_gambit_terminal_leaves_unavailable"),{})
 
-def _recent_damage_retaliation_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], incoming_event: Mapping[str, Any] | None) -> dict[str, Any]:
+def _recent_damage_retaliation_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], incoming_event: Mapping[str, Any] | None, protection_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     hit = build_runtime_d0_strict_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, selected_move=metadata)
     if hit.get("status") != "resolved": return _result(_status(hit), hit.get("reason", "retaliation_hit_authority_unavailable"), {})
     state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, Mapping) else None
@@ -1306,6 +1309,10 @@ def _recent_damage_retaliation_ledger(*, strategy_d0: Mapping[str, Any], runtime
     types = row.get("current_type") if isinstance(row, Mapping) and row.get("pokemon_id") == target.get("pokemon_id") else None
     if not isinstance(types, list) or not types or not all(isinstance(value, str) and value for value in types): return _result("incomplete", "retaliation_target_type_unknown", {})
     applicability = "immune" if type_effectiveness_multiplier(metadata["type"], tuple(types)) == 0.0 else "applicable"
+    if isinstance(protection_authority, Mapping):
+        if protection_authority.get("status") != "resolved" or protection_authority.get("protected_owner") != target: return _result("rejected", "retaliation_protection_authority_binding_invalid", {})
+        if protection_authority.get("outcome") == "blocked": applicability = "blocked"
+        elif protection_authority.get("outcome") != "not_blocked": return _result("rejected", "retaliation_protection_authority_outcome_invalid", {})
     leaves = materialize_detached_recent_damage_retaliation_attack_leaves(strategy_d0=strategy_d0, attacker=actor, target=target, move=metadata, strict_hit_probability=hit, incoming_event=incoming_event, applicability=applicability)
     if leaves.get("status") != "evaluable" or metadata.get("move_id") != "counter": return leaves
     source={"action_id":"attack:counter","action_type":"attack","identity":"counter"}
