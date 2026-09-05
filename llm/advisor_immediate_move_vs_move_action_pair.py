@@ -1306,7 +1306,17 @@ def _recent_damage_retaliation_ledger(*, strategy_d0: Mapping[str, Any], runtime
     types = row.get("current_type") if isinstance(row, Mapping) and row.get("pokemon_id") == target.get("pokemon_id") else None
     if not isinstance(types, list) or not types or not all(isinstance(value, str) and value for value in types): return _result("incomplete", "retaliation_target_type_unknown", {})
     applicability = "immune" if type_effectiveness_multiplier(metadata["type"], tuple(types)) == 0.0 else "applicable"
-    return materialize_detached_recent_damage_retaliation_attack_leaves(strategy_d0=strategy_d0, attacker=actor, target=target, move=metadata, strict_hit_probability=hit, incoming_event=incoming_event, applicability=applicability)
+    leaves = materialize_detached_recent_damage_retaliation_attack_leaves(strategy_d0=strategy_d0, attacker=actor, target=target, move=metadata, strict_hit_probability=hit, incoming_event=incoming_event, applicability=applicability)
+    if leaves.get("status") != "evaluable" or metadata.get("move_id") != "counter": return leaves
+    source={"action_id":"attack:counter","action_type":"attack","identity":"counter"}
+    relevance=contact_reactive_damage_relevance(runtime_snapshot=runtime_snapshot, defender=target); status_relevance=contact_reactive_status_relevance(runtime_snapshot=runtime_snapshot, defender=target)
+    if relevance.get("status") != "resolved" or status_relevance.get("status") != "resolved": return _result("incomplete", "counter_contact_reactive_relevance_unknown", {})
+    contact=None
+    if relevance.get("relevant") is True or status_relevance.get("relevant") is True:
+        contact=freeze_runtime_d0_canonical_contact_classification_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=source,attacker=actor,target=target)
+        if contact.get("status") != "resolved": return _result(_status(contact),contact.get("reason","counter_contact_authority_unavailable"),{})
+    leaves=_apply_contact_reactive_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,defender=target,source_action=source,contact_authority=contact)
+    return _apply_contact_reactive_status_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,defender=target,source_action=source,contact_authority=contact)
 
 
 def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
