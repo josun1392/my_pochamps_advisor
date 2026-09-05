@@ -6,7 +6,12 @@ from typing import Any, Mapping
 
 from llm.advisor_hypothetical_direct_mechanics import evaluate_hypothetical_direct_mechanics
 from llm.advisor_incoming_active_materialization import materialize_incoming_active_branch
-from llm.advisor_switch_entry_effects import evaluate_switch_entry_effects
+from llm.advisor_switch_entry_effects import (
+    evaluate_switch_entry_effects, evaluate_toxic_spikes_entry, evaluate_sticky_web_entry,
+    evaluate_intimidate_entry, evaluate_download_entry, evaluate_entry_weather,
+    evaluate_sturdy_entry,
+)
+from llm.advisor_switch_entry_hazards import evaluate_entry_hazards
 from llm.advisor_switch_transition import project_authorized_switch_transition
 from llm.advisor_transition_preview import fingerprint_transition_preview_state, project_exact_direct_action_on_branch
 from llm.advisor_branch_hazard_context import project_side_hazards, remove_absorbed_toxic_spikes
@@ -20,7 +25,7 @@ class _FrozenSnapshot:
 
 
 def execute_materialized_switch_entry(
-    *, materialized_switch: Mapping[str, Any], entry_authority: Mapping[str, Any],
+    *, materialized_switch: Mapping[str, Any], entry_authority: Mapping[str, Any], defer_abilities: bool = False,
 ) -> dict[str, Any]:
     """Run the existing bounded entry lifecycle after an already materialized self switch.
 
@@ -43,7 +48,14 @@ def execute_materialized_switch_entry(
     active = state.get("active", {}).get(incoming_side) if isinstance(state.get("active"), Mapping) else None
     if not isinstance(active, Mapping) or any(active.get(key) != target.get(key) for key in ("session_id", "side", "slot_index", "pokemon_id")):
         return _result("rejected", "stale_or_foreign_switch_entry_target")
-    entry = evaluate_switch_entry_effects(hazards=hazards, target=target, intimidate_authority=entry_authority.get("intimidate_authority"), download_authority=entry_authority.get("download_authority"), field_state_context=entry_authority.get("field_state_context"))
+    if defer_abilities:
+        damage = evaluate_entry_hazards(hazards=hazards, target=target)
+        toxic = evaluate_toxic_spikes_entry(hazards=hazards, target=target)
+        sticky = evaluate_sticky_web_entry(hazards=hazards, target=target)
+        entry = {**damage, "toxic_spikes_result": toxic, "sticky_web_result": sticky,
+                 "entry_effects_supportability": "complete" if all(x.get("status") == "complete" for x in (damage, toxic, sticky)) else "incomplete"}
+    else:
+        entry = evaluate_switch_entry_effects(hazards=hazards, target=target, intimidate_authority=entry_authority.get("intimidate_authority"), download_authority=entry_authority.get("download_authority"), field_state_context=entry_authority.get("field_state_context"))
     if entry.get("entry_effects_supportability") != "complete" or entry.get("status") != "complete":
         return _result("incomplete", "switch_entry_authority")
     projected = project_side_hazards(branch_state=state, source_fingerprint=source_fp, frozen_hazards=hazards)
@@ -56,34 +68,10 @@ def execute_materialized_switch_entry(
     trace = [*deepcopy(materialized_switch.get("materialization_trace", [])), {"sequence": 2, "event": "switch_entry_hazards", "execution_status": "executed", "damage": damage, "post_hp": active["current_hp"], "hazards": {"stealth_rock": hazards.get("stealth_rock"), "spikes_layers": hazards.get("spikes_layers"), "sticky_web": entry.get("sticky_web_result")}}]
     if active["fainted"]:
         return {"status": "unsupported", "reason": "replacement_required_after_entry_hazard_ko", "post_switch_branch_fingerprint": source_fp, "post_entry_branch_fingerprint": entry_fp, "next_state": state, "entry_effect_result": deepcopy(entry), "consequence_trace": trace, "boundary": {"phase": "pre_end_of_turn"}}
-    intimidate = entry.get("intimidate_result")
-    if not isinstance(intimidate, Mapping) or intimidate.get("status") != "complete": return _result("incomplete", "intimidate_entry_authority")
-    if intimidate.get("outcome") in {"attack_stage_lowered", "attack_stage_minimum"}:
-        if not _materialized_has_ability(state, incoming_side, "intimidate") or not _sync_attack_stage(state, opposing_side, intimidate.get("opponent_identity"), intimidate.get("attack_stage_before"), intimidate.get("attack_stage_after")): return _result("incomplete", "opponent_exact_attack_stage_authority")
-        trace.append({"sequence": 3, "event": "switch_entry_intimidate", "execution_status": "executed", "source_owner": {key: active[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "target_owner": deepcopy(dict(intimidate["opponent_identity"])), "attack_stage_before": intimidate["attack_stage_before"], "attack_stage_after": intimidate["attack_stage_after"], "provenance": "switch-entry-intimidate-authority-v1"})
-    elif intimidate.get("outcome") == "attack_drop_prevented": trace.append({"sequence": 3, "event": "switch_entry_intimidate", "execution_status": "prevented", "provenance": "switch-entry-intimidate-authority-v1"})
-    elif intimidate.get("outcome") != "not_applicable": return _result("unsupported", "intimidate_entry_outcome")
-    download = entry.get("download_result")
-    if not isinstance(download, Mapping) or download.get("status") != "complete": return _result("incomplete", "download_entry_authority")
-    if download.get("outcome") in {"attack_stage_raised", "attack_stage_maximum", "special-attack_stage_raised", "special-attack_stage_maximum"}:
-        if not _materialized_has_ability(state, incoming_side, "download") or not _sync_offensive_stage(state, incoming_side, download.get("boosted_stat"), download.get("stage_before"), download.get("stage_after")): return _result("incomplete", "incoming_exact_download_stage_authority")
-        trace.append({"sequence": len(trace) + 1, "event": "switch_entry_download", "execution_status": "executed", "source_owner": {key: active[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "target_owner": deepcopy(dict(download["opponent_identity"])), "boosted_stat": download["boosted_stat"], "stage_before": download["stage_before"], "stage_after": download["stage_after"], "provenance": "switch-entry-download-authority-v1"})
-    elif download.get("outcome") == "ability_suppressed": trace.append({"sequence": len(trace) + 1, "event": "switch_entry_download", "execution_status": "prevented", "provenance": "switch-entry-download-authority-v1"})
-    elif download.get("outcome") != "not_applicable": return _result("unsupported", "download_entry_outcome")
-    weather = entry.get("weather_result")
-    if not isinstance(weather, Mapping) or weather.get("status") != "complete": return _result("incomplete", "weather_entry_authority")
-    if weather.get("outcome") in {"weather_set", "weather_already_active"}:
-        weather_after = weather.get("weather_after"); ability = {"rain": "drizzle", "sun": "drought", "sandstorm": "sand-stream", "snow": "snow-warning"}.get(weather_after)
-        if ability is None or not _materialized_has_ability(state, incoming_side, ability): return _result("unsupported", "weather_entry_outcome")
-        projected_weather = project_field_weather(branch_state=state, source_fingerprint=fingerprint_transition_preview_state(state), frozen_field_state=entry_authority.get("field_state_context"))
-        if projected_weather.get("status") != "resolved": return projected_weather
-        state = projected_weather["next_state"]
-        if weather.get("outcome") == "weather_set":
-            changed_weather = apply_supported_switch_entry_weather(branch_state=state, source_fingerprint=projected_weather["resulting_branch_fingerprint"], weather_result=weather)
-            if changed_weather.get("status") != "resolved": return changed_weather
-            state = changed_weather["next_state"]
-        trace.append({"sequence": len(trace) + 1, "event": f"switch_entry_{ability.replace('-', '_')}", "execution_status": "executed" if weather.get("outcome") == "weather_set" else "already_active", "source_owner": {key: active[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "weather_before": weather["weather_before"], "weather_after": weather_after, "provenance": "canonical_switch_entry_weather"})
-    elif weather.get("outcome") != "not_applicable": return _result("unsupported", "weather_entry_outcome")
+    if not defer_abilities:
+        applied = _apply_materialized_entry_abilities(state, entry, entry_authority, incoming_side, opposing_side, trace)
+        if applied.get("status") != "resolved": return applied
+        state, trace = applied["next_state"], applied["consequence_trace"]
     sticky = entry.get("sticky_web_result")
     if not isinstance(sticky, Mapping) or sticky.get("status") != "complete": return _result("incomplete", "sticky_web_entry_authority")
     if sticky.get("outcome") in {"speed_stage_lowered", "speed_stage_minimum"} and not _sync_speed_stage(state, incoming_side, sticky.get("speed_stage_after")): return _result("incomplete", "incoming_exact_speed_stage_authority")
@@ -220,3 +208,74 @@ def _incoming_matches_authorized_switch(switch: Mapping[str, Any], incoming_auth
 
 
 def _result(status: str, reason: str) -> dict[str, Any]: return {"status": status, "reason": reason}
+
+
+
+def execute_materialized_entry_abilities(*, branch_state: Mapping[str, Any], source_branch_fingerprint: str, entry_authority: Mapping[str, Any]) -> dict[str, Any]:
+    """Execute on-entry abilities after the coordinator establishes all entrants.
+
+    Hazards and their status/stage consequences must already have completed.
+    The caller supplies authority bound to this exact post-hazard generation.
+    """
+    if fingerprint_transition_preview_state(branch_state) != source_branch_fingerprint:
+        return _result("rejected", "stale_entry_ability_branch")
+    state = deepcopy(dict(branch_state))
+    target = entry_authority.get("target_roster_mechanics")
+    side = target.get("side") if isinstance(target, Mapping) else None
+    active = state.get("active", {}).get(side)
+    if not isinstance(active, Mapping) or any(active.get(k) != target.get(k) for k in ("session_id", "side", "slot_index", "pokemon_id")):
+        return _result("rejected", "foreign_entry_ability_target")
+    if active.get("fainted") is True:
+        return {"status": "resolved", "next_state": state, "consequence_trace": [], "resulting_branch_fingerprint": source_branch_fingerprint}
+    if target.get("ability_authority", {}).get("value") == "trace":
+        return _result("incomplete", "post_eot_trace_execution_unrepresented")
+    damage = {"status": "complete", "hazard_ko": False, "post_hazard_hp": active["current_hp"]}
+    other = "opponent" if side == "self" else "self"
+    opponent_alive = state["active"][other]["fainted"] is False
+    no_target = {"status": "complete", "outcome": "not_applicable", "reason": "no_living_opponent"}
+    entry = {
+        "intimidate_result": evaluate_intimidate_entry(target=target, damage=damage, authority=entry_authority.get("intimidate_authority")) if opponent_alive else deepcopy(no_target),
+        "download_result": evaluate_download_entry(target=target, damage=damage, authority=entry_authority.get("download_authority")) if opponent_alive else deepcopy(no_target),
+        "weather_result": evaluate_entry_weather(target=target, damage=damage, field_state_context=entry_authority.get("field_state_context")),
+        "sturdy_result": evaluate_sturdy_entry(target=target, damage=damage, authority=entry_authority.get("sturdy_authority")),
+    }
+    if entry["sturdy_result"].get("status") != "complete":
+        return _result("incomplete", "sturdy_entry_authority")
+    result = _apply_materialized_entry_abilities(state, entry, entry_authority, side, "opponent" if side == "self" else "self", [])
+    if result.get("status") == "resolved":
+        result["entry_effect_result"] = entry
+        result["resulting_branch_fingerprint"] = fingerprint_transition_preview_state(result["next_state"])
+    return result
+
+
+def _apply_materialized_entry_abilities(state, entry, entry_authority, incoming_side, opposing_side, trace):
+    active = state["active"][incoming_side]
+    intimidate = entry.get("intimidate_result")
+    if not isinstance(intimidate, Mapping) or intimidate.get("status") != "complete": return _result("incomplete", "intimidate_entry_authority")
+    if intimidate.get("outcome") in {"attack_stage_lowered", "attack_stage_minimum"}:
+        if not _materialized_has_ability(state, incoming_side, "intimidate") or not _sync_attack_stage(state, opposing_side, intimidate.get("opponent_identity"), intimidate.get("attack_stage_before"), intimidate.get("attack_stage_after")): return _result("incomplete", "opponent_exact_attack_stage_authority")
+        trace.append({"sequence": 3, "event": "switch_entry_intimidate", "execution_status": "executed", "source_owner": {key: active[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "target_owner": deepcopy(dict(intimidate["opponent_identity"])), "attack_stage_before": intimidate["attack_stage_before"], "attack_stage_after": intimidate["attack_stage_after"], "provenance": "switch-entry-intimidate-authority-v1"})
+    elif intimidate.get("outcome") == "attack_drop_prevented": trace.append({"sequence": 3, "event": "switch_entry_intimidate", "execution_status": "prevented", "provenance": "switch-entry-intimidate-authority-v1"})
+    elif intimidate.get("outcome") != "not_applicable": return _result("unsupported", "intimidate_entry_outcome")
+    download = entry.get("download_result")
+    if not isinstance(download, Mapping) or download.get("status") != "complete": return _result("incomplete", "download_entry_authority")
+    if download.get("outcome") in {"attack_stage_raised", "attack_stage_maximum", "special-attack_stage_raised", "special-attack_stage_maximum"}:
+        if not _materialized_has_ability(state, incoming_side, "download") or not _sync_offensive_stage(state, incoming_side, download.get("boosted_stat"), download.get("stage_before"), download.get("stage_after")): return _result("incomplete", "incoming_exact_download_stage_authority")
+        trace.append({"sequence": len(trace) + 1, "event": "switch_entry_download", "execution_status": "executed", "source_owner": {key: active[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "target_owner": deepcopy(dict(download["opponent_identity"])), "boosted_stat": download["boosted_stat"], "stage_before": download["stage_before"], "stage_after": download["stage_after"], "provenance": "switch-entry-download-authority-v1"})
+    elif download.get("outcome") == "ability_suppressed": trace.append({"sequence": len(trace) + 1, "event": "switch_entry_download", "execution_status": "prevented", "provenance": "switch-entry-download-authority-v1"})
+    elif download.get("outcome") != "not_applicable": return _result("unsupported", "download_entry_outcome")
+    weather = entry.get("weather_result")
+    if not isinstance(weather, Mapping) or weather.get("status") != "complete": return _result("incomplete", "weather_entry_authority")
+    if weather.get("outcome") in {"weather_set", "weather_already_active"}:
+        weather_after = weather.get("weather_after"); ability = {"rain": "drizzle", "sun": "drought", "sandstorm": "sand-stream", "snow": "snow-warning"}.get(weather_after)
+        if ability is None or not _materialized_has_ability(state, incoming_side, ability): return _result("unsupported", "weather_entry_outcome")
+        projected_weather = project_field_weather(branch_state=state, source_fingerprint=fingerprint_transition_preview_state(state), frozen_field_state=entry_authority.get("field_state_context"))
+        if projected_weather.get("status") != "resolved": return projected_weather
+        state = projected_weather["next_state"]
+        if weather.get("outcome") == "weather_set":
+            changed_weather = apply_supported_switch_entry_weather(branch_state=state, source_fingerprint=projected_weather["resulting_branch_fingerprint"], weather_result=weather)
+            if changed_weather.get("status") != "resolved": return changed_weather
+            state = changed_weather["next_state"]
+        trace.append({"sequence": len(trace) + 1, "event": f"switch_entry_{ability.replace('-', '_')}", "execution_status": "executed" if weather.get("outcome") == "weather_set" else "already_active", "source_owner": {key: active[key] for key in ("session_id", "side", "slot_index", "pokemon_id")}, "weather_before": weather["weather_before"], "weather_after": weather_after, "provenance": "canonical_switch_entry_weather"})
+    elif weather.get("outcome") != "not_applicable": return _result("unsupported", "weather_entry_outcome")
+    return {"status": "resolved", "next_state": state, "consequence_trace": trace}
