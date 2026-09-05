@@ -97,6 +97,8 @@ from llm.advisor_detached_disable_action_restriction import (
 )
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
+from llm.advisor_detached_direct_heal_materializer import materialize_detached_direct_heal
+from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtime_d0_direct_heal_execution_authority
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
@@ -140,6 +142,7 @@ def materialize_immediate_move_vs_move_action_pair(
     quick_guard_priority_applicability_authority: Mapping[str, Any] | None = None,
     mat_block_direct_damage_applicability_authority: Mapping[str, Any] | None = None,
     pure_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    direct_heal_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     crafty_shield_pure_status_applicability_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     taunt_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
@@ -157,6 +160,10 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    if _is_direct_heal_metadata(own_meta.get("metadata")) or _is_direct_heal_metadata(opponent_meta.get("metadata")):
+        return _materialize_direct_heal_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,
+            orders=orders, authorities=direct_heal_execution_authorities)
     if own_meta.get("metadata", {}).get("move_id") == "taunt":
         return _materialize_taunt_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta,
@@ -230,6 +237,89 @@ def materialize_immediate_move_vs_move_action_pair(
             "terminal_branches": tuple(branches), "terminal_probability_mass": _fd(mass),
             "aggregation": "none_preserve_first_and_second_leaf_identity",
             "provenance": "strict_detached_immediate_move_vs_move_pair_materialization_v1"}
+
+
+def _is_direct_heal_metadata(metadata: Any) -> bool:
+    return isinstance(metadata, Mapping) and metadata.get("move_id") in {"recover", "slack-off", "soft-boiled"} and metadata.get("category") == "status" and metadata.get("target") == "self"
+
+
+def _materialize_direct_heal_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
+    """Small adapter: attacks stay in their canonical ledger; healing owns only HP restoration."""
+    if not isinstance(authorities, Mapping): return _result("incomplete", "direct_heal_execution_authorities_required", base)
+    actions = {"own": (own_action, own_meta, base["own_actor"], base["opponent_actor"]), "opponent": (opponent_action, opponent_meta, base["opponent_actor"], base["own_actor"])}
+    branches = []
+    for plan in orders:
+        first_key, second_key = ("own", "opponent") if plan["order"] == "own_first" else ("opponent", "own")
+        first_action, first_meta, first_actor, first_target = actions[first_key]
+        second_action, second_meta, second_actor, second_target = actions[second_key]
+        if _is_direct_heal_metadata(first_meta.get("metadata")):
+            first = _direct_heal_leaf(authorities.get(first_action.get("action_id")), strategy_d0, runtime_snapshot, first_action, first_actor, first_target, None)
+            if isinstance(first, str): return _result("incomplete", first, base)
+            if _is_direct_heal_metadata(second_meta.get("metadata")):
+                hp = {"current_hp": _current_hp(strategy_d0, second_actor), "max_hp": _max_hp(strategy_d0, second_actor), "fainted": False}
+                second = _direct_heal_leaf(authorities.get(second_action.get("action_id")), strategy_d0, runtime_snapshot, second_action, second_actor, second_target, hp)
+                if isinstance(second, str): return _result("incomplete", second, base)
+                branches.append(_branch(base, plan["order"], first, {}, second, second_actor, plan)); continue
+            attack_d0, attack_snapshot = strategy_d0, runtime_snapshot
+            if second_actor == base["opponent_actor"]:
+                root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
+                if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "opponent_root_predictive_authority_unavailable"), base)
+                attack_d0, attack_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
+            ledger = _attack_ledger(strategy_d0=attack_d0, runtime_snapshot=attack_snapshot, actor=second_actor, target=second_target, metadata_authority=second_meta, action=second_action)
+            if ledger.get("status") != "evaluable": return _result(_status(ledger), ledger.get("reason", "second_action_ledger_unavailable"), base)
+            for raw in ledger["terminal_leaves"]:
+                second = _rebase_attack_target_hp(raw, healed_hp=first["consequences"]["own_final_hp"], target=second_target, strategy_d0=strategy_d0)
+                branches.append(_branch(base, plan["order"], first, {}, second, second_actor, plan))
+            continue
+        # First action is a canonical damaging attack.  Each exact terminal
+        # leaf supplies the path-local HP source for the later self-heal.
+        attack_d0, attack_snapshot = strategy_d0, runtime_snapshot
+        if first_actor == base["opponent_actor"]:
+            root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
+            if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "opponent_root_predictive_authority_unavailable"), base)
+            attack_d0, attack_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
+        ledger = _attack_ledger(strategy_d0=attack_d0, runtime_snapshot=attack_snapshot, actor=first_actor, target=first_target, metadata_authority=first_meta, action=first_action)
+        if ledger.get("status") != "evaluable": return _result(_status(ledger), ledger.get("reason", "first_action_ledger_unavailable"), base)
+        for first in ledger["terminal_leaves"]:
+            hp = {"current_hp": first["consequences"]["target_final_hp"], "max_hp": _max_hp(strategy_d0, second_actor), "fainted": first["consequences"]["target_final_hp"] == 0}
+            if hp["fainted"]:
+                branches.append(_branch(base, plan["order"], first, {}, None, second_actor, plan)); continue
+            second = _direct_heal_leaf(authorities.get(second_action.get("action_id")), strategy_d0, runtime_snapshot, second_action, second_actor, second_target, hp)
+            if isinstance(second, str): return _result("incomplete", second, base)
+            branches.append(_branch(base, plan["order"], first, {}, second, second_actor, plan))
+    mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
+    if mass != Fraction(1, 1): return _result("rejected", "direct_heal_pair_probability_mass_not_one", base)
+    return {"status":"evaluable", "schema_version":SCHEMA_VERSION, "horizon":HORIZON, **deepcopy(dict(base)), "action_order":{"direct_heal":"external_exact_order_authority"}, "terminal_branches":tuple(branches), "terminal_probability_mass":_fd(mass), "aggregation":"none_preserve_direct_heal_leaf_identity", "provenance":"strict_direct_heal_immediate_pair_materialization_v1"}
+
+
+def _direct_heal_leaf(authority: Any, d0: Mapping[str, Any], snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], path_hp: Mapping[str, Any] | None) -> dict[str, Any] | str:
+    if not isinstance(authority, Mapping): return "direct_heal_execution_authority_missing"
+    frozen = freeze_runtime_d0_direct_heal_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action, actor=actor, path_hp_authority=path_hp)
+    if frozen.get("status") != "resolved": return frozen.get("reason", "direct_heal_execution_authority_unavailable")
+    # The supplied authority is evidence that this selected action was bound at
+    # D0; the freshly frozen path state is the execution authority.
+    for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "action_id", "move_id", "actor"):
+        if authority.get(key) != frozen.get(key): return "direct_heal_execution_authority_binding_mismatch"
+    materialized = materialize_detached_direct_heal(execution_authority=frozen)
+    if materialized.get("status") != "resolved": return materialized.get("reason", "direct_heal_materialization_unavailable")
+    heal = materialized["heal"]
+    target_hp = _current_hp(d0, target)
+    if target_hp is None: return "direct_heal_target_hp_authority_missing"
+    return {"leaf_id":f"{materialized['action_id']}:{materialized['outcome']}","candidate_id":materialized["action_id"],"branch_path":(materialized["outcome"],),"probability":deepcopy(materialized["probability"]),"hit_state":"not_applicable","critical_state":"not_applicable","damage_roll":"not_applicable","consequences":{"damage":0,"own_final_hp":heal["post_hp"],"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":False,"secondary":None,"contact":"not_applicable","direct_heal":deepcopy(heal)},"provenance":{"session_id":materialized["session_id"],"source_runtime_fingerprint":materialized["source_runtime_fingerprint"],"source_branch_fingerprint":materialized["source_branch_fingerprint"],"decision_owner":deepcopy(materialized["decision_owner"]),"attacker":deepcopy(materialized["actor"]),"target":deepcopy(target),"move_id":materialized["move_id"],"direct_heal_execution_authority":deepcopy(authority)}}
+
+
+def _current_hp(d0: Mapping[str, Any], owner: Mapping[str, Any]) -> int | None:
+    value = d0.get("strategy_state", {}).get("active", {}).get(owner.get("side"), {}).get("current_hp")
+    return value if _hp(value) else None
+def _max_hp(d0: Mapping[str, Any], owner: Mapping[str, Any]) -> int | None:
+    value = d0.get("strategy_state", {}).get("active", {}).get(owner.get("side"), {}).get("max_hp")
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
+def _rebase_attack_target_hp(leaf: Mapping[str, Any], *, healed_hp: int, target: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any]:
+    result = deepcopy(dict(leaf)); consequences = result["consequences"]; original = _current_hp(strategy_d0, target)
+    if original is None: return result
+    loss = original - consequences["target_final_hp"]
+    consequences["target_final_hp"] = max(0, healed_hp - loss); consequences["target_ko"] = consequences["target_final_hp"] == 0
+    return result
 
 
 def _materialize_tail_whip_status_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:

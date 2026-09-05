@@ -103,6 +103,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if not isinstance(first, Mapping) or not isinstance(first.get("leaf_id"), str) or _fraction(first.get("probability")) <= 0: return "first_action_leaf_invalid"
     sucker_error = _sucker_punch_leaf(first, action_order=value["action_order"], pair_base=base)
     if sucker_error is not None: return sucker_error
+    heal_error = _direct_heal_leaf(first)
+    if heal_error is not None: return heal_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -147,6 +149,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if isinstance(second_leaf, Mapping):
         sucker_error = _sucker_punch_leaf(second_leaf, action_order=value["action_order"], pair_base=base)
         if sucker_error is not None: return sucker_error
+        heal_error = _direct_heal_leaf(second_leaf)
+        if heal_error is not None: return heal_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -361,6 +365,17 @@ def _final(source: Mapping[str, Any], base: Mapping[str, Any]) -> dict[str, Any]
 
 
 def _hp(value: Any) -> bool: return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+def _direct_heal_leaf(leaf: Mapping[str, Any]) -> str | None:
+    consequences, provenance = leaf.get("consequences"), leaf.get("provenance")
+    if not isinstance(consequences, Mapping) or not isinstance(provenance, Mapping): return "direct_heal_leaf_consequence_missing"
+    heal = consequences.get("direct_heal")
+    if heal is None: return None
+    if leaf.get("hit_state") != "not_applicable" or leaf.get("critical_state") != "not_applicable" or leaf.get("damage_roll") != "not_applicable" or consequences.get("damage") != 0 or consequences.get("contact") != "not_applicable": return "direct_heal_leaf_non_heal_semantics_invalid"
+    if not isinstance(heal, Mapping) or not all(isinstance(heal.get(key), int) and not isinstance(heal.get(key), bool) for key in ("pre_hp", "max_hp", "nominal_heal", "actual_heal", "post_hp")): return "direct_heal_leaf_shape_invalid"
+    if heal["max_hp"] < 1 or not 0 < heal["pre_hp"] <= heal["max_hp"] or heal["nominal_heal"] != (heal["max_hp"] + 1) // 2 or heal["actual_heal"] != min(heal["nominal_heal"], heal["max_hp"] - heal["pre_hp"]) or heal["post_hp"] != heal["pre_hp"] + heal["actual_heal"] or consequences.get("own_final_hp") != heal["post_hp"]: return "direct_heal_leaf_replay_invalid"
+    authority = provenance.get("direct_heal_execution_authority")
+    if not isinstance(authority, Mapping) or authority.get("actor") != provenance.get("attacker") or authority.get("action_id") != leaf.get("candidate_id") or authority.get("move_id") != provenance.get("move_id"): return "direct_heal_leaf_provenance_invalid"
+    return None
 def _contact_reactive_status_leaf(leaf: Mapping[str, Any]) -> str | None:
     consequences = leaf.get("consequences")
     status = consequences.get("contact_reactive_status") if isinstance(consequences, Mapping) else None
