@@ -1,4 +1,5 @@
 from llm.advisor_detached_recent_damage_retaliation_attack_leaf import materialize_detached_recent_damage_retaliation_attack_leaves
+from llm.advisor_detached_same_turn_last_incoming_attack_event import materialize_detached_same_turn_last_incoming_attack_event
 
 
 def _d0():
@@ -19,3 +20,9 @@ def test_mirror_coat_fails_closed_without_matching_event():
     leaf=out["terminal_leaves"][0]
     assert leaf["consequences"]["damage"] == 0
     assert leaf["consequences"]["recent_damage_retaliation"]["outcome"] == "failure_no_qualifying_recent_damage"
+
+def test_event_uses_last_direct_multi_hit_strike_not_sum():
+    d0,a,b=_d0()
+    leaf={"action_type":"attack","leaf_id":"x","candidate_id":"attack:x","hit_state":"hit","ordered_hits":({"hit_index":1,"pre_hp":80,"post_hp":70,"target_routing":"target"},{"hit_index":2,"pre_hp":70,"post_hp":58,"target_routing":"target"}),"consequences":{"target_final_hp":58},"provenance":{"target":a,"attacker":b,"move_id":"x"}}
+    event=materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=d0,terminal_leaf=leaf,recipient=a,source_move_metadata={"category":"physical"})
+    assert event["status"] == "resolved" and event["hp_lost"] == 12 and event["source_hit_path"]["hit_index"] == 2
