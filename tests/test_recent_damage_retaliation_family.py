@@ -34,6 +34,11 @@ def test_type_immunity_keeps_valid_retaliation_at_zero_damage():
     out=materialize_detached_recent_damage_retaliation_attack_leaves(strategy_d0=d0,attacker=a,target=b,move={"move_id":"counter","type":"fighting","category":"physical","accuracy":100,"priority":-5,"contact":True},strict_hit_probability={"result":"always_hit"},incoming_event=event,applicability="immune")
     assert out["terminal_leaves"][0]["consequences"]["damage"] == 0
 
+def test_category_mismatch_does_not_enable_retaliation():
+    d0,a,b=_d0(); event={"status":"resolved","recipient":a,"source_attacker":b,"source_category":"physical","qualifying_event":True,"hp_lost":40}
+    out=materialize_detached_recent_damage_retaliation_attack_leaves(strategy_d0=d0,attacker=a,target=b,move={"move_id":"mirror-coat","type":"psychic","category":"special","accuracy":100,"priority":-5,"contact":False},strict_hit_probability={"result":"always_hit"},incoming_event=event,applicability="applicable")
+    assert out["terminal_leaves"][0]["consequences"]["damage"] == 0
+
 def test_event_uses_last_direct_multi_hit_strike_not_sum():
     d0,a,b=_d0()
     leaf={"action_type":"attack","leaf_id":"x","candidate_id":"attack:x","hit_state":"hit","ordered_hits":({"hit_index":1,"pre_hp":80,"post_hp":70,"target_routing":"target"},{"hit_index":2,"pre_hp":70,"post_hp":58,"target_routing":"target"}),"consequences":{"target_final_hp":58},"provenance":{"target":a,"attacker":b,"move_id":"x"}}
