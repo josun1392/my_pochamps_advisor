@@ -14,7 +14,7 @@ def materialize_detached_recent_damage_retaliation_attack_leaves(*, strategy_d0:
     if applicability not in {"applicable","immune","blocked"}: return _result("rejected","retaliation_applicability_invalid")
     pct=100 if strict_hit_probability.get("result")=="always_hit" else strict_hit_probability.get("probability_percent")
     if not isinstance(pct,int) or not 0<=pct<=100:return _result("rejected","retaliation_hit_probability_invalid")
-    event_ok=isinstance(incoming_event,Mapping) and incoming_event.get("status")=="resolved" and incoming_event.get("recipient")==attacker and incoming_event.get("source_attacker")==target and incoming_event.get("source_category")==canonical["effect"]["qualifying_category"] and incoming_event.get("qualifying_event") is True and isinstance(incoming_event.get("hp_lost"),int) and incoming_event["hp_lost"]>=0
+    event_ok=th > 0 and isinstance(incoming_event,Mapping) and incoming_event.get("status")=="resolved" and incoming_event.get("recipient")==attacker and incoming_event.get("source_attacker")==target and incoming_event.get("source_category")==canonical["effect"]["qualifying_category"] and incoming_event.get("qualifying_event") is True and isinstance(incoming_event.get("hp_lost"),int) and incoming_event["hp_lost"]>=0
     leaves=[]
     for state,p in (("hit",pct),("miss",100-pct)):
       if not p: continue
