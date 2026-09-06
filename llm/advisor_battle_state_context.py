@@ -328,6 +328,8 @@ _TARGET_WEIGHT_MOVES = frozenset({"grass-knot", "low-kick"})
 STAT_STAGE_POWER_SCOPE = "explicit-stat-stage-based-move-power-only"
 _STAT_STAGE_SELF_POWER_MOVES = frozenset({"stored-power", "power-trip"})
 _STAT_STAGE_OPPONENT_POWER_MOVES = frozenset({"punishment"})
+POSITIVE_STAGE_SUM_POWER_SCOPE = "explicit-positive-current-stage-sum-power-only"
+_POSITIVE_STAGE_SUM_STATS = ("attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion")
 TARGET_HP_POWER_SCOPE = "explicit-target-hp-based-move-power-only"
 _TARGET_HP_POWER_MOVES = frozenset({"crush-grip", "wring-out"})
 ENVIRONMENT_MOVE_SCOPE = "explicit-environment-based-move-transformation-only"
@@ -343,7 +345,8 @@ DYNAMIC_MOVE_ASSESSMENT_REGISTRY = {
     **{move: "speed_based_power" for move in _SPEED_POWER_MOVES},
     **{move: "weight_based_power" for move in _WEIGHT_RATIO_MOVES},
     **{move: "target_weight_power" for move in _TARGET_WEIGHT_MOVES},
-    **{move: "stat_stage_based_power" for move in _STAT_STAGE_SELF_POWER_MOVES | _STAT_STAGE_OPPONENT_POWER_MOVES},
+    **{move: "positive_stage_sum_power" for move in _STAT_STAGE_SELF_POWER_MOVES},
+    **{move: "stat_stage_based_power" for move in _STAT_STAGE_OPPONENT_POWER_MOVES},
     **{move: "target_hp_based_power" for move in _TARGET_HP_POWER_MOVES},
     "weather-ball": "environment_based_move",
     "terrain-pulse": "environment_based_move",
@@ -354,7 +357,7 @@ DYNAMIC_MOVE_ASSESSMENT_REGISTRY = {
 }
 _DYNAMIC_FAMILY_KEYS = {
     "current_hp_based_power": "current_hp_based_power_assessment", "speed_based_power": "speed_based_power_assessment",
-    "weight_based_power": "weight_based_power_assessment", "target_weight_power": "target_weight_power_assessment", "stat_stage_based_power": "stat_stage_based_power_assessment",
+    "weight_based_power": "weight_based_power_assessment", "target_weight_power": "target_weight_power_assessment", "positive_stage_sum_power": "positive_stage_sum_power_assessment", "stat_stage_based_power": "stat_stage_based_power_assessment",
     "target_hp_based_power": "target_hp_based_power_assessment", "environment_based_move": "environment_based_move_assessment",
     "binary_condition_power": "binary_condition_power_assessment", "turn_event_power": "turn_event_power_assessment",
     "battle_counter_power": "battle_counter_power_assessment", "consecutive_use_power": "consecutive_use_power_assessment",
@@ -362,7 +365,7 @@ _DYNAMIC_FAMILY_KEYS = {
 DYNAMIC_MOVE_PRODUCTION_COVERAGE = {
     move: {"family": family, "assessment_key": _DYNAMIC_FAMILY_KEYS[family], "scope": {
         "current_hp_based_power": CURRENT_HP_POWER_SCOPE, "speed_based_power": SPEED_POWER_SCOPE,
-        "weight_based_power": WEIGHT_POWER_SCOPE, "target_weight_power": TARGET_WEIGHT_POWER_SCOPE, "stat_stage_based_power": STAT_STAGE_POWER_SCOPE,
+        "weight_based_power": WEIGHT_POWER_SCOPE, "target_weight_power": TARGET_WEIGHT_POWER_SCOPE, "positive_stage_sum_power": POSITIVE_STAGE_SUM_POWER_SCOPE, "stat_stage_based_power": STAT_STAGE_POWER_SCOPE,
         "target_hp_based_power": TARGET_HP_POWER_SCOPE, "environment_based_move": ENVIRONMENT_MOVE_SCOPE,
         "binary_condition_power": BINARY_CONDITION_POWER_SCOPE, "turn_event_power": TURN_EVENT_POWER_SCOPE,
         "battle_counter_power": BATTLE_COUNTER_POWER_SCOPE, "consecutive_use_power": CONSECUTIVE_USE_POWER_SCOPE,
@@ -1390,17 +1393,29 @@ def build_target_weight_power_assessment(selected_move: Mapping[str, Any] | None
 
 
 def build_stat_stage_based_power_assessment(selected_move: Mapping[str, Any] | None, stat_stage_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
-    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in _STAT_STAGE_SELF_POWER_MOVES | _STAT_STAGE_OPPONENT_POWER_MOVES: return None
-    move = selected_move["move_id"]; side = "self" if move in _STAT_STAGE_SELF_POWER_MOVES else "opponent"; base={"move":move,"scope":STAT_STAGE_POWER_SCOPE}
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in _STAT_STAGE_OPPONENT_POWER_MOVES: return None
+    move = selected_move["move_id"]; side = "opponent"; base={"move":move,"scope":STAT_STAGE_POWER_SCOPE}
     entries = (stat_stage_context or {}).get("current_stages", []) if isinstance(stat_stage_context, Mapping) else []
     relevant = [entry for entry in entries if isinstance(entry, Mapping) and entry.get("side") == side]
     if not relevant: return {**base,"status":"unavailable","reason":f"missing_{side}_stat_stages"}
     values = [entry.get("stage") for entry in relevant]
     if any(isinstance(value,bool) or not isinstance(value,int) or not -6 <= value <= 6 for value in values): return {**base,"status":"unavailable","reason":"invalid_stat_stage_context"}
     total=sum(max(0,value) for value in values)
-    if side == "self": power, rule=20+20*total,"positive-self-stat-stage-sum"
-    else: power, rule=min(200,60+20*total),"positive-opponent-stat-stage-sum"
+    power, rule=min(200,60+20*total),"positive-opponent-stat-stage-sum"
     return {**base,"rule":rule,"positive_stage_sum":total,"effective_power":power,"status":"resolved"}
+
+
+def build_positive_stage_sum_power_assessment(selected_move: Mapping[str, Any] | None, stat_stage_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in _STAT_STAGE_SELF_POWER_MOVES: return None
+    move = selected_move["move_id"]; base = {"move": move, "scope": POSITIVE_STAGE_SUM_POWER_SCOPE, "family": "positive_stage_sum_power"}
+    entries = stat_stage_context.get("current_stages") if isinstance(stat_stage_context, Mapping) else None
+    if not isinstance(entries, list): return {**base, "status": "unavailable", "reason": "missing_self_stat_stages"}
+    values = {entry.get("stat"): entry.get("stage") for entry in entries if isinstance(entry, Mapping) and entry.get("side") == "self"}
+    missing = [stat for stat in _POSITIVE_STAGE_SUM_STATS if stat not in values]
+    if missing: return {**base, "status": "unavailable", "reason": "missing_self_stat_stages", "missing_stages": missing}
+    if any(isinstance(values[stat], bool) or not isinstance(values[stat], int) or not -6 <= values[stat] <= 6 for stat in _POSITIVE_STAGE_SUM_STATS): return {**base, "status": "unavailable", "reason": "invalid_stat_stage_context"}
+    contributions = {stat: max(values[stat], 0) for stat in _POSITIVE_STAGE_SUM_STATS}; total = sum(contributions.values())
+    return {**base, "rule": "positive-current-user-stage-sum", "stage_values": {stat: values[stat] for stat in _POSITIVE_STAGE_SUM_STATS}, "positive_contributions": contributions, "positive_stage_sum": total, "effective_power": 20 + 20 * total, "status": "resolved"}
 
 
 def build_target_hp_based_power_assessment(selected_move: Mapping[str, Any] | None, current_hp_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -1541,7 +1556,7 @@ def validate_dynamic_move_assessment_registry(registry: Mapping[str, str] | None
     expected = {
         "current_hp_based_power": _CURRENT_HP_PROPORTIONAL_MOVES | _CURRENT_HP_BRACKET_MOVES,
         "speed_based_power": _SPEED_POWER_MOVES, "weight_based_power": _WEIGHT_RATIO_MOVES, "target_weight_power": _TARGET_WEIGHT_MOVES,
-        "stat_stage_based_power": _STAT_STAGE_SELF_POWER_MOVES | _STAT_STAGE_OPPONENT_POWER_MOVES,
+        "positive_stage_sum_power": _STAT_STAGE_SELF_POWER_MOVES, "stat_stage_based_power": _STAT_STAGE_OPPONENT_POWER_MOVES,
         "target_hp_based_power": _TARGET_HP_POWER_MOVES, "environment_based_move": frozenset({"weather-ball", "terrain-pulse"}),
         "binary_condition_power": frozenset({"facade", "hex", "venoshock", "brine"}),
         "turn_event_power": frozenset({"avalanche", "revenge", "payback", "assurance"}),
@@ -1593,6 +1608,7 @@ def resolve_registered_dynamic_move(
         "speed_based_power": lambda: build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context),
         "weight_based_power": lambda: build_weight_based_power_assessment(selected_move, weight_context),
         "target_weight_power": lambda: build_target_weight_power_assessment(selected_move, weight_context),
+        "positive_stage_sum_power": lambda: build_positive_stage_sum_power_assessment(selected_move, stat_stage_context),
         "stat_stage_based_power": lambda: build_stat_stage_based_power_assessment(selected_move, stat_stage_context),
         "target_hp_based_power": lambda: build_target_hp_based_power_assessment(selected_move, current_hp_context),
         "environment_based_move": lambda: build_environment_based_move_assessment(selected_move, field_state_context),

@@ -9,7 +9,7 @@ REGISTERED_MOVES = (
     ("eruption", "current_hp_based_power_assessment"), ("water-spout", "current_hp_based_power_assessment"), ("dragon-energy", "current_hp_based_power_assessment"), ("flail", "current_hp_based_power_assessment"), ("reversal", "current_hp_based_power_assessment"),
     ("electro-ball", "speed_based_power_assessment"), ("gyro-ball", "speed_based_power_assessment"),
     ("heavy-slam", "weight_based_power_assessment"), ("heat-crash", "weight_based_power_assessment"), ("grass-knot", "target_weight_power_assessment"), ("low-kick", "target_weight_power_assessment"),
-    ("stored-power", "stat_stage_based_power_assessment"), ("power-trip", "stat_stage_based_power_assessment"), ("punishment", "stat_stage_based_power_assessment"),
+    ("stored-power", "positive_stage_sum_power_assessment"), ("power-trip", "positive_stage_sum_power_assessment"), ("punishment", "stat_stage_based_power_assessment"),
     ("crush-grip", "target_hp_based_power_assessment"), ("wring-out", "target_hp_based_power_assessment"),
     ("weather-ball", "environment_based_move_assessment"), ("terrain-pulse", "environment_based_move_assessment"),
     ("facade", "binary_condition_power_assessment"), ("hex", "binary_condition_power_assessment"), ("venoshock", "binary_condition_power_assessment"), ("brine", "binary_condition_power_assessment"),
@@ -19,9 +19,9 @@ REGISTERED_MOVES = (
 )
 
 
-def test_independent_fixture_covers_thirty_canonical_moves_and_eleven_families() -> None:
+def test_independent_fixture_covers_thirty_canonical_moves_and_twelve_families() -> None:
     assert len(REGISTERED_MOVES) == 30
-    assert len({key for _, key in REGISTERED_MOVES}) == 11
+    assert len({key for _, key in REGISTERED_MOVES}) == 12
     assert len({move for move, _ in REGISTERED_MOVES}) == 30
 
 

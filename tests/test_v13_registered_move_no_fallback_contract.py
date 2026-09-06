@@ -7,7 +7,7 @@ from llm.advisor_battle_state_context import build_deterministic_calculation_con
 
 @pytest.mark.parametrize(("move_id", "assessment_key"), [
     ("eruption", "current_hp_based_power_assessment"), ("electro-ball", "speed_based_power_assessment"),
-    ("heavy-slam", "weight_based_power_assessment"), ("stored-power", "stat_stage_based_power_assessment"),
+    ("heavy-slam", "weight_based_power_assessment"), ("stored-power", "positive_stage_sum_power_assessment"),
     ("crush-grip", "target_hp_based_power_assessment"), ("weather-ball", "environment_based_move_assessment"),
     ("facade", "binary_condition_power_assessment"), ("avalanche", "turn_event_power_assessment"),
     ("rage-fist", "battle_counter_power_assessment"), ("fury-cutter", "consecutive_use_power_assessment"),
