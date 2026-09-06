@@ -926,6 +926,7 @@ def build_runtime_d0_native_damage_context(
     target_was_damaged_power_authority: Mapping[str, Any] | None = None,
     target_already_acted_power_authority: Mapping[str, Any] | None = None,
     previous_action_result_authority: Mapping[str, Any] | None = None,
+    same_turn_stat_drop_power_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -1028,6 +1029,9 @@ def build_runtime_d0_native_damage_context(
     if move["move_id"] == "stomping-tantrum":
         if not _exact_previous_action_result_authority(previous_action_result_authority, strategy_d0=strategy_d0, attacker=attacker, move=move): return _native_context_result("rejected", "previous_action_result_authority_invalid")
         current["runtime_previous_action_result_authority"] = deepcopy(dict(previous_action_result_authority))
+    if move["move_id"] == "lash-out":
+        if not _exact_same_turn_stat_drop_power_authority(same_turn_stat_drop_power_authority, strategy_d0=strategy_d0, attacker=attacker, target=target, move=move): return _native_context_result("rejected", "same_turn_stat_drop_power_authority_invalid")
+        current["detached_same_turn_stat_drop_power_authority"] = deepcopy(dict(same_turn_stat_drop_power_authority))
     damage_input = {
         "attacker": {**deepcopy(dict(attacker)), "session_id": strategy_d0["session_id"]},
         "defender": {**deepcopy(dict(target)), "session_id": strategy_d0["session_id"]},
@@ -1101,6 +1105,14 @@ def _exact_previous_action_result_authority(value: Any, *, strategy_d0: Mapping[
     if any(value.get(k) != v for k, v in expected.items()): return False
     condition = value.get("qualifies_as_previous_move_failure")
     return isinstance(condition, bool) and value.get("selected_base_power") == (150 if condition else 75) and all(isinstance(value.get(k), str) and value[k] for k in ("previous_action_id", "selected_move_id", "execution_move_id", "previous_action_result_class")) and isinstance(value.get("source_turn"), int)
+
+def _exact_same_turn_stat_drop_power_authority(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], move: Mapping[str, Any]) -> bool:
+    if not isinstance(value,Mapping) or value.get("status")!="resolved" or value.get("schema_version")!="detached-same-turn-stat-drop-power-authority-v1": return False
+    expected={"session_id":strategy_d0["session_id"],"source_runtime_fingerprint":strategy_d0["source_runtime_fingerprint"],"source_branch_fingerprint":strategy_d0["strategy_preview_fingerprint"],"user":attacker,"move_id":"lash-out","trigger_family":"user_stat_was_lowered_this_turn","canonical_base_power":75}
+    if any(value.get(k)!=v for k,v in expected.items()): return False
+    condition,event=value.get("user_stat_was_lowered_before_execution"),value.get("qualifying_stage_decrease_event")
+    if not isinstance(condition,bool) or value.get("selected_base_power") != (150 if condition else 75): return False
+    return (not condition and event is None) or (isinstance(event,Mapping) and event.get("event_order")=="before_lash_out_execution" and event.get("stat") in {"attack","defense","special-attack","special-defense","speed","accuracy","evasion"} and isinstance(event.get("stage_before"),int) and isinstance(event.get("stage_after"),int) and event["stage_after"]<event["stage_before"] and event.get("delta")==event["stage_after"]-event["stage_before"] and isinstance(event.get("pair_branch_source_leaf_id"),str))
 
 
 def _exact_sparkling_aria_pre_hit_burn_authority(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any]) -> bool:

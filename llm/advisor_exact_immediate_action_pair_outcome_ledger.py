@@ -126,6 +126,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if payback_error is not None: return payback_error
     stomping_error = _previous_action_failure_power_leaf(first)
     if stomping_error is not None: return stomping_error
+    lash_error = _same_turn_stat_drop_power_leaf(first)
+    if lash_error is not None: return lash_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -192,6 +194,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if payback_error is not None: return payback_error
         stomping_error = _previous_action_failure_power_leaf(second_leaf)
         if stomping_error is not None: return stomping_error
+        lash_error = _same_turn_stat_drop_power_leaf(second_leaf)
+        if lash_error is not None: return lash_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -309,6 +313,18 @@ def _previous_action_failure_power_leaf(leaf: Mapping[str, Any]) -> str | None:
     condition=authority.get("qualifies_as_previous_move_failure")
     if authority.get("move_id") != "stomping-tantrum" or authority.get("trigger_family") != "previous_move_failed" or authority.get("canonical_base_power") != 75 or not isinstance(condition, bool) or authority.get("selected_base_power") != (150 if condition else 75) or authority.get("owner") != p.get("attacker"): return "previous_action_failure_power_condition_or_identity_invalid"
     if not all(isinstance(authority.get(k), str) and authority[k] for k in ("previous_action_id", "selected_move_id", "execution_move_id", "previous_action_result_class")) or not isinstance(authority.get("source_turn"), int): return "previous_action_failure_power_prior_action_invalid"
+    return None
+
+def _same_turn_stat_drop_power_leaf(leaf: Mapping[str, Any]) -> str | None:
+    p=leaf.get("provenance")
+    if not isinstance(p,Mapping): return "same_turn_stat_drop_power_leaf_provenance_invalid"
+    move,authority=p.get("move_id"),p.get("same_turn_stat_drop_power_authority")
+    if move!="lash-out": return "unexpected_same_turn_stat_drop_power_authority" if authority is not None else None
+    if not isinstance(authority,Mapping) or authority.get("status")!="resolved" or authority.get("schema_version")!="detached-same-turn-stat-drop-power-authority-v1": return "same_turn_stat_drop_power_authority_missing_or_invalid"
+    condition,event=authority.get("user_stat_was_lowered_before_execution"),authority.get("qualifying_stage_decrease_event")
+    if authority.get("trigger_family")!="user_stat_was_lowered_this_turn" or authority.get("canonical_base_power")!=75 or authority.get("user")!=p.get("attacker") or not isinstance(condition,bool) or authority.get("selected_base_power") != (150 if condition else 75): return "same_turn_stat_drop_power_condition_or_identity_invalid"
+    if not condition:return None if event is None else "same_turn_stat_drop_false_condition_has_event"
+    if not isinstance(event,Mapping) or event.get("event_order")!="before_lash_out_execution" or event.get("stat") not in {"attack","defense","special-attack","special-defense","speed","accuracy","evasion"} or not isinstance(event.get("stage_before"),int) or not isinstance(event.get("stage_after"),int) or event["stage_after"]>=event["stage_before"] or event.get("delta")!=event["stage_after"]-event["stage_before"] or not isinstance(event.get("pair_branch_source_leaf_id"),str): return "same_turn_stat_drop_qualifying_event_invalid"
     return None
 
 
