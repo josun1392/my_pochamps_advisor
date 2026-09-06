@@ -267,9 +267,15 @@ def _flinch_cancellation_consequence(consequences: Mapping[str, Any], target: Ma
         return {"status": "resolved", "affected_owner": deepcopy(dict(target)), "state": "not_flinched", "provenance": "no_exact_first_action_flinch_consequence"}
     marker = secondary.get("hypothetical_target_flinch")
     provenance = marker.get("provenance") if isinstance(marker, Mapping) else None
-    if secondary.get("branch") != "effect" or not isinstance(marker, Mapping) or marker.get("schema_version") != "detached-hypothetical-immediate-flinch-v1" or marker.get("state") != "flinched" or provenance not in {"iron_head_successful_damage_roll_secondary_v1", "fake_out_successful_damage_roll_secondary_v1"}:
+    if secondary.get("branch") != "effect" or not isinstance(marker, Mapping) or marker.get("schema_version") != "detached-hypothetical-immediate-flinch-v1" or marker.get("state") != "flinched":
         return "terminal_leaf_flinch_consequence_invalid"
-    return {"status": "resolved", "affected_owner": deepcopy(dict(target)), "state": "flinched", "provenance": "exact_terminal_leaf_iron_head_flinch_secondary" if provenance == "iron_head_successful_damage_roll_secondary_v1" else "exact_terminal_leaf_fake_out_flinch_secondary"}
+    if provenance in {"iron_head_successful_damage_roll_secondary_v1", "fake_out_successful_damage_roll_secondary_v1"}:
+        source = "exact_terminal_leaf_iron_head_flinch_secondary" if provenance == "iron_head_successful_damage_roll_secondary_v1" else "exact_terminal_leaf_fake_out_flinch_secondary"
+        return {"status": "resolved", "affected_owner": deepcopy(dict(target)), "state": "flinched", "provenance": source}
+    authority = secondary.get("fling_item_bound_target_effect_authority")
+    if provenance != "fling_item_bound_deterministic_flinch_v1" or not isinstance(authority, Mapping) or authority.get("schema_version") != "runtime-d0-fling-item-bound-deterministic-target-effect-authority-v1" or authority.get("status") != "resolved" or authority.get("outcome") != "applied_flinch_pending_action" or authority.get("target") != target or marker.get("source_fling_item") != authority.get("item_id") or marker.get("pending_action_id") != authority.get("pending_target_action", {}).get("action_id"):
+        return "terminal_leaf_flinch_consequence_invalid"
+    return {"status": "resolved", "affected_owner": deepcopy(dict(target)), "state": "flinched", "provenance": "exact_terminal_leaf_fling_item_bound_flinch"}
 
 
 def _unchanged_authority(d0: Mapping[str, Any]) -> dict[str, Any]:

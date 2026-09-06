@@ -1950,7 +1950,7 @@ def _pending_second_action_flinch(state: Mapping[str, Any], actor: Mapping[str, 
     if not isinstance(flinch, Mapping) or flinch.get("status") != "resolved" or flinch.get("affected_owner") != actor:
         return "intermediate_flinch_cancellation_authority_invalid"
     if flinch.get("state") == "not_flinched": return False
-    if flinch.get("state") == "flinched" and flinch.get("provenance") == "exact_terminal_leaf_iron_head_flinch_secondary": return True
+    if flinch.get("state") == "flinched" and flinch.get("provenance") in {"exact_terminal_leaf_iron_head_flinch_secondary", "exact_terminal_leaf_fake_out_flinch_secondary", "exact_terminal_leaf_fling_item_bound_flinch"}: return True
     return "intermediate_flinch_cancellation_state_invalid"
 def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], intermediate: Mapping[str, Any], second: Mapping[str, Any] | None, second_actor: Mapping[str, Any], order_plan: Mapping[str, Any], execution_branch: Mapping[str, Any] | None = None, pivot_transition: Mapping[str, Any] | None = None) -> dict[str, Any]:
     first_p = _fraction(first["probability"]); second_p = Fraction(1, 1) if second is None else _fraction(second["probability"])

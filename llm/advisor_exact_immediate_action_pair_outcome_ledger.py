@@ -674,7 +674,11 @@ def _flinch_cancellation_binding(first: Mapping[str, Any], second: Mapping[str, 
     secondary = consequences.get("secondary") if isinstance(consequences, Mapping) else None
     marker = secondary.get("hypothetical_target_flinch") if isinstance(secondary, Mapping) else None
     if not isinstance(provenance, Mapping) or not isinstance(marker, Mapping) or secondary.get("branch") != "effect": return "flinch_cancellation_missing_exact_provenance"
-    if marker.get("schema_version") != "detached-hypothetical-immediate-flinch-v1" or marker.get("state") != "flinched" or marker.get("provenance") not in {"iron_head_successful_damage_roll_secondary_v1", "fake_out_successful_damage_roll_secondary_v1"}: return "flinch_cancellation_provenance_invalid"
+    if marker.get("schema_version") != "detached-hypothetical-immediate-flinch-v1" or marker.get("state") != "flinched": return "flinch_cancellation_provenance_invalid"
+    if marker.get("provenance") == "fling_item_bound_deterministic_flinch_v1":
+        authority = secondary.get("fling_item_bound_target_effect_authority")
+        if not isinstance(authority, Mapping) or authority.get("schema_version") != "runtime-d0-fling-item-bound-deterministic-target-effect-authority-v1" or authority.get("status") != "resolved" or authority.get("outcome") != "applied_flinch_pending_action" or authority.get("target") != provenance.get("target") or marker.get("source_fling_item") != authority.get("item_id") or marker.get("pending_action_id") != authority.get("pending_target_action", {}).get("action_id"): return "fling_flinch_cancellation_authority_invalid"
+    elif marker.get("provenance") not in {"iron_head_successful_damage_roll_secondary_v1", "fake_out_successful_damage_roll_secondary_v1"}: return "flinch_cancellation_provenance_invalid"
     if provenance.get("target") != second.get("actor"): return "flinch_cancellation_wrong_pending_actor"
     target_hp = consequences.get("target_final_hp")
     if not isinstance(target_hp, int) or target_hp <= 0: return "flinch_cancellation_after_target_faint"
