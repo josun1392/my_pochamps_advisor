@@ -331,7 +331,7 @@ _STAT_STAGE_OPPONENT_POWER_MOVES = frozenset({"punishment"})
 POSITIVE_STAGE_SUM_POWER_SCOPE = "explicit-positive-current-stage-sum-power-only"
 _POSITIVE_STAGE_SUM_STATS = ("attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion")
 TARGET_HP_POWER_SCOPE = "explicit-target-hp-based-move-power-only"
-_TARGET_HP_POWER_MOVES = frozenset({"crush-grip", "wring-out"})
+_TARGET_HP_POWER_MOVES = frozenset({"hard-press", "crush-grip", "wring-out"})
 ENVIRONMENT_MOVE_SCOPE = "explicit-environment-based-move-transformation-only"
 BINARY_CONDITION_POWER_SCOPE = "explicit-binary-condition-move-power-only"
 TURN_EVENT_POWER_SCOPE = "explicit-current-turn-event-move-power-only"
@@ -1428,7 +1428,10 @@ def build_target_hp_based_power_assessment(selected_move: Mapping[str, Any] | No
     current,maximum=entry.get("current_hp"),entry.get("maximum_hp")
     if any(isinstance(v,bool) or not isinstance(v,int) for v in (current,maximum)) or current<0 or maximum<=0 or current>maximum:return {**base,"status":"unavailable","reason":"invalid_opponent_hp_context"}
     if current==0:return {**base,"status":"not_applicable","reason":"opponent_already_fainted"}
-    return {**base,"rule":"target-current-hp-proportional","opponent_current_hp":current,"opponent_maximum_hp":maximum,"effective_power":max(1,120*current//maximum+1),"status":"resolved"}
+    multiplier, additive, minimum, variant = (100, 0, 1, "hard-press-current-hp-ratio") if move == "hard-press" else (120, 1, 1, "crush-grip-wring-out-current-hp-ratio")
+    intermediate = multiplier * current // maximum
+    power = max(minimum, intermediate + additive)
+    return {**base,"family":"target_current_hp_power","rule":"target-current-hp-proportional","formula_variant":variant,"opponent_current_hp":current,"opponent_maximum_hp":maximum,"ratio_numerator":multiplier * current,"ratio_denominator":maximum,"intermediate_power":intermediate,"effective_power":power,"status":"resolved"}
 
 
 def build_environment_based_move_assessment(selected_move: Mapping[str, Any] | None, field_state_context: Mapping[str, Any] | None, grounded: bool | None = None) -> dict[str, Any] | None:
