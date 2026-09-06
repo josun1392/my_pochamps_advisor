@@ -251,6 +251,7 @@ def evaluate_direct_damage_mechanics(
     attacker = _ready_side(stat_provenance.get("attacker"), "attacker", missing)
     defender = _ready_side(stat_provenance.get("defender"), "defender", missing)
     offensive_source = _offensive_stat_source(move_id=move_id, category=category)
+    defensive_source = _defensive_stat_source(move_id=move_id, category=category)
     type_authorities = _type_damage_authorities(stat_provenance)
     if type_authorities["unsupported"]:
         return _unsupported("current_type_context")
@@ -288,7 +289,7 @@ def evaluate_direct_damage_mechanics(
         defender_types=defender["types"] if defender is not None else (),
         move_id=move_id, attacker_ability_id=_current_ability_id(current, "self"),
     )
-    stage_context = _relevant_stage_context(current=current, category=category, offensive_source=offensive_source)
+    stage_context = _relevant_stage_context(current=current, category=category, offensive_source=offensive_source, defensive_source=defensive_source)
     legacy_modifier_reason = _unsupported_modifier(
         {**direct_attacker, "ability": _KNOWN_ABSENT, "item": _KNOWN_ABSENT}, {**direct_defender, "ability": _KNOWN_ABSENT}, {},
         allow_exact_detached_condition=_has_exact_detached_condition(current),
@@ -349,7 +350,7 @@ def evaluate_direct_damage_mechanics(
         defender_stats = _stat_block(defender["final_stats"])
         is_physical = category == "physical"
         attack_stat = _source_stat_value(offensive_source, attacker_stats=attacker_stats, defender_stats=defender_stats)
-        defense_stat = defender_stats.def_ if is_physical else defender_stats.spd
+        defense_stat = _defensive_source_stat_value(defensive_source, defender_stats=defender_stats)
         if stage_context["applied"]:
             offensive_stage, defensive_stage = select_critical_damage_stages(
                 stage_context["offensive_stage_value"], stage_context["defensive_stage_value"], is_critical=is_critical,
@@ -393,6 +394,7 @@ def evaluate_direct_damage_mechanics(
         "applied_damage_modifiers": [*modifier["applied"], *ability_modifier["applied"], *item_modifier["applied"], *defender_item_modifier["applied"], *defender_ability_modifier["applied"]], "missing_inputs": [], "unsupported_reason": None,
         "stat_stage_evidence": _critical_stage_evidence(stage_context, is_critical),
         "offensive_stat_source": deepcopy(offensive_source),
+        "defensive_stat_source": deepcopy(defensive_source),
         "mechanics_source": "native_q12_direct_damage", "generation": generation,
         "type_damage_evidence": type_authorities["evidence"],
     }
@@ -430,9 +432,17 @@ def _source_stat_value(source: Mapping[str, Any], *, attacker_stats: Any, defend
     stats = attacker_stats if source["owner"] == "attacker" else defender_stats
     return {"attack": stats.atk, "defense": stats.def_, "special-attack": stats.spa}[source["stat"]]
 
-def _relevant_stage_context(*, current: Mapping[str, Any], category: Any, offensive_source: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _defensive_stat_source(*, move_id: Any, category: Any) -> dict[str, str]:
+    if move_id == "psyshock" and category == "special": return {"family":"defensive_stat_override","owner":"defender","stat":"defense","stage_side":"opponent"}
+    return {"family":"ordinary","owner":"defender","stat":"defense" if category == "physical" else "special-defense","stage_side":"opponent"}
+
+def _defensive_source_stat_value(source: Mapping[str, Any], *, defender_stats: Any) -> int:
+    return {"defense": defender_stats.def_, "special-defense": defender_stats.spd}[source["stat"]]
+
+def _relevant_stage_context(*, current: Mapping[str, Any], category: Any, offensive_source: Mapping[str, Any] | None = None, defensive_source: Mapping[str, Any] | None = None) -> dict[str, Any]:
     source = offensive_source or _offensive_stat_source(move_id=None, category=category)
-    offensive, defensive, offensive_side = source["stat"], "defense" if category == "physical" else "special-defense", source["stage_side"]
+    defense_source = defensive_source or _defensive_stat_source(move_id=None, category=category)
+    offensive, defensive, offensive_side = source["stat"], defense_source["stat"], source["stage_side"]
     result = {"missing_inputs": [], "unsupported_reason": None, "applied": False, "offensive_stage_value": 0, "defensive_stage_value": 0, "evidence": None}
     context = current.get("stat_stage_context")
     if context is None:
