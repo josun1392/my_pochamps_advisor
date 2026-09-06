@@ -1114,7 +1114,7 @@ def _materialize_order(
                 recent_event = materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=strategy_d0, terminal_leaf=leaf, recipient=inputs["attacker"], source_move_metadata=first_meta["metadata"])
                 second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
                     actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs), action=opponent_action if order == "own_first" else own_action,
-                    analytic_action_order_authority=second_analytic, same_turn_last_incoming_attack_event=recent_event, post_source_retaliation_protection_authority=post_source_retaliation_protection_authority)
+                    analytic_action_order_authority=second_analytic, same_turn_last_incoming_attack_event=recent_event, post_source_retaliation_protection_authority=post_source_retaliation_protection_authority, source_terminal_leaf=leaf)
             if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
             if isinstance(second_gate, Mapping) and second_gate.get("status") == "applies":
                 second = _bind_sucker_punch_execution_ledger(second, second_gate)
@@ -1139,7 +1139,7 @@ def _materialize_order(
     return branches
 
 
-def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None, source_terminal_leaf: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     if metadata.get("move_id") == "seismic-toss":
@@ -1153,7 +1153,7 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
     if metadata.get("move_id") in {"counter", "mirror-coat", "comeuppance", "metal-burst"}:
         return _recent_damage_retaliation_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata, incoming_event=same_turn_last_incoming_attack_event, protection_authority=post_source_retaliation_protection_authority)
     if metadata.get("move_id") in {"avalanche", "revenge"}:
-        power = materialize_detached_was_damaged_by_target_power_authority(move=metadata, user=actor, target=target, incoming_event=same_turn_last_incoming_attack_event)
+        power = materialize_detached_was_damaged_by_target_power_authority(move=metadata, user=actor, target=target, incoming_event=same_turn_last_incoming_attack_event, source_terminal_leaf=source_terminal_leaf)
         if power.get("status") != "resolved": return _result(_status(power), power.get("reason", "was_damaged_power_authority_unavailable"), {})
         metadata = {**metadata, "power": power["selected_base_power"], "was_damaged_power_authority": power}
     if metadata.get("move_id") in {"double-hit", "double-kick"}:
