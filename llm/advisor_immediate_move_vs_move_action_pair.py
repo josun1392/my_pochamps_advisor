@@ -30,6 +30,7 @@ from llm.advisor_detached_endeavor_hp_difference_damage_attack_leaf import mater
 from llm.advisor_detached_final_gambit_self_hp_damage_attack_leaf import materialize_detached_final_gambit_self_hp_damage_attack_leaves
 from llm.advisor_detached_recent_damage_retaliation_attack_leaf import materialize_detached_recent_damage_retaliation_attack_leaves
 from llm.advisor_detached_same_turn_last_incoming_attack_event import materialize_detached_same_turn_last_incoming_attack_event
+from llm.advisor_detached_was_damaged_by_target_power_authority import materialize_detached_was_damaged_by_target_power_authority
 from advisor.damage.types import type_effectiveness_multiplier
 from llm.advisor_runtime_d0_special_damage_execution_authority import freeze_runtime_d0_fractional_target_hp_damage_execution_authority, freeze_runtime_d0_endeavor_hp_difference_damage_execution_authority, freeze_runtime_d0_final_gambit_self_hp_damage_execution_authority
 from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import (
@@ -1151,6 +1152,10 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
         return _final_gambit_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,actor=actor,target=target,metadata=metadata)
     if metadata.get("move_id") in {"counter", "mirror-coat", "comeuppance", "metal-burst"}:
         return _recent_damage_retaliation_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata, incoming_event=same_turn_last_incoming_attack_event, protection_authority=post_source_retaliation_protection_authority)
+    if metadata.get("move_id") in {"avalanche", "revenge"}:
+        power = materialize_detached_was_damaged_by_target_power_authority(move=metadata, user=actor, target=target, incoming_event=same_turn_last_incoming_attack_event)
+        if power.get("status") != "resolved": return _result(_status(power), power.get("reason", "was_damaged_power_authority_unavailable"), {})
+        metadata = {**metadata, "power": power["selected_base_power"], "was_damaged_power_authority": power}
     if metadata.get("move_id") in {"double-hit", "double-kick"}:
         return _fixed_two_hit_ledger(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor,
