@@ -210,6 +210,12 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
         if not isinstance(authority, Mapping) or authority.get("move_id") != "knock-off" or not isinstance(knock_off.get("item_before"), str):
             return "terminal_leaf_knock_off_item_removal_invalid"
         result.append({"owner": "target", "hypothetical_target_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_knock_off_item_removal", "effect": deepcopy(dict(knock_off))}})
+    fling = consequences.get("fling_item_throw")
+    if isinstance(fling, Mapping) and fling.get("outcome") == "thrown" and fling.get("item_after") is None:
+        authority = fling.get("authority")
+        if not isinstance(authority, Mapping) or authority.get("move_id") != "fling" or not isinstance(fling.get("item_before"), str):
+            return "terminal_leaf_fling_item_throw_consequence_invalid"
+        result.append({"owner": "self", "hypothetical_self_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_fling_item_throw", "effect": deepcopy(dict(fling))}})
     transfer = consequences.get("item_transfer_after_hit")
     if isinstance(transfer, Mapping) and transfer.get("outcome") == "transferred" and isinstance(transfer.get("item"), str):
         result.extend(({"owner":"self","hypothetical_self_item":{"status":"known","value":transfer["item"],"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}, {"owner":"target","hypothetical_target_item":{"status":"known_absent","value":None,"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}))

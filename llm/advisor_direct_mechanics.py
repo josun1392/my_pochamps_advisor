@@ -158,7 +158,7 @@ def evaluate_direct_damage_mechanics(
     category, power, move_type = move.get("category"), move.get("power"), move.get("type")
     if category == "status":
         return _unsupported("status_move")
-    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"acrobatics", "facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES, *_TURN_EVENT_POWER_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES, *_CURRENT_HP_BRACKET_DIRECT_MOVES}:
+    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"fling", "acrobatics", "facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES, *_TURN_EVENT_POWER_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES, *_CURRENT_HP_BRACKET_DIRECT_MOVES}:
         return _unsupported("dynamic_base_power")
     facade = _facade_power_context(current) if move_id == "facade" else None
     acrobatics = _acrobatics_power_context(stat_provenance) if move_id == "acrobatics" else None
@@ -169,12 +169,15 @@ def evaluate_direct_damage_mechanics(
     environment_transformation = _environment_transformation_context(move_id=move_id, current=current) if move_id in _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES else None
     turn_event_power = _turn_event_power_context(move_id=move_id, current=current) if move_id in _TURN_EVENT_POWER_DIRECT_MOVES else None
     knock_off = _knock_off_power_context(stat_provenance, current) if move_id == "knock-off" else None
+    fling = _fling_power_context(current, move) if move_id == "fling" else None
     if move_id == "facade" and (category != "physical" or power != 70 or move_type != "normal"):
         return _unsupported("facade_metadata")
     if move_id == "acrobatics" and (category != "physical" or power != 55 or move_type != "flying"):
         return _unsupported("acrobatics_metadata")
     if move_id == "knock-off" and (category != "physical" or power != 65 or move_type != "dark"):
         return _unsupported("knock_off_metadata")
+    if move_id == "fling" and (category != "physical" or not _positive_int(power) or move_type != "dark"):
+        return _unsupported("fling_metadata")
     expected_current_hp_metadata = {"eruption": "fire", "water-spout": "water", "dragon-energy": "dragon"}
     if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES and (category != "special" or power != 150 or move_type != expected_current_hp_metadata[move_id]):
         return _unsupported("current_hp_proportional_metadata")
@@ -203,6 +206,9 @@ def evaluate_direct_damage_mechanics(
     if isinstance(knock_off, Mapping):
         if knock_off.get("status") != "resolved": return _insufficient(knock_off.get("missing_inputs", ["defender.item"]))
         power = knock_off["effective_power"]
+    if isinstance(fling, Mapping):
+        if fling.get("status") != "known": return _insufficient(fling.get("missing_inputs", ["fling.execution_authority"]))
+        power = fling["effective_power"]
     if isinstance(current_hp_power, Mapping):
         if current_hp_power.get("status") == "not_applicable":
             return _unsupported("attacker_already_fainted")
@@ -292,6 +298,7 @@ def evaluate_direct_damage_mechanics(
     item_modifier = _attacker_item_modifier_context(
         stat_provenance=stat_provenance, direct_attacker=direct_attacker, category=category,
         move_type=move_type, defender_types=defender["types"] if defender is not None else (),
+        force_item_absent_for_damage=move_id == "fling" and isinstance(fling, Mapping) and fling.get("status") == "known",
     )
     defender_item_modifier = _defender_item_modifier_context(
         stat_provenance=stat_provenance, direct_defender=direct_defender, category=category,
@@ -417,6 +424,8 @@ def evaluate_direct_damage_mechanics(
         result["dynamic_power_evidence"] = deepcopy(dict(acrobatics))
     if isinstance(knock_off, Mapping) and knock_off.get("status") == "resolved":
         result["dynamic_power_evidence"] = deepcopy(dict(knock_off))
+    if isinstance(fling, Mapping) and fling.get("status") == "known":
+        result["dynamic_power_evidence"] = deepcopy(dict(fling))
     if isinstance(current_hp_power, Mapping) and current_hp_power.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(current_hp_power))
     if isinstance(current_hp_bracket_power, Mapping) and current_hp_bracket_power.get("status") == "known":
@@ -1037,7 +1046,7 @@ def _guts_suppression_status(current: Mapping[str, Any]) -> str | None:
     return "active"
 
 
-def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direct_attacker: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str]) -> dict[str, Any]:
+def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direct_attacker: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str], force_item_absent_for_damage: bool = False) -> dict[str, Any]:
     """Resolve only a request-start, user-confirmed self held item.
 
     The profile source is retained by the frozen snapshot so a UI default is
@@ -1045,6 +1054,8 @@ def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
     profile retain their explicit known-absent compatibility path.
     """
     result = {"item_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None}
+    if force_item_absent_for_damage:
+        return result
     attacker = _mapping(stat_provenance.get("attacker"))
     item = _mapping(attacker.get("known_item"))
     status = item.get("status")
@@ -1191,6 +1202,15 @@ def _knock_off_power_context(stat_provenance: Mapping[str, Any], current: Mappin
             and _current_ability_id(current, "self") != "neutralizing-gas"
         )
     return result
+
+
+def _fling_power_context(current: Mapping[str, Any], move: Mapping[str, Any]) -> dict[str, Any]:
+    authority = _mapping(current.get("fling_execution_authority"))
+    power = authority.get("resolved_base_power")
+    metadata = authority.get("fling_item_metadata")
+    if authority.get("status") != "resolved" or authority.get("schema_version") != "runtime-d0-fling-item-execution-authority-v1" or authority.get("outcome") != "ready_throw" or authority.get("move_id") != "fling" or not _positive_int(power) or move.get("power") != power or not isinstance(metadata, Mapping) or metadata.get("base_power") != power or _mapping(metadata.get("effect")).get("kind") != "none" or metadata.get("support_status") != "not_applicable" or authority.get("item_after") != {"state": "known_absent", "item": None}:
+        return {"status": "incomplete", "mechanic": "fling_item_power_and_throw", "missing_inputs": ["fling.execution_authority"]}
+    return {"status": "known", "mechanic": "fling_item_power_and_throw", "effective_power": power, "item_effects_active_during_damage": False, "execution_authority": deepcopy(dict(authority)), "missing_inputs": []}
 
 def _facade_power_context(current: Mapping[str, Any]) -> dict[str, Any]:
     """Resolve Facade only from one exact attacker-owned current condition."""

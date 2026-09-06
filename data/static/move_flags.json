@@ -22,6 +22,7 @@
     "disarming-voice": ["sound"],
     "double-edge": ["contact", "recoil"],
     "dragon-claw": ["contact"],
+    "fling": [],
     "dragon-pulse": ["pulse"],
     "drain-punch": ["contact", "punch"],
     "double-hit": ["contact"],

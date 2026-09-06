@@ -225,6 +225,16 @@ def freeze_runtime_d0_critical_hit_authority(
     attacker_critical = freeze_runtime_current_critical_state_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=attacker)
     target_critical = freeze_runtime_current_critical_state_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
     sources = _runtime_critical_hit_sources(raw_attacker=raw_attacker, raw_target=raw_target)
+    fling_post_throw_item = _fling_post_throw_critical_item_source(
+        move_metadata=move_metadata, strategy_d0=strategy_d0, attacker=attacker,
+        target=target,
+    )
+    if move_id == "fling":
+        if fling_post_throw_item is None:
+            return _result("rejected", "fling_critical_item_projection_invalid")
+        # Fling's item has passed its prepare-hit throw boundary before the
+        # crit roll and damage; never let the pre-execution held item affect it.
+        sources["attacker_item"] = fling_post_throw_item
     capability = resolve_critical_hit_capabilities(
         move={"move_id": move_id}, source_authority=sources,
         critical_state_authority={"attacker": attacker_critical, "target": target_critical},
@@ -236,11 +246,34 @@ def freeze_runtime_d0_critical_hit_authority(
         "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
         "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move": {"move_id": move_id},
         "source_authority": deepcopy(sources),
+        **({"fling_post_throw_item_projection": deepcopy(fling_post_throw_item)} if fling_post_throw_item is not None else {}),
         "current_critical_state_authority": {"attacker": deepcopy(attacker_critical), "target": deepcopy(target_critical)},
         "capability_resolution": deepcopy(capability),
         "provenance": "runtime_battle_state_v1_to_detached_critical_hit_authority_v1",
         **({"reason": capability["reason"]} if capability.get("status") != "resolved" and isinstance(capability.get("reason"), str) else {}),
     }
+
+
+def _fling_post_throw_critical_item_source(*, move_metadata: Mapping[str, Any], strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Project only a validated Fling throw as item-absent for its crit roll."""
+    authority = move_metadata.get("fling_execution_authority")
+    expected = {
+        "status": "resolved", "schema_version": "runtime-d0-fling-item-execution-authority-v1",
+        "outcome": "ready_throw", "session_id": strategy_d0["session_id"],
+        "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+        "actor": attacker, "target": target, "move_id": "fling",
+        "item_after": {"state": "known_absent", "item": None},
+    }
+    if not isinstance(authority, Mapping) or any(authority.get(key) != value for key, value in expected.items()):
+        return None
+    before = authority.get("user_item_before")
+    if not isinstance(before, Mapping) or before.get("status") != "known" or not isinstance(before.get("value"), str) or not before["value"]:
+        return None
+    # Critical-capability source slots intentionally have a closed two-key
+    # shape.  The full execution authority is retained on the enclosing
+    # critical authority above for provenance.
+    return {"status": "known_absent"}
 
 
 def build_runtime_d0_strict_critical_hit_probability_assessment(
@@ -929,6 +962,7 @@ def build_runtime_d0_native_damage_context(
     same_turn_stat_drop_power_authority: Mapping[str, Any] | None = None,
     rage_fist_hit_count_power_authority: Mapping[str, Any] | None = None,
     last_respects_faint_power_authority: Mapping[str, Any] | None = None,
+    fling_execution_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -1007,6 +1041,7 @@ def build_runtime_d0_native_damage_context(
         "analytic_action_order_authority": deepcopy(dict(analytic_action_order_authority)) if isinstance(analytic_action_order_authority, Mapping) else None,
         "stakeout_switch_authority": deepcopy(dict(stakeout_switch_authority)) if isinstance(stakeout_switch_authority, Mapping) else None,
         "supreme_overlord_damage_authority": deepcopy(dict(supreme_overlord_damage_authority)) if isinstance(supreme_overlord_damage_authority, Mapping) else None,
+        "fling_execution_authority": deepcopy(dict(fling_execution_authority)) if isinstance(fling_execution_authority, Mapping) else None,
     }
     if move["move_id"] == "sparkling-aria" and sparkling_aria_burn_clearing_authority is not None:
         if not _exact_sparkling_aria_pre_hit_burn_authority(
