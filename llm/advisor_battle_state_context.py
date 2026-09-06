@@ -1340,14 +1340,16 @@ def build_speed_based_power_assessment(selected_move: Mapping[str, Any] | None, 
     speeds = {entry.get("side"): entry.get("effective_value") for entry in (effective or {}).get("effective_stats", []) if isinstance(entry, Mapping) and entry.get("stat") == "speed"}
     for side in ("self", "opponent"):
         if side not in speeds: return {**base, "status": "unavailable", "reason": f"missing_{side}_final_speed"}
-        if isinstance(speeds[side], bool) or not isinstance(speeds[side], int) or speeds[side] <= 0: return {**base, "status": "unavailable", "reason": f"invalid_{side}_effective_speed"}
+        if isinstance(speeds[side], bool) or not isinstance(speeds[side], int) or speeds[side] < 0: return {**base, "status": "unavailable", "reason": f"invalid_{side}_effective_speed"}
     effects = ((field_state_context or {}).get("current_field", {}) if isinstance(field_state_context, Mapping) else {}).get("side_effects", [])
     tailwind = {side: any(isinstance(item, Mapping) and item.get("side") == side and item.get("effect") == "tailwind" for item in effects) if isinstance(effects, list) else False for side in ("self", "opponent")}
     self_speed, opponent_speed = speeds["self"] * (2 if tailwind["self"] else 1), speeds["opponent"] * (2 if tailwind["opponent"] else 1)
     if move == "electro-ball":
-        ratio = self_speed / opponent_speed; power = 150 if ratio >= 4 else 120 if ratio >= 3 else 80 if ratio >= 2 else 60 if ratio >= 1 else 40; rule = "self-to-opponent-speed-ratio"
+        # The canonical relation is integer floor(user / target), not float division.
+        ratio = self_speed // opponent_speed if opponent_speed else 0
+        power = 150 if ratio >= 4 else 120 if ratio == 3 else 80 if ratio == 2 else 60 if ratio == 1 else 40; rule = "self-to-opponent-speed-ratio"
     else:
-        power, rule = min(150, 25 * opponent_speed // self_speed + 1), "opponent-to-self-speed-ratio"
+        power, rule = (min(150, 25 * opponent_speed // self_speed + 1) if self_speed else 1), "opponent-to-self-speed-ratio"
     return {**base, "rule": rule, "self_effective_speed": self_speed, "opponent_effective_speed": opponent_speed, "effective_power": power, "status": "resolved"}
 
 
