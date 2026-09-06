@@ -29,6 +29,10 @@ def materialize_detached_knock_off_item_removal(*, authority: Mapping[str, Any],
     if not isinstance(consequences, Mapping) or not isinstance(consequences.get("damage"), int) or consequences["damage"] <= 0:
         return {"status": "resolved", "outcome": "not_removed", "reason": "no_applicable_damage", "item_before": before,
                 "item_after": before, "authority": deepcopy(dict(authority)), "source_hit": source_leaf["leaf_id"]}
+    source_hit = consequences.get("source_hit_context")
+    if not isinstance(source_hit, Mapping) or source_hit.get("target_routing") != "target":
+        return {"status": "resolved", "outcome": "not_removed", "reason": "unsupported_or_substitute_target_routing", "item_before": before,
+                "item_after": before, "authority": deepcopy(dict(authority)), "source_hit": source_leaf["leaf_id"]}
     if not removable:
         return {"status": "resolved", "outcome": "not_removed", "reason": "item_not_removable", "item_before": before,
                 "item_after": before, "authority": deepcopy(dict(authority)), "source_hit": source_leaf["leaf_id"]}

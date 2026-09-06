@@ -19,7 +19,7 @@ def test_catalog_and_exact_item_power_states():
 def test_sticky_hold_is_power_eligible_but_surviving_removal_is_blocked():
     item = resolve_knock_off_target_item(item_authority={"status": "known", "value": "black-belt"}, target_species="eevee")
     authority = {"status": "resolved", "move_id": "knock-off", "target": {"side": "opponent"}, **item, "sticky_hold": True}
-    leaf = {"leaf_id": "hit", "hit_state": "hit", "consequences": {"damage": 5, "target_final_hp": 10}, "provenance": {"move_id": "knock-off", "target": {"side": "opponent"}}}
+    leaf = {"leaf_id": "hit", "hit_state": "hit", "consequences": {"damage": 5, "target_final_hp": 10, "source_hit_context": {"target_routing": "target"}}, "provenance": {"move_id": "knock-off", "target": {"side": "opponent"}}}
     result = materialize_detached_knock_off_item_removal(authority=authority, source_leaf=leaf)
     assert item["boost_eligible"] is True
     assert (result["outcome"], result["item_after"]) == ("not_removed", "black-belt")
@@ -36,11 +36,13 @@ def test_mega_owner_exception_and_typed_hit_only_removal():
     exception = resolve_knock_off_target_item(item_authority={"status": "known", "value": "abomasite"}, target_species="abomasnow")
     assert exception["mega_stone_exception"] is True and exception["boost_eligible"] is False
     authority = {"status": "resolved", "move_id": "knock-off", "target": {"side": "opponent"}, **resolve_knock_off_target_item(item_authority={"status": "known", "value": "black-belt"}, target_species="eevee"), "sticky_hold": False}
-    hit = {"leaf_id": "hit", "hit_state": "hit", "consequences": {"damage": 5, "target_final_hp": 10}, "provenance": {"move_id": "knock-off", "target": {"side": "opponent"}}}
+    hit = {"leaf_id": "hit", "hit_state": "hit", "consequences": {"damage": 5, "target_final_hp": 10, "source_hit_context": {"target_routing": "target"}}, "provenance": {"move_id": "knock-off", "target": {"side": "opponent"}}}
     miss = {**hit, "leaf_id": "miss", "hit_state": "miss"}
     assert materialize_detached_knock_off_item_removal(authority=authority, source_leaf=hit)["outcome"] == "removed"
     assert materialize_detached_knock_off_item_removal(authority=authority, source_leaf=miss)["outcome"] == "not_removed"
     sticky = {**authority, "sticky_hold": True}
     assert materialize_detached_knock_off_item_removal(authority=sticky, source_leaf=hit)["reason"] == "sticky_hold_target_survived"
-    faint = {**hit, "consequences": {"damage": 15, "target_final_hp": 0}}
+    faint = {**hit, "consequences": {"damage": 15, "target_final_hp": 0, "source_hit_context": {"target_routing": "target"}}}
     assert materialize_detached_knock_off_item_removal(authority=sticky, source_leaf=faint)["outcome"] == "removed"
+    substitute = {**hit, "consequences": {"damage": 5, "target_final_hp": 10, "source_hit_context": {"target_routing": "substitute"}}}
+    assert materialize_detached_knock_off_item_removal(authority=authority, source_leaf=substitute)["reason"] == "unsupported_or_substitute_target_routing"

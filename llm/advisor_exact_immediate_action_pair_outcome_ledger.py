@@ -438,7 +438,8 @@ def _knock_off_item_removal_leaf(leaf: Mapping[str, Any]) -> str | None:
         return None if (before is None and after is None and outcome == "not_applicable") else "knock_off_absent_item_consequence_invalid"
     if not isinstance(before, str) or before != authority.get("item_before") or outcome not in {"removed", "not_removed"}:
         return "knock_off_item_before_or_outcome_invalid"
-    hit = leaf.get("hit_state") == "hit" and isinstance(consequences.get("damage"), int) and consequences["damage"] > 0
+    source_hit = consequences.get("source_hit_context")
+    hit = leaf.get("hit_state") == "hit" and isinstance(consequences.get("damage"), int) and consequences["damage"] > 0 and isinstance(source_hit, Mapping) and source_hit.get("target_routing") == "target"
     if outcome == "removed":
         if not hit or authority.get("removable") is not True or after is not None:
             return "knock_off_removal_consequence_invalid"
