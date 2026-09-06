@@ -461,6 +461,7 @@ def _item_transfer_leaf(leaf: Mapping[str, Any]) -> str | None:
  if x.get("outcome")=="transferred":
   hit=c.get("source_hit_context"); item=a.get("target_item_before")
   if a.get("user_item_state")!="known_absent" or a.get("target_item_state")!="known_present" or a.get("removable") is not True or a.get("sticky_hold") is True or not isinstance(item,str) or leaf.get("hit_state")!="hit" or not isinstance(hit,Mapping) or hit.get("target_routing")!="target" or c.get("self_fainted") is True or x.get("item")!=item or x.get("user_item_after")!=item or x.get("target_item_after") is not None:return "item_transfer_consequence_invalid"
+ elif x.get("outcome")!="not_transferred" or x.get("user_item_after")!=a.get("user_item_before") or x.get("target_item_after")!=a.get("target_item_before"):return "item_transfer_nontransfer_consequence_invalid"
  return None
 
 
