@@ -124,6 +124,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if assurance_error is not None: return assurance_error
     payback_error = _target_already_acted_power_leaf(first)
     if payback_error is not None: return payback_error
+    stomping_error = _previous_action_failure_power_leaf(first)
+    if stomping_error is not None: return stomping_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -188,6 +190,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if assurance_error is not None: return assurance_error
         payback_error = _target_already_acted_power_leaf(second_leaf)
         if payback_error is not None: return payback_error
+        stomping_error = _previous_action_failure_power_leaf(second_leaf)
+        if stomping_error is not None: return stomping_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -294,6 +298,17 @@ def _target_already_acted_power_leaf(leaf: Mapping[str, Any]) -> str | None:
     action=authority.get("qualifying_target_action")
     if not condition:return None if action is None else "target_already_acted_false_condition_has_action"
     if not isinstance(action,Mapping) or action.get("event_order")!="before_payback_execution" or action.get("source_action_type") not in {"attack","protection","status","status_protection"} or not all(isinstance(action.get(key),str) and action.get(key) for key in ("pair_branch_source_leaf_id","source_action_id","source_selected_action_id","source_selected_move_id","source_execution_move_id")): return "target_already_acted_qualifying_action_invalid"
+    return None
+
+def _previous_action_failure_power_leaf(leaf: Mapping[str, Any]) -> str | None:
+    p=leaf.get("provenance")
+    if not isinstance(p, Mapping): return "previous_action_failure_power_leaf_provenance_invalid"
+    move, authority = p.get("move_id"), p.get("previous_action_failure_power_authority")
+    if move != "stomping-tantrum": return "unexpected_previous_action_failure_power_authority" if authority is not None else None
+    if not isinstance(authority, Mapping) or authority.get("status") != "resolved" or authority.get("schema_version") != "runtime-d0-previous-action-result-authority-v1": return "previous_action_failure_power_authority_missing_or_invalid"
+    condition=authority.get("qualifies_as_previous_move_failure")
+    if authority.get("move_id") != "stomping-tantrum" or authority.get("trigger_family") != "previous_move_failed" or authority.get("canonical_base_power") != 75 or not isinstance(condition, bool) or authority.get("selected_base_power") != (150 if condition else 75) or authority.get("owner") != p.get("attacker"): return "previous_action_failure_power_condition_or_identity_invalid"
+    if not all(isinstance(authority.get(k), str) and authority[k] for k in ("previous_action_id", "selected_move_id", "execution_move_id", "previous_action_result_class")) or not isinstance(authority.get("source_turn"), int): return "previous_action_failure_power_prior_action_invalid"
     return None
 
 

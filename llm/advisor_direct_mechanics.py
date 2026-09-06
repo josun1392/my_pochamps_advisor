@@ -90,7 +90,7 @@ _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES = frozenset({"eruption", "water-spout", "d
 _CURRENT_HP_BRACKET_DIRECT_MOVES = frozenset({"flail", "reversal"})
 _STATUS_CONDITION_POWER_DIRECT_MOVES = frozenset({"hex", "venoshock"})
 _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES = frozenset({"weather-ball", "terrain-pulse"})
-_TURN_EVENT_POWER_DIRECT_MOVES = frozenset({"avalanche", "revenge", "payback", "assurance"})
+_TURN_EVENT_POWER_DIRECT_MOVES = frozenset({"avalanche", "revenge", "payback", "assurance", "stomping-tantrum"})
 ITEM_MODIFIER_TAGS = {
     "life-orb": "item_life_orb_boost",
     "choice-band": "item_choice_band_boost",
@@ -181,7 +181,7 @@ def evaluate_direct_damage_mechanics(
         return _unsupported("status_condition_power_metadata")
     if move_id in _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES and (category != "special" or power != 50 or move_type != "normal"):
         return _unsupported("environment_transformation_metadata")
-    expected_turn_event_metadata = {"avalanche": ("physical", 60, "ice"), "revenge": ("physical", 60, "fighting"), "payback": ("physical", 50, "dark"), "assurance": ("physical", 60, "dark")}
+    expected_turn_event_metadata = {"avalanche": ("physical", 60, "ice"), "revenge": ("physical", 60, "fighting"), "payback": ("physical", 50, "dark"), "assurance": ("physical", 60, "dark"), "stomping-tantrum": ("physical", 75, "ground")}
     if move_id in _TURN_EVENT_POWER_DIRECT_MOVES and (category, power, move_type) != expected_turn_event_metadata[move_id]:
         return _unsupported("turn_event_power_metadata")
     if isinstance(facade, Mapping):
@@ -1314,6 +1314,11 @@ def _turn_event_power_context(*, move_id: str, current: Mapping[str, Any]) -> di
         condition=acted.get("target_already_acted_before_execution"); power=acted.get("selected_base_power")
         if acted.get("status")=="resolved" and acted.get("schema_version")=="detached-target-already-acted-power-authority-v1" and acted.get("move_id")=="payback" and acted.get("trigger_family")=="target_already_acted" and acted.get("canonical_base_power")==50 and isinstance(condition,bool) and power == (100 if condition else 50): return {"status":"known","mechanic":"turn_event_power","move":"payback","predicate":"target_completed_action_before_payback_execution","occurred":condition,"effective_power":power,"rule":"exact-detached-target-already-acted-before-execution","missing_inputs":[],"authority":deepcopy(dict(acted))}
         return {"status":"insufficient_context","missing_inputs":["detached_target_already_acted_power_authority"]}
+    previous = current.get("runtime_previous_action_result_authority")
+    if move_id == "stomping-tantrum" and isinstance(previous, Mapping):
+        condition, power = previous.get("qualifies_as_previous_move_failure"), previous.get("selected_base_power")
+        if previous.get("status") == "resolved" and previous.get("schema_version") == "runtime-d0-previous-action-result-authority-v1" and previous.get("trigger_family") == "previous_move_failed" and previous.get("move_id") == "stomping-tantrum" and previous.get("canonical_base_power") == 75 and isinstance(condition, bool) and power == (150 if condition else 75): return {"status":"known","mechanic":"turn_event_power","move":"stomping-tantrum","predicate":"same_active_pokemon_previous_action_qualifies_as_failure","occurred":condition,"effective_power":power,"rule":"strict-runtime-previous-action-result","missing_inputs":[],"authority":deepcopy(dict(previous))}
+        return {"status":"insufficient_context","missing_inputs":["runtime_previous_action_result_authority"]}
     context = current.get("turn_event_context")
     if not isinstance(context, Mapping) or context.get("status") != "known" or context.get("projection_source") != "runtime_same_turn_event_projection" or not isinstance(context.get("turn_number"), int) or isinstance(context.get("turn_number"), bool):
         return {"status": "insufficient_context", "missing_inputs": ["same_turn_event"]}

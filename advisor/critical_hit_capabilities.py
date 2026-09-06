@@ -24,7 +24,7 @@ _BASE_MOVE_IDS = frozenset({
     # Keeping this list explicit makes their ordinary Gen 9 crit rule usable
     # without turning uncatalogued attacks into a generic supported family.
     "metal-claw", "shadow-ball", "acid-spray", "close-combat", "flame-charge",
-    "iron-head", "sucker-punch", "avalanche", "revenge", "assurance", "payback",
+    "iron-head", "sucker-punch", "avalanche", "revenge", "assurance", "payback", "stomping-tantrum",
     # Fixed-two-hit moves admitted by the detached per-hit execution
     # authority.  Their normal Gen 9 critical rule is the ordinary base rule;
     # the authority still keeps each hit's eventual critical roll distinct.
