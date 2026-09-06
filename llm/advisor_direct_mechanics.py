@@ -1309,6 +1309,11 @@ def _turn_event_power_context(*, move_id: str, current: Mapping[str, Any]) -> di
         if target_detached.get("status") == "resolved" and target_detached.get("schema_version") == "detached-target-was-damaged-power-authority-v1" and target_detached.get("move_id") == "assurance" and target_detached.get("trigger_family") == "target_was_damaged_this_turn" and target_detached.get("canonical_base_power") == 60 and isinstance(condition, bool) and power == (120 if condition else 60):
             return {"status": "known", "mechanic": "turn_event_power", "move": "assurance", "predicate": "target_took_positive_qualifying_pokemon_hp_damage_earlier_this_turn", "occurred": condition, "effective_power": power, "rule": "exact-detached-target-was-damaged-before-execution", "missing_inputs": [], "authority": deepcopy(dict(target_detached))}
         return {"status": "insufficient_context", "missing_inputs": ["detached_target_was_damaged_power_authority"]}
+    acted = current.get("detached_target_already_acted_power_authority")
+    if move_id == "payback" and isinstance(acted, Mapping):
+        condition=acted.get("target_already_acted_before_execution"); power=acted.get("selected_base_power")
+        if acted.get("status")=="resolved" and acted.get("schema_version")=="detached-target-already-acted-power-authority-v1" and acted.get("move_id")=="payback" and acted.get("trigger_family")=="target_already_acted" and acted.get("canonical_base_power")==50 and isinstance(condition,bool) and power == (100 if condition else 50): return {"status":"known","mechanic":"turn_event_power","move":"payback","predicate":"target_completed_action_before_payback_execution","occurred":condition,"effective_power":power,"rule":"exact-detached-target-already-acted-before-execution","missing_inputs":[],"authority":deepcopy(dict(acted))}
+        return {"status":"insufficient_context","missing_inputs":["detached_target_already_acted_power_authority"]}
     context = current.get("turn_event_context")
     if not isinstance(context, Mapping) or context.get("status") != "known" or context.get("projection_source") != "runtime_same_turn_event_projection" or not isinstance(context.get("turn_number"), int) or isinstance(context.get("turn_number"), bool):
         return {"status": "insufficient_context", "missing_inputs": ["same_turn_event"]}

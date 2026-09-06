@@ -924,6 +924,7 @@ def build_runtime_d0_native_damage_context(
     supreme_overlord_damage_authority: Mapping[str, Any] | None = None,
     was_damaged_power_authority: Mapping[str, Any] | None = None,
     target_was_damaged_power_authority: Mapping[str, Any] | None = None,
+    target_already_acted_power_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -1020,6 +1021,9 @@ def build_runtime_d0_native_damage_context(
         if not _exact_target_was_damaged_power_authority(target_was_damaged_power_authority, strategy_d0=strategy_d0, attacker=attacker, target=target, move=move):
             return _native_context_result("rejected", "target_was_damaged_power_authority_invalid")
         current["detached_target_was_damaged_power_authority"] = deepcopy(dict(target_was_damaged_power_authority))
+    if move["move_id"] == "payback":
+        if not _exact_target_already_acted_power_authority(target_already_acted_power_authority, strategy_d0=strategy_d0, attacker=attacker, target=target, move=move): return _native_context_result("rejected", "target_already_acted_power_authority_invalid")
+        current["detached_target_already_acted_power_authority"] = deepcopy(dict(target_already_acted_power_authority))
     damage_input = {
         "attacker": {**deepcopy(dict(attacker)), "session_id": strategy_d0["session_id"]},
         "defender": {**deepcopy(dict(target)), "session_id": strategy_d0["session_id"]},
@@ -1078,6 +1082,14 @@ def _exact_target_was_damaged_power_authority(value: Any, *, strategy_d0: Mappin
     event = value.get("qualifying_damage_event")
     if not isinstance(condition, bool) or value.get("selected_base_power") != (120 if condition else 60): return False
     return (not condition and event is None) or (isinstance(event, Mapping) and event.get("target") == target and event.get("event_order") == "before_assurance_execution" and event.get("source_kind") in {"direct_attack_damage", "damage_based_recoil", "life_orb_recoil", "contact_reactive_damage"} and isinstance(event.get("pair_branch_source_leaf_id"), str) and bool(event["pair_branch_source_leaf_id"]) and isinstance(event.get("actual_hp_loss"), int) and event["actual_hp_loss"] > 0)
+
+def _exact_target_already_acted_power_authority(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], move: Mapping[str, Any]) -> bool:
+    if not isinstance(value, Mapping) or value.get("status") != "resolved" or value.get("schema_version") != "detached-target-already-acted-power-authority-v1": return False
+    expected={"session_id":strategy_d0["session_id"],"source_runtime_fingerprint":strategy_d0["source_runtime_fingerprint"],"source_branch_fingerprint":strategy_d0["strategy_preview_fingerprint"],"user":attacker,"target":target,"move_id":move["move_id"],"canonical_base_power":50,"trigger_family":"target_already_acted"}
+    if any(value.get(key)!=item for key,item in expected.items()): return False
+    condition=value.get("target_already_acted_before_execution"); action=value.get("qualifying_target_action")
+    if not isinstance(condition,bool) or value.get("selected_base_power") != (100 if condition else 50): return False
+    return (not condition and action is None) or (isinstance(action,Mapping) and action.get("event_order")=="before_payback_execution" and isinstance(action.get("source_action_id"),str) and isinstance(action.get("source_execution_move_id"),str) and action.get("source_action_type") in {"attack","protection","status","status_protection"})
 
 
 def _exact_sparkling_aria_pre_hit_burn_authority(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any]) -> bool:
