@@ -928,6 +928,7 @@ def build_runtime_d0_native_damage_context(
     previous_action_result_authority: Mapping[str, Any] | None = None,
     same_turn_stat_drop_power_authority: Mapping[str, Any] | None = None,
     rage_fist_hit_count_power_authority: Mapping[str, Any] | None = None,
+    last_respects_faint_power_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -1036,6 +1037,9 @@ def build_runtime_d0_native_damage_context(
     if move["move_id"] == "rage-fist":
         if not isinstance(rage_fist_hit_count_power_authority,Mapping) or rage_fist_hit_count_power_authority.get("status")!="resolved" or rage_fist_hit_count_power_authority.get("user")!=attacker or rage_fist_hit_count_power_authority.get("move_id")!="rage-fist": return _native_context_result("rejected","rage_fist_hit_count_power_authority_invalid")
         current["detached_rage_fist_hit_count_power_authority"]=deepcopy(dict(rage_fist_hit_count_power_authority))
+    if move["move_id"] == "last-respects":
+        if not isinstance(last_respects_faint_power_authority,Mapping) or last_respects_faint_power_authority.get("status")!="resolved" or last_respects_faint_power_authority.get("user")!=attacker or last_respects_faint_power_authority.get("move_id")!="last-respects":return _native_context_result("rejected","last_respects_faint_power_authority_invalid")
+        current["detached_last_respects_faint_power_authority"]=deepcopy(dict(last_respects_faint_power_authority))
     damage_input = {
         "attacker": {**deepcopy(dict(attacker)), "session_id": strategy_d0["session_id"]},
         "defender": {**deepcopy(dict(target)), "session_id": strategy_d0["session_id"]},

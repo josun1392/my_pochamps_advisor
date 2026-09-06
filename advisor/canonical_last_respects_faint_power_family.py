@@ -1,0 +1,9 @@
+from __future__ import annotations
+from typing import Any,Mapping
+SCHEMA_VERSION="canonical-last-respects-faint-power-family-v1"
+_MOVE={"move_id":"last-respects","type":"ghost","category":"physical","power":50,"accuracy":100,"priority":0,"contact":False}
+def resolve_canonical_last_respects_faint_power_move(*,move:Mapping[str,Any]|Any)->dict[str,Any]:
+ mid=move.get("move_id") if isinstance(move,Mapping) else None;base={"schema_version":SCHEMA_VERSION,"move_id":mid}
+ if mid!="last-respects":return {**base,"status":"unsupported","reason":"move_not_in_last_respects_faint_power_catalog"}
+ if not isinstance(move,Mapping) or any(move.get(k)!=v for k,v in _MOVE.items() if k in move):return {**base,"status":"rejected","reason":"catalog_metadata_mismatch"}
+ return {**base,"status":"resolved","effect":{**_MOVE,"family":"allied_faint_history","boost_per_faint":50,"canonical_cap":None},"provenance":"canonical-maintained-last-respects-faint-power-family-v1"}

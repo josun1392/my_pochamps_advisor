@@ -130,6 +130,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if lash_error is not None: return lash_error
     rage_error = _rage_fist_hit_count_power_leaf(first)
     if rage_error is not None: return rage_error
+    respects_error = _last_respects_faint_power_leaf(first)
+    if respects_error is not None: return respects_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -200,6 +202,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if lash_error is not None: return lash_error
         rage_error = _rage_fist_hit_count_power_leaf(second_leaf)
         if rage_error is not None: return rage_error
+        respects_error = _last_respects_faint_power_leaf(second_leaf)
+        if respects_error is not None: return respects_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -343,6 +347,16 @@ def _rage_fist_hit_count_power_leaf(leaf: Mapping[str, Any]) -> str | None:
     if not isinstance(events,list) or len(events)!=inc:return "rage_fist_same_turn_increment_event_count_invalid"
     for event in events:
         if not isinstance(event,Mapping) or event.get("target")!=p.get("attacker") or event.get("route")!="successful_direct_hit" or event.get("event_order")!="before_rage_fist_execution" or not isinstance(event.get("source_leaf_id"),str):return "rage_fist_same_turn_hit_event_invalid"
+    return None
+
+def _last_respects_faint_power_leaf(leaf: Mapping[str, Any]) -> str | None:
+    p=leaf.get("provenance")
+    if not isinstance(p,Mapping):return "last_respects_faint_power_leaf_provenance_invalid"
+    move,a=p.get("move_id"),p.get("last_respects_faint_power_authority")
+    if move!="last-respects":return "unexpected_last_respects_faint_power_authority" if a is not None else None
+    if not isinstance(a,Mapping) or a.get("status")!="resolved" or a.get("schema_version")!="detached-last-respects-faint-power-authority-v1":return "last_respects_faint_power_authority_missing_or_invalid"
+    raw,count,power=a.get("raw_allied_faint_count"),a.get("resolved_fainted_allies_count"),a.get("selected_base_power")
+    if a.get("trigger_family")!="allied_faint_history" or a.get("user")!=p.get("attacker") or a.get("user_side")!=p.get("attacker",{}).get("side") or not isinstance(raw,int) or raw<0 or count!=raw or power!=50+50*count:return "last_respects_faint_power_count_or_binding_invalid"
     return None
 
 
