@@ -1,0 +1,1768 @@
+{
+  "schema_version": "canonical-fling-item-effects-v1",
+  "source_provenance": {
+    "repository": "https://github.com/smogon/pokemon-showdown",
+    "commit_sha": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+    "path": "data/items.ts",
+    "local_snapshot": "data/vendor/pokemon_showdown/6b4bc34e44cc2541929cc4b8fff96e756ab3f268/items.ts",
+    "sha256": "fd7a7b798ac872e53f7ee41806b3ec5692fa5bebcd720b544dd45bbed79a0a14",
+    "extraction_schema_version": "pinned-showdown-fling-static-extraction-v1"
+  },
+  "champions_item_universe_count": 117,
+  "items": [
+    {
+      "item_id": "abomasite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "abomasite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "absolite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "absolite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "aerodactylite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "aerodactylite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "aggronite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "aggronite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "alakazite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "alakazite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "altarianite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "altarianite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "ampharosite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "ampharosite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "aspear-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "aspearberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "aspearberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "audinite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "audinite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "babiri-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "babiriberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "babiriberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "banettite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "banettite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "beedrillite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "beedrillite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "black-belt",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "blackbelt",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "black-glasses",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "blackglasses",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "blastoisinite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "blastoisinite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "bright-powder",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "brightpowder",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "cameruptite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "cameruptite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "chandelurite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "chandelurite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "charcoal",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "charcoal",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "charizardite-x",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "charizarditex",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "charizardite-y",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "charizarditey",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "charti-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "chartiberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "chartiberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "cheri-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "cheriberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "cheriberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "chesnaughtite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "chesnaughtite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "chesto-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "chestoberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "chestoberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "chilan-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "chilanberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "chilanberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "chimechite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "chimechite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "choice-scarf",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "choicescarf",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "chople-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "chopleberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "chopleberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "clefablite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "clefablite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "coba-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "cobaberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "cobaberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "colbur-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "colburberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "colburberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "crabominite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "crabominite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "delphoxite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "delphoxite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "dragon-fang",
+      "flingable": true,
+      "base_power": 70,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "dragonfang",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "dragoninite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "dragoninite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "drampanite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "drampanite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "emboarite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "emboarite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "excadrite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "excadrite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "fairy-feather",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "fairyfeather",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "feraligite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "feraligite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "floettite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "floettite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "focus-band",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "focusband",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "focus-sash",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "focussash",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "froslassite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "froslassite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "galladite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "galladite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "garchompite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "garchompite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "gardevoirite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "gardevoirite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "gengarite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "gengarite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "glalitite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "glalitite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "glimmoranite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "glimmoranite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "golurkite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "golurkite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "greninjite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "greninjite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "gyaradosite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "gyaradosite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "haban-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "habanberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "habanberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "hard-stone",
+      "flingable": true,
+      "base_power": 100,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "hardstone",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "hawluchanite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "hawluchanite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "heracronite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "heracronite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "houndoominite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "houndoominite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "kangaskhanite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "kangaskhanite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "kasib-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "kasibberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "kasibberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "kebia-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "kebiaberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "kebiaberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "kings-rock",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "flinch"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "kingsrock",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "leftovers",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "leftovers",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "leppa-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "leppaberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "leppaberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "light-ball",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "major_status",
+        "condition": "paralysis"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "lightball",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "lopunnite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "lopunnite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "lucarionite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "lucarionite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "lum-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "lumberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "lumberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "magnet",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "magnet",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "manectite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "manectite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "medichamite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "medichamite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "meganiumite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "meganiumite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "mental-herb",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "mentalherb",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "meowsticite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "meowsticite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "metal-coat",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "metalcoat",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "miracle-seed",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "miracleseed",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "mystic-water",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "mysticwater",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "never-melt-ice",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "nevermeltice",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "occa-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "occaberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "occaberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "oran-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "oranberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "oranberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "passho-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "passhoberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "passhoberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "payapa-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "payapaberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "payapaberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "pecha-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "pechaberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "pechaberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "persim-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "persimberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "persimberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "pidgeotite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "pidgeotite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "pinsirite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "pinsirite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "poison-barb",
+      "flingable": true,
+      "base_power": 70,
+      "effect": {
+        "kind": "major_status",
+        "condition": "poison"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "poisonbarb",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "quick-claw",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "quickclaw",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "rawst-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "rawstberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "rawstberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "rindo-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "rindoberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "rindoberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "roseli-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "roseliberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "roseliberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "sablenite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "sablenite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "scizorite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "scizorite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "scope-lens",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "scopelens",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "scovillainite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "scovillainite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "sharp-beak",
+      "flingable": true,
+      "base_power": 50,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "sharpbeak",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "sharpedonite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "sharpedonite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "shell-bell",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "shellbell",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "shuca-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "shucaberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "shucaberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "silk-scarf",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "silkscarf",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "silver-powder",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "silverpowder",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "sitrus-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "sitrusberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "sitrusberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "skarmorite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "skarmorite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "slowbronite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "slowbronite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "soft-sand",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "softsand",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "spell-tag",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "spelltag",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "starminite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "starminite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "steelixite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "steelixite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "tanga-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "tangaberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "tangaberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "twisted-spoon",
+      "flingable": true,
+      "base_power": 30,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "twistedspoon",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "tyranitarite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "tyranitarite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "venusaurite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "venusaurite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "victreebelite",
+      "flingable": true,
+      "base_power": 80,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "victreebelite",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "wacan-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "wacanberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "wacanberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "white-herb",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "none",
+        "classification": "explicit_no_target_effect"
+      },
+      "support_status": "not_applicable",
+      "source": {
+        "upstream_item_id": "whiteherb",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    },
+    {
+      "item_id": "yache-berry",
+      "flingable": true,
+      "base_power": 10,
+      "effect": {
+        "kind": "berry_effect",
+        "item_id": "yacheberry"
+      },
+      "support_status": "unsupported_now",
+      "source": {
+        "upstream_item_id": "yacheberry",
+        "upstream_commit": "6b4bc34e44cc2541929cc4b8fff96e756ab3f268",
+        "extraction": "pinned-showdown-fling-static-extraction-v1"
+      }
+    }
+  ]
+}
