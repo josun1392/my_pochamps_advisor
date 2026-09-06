@@ -213,6 +213,16 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
     transfer = consequences.get("item_transfer_after_hit")
     if isinstance(transfer, Mapping) and transfer.get("outcome") == "transferred" and isinstance(transfer.get("item"), str):
         result.extend(({"owner":"self","hypothetical_self_item":{"status":"known","value":transfer["item"],"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}, {"owner":"target","hypothetical_target_item":{"status":"known_absent","value":None,"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}))
+    swap = consequences.get("atomic_item_swap_status")
+    if isinstance(swap, Mapping) and swap.get("outcome") == "executed_swap":
+        actor, target = swap.get("actor"), swap.get("target")
+        after_actor, after_target = swap.get("actor_item_after"), swap.get("target_item_after")
+        if not isinstance(actor, Mapping) or not isinstance(target, Mapping) or not _atomic_item_state(after_actor) or not _atomic_item_state(after_target):
+            return "terminal_leaf_atomic_item_swap_consequence_invalid"
+        result.extend((
+            {"owner":"self", "hypothetical_self_item": {"status": "known" if after_actor["state"] == "known_present" else "known_absent", "value": after_actor["item"], "source": "exact_terminal_leaf_atomic_item_swap_status", "effect": deepcopy(dict(swap))}},
+            {"owner":"target", "hypothetical_target_item": {"status": "known" if after_target["state"] == "known_present" else "known_absent", "value": after_target["item"], "source": "exact_terminal_leaf_atomic_item_swap_status", "effect": deepcopy(dict(swap))}},
+        ))
     status = consequences.get("contact_reactive_status")
     overlay = status.get("overlay") if isinstance(status, Mapping) else None
     transition = overlay.get("hypothetical_condition_authority") if isinstance(overlay, Mapping) else None
@@ -228,6 +238,10 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
             },
         })
     return tuple(deepcopy(dict(effect)) for effect in result)
+
+
+def _atomic_item_state(value: Any) -> bool:
+    return isinstance(value, Mapping) and ((value.get("state") == "known_present" and isinstance(value.get("item"), str) and bool(value["item"])) or (value.get("state") == "known_absent" and value.get("item") is None))
 
 
 def _condition_removal(value: Any, leaf_id: Any) -> bool:
