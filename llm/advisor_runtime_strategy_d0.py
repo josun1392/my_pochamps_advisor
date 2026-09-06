@@ -927,6 +927,7 @@ def build_runtime_d0_native_damage_context(
     target_already_acted_power_authority: Mapping[str, Any] | None = None,
     previous_action_result_authority: Mapping[str, Any] | None = None,
     same_turn_stat_drop_power_authority: Mapping[str, Any] | None = None,
+    rage_fist_hit_count_power_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -1032,6 +1033,9 @@ def build_runtime_d0_native_damage_context(
     if move["move_id"] == "lash-out":
         if not _exact_same_turn_stat_drop_power_authority(same_turn_stat_drop_power_authority, strategy_d0=strategy_d0, attacker=attacker, target=target, move=move): return _native_context_result("rejected", "same_turn_stat_drop_power_authority_invalid")
         current["detached_same_turn_stat_drop_power_authority"] = deepcopy(dict(same_turn_stat_drop_power_authority))
+    if move["move_id"] == "rage-fist":
+        if not isinstance(rage_fist_hit_count_power_authority,Mapping) or rage_fist_hit_count_power_authority.get("status")!="resolved" or rage_fist_hit_count_power_authority.get("user")!=attacker or rage_fist_hit_count_power_authority.get("move_id")!="rage-fist": return _native_context_result("rejected","rage_fist_hit_count_power_authority_invalid")
+        current["detached_rage_fist_hit_count_power_authority"]=deepcopy(dict(rage_fist_hit_count_power_authority))
     damage_input = {
         "attacker": {**deepcopy(dict(attacker)), "session_id": strategy_d0["session_id"]},
         "defender": {**deepcopy(dict(target)), "session_id": strategy_d0["session_id"]},

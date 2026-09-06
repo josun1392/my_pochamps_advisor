@@ -90,7 +90,7 @@ _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES = frozenset({"eruption", "water-spout", "d
 _CURRENT_HP_BRACKET_DIRECT_MOVES = frozenset({"flail", "reversal"})
 _STATUS_CONDITION_POWER_DIRECT_MOVES = frozenset({"hex", "venoshock"})
 _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES = frozenset({"weather-ball", "terrain-pulse"})
-_TURN_EVENT_POWER_DIRECT_MOVES = frozenset({"avalanche", "revenge", "payback", "assurance", "stomping-tantrum", "lash-out"})
+_TURN_EVENT_POWER_DIRECT_MOVES = frozenset({"avalanche", "revenge", "payback", "assurance", "stomping-tantrum", "lash-out", "rage-fist"})
 ITEM_MODIFIER_TAGS = {
     "life-orb": "item_life_orb_boost",
     "choice-band": "item_choice_band_boost",
@@ -181,7 +181,7 @@ def evaluate_direct_damage_mechanics(
         return _unsupported("status_condition_power_metadata")
     if move_id in _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES and (category != "special" or power != 50 or move_type != "normal"):
         return _unsupported("environment_transformation_metadata")
-    expected_turn_event_metadata = {"avalanche": ("physical", 60, "ice"), "revenge": ("physical", 60, "fighting"), "payback": ("physical", 50, "dark"), "assurance": ("physical", 60, "dark"), "stomping-tantrum": ("physical", 75, "ground"), "lash-out": ("physical", 75, "dark")}
+    expected_turn_event_metadata = {"avalanche": ("physical", 60, "ice"), "revenge": ("physical", 60, "fighting"), "payback": ("physical", 50, "dark"), "assurance": ("physical", 60, "dark"), "stomping-tantrum": ("physical", 75, "ground"), "lash-out": ("physical", 75, "dark"), "rage-fist": ("physical", 50, "ghost")}
     if move_id in _TURN_EVENT_POWER_DIRECT_MOVES and (category, power, move_type) != expected_turn_event_metadata[move_id]:
         return _unsupported("turn_event_power_metadata")
     if isinstance(facade, Mapping):
@@ -1324,6 +1324,11 @@ def _turn_event_power_context(*, move_id: str, current: Mapping[str, Any]) -> di
         condition,power=dropped.get("user_stat_was_lowered_before_execution"),dropped.get("selected_base_power")
         if dropped.get("status")=="resolved" and dropped.get("schema_version")=="detached-same-turn-stat-drop-power-authority-v1" and dropped.get("move_id")=="lash-out" and dropped.get("trigger_family")=="user_stat_was_lowered_this_turn" and dropped.get("canonical_base_power")==75 and isinstance(condition,bool) and power==(150 if condition else 75): return {"status":"known","mechanic":"turn_event_power","move":"lash-out","predicate":"user_stat_stage_actually_lowered_earlier_this_turn","occurred":condition,"effective_power":power,"rule":"exact-detached-same-turn-stage-decrease","missing_inputs":[],"authority":deepcopy(dict(dropped))}
         return {"status":"insufficient_context","missing_inputs":["detached_same_turn_stat_drop_power_authority"]}
+    rage=current.get("detached_rage_fist_hit_count_power_authority")
+    if move_id=="rage-fist" and isinstance(rage,Mapping):
+        count,power=rage.get("effective_hit_count"),rage.get("selected_base_power")
+        if rage.get("status")=="resolved" and rage.get("schema_version")=="detached-rage-fist-hit-count-power-authority-v1" and rage.get("trigger_family")=="persistent_received_hit_count" and isinstance(count,int) and count>=0 and rage.get("count_cap")==6 and power==50+50*min(count,6):return {"status":"known","mechanic":"turn_event_power","move":"rage-fist","predicate":"persistent_received_hit_count","occurred":count>0,"effective_power":power,"rule":"exact-detached-rage-fist-hit-count","missing_inputs":[],"authority":deepcopy(dict(rage))}
+        return {"status":"insufficient_context","missing_inputs":["detached_rage_fist_hit_count_power_authority"]}
     context = current.get("turn_event_context")
     if not isinstance(context, Mapping) or context.get("status") != "known" or context.get("projection_source") != "runtime_same_turn_event_projection" or not isinstance(context.get("turn_number"), int) or isinstance(context.get("turn_number"), bool):
         return {"status": "insufficient_context", "missing_inputs": ["same_turn_event"]}

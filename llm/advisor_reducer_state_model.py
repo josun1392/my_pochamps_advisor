@@ -25,6 +25,8 @@ _TARGETS["apply_taunt_restriction"] = "state.current_taunt_restrictions"
 _TARGETS["complete_restricted_active_turn"] = "state.current_taunt_restrictions"
 _TARGETS["record_executed_move"] = "pokemon.last_executed_move"
 _TARGETS["record_previous_action_result"] = "pokemon.previous_action_result"
+_TARGETS["initialize_rage_fist_hit_count"] = "pokemon.rage_fist_hit_count"
+_TARGETS["record_rage_fist_qualifying_hit"] = "pokemon.rage_fist_hit_count"
 _TARGETS["apply_encore_restriction"] = "state.current_encore_restrictions"
 _TARGETS["complete_encore_restricted_active_turn"] = "state.current_encore_restrictions"
 _TARGETS["apply_disable_restriction"] = "state.current_disable_restrictions"
@@ -74,7 +76,7 @@ def validate_battle_state_unknown_markers(state):
             expected_owner = {"session_id": state.get("session_id"), "side": "self" if side_name == "self_side" else "opponent", "slot_index": slot, "pokemon_id": pokemon.get("pokemon_id", pokemon.get("name_en"))} if isinstance(slot, int) and not isinstance(slot, bool) else None
             if not _valid_last_executed_move(state, pokemon.get("last_executed_move"), expected_owner) or not _valid_previous_action_result(state, pokemon.get("previous_action_result"), expected_owner):
                 return False
-            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "known_move_ids_provenance", "current_move_usability", "toxic_progression", "condition", "condition_provenance", "current_crit_volatiles", "current_crit_volatiles_provenance", "last_executed_move", "previous_action_result"}):
+            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "known_move_ids_provenance", "current_move_usability", "toxic_progression", "condition", "condition_provenance", "current_crit_volatiles", "current_crit_volatiles_provenance", "last_executed_move", "previous_action_result", "rage_fist_hit_count"}):
                 return False
     field = state.get("field")
     if not isinstance(field, dict) or not all(_valid_fact_marker(field.get(name)) for name in ("weather", "terrain", "battle_format")) or not _valid_current_weather_state(field.get("weather"), field.get("weather_provenance")) or not _valid_current_terrain_state(field.get("terrain"), field.get("terrain_provenance")) or not _valid_current_battle_format_state(field.get("battle_format"), field.get("battle_format_provenance")):
@@ -652,7 +654,7 @@ def _value(event, name):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
+    if effect in {"apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
     if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_pending_status_action_execution", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
@@ -766,6 +768,8 @@ def _apply(state, event):
     if effect == "complete_restricted_active_turn": return _complete_taunt_turn(state, event)
     if effect == "record_executed_move": return _record_executed_move(state, event)
     if effect == "record_previous_action_result": return _record_previous_action_result(state, event)
+    if effect == "initialize_rage_fist_hit_count": return _initialize_rage_fist_hit_count(state,event)
+    if effect == "record_rage_fist_qualifying_hit": return _record_rage_fist_qualifying_hit(state,event)
     if effect == "apply_encore_restriction": return _apply_encore_restriction(state, event)
     if effect == "complete_encore_restricted_active_turn": return _complete_encore_turn(state, event)
     if effect == "apply_disable_restriction": return _apply_disable_restriction(state, event)
@@ -2167,6 +2171,16 @@ def _record_previous_action_result(state, event):
     owner = {"session_id": state["session_id"], "side": side, "slot_index": _value(event, "slot_index"), "pokemon_id": _value(event, "pokemon_id")}
     pokemon["previous_action_result"] = {"schema_version": "reducer-previous-action-result-v1", "owner": owner, "previous_action_id": _value(event, "previous_action_id"), "selected_move_id": _value(event, "selected_move_id"), "execution_move_id": _value(event, "execution_move_id"), "result_class": _value(event, "result_class"), "source_turn": turn, "provenance": _provenance(event)}
     return None
+
+def _initialize_rage_fist_hit_count(state,event):
+    side,pokemon=_value(event,"side"),_pokemon(state,event)
+    if side not in {"self","opponent"} or pokemon is None or not _active_identity_matches(state,side,_value(event,"slot_index"),_value(event,"pokemon_id")) or _value(event,"trust")!="user_confirmed_observation" or pokemon.get("rage_fist_hit_count") is not None:return _conflict(event,"invalid_rage_fist_hit_count_initialization")
+    owner={"session_id":state["session_id"],"side":side,"slot_index":_value(event,"slot_index"),"pokemon_id":_value(event,"pokemon_id")};pokemon["rage_fist_hit_count"]={"owner":owner,"count":0,"provenance":_provenance(event)};return None
+
+def _record_rage_fist_qualifying_hit(state,event):
+    side,pokemon=_value(event,"side"),_pokemon(state,event);row=pokemon.get("rage_fist_hit_count") if isinstance(pokemon,dict) else None
+    if side not in {"self","opponent"} or pokemon is None or not _active_identity_matches(state,side,_value(event,"slot_index"),_value(event,"pokemon_id")) or _value(event,"trust")!="user_confirmed_observation" or not isinstance(row,dict) or row.get("owner",{}).get("pokemon_id")!=_value(event,"pokemon_id") or _value(event,"hit_outcome")!="successful_direct_hit":return _conflict(event,"invalid_rage_fist_qualifying_hit")
+    row=deepcopy(row);row["count"]+=1;row["provenance"]=_provenance(event);pokemon["rage_fist_hit_count"]=row;return None
 
 
 def _apply_encore_restriction(state, event):

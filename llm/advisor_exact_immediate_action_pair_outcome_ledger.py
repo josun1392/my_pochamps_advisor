@@ -128,6 +128,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if stomping_error is not None: return stomping_error
     lash_error = _same_turn_stat_drop_power_leaf(first)
     if lash_error is not None: return lash_error
+    rage_error = _rage_fist_hit_count_power_leaf(first)
+    if rage_error is not None: return rage_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -196,6 +198,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if stomping_error is not None: return stomping_error
         lash_error = _same_turn_stat_drop_power_leaf(second_leaf)
         if lash_error is not None: return lash_error
+        rage_error = _rage_fist_hit_count_power_leaf(second_leaf)
+        if rage_error is not None: return rage_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -325,6 +329,20 @@ def _same_turn_stat_drop_power_leaf(leaf: Mapping[str, Any]) -> str | None:
     if authority.get("trigger_family")!="user_stat_was_lowered_this_turn" or authority.get("canonical_base_power")!=75 or authority.get("user")!=p.get("attacker") or not isinstance(condition,bool) or authority.get("selected_base_power") != (150 if condition else 75): return "same_turn_stat_drop_power_condition_or_identity_invalid"
     if not condition:return None if event is None else "same_turn_stat_drop_false_condition_has_event"
     if not isinstance(event,Mapping) or event.get("event_order")!="before_lash_out_execution" or event.get("stat") not in {"attack","defense","special-attack","special-defense","speed","accuracy","evasion"} or not isinstance(event.get("stage_before"),int) or not isinstance(event.get("stage_after"),int) or event["stage_after"]>=event["stage_before"] or event.get("delta")!=event["stage_after"]-event["stage_before"] or not isinstance(event.get("pair_branch_source_leaf_id"),str): return "same_turn_stat_drop_qualifying_event_invalid"
+    return None
+
+def _rage_fist_hit_count_power_leaf(leaf: Mapping[str, Any]) -> str | None:
+    p=leaf.get("provenance")
+    if not isinstance(p,Mapping): return "rage_fist_hit_count_leaf_provenance_invalid"
+    move,authority=p.get("move_id"),p.get("rage_fist_hit_count_power_authority")
+    if move!="rage-fist": return "unexpected_rage_fist_hit_count_authority" if authority is not None else None
+    if not isinstance(authority,Mapping) or authority.get("status")!="resolved" or authority.get("schema_version")!="detached-rage-fist-hit-count-power-authority-v1": return "rage_fist_hit_count_authority_missing_or_invalid"
+    base,inc,effective,power=authority.get("d0_base_hit_count"),authority.get("same_turn_hit_increment"),authority.get("effective_hit_count"),authority.get("selected_base_power")
+    if authority.get("trigger_family")!="persistent_received_hit_count" or authority.get("user")!=p.get("attacker") or authority.get("move_id")!="rage-fist" or authority.get("count_cap")!=6 or not all(isinstance(x,int) and not isinstance(x,bool) and x>=0 for x in (base,inc,effective)) or effective!=base+inc or power!=50+50*min(effective,6) or power not in {50,100,150,200,250,300,350}: return "rage_fist_hit_count_or_power_invalid"
+    events=authority.get("qualifying_same_turn_hit_events")
+    if not isinstance(events,list) or len(events)!=inc:return "rage_fist_same_turn_increment_event_count_invalid"
+    for event in events:
+        if not isinstance(event,Mapping) or event.get("target")!=p.get("attacker") or event.get("route")!="successful_direct_hit" or event.get("event_order")!="before_rage_fist_execution" or not isinstance(event.get("source_leaf_id"),str):return "rage_fist_same_turn_hit_event_invalid"
     return None
 
 
