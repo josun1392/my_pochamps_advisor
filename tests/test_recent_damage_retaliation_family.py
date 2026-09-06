@@ -10,9 +10,15 @@ def _d0():
 def test_catalog_binds_both_moves_and_rejects_unrelated_move():
     counter=resolve_canonical_recent_damage_retaliation_move(move={"move_id":"counter","priority":-5})
     mirror=resolve_canonical_recent_damage_retaliation_move(move={"move_id":"mirror-coat","priority":-5})
-    assert counter["effect"]["qualifying_category"] == "physical" and counter["effect"]["multiplier"] == {"numerator":2,"denominator":1}
-    assert mirror["effect"]["qualifying_category"] == "special" and mirror["effect"]["priority"] == -5
+    assert counter["effect"]["qualifying_category_policy"] == "physical_only" and counter["effect"]["multiplier"] == {"numerator":2,"denominator":1}
+    assert mirror["effect"]["qualifying_category_policy"] == "special_only" and mirror["effect"]["priority"] == -5
     assert resolve_canonical_recent_damage_retaliation_move(move={"move_id":"tackle"})["status"] == "unsupported"
+
+def test_comeuppance_and_metal_burst_use_three_halves_floor():
+    d0,a,b=_d0(); event={"status":"resolved","recipient":a,"source_attacker":b,"source_category":"special","qualifying_event":True,"hp_lost":11}
+    for move in ({"move_id":"comeuppance","type":"dark","category":"physical","accuracy":100,"priority":0,"contact":True},{"move_id":"metal-burst","type":"steel","category":"physical","accuracy":100,"priority":0,"contact":False}):
+        out=materialize_detached_recent_damage_retaliation_attack_leaves(strategy_d0=d0,attacker=a,target=b,move=move,strict_hit_probability={"result":"always_hit"},incoming_event=event,applicability="applicable")
+        assert out["terminal_leaves"][0]["consequences"]["damage"] == 16
 
 def test_counter_uses_last_physical_hp_loss_and_zero_loss_is_one():
     d0,a,b=_d0(); event={"status":"resolved","recipient":a,"source_attacker":b,"source_category":"physical","qualifying_event":True,"hp_lost":30}

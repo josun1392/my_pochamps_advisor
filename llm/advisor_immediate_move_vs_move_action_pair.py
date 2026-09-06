@@ -1149,7 +1149,7 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
         return _endeavor_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata)
     if metadata.get("move_id") == "final-gambit":
         return _final_gambit_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,actor=actor,target=target,metadata=metadata)
-    if metadata.get("move_id") in {"counter", "mirror-coat"}:
+    if metadata.get("move_id") in {"counter", "mirror-coat", "comeuppance", "metal-burst"}:
         return _recent_damage_retaliation_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata, incoming_event=same_turn_last_incoming_attack_event, protection_authority=post_source_retaliation_protection_authority)
     if metadata.get("move_id") in {"double-hit", "double-kick"}:
         return _fixed_two_hit_ledger(
@@ -1314,8 +1314,8 @@ def _recent_damage_retaliation_ledger(*, strategy_d0: Mapping[str, Any], runtime
         if protection_authority.get("outcome") == "blocked": applicability = "blocked"
         elif protection_authority.get("outcome") != "not_blocked": return _result("rejected", "retaliation_protection_authority_outcome_invalid", {})
     leaves = materialize_detached_recent_damage_retaliation_attack_leaves(strategy_d0=strategy_d0, attacker=actor, target=target, move=metadata, strict_hit_probability=hit, incoming_event=incoming_event, applicability=applicability)
-    if leaves.get("status") != "evaluable" or metadata.get("move_id") != "counter": return leaves
-    source={"action_id":"attack:counter","action_type":"attack","identity":"counter"}
+    if leaves.get("status") != "evaluable" or metadata.get("move_id") not in {"counter", "comeuppance"}: return leaves
+    source={"action_id":f"attack:{metadata['move_id']}","action_type":"attack","identity":metadata['move_id']}
     relevance=contact_reactive_damage_relevance(runtime_snapshot=runtime_snapshot, defender=target); status_relevance=contact_reactive_status_relevance(runtime_snapshot=runtime_snapshot, defender=target)
     if relevance.get("status") != "resolved" or status_relevance.get("status") != "resolved": return _result("incomplete", "counter_contact_reactive_relevance_unknown", {})
     contact=None

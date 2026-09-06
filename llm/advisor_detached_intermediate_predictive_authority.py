@@ -153,6 +153,8 @@ def _move(value: Any) -> bool:
     if value.get("move_id") == "final-gambit": return value.get("type") == "fighting" and value.get("category") == "special" and value.get("accuracy") == 100
     if value.get("move_id") == "counter": return value.get("type") == "fighting" and value.get("category") == "physical" and value.get("accuracy") == 100 and value.get("priority") == -5
     if value.get("move_id") == "mirror-coat": return value.get("type") == "psychic" and value.get("category") == "special" and value.get("accuracy") == 100 and value.get("priority") == -5
+    if value.get("move_id") == "comeuppance": return value.get("type") == "dark" and value.get("category") == "physical" and value.get("accuracy") == 100 and value.get("priority") == 0
+    if value.get("move_id") == "metal-burst": return value.get("type") == "steel" and value.get("category") == "physical" and value.get("accuracy") == 100 and value.get("priority") == 0
     return isinstance(value.get("power"), int) and not isinstance(value.get("power"), bool) and value["power"] > 0
 
 

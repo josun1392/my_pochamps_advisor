@@ -19,6 +19,7 @@ from llm.advisor_guts_status_attack_ability import (
 from llm.advisor_full_hp_defender_ability import (
     validate_full_hp_defender_ability_applicability,
 )
+from advisor.canonical_recent_damage_retaliation_family import resolve_canonical_recent_damage_retaliation_move
 
 
 SCHEMA_VERSION = "exact-immediate-action-pair-outcome-ledger-v1"
@@ -213,16 +214,18 @@ def _final_gambit_self_hp_damage_leaf(leaf: Mapping[str, Any]) -> str | None:
 
 def _recent_damage_retaliation_leaf(leaf: Mapping[str, Any]) -> str | None:
     p,c=leaf.get("provenance"),leaf.get("consequences"); move=p.get("move_id") if isinstance(p,Mapping) else None; payload=c.get("recent_damage_retaliation") if isinstance(c,Mapping) else None
-    if move not in {"counter","mirror-coat"}: return "unexpected_recent_damage_retaliation_payload" if payload is not None else None
+    if move not in {"counter","mirror-coat","comeuppance","metal-burst"}: return "unexpected_recent_damage_retaliation_payload" if payload is not None else None
     if not isinstance(payload,Mapping): return "recent_damage_retaliation_consequence_missing"
     damage=c.get("damage"); event=payload.get("incoming_event"); outcome=payload.get("outcome")
-    family=payload.get("family"); expected_category="physical" if move=="counter" else "special"
+    family=payload.get("family"); canonical=resolve_canonical_recent_damage_retaliation_move(move={"move_id":move}); expected=canonical.get("effect") if canonical.get("status")=="resolved" else None
     if not isinstance(damage,int) or isinstance(damage,bool) or damage<0 or leaf.get("critical_state")!="not_applicable" or leaf.get("damage_roll")!="not_applicable": return "recent_damage_retaliation_damage_shape_invalid"
-    if not isinstance(family,Mapping) or family.get("family")!="recent_damage_multiplier" or family.get("qualifying_category")!=expected_category or family.get("multiplier")!={"numerator":2,"denominator":1} or family.get("zero_loss_damage")!=1 or payload.get("retaliation_target")!=p.get("target"): return "recent_damage_retaliation_rule_or_target_binding_invalid"
+    if family!=expected or payload.get("retaliation_target")!=p.get("target"): return "recent_damage_retaliation_rule_or_target_binding_invalid"
     pre,post,actual=payload.get("target_pre_hp"),payload.get("target_post_hp"),payload.get("actual_target_hp_loss")
     if not all(isinstance(v,int) and not isinstance(v,bool) and v>=0 for v in (pre,post,actual)) or post>pre or actual!=pre-post or post!=c.get("target_final_hp") or payload.get("raw_damage")!=damage or actual!=min(damage,pre): return "recent_damage_retaliation_target_hp_binding_invalid"
     if outcome=="success":
-        if not isinstance(event,Mapping) or event.get("status")!="resolved" or event.get("recipient")!=p.get("attacker") or event.get("source_attacker")!=p.get("target") or event.get("source_category") != expected_category or event.get("qualifying_event") is not True or not isinstance(event.get("hp_lost"),int) or event["hp_lost"]<0 or damage!=max(1,2*event["hp_lost"]): return "recent_damage_retaliation_event_binding_invalid"
+        categories={"physical"} if expected.get("qualifying_category_policy")=="physical_only" else {"special"} if expected.get("qualifying_category_policy")=="special_only" else {"physical","special"}
+        raw=max(1,(event["hp_lost"]*expected["multiplier"]["numerator"])//expected["multiplier"]["denominator"]) if isinstance(event,Mapping) and isinstance(event.get("hp_lost"),int) else None
+        if not isinstance(event,Mapping) or event.get("status")!="resolved" or event.get("recipient")!=p.get("attacker") or event.get("source_attacker")!=p.get("target") or event.get("source_category") not in categories or event.get("qualifying_event") is not True or not isinstance(event.get("hp_lost"),int) or event["hp_lost"]<0 or damage!=raw: return "recent_damage_retaliation_event_binding_invalid"
     elif damage != 0: return "recent_damage_retaliation_failure_damage_invalid"
     return None
 
