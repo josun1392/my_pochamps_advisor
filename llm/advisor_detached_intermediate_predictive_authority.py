@@ -52,13 +52,13 @@ def freeze_detached_intermediate_predictive_authority(
         raw["current_hp"] = values["hp"]
         raw["fainted"] = values["fainted"]
         raw["stat_stages"] = deepcopy(values["stages"])
-        if values["item"].get("source") == "exact_terminal_leaf_focus_sash_consumption":
+        if values["item"].get("source") in {"exact_terminal_leaf_focus_sash_consumption", "exact_terminal_leaf_knock_off_item_removal"}:
             raw["known_item"] = None
             raw["known_item_provenance"] = {
-                "event_kind": "item_consumption_observed",
+                "event_kind": "item_consumption_observed" if values["item"].get("source") == "exact_terminal_leaf_focus_sash_consumption" else "item_removed_observed",
                 "turn_number": 1,
                 "trust": "detached_hypothetical",
-                "source": "exact_terminal_leaf_focus_sash_consumption",
+                "source": values["item"]["source"],
             }
         raw["detached_intermediate_predictive_authority"] = True
     # A status change has exact hypothetical provenance but cannot be written

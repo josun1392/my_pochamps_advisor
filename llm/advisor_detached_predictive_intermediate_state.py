@@ -201,6 +201,12 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
     item_after = focus.get("item_after") if isinstance(focus, Mapping) else None
     if isinstance(focus, Mapping) and focus.get("outcome") == "applied" and isinstance(item_after, Mapping) and item_after.get("status") == "known_absent":
         result.append({"owner": "target", "hypothetical_target_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_focus_sash_consumption", "effect": deepcopy(dict(focus))}})
+    knock_off = consequences.get("knock_off_item_removal")
+    if isinstance(knock_off, Mapping) and knock_off.get("outcome") == "removed" and knock_off.get("item_after") is None:
+        authority = knock_off.get("authority")
+        if not isinstance(authority, Mapping) or authority.get("move_id") != "knock-off" or not isinstance(knock_off.get("item_before"), str):
+            return "terminal_leaf_knock_off_item_removal_invalid"
+        result.append({"owner": "target", "hypothetical_target_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_knock_off_item_removal", "effect": deepcopy(dict(knock_off))}})
     status = consequences.get("contact_reactive_status")
     overlay = status.get("overlay") if isinstance(status, Mapping) else None
     transition = overlay.get("hypothetical_condition_authority") if isinstance(overlay, Mapping) else None

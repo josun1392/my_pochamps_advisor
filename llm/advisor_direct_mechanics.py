@@ -13,6 +13,7 @@ from advisor.damage.ability_modifiers import get_bp_ability_modifier
 from advisor.damage.field import Field, SideField
 from advisor.damage.items import get_item
 from advisor.damage.q12 import M_HALF, Q12_ONE
+from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
 from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.move_categories import load_move_flags as load_move_category_flags
@@ -167,10 +168,13 @@ def evaluate_direct_damage_mechanics(
     status_condition_power = _status_condition_power_context(move_id=move_id, current=current) if move_id in _STATUS_CONDITION_POWER_DIRECT_MOVES else None
     environment_transformation = _environment_transformation_context(move_id=move_id, current=current) if move_id in _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES else None
     turn_event_power = _turn_event_power_context(move_id=move_id, current=current) if move_id in _TURN_EVENT_POWER_DIRECT_MOVES else None
+    knock_off = _knock_off_power_context(stat_provenance, current) if move_id == "knock-off" else None
     if move_id == "facade" and (category != "physical" or power != 70 or move_type != "normal"):
         return _unsupported("facade_metadata")
     if move_id == "acrobatics" and (category != "physical" or power != 55 or move_type != "flying"):
         return _unsupported("acrobatics_metadata")
+    if move_id == "knock-off" and (category != "physical" or power != 65 or move_type != "dark"):
+        return _unsupported("knock_off_metadata")
     expected_current_hp_metadata = {"eruption": "fire", "water-spout": "water", "dragon-energy": "dragon"}
     if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES and (category != "special" or power != 150 or move_type != expected_current_hp_metadata[move_id]):
         return _unsupported("current_hp_proportional_metadata")
@@ -196,6 +200,9 @@ def evaluate_direct_damage_mechanics(
     if isinstance(acrobatics, Mapping):
         if acrobatics.get("status") != "known": return _insufficient(acrobatics.get("missing_inputs", ["attacker.item"]))
         power = acrobatics["effective_power"]
+    if isinstance(knock_off, Mapping):
+        if knock_off.get("status") != "resolved": return _insufficient(knock_off.get("missing_inputs", ["defender.item"]))
+        power = knock_off["effective_power"]
     if isinstance(current_hp_power, Mapping):
         if current_hp_power.get("status") == "not_applicable":
             return _unsupported("attacker_already_fainted")
@@ -288,7 +295,7 @@ def evaluate_direct_damage_mechanics(
     )
     defender_item_modifier = _defender_item_modifier_context(
         stat_provenance=stat_provenance, direct_defender=direct_defender, category=category,
-        move_type=move_type, defender_types=defender["types"] if defender is not None else (), hit_count=hit_count,
+        move_type=move_type, defender_types=defender["types"] if defender is not None else (), hit_count=hit_count, move_id=move_id,
     )
     defender_ability_modifier = _defender_ability_modifier_context(
         current=current, direct_defender=direct_defender, category=category, move_type=move_type,
@@ -408,6 +415,8 @@ def evaluate_direct_damage_mechanics(
         result["dynamic_power_evidence"] = deepcopy(dict(facade))
     if isinstance(acrobatics, Mapping) and acrobatics.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(acrobatics))
+    if isinstance(knock_off, Mapping) and knock_off.get("status") == "resolved":
+        result["dynamic_power_evidence"] = deepcopy(dict(knock_off))
     if isinstance(current_hp_power, Mapping) and current_hp_power.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(current_hp_power))
     if isinstance(current_hp_bracket_power, Mapping) and current_hp_bracket_power.get("status") == "known":
@@ -1086,7 +1095,7 @@ def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
 
 def _defender_item_modifier_context(
     *, stat_provenance: Mapping[str, Any], direct_defender: Mapping[str, Any], category: Any,
-    move_type: Any, defender_types: tuple[str, ...] | list[str], hit_count: int,
+    move_type: Any, defender_types: tuple[str, ...] | list[str], hit_count: int, move_id: Any = None,
 ) -> dict[str, Any]:
     """Resolve exact defender-owned Q12 items for the one prospective direct hit.
 
@@ -1140,6 +1149,10 @@ def _defender_item_modifier_context(
             DEFENDER_CHILAN_BERRY_TAG if item_id == "chilan-berry" else DEFENDER_TYPE_RESIST_BERRY_TAG
         )
         return result
+    # A Knock Off target item is separately owned by the typed Knock Off
+    # authority.  Items with no pre-hit defensive effect are neutral here.
+    if item_id not in STATIC_DEFENDER_DAMAGE_ITEMS and move_id == "knock-off":
+        return result
     if item_id not in STATIC_DEFENDER_DAMAGE_ITEMS:
         result["unsupported_reason"] = "defender_item_modifier"
         return result
@@ -1158,6 +1171,16 @@ def _acrobatics_power_context(stat_provenance: Mapping[str, Any]) -> dict[str, A
     if status == "known_absent": return {"status":"known","mechanic":"user_held_item_absence_power","move":"acrobatics","item_state":"known_absent","effective_power":110,"missing_inputs":[]}
     if status == "known" and _nonempty_str(item.get("value")): return {"status":"known","mechanic":"user_held_item_absence_power","move":"acrobatics","item_state":"known_present","effective_power":55,"missing_inputs":[]}
     return {"status":"incomplete","mechanic":"user_held_item_absence_power","move":"acrobatics","item_state":"unknown","missing_inputs":["attacker.item"]}
+
+def _knock_off_power_context(stat_provenance: Mapping[str, Any], current: Mapping[str, Any]) -> dict[str, Any]:
+    defender = _mapping(stat_provenance.get("defender"))
+    result = resolve_knock_off_target_item(
+        item_authority=_mapping(defender.get("known_item")),
+        target_species=defender.get("pokemon_identity") if isinstance(defender.get("pokemon_identity"), str) else None,
+    )
+    if result.get("status") == "resolved":
+        result["sticky_hold"] = _current_ability_id(current, "opponent") == "sticky-hold"
+    return result
 
 def _facade_power_context(current: Mapping[str, Any]) -> dict[str, Any]:
     """Resolve Facade only from one exact attacker-owned current condition."""
@@ -1535,5 +1558,6 @@ _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({
     "intimidate", "pressure", "drizzle", "drought", "sand-stream", "snow-warning",
     "skill-link", "rough-skin", "iron-barbs", "static", "flame-body", "poison-point", "effect-spore",
     "mold-breaker", "neutralizing-gas", "overcoat", "insomnia", "vital-spirit",
+    "sticky-hold",
 })
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

@@ -112,6 +112,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if recoil_error is not None: return recoil_error
     fractional_error = _fractional_target_hp_damage_leaf(first)
     if fractional_error is not None: return fractional_error
+    knock_off_error = _knock_off_item_removal_leaf(first)
+    if knock_off_error is not None: return knock_off_error
     endeavor_error = _endeavor_hp_difference_damage_leaf(first)
     if endeavor_error is not None: return endeavor_error
     final_gambit_error = _final_gambit_self_hp_damage_leaf(first)
@@ -184,6 +186,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if recoil_error is not None: return recoil_error
         fractional_error = _fractional_target_hp_damage_leaf(second_leaf)
         if fractional_error is not None: return fractional_error
+        knock_off_error = _knock_off_item_removal_leaf(second_leaf)
+        if knock_off_error is not None: return knock_off_error
         endeavor_error = _endeavor_hp_difference_damage_leaf(second_leaf)
         if endeavor_error is not None: return endeavor_error
         final_gambit_error = _final_gambit_self_hp_damage_leaf(second_leaf)
@@ -413,6 +417,35 @@ def _fractional_target_hp_damage_leaf(leaf: Mapping[str, Any]) -> str | None:
         return "fractional_target_hp_damage_post_hp_invalid"
     if route == "target" and consequences.get("target_final_hp") != hp - damage:
         return "fractional_target_hp_damage_target_route_post_hp_invalid"
+    return None
+
+
+def _knock_off_item_removal_leaf(leaf: Mapping[str, Any]) -> str | None:
+    provenance, consequences = leaf.get("provenance"), leaf.get("consequences")
+    payload = consequences.get("knock_off_item_removal") if isinstance(consequences, Mapping) else None
+    move = provenance.get("move_id") if isinstance(provenance, Mapping) else None
+    if move != "knock-off":
+        return "unexpected_knock_off_item_removal_payload" if payload is not None else None
+    authority = provenance.get("knock_off_item_removal_authority") if isinstance(provenance, Mapping) else None
+    if not isinstance(payload, Mapping) or not isinstance(authority, Mapping):
+        return "knock_off_item_removal_consequence_missing"
+    if payload.get("authority") != authority or authority.get("status") != "resolved" or authority.get("move_id") != move or authority.get("target") != provenance.get("target"):
+        return "knock_off_item_removal_authority_binding_invalid"
+    if authority.get("power_modifier_q12") not in {4096, 6144} or authority.get("boost_eligible") is not authority.get("removable") or not isinstance(authority.get("sticky_hold"), bool):
+        return "knock_off_item_removal_power_authority_invalid"
+    before, after, outcome = payload.get("item_before"), payload.get("item_after"), payload.get("outcome")
+    if authority.get("item_state") == "known_absent":
+        return None if (before is None and after is None and outcome == "not_applicable") else "knock_off_absent_item_consequence_invalid"
+    if not isinstance(before, str) or before != authority.get("item_before") or outcome not in {"removed", "not_removed"}:
+        return "knock_off_item_before_or_outcome_invalid"
+    hit = leaf.get("hit_state") == "hit" and isinstance(consequences.get("damage"), int) and consequences["damage"] > 0
+    if outcome == "removed":
+        if not hit or authority.get("removable") is not True or after is not None:
+            return "knock_off_removal_consequence_invalid"
+        if authority.get("sticky_hold") is True and consequences.get("target_final_hp") != 0:
+            return "knock_off_sticky_hold_survival_removal_invalid"
+    elif after != before:
+        return "knock_off_nonremoval_item_after_invalid"
     return None
 
 

@@ -91,6 +91,7 @@ from llm.advisor_runtime_d0_contact_reactive_status_authority import (
     freeze_runtime_d0_contact_reactive_status_authority,
 )
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
+from llm.advisor_detached_knock_off_item_removal import materialize_detached_knock_off_item_removal
 from llm.advisor_detached_drain_consequence import apply_detached_drain_consequence
 from llm.advisor_detached_damage_based_recoil_consequence import apply_detached_damage_based_recoil
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
@@ -1560,10 +1561,39 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         move_metadata=metadata,
     )
     ledger = _apply_damage_based_recoil_to_normal_ledger(runtime_snapshot=runtime_snapshot, ledger=ledger, attacker=actor, move_metadata=metadata)
-    return _apply_life_orb_to_normal_ledger(
+    ledger = _apply_life_orb_to_normal_ledger(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
         attacker=actor, target=target, source_action=source_action, move_metadata=metadata,
     )
+    return _apply_knock_off_item_removal_to_ledger(ledger=ledger, native_context=normal, target=target)
+
+
+def _apply_knock_off_item_removal_to_ledger(*, ledger: Mapping[str, Any], native_context: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+    """Attach only the typed Knock Off post-hit item consequence to a leaf."""
+    if ledger.get("status") != "evaluable":
+        return deepcopy(dict(ledger))
+    evaluation = native_context.get("native_evaluation")
+    item = evaluation.get("dynamic_power_evidence") if isinstance(evaluation, Mapping) else None
+    if not isinstance(item, Mapping) or item.get("provenance") != "canonical-knock-off-item-power-and-removal-v1":
+        return deepcopy(dict(ledger))
+    authority = {"status": "resolved", "move_id": "knock-off", "target": deepcopy(dict(target)), **deepcopy(dict(item))}
+    leaves = ledger.get("terminal_leaves")
+    if not isinstance(leaves, tuple):
+        return _result("rejected", "knock_off_ledger_leaves_invalid", {})
+    updated = []
+    for leaf in leaves:
+        if not isinstance(leaf, Mapping):
+            return _result("rejected", "knock_off_ledger_leaf_invalid", {})
+        removal = materialize_detached_knock_off_item_removal(authority=authority, source_leaf=leaf)
+        if removal.get("status") != "resolved":
+            return _result(_status(removal), removal.get("reason", "knock_off_item_removal_unavailable"), {})
+        row = deepcopy(dict(leaf))
+        row["consequences"] = {**deepcopy(dict(row.get("consequences", {}))), "knock_off_item_removal": removal}
+        row["provenance"] = {**deepcopy(dict(row.get("provenance", {}))), "knock_off_item_removal_authority": deepcopy(dict(authority))}
+        updated.append(row)
+    result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(updated)
+    result["component_manifest"] = {**deepcopy(dict(result.get("component_manifest", {}))), "knock_off_item_removal": {"status": "resolved"}}
+    return result
 
 
 def _apply_contact_reactive_to_normal_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], ledger: Mapping[str, Any], attacker: Mapping[str, Any], defender: Mapping[str, Any], source_action: Mapping[str, Any], contact_authority: Mapping[str, Any] | None) -> dict[str, Any]:
