@@ -1131,7 +1131,7 @@ def _defender_item_modifier_context(
         # The canonical Knock Off item authority has already established this
         # exact held item and its removability.  An item without a native
         # pre-hit damage modifier is neutral to this formula, not unknown.
-        if move_id == "knock-off":
+        if move_id in {"knock-off", "thief", "covet"}:
             return result
         result["unsupported_reason"] = "defender_item_modifier"
         return result
@@ -1156,7 +1156,7 @@ def _defender_item_modifier_context(
         return result
     # A Knock Off target item is separately owned by the typed Knock Off
     # authority.  Items with no pre-hit defensive effect are neutral here.
-    if item_id not in STATIC_DEFENDER_DAMAGE_ITEMS and move_id == "knock-off":
+    if item_id not in STATIC_DEFENDER_DAMAGE_ITEMS and move_id in {"knock-off", "thief", "covet"}:
         return result
     if item_id not in STATIC_DEFENDER_DAMAGE_ITEMS:
         result["unsupported_reason"] = "defender_item_modifier"

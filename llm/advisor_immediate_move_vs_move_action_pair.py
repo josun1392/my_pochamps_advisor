@@ -92,6 +92,8 @@ from llm.advisor_runtime_d0_contact_reactive_status_authority import (
 )
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_detached_knock_off_item_removal import materialize_detached_knock_off_item_removal
+from llm.advisor_detached_item_transfer_after_hit import materialize_detached_item_transfer_after_hit
+from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
 from llm.advisor_detached_drain_consequence import apply_detached_drain_consequence
 from llm.advisor_detached_damage_based_recoil_consequence import apply_detached_damage_based_recoil
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
@@ -1565,7 +1567,22 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
         attacker=actor, target=target, source_action=source_action, move_metadata=metadata,
     )
-    return _apply_knock_off_item_removal_to_ledger(ledger=ledger, native_context=normal, target=target)
+    ledger = _apply_knock_off_item_removal_to_ledger(ledger=ledger, native_context=normal, target=target)
+    return _apply_item_transfer_to_ledger(ledger=ledger, normal=normal, actor=actor, target=target, move_id=metadata["move_id"])
+
+def _apply_item_transfer_to_ledger(*,ledger:Mapping[str,Any],normal:Mapping[str,Any],actor:Mapping[str,Any],target:Mapping[str,Any],move_id:str)->dict[str,Any]:
+    if move_id not in {"thief","covet"} or ledger.get("status")!="evaluable":return deepcopy(dict(ledger))
+    p=normal.get("stat_provenance",{}); u=p.get("attacker",{}) if isinstance(p,Mapping) else {}; t=p.get("defender",{}) if isinstance(p,Mapping) else {}
+    ui=u.get("known_item",{}) if isinstance(u,Mapping) else {}; ti=t.get("known_item",{}) if isinstance(t,Mapping) else {}
+    target_item=resolve_knock_off_target_item(item_authority=ti,target_species=t.get("pokemon_identity") if isinstance(t,Mapping) else None)
+    if target_item.get("status")!="resolved" or not isinstance(ui,Mapping) or ui.get("status") not in {"known","known_absent"}:return _result("incomplete","item_transfer_item_authority_unavailable",{})
+    a={"status":"resolved","move_id":move_id,"user":deepcopy(dict(actor)),"target":deepcopy(dict(target)),"user_item_state":ui["status"],"user_item_before":ui.get("value"),"target_item_state":target_item["item_state"],"target_item_before":target_item["item_before"],"removable":target_item["removable"],"sticky_hold":target_item.get("sticky_hold",False),"target_item_authority":target_item}
+    rows=[]
+    for leaf in ledger["terminal_leaves"]:
+        x=materialize_detached_item_transfer_after_hit(authority=a,source_leaf=leaf)
+        if x.get("status")!="resolved":return _result(_status(x),x.get("reason","item_transfer_unavailable"),{})
+        r=deepcopy(dict(leaf));r["consequences"]={**r["consequences"],"item_transfer_after_hit":x};r["provenance"]={**r["provenance"],"item_transfer_authority":deepcopy(a)};rows.append(r)
+    out=deepcopy(dict(ledger));out["terminal_leaves"]=tuple(rows);return out
 
 
 def _apply_knock_off_item_removal_to_ledger(*, ledger: Mapping[str, Any], native_context: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:

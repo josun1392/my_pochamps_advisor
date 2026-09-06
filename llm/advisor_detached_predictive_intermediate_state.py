@@ -168,6 +168,9 @@ def _condition(authority: Any, effects: tuple[Mapping[str, Any], ...], role: str
 def _item(authority: Any, effects: tuple[Mapping[str, Any], ...], role: str) -> dict[str, Any]:
     result = deepcopy(dict(authority)) if isinstance(authority, Mapping) else {"status": "unknown", "reason": "current_item_authority_unknown"}
     for effect in effects:
+        item = effect.get("hypothetical_self_item")
+        if role == "self" and isinstance(item, Mapping):
+            return deepcopy(dict(item))
         item = effect.get("hypothetical_target_item")
         if role == "target" and isinstance(item, Mapping):
             return deepcopy(dict(item))
@@ -207,6 +210,9 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
         if not isinstance(authority, Mapping) or authority.get("move_id") != "knock-off" or not isinstance(knock_off.get("item_before"), str):
             return "terminal_leaf_knock_off_item_removal_invalid"
         result.append({"owner": "target", "hypothetical_target_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_knock_off_item_removal", "effect": deepcopy(dict(knock_off))}})
+    transfer = consequences.get("item_transfer_after_hit")
+    if isinstance(transfer, Mapping) and transfer.get("outcome") == "transferred" and isinstance(transfer.get("item"), str):
+        result.extend(({"owner":"self","hypothetical_self_item":{"status":"known","value":transfer["item"],"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}, {"owner":"target","hypothetical_target_item":{"status":"known_absent","value":None,"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}))
     status = consequences.get("contact_reactive_status")
     overlay = status.get("overlay") if isinstance(status, Mapping) else None
     transition = overlay.get("hypothetical_condition_authority") if isinstance(overlay, Mapping) else None
