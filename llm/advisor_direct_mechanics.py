@@ -1179,7 +1179,12 @@ def _knock_off_power_context(stat_provenance: Mapping[str, Any], current: Mappin
         target_species=defender.get("pokemon_identity") if isinstance(defender.get("pokemon_identity"), str) else None,
     )
     if result.get("status") == "resolved":
-        result["sticky_hold"] = _current_ability_id(current, "opponent") == "sticky-hold"
+        # Neutralizing Gas is an exact current ability authority in this
+        # native context and suppresses Sticky Hold; Mold Breaker does not.
+        result["sticky_hold"] = (
+            _current_ability_id(current, "opponent") == "sticky-hold"
+            and _current_ability_id(current, "self") != "neutralizing-gas"
+        )
     return result
 
 def _facade_power_context(current: Mapping[str, Any]) -> dict[str, Any]:

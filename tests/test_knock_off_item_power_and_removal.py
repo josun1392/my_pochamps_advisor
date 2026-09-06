@@ -1,5 +1,6 @@
 from advisor.canonical_knock_off_item_power_and_removal import resolve_canonical_knock_off_move, resolve_knock_off_target_item
 from llm.advisor_detached_knock_off_item_removal import materialize_detached_knock_off_item_removal
+from llm.advisor_direct_mechanics import _knock_off_power_context
 from tests.test_v15_direct_mechanics_slice_contract import _modifier_result
 
 
@@ -22,6 +23,13 @@ def test_sticky_hold_is_power_eligible_but_surviving_removal_is_blocked():
     result = materialize_detached_knock_off_item_removal(authority=authority, source_leaf=leaf)
     assert item["boost_eligible"] is True
     assert (result["outcome"], result["item_after"]) == ("not_removed", "black-belt")
+
+
+def test_neutralizing_gas_suppresses_sticky_hold_without_changing_power_eligibility():
+    provenance = {"defender": {"pokemon_identity": "eevee", "known_item": {"status": "known", "value": "black-belt"}}}
+    current = {"ability_context": {"current_abilities": [{"side": "self", "ability": "neutralizing-gas"}, {"side": "opponent", "ability": "sticky-hold"}]}}
+    result = _knock_off_power_context(provenance, current)
+    assert result["sticky_hold"] is False and result["boost_eligible"] is True
 
 
 def test_mega_owner_exception_and_typed_hit_only_removal():
