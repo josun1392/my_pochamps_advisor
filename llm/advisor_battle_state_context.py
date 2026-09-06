@@ -323,7 +323,8 @@ SPEED_POWER_SCOPE = "explicit-speed-based-move-power-only"
 _SPEED_POWER_MOVES = frozenset({"electro-ball", "gyro-ball"})
 WEIGHT_POWER_SCOPE = "explicit-weight-based-move-power-only"
 _WEIGHT_RATIO_MOVES = frozenset({"heavy-slam", "heat-crash"})
-_WEIGHT_ABSOLUTE_MOVES = frozenset({"grass-knot", "low-kick"})
+TARGET_WEIGHT_POWER_SCOPE = "explicit-target-weight-based-move-power-only"
+_TARGET_WEIGHT_MOVES = frozenset({"grass-knot", "low-kick"})
 STAT_STAGE_POWER_SCOPE = "explicit-stat-stage-based-move-power-only"
 _STAT_STAGE_SELF_POWER_MOVES = frozenset({"stored-power", "power-trip"})
 _STAT_STAGE_OPPONENT_POWER_MOVES = frozenset({"punishment"})
@@ -340,7 +341,8 @@ DYNAMIC_MOVE_RESOLUTION_SCOPE = "registered-dynamic-move-resolution-only"
 DYNAMIC_MOVE_ASSESSMENT_REGISTRY = {
     **{move: "current_hp_based_power" for move in _CURRENT_HP_PROPORTIONAL_MOVES | _CURRENT_HP_BRACKET_MOVES},
     **{move: "speed_based_power" for move in _SPEED_POWER_MOVES},
-    **{move: "weight_based_power" for move in _WEIGHT_RATIO_MOVES | _WEIGHT_ABSOLUTE_MOVES},
+    **{move: "weight_based_power" for move in _WEIGHT_RATIO_MOVES},
+    **{move: "target_weight_power" for move in _TARGET_WEIGHT_MOVES},
     **{move: "stat_stage_based_power" for move in _STAT_STAGE_SELF_POWER_MOVES | _STAT_STAGE_OPPONENT_POWER_MOVES},
     **{move: "target_hp_based_power" for move in _TARGET_HP_POWER_MOVES},
     "weather-ball": "environment_based_move",
@@ -352,7 +354,7 @@ DYNAMIC_MOVE_ASSESSMENT_REGISTRY = {
 }
 _DYNAMIC_FAMILY_KEYS = {
     "current_hp_based_power": "current_hp_based_power_assessment", "speed_based_power": "speed_based_power_assessment",
-    "weight_based_power": "weight_based_power_assessment", "stat_stage_based_power": "stat_stage_based_power_assessment",
+    "weight_based_power": "weight_based_power_assessment", "target_weight_power": "target_weight_power_assessment", "stat_stage_based_power": "stat_stage_based_power_assessment",
     "target_hp_based_power": "target_hp_based_power_assessment", "environment_based_move": "environment_based_move_assessment",
     "binary_condition_power": "binary_condition_power_assessment", "turn_event_power": "turn_event_power_assessment",
     "battle_counter_power": "battle_counter_power_assessment", "consecutive_use_power": "consecutive_use_power_assessment",
@@ -360,7 +362,7 @@ _DYNAMIC_FAMILY_KEYS = {
 DYNAMIC_MOVE_PRODUCTION_COVERAGE = {
     move: {"family": family, "assessment_key": _DYNAMIC_FAMILY_KEYS[family], "scope": {
         "current_hp_based_power": CURRENT_HP_POWER_SCOPE, "speed_based_power": SPEED_POWER_SCOPE,
-        "weight_based_power": WEIGHT_POWER_SCOPE, "stat_stage_based_power": STAT_STAGE_POWER_SCOPE,
+        "weight_based_power": WEIGHT_POWER_SCOPE, "target_weight_power": TARGET_WEIGHT_POWER_SCOPE, "stat_stage_based_power": STAT_STAGE_POWER_SCOPE,
         "target_hp_based_power": TARGET_HP_POWER_SCOPE, "environment_based_move": ENVIRONMENT_MOVE_SCOPE,
         "binary_condition_power": BINARY_CONDITION_POWER_SCOPE, "turn_event_power": TURN_EVENT_POWER_SCOPE,
         "battle_counter_power": BATTLE_COUNTER_POWER_SCOPE, "consecutive_use_power": CONSECUTIVE_USE_POWER_SCOPE,
@@ -1354,20 +1356,37 @@ def build_speed_based_power_assessment(selected_move: Mapping[str, Any] | None, 
 
 
 def build_weight_based_power_assessment(selected_move: Mapping[str, Any] | None, weight_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
-    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in _WEIGHT_RATIO_MOVES | _WEIGHT_ABSOLUTE_MOVES: return None
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in _WEIGHT_RATIO_MOVES: return None
     move = selected_move["move_id"]; base = {"move": move, "scope": WEIGHT_POWER_SCOPE}
     context = weight_context if isinstance(weight_context, Mapping) else {}
     opponent = context.get("opponent_weight")
-    if move in _WEIGHT_RATIO_MOVES and "self_weight" not in context: return {**base, "status":"unavailable","reason":"missing_self_weight"}
+    if "self_weight" not in context: return {**base, "status":"unavailable","reason":"missing_self_weight"}
     if "opponent_weight" not in context: return {**base, "status":"unavailable","reason":"missing_opponent_weight"}
-    values = [opponent] + ([context.get("self_weight")] if move in _WEIGHT_RATIO_MOVES else [])
+    values = [opponent, context.get("self_weight")]
     if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in values): return {**base, "status":"unavailable","reason":"invalid_weight_context"}
-    if move in _WEIGHT_RATIO_MOVES:
-        self_weight = context["self_weight"]
-        power = 120 if self_weight >= 5 * opponent else 100 if self_weight >= 4 * opponent else 80 if self_weight >= 3 * opponent else 60 if self_weight >= 2 * opponent else 40
-        return {**base,"rule":"self-to-opponent-weight-ratio","self_weight":self_weight,"opponent_weight":opponent,"weight_unit":"hectogram","effective_power":power,"status":"resolved"}
-    power = 120 if opponent >= 2000 else 100 if opponent >= 1000 else 80 if opponent >= 500 else 60 if opponent >= 250 else 40 if opponent >= 100 else 20
-    return {**base,"rule":"opponent-absolute-weight-bracket","opponent_weight":opponent,"weight_unit":"hectogram","effective_power":power,"status":"resolved"}
+    self_weight = context["self_weight"]
+    power = 120 if self_weight >= 5 * opponent else 100 if self_weight >= 4 * opponent else 80 if self_weight >= 3 * opponent else 60 if self_weight >= 2 * opponent else 40
+    return {**base,"rule":"self-to-opponent-weight-ratio","self_weight":self_weight,"opponent_weight":opponent,"weight_unit":"hectogram","effective_power":power,"status":"resolved"}
+
+
+def build_target_weight_power_assessment(selected_move: Mapping[str, Any] | None, weight_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """Resolve Low Kick/Grass Knot from the exact current target weight in hectograms."""
+    if not isinstance(selected_move, Mapping) or selected_move.get("move_id") not in _TARGET_WEIGHT_MOVES: return None
+    move = selected_move["move_id"]; base = {"move": move, "scope": TARGET_WEIGHT_POWER_SCOPE, "family": "target_weight_power"}
+    context = weight_context if isinstance(weight_context, Mapping) else {}
+    target_weight = context.get("opponent_weight")
+    if "opponent_weight" not in context: return {**base, "status": "unavailable", "reason": "missing_target_weight"}
+    if isinstance(target_weight, bool) or not isinstance(target_weight, int) or target_weight <= 0:
+        return {**base, "status": "unavailable", "reason": "invalid_target_weight"}
+    power, bucket = (
+        (120, "at_least_200kg") if target_weight >= 2000 else
+        (100, "100kg_to_under_200kg") if target_weight >= 1000 else
+        (80, "50kg_to_under_100kg") if target_weight >= 500 else
+        (60, "25kg_to_under_50kg") if target_weight >= 250 else
+        (40, "10kg_to_under_25kg") if target_weight >= 100 else
+        (20, "under_10kg")
+    )
+    return {**base, "rule": "target-absolute-weight-bracket", "target_weight": target_weight, "weight_unit": "hectogram", "threshold_bucket": bucket, "effective_power": power, "status": "resolved"}
 
 
 def build_stat_stage_based_power_assessment(selected_move: Mapping[str, Any] | None, stat_stage_context: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -1521,7 +1540,7 @@ def validate_dynamic_move_assessment_registry(registry: Mapping[str, str] | None
         raise ValueError("dynamic registry must be a mapping")
     expected = {
         "current_hp_based_power": _CURRENT_HP_PROPORTIONAL_MOVES | _CURRENT_HP_BRACKET_MOVES,
-        "speed_based_power": _SPEED_POWER_MOVES, "weight_based_power": _WEIGHT_RATIO_MOVES | _WEIGHT_ABSOLUTE_MOVES,
+        "speed_based_power": _SPEED_POWER_MOVES, "weight_based_power": _WEIGHT_RATIO_MOVES, "target_weight_power": _TARGET_WEIGHT_MOVES,
         "stat_stage_based_power": _STAT_STAGE_SELF_POWER_MOVES | _STAT_STAGE_OPPONENT_POWER_MOVES,
         "target_hp_based_power": _TARGET_HP_POWER_MOVES, "environment_based_move": frozenset({"weather-ball", "terrain-pulse"}),
         "binary_condition_power": frozenset({"facade", "hex", "venoshock", "brine"}),
@@ -1573,6 +1592,7 @@ def resolve_registered_dynamic_move(
         "current_hp_based_power": lambda: build_current_hp_based_power_assessment(selected_move, current_hp_context),
         "speed_based_power": lambda: build_speed_based_power_assessment(selected_move, final_stat_context, stat_stage_context, field_state_context),
         "weight_based_power": lambda: build_weight_based_power_assessment(selected_move, weight_context),
+        "target_weight_power": lambda: build_target_weight_power_assessment(selected_move, weight_context),
         "stat_stage_based_power": lambda: build_stat_stage_based_power_assessment(selected_move, stat_stage_context),
         "target_hp_based_power": lambda: build_target_hp_based_power_assessment(selected_move, current_hp_context),
         "environment_based_move": lambda: build_environment_based_move_assessment(selected_move, field_state_context),

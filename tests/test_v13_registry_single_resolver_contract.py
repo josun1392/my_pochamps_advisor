@@ -28,7 +28,7 @@ def test_ordinary_move_bypasses_registry_and_keeps_metadata_power_and_type(monke
 
     monkeypatch.setattr(battle_context, "resolve_registered_dynamic_move", registry_lookup)
     for helper_name in (
-        "build_current_hp_based_power_assessment", "build_speed_based_power_assessment", "build_weight_based_power_assessment",
+        "build_current_hp_based_power_assessment", "build_speed_based_power_assessment", "build_weight_based_power_assessment", "build_target_weight_power_assessment",
         "build_stat_stage_based_power_assessment", "build_target_hp_based_power_assessment", "build_environment_based_move_assessment",
         "build_binary_condition_power_assessment", "build_turn_event_power_assessment", "build_battle_counter_power_assessment",
         "build_consecutive_use_power_assessment",

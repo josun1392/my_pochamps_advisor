@@ -20,6 +20,7 @@ def _final_stats() -> dict[str, object]:
     ("eruption", "current_hp_based_power", "current_hp_based_power_assessment", 150, {"current_hp_context": {"current_hp": [{"side": "self", "current_hp": 100, "maximum_hp": 100}]}}),
     ("electro-ball", "speed_based_power", "speed_based_power_assessment", 80, {}),
     ("heavy-slam", "weight_based_power", "weight_based_power_assessment", 120, {"weight_context": {"self_weight": 1000, "opponent_weight": 100}}),
+    ("low-kick", "target_weight_power", "target_weight_power_assessment", 120, {"weight_context": {"opponent_weight": 2000}}),
     ("stored-power", "stat_stage_based_power", "stat_stage_based_power_assessment", 60, {"stat_stage_context": {"current_stages": [{"side": "self", "stat": "attack", "stage": 2, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]}}),
     ("crush-grip", "target_hp_based_power", "target_hp_based_power_assessment", 121, {"current_hp_context": {"current_hp": [{"side": "opponent", "current_hp": 100, "maximum_hp": 100}]}}),
     ("weather-ball", "environment_based_move", "environment_based_move_assessment", 100, {"field_state_context": {"current_field": {"weather": "rain"}}}),
@@ -34,6 +35,7 @@ def test_each_family_uses_one_registry_selected_resolver_and_propagates_power(
     helper_names = {
         "current_hp_based_power": "build_current_hp_based_power_assessment", "speed_based_power": "build_speed_based_power_assessment",
         "weight_based_power": "build_weight_based_power_assessment", "stat_stage_based_power": "build_stat_stage_based_power_assessment",
+        "target_weight_power": "build_target_weight_power_assessment",
         "target_hp_based_power": "build_target_hp_based_power_assessment", "environment_based_move": "build_environment_based_move_assessment",
         "binary_condition_power": "build_binary_condition_power_assessment", "turn_event_power": "build_turn_event_power_assessment",
         "battle_counter_power": "build_battle_counter_power_assessment", "consecutive_use_power": "build_consecutive_use_power_assessment",
