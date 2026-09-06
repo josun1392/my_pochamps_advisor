@@ -17,7 +17,7 @@ def _inputs(actor_item="choice-scarf", target_item="black-belt", actor_ability="
         row["known_item_provenance"] = {"event_kind": "current_item_observed", "trust": "user_confirmed_observation", "turn_number": 1, "status": "known" if item else "known_absent"}
     snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
     actor, target = d0["active_owners"]["self"], d0["active_owners"]["opponent"]
-    metadata = {"move_id": "trick", "category": "status", "target": "selected-pokemon"}
+    metadata = {"move_id": "trick", "category": "status", "target": "selected-pokemon", "type":"psychic", "accuracy":100, "priority":0, "contact":False}
     action = {"action_id": "attack:trick", "action_type": "attack", "identity": "trick", "move_metadata_authority": {"status": "resolved", "metadata": metadata}}
     app = {"status": "resolved", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "actor": actor, "target": target, "action_id": action["action_id"], "move_id": "trick", "outcome": "ordinary"}
     return state, snapshot, d0, action, actor, target, app

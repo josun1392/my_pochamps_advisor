@@ -13,6 +13,7 @@ from llm.advisor_exact_quick_claw_action_order_branching import (
 )
 from llm.advisor_detached_intermediate_predictive_authority import (
     freeze_detached_intermediate_predictive_authority,
+    detached_intermediate_builder_inputs,
 )
 from llm.advisor_detached_intermediate_paralysis_second_action_authority import (
     consume_detached_sleep_freeze_execution_for_second_action,
@@ -119,6 +120,7 @@ from llm.advisor_detached_disable_action_restriction import (
 )
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
+from llm.advisor_detached_atomic_item_swap_status_materializer import materialize_detached_atomic_item_swap_status
 from llm.advisor_detached_direct_heal_materializer import materialize_detached_direct_heal
 from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtime_d0_direct_heal_execution_authority
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
@@ -164,6 +166,7 @@ def materialize_immediate_move_vs_move_action_pair(
     quick_guard_priority_applicability_authority: Mapping[str, Any] | None = None,
     mat_block_direct_damage_applicability_authority: Mapping[str, Any] | None = None,
     pure_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    atomic_item_swap_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     direct_heal_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     crafty_shield_pure_status_applicability_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
@@ -187,6 +190,10 @@ def materialize_immediate_move_vs_move_action_pair(
         return _materialize_direct_heal_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,
             orders=orders, authorities=direct_heal_execution_authorities)
+    if _is_atomic_item_swap_metadata(own_meta.get("metadata")):
+        return _materialize_atomic_item_swap_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,
+            orders=orders, authorities=atomic_item_swap_status_execution_authorities, pure_status_authorities=pure_status_execution_authorities)
     if own_meta.get("metadata", {}).get("move_id") == "taunt":
         return _materialize_taunt_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta,
@@ -265,6 +272,71 @@ def materialize_immediate_move_vs_move_action_pair(
 
 def _is_direct_heal_metadata(metadata: Any) -> bool:
     return isinstance(metadata, Mapping) and metadata.get("move_id") in {"recover", "slack-off", "soft-boiled"} and metadata.get("category") == "status" and metadata.get("target") == "self"
+
+
+def _is_atomic_item_swap_metadata(metadata: Any) -> bool:
+    return isinstance(metadata, Mapping) and metadata.get("move_id") in {"trick", "switcheroo"} and metadata.get("category") == "status" and metadata.get("target") == "selected-pokemon" and metadata.get("contact") is False
+
+
+def _materialize_atomic_item_swap_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None, pure_status_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
+    """Production adapter for one selected Trick/Switcheroo action.
+
+    It owns no swap policy: the frozen authority is materialized verbatim, and
+    status-first second attacks consume the established detached item overlay.
+    """
+    authority = authorities.get(own_action.get("action_id")) if isinstance(authorities, Mapping) else None
+    if not isinstance(authority, Mapping): return _result("incomplete", "atomic_item_swap_status_execution_authority_missing", base)
+    status = materialize_detached_atomic_item_swap_status(execution_authority=authority)
+    if status.get("status") != "resolved": return _result(_status(status), status.get("reason", "atomic_item_swap_status_materialization_unavailable"), base)
+    if status.get("actor") != base["own_actor"] or status.get("target") != base["opponent_actor"] or status.get("action_id") != own_action.get("action_id") or status.get("move_id") != own_meta.get("metadata", {}).get("move_id"):
+        return _result("rejected", "atomic_item_swap_status_materialization_binding_mismatch", base)
+    swap_leaf = _atomic_item_swap_pair_leaf(status, strategy_d0)
+    if isinstance(swap_leaf, str): return _result("rejected", swap_leaf, base)
+    branches=[]
+    for plan in orders:
+        if plan["order"] == "own_first":
+            intermediate = materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=swap_leaf)
+            if intermediate.get("status") != "resolved": return _result(_status(intermediate), intermediate.get("reason", "atomic_item_swap_intermediate_unavailable"), base)
+            if _fainted(intermediate, base["opponent_actor"]): branches.append(_branch(base, plan["order"], swap_leaf, intermediate, None, base["opponent_actor"], plan)); continue
+            if opponent_meta.get("metadata", {}).get("category") == "status":
+                pure = pure_status_authorities.get(opponent_action.get("action_id")) if isinstance(pure_status_authorities, Mapping) else None
+                materialized = materialize_detached_pure_status_action(execution_authority=pure) if isinstance(pure, Mapping) else {"status":"incomplete"}
+                second = _pure_status_pair_leaf(materialized, strategy_d0)
+                if isinstance(second, str): return _result("incomplete", "atomic_item_swap_pending_status_second_action_unavailable", base)
+                branches.append(_branch(base, plan["order"], swap_leaf, intermediate, second, base["opponent_actor"], plan)); continue
+            if opponent_meta.get("metadata", {}).get("category") not in {"physical", "special"}: return _result("incomplete", "atomic_item_swap_pending_status_second_action_unavailable", base)
+            detached = freeze_detached_intermediate_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, intermediate_state=intermediate, actor=base["opponent_actor"], target=base["own_actor"], move_metadata_authority=opponent_meta)
+            if detached.get("status") != "resolved": return _result(_status(detached), detached.get("reason", "atomic_item_swap_second_action_authority_unavailable"), base)
+            inputs = detached_intermediate_builder_inputs(detached)
+            if inputs.get("status") != "resolved": return _result(_status(inputs), inputs.get("reason", "atomic_item_swap_second_action_inputs_unavailable"), base)
+            second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"], actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(opponent_meta, inputs), action=opponent_action)
+            if second.get("status") != "evaluable": return _result(_status(second), second.get("reason", "atomic_item_swap_second_action_ledger_unavailable"), base)
+            for leaf in second["terminal_leaves"]: branches.append(_branch(base, plan["order"], swap_leaf, intermediate, leaf, base["opponent_actor"], plan))
+            continue
+        # The earlier action remains entirely pre-swap.  A status second action
+        # is represented by the already-bound exact authority; item-changing
+        # first attacks are deliberately not silently rebased here.
+        if opponent_meta.get("metadata", {}).get("category") not in {"physical", "special"}: return _result("incomplete", "atomic_item_swap_first_status_action_unavailable", base)
+        root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
+        if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "atomic_item_swap_opponent_root_unavailable"), base)
+        first = _attack_ledger(strategy_d0=root["predictive_strategy_d0"], runtime_snapshot=root["predictive_runtime_snapshot"], actor=base["opponent_actor"], target=base["own_actor"], metadata_authority=opponent_meta, action=opponent_action)
+        if first.get("status") != "evaluable": return _result(_status(first), first.get("reason", "atomic_item_swap_first_action_ledger_unavailable"), base)
+        for leaf in first["terminal_leaves"]:
+            if any(isinstance(leaf.get("consequences", {}).get(key), Mapping) for key in ("knock_off_item_removal", "item_transfer_after_hit")): return _result("incomplete", "atomic_item_swap_item_mutating_first_action_requires_branch_authority", base)
+            branches.append(_branch(base, plan["order"], leaf, {}, swap_leaf, base["own_actor"], plan))
+    mass=sum((_fraction(row["probability"]) for row in branches), Fraction())
+    if mass != Fraction(1,1): return _result("rejected", "atomic_item_swap_pair_probability_mass_not_one", base)
+    return {"status":"evaluable", "schema_version":SCHEMA_VERSION, "horizon":HORIZON, **deepcopy(dict(base)), "action_order":{"atomic_item_swap":"external_exact_order_authority"}, "terminal_branches":tuple(branches), "terminal_probability_mass":_fd(mass), "aggregation":"none_preserve_atomic_item_swap_leaf_identity", "provenance":"strict_atomic_item_swap_status_immediate_pair_materialization_v1"}
+
+
+def _atomic_item_swap_pair_leaf(materialized: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any] | str:
+    actor, target = materialized.get("actor"), materialized.get("target")
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    own_hp = active.get(actor.get("side"), {}).get("current_hp") if isinstance(actor, Mapping) else None
+    target_hp = active.get(target.get("side"), {}).get("current_hp") if isinstance(target, Mapping) else None
+    transition = materialized.get("item_transition")
+    if not _hp(own_hp) or not _hp(target_hp) or not isinstance(transition, Mapping): return "atomic_item_swap_pair_leaf_shape_invalid"
+    return {"leaf_id":f"{materialized['action_id']}:{materialized['outcome']}", "candidate_id":materialized["action_id"], "action_type":"attack", "branch_path":("atomic_item_swap_status", materialized["outcome"]), "probability":deepcopy(materialized["probability"]), "hit_state":"not_applicable", "critical_state":"not_applicable", "damage_roll":"not_applicable", "consequences":{"damage":0,"own_final_hp":own_hp,"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":own_hp==0,"secondary":None,"contact":"not_applicable","atomic_item_swap_status":deepcopy(transition)}, "provenance":{"session_id":materialized["session_id"],"source_runtime_fingerprint":materialized["source_runtime_fingerprint"],"source_branch_fingerprint":materialized["source_branch_fingerprint"],"decision_owner":deepcopy(materialized["decision_owner"]),"attacker":deepcopy(actor),"target":deepcopy(target),"move_id":materialized["move_id"],"atomic_item_swap_status_execution_authority":deepcopy(transition["authority"])}}
 
 
 def _materialize_direct_heal_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:

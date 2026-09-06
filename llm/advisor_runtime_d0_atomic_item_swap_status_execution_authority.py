@@ -25,6 +25,8 @@ def freeze_runtime_d0_atomic_item_swap_status_execution_authority(*, strategy_d0
     canonical = resolve_canonical_atomic_item_swap_status_move(move=move)
     if canonical.get("status") != "resolved":
         return _result(canonical.get("status", "rejected"), canonical.get("reason", "atomic_item_swap_move_unavailable"), base, canonical_move=canonical)
+    if canonical.get("move_id") != base["selected_move_id"]:
+        return _result("rejected", "atomic_item_swap_selected_execution_move_mismatch", base, canonical_move=canonical)
     applicability = _applicability(execution_applicability_authority, base)
     if isinstance(applicability, Mapping) and applicability.get("error"):
         return _result(applicability["status"], applicability["reason"], base, canonical_move=canonical)

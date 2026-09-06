@@ -55,10 +55,15 @@ def freeze_detached_intermediate_predictive_authority(
         if values["item"].get("source") in {"exact_terminal_leaf_focus_sash_consumption", "exact_terminal_leaf_knock_off_item_removal", "exact_terminal_leaf_item_transfer", "exact_terminal_leaf_atomic_item_swap_status"}:
             raw["known_item"] = values["item"].get("value")
             raw["known_item_provenance"] = {
-                "event_kind": "item_consumption_observed" if values["item"].get("source") == "exact_terminal_leaf_focus_sash_consumption" else "item_removed_observed",
+                "event_kind": "current_item_observed",
                 "turn_number": 1,
-                "trust": "detached_hypothetical",
+                # This lives only in the separately tagged synthetic snapshot;
+                # the strict reducer validator accepts current-item records
+                # with this trust shape, while `source` below preserves that it
+                # is not current D0 authority.
+                "trust": "user_confirmed_observation",
                 "source": values["item"]["source"],
+                "status": values["item"].get("status"),
             }
         raw["detached_intermediate_predictive_authority"] = True
     # A status change has exact hypothetical provenance but cannot be written

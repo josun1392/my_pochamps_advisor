@@ -15,7 +15,11 @@ def resolve_canonical_atomic_item_swap_status_move(*, move: Mapping[str, Any] | 
     move_id = move.get("move_id") if isinstance(move, Mapping) else None
     if move_id not in _MOVES:
         return {"status": "unsupported", "move_id": move_id, "reason": "move_not_in_atomic_item_swap_status_catalog"}
-    expected = {"move_id": move_id, "category": "status", "target": "selected-pokemon"}
+    metadata = {
+        "trick": {"type": "psychic", "accuracy": 100, "priority": 0},
+        "switcheroo": {"type": "dark", "accuracy": 100, "priority": 0},
+    }[move_id]
+    expected = {"move_id": move_id, "category": "status", "target": "selected-pokemon", "contact": False, **metadata}
     if not isinstance(move, Mapping) or any(move.get(key) != value for key, value in expected.items()):
         return {"status": "rejected", "move_id": move_id, "reason": "atomic_item_swap_status_metadata_mismatch"}
     return {"status": "resolved", "move_id": move_id,

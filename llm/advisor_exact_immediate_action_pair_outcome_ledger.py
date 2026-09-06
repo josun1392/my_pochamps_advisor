@@ -116,6 +116,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if knock_off_error is not None: return knock_off_error
     transfer_error = _item_transfer_leaf(first)
     if transfer_error is not None: return transfer_error
+    swap_error = _atomic_item_swap_leaf(first)
+    if swap_error is not None: return swap_error
     endeavor_error = _endeavor_hp_difference_damage_leaf(first)
     if endeavor_error is not None: return endeavor_error
     final_gambit_error = _final_gambit_self_hp_damage_leaf(first)
@@ -192,6 +194,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if knock_off_error is not None: return knock_off_error
         transfer_error = _item_transfer_leaf(second_leaf)
         if transfer_error is not None: return transfer_error
+        swap_error = _atomic_item_swap_leaf(second_leaf)
+        if swap_error is not None: return swap_error
         endeavor_error = _endeavor_hp_difference_damage_leaf(second_leaf)
         if endeavor_error is not None: return endeavor_error
         final_gambit_error = _final_gambit_self_hp_damage_leaf(second_leaf)
@@ -463,6 +467,33 @@ def _item_transfer_leaf(leaf: Mapping[str, Any]) -> str | None:
   if a.get("user_item_state")!="known_absent" or a.get("target_item_state")!="known_present" or a.get("removable") is not True or a.get("sticky_hold") is True or not isinstance(item,str) or leaf.get("hit_state")!="hit" or not isinstance(hit,Mapping) or hit.get("target_routing")!="target" or c.get("self_fainted") is True or x.get("item")!=item or x.get("user_item_after")!=item or x.get("target_item_after") is not None:return "item_transfer_consequence_invalid"
  elif x.get("outcome")!="not_transferred" or x.get("user_item_after")!=a.get("user_item_before") or x.get("target_item_after")!=a.get("target_item_before"):return "item_transfer_nontransfer_consequence_invalid"
  return None
+
+
+def _atomic_item_swap_leaf(leaf: Mapping[str, Any]) -> str | None:
+    p, c = leaf.get("provenance"), leaf.get("consequences")
+    move = p.get("move_id") if isinstance(p, Mapping) else None
+    transition = c.get("atomic_item_swap_status") if isinstance(c, Mapping) else None
+    if move not in {"trick", "switcheroo"}:
+        return "unexpected_atomic_item_swap_payload" if transition is not None else None
+    authority = p.get("atomic_item_swap_status_execution_authority") if isinstance(p, Mapping) else None
+    if not isinstance(transition, Mapping) or not isinstance(authority, Mapping) or transition.get("authority") != authority:
+        return "atomic_item_swap_authority_binding_invalid"
+    if authority.get("move_id") != move or authority.get("actor") != p.get("attacker") or authority.get("target") != p.get("target"):
+        return "atomic_item_swap_identity_binding_invalid"
+    before_a, before_t = transition.get("actor_item_before"), transition.get("target_item_before")
+    after_a, after_t = transition.get("actor_item_after"), transition.get("target_item_after")
+    valid = lambda x: isinstance(x, Mapping) and ((x.get("state") == "known_present" and isinstance(x.get("item"), str) and bool(x["item"])) or (x.get("state") == "known_absent" and x.get("item") is None))
+    if not all(valid(x) for x in (before_a, before_t, after_a, after_t)):
+        return "atomic_item_swap_item_state_invalid"
+    outcome = transition.get("outcome")
+    if outcome == "executed_swap":
+        if after_a != before_t or after_t != before_a or authority.get("outcome") != outcome:
+            return "atomic_item_swap_atomic_after_state_invalid"
+    elif outcome in {"failed_both_no_item", "failed_item_restriction", "blocked_sticky_hold", "blocked_protection"}:
+        if after_a != before_a or after_t != before_t or authority.get("outcome") != outcome:
+            return "atomic_item_swap_nontransition_state_invalid"
+    else: return "atomic_item_swap_outcome_invalid"
+    return None
 
 
 def _focus_sash_leaf(leaf: Mapping[str, Any]) -> str | None:
