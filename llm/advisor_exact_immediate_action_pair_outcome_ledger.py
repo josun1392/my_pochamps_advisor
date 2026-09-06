@@ -120,6 +120,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if retaliation_error is not None: return retaliation_error
     power_error = _was_damaged_power_leaf(first)
     if power_error is not None: return power_error
+    assurance_error = _target_was_damaged_power_leaf(first)
+    if assurance_error is not None: return assurance_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -180,6 +182,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if retaliation_error is not None: return retaliation_error
         power_error = _was_damaged_power_leaf(second_leaf)
         if power_error is not None: return power_error
+        assurance_error = _target_was_damaged_power_leaf(second_leaf)
+        if assurance_error is not None: return assurance_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -257,6 +261,22 @@ def _was_damaged_power_leaf(leaf: Mapping[str, Any]) -> str | None:
             return "was_damaged_power_source_event_invalid"
     elif hit is not None:
         return "was_damaged_power_false_condition_has_hit"
+    return None
+
+
+def _target_was_damaged_power_leaf(leaf: Mapping[str, Any]) -> str | None:
+    provenance = leaf.get("provenance")
+    if not isinstance(provenance, Mapping): return "target_was_damaged_power_leaf_provenance_invalid"
+    move, authority = provenance.get("move_id"), provenance.get("target_was_damaged_power_authority")
+    if move != "assurance": return "unexpected_target_was_damaged_power_authority" if authority is not None else None
+    if not isinstance(authority, Mapping) or authority.get("status") != "resolved" or authority.get("schema_version") != "detached-target-was-damaged-power-authority-v1": return "target_was_damaged_power_authority_missing_or_invalid"
+    condition = authority.get("target_was_damaged_before_execution")
+    if authority.get("move_id") != "assurance" or authority.get("trigger_family") != "target_was_damaged_this_turn" or authority.get("canonical_base_power") != 60 or not isinstance(condition, bool) or authority.get("selected_base_power") != (120 if condition else 60): return "target_was_damaged_power_condition_or_base_power_invalid"
+    if authority.get("user") != provenance.get("attacker") or authority.get("target") != provenance.get("target"): return "target_was_damaged_power_target_identity_invalid"
+    event = authority.get("qualifying_damage_event")
+    if not condition: return None if event is None else "target_was_damaged_power_false_condition_has_event"
+    allowed = {"direct_attack_damage", "damage_based_recoil", "life_orb_recoil", "contact_reactive_damage"}
+    if not isinstance(event, Mapping) or event.get("target") != provenance.get("target") or event.get("event_order") != "before_assurance_execution" or event.get("source_kind") not in allowed or not isinstance(event.get("actual_hp_loss"), int) or event["actual_hp_loss"] <= 0 or not isinstance(event.get("pair_branch_source_leaf_id"), str): return "target_was_damaged_power_qualifying_event_invalid"
     return None
 
 
