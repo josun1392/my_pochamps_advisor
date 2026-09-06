@@ -8,11 +8,13 @@ def test_catalog_and_exact_item_power_states():
     effect = resolve_canonical_knock_off_move(move={"move_id": "knock-off"})["effect"]
     assert (effect["type"], effect["category"], effect["base_power"], effect["accuracy"], effect["priority"], effect["contact"], effect["protection_blockable"]) == ("dark", "physical", 65, 100, 0, True, True)
     present = _modifier_result(move_id="knock-off", move_type="dark", power=65, defender_item="black-belt")
+    neutral = _modifier_result(move_id="knock-off", move_type="dark", power=65, defender_item="bright-powder")
     unknown = _modifier_result(move_id="knock-off", move_type="dark", power=65, defender_item="unknown")
     absent = resolve_knock_off_target_item(item_authority={"status": "known_absent"}, target_species="eevee")
     assert absent["power_modifier_q12"] == 4096
     assert present["dynamic_power_evidence"]["power_modifier_q12"] == 6144
     assert present["dynamic_power_evidence"]["effective_power"] == 98
+    assert neutral["status"] == "known" and neutral["dynamic_power_evidence"]["boost_eligible"] is True
     assert unknown["status"] == "insufficient_context"
 
 

@@ -1128,6 +1128,11 @@ def _defender_item_modifier_context(
         return result
     effect = get_item(item_id)
     if effect is None:
+        # The canonical Knock Off item authority has already established this
+        # exact held item and its removability.  An item without a native
+        # pre-hit damage modifier is neutral to this formula, not unknown.
+        if move_id == "knock-off":
+            return result
         result["unsupported_reason"] = "defender_item_modifier"
         return result
     if effect.kind == "type_resist_berry":
