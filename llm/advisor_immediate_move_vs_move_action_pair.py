@@ -1576,7 +1576,11 @@ def _apply_item_transfer_to_ledger(*,ledger:Mapping[str,Any],normal:Mapping[str,
     ui=u.get("known_item",{}) if isinstance(u,Mapping) else {}; ti=t.get("known_item",{}) if isinstance(t,Mapping) else {}
     target_item=resolve_knock_off_target_item(item_authority=ti,target_species=t.get("pokemon_identity") if isinstance(t,Mapping) else None)
     if target_item.get("status")!="resolved" or not isinstance(ui,Mapping) or ui.get("status") not in {"known","known_absent"}:return _result("incomplete","item_transfer_item_authority_unavailable",{})
-    a={"status":"resolved","move_id":move_id,"user":deepcopy(dict(actor)),"target":deepcopy(dict(target)),"user_item_state":ui["status"],"user_item_before":ui.get("value"),"target_item_state":target_item["item_state"],"target_item_before":target_item["item_before"],"removable":target_item["removable"],"sticky_hold":target_item.get("sticky_hold",False),"target_item_authority":target_item}
+    current=normal.get("snapshot_damage_input",{}).get("battle_context",{}).get("current_state",{}) if isinstance(normal.get("snapshot_damage_input"),Mapping) else {}
+    abilities=current.get("ability_context",{}).get("current_abilities",[]) if isinstance(current,Mapping) else []
+    ability={row.get("side"):row.get("ability") for row in abilities if isinstance(row,Mapping)} if isinstance(abilities,list) else {}
+    sticky=ability.get("opponent")=="sticky-hold" and ability.get("self")!="neutralizing-gas"
+    a={"status":"resolved","move_id":move_id,"user":deepcopy(dict(actor)),"target":deepcopy(dict(target)),"user_item_state":ui["status"],"user_item_before":ui.get("value"),"target_item_state":target_item["item_state"],"target_item_before":target_item["item_before"],"removable":target_item["removable"],"sticky_hold":sticky,"target_item_authority":target_item}
     rows=[]
     for leaf in ledger["terminal_leaves"]:
         x=materialize_detached_item_transfer_after_hit(authority=a,source_leaf=leaf)
