@@ -922,6 +922,7 @@ def build_runtime_d0_native_damage_context(
     analytic_action_order_authority: Mapping[str, Any] | None = None,
     stakeout_switch_authority: Mapping[str, Any] | None = None,
     supreme_overlord_damage_authority: Mapping[str, Any] | None = None,
+    was_damaged_power_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -1010,6 +1011,10 @@ def build_runtime_d0_native_damage_context(
         for row in current["condition_context"]["current_conditions"]:
             if row.get("side") == "opponent":
                 row["hypothetical_source"] = "exact_detached_sparkling_aria_pre_hit_burn"
+    if move["move_id"] in {"avalanche", "revenge"}:
+        if not _exact_was_damaged_power_authority(was_damaged_power_authority, strategy_d0=strategy_d0, attacker=attacker, target=target, move=move):
+            return _native_context_result("rejected", "was_damaged_power_authority_invalid")
+        current["detached_was_damaged_power_authority"] = deepcopy(dict(was_damaged_power_authority))
     damage_input = {
         "attacker": {**deepcopy(dict(attacker)), "session_id": strategy_d0["session_id"]},
         "defender": {**deepcopy(dict(target)), "session_id": strategy_d0["session_id"]},
@@ -1048,6 +1053,16 @@ def build_runtime_d0_native_damage_context(
 
 def _native_context_result(status: str, reason: str) -> dict[str, Any]:
     return {"status": status, "schema_version": "runtime-d0-native-damage-context-v1", "reason": reason}
+
+
+def _exact_was_damaged_power_authority(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], move: Mapping[str, Any]) -> bool:
+    if not isinstance(value, Mapping) or value.get("status") != "resolved" or value.get("schema_version") != "detached-was-damaged-by-target-power-authority-v2":
+        return False
+    expected = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "user": attacker, "target": target, "move_id": move["move_id"], "canonical_base_power": 60}
+    if any(value.get(key) != item for key, item in expected.items()):
+        return False
+    condition = value.get("was_damaged_by_target_before_execution")
+    return isinstance(condition, bool) and value.get("selected_base_power") == (120 if condition else 60)
 
 
 def _exact_sparkling_aria_pre_hit_burn_authority(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any]) -> bool:

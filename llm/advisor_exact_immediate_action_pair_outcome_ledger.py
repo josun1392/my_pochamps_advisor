@@ -118,6 +118,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if final_gambit_error is not None: return final_gambit_error
     retaliation_error = _recent_damage_retaliation_leaf(first)
     if retaliation_error is not None: return retaliation_error
+    power_error = _was_damaged_power_leaf(first)
+    if power_error is not None: return power_error
     if not isinstance(second, Mapping) or second.get("state") not in {"executed", "cancelled_due_to_faint", "cancelled_due_to_paralysis", "cancelled_due_to_flinch", "executed_protection", "prevented_by_protection"}: return "second_action_branch_invalid"
     conditional = _fraction(second.get("conditional_probability"))
     if conditional <= 0: return "second_action_probability_invalid"
@@ -176,6 +178,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if final_gambit_error is not None: return final_gambit_error
         retaliation_error = _recent_damage_retaliation_leaf(second_leaf)
         if retaliation_error is not None: return retaliation_error
+        power_error = _was_damaged_power_leaf(second_leaf)
+        if power_error is not None: return power_error
         second_status_error = _contact_reactive_status_leaf(second_leaf)
         if second_status_error is not None: return second_status_error
         second_low_hp_error = _low_hp_type_leaf(second_leaf)
@@ -227,6 +231,32 @@ def _recent_damage_retaliation_leaf(leaf: Mapping[str, Any]) -> str | None:
         raw=max(1,(event["hp_lost"]*expected["multiplier"]["numerator"])//expected["multiplier"]["denominator"]) if isinstance(event,Mapping) and isinstance(event.get("hp_lost"),int) else None
         if not isinstance(event,Mapping) or event.get("status")!="resolved" or event.get("recipient")!=p.get("attacker") or event.get("source_attacker")!=p.get("target") or event.get("source_category") not in categories or event.get("qualifying_event") is not True or not isinstance(event.get("hp_lost"),int) or event["hp_lost"]<0 or damage!=raw: return "recent_damage_retaliation_event_binding_invalid"
     elif damage != 0: return "recent_damage_retaliation_failure_damage_invalid"
+    return None
+
+
+def _was_damaged_power_leaf(leaf: Mapping[str, Any]) -> str | None:
+    provenance = leaf.get("provenance")
+    if not isinstance(provenance, Mapping):
+        return "was_damaged_power_leaf_provenance_invalid"
+    move = provenance.get("move_id")
+    authority = provenance.get("was_damaged_power_authority")
+    if move not in {"avalanche", "revenge"}:
+        return "unexpected_was_damaged_power_authority" if authority is not None else None
+    if not isinstance(authority, Mapping) or authority.get("status") != "resolved" or authority.get("schema_version") != "detached-was-damaged-by-target-power-authority-v2":
+        return "was_damaged_power_authority_missing_or_invalid"
+    condition = authority.get("was_damaged_by_target_before_execution")
+    if authority.get("move_id") != move or authority.get("canonical_base_power") != 60 or not isinstance(condition, bool) or authority.get("selected_base_power") != (120 if condition else 60):
+        return "was_damaged_power_condition_or_base_power_invalid"
+    if authority.get("user") != provenance.get("attacker") or authority.get("target") != provenance.get("target"):
+        return "was_damaged_power_target_identity_invalid"
+    event, hit = authority.get("source_event"), authority.get("qualifying_hit_provenance")
+    if condition:
+        if not isinstance(hit, Mapping) or hit.get("target_routing") != "target" or not isinstance(hit.get("actual_hp_loss"), int) or hit["actual_hp_loss"] <= 0:
+            return "was_damaged_power_qualifying_hit_invalid"
+        if not isinstance(event, Mapping) or event.get("status") != "resolved" or event.get("recipient") != provenance.get("attacker") or event.get("source_attacker") != provenance.get("target") or event.get("damage_route") != "target" or not isinstance(event.get("hp_lost"), int) or event["hp_lost"] < 0:
+            return "was_damaged_power_source_event_invalid"
+    elif hit is not None:
+        return "was_damaged_power_false_condition_has_hit"
     return None
 
 

@@ -1296,6 +1296,13 @@ def _environment_transformation_context(*, move_id: str, current: Mapping[str, A
 
 def _turn_event_power_context(*, move_id: str, current: Mapping[str, Any]) -> dict[str, Any]:
     """Resolve only a matching trusted same-turn observation predicate."""
+    detached = current.get("detached_was_damaged_power_authority")
+    if move_id in {"avalanche", "revenge"} and isinstance(detached, Mapping):
+        condition = detached.get("was_damaged_by_target_before_execution")
+        power = detached.get("selected_base_power")
+        if detached.get("status") == "resolved" and detached.get("schema_version") == "detached-was-damaged-by-target-power-authority-v2" and detached.get("move_id") == move_id and detached.get("canonical_base_power") == 60 and isinstance(condition, bool) and power == (120 if condition else 60):
+            return {"status": "known", "mechanic": "turn_event_power", "move": move_id, "predicate": "target_caused_positive_direct_hp_damage_earlier_this_turn", "occurred": condition, "effective_power": power, "rule": "exact-detached-was-damaged-by-target-before-execution", "missing_inputs": [], "authority": deepcopy(dict(detached))}
+        return {"status": "insufficient_context", "missing_inputs": ["detached_was_damaged_power_authority"]}
     context = current.get("turn_event_context")
     if not isinstance(context, Mapping) or context.get("status") != "known" or context.get("projection_source") != "runtime_same_turn_event_projection" or not isinstance(context.get("turn_number"), int) or isinstance(context.get("turn_number"), bool):
         return {"status": "insufficient_context", "missing_inputs": ["same_turn_event"]}
