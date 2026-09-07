@@ -37,6 +37,12 @@ def normalize_exact_immediate_action_pair_outcome_ledger(*, pair: Mapping[str, A
     if pair.get("schema_version") == "champions-status-gated-immediate-action-pair-v1":
         from llm.advisor_champions_status_gated_pair import normalize_champions_status_gated_pair
         return normalize_champions_status_gated_pair(pair)
+    if pair.get("schema_version") == "champions-confusion-gated-immediate-action-pair-v1":
+        from llm.advisor_champions_confusion_gated_pair import normalize_champions_confusion_gated_pair
+        return normalize_champions_confusion_gated_pair(pair)
+    if pair.get("schema_version") == "champions-status-confusion-gated-immediate-action-pair-v1":
+        from llm.advisor_champions_status_confusion_gated_pair import normalize_champions_status_confusion_gated_pair
+        return normalize_champions_status_confusion_gated_pair(pair)
     base = _base(pair)
     if base is None or pair.get("schema_version") not in PAIR_SCHEMAS or pair.get("horizon") != HORIZON:
         return _result("rejected", "immediate_action_pair_binding_or_schema_invalid")

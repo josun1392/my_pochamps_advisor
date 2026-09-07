@@ -190,6 +190,12 @@ def materialize_immediate_move_vs_move_action_pair(
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
     status_members = [runtime_snapshot.get("state", {}).get(f"{owner['side']}_side", {}).get("pokemon", {}).get(owner["slot_index"], {}) for owner in (base["own_actor"], base["opponent_actor"])]
+    if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and any(member.get("current_confusion") == "confused" for member in status_members):
+        from llm.advisor_champions_status_confusion_gated_pair import materialize_champions_status_confusion_gated_pair
+        return materialize_champions_status_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority)
+    if any(member.get("current_confusion") == "confused" for member in status_members) and not any(member.get("condition") in {"sleep", "freeze"} for member in status_members):
+        from llm.advisor_champions_confusion_gated_pair import materialize_champions_confusion_gated_pair
+        return materialize_champions_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority)
     if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and (not pending_status_execution_authorities or any(member.get("champions_status_progression") for member in status_members)):
         extensions = (first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority,
             opponent_protection_success_authority, incoming_contact_authority, silk_trap_reactive_interaction_authority,
