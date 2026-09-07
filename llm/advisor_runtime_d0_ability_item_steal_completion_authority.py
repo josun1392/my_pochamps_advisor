@@ -17,11 +17,13 @@ def freeze_runtime_d0_ability_item_steal_completion_from_snapshot(*,strategy_d0:
         return roster.get(owner.get("slot_index")) if isinstance(roster,Mapping) else None
     holder,donor_raw=raw(ability_holder),raw(donor)
     if not isinstance(holder,Mapping) or not isinstance(donor_raw,Mapping):return _bad("rejected","ability_item_steal_runtime_identity_invalid")
-    ability_value=holder.get("current_ability"); ability_state={"status":"active" if ability_value==ability else "suppressed" if isinstance(ability_value,str) else "unknown","value":ability_value}
+    ability_value=holder.get("current_ability"); donor_ability=donor_raw.get("current_ability")
+    gas=ability_value=="neutralizing-gas" or donor_ability=="neutralizing-gas"
+    ability_state={"status":"active" if ability_value==ability and not gas else "suppressed" if isinstance(ability_value,str) else "unknown","value":ability_value,"neutralizing_gas_active":gas}
     item=lambda row:{"status":"known","value":row.get("known_item")} if isinstance(row.get("known_item"),str) and row.get("known_item") else {"status":"known_absent","value":None} if row.get("known_item") is None and isinstance(row.get("known_item_provenance"),Mapping) else {"status":"unknown","value":None}
     receiver_item,donor_item=item(holder),item(donor_raw)
     bindings={"ability_id":ability,"trigger_direction":trigger_direction,"ability_holder":deepcopy(dict(ability_holder)),"receiver":deepcopy(dict(ability_holder)),"donor":deepcopy(dict(donor)),"session_id":strategy_d0.get("session_id"),"source_runtime_fingerprint":strategy_d0.get("source_runtime_fingerprint"),"source_branch_fingerprint":strategy_d0.get("strategy_preview_fingerprint"),"action_id":completion.get("action_id"),"move_id":completion.get("move_id")}
-    legality={"status":"resolved","transferable":True,"sticky_hold_active":donor_raw.get("current_ability")=="sticky-hold"}
+    legality={"status":"resolved","transferable":True,"sticky_hold_active":donor_ability=="sticky-hold" and not gas,"donor_ability":donor_ability,"neutralizing_gas_active":gas}
     return freeze_runtime_d0_ability_item_steal_completion_authority(bindings=bindings,ability_state=ability_state,receiver_item=receiver_item,donor_item=donor_item,legality=legality,completion=completion,contact=contact,sheer_force=sheer_force)
 
 def freeze_runtime_d0_ability_item_steal_completion_authority(*, bindings:Mapping[str,Any], ability_state:Mapping[str,Any], receiver_item:Mapping[str,Any], donor_item:Mapping[str,Any], legality:Mapping[str,Any], completion:Mapping[str,Any], contact:Mapping[str,Any]|None=None, sheer_force:Mapping[str,Any]|None=None)->dict[str,Any]:
