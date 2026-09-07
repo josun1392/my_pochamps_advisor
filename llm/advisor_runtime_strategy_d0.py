@@ -1444,7 +1444,9 @@ def _native_condition_entries(attacker: Mapping[str, Any], target: Mapping[str, 
             and condition in {"poison", "toxic"}
         )
         detached_intermediate_view = raw.get("detached_intermediate_predictive_authority") is True
+        champions_gate = raw.get("detached_champions_status_gate_view") is True
         rows.append({
+            **({"champions_status_gate": True} if champions_gate else {}),
             "side": side, "condition_type": condition or "unknown",
             "status": "user_confirmed" if condition else "unknown",
             "source": "user_confirmed_current_condition" if condition else "unknown",

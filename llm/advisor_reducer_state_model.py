@@ -24,6 +24,7 @@ _TARGETS["initialize_supreme_overlord_active_entry"] = "state.supreme_overlord_f
 _TARGETS["apply_taunt_restriction"] = "state.current_taunt_restrictions"
 _TARGETS["complete_restricted_active_turn"] = "state.current_taunt_restrictions"
 _TARGETS["record_executed_move"] = "pokemon.last_executed_move"
+_TARGETS["record_champions_status_progression"] = "pokemon.champions_status_progression"
 _TARGETS["record_previous_action_result"] = "pokemon.previous_action_result"
 _TARGETS["initialize_rage_fist_hit_count"] = "pokemon.rage_fist_hit_count"
 _TARGETS["record_rage_fist_qualifying_hit"] = "pokemon.rage_fist_hit_count"
@@ -660,7 +661,7 @@ def _value(event, name):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
+    if effect in {"record_champions_status_progression", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
     if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_pending_status_action_execution", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
@@ -744,6 +745,15 @@ def _apply(state, event):
         return _mark_first_end_of_turn_reached(state, event)
     if effect == "set_current_type":
         return _set_current_type(state, event)
+    if effect == "record_champions_status_progression":
+        from llm.advisor_champions_status_progression import observe_progression
+        pokemon = _pokemon(state, event)
+        if pokemon is None or not _active_identity_matches(state, _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id")) or pokemon.get("fainted") is True:
+            return _conflict(event, "invalid_champions_status_progression_owner")
+        data = {k: _value(event, k) for k in ("side", "slot_index", "pokemon_id", "condition", "origin_id", "established_turn", "prior_attempts", "sleep_duration", "turn_number", "trust")}
+        data["session_id"] = state["session_id"]
+        error = observe_progression(state=state, pokemon=pokemon, event=data)
+        return _conflict(event, error) if error else None
     if effect == "set_current_condition":
         return _set_current_condition(state, event)
     if effect == "set_pending_status_action_execution":

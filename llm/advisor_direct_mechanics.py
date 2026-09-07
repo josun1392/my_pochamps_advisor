@@ -313,6 +313,7 @@ def evaluate_direct_damage_mechanics(
     legacy_modifier_reason = _unsupported_modifier(
         {**direct_attacker, "ability": _KNOWN_ABSENT, "item": _KNOWN_ABSENT}, {**direct_defender, "ability": _KNOWN_ABSENT}, {},
         allow_exact_detached_condition=_has_exact_detached_condition(current),
+        allow_champions_status_gate=_champions_status_gate_condition(current),
         allow_exact_guts_condition=isinstance(ability_modifier.get("guts_applicability"), Mapping),
         allow_exact_detached_switch_entry_condition=_has_exact_detached_switch_entry_condition(current),
         allow_exact_detached_defender_condition=_has_exact_detached_sparkling_aria_pre_hit_burn(current),
@@ -350,6 +351,8 @@ def evaluate_direct_damage_mechanics(
         elif side_name == "attacker" and isinstance(ability_modifier.get("guts_applicability"), Mapping):
             pass
         elif _side_has_exact_detached_condition(current, "self" if side_name == "attacker" else "opponent"):
+            pass
+        elif _champions_status_gate_condition(current, "self" if side_name == "attacker" else "opponent"):
             pass
         elif side_name == "defender" and _has_exact_detached_switch_entry_condition(current):
             pass
@@ -618,11 +621,13 @@ def _require_hp(value: Mapping[str, Any], side: str, missing: list[str]) -> None
     if _positive_int(current) and _positive_int(maximum) and current > maximum: missing.append(f"{side}.current_hp")
 
 
-def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_guts_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False, allow_exact_detached_defender_condition: bool = False) -> str | None:
+def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_guts_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False, allow_exact_detached_defender_condition: bool = False, allow_champions_status_gate: bool = False) -> str | None:
     for is_defender, side in ((False, attacker), (True, defender)):
         for key, reason in (("ability", "ability_modifier"), ("item", "item_modifier"), ("status", "major_status_modifier")):
             value = side.get(key)
             if isinstance(value, Mapping) and value.get("status") == "known" and _nonempty_str(value.get("value")):
+                if key == "status" and value.get("value") in {"sleep", "freeze"} and allow_champions_status_gate:
+                    continue
                 if key == "item" and value.get("value") in {"quick-claw", "rocky-helmet"}:
                     continue
                 # Detached intermediate major conditions are exact terminal
@@ -871,6 +876,15 @@ def _guts_condition_context(current: Mapping[str, Any]) -> tuple[str, str] | Non
     if row.get("source") == "user_confirmed_current_condition" and row.get("status") == "user_confirmed":
         return condition, "runtime_strategy_d0_v1"
     return None
+
+
+def _champions_status_gate_condition(current: Mapping[str, Any], side: str | None = None) -> bool:
+    entries = _mapping(current.get("condition_context")).get("current_conditions")
+    return isinstance(entries, list) and any(
+        isinstance(row, Mapping) and row.get("champions_status_gate") is True
+        and row.get("condition_type") in {"sleep", "freeze"}
+        and (side is None or row.get("side") == side) for row in entries
+    )
 
 
 def _has_exact_detached_condition(current: Mapping[str, Any]) -> bool:
@@ -1590,6 +1604,6 @@ _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({
     "intimidate", "pressure", "drizzle", "drought", "sand-stream", "snow-warning",
     "skill-link", "rough-skin", "iron-barbs", "static", "flame-body", "poison-point", "effect-spore",
     "mold-breaker", "neutralizing-gas", "overcoat", "insomnia", "vital-spirit",
-    "sticky-hold", "magician", "pickpocket",
+    "sticky-hold", "early-bird", "magician", "pickpocket",
 })
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

@@ -34,6 +34,9 @@ def normalize_exact_immediate_action_pair_outcome_ledger(*, pair: Mapping[str, A
     if not isinstance(pair, Mapping): return _result("rejected", "invalid_immediate_action_pair")
     if pair.get("status") != "evaluable":
         return _result(_status(pair), pair.get("reason", "immediate_action_pair_not_evaluable"), _base(pair))
+    if pair.get("schema_version") == "champions-status-gated-immediate-action-pair-v1":
+        from llm.advisor_champions_status_gated_pair import normalize_champions_status_gated_pair
+        return normalize_champions_status_gated_pair(pair)
     base = _base(pair)
     if base is None or pair.get("schema_version") not in PAIR_SCHEMAS or pair.get("horizon") != HORIZON:
         return _result("rejected", "immediate_action_pair_binding_or_schema_invalid")

@@ -189,6 +189,23 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    status_members = [runtime_snapshot.get("state", {}).get(f"{owner['side']}_side", {}).get("pokemon", {}).get(owner["slot_index"], {}) for owner in (base["own_actor"], base["opponent_actor"])]
+    if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and (not pending_status_execution_authorities or any(member.get("champions_status_progression") for member in status_members)):
+        extensions = (first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority,
+            opponent_protection_success_authority, incoming_contact_authority, silk_trap_reactive_interaction_authority,
+            kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority,
+            spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority,
+            quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority,
+            pure_status_execution_authorities, atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities,
+            crafty_shield_pure_status_applicability_authority, pending_status_execution_authorities,
+            taunt_application_authorities, encore_application_authorities, disable_application_authorities,
+            pivot_replacement_authorities, pivot_entry_authorities, post_source_retaliation_protection_authority)
+        if any(value for value in extensions):
+            return _result("incomplete", "champions_status_pair_extension_binding_required", base)
+        from llm.advisor_champions_status_gated_pair import materialize_champions_status_gated_pair
+        return materialize_champions_status_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
+            own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,
+            orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority)
     if _is_direct_heal_metadata(own_meta.get("metadata")) or _is_direct_heal_metadata(opponent_meta.get("metadata")):
         return _materialize_direct_heal_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,
