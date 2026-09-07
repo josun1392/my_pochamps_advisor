@@ -491,7 +491,8 @@ def _fling_item_bound_target_effect_leaf(leaf: Mapping[str, Any]) -> str | None:
     if move != "fling": return "unexpected_fling_target_effect_payload" if effect is not None else None
     if not isinstance(effect,Mapping): return None
     authority=effect.get("authority"); execution=p.get("fling_execution_authority") if isinstance(p,Mapping) else None
-    if not isinstance(authority,Mapping) or authority.get("schema_version")!="runtime-d0-fling-item-bound-deterministic-target-effect-authority-v1" or authority.get("execution_authority")!=execution or authority.get("target")!=p.get("target") or authority.get("item_id")!=execution.get("user_item_before",{}).get("value") if isinstance(execution,Mapping) else True:return "fling_target_effect_authority_binding_invalid"
+    invalid = (not isinstance(authority, Mapping) or authority.get("schema_version") != "runtime-d0-fling-item-bound-deterministic-target-effect-authority-v1" or not isinstance(execution, Mapping) or authority.get("execution_authority") != execution or authority.get("target") != p.get("target") or authority.get("item_id") != execution.get("user_item_before", {}).get("value"))
+    if invalid: return "fling_target_effect_authority_binding_invalid"
     kind=authority.get("fling_item_metadata",{}).get("effect",{}).get("kind") if isinstance(authority.get("fling_item_metadata"),Mapping) else None
     outcome=authority.get("outcome")
     if kind=="major_status":

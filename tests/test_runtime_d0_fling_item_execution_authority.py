@@ -130,3 +130,13 @@ def test_fling_is_explicitly_non_contact_against_contact_reactive_ability() -> N
     first = pair["terminal_branches"][0]["first_action_leaf"]
     reaction = first["consequences"]["contact_reactive_damage"]
     assert reaction["outcome"] == "not_applicable" and reaction.get("damage", 0) == 0
+
+
+def test_deterministic_item_effects_reach_production_leaves() -> None:
+    light, light_ledger = _production_fling_pair(item="light-ball")
+    poison, poison_ledger = _production_fling_pair(item="poison-barb")
+    king, king_ledger = _production_fling_pair(item="kings-rock")
+    assert all(value["status"] == "evaluable" for value in (light, light_ledger, poison, poison_ledger, king, king_ledger))
+    assert light["terminal_branches"][0]["first_action_leaf"]["consequences"]["fling_item_bound_target_effect"]["outcome"] == "applied_major_status"
+    assert poison["terminal_branches"][0]["first_action_leaf"]["consequences"]["fling_item_bound_target_effect"]["outcome"] == "applied_major_status"
+    assert {branch["second_action"]["state"] for branch in king["terminal_branches"]} == {"cancelled_due_to_flinch"}
