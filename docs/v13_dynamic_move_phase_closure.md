@@ -25,13 +25,18 @@ moves never use metadata fallback when their trusted context is unavailable;
 ordinary moves retain metadata behavior, and limited-context OFF emits no
 dynamic payload, acknowledgement, or override.
 
+Subsequent bounded extensions split stored-power/power-trip into the
+positive-stage-sum family and added hard-press to the target-HP family.
+The current registry has 12 families and 31 moves; counts above describe
+the original v13 checkpoint.
+
 | Family | Moves | Trusted source | Output |
 |---|---|---|---|
 | current HP | eruption, water-spout, dragon-energy, flail, reversal | exact self HP | power |
 | speed | electro-ball, gyro-ball | final speed/stage/Tailwind | power |
 | weight | heavy-slam, heat-crash, grass-knot, low-kick | canonical weight | power |
 | stat stage | stored-power, power-trip, punishment | trusted stages | power |
-| target HP | crush-grip, wring-out | exact opponent HP | power |
+| target HP | hard-press, crush-grip, wring-out | exact opponent HP | power |
 | environment | weather-ball, terrain-pulse | weather/terrain/grounded | type + power |
 | binary condition | facade, hex, venoshock, brine | condition or exact HP | power |
 | turn event | avalanche, revenge, payback, assurance | observed current-turn event | power |

@@ -18,7 +18,7 @@ def _snapshot(**extra):
     ("eruption", {"category": "special", "power": 150, "type": "fire"}, _snapshot(current_hp_context={"current_hp": [{"side": "self", "current_hp": 100, "maximum_hp": 100}]})),
     ("electro-ball", {"category": "special", "power": 1, "type": "electric"}, _snapshot()),
     ("heavy-slam", {"category": "physical", "power": 1, "type": "steel"}, _snapshot(weight_context={"self_weight": 1000, "opponent_weight": 100})),
-    ("stored-power", {"category": "special", "power": 20, "type": "psychic"}, _snapshot(stat_stage_context={"current_stages": [{"side": "self", "stat": "attack", "stage": 2, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"}]})),
+    ("stored-power", {"category": "special", "power": 20, "type": "psychic"}, _snapshot(stat_stage_context={"current_stages": [{"side": "self", "stat": stat, "stage": 2 if stat == "attack" else 0, "status": "user_confirmed", "source": "user_confirmed_current_stat_stage", "confidence": "known"} for stat in ("attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion")]})),
     ("crush-grip", {"category": "physical", "power": 120, "type": "normal"}, _snapshot(current_hp_context={"current_hp": [{"side": "opponent", "current_hp": 100, "maximum_hp": 100}]})),
     ("weather-ball", {"category": "special", "power": 50, "type": "normal"}, _snapshot(field_state_context={"current_field": {"weather": "rain"}})),
     ("facade", {"category": "physical", "power": 70, "type": "normal"}, _snapshot(condition_context={"current_conditions": [{"side": "self", "condition_type": "burn"}]})),
