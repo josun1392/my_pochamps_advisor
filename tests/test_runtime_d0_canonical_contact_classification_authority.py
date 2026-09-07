@@ -55,12 +55,14 @@ def test_exact_canonical_contact_and_non_contact_actions_resolve_without_mutatio
     assert contact["status"] == "resolved" and contact["schema_version"] == SCHEMA_VERSION
     assert contact["contact_state"] == "contact"
     assert non_contact["status"] == "resolved" and non_contact["contact_state"] == "non_contact"
+    assert canonical_move_contact_metadata("water-gun")["contact_state"] == "non_contact"
+    assert canonical_move_contact_metadata("rock-blast")["contact_state"] == "non_contact"
     assert state == before
 
 
 def test_missing_malformed_or_non_damaging_contact_metadata_fails_closed(monkeypatch):
     state = _state(); snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
-    assert _freeze(d0, snapshot, _action(d0, "water-gun", category="special", power=40, type="water"), state)["reason"] == "canonical_move_contact_metadata_missing"
+    assert _freeze(d0, snapshot, _action(d0, "uncatalogued-test-move", category="special", power=40, type="water"), state)["reason"] == "canonical_move_contact_metadata_missing"
     assert _freeze(d0, snapshot, _action(d0, "protect", category="status", power=None, type="normal", accuracy=None), state)["status"] == "incomplete"
     monkeypatch.setattr("llm.advisor_runtime_d0_canonical_contact_classification_authority._PATH", __import__("pathlib").Path("does-not-exist.json"))
     assert canonical_move_contact_metadata("tackle")["status"] == "rejected"

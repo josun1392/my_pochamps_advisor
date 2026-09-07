@@ -239,7 +239,7 @@ def _terminal_sources(graph: Mapping[str, Any]) -> tuple[dict[str, Any], ...] | 
             probability = source_probability * _fraction(edge["conditional_probability"])
             if edge.get("terminal") is True:
                 ordered = edge.get("ordered_hit") if isinstance(edge.get("ordered_hit"), Mapping) else _mapping(_mapping(edge.get("attempt_outcome")).get("ordered_hit")) or _mapping(_mapping(edge.get("hit_outcome")).get("ordered_hit")) or None
-                result.append({"source_id": f"edge:{edge['edge_id']}", "path_probability": probability, "consequences": deepcopy(dict(edge["terminal_consequences"])), "ordered_hit": deepcopy(dict(ordered)) if isinstance(ordered, Mapping) else None})
+                result.append({"native_terminal": deepcopy(dict(edge)), "source_id": f"edge:{edge['edge_id']}", "path_probability": probability, "consequences": deepcopy(dict(edge["terminal_consequences"])), "ordered_hit": deepcopy(dict(ordered)) if isinstance(ordered, Mapping) else None})
             else:
                 target = node_by_id[edge["to_node_id"]]
                 advancing = target.get("attempt_index") == node.get("attempt_index", -1) + 1 if population else target.get("hit_index") == node.get("hit_index", -1) + 1 if escalating else target.get("completed_hit_count") == node.get("completed_hit_count", -1) + 1
@@ -264,7 +264,24 @@ def _attach_second_actions(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         )
         if intermediate.get("status") != "resolved":
             return _result(_status(intermediate), intermediate.get("reason", "variable_graph_intermediate_state_unavailable"), {}, first_terminal_source=source["source_id"]), None
-        transition = {"first_terminal_source_id": source["source_id"], "incoming_path_probability": _fd(source["path_probability"]), "first_terminal_consequences": deepcopy(dict(source["consequences"])), "intermediate_state_id": intermediate.get("first_action", {}).get("leaf_id"), "ordered_terminal_hit": deepcopy(source.get("ordered_hit"))}
+        if source.get("native_terminal") is not None:
+            from llm.advisor_detached_ability_item_steal_terminal import attach_ability_item_steal
+            from llm.advisor_runtime_d0_canonical_contact_classification_authority import canonical_move_contact_metadata
+            landed = source["consequences"].get("landed_hit_count", 1 if source.get("ordered_hit") else 0)
+            classification = canonical_move_contact_metadata(first_graph["move_id"])
+            leaf["hit_state"] = "hit" if landed > 0 else "miss"
+            leaf["consequences"]["contact"] = ("successful_contact_eligible" if classification.get("contact_state") == "contact" else "successful_non_contact") if landed > 0 and classification.get("status") == "resolved" else "not_applicable"
+            family = {"population-bomb": "population_bomb", "triple-axel": "triple_axel", "triple-kick": "triple_kick"}.get(first_graph["move_id"], "variable_two_to_five_hit")
+            # Bind against the actor-root D0; project back to the original pair below.
+            effect_d0 = root_predictive_authority["predictive_strategy_d0"] if isinstance(root_predictive_authority, Mapping) else strategy_d0
+            effect_state = materialize_detached_predictive_intermediate_state(strategy_d0=effect_d0, terminal_leaf=leaf)
+            status, leaf = attach_ability_item_steal(strategy_d0=effect_d0, runtime_snapshot=runtime_snapshot, leaf=leaf, intermediate=effect_state, family=family, graph=first_graph, terminal_edge=source["native_terminal"])
+            if status.get("status") != "resolved":
+                return _result(_status(status), status.get("reason", "graph_ability_item_steal_unavailable"), {}), None
+            intermediate = materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=leaf, root_predictive_authority=root_predictive_authority)
+            if intermediate.get("status") != "resolved":
+                return intermediate, None
+        transition = {"first_terminal_source_id": source["source_id"], "incoming_path_probability": _fd(source["path_probability"]), "first_terminal_consequences": {**deepcopy(dict(source["consequences"])), **({"ability_item_steal": deepcopy(leaf["consequences"]["ability_item_steal"])} if "ability_item_steal" in leaf["consequences"] else {})}, "ability_item_steal_terminal_effect": deepcopy(leaf["provenance"].get("ability_item_steal_terminal_effect")), "intermediate_state_id": intermediate.get("first_action", {}).get("leaf_id"), "ordered_terminal_hit": deepcopy(source.get("ordered_hit"))}
         if _fainted(intermediate, second_actor):
             transition["second_action"] = {"state": "cancelled_due_to_faint", "actor": deepcopy(dict(second_actor)), "conditional_probability": _fd(Fraction(1, 1)), "reason": "second_action_cancelled_due_to_faint"}
             transitions.append(transition); mass += source["path_probability"]; continue

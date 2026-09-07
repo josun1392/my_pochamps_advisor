@@ -1,6 +1,8 @@
 {
   "version": "gen9",
   "flags_by_move": {
+    "water-gun": [],
+    "rock-blast": ["bullet"],
     "aerial-ace": ["contact", "slicing"],
     "air-cutter": ["slicing"],
     "air-slash": ["slicing"],

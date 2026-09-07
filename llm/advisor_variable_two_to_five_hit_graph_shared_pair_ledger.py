@@ -121,6 +121,9 @@ def _order_graph(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     graph = value.get("first_action_graph")
     if not isinstance(graph, Mapping) or graph.get("status") != "evaluable" or _fraction(graph.get("terminal_probability_mass")) != Fraction(1, 1):
         return "variable_graph_first_action_graph_invalid"
+    for entry in (*graph.get("terminal_leaf_nodes", ()), *graph.get("terminal_leaf_edges", ()), *graph.get("terminal_leaf_roots", ())):
+        if isinstance(entry, Mapping) and ("ability_item_steal" in entry or "ability_item_steal" in entry.get("terminal_consequences", {}) or "ability_item_steal" in entry.get("consequences", {})):
+            return "variable_graph_ability_steal_outside_terminal_adapter"
     sources = _terminal_sources(graph)
     if isinstance(sources, str): return f"variable_graph_first_action_{sources}"
     source_by_id = {row["source_id"]: row for row in sources}
@@ -130,8 +133,26 @@ def _order_graph(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     for transition in transitions:
         if not isinstance(transition, Mapping) or not isinstance(transition.get("first_terminal_source_id"), str): return "variable_graph_terminal_transition_invalid"
         source = source_by_id.get(transition["first_terminal_source_id"])
-        if source is None or _fraction(transition.get("incoming_path_probability")) != source["path_probability"] or transition.get("first_terminal_consequences") != source["consequences"]:
+        consequences = transition.get("first_terminal_consequences")
+        if not isinstance(consequences, Mapping): return "variable_graph_terminal_consequences_invalid"
+        native_consequences = {k: v for k, v in consequences.items() if k != "ability_item_steal"}
+        if source is None or _fraction(transition.get("incoming_path_probability")) != source["path_probability"] or native_consequences != source["consequences"]:
             return "variable_graph_terminal_transition_source_mismatch"
+        effect = transition.get("ability_item_steal_terminal_effect")
+        if effect is not None or "ability_item_steal" in consequences:
+            from llm.advisor_ability_item_steal_ledger_validation import validate_ability_item_steal_leaf
+            from llm.advisor_detached_variable_two_to_five_hit_graph_immediate_move_pair import _synthetic_terminal_leaf
+            from llm.advisor_runtime_d0_canonical_contact_classification_authority import canonical_move_contact_metadata
+            if not isinstance(effect, Mapping) or not isinstance(source.get("native_terminal"), Mapping): return "variable_graph_steal_nonterminal"
+            leaf = _synthetic_terminal_leaf(first_graph=graph, source=source)
+            landed = source["consequences"].get("landed_hit_count", 1 if source.get("ordered_hit") else 0)
+            leaf["hit_state"] = "hit" if landed else "miss"
+            contact = canonical_move_contact_metadata(graph["move_id"])
+            leaf["consequences"]["contact"] = ("successful_contact_eligible" if contact.get("contact_state") == "contact" else "successful_non_contact") if landed and contact.get("status") == "resolved" else "not_applicable"
+            leaf["consequences"]["ability_item_steal"] = consequences.get("ability_item_steal")
+            leaf["provenance"]["ability_item_steal_completion_authority"] = effect.get("effect_authority")
+            error = validate_ability_item_steal_leaf(leaf, envelope=effect, native_terminal=source["native_terminal"], pair_base=base, first_action=True)
+            if error is not None: return error
         low_hp_error = _low_hp_type_hit(source.get("ordered_hit"))
         if low_hp_error is not None:
             return low_hp_error
@@ -140,7 +161,7 @@ def _order_graph(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
             return guts_error
         second = _validate_second(transition.get("second_action"))
         if isinstance(second, str): return second
-        parsed.append({"first_terminal_source_id": transition["first_terminal_source_id"], "incoming_path_probability": source["path_probability"], "first_terminal_consequences": deepcopy(dict(source["consequences"])), "ordered_terminal_hit": deepcopy(source.get("ordered_hit")), "second_action": second})
+        parsed.append({"first_terminal_source_id": transition["first_terminal_source_id"], "incoming_path_probability": source["path_probability"], "first_terminal_consequences": deepcopy(dict(consequences)), "ability_item_steal_terminal_effect": deepcopy(effect), "ordered_terminal_hit": deepcopy(source.get("ordered_hit")), "second_action": second})
     if len({row["first_terminal_source_id"] for row in parsed}) != len(parsed): return "variable_graph_duplicate_terminal_transition_source"
     if sum((row["incoming_path_probability"] for row in parsed), Fraction()) != Fraction(1, 1): return "variable_graph_terminal_transition_mass_not_one"
     first_actor = value.get("provenance", {}).get("first_actor") if isinstance(value.get("provenance"), Mapping) else None
@@ -168,6 +189,9 @@ def _validate_second(value: Any) -> dict[str, Any] | str:
             leaves = outcome.get("second_action_terminal_leaves")
             if not isinstance(leaves, tuple) or not leaves or sum((_fraction(leaf.get("probability")) for leaf in leaves if isinstance(leaf, Mapping)), Fraction()) != Fraction(1, 1): return "variable_graph_second_action_leaf_set_invalid"
             for leaf in leaves:
+                from llm.advisor_ability_item_steal_ledger_validation import validate_ability_item_steal_leaf
+                error = validate_ability_item_steal_leaf(leaf)
+                if error is not None: return error
                 error = _low_hp_type_leaf(leaf)
                 if error is not None:
                     return error

@@ -19,6 +19,7 @@ from llm.advisor_guts_status_attack_ability import (
 from llm.advisor_full_hp_defender_ability import (
     validate_full_hp_defender_ability_applicability,
 )
+from llm.advisor_ability_item_steal_ledger_validation import validate_ability_item_steal_leaf
 from advisor.canonical_recent_damage_retaliation_family import resolve_canonical_recent_damage_retaliation_move
 
 
@@ -118,6 +119,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if fling_error is not None: return fling_error
     fling_effect_error = _fling_item_bound_target_effect_leaf(first)
     if fling_effect_error is not None: return fling_effect_error
+    steal_error = validate_ability_item_steal_leaf(first, pair_base=base, first_action=True)
+    if steal_error is not None: return steal_error
     transfer_error = _item_transfer_leaf(first)
     if transfer_error is not None: return transfer_error
     swap_error = _atomic_item_swap_leaf(first)
@@ -200,6 +203,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if fling_error is not None: return fling_error
         fling_effect_error = _fling_item_bound_target_effect_leaf(second_leaf)
         if fling_effect_error is not None: return fling_effect_error
+        steal_error = validate_ability_item_steal_leaf(second_leaf, pair_base=base)
+        if steal_error is not None: return steal_error
         transfer_error = _item_transfer_leaf(second_leaf)
         if transfer_error is not None: return transfer_error
         swap_error = _atomic_item_swap_leaf(second_leaf)

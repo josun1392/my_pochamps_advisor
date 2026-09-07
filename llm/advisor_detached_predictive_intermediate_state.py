@@ -168,6 +168,10 @@ def _condition(authority: Any, effects: tuple[Mapping[str, Any], ...], role: str
 def _item(authority: Any, effects: tuple[Mapping[str, Any], ...], role: str) -> dict[str, Any]:
     result = deepcopy(dict(authority)) if isinstance(authority, Mapping) else {"status": "unknown", "reason": "current_item_authority_unknown"}
     for effect in effects:
+        item = effect.get("hypothetical_self_item" if role == "self" else "hypothetical_target_item")
+        if isinstance(item, Mapping) and item.get("source") == "exact_terminal_leaf_ability_item_steal":
+            return deepcopy(dict(item))
+    for effect in effects:
         item = effect.get("hypothetical_self_item")
         if role == "self" and isinstance(item, Mapping):
             return deepcopy(dict(item))
@@ -223,6 +227,15 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
     transfer = consequences.get("item_transfer_after_hit")
     if isinstance(transfer, Mapping) and transfer.get("outcome") == "transferred" and isinstance(transfer.get("item"), str):
         result.extend(({"owner":"self","hypothetical_self_item":{"status":"known","value":transfer["item"],"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}, {"owner":"target","hypothetical_target_item":{"status":"known_absent","value":None,"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}))
+    ability_steal = consequences.get("ability_item_steal")
+    if isinstance(ability_steal, Mapping) and ability_steal.get("status") == "resolved" and ability_steal.get("outcome") == "transferred" and isinstance(ability_steal.get("item"), str):
+        receiver, donor = ability_steal.get("receiver"), ability_steal.get("donor")
+        if receiver == leaf.get("provenance", {}).get("attacker") and donor == leaf.get("provenance", {}).get("target"):
+            result.extend(({"owner":"self","hypothetical_self_item":{"status":"known","value":ability_steal["item"],"source":"exact_terminal_leaf_ability_item_steal","effect":deepcopy(dict(ability_steal))}}, {"owner":"target","hypothetical_target_item":{"status":"known_absent","value":None,"source":"exact_terminal_leaf_ability_item_steal","effect":deepcopy(dict(ability_steal))}}))
+        elif receiver == leaf.get("provenance", {}).get("target") and donor == leaf.get("provenance", {}).get("attacker"):
+            result.extend(({"owner":"target","hypothetical_target_item":{"status":"known","value":ability_steal["item"],"source":"exact_terminal_leaf_ability_item_steal","effect":deepcopy(dict(ability_steal))}}, {"owner":"self","hypothetical_self_item":{"status":"known_absent","value":None,"source":"exact_terminal_leaf_ability_item_steal","effect":deepcopy(dict(ability_steal))}}))
+        else:
+            return "terminal_leaf_ability_item_steal_direction_invalid"
     swap = consequences.get("atomic_item_swap_status")
     if isinstance(swap, Mapping) and swap.get("outcome") == "executed_swap":
         actor, target = swap.get("actor"), swap.get("target")

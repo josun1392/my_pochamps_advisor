@@ -7,6 +7,18 @@ from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off
 SCHEMA_VERSION="runtime-d0-ability-item-steal-completion-authority-v1"
 _DIRECTIONS={"magician_attacker_hit":"magician","pickpocket_defender_contact":"pickpocket"}
 
+def resolve_ability_item_steal_removability(*, item_authority: Mapping[str, Any], target_species: str | None) -> dict[str, Any]:
+    """Reuse removal authority, plus the already-supported contact held item.
+
+    Rocky Helmet is represented by the contact owner but is absent from the
+    Champions selector inventory. This narrow transfer fact does not add it
+    to that inventory or change generic Knock Off mechanics.
+    """
+    if item_authority.get("status") == "known" and item_authority.get("value") == "rocky-helmet":
+        return {"status": "resolved", "item_before": "rocky-helmet", "removable": True, "provenance": "canonical_contact_reactive_held_item_removability_v1"}
+    return resolve_knock_off_target_item(item_authority=item_authority, target_species=target_species)
+
+
 def bind_branch_time_ability_item_steal_items(*, intermediate_state: Mapping[str, Any], bindings: Mapping[str, Any]) -> dict[str, Any]:
     """Read the detached, path-local held-item overlay; never fall back to D0.
 
@@ -68,7 +80,7 @@ def bind_completed_ability_item_steal_action(*, intermediate_state: Mapping[str,
 def freeze_runtime_d0_ability_item_steal_completion_from_branch(*, strategy_d0: Mapping[str, Any], bindings: Mapping[str, Any], ability_state: Mapping[str, Any], legality: Mapping[str, Any], intermediate_state: Mapping[str, Any], source_terminal_leaf: Mapping[str, Any], graph: Mapping[str, Any] | None = None, terminal_edge: Mapping[str, Any] | None = None, sheer_force: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Compose production-owned branch evidence without dispatching either ability."""
     base = _binding_base(bindings)
-    if not isinstance(strategy_d0, Mapping) or strategy_d0.get("status") != "resolved" or any(strategy_d0.get(k) != v for k, v in base.items()):
+    if not isinstance(strategy_d0, Mapping) or strategy_d0.get("status") != "resolved" or any(strategy_d0.get("strategy_preview_fingerprint" if k == "source_branch_fingerprint" and "strategy_preview_fingerprint" in strategy_d0 else k) != v for k, v in base.items()):
         return _bad("rejected", "ability_item_steal_strategy_d0_provenance_mismatch")
     items = bind_branch_time_ability_item_steal_items(intermediate_state=intermediate_state, bindings=bindings)
     completion = bind_completed_ability_item_steal_action(intermediate_state=intermediate_state, bindings=bindings, graph=graph, terminal_edge=terminal_edge)
@@ -77,6 +89,45 @@ def freeze_runtime_d0_ability_item_steal_completion_from_branch(*, strategy_d0: 
     contact = bind_final_ability_item_steal_contact(source_terminal_leaf=source_terminal_leaf, intermediate_state=intermediate_state, bindings=bindings)
     if bindings.get("trigger_direction") == "pickpocket_defender_contact" and contact.get("status") != "resolved": return contact
     return freeze_runtime_d0_ability_item_steal_completion_authority(bindings=bindings, ability_state=ability_state, receiver_item=items["receiver_item"], donor_item=items["donor_item"], legality=legality, completion=completion, contact=contact if contact.get("status") == "resolved" else None, sheer_force=sheer_force)
+
+def freeze_runtime_d0_ability_item_steal_completion_from_runtime_branch(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], trigger_direction: str, ability_holder: Mapping[str, Any], donor: Mapping[str, Any], intermediate_state: Mapping[str, Any], source_terminal_leaf: Mapping[str, Any], sheer_force: Mapping[str, Any] | None = None, graph: Mapping[str, Any] | None = None, terminal_edge: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Bind runtime ability/removability, then consume exact branch evidence.
+
+    This remains a leaf-local materializer.  It does not select an ability
+    trigger or write back into D0; the immediate-pair owner decides whether to
+    attach its returned detached consequence.
+    """
+    ability = _DIRECTIONS.get(trigger_direction)
+    if ability is None or not isinstance(strategy_d0, Mapping) or strategy_d0.get("status") != "resolved" or not isinstance(runtime_snapshot, Mapping):
+        return _bad("rejected", "ability_item_steal_runtime_branch_request_invalid")
+    state = runtime_snapshot.get("state")
+    def raw(owner: Mapping[str, Any]) -> Any:
+        side = _mapping(state).get(f"{owner.get('side')}_side"); roster = _mapping(side).get("pokemon")
+        return _mapping(roster).get(owner.get("slot_index"))
+    holder, donor_raw = raw(ability_holder), raw(donor)
+    if not isinstance(holder, Mapping) or not isinstance(donor_raw, Mapping): return _bad("rejected", "ability_item_steal_runtime_identity_invalid")
+    holder_ability, donor_ability = holder.get("current_ability"), donor_raw.get("current_ability")
+    gas = holder_ability == "neutralizing-gas" or donor_ability == "neutralizing-gas"
+    ability_state = {"status": "active" if holder_ability == ability and not gas else "suppressed" if isinstance(holder_ability, str) else "unknown", "value": holder_ability, "neutralizing_gas_active": gas}
+    donor_current = _branch_item(_mapping(_mapping(intermediate_state.get("active")).get(donor.get("side"))).get("hypothetical_item"))
+    removability = resolve_ability_item_steal_removability(item_authority=donor_current, target_species=donor_raw.get("pokemon_identity") if isinstance(donor_raw.get("pokemon_identity"), str) else None)
+    legality = {"status": "resolved" if removability.get("status") == "resolved" and isinstance(donor_ability, str) else "unknown", "transferable": removability.get("removable"), "sticky_hold_active": donor_ability == "sticky-hold" and not gas, "donor_ability": donor_ability, "neutralizing_gas_active": gas, "donor": deepcopy(dict(donor)), "removability_authority": removability}
+    first = _mapping(intermediate_state).get("first_action")
+    bindings = {"ability_id": ability, "trigger_direction": trigger_direction, "ability_holder": deepcopy(dict(ability_holder)), "receiver": deepcopy(dict(ability_holder)), "donor": deepcopy(dict(donor)), "session_id": strategy_d0.get("session_id"), "source_runtime_fingerprint": strategy_d0.get("source_runtime_fingerprint"), "source_branch_fingerprint": strategy_d0.get("strategy_preview_fingerprint"), "action_id": _mapping(first).get("candidate_id"), "move_id": _mapping(first).get("move_id")}
+    consequences = _mapping(source_terminal_leaf.get("consequences"))
+    damage = consequences.get("damage")
+    landed = (isinstance(damage, int) and damage > 0) or any(isinstance(hit, Mapping) and hit.get("actual_damage", 0) > 0 and hit.get("target_routing") == "target" for hit in source_terminal_leaf.get("ordered_hits", ())) or (isinstance(graph, Mapping) and graph.get("status") == "evaluable")
+    successful = landed and source_terminal_leaf.get("hit_state") == "hit" and consequences.get("source_hit_context", {}).get("target_routing", "target") == "target"
+    if not successful or consequences.get("own_final_hp") == 0 or (trigger_direction == "pickpocket_defender_contact" and consequences.get("target_final_hp") == 0):
+        items = bind_branch_time_ability_item_steal_items(intermediate_state=intermediate_state, bindings=bindings)
+        return _result("not_applicable_completed_attack", bindings, items.get("receiver_item", {}), items.get("donor_item", {}))
+    result = freeze_runtime_d0_ability_item_steal_completion_from_branch(strategy_d0=strategy_d0, bindings=bindings, ability_state=ability_state, legality=legality, intermediate_state=intermediate_state, source_terminal_leaf=source_terminal_leaf, sheer_force=sheer_force, graph=graph, terminal_edge=terminal_edge)
+    if result.get("outcome") == "transferred":
+        result["ability_state"] = deepcopy(ability_state)
+        result["donor_species"] = donor_raw.get("pokemon_identity")
+        result["source_leaf_id"] = source_terminal_leaf.get("leaf_id")
+        result["source_branch_path"] = deepcopy(source_terminal_leaf.get("branch_path"))
+    return result
 
 def freeze_runtime_d0_ability_item_steal_completion_from_snapshot(*,strategy_d0:Mapping[str,Any],runtime_snapshot:Mapping[str,Any],trigger_direction:str,ability_holder:Mapping[str,Any],donor:Mapping[str,Any],completion:Mapping[str,Any],contact:Mapping[str,Any]|None=None,sheer_force:Mapping[str,Any]|None=None)->dict[str,Any]:
     """Read only current runtime facts; production still owns trigger dispatch."""
@@ -95,7 +146,7 @@ def freeze_runtime_d0_ability_item_steal_completion_from_snapshot(*,strategy_d0:
     item=lambda row:{"status":"known","value":row.get("known_item")} if isinstance(row.get("known_item"),str) and row.get("known_item") else {"status":"known_absent","value":None} if row.get("known_item") is None and isinstance(row.get("known_item_provenance"),Mapping) else {"status":"unknown","value":None}
     receiver_item,donor_item=item(holder),item(donor_raw)
     bindings={"ability_id":ability,"trigger_direction":trigger_direction,"ability_holder":deepcopy(dict(ability_holder)),"receiver":deepcopy(dict(ability_holder)),"donor":deepcopy(dict(donor)),"session_id":strategy_d0.get("session_id"),"source_runtime_fingerprint":strategy_d0.get("source_runtime_fingerprint"),"source_branch_fingerprint":strategy_d0.get("strategy_preview_fingerprint"),"action_id":completion.get("action_id"),"move_id":completion.get("move_id")}
-    removable=resolve_knock_off_target_item(item_authority=donor_item,target_species=donor_raw.get("pokemon_identity") if isinstance(donor_raw.get("pokemon_identity"),str) else None)
+    removable=resolve_ability_item_steal_removability(item_authority=donor_item,target_species=donor_raw.get("pokemon_identity") if isinstance(donor_raw.get("pokemon_identity"),str) else None)
     legality={"status":"resolved" if removable.get("status")=="resolved" else "unknown","transferable":removable.get("removable"),"sticky_hold_active":donor_ability=="sticky-hold" and not gas,"donor_ability":donor_ability,"neutralizing_gas_active":gas,"donor":deepcopy(dict(donor)),"removability_authority":removable}
     return freeze_runtime_d0_ability_item_steal_completion_authority(bindings=bindings,ability_state=ability_state,receiver_item=receiver_item,donor_item=donor_item,legality=legality,completion=completion,contact=contact,sheer_force=sheer_force)
 
@@ -128,6 +179,11 @@ def freeze_runtime_d0_ability_item_steal_completion_authority(*, bindings:Mappin
 def materialize_detached_direction_neutral_item_transfer(*,authority:Mapping[str,Any])->dict[str,Any]:
     if not isinstance(authority,Mapping) or authority.get("schema_version")!=SCHEMA_VERSION or authority.get("status")!="resolved":return _bad("rejected","ability_item_steal_authority_invalid")
     if authority.get("outcome")!="transferred" or authority.get("receiver_item_after",{}).get("value")!=authority.get("item") or authority.get("donor_item_after",{}).get("value") is not None:return _bad("rejected","ability_item_steal_atomicity_invalid")
+    item = authority.get("item")
+    if authority.get("ability_id") != _DIRECTIONS.get(authority.get("trigger_direction")) or authority.get("ability_holder") != authority.get("receiver") or authority.get("receiver") == authority.get("donor"):
+        return _bad("rejected", "ability_item_steal_direction_invalid")
+    if not isinstance(item, str) or authority.get("receiver_item_before", {}).get("status") != "known_absent" or authority.get("receiver_item_before", {}).get("value") is not None or authority.get("donor_item_before", {}).get("status") != "known" or authority.get("donor_item_before", {}).get("value") != item or authority.get("receiver_item_after") != {"status": "known", "value": item} or authority.get("donor_item_after") != {"status": "known_absent", "value": None}:
+        return _bad("rejected", "ability_item_steal_atomicity_invalid")
     return {"status":"resolved","authority":deepcopy(dict(authority)),"receiver":deepcopy(dict(authority["receiver"])),"donor":deepcopy(dict(authority["donor"])),"item":authority["item"],"receiver_item_after":deepcopy(dict(authority["receiver_item_after"])),"donor_item_after":deepcopy(dict(authority["donor_item_after"])),"provenance":"detached_direction_neutral_ability_item_transfer_v1"}
 
 def _result(outcome:str,b:Mapping[str,Any],r:Mapping[str,Any],d:Mapping[str,Any])->dict[str,Any]:return {"status":"resolved","schema_version":SCHEMA_VERSION,**deepcopy(dict(b)),"receiver_item_before":deepcopy(dict(r)),"donor_item_before":deepcopy(dict(d)),"receiver_item_after":deepcopy(dict(r)),"donor_item_after":deepcopy(dict(d)),"outcome":outcome,"provenance":"strict_runtime_d0_ability_item_steal_completion_v1"}
@@ -139,6 +195,11 @@ def _branch_item(value: Any) -> dict[str, Any]:
     if status == "known" and isinstance(row.get("value"), str) and row["value"]: return {"status":"known","value":row["value"],"source":"exact_branch_item_overlay"}
     if status in {"known_absent", "known_none"} and row.get("value") is None: return {"status":"known_absent","value":None,"source":"exact_branch_item_overlay"}
     return {"status":"unknown","value":None,"reason":"branch_time_held_item_unknown"}
+def _runtime_item(row: Mapping[str, Any]) -> dict[str, Any]:
+    value = row.get("known_item")
+    if isinstance(value, str) and value: return {"status":"known","value":value}
+    if value is None and isinstance(row.get("known_item_provenance"), Mapping): return {"status":"known_absent","value":None}
+    return {"status":"unknown","value":None}
 def _terminal_leaf_binding(leaf: Any, state: Any, bindings: Mapping[str, Any]) -> str | None:
     if not isinstance(leaf, Mapping) or not isinstance(state, Mapping) or state.get("status") != "resolved": return "ability_item_steal_terminal_leaf_invalid"
     first = state.get("first_action"); provenance = leaf.get("provenance")

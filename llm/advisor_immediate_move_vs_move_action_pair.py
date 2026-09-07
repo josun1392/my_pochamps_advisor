@@ -1228,7 +1228,12 @@ def _materialize_order(
     return branches
 
 
-def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None, source_terminal_leaf: Mapping[str, Any] | None = None, source_selected_action: Mapping[str, Any] | None = None, source_execution_order_provenance: Mapping[str, Any] | None = None, pending_target_action: Mapping[str, Any] | None = None, action_order: str | None = None) -> dict[str, Any]:
+def _attack_ledger(**kwargs: Any) -> dict[str, Any]:
+    ledger = _attack_ledger_before_ability_steal(**kwargs)
+    return _apply_ability_item_steal_to_ledger(ledger=ledger, strategy_d0=kwargs["strategy_d0"], runtime_snapshot=kwargs["runtime_snapshot"], actor=kwargs["actor"], target=kwargs["target"])
+
+
+def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None, source_terminal_leaf: Mapping[str, Any] | None = None, source_selected_action: Mapping[str, Any] | None = None, source_execution_order_provenance: Mapping[str, Any] | None = None, pending_target_action: Mapping[str, Any] | None = None, action_order: str | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     fling_execution = None
@@ -1303,6 +1308,25 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
     if metadata.get("move_id")=="rage-fist":return _bind_rage_fist_hit_count_power_authority_to_ledger(normal,power)
     if metadata.get("move_id")=="last-respects":return _bind_last_respects_faint_power_authority_to_ledger(normal,power)
     return normal
+
+def _apply_ability_item_steal_to_ledger(*, ledger: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+    """Attach only a completed, detached ability-steal terminal consequence."""
+    state = runtime_snapshot.get("state", {})
+    def ability(owner):
+        return state.get(f"{owner['side']}_side", {}).get("pokemon", {}).get(owner["slot_index"], {}).get("current_ability")
+    if ability(actor) != "magician" and ability(target) != "pickpocket":
+        return deepcopy(dict(ledger))
+    if ledger.get("status") != "evaluable" or not isinstance(ledger.get("terminal_leaves"), tuple): return deepcopy(dict(ledger))
+    rows=[]
+    for leaf in ledger["terminal_leaves"]:
+        if not isinstance(leaf, Mapping): return _result("rejected", "ability_item_steal_ledger_leaf_invalid", {})
+        intermediate=materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=leaf)
+        if intermediate.get("status") != "resolved": return _result(_status(intermediate), intermediate.get("reason", "ability_item_steal_intermediate_unavailable"), {})
+        from llm.advisor_detached_ability_item_steal_terminal import attach_ability_item_steal
+        status, row = attach_ability_item_steal(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, leaf=leaf, intermediate=intermediate, family="fixed_two_hit" if "ordered_hits" in leaf else "ordinary_single_hit")
+        if status.get("status") != "resolved": return _result(_status(status), status.get("reason", "ability_item_steal_terminal_unavailable"), {})
+        rows.append(row)
+    result=deepcopy(dict(ledger));result["terminal_leaves"]=tuple(rows);return result
 
 
 def _bind_was_damaged_power_authority_to_ledger(ledger: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
