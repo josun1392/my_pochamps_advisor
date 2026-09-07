@@ -90,6 +90,8 @@ def test_powder_accuracy_and_immunities(move, accuracy):
     for field, value, expected in (("target_current_type", ["grass"], "blocked_by_grass_type"), ("target_current_ability", "overcoat", "blocked_by_overcoat"), ("target_known_item", "safety-goggles", "blocked_by_safety_goggles")):
         snapshot, d0, actor, target, action, hit = fixture(move, **{field: value}); assert freeze_sleep(strategy_d0=d0, runtime_snapshot=snapshot, actor=actor, target=target, action=action, move_success_authority=hit)["prevention"] == expected
     snapshot, d0, actor, target, action, hit = fixture(); assert isinstance(freeze_sleep(strategy_d0=d0, runtime_snapshot=snapshot, actor=actor, target=target, action=action, move_success_authority=hit)["prevention"], dict)
+    snapshot, d0, actor, target, action, hit = fixture(move); snapshot["state"]["opponent_side"]["pokemon"][0].update(current_type={"knowledge": "unknown"}, current_type_provenance=None); snapshot, d0 = refresh(snapshot, actor); hit = success(d0, actor, target, action); assert freeze_sleep(strategy_d0=d0, runtime_snapshot=snapshot, actor=actor, target=target, action=action, move_success_authority=hit)["status"] == "incomplete"
+    snapshot, d0, actor, target, action, hit = fixture(target_current_ability="overcoat"); assert isinstance(freeze_sleep(strategy_d0=d0, runtime_snapshot=snapshot, actor=actor, target=target, action=action, move_success_authority=hit)["prevention"], dict)
 
 
 def test_yawn_is_drowsy_then_resolves_only_at_next_boundary():
@@ -99,13 +101,15 @@ def test_yawn_is_drowsy_then_resolves_only_at_next_boundary():
     assert resolve_yawn(strategy_d0=d0, runtime_snapshot=established["runtime_snapshot"], target=target, resolution_turn=4)["reason"] == "yawn_resolution_boundary_invalid"
     resolved = resolve_yawn(strategy_d0=d0, runtime_snapshot=established["runtime_snapshot"], target=target, resolution_turn=5); assert resolved["sleep_applied"] and resolved["runtime_snapshot"]["state"]["opponent_side"]["pokemon"][0]["champions_status_progression"]["sleep_duration"] is None
     gate_d0 = freeze_runtime_strategy_d0(runtime_snapshot=resolved["runtime_snapshot"], decision_owner=target); assert freeze_champions_status_action_gate(strategy_d0=gate_d0, runtime_snapshot=resolved["runtime_snapshot"], actor=target, action_id="next", move_id="tackle", action_order={})["status"] == "resolved"
+    blocked = yawn(strategy_d0=d0, runtime_snapshot=established["runtime_snapshot"], actor=actor, target=target, action=action, move_success_authority=success(d0, actor, target, action, "blocked_by_protection"), established_turn=5); assert not blocked["drowsy_established"]
 
 
 def test_yawn_switch_clears_and_later_safeguard_substitute_do_not_cancel_drowsiness():
     snapshot, d0, actor, target, _, _ = fixture(); action = {"action_id": "attack:yawn", "action_type": "attack", "identity": "yawn"}; established = yawn(strategy_d0=d0, runtime_snapshot=snapshot, actor=actor, target=target, action=action, move_success_authority=success(d0, actor, target, action), established_turn=1)
     state = established["runtime_snapshot"]["state"]; state["opponent_side"]["side_conditions"] = ["safeguard"]; state["substitute_state_context"]["states"][1].update(state="known_active", substitute_hp=25); snap, d0 = refresh(established["runtime_snapshot"], target); assert resolve_yawn(strategy_d0=d0, runtime_snapshot=snap, target=target, resolution_turn=2)["sleep_applied"]
     state = established["runtime_snapshot"]["state"]; state["opponent_side"]["pokemon"][1] = deepcopy(state["opponent_side"]["pokemon"][0]); state["opponent_side"]["pokemon"][1]["pokemon_id"] = "bench"; event = {"observation_id": "switch", "observation_sequence": 2, "planned_effect": "switch_active", "trust": "user_confirmed_observation", "turn_number": 2, "side": "opponent", "switch_out_slot_index": 0, "switch_out_pokemon_id": "opponent-a", "switch_in_slot_index": 1, "switch_in_pokemon_id": "bench"}
-    assert project_atomic_transition(state, {"session_id": state["session_id"], "status": "planned", "conflicts": [], "ordered_steps": [event]}, state["session_id"])["projected_state"]["opponent_side"]["pokemon"][0].get("champions_yawn_drowsiness") is None
+    switched = project_atomic_transition(state, {"session_id": state["session_id"], "status": "planned", "conflicts": [], "ordered_steps": [event]}, state["session_id"])["projected_state"]; assert switched["opponent_side"]["pokemon"][0].get("champions_yawn_drowsiness") is None
+    back = {**event, "observation_id": "switch-back", "observation_sequence": 3, "switch_out_slot_index": 1, "switch_out_pokemon_id": "bench", "switch_in_slot_index": 0, "switch_in_pokemon_id": "opponent-a"}; assert project_atomic_transition(switched, {"session_id": state["session_id"], "status": "planned", "conflicts": [], "ordered_steps": [back]}, state["session_id"])["projected_state"]["opponent_side"]["pokemon"][0].get("champions_yawn_drowsiness") is None
 
 
 def test_yawn_resolution_rechecks_major_condition_and_electric_terrain():
