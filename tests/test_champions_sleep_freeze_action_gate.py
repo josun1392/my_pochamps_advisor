@@ -349,6 +349,6 @@ def test_wake_then_thunderbolt_preserves_existing_second_action_paralysis():
     result = pair("sleep", prior=1, duration=2, move="thunderbolt")
     assert result["status"] == "evaluable", result
     cancelled = [p for p in result["terminal_paths"] if p["actions"][1]["state"] == "cancelled_due_to_paralysis"]
-    assert sum((fraction(p["probability"]) for p in cancelled), Fraction()) == Fraction(1, 40)
+    assert sum((fraction(p["probability"]) for p in cancelled), Fraction()) == Fraction(1, 80)
     assert all("attack_leaf" not in p["actions"][1] for p in cancelled)
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=result)["status"] == "evaluable"

@@ -2077,10 +2077,10 @@ def _execution_branch(value: Any) -> bool:
     except (KeyError, TypeError, ValueError, ZeroDivisionError): return False
     if probability <= 0: return False
     if value["state"] == "cancelled_due_to_paralysis":
-        return probability == Fraction(1, 4) and value.get("reason") == "second_action_cancelled_due_to_paralysis"
+        return probability == Fraction(1, 8) and value.get("reason") == "second_action_cancelled_due_to_paralysis"
     if value["state"] == "cancelled_due_to_flinch":
         return probability == Fraction(1, 1) and value.get("execution_branch_id") == "second_action:flinched" and value.get("reason") == "second_action_cancelled_due_to_flinch"
-    return probability in {Fraction(1, 1), Fraction(3, 4)}
+    return probability in {Fraction(1, 1), Fraction(7, 8)}
 def _fraction(value: Mapping[str, Any]) -> Fraction: return Fraction(value["numerator"], value["denominator"])
 def _fd(value: Fraction) -> dict[str, int]: return {"numerator": value.numerator, "denominator": value.denominator}
 def _status(value: Mapping[str, Any]) -> str: return value.get("status") if isinstance(value, Mapping) and value.get("status") in _STATUSES else "rejected"

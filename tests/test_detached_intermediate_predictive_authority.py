@@ -129,8 +129,8 @@ def test_exact_intermediate_paralysis_consumes_private_condition_and_branches_se
     )
     assert consumed["status"] == "resolved"
     assert [(row["state"], row["conditional_probability"]) for row in consumed["second_action_execution_branches"]] == [
-        ("cancelled_due_to_paralysis", {"numerator": 1, "denominator": 4}),
-        ("executed", {"numerator": 3, "denominator": 4}),
+        ("cancelled_due_to_paralysis", {"numerator": 1, "denominator": 8}),
+        ("executed", {"numerator": 7, "denominator": 8}),
     ]
     inputs = consumed["builder_inputs"]
     assert inputs["hypothetical_condition_authority"]["condition"] == "paralysis"

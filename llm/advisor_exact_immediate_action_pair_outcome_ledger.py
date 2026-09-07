@@ -179,7 +179,7 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     elif second["state"] in {"executed_protection", "prevented_by_protection"}:
         if second_leaf is not None or conditional != Fraction(1, 1) or execution_probability != Fraction(1, 1) or second.get("reason") != second["state"]: return "protection_second_action_branch_invalid"
     elif second["state"] == "cancelled_due_to_paralysis":
-        if second_leaf is not None or conditional != Fraction(1, 4) or execution_probability != Fraction(1, 4) or second.get("reason") != "second_action_cancelled_due_to_paralysis": return "cancelled_second_action_branch_invalid"
+        if second_leaf is not None or conditional != Fraction(1, 8) or execution_probability != Fraction(1, 8) or second.get("reason") != "second_action_cancelled_due_to_paralysis": return "cancelled_second_action_branch_invalid"
     elif second_leaf is not None or conditional != Fraction(1, 1) or execution_probability != Fraction(1, 1) or second.get("reason") != "second_action_cancelled_due_to_flinch": return "cancelled_second_action_branch_invalid"
     elif _flinch_cancellation_binding(first, second) is not None: return _flinch_cancellation_binding(first, second)
     probability = _fraction(value.get("probability"))
@@ -698,11 +698,11 @@ def _execution_probability(second: Mapping[str, Any]) -> Fraction | str:
     if branch.get("state") != second.get("state") or _fraction(branch.get("conditional_probability")) != parsed:
         return "second_action_execution_branch_mismatch"
     if second["state"] == "cancelled_due_to_paralysis":
-        return parsed if branch.get("execution_branch_id") == "second_action:fully_paralyzed" and parsed == Fraction(1, 4) else "second_action_execution_probability_invalid"
+        return parsed if branch.get("execution_branch_id") == "second_action:fully_paralyzed" and parsed == Fraction(1, 8) else "second_action_execution_probability_invalid"
     if second["state"] == "cancelled_due_to_flinch":
         return parsed if branch.get("execution_branch_id") == "second_action:flinched" and parsed == Fraction(1, 1) and branch.get("reason") == "second_action_cancelled_due_to_flinch" else "second_action_execution_probability_invalid"
     if second["state"] == "executed":
-        return parsed if branch.get("execution_branch_id") == "second_action:can_act_after_paralysis" and parsed == Fraction(3, 4) else "second_action_execution_probability_invalid"
+        return parsed if branch.get("execution_branch_id") == "second_action:can_act_after_paralysis" and parsed == Fraction(7, 8) else "second_action_execution_probability_invalid"
     return "second_action_execution_branch_invalid"
 
 

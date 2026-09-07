@@ -110,8 +110,8 @@ def _execution_branches(*, paralyzed: bool) -> tuple[dict[str, Any], ...]:
     if not paralyzed:
         return ({"execution_branch_id": "second_action:can_act", "state": "executed", "conditional_probability": _fd(Fraction(1, 1))},)
     return (
-        {"execution_branch_id": "second_action:fully_paralyzed", "state": "cancelled_due_to_paralysis", "conditional_probability": _fd(Fraction(1, 4)), "reason": "second_action_cancelled_due_to_paralysis"},
-        {"execution_branch_id": "second_action:can_act_after_paralysis", "state": "executed", "conditional_probability": _fd(Fraction(3, 4))},
+        {"execution_branch_id": "second_action:fully_paralyzed", "state": "cancelled_due_to_paralysis", "conditional_probability": _fd(Fraction(1, 8)), "reason": "second_action_cancelled_due_to_paralysis"},
+        {"execution_branch_id": "second_action:can_act_after_paralysis", "state": "executed", "conditional_probability": _fd(Fraction(7, 8))},
     )
 
 

@@ -249,8 +249,8 @@ def test_exact_first_action_paralysis_branches_second_action_without_current_con
     assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
     states = {row["second_action"]["state"] for row in pair["terminal_branches"]}
     assert states == {"executed", "cancelled_due_to_paralysis"}
-    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 1, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "cancelled_due_to_paralysis")
-    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 3, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "executed")
+    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 1, "denominator": 8} for row in pair["terminal_branches"] if row["second_action"]["state"] == "cancelled_due_to_paralysis")
+    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 7, "denominator": 8} for row in pair["terminal_branches"] if row["second_action"]["state"] == "executed")
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
     assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
 
@@ -366,8 +366,8 @@ def test_real_thunderbolt_first_action_reaches_crit_and_paralysis_second_action_
     assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
     assert any(row["first_action_leaf"]["critical_state"] == "critical" for row in pair["terminal_branches"])
     assert {row["second_action"]["state"] for row in pair["terminal_branches"]} >= {"executed", "cancelled_due_to_paralysis"}
-    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 1, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "cancelled_due_to_paralysis")
-    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 3, "denominator": 4} for row in pair["terminal_branches"] if row["second_action"]["state"] == "executed")
+    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 1, "denominator": 8} for row in pair["terminal_branches"] if row["second_action"]["state"] == "cancelled_due_to_paralysis")
+    assert any(row["second_action"].get("execution_conditional_probability") == {"numerator": 7, "denominator": 8} for row in pair["terminal_branches"] if row["second_action"]["state"] == "executed")
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
     assert snapshot["state"]["opponent_side"]["pokemon"][0]["condition"] == "none"
 
