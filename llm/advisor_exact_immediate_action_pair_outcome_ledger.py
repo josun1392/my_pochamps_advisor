@@ -116,6 +116,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if knock_off_error is not None: return knock_off_error
     fling_error = _fling_item_throw_leaf(first)
     if fling_error is not None: return fling_error
+    fling_effect_error = _fling_item_bound_target_effect_leaf(first)
+    if fling_effect_error is not None: return fling_effect_error
     transfer_error = _item_transfer_leaf(first)
     if transfer_error is not None: return transfer_error
     swap_error = _atomic_item_swap_leaf(first)
@@ -196,6 +198,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if knock_off_error is not None: return knock_off_error
         fling_error = _fling_item_throw_leaf(second_leaf)
         if fling_error is not None: return fling_error
+        fling_effect_error = _fling_item_bound_target_effect_leaf(second_leaf)
+        if fling_effect_error is not None: return fling_effect_error
         transfer_error = _item_transfer_leaf(second_leaf)
         if transfer_error is not None: return transfer_error
         swap_error = _atomic_item_swap_leaf(second_leaf)
@@ -480,6 +484,22 @@ def _fling_item_throw_leaf(leaf: Mapping[str, Any]) -> str | None:
     ordinary = effect.get("kind") == "none" and effect.get("classification") == "explicit_no_target_effect" and metadata.get("support_status") == "not_applicable"
     if not isinstance(item, Mapping) or item.get("status") != "known" or payload.get("item_before") != item.get("value") or payload.get("item_after") is not None or payload.get("outcome") != "thrown" or payload.get("timing") != "prepare_hit_before_accuracy_protection_immunity_damage" or leaf.get("hit_state") not in {"hit", "miss"} or not isinstance(metadata, Mapping) or not (ordinary or supported) or metadata.get("provenance") != "frozen_pinned_showdown_fling_metadata_v1" or authority.get("resolved_base_power") != metadata.get("base_power") or authority.get("item_after") != {"state": "known_absent", "item": None} or not isinstance(field, Mapping) or field.get("status") != "resolved" or field.get("state") != "known_absent" or not isinstance(abilities, Mapping) or abilities.get("status") != "resolved" or abilities.get("klutz_active") is not False:
         return "fling_item_throw_transition_invalid"
+    return None
+
+def _fling_item_bound_target_effect_leaf(leaf: Mapping[str, Any]) -> str | None:
+    p,c=leaf.get("provenance"),leaf.get("consequences"); move=p.get("move_id") if isinstance(p,Mapping) else None; effect=c.get("fling_item_bound_target_effect") if isinstance(c,Mapping) else None
+    if move != "fling": return "unexpected_fling_target_effect_payload" if effect is not None else None
+    if not isinstance(effect,Mapping): return None
+    authority=effect.get("authority"); execution=p.get("fling_execution_authority") if isinstance(p,Mapping) else None
+    if not isinstance(authority,Mapping) or authority.get("schema_version")!="runtime-d0-fling-item-bound-deterministic-target-effect-authority-v1" or authority.get("execution_authority")!=execution or authority.get("target")!=p.get("target") or authority.get("item_id")!=execution.get("user_item_before",{}).get("value") if isinstance(execution,Mapping) else True:return "fling_target_effect_authority_binding_invalid"
+    kind=authority.get("fling_item_metadata",{}).get("effect",{}).get("kind") if isinstance(authority.get("fling_item_metadata"),Mapping) else None
+    outcome=authority.get("outcome")
+    if kind=="major_status":
+        if outcome=="applied_major_status" and not isinstance(effect.get("hypothetical_target_condition"),Mapping):return "fling_target_effect_status_materialization_invalid"
+        if outcome not in {"applied_major_status","no_transition_already_statused","prevented","not_applicable"}:return "fling_target_effect_status_outcome_invalid"
+    elif kind=="flinch":
+        if outcome=="applied_flinch_pending_action" and not isinstance(effect.get("hypothetical_target_flinch"),Mapping):return "fling_target_effect_flinch_materialization_invalid"
+    else:return "fling_target_effect_kind_invalid"
     return None
 
 def _item_transfer_leaf(leaf: Mapping[str, Any]) -> str | None:

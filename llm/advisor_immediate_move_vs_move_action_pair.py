@@ -1093,7 +1093,9 @@ def _materialize_order(
                                  target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"], metadata_authority=first_meta,
                                  sturdy_survival_authority=first_action_sturdy_survival_authority,
                                  focus_sash_survival_authority=first_action_focus_sash_survival_authority, action=first_action,
-                                 analytic_action_order_authority=first_analytic))
+                                 analytic_action_order_authority=first_analytic,
+                                 pending_target_action=({**deepcopy(dict(opponent_action)), "actor": deepcopy(dict(base["opponent_actor"]))} if order == "own_first" else None),
+                                 action_order=order))
     if isinstance(first_gate, Mapping) and first_gate.get("status") == "applies":
         first = _bind_sucker_punch_execution_ledger(first, first_gate)
     if first.get("status") != "evaluable": return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base, first_action_ledger=first)
@@ -1226,7 +1228,7 @@ def _materialize_order(
     return branches
 
 
-def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None, source_terminal_leaf: Mapping[str, Any] | None = None, source_selected_action: Mapping[str, Any] | None = None, source_execution_order_provenance: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None, source_terminal_leaf: Mapping[str, Any] | None = None, source_selected_action: Mapping[str, Any] | None = None, source_execution_order_provenance: Mapping[str, Any] | None = None, pending_target_action: Mapping[str, Any] | None = None, action_order: str | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     fling_execution = None
@@ -1292,7 +1294,7 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
     normal = _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, fling_execution_authority=fling_execution)
     if fling_execution is not None:
         thrown = _apply_fling_item_throw_to_ledger(ledger=normal, authority=fling_execution)
-        return _apply_fling_deterministic_target_effect_to_ledger(ledger=thrown, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, authority=fling_execution)
+        return _apply_fling_deterministic_target_effect_to_ledger(ledger=thrown, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, authority=fling_execution, pending_target_action=pending_target_action, action_order=action_order)
     if metadata.get("move_id") in {"avalanche", "revenge"}: return _bind_was_damaged_power_authority_to_ledger(normal, power)
     if metadata.get("move_id") == "assurance": return _bind_target_was_damaged_power_authority_to_ledger(normal, power)
     if metadata.get("move_id") == "payback": return _bind_target_already_acted_power_authority_to_ledger(normal, power)
@@ -1912,17 +1914,20 @@ def _apply_fling_item_throw_to_ledger(*, ledger: Mapping[str, Any], authority: M
         row = deepcopy(dict(leaf)); row["consequences"] = {**deepcopy(dict(row.get("consequences", {}))), "fling_item_throw": throw}; row["provenance"] = {**deepcopy(dict(row.get("provenance", {}))), "fling_execution_authority": deepcopy(dict(authority))}; rows.append(row)
     result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(rows); result["component_manifest"] = {**deepcopy(dict(result.get("component_manifest", {}))), "fling_item_throw": {"status": "resolved"}}; return result
 
-def _apply_fling_deterministic_target_effect_to_ledger(*, ledger: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], authority: Mapping[str, Any]) -> dict[str, Any]:
+def _apply_fling_deterministic_target_effect_to_ledger(*, ledger: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], authority: Mapping[str, Any], pending_target_action: Mapping[str, Any] | None = None, action_order: str | None = None) -> dict[str, Any]:
     effect = authority.get("fling_item_metadata", {}).get("effect") if isinstance(authority.get("fling_item_metadata"), Mapping) else {}
     if effect.get("kind") not in {"major_status", "flinch"}: return ledger
     if ledger.get("status") != "evaluable" or not isinstance(ledger.get("terminal_leaves"), tuple): return deepcopy(dict(ledger))
     rows=[]
     for leaf in ledger["terminal_leaves"]:
-        bound=freeze_runtime_d0_fling_item_bound_deterministic_target_effect_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,fling_execution_authority=authority,source_leaf=leaf)
+        bound=freeze_runtime_d0_fling_item_bound_deterministic_target_effect_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,fling_execution_authority=authority,source_leaf=leaf,pending_target_action=pending_target_action,action_order=action_order)
         if bound.get("status") != "resolved": return _result(_status(bound),bound.get("reason","fling_target_effect_unavailable"),{})
         detached=materialize_detached_fling_item_bound_deterministic_target_effect(authority=bound)
         if detached.get("status") != "resolved": return _result(_status(detached),detached.get("reason","fling_target_effect_materialization_unavailable"),{})
-        row=deepcopy(dict(leaf)); row["consequences"]={**deepcopy(dict(row["consequences"])),"fling_item_bound_target_effect":detached}; rows.append(row)
+        consequences={**deepcopy(dict(leaf["consequences"])),"fling_item_bound_target_effect":detached}
+        if detached.get("hypothetical_target_flinch") is not None:
+            consequences["secondary"]={"branch":"effect","hypothetical_target_flinch":deepcopy(detached["hypothetical_target_flinch"]),"fling_item_bound_target_effect_authority":deepcopy(bound)}
+        row=deepcopy(dict(leaf)); row["consequences"]=consequences; rows.append(row)
     out=deepcopy(dict(ledger));out["terminal_leaves"]=tuple(rows);out["component_manifest"]={**deepcopy(dict(out.get("component_manifest",{}))),"fling_item_bound_target_effect":{"status":"resolved"}};return out
 def _sucker_punch_failure_ledger(*, strategy_d0: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], action: Mapping[str, Any], applicability: Mapping[str, Any]) -> dict[str, Any]:
     """Represent an attempted but pre-execution Sucker Punch failure exactly."""
