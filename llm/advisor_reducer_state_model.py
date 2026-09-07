@@ -2294,6 +2294,7 @@ def _switch(state, event):
     outgoing = roster.get(out_slot, roster.get(str(out_slot))) if isinstance(roster, dict) else None
     if isinstance(outgoing, dict):
         outgoing["toxic_progression"] = make_unknown_battle_fact()
+        outgoing.pop("champions_yawn_drowsiness", None)
         _invalidate_current_crit_volatiles(outgoing)
         if outgoing.get("current_confusion") == "confused":
             outgoing["current_confusion"] = "none"
