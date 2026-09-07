@@ -14,6 +14,7 @@ from advisor.damage.field import Field, SideField
 from advisor.damage.items import get_item
 from advisor.damage.q12 import M_HALF, Q12_ONE
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
+from advisor.canonical_target_current_hp_power_family import resolve_canonical_target_current_hp_power_move
 from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.move_categories import load_move_flags as load_move_category_flags
@@ -89,6 +90,7 @@ STATIC_ATTACKER_DAMAGE_ITEMS = frozenset({"life-orb", "choice-band", "choice-spe
 STATIC_DEFENDER_DAMAGE_ITEMS = frozenset({"assault-vest"})
 _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES = frozenset({"eruption", "water-spout", "dragon-energy"})
 _CURRENT_HP_BRACKET_DIRECT_MOVES = frozenset({"flail", "reversal"})
+_TARGET_CURRENT_HP_POWER_DIRECT_MOVES = frozenset({"hard-press", "crush-grip", "wring-out"})
 _STATUS_CONDITION_POWER_DIRECT_MOVES = frozenset({"hex", "venoshock"})
 _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES = frozenset({"weather-ball", "terrain-pulse"})
 _TURN_EVENT_POWER_DIRECT_MOVES = frozenset({"avalanche", "revenge", "payback", "assurance", "stomping-tantrum", "lash-out", "rage-fist", "last-respects"})
@@ -158,12 +160,13 @@ def evaluate_direct_damage_mechanics(
     category, power, move_type = move.get("category"), move.get("power"), move.get("type")
     if category == "status":
         return _unsupported("status_move")
-    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"fling", "acrobatics", "facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES, *_TURN_EVENT_POWER_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES, *_CURRENT_HP_BRACKET_DIRECT_MOVES}:
+    if move_id in DYNAMIC_MOVE_ASSESSMENT_REGISTRY and move_id not in {"fling", "acrobatics", "facade", "brine", *_STATUS_CONDITION_POWER_DIRECT_MOVES, *_ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES, *_TURN_EVENT_POWER_DIRECT_MOVES, *_CURRENT_HP_PROPORTIONAL_DIRECT_MOVES, *_CURRENT_HP_BRACKET_DIRECT_MOVES, *_TARGET_CURRENT_HP_POWER_DIRECT_MOVES}:
         return _unsupported("dynamic_base_power")
     facade = _facade_power_context(current) if move_id == "facade" else None
     acrobatics = _acrobatics_power_context(stat_provenance) if move_id == "acrobatics" else None
     current_hp_power = _current_hp_proportional_power_context(move_id=move_id, direct_attacker=_mapping(direct.get("attacker"))) if move_id in _CURRENT_HP_PROPORTIONAL_DIRECT_MOVES else None
     current_hp_bracket_power = _current_hp_bracket_power_context(move_id=move_id, direct_attacker=_mapping(direct.get("attacker"))) if move_id in _CURRENT_HP_BRACKET_DIRECT_MOVES else None
+    target_current_hp_power = _target_current_hp_power_context(move_id=move_id, current=current) if move_id in _TARGET_CURRENT_HP_POWER_DIRECT_MOVES else None
     brine_power = _brine_power_context(direct_defender=_mapping(direct.get("defender"))) if move_id == "brine" else None
     status_condition_power = _status_condition_power_context(move_id=move_id, current=current) if move_id in _STATUS_CONDITION_POWER_DIRECT_MOVES else None
     environment_transformation = _environment_transformation_context(move_id=move_id, current=current) if move_id in _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES else None
@@ -184,6 +187,9 @@ def evaluate_direct_damage_mechanics(
     expected_current_hp_bracket_metadata = {"flail": "normal", "reversal": "fighting"}
     if move_id in _CURRENT_HP_BRACKET_DIRECT_MOVES and (category != "physical" or power != 20 or move_type != expected_current_hp_bracket_metadata[move_id]):
         return _unsupported("current_hp_bracket_metadata")
+    canonical_target_power = resolve_canonical_target_current_hp_power_move(move=move) if move_id in _TARGET_CURRENT_HP_POWER_DIRECT_MOVES else None
+    if isinstance(canonical_target_power, Mapping) and (canonical_target_power.get("status") != "resolved" or category != canonical_target_power["effect"]["category"] or move_type != canonical_target_power["effect"]["type"]):
+        return _unsupported("target_current_hp_power_metadata")
     if move_id == "brine" and (category != "special" or power != 65 or move_type != "water"):
         return _unsupported("brine_metadata")
     expected_status_condition_metadata = {"hex": "ghost", "venoshock": "poison"}
@@ -225,6 +231,10 @@ def evaluate_direct_damage_mechanics(
         missing.extend(current_hp_bracket_power.get("missing_inputs", []))
         if current_hp_bracket_power.get("status") == "known":
             power = current_hp_bracket_power["effective_power"]
+    if isinstance(target_current_hp_power, Mapping):
+        if target_current_hp_power.get("status") != "known":
+            return _insufficient(target_current_hp_power.get("missing_inputs", ["target_current_hp_power_authority"]))
+        power = target_current_hp_power["effective_power"]
     if isinstance(brine_power, Mapping):
         if brine_power.get("status") == "not_applicable":
             return _unsupported("defender_already_fainted")
@@ -430,6 +440,8 @@ def evaluate_direct_damage_mechanics(
         result["dynamic_power_evidence"] = deepcopy(dict(current_hp_power))
     if isinstance(current_hp_bracket_power, Mapping) and current_hp_bracket_power.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(current_hp_bracket_power))
+    if isinstance(target_current_hp_power, Mapping) and target_current_hp_power.get("status") == "known":
+        result["dynamic_power_evidence"] = deepcopy(dict(target_current_hp_power))
     if isinstance(brine_power, Mapping) and brine_power.get("status") == "known":
         result["dynamic_power_evidence"] = deepcopy(dict(brine_power))
     if isinstance(status_condition_power, Mapping) and status_condition_power.get("status") == "known":
@@ -1285,6 +1297,37 @@ def _current_hp_bracket_power_context(*, move_id: Any, direct_attacker: Mapping[
     if reason == "missing_self_maximum_hp":
         return {"status": "insufficient_context", "missing_inputs": ["attacker.max_hp"]}
     return {"status": "unsupported_mechanic", "missing_inputs": []}
+
+
+def _target_current_hp_power_context(*, move_id: Any, current: Mapping[str, Any]) -> dict[str, Any]:
+    """Consume only the strict execution-time target HP authority."""
+    authority = current.get("target_current_hp_power_authority")
+    canonical = resolve_canonical_target_current_hp_power_move(move={"move_id": move_id})
+    if not isinstance(authority, Mapping) or canonical.get("status") != "resolved":
+        return {"status": "insufficient_context", "missing_inputs": ["target_current_hp_power_authority"]}
+    current_hp, maximum_hp = authority.get("target_current_hp"), authority.get("target_max_hp")
+    multiplier, additive, variant = (100, 0, "hard-press-current-hp-ratio") if move_id == "hard-press" else (120, 1, "crush-grip-wring-out-current-hp-ratio")
+    intermediate = multiplier * current_hp // maximum_hp if isinstance(current_hp, int) and isinstance(maximum_hp, int) and maximum_hp else None
+    valid = (
+        authority.get("status") == "resolved"
+        and authority.get("schema_version") == "runtime-d0-target-current-hp-power-authority-v1"
+        and authority.get("move_id") == move_id and authority.get("family") == "target_current_hp_power"
+        and isinstance(current_hp, int) and not isinstance(current_hp, bool)
+        and isinstance(maximum_hp, int) and not isinstance(maximum_hp, bool)
+        and 0 < current_hp <= maximum_hp and authority.get("target_hp_provenance") == "runtime_strategy_d0_execution_path_active_hp_v1"
+        and authority.get("formula_variant") == variant and authority.get("ratio_numerator") == multiplier * current_hp
+        and authority.get("ratio_denominator") == maximum_hp and authority.get("intermediate_power") == intermediate
+        and authority.get("resolved_base_power") == max(1, intermediate + additive)
+        and authority.get("rule") == canonical.get("effect")
+    )
+    if not valid:
+        return {"status": "insufficient_context", "missing_inputs": ["target_current_hp_power_authority"]}
+    return {"status": "known", "mechanic": "target_current_hp_power", "move": move_id,
+            "target_current_hp": current_hp, "target_max_hp": maximum_hp,
+            "formula_variant": variant, "ratio_numerator": multiplier * current_hp,
+            "ratio_denominator": maximum_hp, "intermediate_power": intermediate,
+            "effective_power": authority["resolved_base_power"], "rule": "exact-execution-time-target-current-hp",
+            "authority": deepcopy(dict(authority)), "missing_inputs": []}
 
 
 def _brine_power_context(*, direct_defender: Mapping[str, Any]) -> dict[str, Any]:

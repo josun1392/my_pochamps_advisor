@@ -128,6 +128,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if retaliation_error is not None: return retaliation_error
     power_error = _was_damaged_power_leaf(first)
     if power_error is not None: return power_error
+    target_current_hp_error = _target_current_hp_power_leaf(first)
+    if target_current_hp_error is not None: return target_current_hp_error
     assurance_error = _target_was_damaged_power_leaf(first)
     if assurance_error is not None: return assurance_error
     payback_error = _target_already_acted_power_leaf(first)
@@ -208,6 +210,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if retaliation_error is not None: return retaliation_error
         power_error = _was_damaged_power_leaf(second_leaf)
         if power_error is not None: return power_error
+        target_current_hp_error = _target_current_hp_power_leaf(second_leaf)
+        if target_current_hp_error is not None: return target_current_hp_error
         assurance_error = _target_was_damaged_power_leaf(second_leaf)
         if assurance_error is not None: return assurance_error
         payback_error = _target_already_acted_power_leaf(second_leaf)
@@ -271,6 +275,21 @@ def _recent_damage_retaliation_leaf(leaf: Mapping[str, Any]) -> str | None:
         raw=max(1,(event["hp_lost"]*expected["multiplier"]["numerator"])//expected["multiplier"]["denominator"]) if isinstance(event,Mapping) and isinstance(event.get("hp_lost"),int) else None
         if not isinstance(event,Mapping) or event.get("status")!="resolved" or event.get("recipient")!=p.get("attacker") or event.get("source_attacker")!=p.get("target") or event.get("source_category") not in categories or event.get("qualifying_event") is not True or not isinstance(event.get("hp_lost"),int) or event["hp_lost"]<0 or damage!=raw: return "recent_damage_retaliation_event_binding_invalid"
     elif damage != 0: return "recent_damage_retaliation_failure_damage_invalid"
+    return None
+
+
+def _target_current_hp_power_leaf(leaf: Mapping[str, Any]) -> str | None:
+    p = leaf.get("provenance")
+    if not isinstance(p, Mapping): return "target_current_hp_power_leaf_provenance_invalid"
+    move, authority = p.get("move_id"), p.get("target_current_hp_power_authority")
+    supported = {"hard-press", "crush-grip", "wring-out"}
+    if move not in supported: return "unexpected_target_current_hp_power_authority" if authority is not None else None
+    if not isinstance(authority, Mapping) or authority.get("status") != "resolved" or authority.get("schema_version") != "runtime-d0-target-current-hp-power-authority-v1": return "target_current_hp_power_authority_missing_or_invalid"
+    current, maximum = authority.get("target_current_hp"), authority.get("target_max_hp")
+    if authority.get("move_id") != move or authority.get("family") != "target_current_hp_power" or authority.get("user") != p.get("attacker") or authority.get("target") != p.get("target") or authority.get("target_hp_provenance") != "runtime_strategy_d0_execution_path_active_hp_v1" or not isinstance(current, int) or isinstance(current, bool) or not isinstance(maximum, int) or isinstance(maximum, bool) or not 0 < current <= maximum: return "target_current_hp_power_identity_or_hp_invalid"
+    multiplier, additive, variant = (100, 0, "hard-press-current-hp-ratio") if move == "hard-press" else (120, 1, "crush-grip-wring-out-current-hp-ratio")
+    intermediate = multiplier * current // maximum
+    if authority.get("formula_variant") != variant or authority.get("ratio_numerator") != multiplier * current or authority.get("ratio_denominator") != maximum or authority.get("intermediate_power") != intermediate or authority.get("resolved_base_power") != max(1, intermediate + additive): return "target_current_hp_power_arithmetic_invalid"
     return None
 
 
