@@ -95,6 +95,7 @@ from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_r
 from llm.advisor_detached_knock_off_item_removal import materialize_detached_knock_off_item_removal
 from llm.advisor_runtime_d0_fling_item_execution_authority import freeze_runtime_d0_fling_item_execution_authority
 from llm.advisor_detached_fling_item_throw import materialize_detached_fling_item_throw
+from llm.advisor_runtime_d0_fling_item_bound_deterministic_target_effect_authority import freeze_runtime_d0_fling_item_bound_deterministic_target_effect_authority, materialize_detached_fling_item_bound_deterministic_target_effect
 from llm.advisor_detached_item_transfer_after_hit import materialize_detached_item_transfer_after_hit
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
 from llm.advisor_detached_drain_consequence import apply_detached_drain_consequence
@@ -1289,7 +1290,9 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
             stakeout_switch_authority=stakeout_switch_authority,
         )
     normal = _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, fling_execution_authority=fling_execution)
-    if fling_execution is not None: return _apply_fling_item_throw_to_ledger(ledger=normal, authority=fling_execution)
+    if fling_execution is not None:
+        thrown = _apply_fling_item_throw_to_ledger(ledger=normal, authority=fling_execution)
+        return _apply_fling_deterministic_target_effect_to_ledger(ledger=thrown, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, authority=fling_execution)
     if metadata.get("move_id") in {"avalanche", "revenge"}: return _bind_was_damaged_power_authority_to_ledger(normal, power)
     if metadata.get("move_id") == "assurance": return _bind_target_was_damaged_power_authority_to_ledger(normal, power)
     if metadata.get("move_id") == "payback": return _bind_target_already_acted_power_authority_to_ledger(normal, power)
@@ -1908,6 +1911,19 @@ def _apply_fling_item_throw_to_ledger(*, ledger: Mapping[str, Any], authority: M
         if throw.get("status") != "resolved": return _result(_status(throw), throw.get("reason", "fling_throw_materialization_unavailable"), {})
         row = deepcopy(dict(leaf)); row["consequences"] = {**deepcopy(dict(row.get("consequences", {}))), "fling_item_throw": throw}; row["provenance"] = {**deepcopy(dict(row.get("provenance", {}))), "fling_execution_authority": deepcopy(dict(authority))}; rows.append(row)
     result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(rows); result["component_manifest"] = {**deepcopy(dict(result.get("component_manifest", {}))), "fling_item_throw": {"status": "resolved"}}; return result
+
+def _apply_fling_deterministic_target_effect_to_ledger(*, ledger: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], authority: Mapping[str, Any]) -> dict[str, Any]:
+    effect = authority.get("fling_item_metadata", {}).get("effect") if isinstance(authority.get("fling_item_metadata"), Mapping) else {}
+    if effect.get("kind") not in {"major_status", "flinch"}: return ledger
+    if ledger.get("status") != "evaluable" or not isinstance(ledger.get("terminal_leaves"), tuple): return deepcopy(dict(ledger))
+    rows=[]
+    for leaf in ledger["terminal_leaves"]:
+        bound=freeze_runtime_d0_fling_item_bound_deterministic_target_effect_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,fling_execution_authority=authority,source_leaf=leaf)
+        if bound.get("status") != "resolved": return _result(_status(bound),bound.get("reason","fling_target_effect_unavailable"),{})
+        detached=materialize_detached_fling_item_bound_deterministic_target_effect(authority=bound)
+        if detached.get("status") != "resolved": return _result(_status(detached),detached.get("reason","fling_target_effect_materialization_unavailable"),{})
+        row=deepcopy(dict(leaf)); row["consequences"]={**deepcopy(dict(row["consequences"])),"fling_item_bound_target_effect":detached}; rows.append(row)
+    out=deepcopy(dict(ledger));out["terminal_leaves"]=tuple(rows);out["component_manifest"]={**deepcopy(dict(out.get("component_manifest",{}))),"fling_item_bound_target_effect":{"status":"resolved"}};return out
 def _sucker_punch_failure_ledger(*, strategy_d0: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], action: Mapping[str, Any], applicability: Mapping[str, Any]) -> dict[str, Any]:
     """Represent an attempted but pre-execution Sucker Punch failure exactly."""
     own_hp = strategy_d0.get("strategy_state", {}).get("active", {}).get(actor.get("side"), {}).get("current_hp")

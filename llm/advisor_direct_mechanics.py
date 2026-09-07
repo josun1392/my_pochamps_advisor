@@ -1208,7 +1208,9 @@ def _fling_power_context(current: Mapping[str, Any], move: Mapping[str, Any]) ->
     authority = _mapping(current.get("fling_execution_authority"))
     power = authority.get("resolved_base_power")
     metadata = authority.get("fling_item_metadata")
-    if authority.get("status") != "resolved" or authority.get("schema_version") != "runtime-d0-fling-item-execution-authority-v1" or authority.get("outcome") != "ready_throw" or authority.get("move_id") != "fling" or not _positive_int(power) or move.get("power") != power or not isinstance(metadata, Mapping) or metadata.get("base_power") != power or _mapping(metadata.get("effect")).get("kind") != "none" or metadata.get("support_status") != "not_applicable" or authority.get("item_after") != {"state": "known_absent", "item": None}:
+    effect = _mapping(metadata.get("effect")) if isinstance(metadata, Mapping) else {}
+    deterministic = authority.get("deterministic_target_effect_support") == "fling_item_bound_deterministic_target_effect_v1" and (effect.get("kind") == "flinch" or effect.get("kind") == "major_status" and effect.get("condition") in {"paralysis", "poison"})
+    if authority.get("status") != "resolved" or authority.get("schema_version") != "runtime-d0-fling-item-execution-authority-v1" or authority.get("outcome") != "ready_throw" or authority.get("move_id") != "fling" or not _positive_int(power) or move.get("power") != power or not isinstance(metadata, Mapping) or metadata.get("base_power") != power or not ((effect.get("kind") == "none" and metadata.get("support_status") == "not_applicable") or deterministic) or authority.get("item_after") != {"state": "known_absent", "item": None}:
         return {"status": "incomplete", "mechanic": "fling_item_power_and_throw", "missing_inputs": ["fling.execution_authority"]}
     return {"status": "known", "mechanic": "fling_item_power_and_throw", "effective_power": power, "item_effects_active_during_damage": False, "execution_authority": deepcopy(dict(authority)), "missing_inputs": []}
 

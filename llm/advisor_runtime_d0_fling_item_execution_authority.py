@@ -61,8 +61,11 @@ def freeze_runtime_d0_fling_item_execution_authority(
     effect = metadata.get("effect")
     if not metadata.get("flingable") or not isinstance(metadata.get("base_power"), int) or isinstance(metadata["base_power"], bool) or metadata["base_power"] <= 0 or not isinstance(effect, Mapping):
         return _terminal("incomplete_authority", "incomplete", "fling_item_execution_eligibility_unknown", base, common)
-    if effect.get("kind") != "none" or metadata.get("support_status") != "not_applicable":
+    supported_effect = effect.get("kind") == "major_status" and effect.get("condition") in {"paralysis", "poison"} or effect.get("kind") == "flinch"
+    if not ((effect.get("kind") == "none" and metadata.get("support_status") == "not_applicable") or supported_effect):
         return _terminal("unsupported_mandatory_item_effect", "unsupported", "fling_mandatory_item_effect_unsupported", base, common)
+    if supported_effect:
+        common["deterministic_target_effect_support"] = "fling_item_bound_deterministic_target_effect_v1"
     common["item_after"] = {"state": "known_absent", "item": None}
     common["resolved_base_power"] = metadata["base_power"]
     return _terminal("ready_throw", "resolved", "fling_prepare_hit_throw_ready", base, common)
