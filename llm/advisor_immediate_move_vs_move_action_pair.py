@@ -94,7 +94,6 @@ from llm.advisor_runtime_d0_contact_reactive_status_authority import (
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_detached_knock_off_item_removal import materialize_detached_knock_off_item_removal
 from llm.advisor_runtime_d0_fling_item_execution_authority import freeze_runtime_d0_fling_item_execution_authority
-from llm.advisor_runtime_d0_target_current_hp_power_authority import freeze_runtime_d0_target_current_hp_power_authority
 from llm.advisor_detached_fling_item_throw import materialize_detached_fling_item_throw
 from llm.advisor_detached_item_transfer_after_hit import materialize_detached_item_transfer_after_hit
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
@@ -1230,17 +1229,12 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     fling_execution = None
-    target_current_hp_power = None
     if metadata.get("move_id") == "fling":
         if not isinstance(action, Mapping): return _result("incomplete", "fling_action_authority_required", {})
         fling_execution = freeze_runtime_d0_fling_item_execution_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, actor=actor, target=target)
         if fling_execution.get("status") != "resolved": return _result(_status(fling_execution), fling_execution.get("reason", "fling_execution_authority_unavailable"), {})
         if fling_execution.get("outcome") != "ready_throw": return _fling_failure_ledger(strategy_d0=strategy_d0, actor=actor, target=target, action=action, authority=fling_execution)
         metadata = {**metadata, "power": fling_execution["resolved_base_power"], "fling_execution_authority": fling_execution}
-    if metadata.get("move_id") in {"hard-press", "crush-grip", "wring-out"}:
-        target_current_hp_power = freeze_runtime_d0_target_current_hp_power_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, move=metadata, user=actor, target=target)
-        if target_current_hp_power.get("status") != "resolved": return _result(_status(target_current_hp_power), target_current_hp_power.get("reason", "target_current_hp_power_authority_unavailable"), {})
-        metadata = {**metadata, "target_current_hp_power_authority": target_current_hp_power}
     if metadata.get("move_id") == "seismic-toss":
         return _seismic_toss_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority)
     if metadata.get("move_id") in {"super-fang", "natures-madness", "ruination"}:
@@ -1294,9 +1288,8 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
             analytic_action_order_authority=analytic_action_order_authority,
             stakeout_switch_authority=stakeout_switch_authority,
         )
-    normal = _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, fling_execution_authority=fling_execution, target_current_hp_power_authority=target_current_hp_power)
+    normal = _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, fling_execution_authority=fling_execution)
     if fling_execution is not None: return _apply_fling_item_throw_to_ledger(ledger=normal, authority=fling_execution)
-    if target_current_hp_power is not None: return _bind_target_current_hp_power_authority_to_ledger(normal, target_current_hp_power)
     if metadata.get("move_id") in {"avalanche", "revenge"}: return _bind_was_damaged_power_authority_to_ledger(normal, power)
     if metadata.get("move_id") == "assurance": return _bind_target_was_damaged_power_authority_to_ledger(normal, power)
     if metadata.get("move_id") == "payback": return _bind_target_already_acted_power_authority_to_ledger(normal, power)
@@ -1305,18 +1298,6 @@ def _attack_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[
     if metadata.get("move_id")=="rage-fist":return _bind_rage_fist_hit_count_power_authority_to_ledger(normal,power)
     if metadata.get("move_id")=="last-respects":return _bind_last_respects_faint_power_authority_to_ledger(normal,power)
     return normal
-
-
-def _bind_target_current_hp_power_authority_to_ledger(ledger: Mapping[str, Any], authority: Mapping[str, Any]) -> dict[str, Any]:
-    if ledger.get("status") != "evaluable" or not isinstance(ledger.get("terminal_leaves"), tuple): return deepcopy(dict(ledger))
-    if authority.get("status") != "resolved" or authority.get("family") != "target_current_hp_power": return _result("rejected", "target_current_hp_power_ledger_authority_invalid", {})
-    rows = []
-    for leaf in ledger["terminal_leaves"]:
-        if not isinstance(leaf, Mapping) or not isinstance(leaf.get("provenance"), Mapping): return _result("rejected", "target_current_hp_power_ledger_leaf_invalid", {})
-        row = deepcopy(dict(leaf)); row["provenance"] = {**deepcopy(dict(row["provenance"])), "target_current_hp_power_authority": deepcopy(dict(authority))}; rows.append(row)
-    result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(rows)
-    result["component_manifest"] = {**deepcopy(dict(result.get("component_manifest", {}))), "target_current_hp_power": {"status": "resolved"}}
-    return result
 
 
 def _bind_was_damaged_power_authority_to_ledger(ledger: Mapping[str, Any], authority: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -1554,7 +1535,7 @@ def _recent_damage_retaliation_ledger(*, strategy_d0: Mapping[str, Any], runtime
     return _apply_contact_reactive_status_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,defender=target,source_action=source,contact_authority=contact)
 
 
-def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, fling_execution_authority: Mapping[str, Any] | None = None, target_current_hp_power_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, fling_execution_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     sparkling_aria = None
@@ -1565,7 +1546,7 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         )
         if sparkling_aria.get("status") != "resolved":
             return _result(_status(sparkling_aria), sparkling_aria.get("reason", "sparkling_aria_burn_clearing_authority_unavailable"), {})
-    native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, sparkling_aria_burn_clearing_authority=sparkling_aria, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, was_damaged_power_authority=metadata.get("was_damaged_power_authority") if isinstance(metadata.get("was_damaged_power_authority"), Mapping) else None, target_was_damaged_power_authority=metadata.get("target_was_damaged_power_authority") if isinstance(metadata.get("target_was_damaged_power_authority"), Mapping) else None, target_already_acted_power_authority=metadata.get("target_already_acted_power_authority") if isinstance(metadata.get("target_already_acted_power_authority"), Mapping) else None, previous_action_result_authority=metadata.get("previous_action_result_authority") if isinstance(metadata.get("previous_action_result_authority"), Mapping) else None, same_turn_stat_drop_power_authority=metadata.get("same_turn_stat_drop_power_authority") if isinstance(metadata.get("same_turn_stat_drop_power_authority"), Mapping) else None, rage_fist_hit_count_power_authority=metadata.get("rage_fist_hit_count_power_authority") if isinstance(metadata.get("rage_fist_hit_count_power_authority"), Mapping) else None, last_respects_faint_power_authority=metadata.get("last_respects_faint_power_authority") if isinstance(metadata.get("last_respects_faint_power_authority"), Mapping) else None, fling_execution_authority=fling_execution_authority, target_current_hp_power_authority=target_current_hp_power_authority)
+    native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, sparkling_aria_burn_clearing_authority=sparkling_aria, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, was_damaged_power_authority=metadata.get("was_damaged_power_authority") if isinstance(metadata.get("was_damaged_power_authority"), Mapping) else None, target_was_damaged_power_authority=metadata.get("target_was_damaged_power_authority") if isinstance(metadata.get("target_was_damaged_power_authority"), Mapping) else None, target_already_acted_power_authority=metadata.get("target_already_acted_power_authority") if isinstance(metadata.get("target_already_acted_power_authority"), Mapping) else None, previous_action_result_authority=metadata.get("previous_action_result_authority") if isinstance(metadata.get("previous_action_result_authority"), Mapping) else None, same_turn_stat_drop_power_authority=metadata.get("same_turn_stat_drop_power_authority") if isinstance(metadata.get("same_turn_stat_drop_power_authority"), Mapping) else None, rage_fist_hit_count_power_authority=metadata.get("rage_fist_hit_count_power_authority") if isinstance(metadata.get("rage_fist_hit_count_power_authority"), Mapping) else None, last_respects_faint_power_authority=metadata.get("last_respects_faint_power_authority") if isinstance(metadata.get("last_respects_faint_power_authority"), Mapping) else None, fling_execution_authority=fling_execution_authority)
     normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, native_damage_context=native)
     hit = build_runtime_d0_strict_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, selected_move=metadata)
     crit = build_runtime_d0_strict_critical_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata)

@@ -962,7 +962,6 @@ def build_runtime_d0_native_damage_context(
     same_turn_stat_drop_power_authority: Mapping[str, Any] | None = None,
     rage_fist_hit_count_power_authority: Mapping[str, Any] | None = None,
     last_respects_faint_power_authority: Mapping[str, Any] | None = None,
-    target_current_hp_power_authority: Mapping[str, Any] | None = None,
     fling_execution_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
@@ -1043,7 +1042,6 @@ def build_runtime_d0_native_damage_context(
         "stakeout_switch_authority": deepcopy(dict(stakeout_switch_authority)) if isinstance(stakeout_switch_authority, Mapping) else None,
         "supreme_overlord_damage_authority": deepcopy(dict(supreme_overlord_damage_authority)) if isinstance(supreme_overlord_damage_authority, Mapping) else None,
         "fling_execution_authority": deepcopy(dict(fling_execution_authority)) if isinstance(fling_execution_authority, Mapping) else None,
-        "target_current_hp_power_authority": deepcopy(dict(target_current_hp_power_authority)) if isinstance(target_current_hp_power_authority, Mapping) else None,
     }
     if move["move_id"] == "sparkling-aria" and sparkling_aria_burn_clearing_authority is not None:
         if not _exact_sparkling_aria_pre_hit_burn_authority(
@@ -1077,9 +1075,6 @@ def build_runtime_d0_native_damage_context(
     if move["move_id"] == "last-respects":
         if not isinstance(last_respects_faint_power_authority,Mapping) or last_respects_faint_power_authority.get("status")!="resolved" or last_respects_faint_power_authority.get("user")!=attacker or last_respects_faint_power_authority.get("move_id")!="last-respects":return _native_context_result("rejected","last_respects_faint_power_authority_invalid")
         current["detached_last_respects_faint_power_authority"]=deepcopy(dict(last_respects_faint_power_authority))
-    if move["move_id"] in {"hard-press", "crush-grip", "wring-out"}:
-        if not _exact_target_current_hp_power_authority(target_current_hp_power_authority, strategy_d0=strategy_d0, attacker=attacker, target=target, move=move):
-            return _native_context_result("rejected", "target_current_hp_power_authority_invalid")
     damage_input = {
         "attacker": {**deepcopy(dict(attacker)), "session_id": strategy_d0["session_id"]},
         "defender": {**deepcopy(dict(target)), "session_id": strategy_d0["session_id"]},
@@ -1146,19 +1141,6 @@ def _exact_target_already_acted_power_authority(value: Any, *, strategy_d0: Mapp
     condition=value.get("target_already_acted_before_execution"); action=value.get("qualifying_target_action")
     if not isinstance(condition,bool) or value.get("selected_base_power") != (100 if condition else 50): return False
     return (not condition and action is None) or (isinstance(action,Mapping) and action.get("event_order")=="before_payback_execution" and isinstance(action.get("source_action_id"),str) and isinstance(action.get("source_execution_move_id"),str) and action.get("source_action_type") in {"attack","protection","status","status_protection"})
-
-def _exact_target_current_hp_power_authority(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], move: Mapping[str, Any]) -> bool:
-    if not isinstance(value, Mapping) or value.get("status") != "resolved" or value.get("schema_version") != "runtime-d0-target-current-hp-power-authority-v1": return False
-    from advisor.canonical_target_current_hp_power_family import resolve_canonical_target_current_hp_power_move
-    canonical = resolve_canonical_target_current_hp_power_move(move=move)
-    expected = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": strategy_d0["decision_owner"], "user": attacker, "target": target, "move_id": move["move_id"], "family": "target_current_hp_power", "target_hp_provenance": "runtime_strategy_d0_execution_path_active_hp_v1"}
-    if canonical.get("status") != "resolved" or any(value.get(key) != item for key, item in expected.items()): return False
-    preview = strategy_d0.get("strategy_state", {}).get("active", {}).get(target.get("side"))
-    current, maximum = value.get("target_current_hp"), value.get("target_max_hp")
-    if not isinstance(preview, Mapping) or current != preview.get("current_hp") or maximum != preview.get("max_hp") or not isinstance(current, int) or isinstance(current, bool) or not isinstance(maximum, int) or isinstance(maximum, bool) or not 0 < current <= maximum: return False
-    multiplier, additive, variant = (100, 0, "hard-press-current-hp-ratio") if move["move_id"] == "hard-press" else (120, 1, "crush-grip-wring-out-current-hp-ratio")
-    intermediate = multiplier * current // maximum
-    return value.get("formula_variant") == variant and value.get("ratio_numerator") == multiplier * current and value.get("ratio_denominator") == maximum and value.get("intermediate_power") == intermediate and value.get("resolved_base_power") == max(1, intermediate + additive) and value.get("rule") == canonical["effect"]
 
 def _exact_previous_action_result_authority(value: Any, *, strategy_d0: Mapping[str, Any], attacker: Mapping[str, Any], move: Mapping[str, Any]) -> bool:
     if not isinstance(value, Mapping) or value.get("status") != "resolved" or value.get("schema_version") != "runtime-d0-previous-action-result-authority-v1": return False
