@@ -22,6 +22,9 @@ from llm.advisor_detached_predictive_intermediate_state import (
     freeze_detached_actor_neutral_root_predictive_authority,
     materialize_detached_predictive_intermediate_state,
 )
+from llm.advisor_runtime_d0_focus_sash_survival_authority import (
+    bind_focus_sash_survival_authority_through_actor_neutral_root,
+)
 from llm.advisor_detached_strategy_orchestration import _normal_formula_facts
 from llm.advisor_detached_deterministic_fixed_damage_attack_leaf import (
     materialize_detached_deterministic_fixed_damage_attack_leaf,
@@ -1102,6 +1105,14 @@ def _materialize_order(
         root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
         if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "opponent_root_predictive_authority_unavailable"), base)
         first_d0, first_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
+        if isinstance(first_action_focus_sash_survival_authority, Mapping):
+            first_action_focus_sash_survival_authority = bind_focus_sash_survival_authority_through_actor_neutral_root(
+                strategy_d0=strategy_d0,
+                root_predictive_authority=root,
+                focus_sash_survival_authority=first_action_focus_sash_survival_authority,
+            )
+            if first_action_focus_sash_survival_authority.get("status") in {"incomplete", "rejected", "unsupported"}:
+                return _result(_status(first_action_focus_sash_survival_authority), first_action_focus_sash_survival_authority.get("reason", "focus_sash_actor_neutral_root_binding_unavailable"), base)
     first_action = own_action if order == "own_first" else opponent_action
     first_analytic = _analytic_order_authority(
         strategy_d0=first_d0, actor=first_actor, target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"],

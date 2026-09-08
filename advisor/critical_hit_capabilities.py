@@ -229,9 +229,10 @@ def _attacker_item(source: Mapping[str, Any], ledger: list[dict[str, Any]]) -> d
     if source["status"] == "known_absent":
         ledger.append(_row("attacker_item", "known_neutral", reason="proven_item_absent")); return _resolved(None)
     item = source["value"]
-    # Quick Claw and Life Orb are consumed by non-critical owners.
-    if item in {"quick-claw", "life-orb"}:
-        reason = "quick_claw_order_only" if item == "quick-claw" else "life_orb_damage_and_recoil_only"
+    # Focus Sash survival, Quick Claw order, and Life Orb recoil are owned
+    # outside the critical-hit capability resolver.
+    if item in {"focus-sash", "quick-claw", "life-orb"}:
+        reason = {"focus-sash": "focus_sash_survival_only", "quick-claw": "quick_claw_order_only", "life-orb": "life_orb_damage_and_recoil_only"}[item]
         ledger.append(_row("attacker_item", "known_neutral", source_value=item, reason=reason)); return _resolved(None)
     if item not in _SUPPORTED_ATTACKER_ITEMS:
         ledger.append(_row("attacker_item", "unsupported", source_value=item)); return _unsupported("attacker_item_not_in_supported_critical_hit_catalog")

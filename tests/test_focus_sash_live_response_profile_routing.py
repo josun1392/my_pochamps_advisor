@@ -14,10 +14,10 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import MOVES, _complete_state, _metadata, _owner, _snapshot, _state
 
 
-def _inputs(*, sash_side: str, own_first: bool, item_status: str = "known"):
+def _inputs(*, sash_side: str, own_first: bool, item_status: str = "known", holder_hp: int = 1, holder_max_hp: int = 1):
     state = _complete_state(_state())
     holder = state[f"{sash_side}_side"]["pokemon"][0]
-    holder.update(current_hp=1, max_hp=1, known_item="focus-sash")
+    holder.update(current_hp=holder_hp, max_hp=holder_max_hp, known_item="focus-sash")
     holder["known_item_provenance"] = {
         "event_kind": "current_item_observed",
         "trust": "user_confirmed_observation",
@@ -94,11 +94,13 @@ def _inputs(*, sash_side: str, own_first: bool, item_status: str = "known"):
     return snapshot, d0, own_action, response_set, orders, authorities
 
 
-def _profile(*, sash_side: str, own_first: bool, item_status: str = "known"):
+def _profile(*, sash_side: str, own_first: bool, item_status: str = "known", holder_hp: int = 1, holder_max_hp: int = 1):
     snapshot, d0, own_action, response_set, orders, authorities = _inputs(
         sash_side=sash_side,
         own_first=own_first,
         item_status=item_status,
+        holder_hp=holder_hp,
+        holder_max_hp=holder_max_hp,
     )
     return materialize_detached_opponent_response_profile(
         strategy_d0=d0,
@@ -122,7 +124,7 @@ def test_live_response_profile_routes_focus_sash_for_the_own_first_branch() -> N
         assert entry["exact_pair_outcome_ledger"]["status"] == "evaluable"
 
 
-def test_live_response_profile_carries_opponent_first_focus_sash_authority_fail_closed() -> None:
+def test_live_response_profile_routes_focus_sash_through_opponent_first_actor_neutral_root() -> None:
     snapshot, d0, own_action, response_set, orders, authorities = _inputs(
         sash_side="self",
         own_first=False,
@@ -138,8 +140,42 @@ def test_live_response_profile_carries_opponent_first_focus_sash_authority_fail_
         first_action_focus_sash_survival_authorities=authorities,
     )
 
+    assert profile["status"] == "evaluable", profile.get("reason")
+    for entry in profile["response_entries"]:
+        branch = entry["pair"]["terminal_branches"][0]
+        assert branch["first_action_leaf"]["consequences"]["target_final_hp"] == 1
+        assert branch["first_action_leaf"]["consequences"]["focus_sash_survival"]["outcome"] == "applied"
+        assert branch["second_action"]["state"] == "executed"
+        assert entry["pair"]["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+        assert entry["exact_pair_outcome_ledger"]["status"] == "evaluable"
+
+
+def test_opponent_first_focus_sash_rejects_wrong_actor_or_recipient_binding() -> None:
+    snapshot, d0, own_action, response_set, orders, authorities = _inputs(sash_side="self", own_first=False)
+    forged = deepcopy(authorities)
+    for value in forged.values():
+        value["opponent_first"]["holder"] = deepcopy(d0["active_owners"]["opponent"])
+    profile = materialize_detached_opponent_response_profile(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        response_set_authority=response_set, action_order_authorities=orders,
+        first_action_focus_sash_survival_authorities=forged,
+    )
     assert profile["status"] == "rejected"
-    assert profile["reason"] == "first_action_focus_sash_survival_authority_binding_mismatch"
+    assert profile["reason"] == "focus_sash_actor_neutral_root_actor_recipient_binding_mismatch"
+
+
+def test_opponent_first_focus_sash_does_not_trigger_for_nonlethal_or_below_full_targets() -> None:
+    nonlethal = _profile(sash_side="self", own_first=False, holder_hp=100, holder_max_hp=100)
+    assert nonlethal["status"] == "evaluable", nonlethal.get("reason")
+    for entry in nonlethal["response_entries"]:
+        focus = entry["pair"]["terminal_branches"][0]["first_action_leaf"]["consequences"]["focus_sash_survival"]
+        assert focus["outcome"] == "not_triggered"
+        assert focus["reason"] == "nonlethal_damage"
+
+    below_full = _profile(sash_side="self", own_first=False, holder_hp=99, holder_max_hp=100)
+    assert below_full["status"] == "evaluable", below_full.get("reason")
+    for entry in below_full["response_entries"]:
+        assert entry["pair"]["terminal_branches"][0]["first_action_leaf"]["consequences"]["focus_sash_survival"]["outcome"] == "not_applicable"
 
 
 def test_live_response_profile_fails_closed_when_focus_sash_item_authority_is_unknown() -> None:
