@@ -48,3 +48,25 @@ def test_mega_owner_exception_and_typed_hit_only_removal():
     assert materialize_detached_knock_off_item_removal(authority=sticky, source_leaf=faint)["outcome"] == "removed"
     substitute = {**hit, "consequences": {"damage": 5, "target_final_hp": 10, "source_hit_context": {"target_routing": "substitute"}}}
     assert materialize_detached_knock_off_item_removal(authority=authority, source_leaf=substitute)["reason"] == "unsupported_or_substitute_target_routing"
+
+
+def test_audited_mega_stone_alias_keeps_the_knock_off_owner_exception():
+    item = resolve_knock_off_target_item(
+        item_authority={"status": "known", "value": "altarianite"},
+        target_species="altaria",
+    )
+
+    assert item["mega_stone_exception"] is True
+    assert item["removable"] is False
+    assert item["boost_eligible"] is False
+    assert item["power_modifier_q12"] == 4096
+    assert item["effective_power"] == 65
+
+
+def test_unknown_or_malformed_mega_stone_identifiers_remain_fail_closed():
+    for item_id in ("Altarianite", "altariaite-extra", "unknown-mega-stone", ""):
+        item = resolve_knock_off_target_item(
+            item_authority={"status": "known", "value": item_id},
+            target_species="altaria",
+        )
+        assert item["status"] == "incomplete"

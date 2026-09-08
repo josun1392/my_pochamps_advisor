@@ -247,6 +247,26 @@
       "primal_form": "groudon-primal"
     }
   },
+  "legal_item_aliases": {
+    "altarianite": "altariaite",
+    "chandelurite": "chandelureite",
+    "chimechite": "chimechoite",
+    "clefablite": "clefableite",
+    "crabominite": "crabominableite",
+    "dragoninite": "dragoniteite",
+    "drampanite": "drampaite",
+    "excadrite": "excadrillite",
+    "feraligite": "feraligatrite",
+    "floettite": "floetteite",
+    "glalitite": "glalieite",
+    "glimmoranite": "glimmoraite",
+    "greninjite": "greninjaite",
+    "hawluchanite": "hawluchaite",
+    "lopunnite": "lopunnyite",
+    "sharpedonite": "sharpedoite",
+    "skarmorite": "skarmoryite",
+    "starminite": "starmieite"
+  },
   "rayquaza_mega": {
     "base": "rayquaza",
     "mega_form": "rayquaza-mega",

@@ -108,21 +108,36 @@ def load_mega_stones() -> dict[str, Any]:
     return json.loads(MEGA_STONES_PATH.read_text(encoding="utf-8"))
 
 
-def is_mega_stone(item_id: str | None) -> bool:
-    if item_id is None:
-        return False
+def canonical_mega_stone_id(item_id: str | None) -> str | None:
+    """Resolve only catalog-declared Mega Stone aliases to engine identities."""
+    if not isinstance(item_id, str):
+        return None
     stones = load_mega_stones()
-    return item_id in stones["mega_stones"] or item_id in stones["primal_orbs"]
+    if item_id in stones["mega_stones"] or item_id in stones["primal_orbs"]:
+        return item_id
+    aliases = stones.get("legal_item_aliases", {})
+    canonical = aliases.get(item_id) if isinstance(aliases, dict) else None
+    if (
+        isinstance(canonical, str)
+        and canonical in stones["mega_stones"]
+    ):
+        return canonical
+    return None
+
+
+def is_mega_stone(item_id: str | None) -> bool:
+    return canonical_mega_stone_id(item_id) is not None
 
 
 def get_mega_form(item_id: str, base_species: str) -> str | None:
     stones = load_mega_stones()
-    if item_id in stones["mega_stones"]:
-        entry = stones["mega_stones"][item_id]
+    canonical_item_id = canonical_mega_stone_id(item_id)
+    if canonical_item_id in stones["mega_stones"]:
+        entry = stones["mega_stones"][canonical_item_id]
         if entry["base"] == base_species:
             return entry["mega_form"]
-    if item_id in stones["primal_orbs"]:
-        entry = stones["primal_orbs"][item_id]
+    if canonical_item_id in stones["primal_orbs"]:
+        entry = stones["primal_orbs"][canonical_item_id]
         if entry["base"] == base_species:
             return entry["primal_form"]
     rayquaza = stones.get("rayquaza_mega", {})
