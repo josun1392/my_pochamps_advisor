@@ -158,6 +158,7 @@ def materialize_immediate_move_vs_move_action_pair(
     quick_claw_action_order_authority: Mapping[str, Any] | None = None,
     first_action_sturdy_survival_authority: Mapping[str, Any] | None = None,
     first_action_focus_sash_survival_authority: Mapping[str, Any] | None = None,
+    first_action_focus_sash_survival_authorities_by_order: Mapping[str, Mapping[str, Any]] | None = None,
     opponent_protection_success_authority: Mapping[str, Any] | None = None,
     incoming_contact_authority: Mapping[str, Any] | None = None,
     silk_trap_reactive_interaction_authority: Mapping[str, Any] | None = None,
@@ -185,6 +186,11 @@ def materialize_immediate_move_vs_move_action_pair(
     if base is None: return _result("rejected", "invalid_pair_request", {})
     orders = _orders(action_order_authority, base, quick_claw_action_order_authority)
     if isinstance(orders, tuple): return _result(*orders, base)
+    focus_by_order = _focus_sash_authorities_by_order(
+        first_action_focus_sash_survival_authority,
+        first_action_focus_sash_survival_authorities_by_order,
+    )
+    if isinstance(focus_by_order, tuple): return _result(*focus_by_order, base)
     opponent_meta = _opponent_metadata(opponent_action, base)
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
@@ -197,7 +203,7 @@ def materialize_immediate_move_vs_move_action_pair(
         from llm.advisor_champions_confusion_gated_pair import materialize_champions_confusion_gated_pair
         return materialize_champions_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority)
     if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and (not pending_status_execution_authorities or any(member.get("champions_status_progression") for member in status_members)):
-        extensions = (first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority,
+        extensions = (first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority, first_action_focus_sash_survival_authorities_by_order,
             opponent_protection_success_authority, incoming_contact_authority, silk_trap_reactive_interaction_authority,
             kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority,
             spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority,
@@ -277,7 +283,7 @@ def materialize_immediate_move_vs_move_action_pair(
             opponent_meta=opponent_meta, order_plan=order_plan,
             action_order_authority=action_order_authority,
             first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
-            first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority,
+            first_action_focus_sash_survival_authority=focus_by_order.get(order_plan["order"], first_action_focus_sash_survival_authority),
             pending_status_execution_authorities=pending_status_execution_authorities,
             pivot_replacement_authorities=pivot_replacement_authorities,
             pivot_entry_authorities=pivot_entry_authorities,
@@ -1884,6 +1890,21 @@ def _orders(value: Any, base: Mapping[str, Any], quick_claw_authority: Mapping[s
         if isinstance(quick, tuple): return quick
         if quick is not None: return quick
     return _base_orders(value, base)
+
+
+def _focus_sash_authorities_by_order(
+    singular: Mapping[str, Any] | None,
+    by_order: Mapping[str, Mapping[str, Any]] | None,
+) -> Mapping[str, Mapping[str, Any]] | tuple[str, str]:
+    if by_order is None:
+        return {}
+    if singular is not None:
+        return ("rejected", "focus_sash_authority_binding_ambiguous")
+    if not isinstance(by_order, Mapping) or set(by_order) != {"own_first", "opponent_first"}:
+        return ("rejected", "focus_sash_authority_order_set_invalid")
+    if not all(isinstance(value, Mapping) for value in by_order.values()):
+        return ("rejected", "focus_sash_authority_order_value_invalid")
+    return by_order
 
 
 def _base_orders(value: Mapping[str, Any], base: Mapping[str, Any]) -> list[dict[str, Any]] | tuple[str, str]:

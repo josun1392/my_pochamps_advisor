@@ -14,6 +14,7 @@ from llm.advisor_detached_strategy_orchestration import run_detached_strategy_or
 from llm.advisor_detached_opponent_response_profile import materialize_detached_opponent_response_profile
 from llm.advisor_runtime_d0_action_order_authority import freeze_runtime_d0_action_order_authority
 from llm.advisor_runtime_d0_quick_claw_action_order_authority import freeze_runtime_d0_quick_claw_action_order_authority
+from llm.advisor_runtime_d0_focus_sash_survival_authority import freeze_runtime_d0_focus_sash_survival_authority
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
 from llm.advisor_runtime_d0_combined_opponent_response_universe_authority import freeze_runtime_d0_combined_opponent_response_universe_authority
 from llm.advisor_runtime_d0_opponent_action_authority import freeze_runtime_d0_opponent_known_move_action_authority
@@ -196,10 +197,32 @@ def _project_live_opponent_response_profiles(
             )
             for response_id in orders
         }
+        active_owners = strategy_d0.get("active_owners")
+        focus_sash_authorities = None
+        if isinstance(active_owners, Mapping) and isinstance(active_owners.get("self"), Mapping) and isinstance(active_owners.get("opponent"), Mapping):
+            own_metadata = resolve_runtime_d0_selectable_move_metadata_authority(
+                strategy_d0=strategy_d0, action=own,
+            )
+            focus_sash_authorities = {
+                response_id: {
+                    "own_first": freeze_runtime_d0_focus_sash_survival_authority(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                        holder=active_owners["opponent"], attacker=active_owners["self"],
+                        action=own, move_metadata=own_metadata.get("metadata", {}),
+                    ),
+                    "opponent_first": freeze_runtime_d0_focus_sash_survival_authority(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                        holder=active_owners["self"], attacker=active_owners["opponent"],
+                        action=by_id[response_id], move_metadata=by_id[response_id].get("metadata_authority", {}).get("metadata", {}),
+                    ),
+                }
+                for response_id in orders
+            }
         result[action_id] = materialize_detached_opponent_response_profile(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own,
             response_set_authority=response_set, action_order_authorities=orders,
             quick_claw_action_order_authorities=quick_claw_orders,
+            **({"first_action_focus_sash_survival_authorities": focus_sash_authorities} if focus_sash_authorities is not None else {}),
         )
     return result
 

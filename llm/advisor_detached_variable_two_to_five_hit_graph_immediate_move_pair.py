@@ -33,7 +33,7 @@ from llm.advisor_runtime_d0_contact_reactive_damage_authority import contact_rea
 from llm.advisor_runtime_d0_contact_reactive_status_authority import contact_reactive_status_relevance
 from llm.advisor_immediate_move_vs_move_action_pair import (
     _attack_ledger, _base, _fainted, _metadata_for_inputs, _opponent_metadata,
-    _orders, _status,
+    _focus_sash_authorities_by_order, _orders, _status,
 )
 from llm.advisor_runtime_d0_variable_two_to_five_hit_count_execution_authority import (
     freeze_runtime_d0_variable_two_to_five_hit_count_execution_authority,
@@ -56,6 +56,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
     quick_claw_action_order_authority: Mapping[str, Any] | None = None,
     first_action_sturdy_survival_authority: Mapping[str, Any] | None = None,
     first_action_focus_sash_survival_authority: Mapping[str, Any] | None = None,
+    first_action_focus_sash_survival_authorities_by_order: Mapping[str, Mapping[str, Any]] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Attach exact second-action outcomes to a variable first-action graph."""
@@ -65,6 +66,12 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
     orders = _orders(action_order_authority, base, quick_claw_action_order_authority)
     if isinstance(orders, tuple):
         return _result(*orders, base)
+    focus_by_order = _focus_sash_authorities_by_order(
+        first_action_focus_sash_survival_authority,
+        first_action_focus_sash_survival_authorities_by_order,
+    )
+    if isinstance(focus_by_order, tuple):
+        return _result(*focus_by_order, base)
     own_metadata = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     opponent_metadata = _opponent_metadata(opponent_action, base)
     if own_metadata.get("status") != "resolved":
@@ -79,7 +86,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
             own_action=own_action, opponent_action=opponent_action,
             own_metadata=own_metadata, opponent_metadata=opponent_metadata,
             order_plan=plan, first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
-            first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority,
+            first_action_focus_sash_survival_authority=focus_by_order.get(plan["order"], first_action_focus_sash_survival_authority),
             pending_status_execution_authorities=pending_status_execution_authorities,
         )
         if graph.get("status") != "evaluable":

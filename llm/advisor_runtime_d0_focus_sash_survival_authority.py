@@ -57,7 +57,8 @@ def _base(d0: Any, holder: Any, attacker: Any, action: Any, metadata: Any) -> di
     if not isinstance(action, Mapping) or action.get("action_type") != "attack" or not isinstance(action.get("action_id"), str):
         return None
     move_id = metadata.get("move_id") if isinstance(metadata, Mapping) else None
-    if not isinstance(move_id, str) or not move_id or action.get("identity") != move_id:
+    action_move_id = action.get("identity", action.get("move_id"))
+    if not isinstance(move_id, str) or not move_id or action_move_id != move_id:
         return None
     return {
         "schema_version": SCHEMA_VERSION,
