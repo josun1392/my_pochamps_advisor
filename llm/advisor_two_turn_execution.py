@@ -6,6 +6,7 @@ from typing import Any, Mapping
 
 from llm.advisor_end_of_turn_preview import project_poison_end_of_turn
 from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
+from llm.advisor_post_eot_replacement_transition import validate_post_eot_transition
 from llm.advisor_transition_preview import (
     fingerprint_transition_preview_state,
     project_exact_direct_damage_branch,
@@ -20,6 +21,7 @@ def execute_explicit_two_turn(
     starting_turn_snapshot: Mapping[str, Any],
     turn_one: Mapping[str, Any],
     turn_two: Mapping[str, Any],
+    post_eot_replacement_transition: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Execute exactly two caller-selected action pairs through existing primitives.
 
@@ -39,7 +41,12 @@ def execute_explicit_two_turn(
     if handoff.get("status") != "resolved":
         return _halt(handoff, "turn_one_handoff", turn_one=first, turn_one_end_of_turn=first_eot)
     if handoff["lifecycle_trace"][0]["requires_replacement_before_action"]:
-        return _halt({"status": "unsupported", "reason": "replacement_required_before_turn_two"}, "turn_two_replacement", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff)
+        replacement_handoff = _completed_post_eot_replacement_handoff(
+            handoff=handoff, transition=post_eot_replacement_transition,
+        )
+        if replacement_handoff.get("status") != "resolved":
+            return _halt(replacement_handoff, "turn_two_replacement", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff)
+        handoff = replacement_handoff
 
     next_fp = handoff["resulting_branch_fingerprint"]
     if turn_two.get("start_branch_fingerprint") != next_fp:
@@ -269,7 +276,79 @@ def _snapshot_from_next_turn_start(handoff: Mapping[str, Any]) -> dict[str, Any]
     overlays = {key: deepcopy(state[key]) for key in ("predicted_stage_context", "predicted_condition_context", "predicted_toxic_lifecycle") if key in state}
     if overlays:
         snapshot["turn_engine_branch_overlays"] = overlays
+    exact_hp = _exact_next_decision_hp_authority(state=state, owners=owners)
+    if exact_hp is None:
+        return None
+    snapshot["turn_engine_exact_next_decision_hp_authority"] = exact_hp
     return snapshot
+
+
+def _exact_next_decision_hp_authority(*, state: Mapping[str, Any], owners: Mapping[str, Mapping[str, Any]]) -> dict[str, Any] | None:
+    source_fingerprint = fingerprint_transition_preview_state(state)
+    active = state.get("active") if isinstance(state, Mapping) else None
+    if not isinstance(source_fingerprint, str) or not isinstance(active, Mapping):
+        return None
+    entries = []
+    for side in ("self", "opponent"):
+        row = active.get(side)
+        if not isinstance(row, Mapping) or row.get("current_hp") is None or row.get("max_hp") is None:
+            return None
+        current, maximum = row.get("current_hp"), row.get("max_hp")
+        if not isinstance(current, int) or isinstance(current, bool) or not isinstance(maximum, int) or isinstance(maximum, bool) or not 1 <= current <= maximum or row.get("fainted") is not False:
+            return None
+        entries.append({"owner": deepcopy(dict(owners[side])), "current_hp": current, "maximum_hp": maximum})
+    return {"schema_version": "detached-next-decision-exact-hp-authority-v1", "source_state_fingerprint": source_fingerprint, "entries": entries, "provenance": "strict_detached_next_decision_active_hp_projection_v1"}
+
+
+def _completed_post_eot_replacement_handoff(*, handoff: Mapping[str, Any], transition: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Consume one replay-valid, already-completed replacement cursor only."""
+    if transition is None:
+        return _result("unsupported", "replacement_required_before_turn_two")
+    checked = validate_post_eot_transition(transition=transition)
+    if checked.get("status") != "valid":
+        return _result("rejected", "invalid_post_eot_replacement_transition")
+    if transition.get("status") == "battle_terminal":
+        return _result("unsupported", "battle_terminal_post_eot_replacement_transition")
+    if transition.get("status") != "next_decision_ready":
+        return _result("incomplete", "post_eot_replacement_not_completed")
+    state, next_fingerprint = transition.get("detached_next_decision_state"), transition.get("next_decision_fingerprint")
+    if not isinstance(state, Mapping) or not isinstance(next_fingerprint, str) or fingerprint_transition_preview_state(state) != next_fingerprint:
+        return _result("rejected", "post_eot_replacement_next_decision_fingerprint_invalid")
+    if _owners(state) is None:
+        return _result("rejected", "post_eot_replacement_next_decision_ownership_invalid")
+    if not _replacement_source_matches_handoff(transition=transition, handoff=handoff):
+        return _result("rejected", "post_eot_replacement_source_handoff_mismatch")
+    return {
+        "status": "resolved",
+        "source_end_of_turn_fingerprint": handoff.get("source_end_of_turn_fingerprint"),
+        "resulting_branch_fingerprint": next_fingerprint,
+        "next_state": deepcopy(dict(state)),
+        "lifecycle_trace": [
+            *deepcopy(handoff.get("lifecycle_trace", ())),
+            {"sequence": 2, "event": "post_eot_replacement_to_next_turn_start", "execution_status": "consumed_completed_cursor", "source_replacement_request_id": transition.get("request_id"), "provenance": "strict_replay_valid_post_eot_replacement_handoff_v1"},
+        ],
+        "boundary": {"phase": "next_turn_start"},
+        "limitations": ["state_handoff_only", "completed_replacement_cursor_required", "no_replacement_selection_or_entry_execution", "no_reducer_or_runtime_writeback"],
+        "post_eot_replacement_transition": deepcopy(dict(transition)),
+    }
+
+
+def _replacement_source_matches_handoff(*, transition: Mapping[str, Any], handoff: Mapping[str, Any]) -> bool:
+    source = transition.get("source")
+    eot = source.get("eot_ledger") if isinstance(source, Mapping) else None
+    final = eot.get("post_end_of_turn_active_states") if isinstance(eot, Mapping) else None
+    handoff_state = handoff.get("next_state")
+    if not isinstance(final, Mapping) or not isinstance(handoff_state, Mapping):
+        return False
+    for side in ("self", "opponent"):
+        resolved, active = final.get(side), handoff_state.get("active", {}).get(side) if isinstance(handoff_state.get("active"), Mapping) else None
+        if not isinstance(resolved, Mapping) or not isinstance(active, Mapping):
+            return False
+        if resolved.get("owner") != {key: active.get(key) for key in ("session_id", "side", "slot_index", "pokemon_id")}:
+            return False
+        if any(resolved.get(source_key) != active.get(active_key) for source_key, active_key in (("current_hp", "current_hp"), ("maximum_hp", "max_hp"), ("fainted", "fainted"))):
+            return False
+    return True
 
 
 def _owners(state: Mapping[str, Any]) -> dict[str, dict[str, Any]] | None:

@@ -2,6 +2,11 @@ from copy import deepcopy
 
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_two_turn_execution import execute_explicit_two_turn
+from llm.advisor_post_eot_replacement_transition import (
+    advance_post_eot_entry, freeze_replacement_intent, freeze_post_eot_transition,
+    prepare_post_eot_replacements,
+)
+from tests.test_post_eot_replacement_transition import _entry, _source
 
 
 def _snapshot(*, self_hp=100, opponent_hp=100):
@@ -101,3 +106,85 @@ def test_manual_switch_plan_cannot_execute_a_foreign_source_branch():
     assert result["status"] == "rejected"
     assert result["reason"] == "manual_switch_source_branch_mismatch"
     assert result["failed_stage"] == "turn_one_transition"
+
+
+def _replacement_cursor():
+    source = _source(self_hp=0, opponent_hp=50)
+    request = freeze_post_eot_transition(**source)
+    intent = freeze_replacement_intent(
+        transition=request, side="self", incoming_owner=request["requirements"]["self"]["candidates"][0],
+    )
+    cursor = prepare_post_eot_replacements(transition=request, intents={"self": intent})
+    while cursor["status"] == "entry_pending":
+        cursor = advance_post_eot_entry(transition=cursor, entry_authority=_entry(cursor))
+    return cursor
+
+
+def _replacement_start_snapshot():
+    source = _snapshot(self_hp=100, opponent_hp=70)
+    source["battle_state"] = {"active_player": {"slot_index": 0, "species_id": "a"}, "active_opponent": {"slot_index": 0, "species_id": "b"}}
+    source["current_state"]["current_state_session_id"] = "s"
+    return source
+
+
+def _replacement_action(side, move_id, slot, pokemon_id):
+    return {"owner": {"session_id": "s", "side": side, "slot_index": slot, "pokemon_id": pokemon_id}, "move": {"move_id": move_id, "slot_index": 0, "priority": 0, "category": "special"}}
+
+
+def _replacement_plan(snapshot, *, self_owner, opponent_owner, self_damage=20, opponent_damage=10, start_branch_fingerprint=None):
+    self_action = _replacement_action("self", "thunderbolt", self_owner["slot_index"], self_owner["pokemon_id"])
+    opponent_action = _replacement_action("opponent", "flamethrower", opponent_owner["slot_index"], opponent_owner["pokemon_id"])
+    own_hp = next(row["current_hp"] for row in snapshot["current_state"]["current_hp_context"]["current_hp"] if row["side"] == "self")
+    foe_hp = next(row["current_hp"] for row in snapshot["current_state"]["current_hp_context"]["current_hp"] if row["side"] == "opponent")
+    state = {"schema_version": "deterministic-transition-preview-v1", "active": {
+        "self": {**self_owner, "current_hp": own_hp, "max_hp": 100, "fainted": own_hp == 0},
+        "opponent": {**opponent_owner, "current_hp": foe_hp - self_damage, "max_hp": 100, "fainted": foe_hp == self_damage},
+    }, "current_state": deepcopy(snapshot["current_state"])}
+    for row in state["current_state"]["current_hp_context"]["current_hp"]:
+        row["current_hp"] = own_hp if row["side"] == "self" else foe_hp - self_damage
+    plan = {"self_action": self_action, "opponent_action": opponent_action, "self_candidate": _candidate(self_action, self_damage), "opponent_candidate": _candidate(opponent_action, opponent_damage), "action_order": _order(self_action, opponent_action), "post_first_candidate": {"branch_state_fingerprint": fingerprint_transition_preview_state(state), "candidate": _candidate(opponent_action, opponent_damage)}}
+    if start_branch_fingerprint is not None:
+        plan["start_branch_fingerprint"] = start_branch_fingerprint
+    return plan
+
+
+def test_completed_post_eot_replacement_cursor_resumes_turn_two_with_incoming_owner():
+    cursor = _replacement_cursor()
+    start = _replacement_start_snapshot()
+    first = _replacement_plan(start, self_owner={"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "a"}, opponent_owner={"session_id": "s", "side": "opponent", "slot_index": 0, "pokemon_id": "b"}, opponent_damage=100)
+    next_state = cursor["detached_next_decision_state"]
+    second_snapshot = {"battle_state": {"active_player": {"slot_index": 1, "species_id": "self-1"}, "active_opponent": {"slot_index": 0, "species_id": "b"}}, "current_state": next_state["current_state"]}
+    second = _replacement_plan(second_snapshot, self_owner=next_state["active"]["self"], opponent_owner=next_state["active"]["opponent"], self_damage=10, opponent_damage=10, start_branch_fingerprint=cursor["next_decision_fingerprint"])
+    result = execute_explicit_two_turn(starting_turn_snapshot=start, turn_one=first, turn_two=second, post_eot_replacement_transition=cursor)
+    assert result["status"] == "resolved", result
+    assert result["next_turn_start"]["next_state"]["active"]["self"]["pokemon_id"] == "self-1"
+    assert result["turn_two"]["next_state"]["active"]["self"]["pokemon_id"] == "self-1"
+
+
+def test_replacement_cursor_incomplete_or_forged_or_stale_turn_two_owner_fails_closed():
+    cursor = _replacement_cursor()
+    start = _replacement_start_snapshot()
+    first = _replacement_plan(start, self_owner={"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "a"}, opponent_owner={"session_id": "s", "side": "opponent", "slot_index": 0, "pokemon_id": "b"}, opponent_damage=100)
+    incomplete = freeze_post_eot_transition(**_source(self_hp=0, opponent_hp=50))
+    assert execute_explicit_two_turn(starting_turn_snapshot=start, turn_one=first, turn_two={}, post_eot_replacement_transition=incomplete)["reason"] == "post_eot_replacement_not_completed"
+    forged = deepcopy(cursor); forged["next_decision_fingerprint"] = "foreign"
+    assert execute_explicit_two_turn(starting_turn_snapshot=start, turn_one=first, turn_two={}, post_eot_replacement_transition=forged)["reason"] == "invalid_post_eot_replacement_transition"
+    stale = deepcopy(cursor)
+    stale["detached_next_decision_state"]["active"]["self"]["pokemon_id"] = "a"
+    assert execute_explicit_two_turn(starting_turn_snapshot=start, turn_one=first, turn_two={}, post_eot_replacement_transition=stale)["reason"] == "invalid_post_eot_replacement_transition"
+
+    stale_owner_plan = _replacement_plan({"battle_state": start["battle_state"], "current_state": cursor["detached_next_decision_state"]["current_state"]}, self_owner={"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "a"}, opponent_owner=cursor["detached_next_decision_state"]["active"]["opponent"], start_branch_fingerprint=cursor["next_decision_fingerprint"])
+    assert execute_explicit_two_turn(starting_turn_snapshot=start, turn_one=first, turn_two=stale_owner_plan, post_eot_replacement_transition=cursor)["reason"] == "stale_or_mismatched_turn_two_action_owner"
+
+    foreign_start = _replacement_start_snapshot()
+    foreign_start["current_state"]["current_hp_context"]["current_hp"][1]["current_hp"] = 80
+    foreign_first = _replacement_plan(foreign_start, self_owner={"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "a"}, opponent_owner={"session_id": "s", "side": "opponent", "slot_index": 0, "pokemon_id": "b"}, opponent_damage=100)
+    assert execute_explicit_two_turn(starting_turn_snapshot=foreign_start, turn_one=foreign_first, turn_two={}, post_eot_replacement_transition=cursor)["reason"] == "post_eot_replacement_source_handoff_mismatch"
+
+
+def test_battle_terminal_post_eot_transition_cannot_resume_turn_two():
+    terminal = freeze_post_eot_transition(**_source(self_hp=0, opponent_hp=50, members={"self": []}))
+    start = _replacement_start_snapshot()
+    first = _replacement_plan(start, self_owner={"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "a"}, opponent_owner={"session_id": "s", "side": "opponent", "slot_index": 0, "pokemon_id": "b"}, opponent_damage=100)
+    result = execute_explicit_two_turn(starting_turn_snapshot=start, turn_one=first, turn_two={}, post_eot_replacement_transition=terminal)
+    assert result["status"] == "unsupported" and result["reason"] == "battle_terminal_post_eot_replacement_transition"

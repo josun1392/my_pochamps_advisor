@@ -458,9 +458,25 @@ def _trusted_active_hp(snapshot: Mapping[str, Any], side: str) -> dict[str, int]
     if not isinstance(entries, list):
         return None
     entry = next((item for item in entries if isinstance(item, Mapping) and item.get("side") == side), None)
-    if not isinstance(entry, Mapping) or entry.get("status") != "user_confirmed" or entry.get("source") != "user_confirmed_current_hp" or entry.get("confidence") != "known":
+    if isinstance(entry, Mapping) and entry.get("status") == "user_confirmed" and entry.get("source") == "user_confirmed_current_hp" and entry.get("confidence") == "known":
+        hp, maximum = entry.get("current_hp"), entry.get("maximum_hp")
+        if not isinstance(hp, bool) and not isinstance(maximum, bool) and isinstance(hp, int) and isinstance(maximum, int) and 1 <= hp <= maximum:
+            return {"current_hp": hp, "max_hp": maximum}
+    return _detached_next_decision_hp(snapshot, side)
+
+
+def _detached_next_decision_hp(snapshot: Mapping[str, Any], side: str) -> dict[str, int] | None:
+    authority = snapshot.get("turn_engine_exact_next_decision_hp_authority")
+    owners = _snapshot_owners(snapshot)
+    if not isinstance(authority, Mapping) or owners is None or authority.get("schema_version") != "detached-next-decision-exact-hp-authority-v1" or authority.get("provenance") != "strict_detached_next_decision_active_hp_projection_v1":
         return None
-    hp, maximum = entry.get("current_hp"), entry.get("maximum_hp")
+    entries = authority.get("entries")
+    if not isinstance(entries, list) or len(entries) != 2:
+        return None
+    row = next((value for value in entries if isinstance(value, Mapping) and value.get("owner") == owners[side]), None)
+    if not isinstance(row, Mapping) or set(row) != {"owner", "current_hp", "maximum_hp"}:
+        return None
+    hp, maximum = row.get("current_hp"), row.get("maximum_hp")
     if isinstance(hp, bool) or isinstance(maximum, bool) or not isinstance(hp, int) or not isinstance(maximum, int) or not 1 <= hp <= maximum:
         return None
     return {"current_hp": hp, "max_hp": maximum}
