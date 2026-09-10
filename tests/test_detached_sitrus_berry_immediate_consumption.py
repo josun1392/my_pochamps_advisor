@@ -5,6 +5,8 @@ from llm.advisor_detached_intermediate_predictive_authority import freeze_detach
 from llm.advisor_detached_predictive_intermediate_state import materialize_detached_predictive_intermediate_state
 from llm.advisor_detached_psychic_noise_healing_prevented_transition import attach_detached_psychic_noise_healing_prevented_transitions
 from llm.advisor_detached_sitrus_berry_immediate_consumption import materialize_detached_sitrus_berry_immediate_consumption
+from llm.advisor_exact_action_pair_descriptive_metrics import project_exact_immediate_action_pair_descriptive_metrics
+from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
 from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
@@ -81,6 +83,11 @@ def test_healing_prevented_and_same_hit_psychic_noise_suppress_without_consumpti
     result = materialize_detached_sitrus_berry_immediate_consumption(strategy_d0=d0, runtime_snapshot=snapshot, terminal_leaf=attached, holder=holder, move_metadata={**MOVE, "move_id": "psychic-noise"})
     assert result["status"] == "resolved" and result["outcome"] == "suppressed" and result["reason"] == "sitrus_healing_prevented"
     assert result["leaf"]["consequences"]["target_final_hp"] == 40
+    intermediate = materialize_detached_predictive_intermediate_state(strategy_d0=d0, terminal_leaf=attached)
+    projected = freeze_detached_intermediate_predictive_authority(strategy_d0=d0, runtime_snapshot=snapshot, intermediate_state=intermediate, actor=holder, target=attacker, move_metadata_authority=_metadata_authority(d0))
+    assert projected["status"] == "resolved"
+    path_local = projected["predictive_runtime_snapshot"]["state"]["opponent_side"]["pokemon"][0]
+    assert path_local["healing_prevented_status"] == "active"
 
 
 def test_unknown_healing_prevented_and_foreign_leaf_fail_closed():
@@ -133,3 +140,70 @@ def test_magic_room_and_unsupported_multi_hit_fail_closed_without_consumption():
     _state_value, snapshot, d0, _attacker, holder, leaf = _inputs(hp=40, maximum=100)
     multi = materialize_detached_sitrus_berry_immediate_consumption(strategy_d0=d0, runtime_snapshot=snapshot, terminal_leaf=leaf, holder=holder, move_metadata={**MOVE, "min_hits": 2, "max_hits": 2})
     assert multi["status"] == "incomplete" and multi["leaf"]["consequences"]["target_final_hp"] == 40
+
+
+def _second_action_sitrus_pair(*, healing="inactive", own_hp=100):
+    state, _old_snapshot, _old_d0, own, _response_set, _orders = _pair_inputs(own_hp=own_hp, opponent_hp=60)
+    for side in ("self", "opponent"):
+        pokemon = state[f"{side}_side"]["pokemon"][0]
+        if healing is not None:
+            pokemon["healing_prevented_status"] = healing
+            pokemon["healing_prevented_status_provenance"] = {
+                "event_kind": "current_healing_prevented_observed", "trust": "user_confirmed_observation",
+                "turn_number": 1, "status": healing, "source_observation_id": f"{side}-healing", "source_sequence": 1,
+            }
+    holder = state["opponent_side"]["pokemon"][0]
+    holder.update(known_item="sitrus-berry", max_hp=100)
+    holder["known_item_provenance"] = {
+        "event_kind": "current_item_observed", "trust": "user_confirmed_observation",
+        "turn_number": 1, "status": "known", "source_observation_id": "opponent-sitrus", "source_sequence": 1,
+    }
+    state["field"]["magic_room_status"] = "inactive"
+    state["field"]["magic_room_status_provenance"] = {
+        "event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation",
+        "turn_number": 1, "source_observation_id": "magic-room", "source_sequence": 1,
+    }
+    snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    own = deepcopy(own)
+    own.update(session_id=d0["session_id"], source_runtime_fingerprint=d0["source_runtime_fingerprint"], source_branch_fingerprint=d0["strategy_preview_fingerprint"], decision_owner=deepcopy(d0["decision_owner"]))
+    own["move_metadata_authority"].update(session_id=d0["session_id"], source_runtime_fingerprint=d0["source_runtime_fingerprint"], source_branch_fingerprint=d0["strategy_preview_fingerprint"], decision_owner=deepcopy(d0["decision_owner"]), active_attacker=d0["active_owners"]["self"])
+    opponent = {
+        "status": "resolved", "schema_version": "runtime-d0-opponent-known-move-action-authority-v1",
+        "action_id": "opponent_attack:seismic-toss", "action_type": "attack", "identity": "seismic-toss", "move_id": "seismic-toss",
+        "selectability": "selectable", "usability": {"status": "known_usable"},
+        "opponent_actor": d0["active_owners"]["opponent"], "target_owner": d0["active_owners"]["self"],
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(d0["decision_owner"]),
+        "metadata_authority": {"status": "resolved", "move_id": "seismic-toss", "metadata": {"move_id": "seismic-toss", "category": "physical", "type": "fighting", "accuracy": 100, "priority": 0}, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(d0["decision_owner"])},
+    }
+    order = {"status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": "opponent_first", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"], "own_action_id": own["action_id"], "opponent_action_id": opponent["action_id"], "own_actor": d0["active_owners"]["self"], "opponent_actor": d0["active_owners"]["opponent"]}
+    return materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent, action_order_authority=order)
+
+
+def test_live_second_damaging_action_runs_sitrus_checkpoint_before_terminal_pair_certification():
+    pair = _second_action_sitrus_pair()
+    assert pair["status"] == "evaluable" and pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    second_leaves = [branch["second_action"]["leaf"] for branch in pair["terminal_branches"] if branch["second_action"]["state"] == "executed"]
+    assert second_leaves and all("sitrus_berry_immediate_consumption" not in branch["first_action_leaf"]["consequences"] for branch in pair["terminal_branches"])
+    effects = [leaf["consequences"]["sitrus_berry_immediate_consumption"] for leaf in second_leaves if "sitrus_berry_immediate_consumption" in leaf["consequences"]]
+    assert effects
+    assert all(effect["outcome"] == "activated" and effect["trigger_threshold"] == 50 and effect["heal_amount"] == 25 and effect["post_hit_hp"] <= 50 and effect["final_hp"] == effect["post_hit_hp"] + 25 for effect in effects)
+    assert all(effect["item_after"] == {"status": "known_absent", "value": None, "consumption_cause": "sitrus_berry"} for effect in effects)
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable"
+    assert project_exact_immediate_action_pair_descriptive_metrics(ledger=ledger)["status"] == "resolved"
+
+
+def test_second_action_sitrus_suppression_and_cancellation_do_not_consume_it():
+    suppressed = _second_action_sitrus_pair(healing="active")
+    assert suppressed["status"] == "evaluable"
+    hit_leaves = [branch["second_action"]["leaf"] for branch in suppressed["terminal_branches"] if branch["second_action"]["leaf"]["hit_state"] == "hit"]
+    assert hit_leaves and all("sitrus_berry_immediate_consumption" not in leaf["consequences"] for leaf in hit_leaves)
+    cancelled = _second_action_sitrus_pair(own_hp=50)
+    assert cancelled["status"] == "evaluable"
+    assert all(branch["second_action"]["state"] == "cancelled_due_to_faint" for branch in cancelled["terminal_branches"])
+
+
+def test_second_action_sitrus_unknown_path_local_healing_authority_fails_closed():
+    result = _second_action_sitrus_pair(healing=None)
+    assert result["status"] in {"incomplete", "rejected"}

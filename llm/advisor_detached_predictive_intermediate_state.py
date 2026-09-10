@@ -60,8 +60,8 @@ def materialize_detached_predictive_intermediate_state(
             "root_predictive_authority": _root_provenance(root_predictive_authority),
         },
         "active": {
-            actor["side"]: _participant(strategy_d0, actor, own_hp, stage_effects, "self"),
-            target["side"]: _participant(strategy_d0, target, target_hp, stage_effects, "target"),
+            actor["side"]: _participant(strategy_d0, terminal_leaf, actor, own_hp, stage_effects, "self"),
+            target["side"]: _participant(strategy_d0, terminal_leaf, target, target_hp, stage_effects, "target"),
         },
         "unchanged_authority": _unchanged_authority(strategy_d0),
         "second_action_compatibility": {
@@ -114,9 +114,10 @@ def freeze_detached_actor_neutral_root_predictive_authority(
     }
 
 
-def _participant(d0: Mapping[str, Any], owner: Mapping[str, Any], hp: int, effects: tuple[Mapping[str, Any], ...], role: str) -> dict[str, Any]:
+def _participant(d0: Mapping[str, Any], leaf: Mapping[str, Any], owner: Mapping[str, Any], hp: int, effects: tuple[Mapping[str, Any], ...], role: str) -> dict[str, Any]:
     current_stages = d0.get("current_stage_authority", {}).get(owner["side"], {})
     current_condition = d0.get("current_condition_authority", {}).get(owner["side"], {})
+    healing_prevented = _healing_prevented(leaf, owner, role)
     current_item = d0.get("strategy_state", {}).get("current_state", {}).get("runtime_strategy_d0_authority", {}).get("active", {}).get(owner["side"], {}).get("known_item", {})
     return {
         "owner": deepcopy(dict(owner)),
@@ -128,6 +129,38 @@ def _participant(d0: Mapping[str, Any], owner: Mapping[str, Any], hp: int, effec
         "hypothetical_stages": _stages(current_stages, effects, role),
         "current_condition_authority": deepcopy(current_condition),
         "hypothetical_condition": _condition(current_condition, effects, role),
+        "hypothetical_healing_prevented": healing_prevented,
+    }
+
+
+def _healing_prevented(leaf: Mapping[str, Any], owner: Mapping[str, Any], role: str) -> dict[str, Any]:
+    """Carry only the typed first-action Psychic Noise consequence forward.
+
+    The normal current observation remains in the detached predictive snapshot.
+    A successful transition is the sole path-local override; malformed or
+    misplaced transitions fail the intermediate projection instead of letting a
+    later item check reread stale root state.
+    """
+    transition = leaf.get("consequences", {}).get("healing_prevented_transition")
+    if transition is None:
+        return {"status": "unchanged", "source": "frozen_current_healing_prevented_authority"}
+    if role != "target":
+        return {"status": "unchanged", "source": "frozen_current_healing_prevented_authority"}
+    provenance = leaf.get("provenance")
+    required = ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")
+    if (
+        not isinstance(transition, Mapping) or not isinstance(provenance, Mapping)
+        or transition.get("status") != "resolved"
+        or transition.get("schema_version") != "detached-psychic-noise-healing-prevented-transition-v1"
+        or transition.get("outcome") != "applied" or transition.get("state_after") != "known_present"
+        or transition.get("recipient") != dict(owner) or transition.get("source_leaf_id") != leaf.get("leaf_id")
+        or any(transition.get(key) != provenance.get(key) for key in required)
+    ):
+        return {"status": "invalid", "reason": "terminal_leaf_healing_prevented_transition_invalid"}
+    return {
+        "status": "known_present", "value": "active",
+        "source": "exact_terminal_leaf_psychic_noise_healing_prevented_transition",
+        "effect": deepcopy(dict(transition)),
     }
 
 

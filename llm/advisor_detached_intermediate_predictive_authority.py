@@ -65,6 +65,18 @@ def freeze_detached_intermediate_predictive_authority(
                 "source": values["item"]["source"],
                 "status": values["item"].get("status"),
             }
+        healing = values["healing_prevented"]
+        if healing.get("source") == "exact_terminal_leaf_psychic_noise_healing_prevented_transition":
+            raw["healing_prevented_status"] = "active"
+            raw["healing_prevented_status_provenance"] = {
+                "event_kind": "current_healing_prevented_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "active",
+                "source_observation_id": f"detached:{parsed['source_leaf_id']}:psychic-noise",
+                "source_sequence": 1,
+                "source": healing["source"],
+            }
         raw["detached_intermediate_predictive_authority"] = True
     # A status change has exact hypothetical provenance but cannot be written
     # into a runtime-shaped snapshot as if it were an observed condition.
@@ -128,7 +140,12 @@ def _intermediate(value: Any, d0: Mapping[str, Any], actor: Mapping[str, Any], t
         if not isinstance(condition, Mapping): condition = {"status": "unknown", "reason": "intermediate_condition_missing"}
         item = row.get("hypothetical_item")
         if not isinstance(item, Mapping): item = {"status": "unknown", "reason": "intermediate_item_missing"}
-        return {"hp": hp["value"], "fainted": fainted["value"], "stages": {stat: stages[stat]["value"] for stat in _STAGES}, "condition": deepcopy(dict(condition)), "item": deepcopy(dict(item)), "condition_changed": condition.get("source") in {"exact_terminal_leaf_condition_effect", "exact_terminal_leaf_condition_removal"}}
+        healing = row.get("hypothetical_healing_prevented")
+        if not isinstance(healing, Mapping):
+            healing = {"status": "unknown", "reason": "intermediate_healing_prevented_missing"}
+        if healing.get("status") == "invalid":
+            return healing.get("reason", "intermediate_healing_prevented_invalid")
+        return {"hp": hp["value"], "fainted": fainted["value"], "stages": {stat: stages[stat]["value"] for stat in _STAGES}, "condition": deepcopy(dict(condition)), "item": deepcopy(dict(item)), "healing_prevented": deepcopy(dict(healing)), "condition_changed": condition.get("source") in {"exact_terminal_leaf_condition_effect", "exact_terminal_leaf_condition_removal"}}
     parsed_actor, parsed_target = participant(actor), participant(target)
     if isinstance(parsed_actor, str) or isinstance(parsed_target, str): return parsed_actor if isinstance(parsed_actor, str) else parsed_target
     first = value.get("first_action")

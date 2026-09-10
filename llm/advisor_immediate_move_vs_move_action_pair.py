@@ -1261,6 +1261,14 @@ def _materialize_order(
             if execution_branch["state"] == "cancelled_due_to_paralysis":
                 branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan, execution_branch)); continue
             for second_leaf in second["terminal_leaves"]:
+                sitrus = materialize_detached_sitrus_berry_immediate_consumption(
+                    strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
+                    terminal_leaf=second_leaf, holder=inputs["target"],
+                    move_metadata=_metadata_for_inputs(second_meta, inputs),
+                )
+                if sitrus.get("status") != "resolved":
+                    return _result(_status(sitrus), sitrus.get("reason", "second_action_sitrus_detached_consequence_unavailable"), base, first_leaf_id=leaf["leaf_id"])
+                second_leaf = sitrus["leaf"]
                 if rebound is not None:
                     pivot = freeze_damage_pivot_continuation_authority(
                         strategy_d0=rebound["predictive_strategy_d0"], action=own_action,
