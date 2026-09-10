@@ -13,7 +13,7 @@ CATALOG_VERSION = "critical-hit-capability-catalog-v1"
 # the Gen 9 base rule.  Move-specific high-/always-critical rules remain
 # delegated to ``move_crit_rule`` below.
 _BASE_MOVE_IDS = frozenset({
-    "tackle", "water-gun", "thunderbolt", "facade", "sparkling-aria",
+    "tackle", "water-gun", "thunderbolt", "facade", "sparkling-aria", "psychic-noise",
     # The ordinary-damage pivot family uses the same base Gen 9 critical
     # rule.  Its post-damage switch continuation is owned separately.
     "u-turn", "volt-switch", "flip-turn",

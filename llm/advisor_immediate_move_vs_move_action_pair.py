@@ -102,6 +102,7 @@ from llm.advisor_runtime_d0_fling_item_bound_deterministic_target_effect_authori
 from llm.advisor_detached_item_transfer_after_hit import materialize_detached_item_transfer_after_hit
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
 from llm.advisor_detached_drain_consequence import apply_detached_drain_consequence
+from llm.advisor_detached_psychic_noise_healing_prevented_transition import attach_detached_psychic_noise_healing_prevented_transitions
 from llm.advisor_detached_damage_based_recoil_consequence import apply_detached_damage_based_recoil
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
 from llm.advisor_runtime_d0_analytic_action_order_authority import (
@@ -1719,7 +1720,12 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         attacker=actor, target=target, source_action=source_action, move_metadata=metadata,
     )
     ledger = _apply_knock_off_item_removal_to_ledger(ledger=ledger, native_context=normal, target=target)
-    return _apply_item_transfer_to_ledger(ledger=ledger, normal=normal, actor=actor, target=target, move_id=metadata["move_id"])
+    ledger = _apply_item_transfer_to_ledger(ledger=ledger, normal=normal, actor=actor, target=target, move_id=metadata["move_id"])
+    if metadata["move_id"] == "psychic-noise":
+        return attach_detached_psychic_noise_healing_prevented_transitions(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
+        )
+    return ledger
 
 def _apply_item_transfer_to_ledger(*,ledger:Mapping[str,Any],normal:Mapping[str,Any],actor:Mapping[str,Any],target:Mapping[str,Any],move_id:str)->dict[str,Any]:
     if move_id not in {"thief","covet"} or ledger.get("status")!="evaluable":return deepcopy(dict(ledger))
