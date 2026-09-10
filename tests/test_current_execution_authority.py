@@ -86,11 +86,9 @@ def test_mixed_discovery_enrichment_materialization_and_ranking_preserve_uncerta
     materialized = materialize_candidates(decision_state=state, decision_owner=owner, candidates=enriched["candidates"])
 
     statuses = {result.get("candidate_id", result.get("outcome", {}).get("candidate_id")): result["status"] for result in materialized["outcomes"]}
-    assert statuses == {"attack:water-gun": "incomplete", "manual_switch:incoming": "complete"}
+    assert statuses == {"attack:water-gun": "incomplete", "manual_switch:incoming": "incomplete"}
     assert state["active"]["self"]["pokemon_id"] != "incoming"
-    complete = next(result["outcome"] for result in materialized["outcomes"] if result["status"] == "complete")
-    incomplete = next(result for result in materialized["outcomes"] if result["status"] == "incomplete")
-    assert rank_candidates(decision_owner=owner, candidates=[complete, incomplete])["status"] == "incomplete_comparison_set"
+    assert all(result["status"] == "incomplete" for result in materialized["outcomes"])
 
 
 def test_stale_source_or_selection_owner_mismatch_is_rejected():

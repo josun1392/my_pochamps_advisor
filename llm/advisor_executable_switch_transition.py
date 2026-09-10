@@ -55,7 +55,7 @@ def execute_materialized_switch_entry(
         entry = {**damage, "toxic_spikes_result": toxic, "sticky_web_result": sticky,
                  "entry_effects_supportability": "complete" if all(x.get("status") == "complete" for x in (damage, toxic, sticky)) else "incomplete"}
     else:
-        entry = evaluate_switch_entry_effects(hazards=hazards, target=target, intimidate_authority=entry_authority.get("intimidate_authority"), download_authority=entry_authority.get("download_authority"), field_state_context=entry_authority.get("field_state_context"))
+        entry = evaluate_switch_entry_effects(hazards=hazards, target=target, intimidate_authority=entry_authority.get("intimidate_authority"), download_authority=entry_authority.get("download_authority"), trace_authority=entry_authority.get("trace_authority"), sturdy_authority=entry_authority.get("sturdy_authority"), field_state_context=entry_authority.get("field_state_context"))
     if entry.get("entry_effects_supportability") != "complete" or entry.get("status") != "complete":
         return _result("incomplete", "switch_entry_authority")
     projected = project_side_hazards(branch_state=state, source_fingerprint=source_fp, frozen_hazards=hazards)

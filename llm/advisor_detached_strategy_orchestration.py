@@ -81,6 +81,7 @@ def run_detached_strategy_orchestration(*,decision_state:Mapping[str,Any],decisi
    outcome=materialize_candidates(decision_state=decision_state,decision_owner=decision_owner,candidates=[candidate])["outcomes"][0]
    if outcome.get("status")=="complete":
     fact=guaranteed_facts_from_exact_outcome(decision_owner=decision_owner,outcome=outcome["outcome"]);evidence.append(_e(candidate,"exact_outcome",outcome=outcome["outcome"],facts=fact));facts.append(fact);continue
+   evidence.append(_e(candidate,"incomplete",reason=outcome.get("reason","manual_switch_outcome_incomplete")));continue
   evidence.append(_e(candidate,"incomplete",reason=candidate.get("execution_reason","observation_required")))
  ranking=_rank(facts,evidence,ledgers,metrics,opponent_response_profiles) if len(facts)>=2 else {"status":"incomplete_comparison_set","preferred_frontier":[x["candidate_id"] for x in evidence if x["evidence_class"]!="incomplete"],"reason":"fewer_than_two_comparable_candidates"}
  return {"schema_version":"deterministic-strategy-orchestration-result-v1","status":ranking["status"],"session_id":decision_owner["session_id"],"decision_branch_fingerprint":selection_snapshot["decision_branch_fingerprint"],"decision_owner":decision_owner,"selection_completeness":discovered["candidate_set_completeness"],"candidates":evidence,"ranking":ranking,"provenance":"detached_strategy_orchestration_v1"}

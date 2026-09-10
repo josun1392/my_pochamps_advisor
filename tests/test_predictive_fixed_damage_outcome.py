@@ -69,6 +69,6 @@ def test_end_to_end_predictive_attack_and_switch_rank_without_observed_attack_au
     attack = enrich_predictive_attack_candidate(candidate=attack, predictive_authority=_authority(state))["candidate"]
     switch = next(row for row in enriched if row["action_type"] == "manual_switch")
     attack_outcome = materialize_predictive_fixed_damage_outcome(decision_state=state, decision_owner=owner, candidate=attack, predictive_authority=attack["action_authority"])["outcome"]
-    switch_outcome = materialize_candidates(decision_state=state, decision_owner=owner, candidates=[switch])["outcomes"][0]["outcome"]
-    ranked = rank_candidates(decision_owner=owner, candidates=[attack_outcome, switch_outcome])
-    assert attack["execution_readiness"] == "predictive_execution_ready" and ranked["preferred_frontier"] == ["attack:seismic-toss"]
+    switch_result = materialize_candidates(decision_state=state, decision_owner=owner, candidates=[switch])["outcomes"][0]
+    assert attack["execution_readiness"] == "predictive_execution_ready"
+    assert switch_result["status"] == "incomplete" and switch_result["reason"] == "switch_entry_authority_required"

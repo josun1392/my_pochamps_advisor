@@ -17,6 +17,7 @@ from llm.advisor_runtime_d0_quick_claw_action_order_authority import freeze_runt
 from llm.advisor_runtime_d0_focus_sash_survival_authority import freeze_runtime_d0_focus_sash_survival_authority
 from llm.advisor_runtime_d0_sturdy_survival_authority import freeze_runtime_d0_sturdy_survival_authority
 from llm.advisor_live_secondary_manifest_authority import freeze_live_secondary_manifest_authority
+from llm.advisor_runtime_manual_switch_entry_authority import freeze_runtime_d0_manual_switch_entry_authority
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
 from llm.advisor_runtime_d0_combined_opponent_response_universe_authority import freeze_runtime_d0_combined_opponent_response_universe_authority
 from llm.advisor_runtime_d0_opponent_action_authority import freeze_runtime_d0_opponent_known_move_action_authority
@@ -97,7 +98,10 @@ def run_current_ui_detached_strategy(
             strategy_d0=d0, runtime_snapshot=capture, incoming_owner=resolved["incoming_owner"],
         )
         if authority.get("status") == "resolved":
-            incoming.append(authority)
+            entry = freeze_runtime_d0_manual_switch_entry_authority(
+                strategy_d0=d0, runtime_snapshot=capture, incoming_authority=authority,
+            )
+            incoming.append({**authority, "manual_switch_entry_authority": entry})
     execution = freeze_current_execution_authority(selection_snapshot=selection, switch_incoming=incoming)
     if execution.get("status") != "resolved":
         return _result("rejected", execution.get("reason", "runtime_execution_authority_unavailable"))

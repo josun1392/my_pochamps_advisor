@@ -162,8 +162,8 @@ def test_runtime_incoming_authority_freezes_known_roster_state_and_unblocks_exis
     assert incoming["incoming_item_authority"] == {"status": "unknown"}
     assert incoming["incoming_substitute_authority"]["status"] == "unknown"
     assert next(row for row in enriched["candidates"] if row["candidate_id"] == "manual_switch:bench")["execution_readiness"] == "current_predictive_execution_authority"
-    assert materialized["outcomes"][0]["status"] == "complete"
-    assert materialized["outcomes"][0]["outcome"]["outcome_state"]["active"]["self"]["pokemon_id"] == "bench"
+    assert materialized["outcomes"][0]["status"] == "incomplete"
+    assert materialized["outcomes"][0]["reason"] == "switch_entry_authority_required"
 
 
 def test_runtime_incoming_authority_rejects_foreign_or_stale_identity_and_is_detached() -> None:

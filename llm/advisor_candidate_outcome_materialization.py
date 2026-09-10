@@ -5,6 +5,8 @@ from typing import Any,Mapping,Sequence
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_observed_damage_application import apply_exact_observed_damage
 from llm.advisor_incoming_active_materialization import materialize_incoming_active_branch
+from llm.advisor_executable_switch_transition import execute_materialized_switch_entry
+from llm.advisor_runtime_manual_switch_entry_authority import valid_runtime_d0_manual_switch_entry_authority
 
 def materialize_candidates(*,decision_state:Mapping[str,Any],decision_owner:Mapping[str,Any],candidates:Sequence[Mapping[str,Any]])->dict[str,Any]:
  fp=fingerprint_transition_preview_state(decision_state)
@@ -18,7 +20,12 @@ def _one(state,fp,owner,c):
  if kind=="attack":
   if not isinstance(payload,Mapping):return _incomplete(c,"observation_required")
   result=apply_exact_observed_damage(branch_state=state,source_branch_fingerprint=fp,user=payload.get("user"),target_owner=payload.get("target_owner"),damage_amount=payload.get("damage_amount"))
- elif kind=="manual_switch": result=materialize_incoming_active_branch(source_branch=state,source_branch_fingerprint=fp,incoming_authority=payload) if isinstance(payload,Mapping) else _incomplete(c,"switch_authority_required")
+ elif kind=="manual_switch":
+  materialized=materialize_incoming_active_branch(source_branch=state,source_branch_fingerprint=fp,incoming_authority=payload) if isinstance(payload,Mapping) else _incomplete(c,"switch_authority_required")
+  if materialized.get("status")!="resolved": result=materialized
+  else:
+   entry=valid_runtime_d0_manual_switch_entry_authority(value=payload.get("manual_switch_entry_authority") if isinstance(payload,Mapping) else None,source_branch_fingerprint=fp,incoming_owner=payload.get("owner",{}))
+   result=execute_materialized_switch_entry(materialized_switch=materialized,entry_authority=entry) if isinstance(entry,Mapping) else _incomplete(c,"switch_entry_authority_required")
  else:return _incomplete(c,"unsupported_execution_family")
  if result.get("status")!="resolved":return _incomplete(c,result.get("reason","execution_incomplete"))
  return {"status":"complete","outcome":{"schema_version":"deterministic-candidate-outcome-v1","candidate_id":c["candidate_id"],"action_type":kind,"source_branch_fingerprint":fp,"outcome_state":result["next_state"],"outcome_branch_fingerprint":result["resulting_branch_fingerprint"],"completeness":"complete"}}

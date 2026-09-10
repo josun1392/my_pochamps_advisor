@@ -82,9 +82,8 @@ def test_runtime_bridge_runs_switch_and_incomplete_attack_then_presents_without_
 
     candidates = {row["candidate_id"]: row for row in result["explanation"]["candidates"]}
     assert result["status"] == "resolved" and result["execution_coverage"]["current_predictive_execution_authority"] == 1
-    assert candidates["manual_switch:ready-bench"]["evidence_class"] == "exact_outcome"
-    assert result["exact_outcome_ledgers"]["manual_switch:ready-bench"]["status"] == "evaluable"
-    assert result["descriptive_metrics"]["manual_switch:ready-bench"]["target"]["status"] == "not_applicable"
+    assert candidates["manual_switch:ready-bench"]["evidence_class"] == "incomplete"
+    assert candidates["manual_switch:ready-bench"]["incomplete_reason"] == "switch_entry_authority"
     assert candidates["attack:tackle"]["evidence_class"] == "incomplete"
     assert candidates["attack:tackle"]["incomplete_reason"] == "exact_damage_unknown"
     assert presentation["status"] == "resolved" and "Ready Bench" in panel.output_edit.toPlainText()
@@ -111,7 +110,7 @@ def test_runtime_bridge_preserves_partial_selection_and_incomplete_switch() -> N
     )
     complete_candidates = {row["candidate_id"]: row for row in complete_selection["explanation"]["candidates"]}
     assert complete_candidates["manual_switch:unknown-bench"]["evidence_class"] == "incomplete"
-    assert complete_candidates["manual_switch:unknown-bench"]["incomplete_reason"] == "incoming_state_unavailable"
+    assert complete_candidates["manual_switch:unknown-bench"]["incomplete_reason"] == "switch_authority_required"
 
 
 def test_runtime_bridge_keeps_live_seismic_toss_visible_when_runtime_predictive_fields_are_incomplete() -> None:
