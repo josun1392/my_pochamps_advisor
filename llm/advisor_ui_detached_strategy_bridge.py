@@ -15,6 +15,7 @@ from llm.advisor_detached_opponent_response_profile import materialize_detached_
 from llm.advisor_runtime_d0_action_order_authority import freeze_runtime_d0_action_order_authority
 from llm.advisor_runtime_d0_quick_claw_action_order_authority import freeze_runtime_d0_quick_claw_action_order_authority
 from llm.advisor_runtime_d0_focus_sash_survival_authority import freeze_runtime_d0_focus_sash_survival_authority
+from llm.advisor_runtime_d0_sturdy_survival_authority import freeze_runtime_d0_sturdy_survival_authority
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
 from llm.advisor_runtime_d0_combined_opponent_response_universe_authority import freeze_runtime_d0_combined_opponent_response_universe_authority
 from llm.advisor_runtime_d0_opponent_action_authority import freeze_runtime_d0_opponent_known_move_action_authority
@@ -279,6 +280,7 @@ def _runtime_live_attack_authorities(
         "probabilistic_self_stage_effect_authorities": {},
         "probabilistic_target_stage_effect_authorities": {},
         "thunderbolt_paralysis_authorities": {},
+        "sturdy_survival_authorities": {}, "focus_sash_survival_authorities": {},
     }
     for action in selection.get("actions", []):
         if not isinstance(action, Mapping) or action.get("action_type") != "attack":
@@ -292,6 +294,14 @@ def _runtime_live_attack_authorities(
         metadata = metadata_authority.get("metadata")
         if not isinstance(metadata, Mapping):
             continue
+        result["sturdy_survival_authorities"][candidate_id] = freeze_runtime_d0_sturdy_survival_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            defender=target, attacker=strategy_d0["decision_owner"], action=action, move_metadata=metadata,
+        )
+        result["focus_sash_survival_authorities"][candidate_id] = freeze_runtime_d0_focus_sash_survival_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            holder=target, attacker=strategy_d0["decision_owner"], action=action, move_metadata=metadata,
+        )
         native = build_runtime_d0_native_damage_context(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             attacker=strategy_d0["decision_owner"], target=target, move_metadata=metadata,

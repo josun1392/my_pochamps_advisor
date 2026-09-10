@@ -63,6 +63,15 @@ def _sturdy(value,interval,move,target_hp):
  if value is None:return False
  if not isinstance(value,Mapping):return "sturdy_authority_invalid"
  status=value.get("status")
+ if status=="resolved" and value.get("outcome")=="known_no_effect":return False
+ if status in {"incomplete","unsupported","rejected"}:return "sturdy_survival_authority_unavailable"
+ if value.get("schema_version")=="runtime-d0-sturdy-survival-authority-v1":
+  required={"schema_version","session_id","source_runtime_fingerprint","source_branch_fingerprint","decision_owner","defender","attacker","action_id","move_id","provenance","status","current_hp","maximum_hp","current_ability_authority","sturdy_applicability_authority","outcome","sturdy_available","eligible","reason"}
+  if status!="ready" or not required.issubset(set(value)):return "sturdy_authority_invalid"
+  if any(value.get(key)!=interval.get(key) for key in ("session_id","source_branch_fingerprint","decision_owner","move_id")) or value.get("defender")!=interval.get("target") or value.get("attacker")!=interval.get("attacker"):return "sturdy_survival_authority_binding_mismatch"
+  if value.get("current_hp")!=target_hp or value.get("maximum_hp")!=target_hp or not isinstance(target_hp,int) or target_hp<=1:return "sturdy_current_hp_invalid"
+  minimum,maximum=move.get("min_hits"),move.get("max_hits")
+  return True if (minimum is None and maximum is None) or (minimum==maximum==1) else "sturdy_multi_hit_unsupported"
  if status=="not_applicable":return False
  required={"schema_version","session_id","source_runtime_fingerprint","source_branch_fingerprint","decision_owner","defender","attacker","status","post_entry_hp","maximum_hp","provenance"}
  if status!="ready" or set(value)!=required or value.get("schema_version")!="detached-switch-in-sturdy-survival-authority-v1":return "sturdy_authority_invalid"

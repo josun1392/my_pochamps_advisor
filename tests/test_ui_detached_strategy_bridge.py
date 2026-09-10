@@ -3,6 +3,7 @@ from copy import deepcopy
 from PySide6.QtWidgets import QApplication
 
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_ability_interaction_authority import build_ability_applicability_context
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_substitute import update_substitute_state_context
 from llm.advisor_ui_detached_strategy_bridge import run_current_ui_detached_strategy
@@ -240,6 +241,84 @@ def test_runtime_bridge_projects_d0_metadata_to_live_ledgers_and_metrics() -> No
     assert all(metric["status"] == "resolved" for metric in metrics.values())
     assert result["orchestration"]["ranking"]["pairwise_matrix"][0]["reason"] == "higher_exact_target_ko_probability"
     assert result["explanation"]["probability_aware_decisions"][0]["rule"] == "higher_target_ko_probability"
+
+
+def _single_live_damage_builder(capture: dict, _runtime_snapshot: dict) -> dict:
+    owner = capture["active_owner"]
+    metadata = {"move_id": "water-gun", "category": "special", "power": 40, "type": "water", "accuracy": 100}
+    return {
+        "status": "ready", "_runtime_d0_selection_capture": deepcopy(capture),
+        "_combined_action_turn_snapshot": {"battle_state": {"active_player": {"slot_index": owner["slot_index"], "species_id": owner["pokemon_id"]}}, "current_state": {"current_state_session_id": owner["session_id"]}},
+        "recommendation_request": {"candidate_comparisons": [{"slot_index": 0, "move": "water-gun", "eligibility": "eligible"}]},
+        "evidence_bundle": {"candidates": [{"slot_index": 0, "move": "water-gun", "canonical_move_metadata": metadata}], "switch_candidates": []},
+    }
+
+
+def _live_survival_state(*, ability: str, item: dict, sturdy_applicability: str | None = None) -> dict:
+    base = _direct_base()
+    state = _apply_direct_state(base, _direct_confirmations(
+        base, attacker_item={"status": "known_absent"}, target_item=item,
+        attacker_ability="pressure", target_ability=ability,
+    ))
+    target = state["opponent_side"]["pokemon"][0]
+    target.update(current_hp=10, max_hp=10, fainted=False)
+    for side in ("self", "opponent"):
+        pokemon = state[f"{side}_side"]["pokemon"][0]
+        pokemon["stat_stages"].update(accuracy=0, evasion=0)
+        pokemon["current_crit_volatiles"] = []
+        pokemon["current_crit_volatiles_provenance"] = {
+            "event_kind": "current_crit_volatiles_observed", "trust": "user_confirmed_observation", "turn_number": 2,
+        }
+    if sturdy_applicability is not None:
+        state["ability_applicability_context"] = build_ability_applicability_context(
+            session_id=state["session_id"], source={"side": "opponent", "slot_index": 0, "pokemon_id": target["pokemon_id"]},
+            ability_id="sturdy", status=sturdy_applicability,
+        )
+    target_owner = {"session_id": state["session_id"], "side": "opponent", "slot_index": 0, "pokemon_id": target["pokemon_id"]}
+    state["substitute_state_context"] = update_substitute_state_context(
+        context=None, session_id=state["session_id"], owner=target_owner,
+        state="known_inactive", substitute_hp=None, provenance="runtime_observed_substitute_state_v1",
+    )
+    return state
+
+
+def test_live_own_attack_candidate_binds_focus_sash_and_sturdy_survival_to_exact_ledger() -> None:
+    for ability, item, applicability, survival_key in (
+        ("pressure", {"status": "known", "item": "focus-sash"}, None, "focus_sash_survival"),
+        ("sturdy", {"status": "known_absent"}, "applicable", "sturdy_survival"),
+    ):
+        state = _live_survival_state(ability=ability, item=item, sturdy_applicability=applicability)
+        result = run_current_ui_detached_strategy(
+            runtime_session_manager=_RuntimeManager([_snapshot(state), _snapshot(state)]),
+            captured_session_id=state["session_id"], selection_cycle_builder=_single_live_damage_builder,
+        )
+        assert result["status"] == "resolved", result
+        ledger = result["exact_outcome_ledgers"]["attack:water-gun"]
+        assert ledger["status"] == "evaluable"
+        assert result["descriptive_metrics"]["attack:water-gun"]["guaranteed_facts"]["target_ko"] is False
+        assert result["descriptive_metrics"]["attack:water-gun"]["target"]["ko_probability"] == {"numerator": 0, "denominator": 1}
+        leaves = ledger["terminal_leaves"]
+        assert leaves and all(row["consequences"]["target_final_hp"] == 1 for row in leaves)
+        assert all(row["consequences"][survival_key]["outcome"] == "applied" for row in leaves)
+
+
+def test_live_own_attack_survival_authority_unknown_or_inapplicable_fails_closed() -> None:
+    unknown = _live_survival_state(ability="sturdy", item={"status": "known_absent"})
+    result = run_current_ui_detached_strategy(
+        runtime_session_manager=_RuntimeManager([_snapshot(unknown), _snapshot(unknown)]),
+        captured_session_id=unknown["session_id"], selection_cycle_builder=_single_live_damage_builder,
+    )
+    candidate = result["orchestration"]["candidates"][0]
+    assert candidate["evidence_class"] == "incomplete"
+    assert candidate["reason"] == "sturdy_survival_authority_unavailable"
+
+    nonlethal = _live_survival_state(ability="pressure", item={"status": "known_absent"})
+    nonlethal["opponent_side"]["pokemon"][0].update(current_hp=100, max_hp=100, fainted=False)
+    result = run_current_ui_detached_strategy(
+        runtime_session_manager=_RuntimeManager([_snapshot(nonlethal), _snapshot(nonlethal)]),
+        captured_session_id=nonlethal["session_id"], selection_cycle_builder=_single_live_damage_builder,
+    )
+    assert result["descriptive_metrics"]["attack:water-gun"]["guaranteed_facts"]["target_ko"] is False
 
 
 def test_response_profile_live_projection_composes_each_selectable_own_attack(monkeypatch) -> None:
