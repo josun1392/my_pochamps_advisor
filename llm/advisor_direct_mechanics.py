@@ -628,7 +628,7 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
             if isinstance(value, Mapping) and value.get("status") == "known" and _nonempty_str(value.get("value")):
                 if key == "status" and value.get("value") in {"sleep", "freeze"} and allow_champions_status_gate:
                     continue
-                if key == "item" and value.get("value") in {"focus-sash", "quick-claw", "rocky-helmet"}:
+                if key == "item" and value.get("value") in {"focus-sash", "quick-claw", "rocky-helmet", "sitrus-berry"}:
                     continue
                 # Detached intermediate major conditions are exact terminal
                 # consequences, not current-runtime observations.  They may
@@ -1148,8 +1148,10 @@ def _defender_item_modifier_context(
         result["missing_inputs"].append("defender.item")
         return result
     item_id = item["value"]
-    # Focus Sash survival and Quick Claw order are separately-owned branches.
-    if item_id in {"focus-sash", "quick-claw", "rocky-helmet"}:
+    # These items have no pre-hit modifier in this direct formula.  Their
+    # post-hit/later-action consequences are separately owned by detached
+    # predictive seams, so their exact known presence is neutral here.
+    if item_id in {"focus-sash", "quick-claw", "rocky-helmet", "sitrus-berry"}:
         return result
     effect = get_item(item_id)
     if effect is None:

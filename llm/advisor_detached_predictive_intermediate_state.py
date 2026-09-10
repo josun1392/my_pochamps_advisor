@@ -208,6 +208,10 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
     item_after = focus.get("item_after") if isinstance(focus, Mapping) else None
     if isinstance(focus, Mapping) and focus.get("outcome") == "applied" and isinstance(item_after, Mapping) and item_after.get("status") == "known_absent":
         result.append({"owner": "target", "hypothetical_target_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_focus_sash_consumption", "effect": deepcopy(dict(focus))}})
+    sitrus = consequences.get("sitrus_berry_immediate_consumption")
+    item_after = sitrus.get("item_after") if isinstance(sitrus, Mapping) else None
+    if isinstance(sitrus, Mapping) and sitrus.get("status") == "resolved" and sitrus.get("outcome") == "activated" and isinstance(item_after, Mapping) and item_after.get("status") == "known_absent" and item_after.get("value") is None:
+        result.append({"owner": "target", "hypothetical_target_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_sitrus_berry_consumption", "effect": deepcopy(dict(sitrus))}})
     knock_off = consequences.get("knock_off_item_removal")
     if isinstance(knock_off, Mapping) and knock_off.get("outcome") == "removed" and knock_off.get("item_after") is None:
         authority = knock_off.get("authority")

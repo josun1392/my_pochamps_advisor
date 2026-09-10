@@ -103,6 +103,7 @@ from llm.advisor_detached_item_transfer_after_hit import materialize_detached_it
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
 from llm.advisor_detached_drain_consequence import apply_detached_drain_consequence
 from llm.advisor_detached_psychic_noise_healing_prevented_transition import attach_detached_psychic_noise_healing_prevented_transitions
+from llm.advisor_detached_sitrus_berry_immediate_consumption import materialize_detached_sitrus_berry_immediate_consumption
 from llm.advisor_detached_damage_based_recoil_consequence import apply_detached_damage_based_recoil
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import SCHEMA_VERSION as QUICK_GUARD_SCHEMA_VERSION
 from llm.advisor_runtime_d0_analytic_action_order_authority import (
@@ -1145,6 +1146,14 @@ def _materialize_order(
     second_meta = opponent_meta if order == "own_first" else own_meta
     second_action_id = opponent_action.get("action_id") if order == "own_first" else own_action.get("action_id")
     for leaf in first["terminal_leaves"]:
+        sitrus = materialize_detached_sitrus_berry_immediate_consumption(
+            strategy_d0=first_d0, runtime_snapshot=first_snapshot, terminal_leaf=leaf,
+            holder=base["opponent_actor"] if order == "own_first" else base["own_actor"],
+            move_metadata=first_meta.get("metadata", {}),
+        )
+        if sitrus.get("status") != "resolved":
+            return _result(_status(sitrus), sitrus.get("reason", "sitrus_detached_consequence_unavailable"), base, first_leaf_id=leaf.get("leaf_id"))
+        leaf = sitrus["leaf"]
         intermediate = materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=leaf, root_predictive_authority=root)
         if intermediate.get("status") != "resolved": return _result(_status(intermediate), intermediate.get("reason", "intermediate_state_unavailable"), base)
         # A self-switching damaging move changes the defensive owner for the
