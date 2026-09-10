@@ -216,8 +216,8 @@ def test_runtime_bridge_projects_d0_metadata_to_live_ledgers_and_metrics() -> No
     )
 
     metadata = {
-        "tackle": {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100},
-        "water-gun": {"move_id": "water-gun", "category": "special", "power": 40, "type": "water", "accuracy": 100},
+        "tackle": {"move_id": "tackle", "category": "physical", "power": 40, "type": "normal", "accuracy": 100, "effect_chance": None, "ailment": "none", "stat_changes": []},
+        "water-gun": {"move_id": "water-gun", "category": "special", "power": 40, "type": "water", "accuracy": 100, "effect_chance": None, "ailment": "none", "stat_changes": []},
     }
 
     def builder(capture: dict, _runtime_snapshot: dict) -> dict:
@@ -245,13 +245,32 @@ def test_runtime_bridge_projects_d0_metadata_to_live_ledgers_and_metrics() -> No
 
 def _single_live_damage_builder(capture: dict, _runtime_snapshot: dict) -> dict:
     owner = capture["active_owner"]
-    metadata = {"move_id": "water-gun", "category": "special", "power": 40, "type": "water", "accuracy": 100}
-    return {
-        "status": "ready", "_runtime_d0_selection_capture": deepcopy(capture),
-        "_combined_action_turn_snapshot": {"battle_state": {"active_player": {"slot_index": owner["slot_index"], "species_id": owner["pokemon_id"]}}, "current_state": {"current_state_session_id": owner["session_id"]}},
-        "recommendation_request": {"candidate_comparisons": [{"slot_index": 0, "move": "water-gun", "eligibility": "eligible"}]},
-        "evidence_bundle": {"candidates": [{"slot_index": 0, "move": "water-gun", "canonical_move_metadata": metadata}], "switch_candidates": []},
-    }
+    metadata = {"move_id": "water-gun", "category": "special", "power": 40, "type": "water", "accuracy": 100, "effect_chance": None, "ailment": "none", "stat_changes": []}
+    return _single_live_damage_builder_for(metadata)(capture, _runtime_snapshot)
+
+
+def _single_live_damage_builder_for(metadata: dict):
+    def build(capture: dict, _runtime_snapshot: dict) -> dict:
+        owner = capture["active_owner"]
+        return {
+            "status": "ready", "_runtime_d0_selection_capture": deepcopy(capture),
+            "_combined_action_turn_snapshot": {"battle_state": {"active_player": {"slot_index": owner["slot_index"], "species_id": owner["pokemon_id"]}}, "current_state": {"current_state_session_id": owner["session_id"]}},
+            "recommendation_request": {"candidate_comparisons": [{"slot_index": 0, "move": metadata["move_id"], "eligibility": "eligible"}]},
+            "evidence_bundle": {"candidates": [{"slot_index": 0, "move": metadata["move_id"], "canonical_move_metadata": metadata}], "switch_candidates": []},
+        }
+    return build
+
+
+def test_live_unwired_canonical_secondary_prevents_exact_ledger_and_metrics_certification() -> None:
+    state = _live_survival_state(ability="pressure", item={"status": "known_absent"})
+    metadata = {"move_id": "iron-head", "category": "physical", "power": 80, "type": "steel", "accuracy": 100, "target": "selected-pokemon", "effect_chance": 30, "ailment": "flinch", "stat_changes": []}
+    result = run_current_ui_detached_strategy(
+        runtime_session_manager=_RuntimeManager([_snapshot(state), _snapshot(state)]),
+        captured_session_id=state["session_id"], selection_cycle_builder=_single_live_damage_builder_for(metadata),
+    )
+    ledger = result["exact_outcome_ledgers"]["attack:iron-head"]
+    assert ledger["status"] == "incomplete" and ledger["reason"] == "secondary_component_incomplete"
+    assert result["descriptive_metrics"]["attack:iron-head"]["status"] == "incomplete"
 
 
 def _live_survival_state(*, ability: str, item: dict, sturdy_applicability: str | None = None) -> dict:
