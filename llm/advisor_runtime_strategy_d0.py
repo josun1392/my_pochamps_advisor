@@ -21,6 +21,7 @@ from llm.advisor_current_critical_state_authority import (
     project_current_lucky_chant_authority,
 )
 from llm.advisor_current_condition_authority import project_current_condition_authority
+from llm.advisor_current_healing_prevented_authority import project_current_healing_prevented_authority
 from llm.advisor_battle_state_context import build_deterministic_hit_chance_assessment
 from llm.advisor_ability_interaction_authority import (
     normalize_ability_applicability_context,
@@ -124,6 +125,14 @@ def freeze_runtime_strategy_d0(*, runtime_snapshot: Mapping[str, Any], decision_
             current_condition_provenance=_roster(state, side).get(owner["slot_index"], {}).get("condition_provenance"),
         ) for side, owner in owners.items()
     }
+    result["current_healing_prevented_authority"] = {
+        side: project_current_healing_prevented_authority(
+            session_id=session_id, source_runtime_fingerprint=runtime_fingerprint,
+            source_branch_fingerprint=preview_fingerprint, decision_owner=decision_owner, recipient=owner,
+            healing_prevented_status=_roster(state, side).get(owner["slot_index"], {}).get("healing_prevented_status"),
+            healing_prevented_status_provenance=_roster(state, side).get(owner["slot_index"], {}).get("healing_prevented_status_provenance"),
+        ) for side, owner in owners.items()
+    }
     result["current_critical_state_authority"] = {
         "volatiles": {
             side: project_current_crit_volatile_authority(
@@ -174,6 +183,19 @@ def freeze_runtime_current_condition_authority(*, strategy_d0: Mapping[str, Any]
     authority = strategy_d0.get("current_condition_authority", {}).get(owner["side"])
     if not isinstance(authority, Mapping) or authority.get("owner") != dict(owner):
         return _result("rejected", "runtime_current_condition_authority_unavailable")
+    return deepcopy(dict(authority))
+
+
+def freeze_runtime_d0_current_healing_prevented_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], recipient: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the strict current Healing Prevented fact for one active owner."""
+    if not _valid_d0(strategy_d0) or not _owner(recipient) or strategy_d0.get("active_owners", {}).get(recipient.get("side")) != dict(recipient):
+        return _result("rejected", "runtime_current_healing_prevented_identity_mismatch")
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _result("rejected", freshness.get("reason", "stale_runtime_d0"))
+    authority = strategy_d0.get("current_healing_prevented_authority", {}).get(recipient["side"])
+    if not isinstance(authority, Mapping) or authority.get("recipient") != dict(recipient):
+        return _result("rejected", "runtime_current_healing_prevented_authority_unavailable")
     return deepcopy(dict(authority))
 
 
