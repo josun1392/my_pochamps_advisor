@@ -15,6 +15,8 @@ from llm.advisor_transition_preview import (
     project_self_stage_then_direct_branch,
 )
 
+LEGACY_SCHEMA_VERSION = "legacy-bounded-transition-preview-two-turn-execution-v1"
+
 
 def execute_explicit_two_turn(
     *,
@@ -65,6 +67,8 @@ def execute_explicit_two_turn(
         return _halt(second_eot, "turn_two_end_of_turn", turn_one=first, turn_one_end_of_turn=first_eot, next_turn_start=handoff, turn_two=second)
     return {
         "status": "resolved",
+        "schema_version": LEGACY_SCHEMA_VERSION,
+        "provenance": "legacy_bounded_transition_preview_two_turn_execution_v1",
         "source_snapshot_fingerprint": start_fp,
         "turn_one": deepcopy(first),
         "turn_one_end_of_turn": deepcopy(first_eot),
@@ -376,8 +380,8 @@ def _plan_owners_match(plan: Mapping[str, Any], owners: Mapping[str, Mapping[str
 
 
 def _halt(result: Mapping[str, Any], stage: str, **completed: Any) -> dict[str, Any]:
-    return {"status": result.get("status", "incomplete"), "reason": result.get("reason", stage), "failed_stage": stage, **{key: deepcopy(value) for key, value in completed.items()}}
+    return {"status": result.get("status", "incomplete"), "schema_version": LEGACY_SCHEMA_VERSION, "provenance": "legacy_bounded_transition_preview_two_turn_execution_v1", "reason": result.get("reason", stage), "failed_stage": stage, **{key: deepcopy(value) for key, value in completed.items()}}
 
 
 def _result(status: str, reason: str) -> dict[str, Any]:
-    return {"status": status, "reason": reason}
+    return {"status": status, "schema_version": LEGACY_SCHEMA_VERSION, "provenance": "legacy_bounded_transition_preview_two_turn_execution_v1", "reason": reason}
