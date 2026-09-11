@@ -342,7 +342,10 @@ def _persistent_effects(value: Any, base: Mapping[str, Any], owner: Mapping[str,
 def _condition(value: Any, base: Mapping[str, Any], owner: Mapping[str, Any], leaf_id: str) -> dict[str, Any] | str:
     if not isinstance(value, Mapping) or value.get("status") not in {"known_none", "known_present", "unknown"} or not _bound_to_base(value, base, owner): return "end_of_turn_condition_authority_invalid"
     if value["status"] == "unknown": return "end_of_turn_condition_unknown"
-    if value["status"] == "known_none": return {"status": "known_none", "provenance": deepcopy(value.get("provenance")), "source_binding": deepcopy(value["source_binding"])}
+    if value["status"] == "known_none":
+        source = value.get("source_terminal_leaf_id")
+        if source is not None and source != leaf_id: return "end_of_turn_condition_terminal_binding_mismatch"
+        return {"status": "known_none", "provenance": deepcopy(value.get("provenance")), "source_binding": deepcopy(value["source_binding"]), **({"source_terminal_leaf_id": source} if source is not None else {})}
     if value.get("condition") not in _CONDITIONS - {"none"}: return "end_of_turn_condition_authority_invalid"
     source = value.get("source_terminal_leaf_id")
     # A source leaf is mandatory only for path-local hypothetical transitions;
