@@ -16,6 +16,7 @@ from llm.advisor_runtime_strategy_d0 import (
 SCHEMA_VERSION = "runtime-d0-baneful-bunker-reactive-poison-authority-v1"
 _BLOCK_SCHEMA = "baneful-bunker-successful-block-context-v1"
 _APPLICABILITY_SCHEMA = "baneful-bunker-reactive-poison-applicability-resolution-v1"
+_SOURCE_CORROSION_SCHEMA = "runtime-d0-baneful-bunker-source-corrosion-authority-v1"
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _CONDITIONS = frozenset({"burn", "poison", "toxic", "paralysis", "sleep", "freeze"})
 
@@ -119,8 +120,16 @@ def freeze_runtime_d0_baneful_bunker_reactive_poison_authority(
     types = _runtime_type_authority(runtime_snapshot, base["blocked_attacker"])
     if types.get("status") != "resolved":
         return _result(types["status"], types["reason"], base)
+    source_corrosion = None
     if {"poison", "steel"} & set(types["types"]):
-        return _not_applicable(base, context, contact_authority, "blocked_attacker_poison_type_immune", condition=condition, types=types)
+        source_corrosion = freeze_runtime_d0_baneful_bunker_source_corrosion_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            shield_owner=base["shield_owner"],
+        )
+        if source_corrosion.get("status") != "resolved":
+            return _result(_status(source_corrosion), source_corrosion.get("reason", "baneful_bunker_source_corrosion_authority_unavailable"), base)
+        if source_corrosion.get("corrosion_state") != "active":
+            return _not_applicable(base, context, contact_authority, "blocked_attacker_poison_type_immune", condition=condition, types=types, source_corrosion_authority=source_corrosion)
     applicability = _applicability(applicability_resolution, base)
     if applicability == "mismatch":
         return _result("rejected", "baneful_bunker_poison_applicability_binding_mismatch", base)
@@ -134,7 +143,7 @@ def freeze_runtime_d0_baneful_bunker_reactive_poison_authority(
     if current != {"ability_authority": applicability["ability_authority"], "item_authority": applicability["item_authority"]}:
         return _result("rejected", "baneful_bunker_relevant_prevention_authority_binding_mismatch", base)
     if applicability["outcome"] == "prevented":
-        return _not_applicable(base, context, contact_authority, "reactive_poison_prevented", condition=condition, types=types, applicability=applicability)
+        return _not_applicable(base, context, contact_authority, "reactive_poison_prevented", condition=condition, types=types, applicability=applicability, source_corrosion_authority=source_corrosion)
     metadata = canonical_baneful_bunker_reactive_poison_metadata("baneful-bunker")
     if metadata is None:
         return _result("rejected", "canonical_baneful_bunker_poison_metadata_invalid", base)
@@ -147,9 +156,46 @@ def freeze_runtime_d0_baneful_bunker_reactive_poison_authority(
         "contact_authority": deepcopy(dict(contact_authority)),
         "protection_block_context": context, "condition_authority": condition,
         "type_authority": types, "applicability_resolution": applicability,
+        **({"source_corrosion_authority": deepcopy(dict(source_corrosion))} if isinstance(source_corrosion, Mapping) else {}),
         "canonical_metadata": metadata,
         "provenance": "runtime_d0_canonical_baneful_bunker_blocked_contact_poison_v1",
     }
+
+
+def freeze_runtime_d0_baneful_bunker_source_corrosion_authority(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    shield_owner: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Freeze Corrosion only when its current source and suppression state are exact."""
+    try:
+        shield = _owner(shield_owner)
+    except ValueError:
+        return _source_result("rejected", "baneful_bunker_source_corrosion_owner_invalid", {})
+    if not isinstance(strategy_d0, Mapping) or strategy_d0.get("status") != "resolved" or strategy_d0.get("active_owners", {}).get(shield["side"]) != shield:
+        return _source_result("rejected", "baneful_bunker_source_corrosion_owner_mismatch", {"shield_owner": shield})
+    base = {
+        "session_id": strategy_d0.get("session_id"), "source_runtime_fingerprint": strategy_d0.get("source_runtime_fingerprint"),
+        "source_branch_fingerprint": strategy_d0.get("strategy_preview_fingerprint"), "decision_owner": deepcopy(strategy_d0.get("decision_owner")),
+        "shield_owner": shield,
+    }
+    if not all(isinstance(base.get(key), str) and base[key] for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint")) or not isinstance(base["decision_owner"], Mapping):
+        return _source_result("rejected", "baneful_bunker_source_corrosion_d0_binding_invalid", base)
+    freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+    if freshness.get("status") != "current":
+        return _source_result("rejected", freshness.get("reason", "stale_runtime_d0"), base)
+    source = _runtime_ability_authority(runtime_snapshot, shield)
+    if source.get("status") != "known":
+        return _source_result(_status(source), source.get("reason", "baneful_bunker_source_ability_unknown"), base, source_ability_authority=source)
+    if source["value"] != "corrosion":
+        return _source_result("resolved", "baneful_bunker_source_ability_not_corrosion", base, corrosion_state="inactive", source_ability_authority=source)
+    active = strategy_d0.get("active_owners")
+    if not isinstance(active, Mapping) or set(active) != {"self", "opponent"}:
+        return _source_result("rejected", "baneful_bunker_source_corrosion_active_owners_invalid", base, source_ability_authority=source)
+    abilities = {side: _runtime_ability_authority(runtime_snapshot, owner) for side, owner in active.items()}
+    if any(row.get("status") != "known" for row in abilities.values()):
+        return _source_result("incomplete", "baneful_bunker_source_corrosion_suppression_unknown", base, source_ability_authority=source, active_ability_authorities=abilities)
+    suppressed = any(row["value"] == "neutralizing-gas" for row in abilities.values())
+    return _source_result("resolved", "baneful_bunker_source_corrosion_active" if not suppressed else "baneful_bunker_source_corrosion_suppressed", base, corrosion_state="active" if not suppressed else "inactive", source_ability_authority=source, active_ability_authorities=abilities)
 
 
 def materialize_detached_baneful_bunker_reactive_poison(*, authority: Mapping[str, Any]) -> dict[str, Any]:
@@ -249,6 +295,20 @@ def _runtime_type_authority(snapshot: Mapping[str, Any], owner: Mapping[str, Any
     return {"status": "resolved", "types": tuple(types), "provenance": "runtime_current_type_observed"}
 
 
+def _runtime_ability_authority(snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> dict[str, Any]:
+    pokemon = _runtime_pokemon(snapshot, owner)
+    if pokemon is None:
+        return {"status": "rejected", "reason": "baneful_bunker_source_ability_runtime_identity_mismatch"}
+    ability, provenance = pokemon.get("current_ability"), pokemon.get("current_ability_provenance")
+    if isinstance(ability, str) and ability and _trusted(provenance, "current_ability_observed"):
+        return {"status": "known", "value": ability}
+    if ability is None or isinstance(ability, Mapping) and ability.get("knowledge") == "unknown":
+        return {"status": "incomplete", "reason": "baneful_bunker_source_ability_unknown"}
+    if isinstance(ability, Mapping) or not isinstance(ability, str):
+        return {"status": "rejected", "reason": "baneful_bunker_source_ability_malformed"}
+    return {"status": "incomplete", "reason": "baneful_bunker_source_ability_unknown"}
+
+
 def _current_modifier_authorities(snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> dict[str, dict[str, Any]] | None:
     pokemon = _runtime_pokemon(snapshot, owner)
     if pokemon is None:
@@ -285,8 +345,8 @@ def _condition_state(authority: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _not_applicable(base: Mapping[str, Any], context: Mapping[str, Any], contact: Mapping[str, Any], reason: str, *, condition: Mapping[str, Any] | None = None, types: Mapping[str, Any] | None = None, applicability: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    return {"status": "resolved", "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "outcome": "not_applicable", "condition_transition": None, "reason": reason, "contact_authority": deepcopy(dict(contact)), "protection_block_context": deepcopy(dict(context)), **({"condition_authority": deepcopy(dict(condition))} if condition else {}), **({"type_authority": deepcopy(dict(types))} if types else {}), **({"applicability_resolution": deepcopy(dict(applicability))} if applicability else {}), "provenance": "runtime_d0_canonical_baneful_bunker_no_reactive_poison_v1"}
+def _not_applicable(base: Mapping[str, Any], context: Mapping[str, Any], contact: Mapping[str, Any], reason: str, *, condition: Mapping[str, Any] | None = None, types: Mapping[str, Any] | None = None, applicability: Mapping[str, Any] | None = None, source_corrosion_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    return {"status": "resolved", "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "outcome": "not_applicable", "condition_transition": None, "reason": reason, "contact_authority": deepcopy(dict(contact)), "protection_block_context": deepcopy(dict(context)), **({"condition_authority": deepcopy(dict(condition))} if condition else {}), **({"type_authority": deepcopy(dict(types))} if types else {}), **({"applicability_resolution": deepcopy(dict(applicability))} if applicability else {}), **({"source_corrosion_authority": deepcopy(dict(source_corrosion_authority))} if source_corrosion_authority else {}), "provenance": "runtime_d0_canonical_baneful_bunker_no_reactive_poison_v1"}
 
 
 def _protection_authority(value: Any, shield: Mapping[str, Any]) -> bool:
@@ -315,3 +375,11 @@ def _owner(value: Any) -> dict[str, Any]:
 
 def _result(status: str, reason: str, base: Mapping[str, Any]) -> dict[str, Any]:
     return {"status": status, "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)), "reason": reason}
+
+
+def _source_result(status: str, reason: str, base: Mapping[str, Any], **extra: Any) -> dict[str, Any]:
+    return {"status": status, "schema_version": _SOURCE_CORROSION_SCHEMA, **deepcopy(dict(base)), "reason": reason, **deepcopy(extra)}
+
+
+def _status(value: Any) -> str:
+    return value.get("status") if isinstance(value, Mapping) and value.get("status") in {"incomplete", "rejected"} else "rejected"

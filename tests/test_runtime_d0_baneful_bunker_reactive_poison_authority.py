@@ -6,6 +6,7 @@ from llm.advisor_runtime_d0_baneful_bunker_reactive_poison_authority import (
     build_baneful_bunker_reactive_poison_applicability_resolution,
     build_baneful_bunker_successful_block_context,
     freeze_runtime_d0_baneful_bunker_reactive_poison_authority,
+    freeze_runtime_d0_baneful_bunker_source_corrosion_authority,
     materialize_detached_baneful_bunker_reactive_poison,
 )
 from llm.advisor_runtime_d0_canonical_contact_classification_authority import (
@@ -63,6 +64,7 @@ def test_baneful_bunker_exact_contact_applies_and_materializes_detached_normal_p
     state, snapshot, d0, _unused, _responses, _orders = _inputs(); before = deepcopy(state); action = _own_action(d0, "tackle")
     result = _freeze(d0, snapshot, action)
     assert result["status"] == "resolved" and result["outcome"] == "applies"
+    assert "source_corrosion_authority" not in result
     assert result["condition_before"] == "none" and result["condition_after"] == "poison"
     assert result["probability"] == {"numerator": 1, "denominator": 1}
     assert all(key not in result for key in ("hit_state", "critical_state", "damage_roll"))
@@ -105,3 +107,49 @@ def test_baneful_bunker_stale_foreign_contact_and_action_mismatches_reject():
     assert _freeze(d0, snapshot, action, context=bad_context)["status"] == "rejected"
     stale = deepcopy(snapshot); stale["state"]["self_side"]["pokemon"][0]["current_hp"] = 99; stale["state_fingerprint"] = state_fingerprint(stale["state"])
     assert _freeze(d0, stale, action)["status"] == "rejected"
+
+
+def test_baneful_bunker_corrosion_bypasses_only_poison_and_steel_type_immunity():
+    for types in (["poison"], ["steel"]):
+        state, _snapshot, d0, _unused, _responses, _orders = _inputs()
+        state["opponent_side"]["pokemon"][0]["current_ability"] = "corrosion"
+        state["self_side"]["pokemon"][0]["current_type"] = types
+        snapshot, d0 = _refresh(state, d0); action = _own_action(d0, "tackle")
+        result = _freeze(d0, snapshot, action)
+        assert result["status"] == "resolved" and result["outcome"] == "applies"
+        assert result["source_corrosion_authority"]["corrosion_state"] == "active"
+
+
+def test_baneful_bunker_corrosion_keeps_independent_prevention_and_fails_closed_when_required():
+    state, _snapshot, d0, _unused, _responses, _orders = _inputs()
+    state["opponent_side"]["pokemon"][0]["current_ability"] = "corrosion"
+    state["self_side"]["pokemon"][0]["current_type"] = ["poison"]
+    snapshot, d0 = _refresh(state, d0); action = _own_action(d0, "tackle")
+    prevented = _freeze(d0, snapshot, action, applicability=_applicability(d0, action, outcome="prevented"))
+    assert prevented["status"] == "resolved" and prevented["outcome"] == "not_applicable" and prevented["reason"] == "reactive_poison_prevented"
+
+    state["opponent_side"]["pokemon"][0]["current_ability"] = None
+    state["opponent_side"]["pokemon"][0]["current_ability_provenance"] = None
+    snapshot, d0 = _refresh(state, d0); action = _own_action(d0, "tackle")
+    assert _freeze(d0, snapshot, action)["status"] == "incomplete"
+
+
+def test_baneful_bunker_corrosion_requires_exact_unsuppressed_source_and_rejects_stale_or_foreign_source():
+    state, _snapshot, d0, _unused, _responses, _orders = _inputs()
+    state["opponent_side"]["pokemon"][0]["current_ability"] = "corrosion"
+    state["self_side"]["pokemon"][0]["current_ability"] = "neutralizing-gas"
+    state["self_side"]["pokemon"][0]["current_type"] = ["steel"]
+    snapshot, d0 = _refresh(state, d0); action = _own_action(d0, "tackle")
+    result = _freeze(d0, snapshot, action)
+    assert result["status"] == "resolved" and result["outcome"] == "not_applicable"
+    assert result["source_corrosion_authority"]["corrosion_state"] == "inactive"
+
+    state["self_side"]["pokemon"][0]["current_ability"] = make_unknown_battle_fact()
+    state["self_side"]["pokemon"][0]["current_ability_provenance"] = None
+    snapshot, d0 = _refresh(state, d0); action = _own_action(d0, "tackle")
+    assert _freeze(d0, snapshot, action)["status"] == "incomplete"
+
+    stale = deepcopy(snapshot); stale["state"]["self_side"]["pokemon"][0]["current_hp"] = 99; stale["state_fingerprint"] = state_fingerprint(stale["state"])
+    assert freeze_runtime_d0_baneful_bunker_source_corrosion_authority(strategy_d0=d0, runtime_snapshot=stale, shield_owner=d0["active_owners"]["opponent"])["status"] == "rejected"
+    foreign = deepcopy(d0["active_owners"]["opponent"]); foreign["pokemon_id"] = "foreign"
+    assert freeze_runtime_d0_baneful_bunker_source_corrosion_authority(strategy_d0=d0, runtime_snapshot=snapshot, shield_owner=foreign)["status"] == "rejected"
