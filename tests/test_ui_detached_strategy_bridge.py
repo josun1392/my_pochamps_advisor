@@ -405,3 +405,28 @@ def test_response_profile_live_projection_builds_a_sparse_direct_heal_bundle(mon
     payload = captured[0]["opponent_attack:recover"]["ordinary_pair_authorities"]
     assert set(payload) == {"direct_heal_execution_authorities"}
     assert set(payload["direct_heal_execution_authorities"]) == {"opponent_attack:recover"}
+
+
+def test_response_profile_live_projection_builds_protect_only_success_authority(monkeypatch) -> None:
+    self_owner = {"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "self"}
+    opponent_owner = {"session_id": "s", "side": "opponent", "slot_index": 0, "pokemon_id": "opponent"}
+    d0 = {"session_id": "s", "source_runtime_fingerprint": "runtime", "strategy_preview_fingerprint": "preview", "decision_owner": self_owner, "active_owners": {"self": self_owner, "opponent": opponent_owner}}
+    selection = {"actions": ({"action_id": "attack:tackle", "action_type": "attack", "identity": "tackle", "selection": "selectable"},)}
+    response = {"action_id": "opponent_attack:protect", "response_kind": "move", "action_type": "attack", "move_id": "protect", "metadata_authority": {"metadata": {"move_id": "protect", "category": "status", "target": "user", "accuracy": None}}}
+    captured = []
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_opponent_known_move_action_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_complete_opponent_response_set_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_opponent_switch_response_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_combined_opponent_response_universe_authority", lambda **_: {"status": "resolved", "selectable_response_action_ids": (response["action_id"],), "actions": (response,)})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_action_order_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_quick_claw_action_order_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "resolve_runtime_d0_selectable_move_metadata_authority", lambda **_: {"metadata": {"move_id": "tackle", "category": "physical"}})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_focus_sash_survival_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_nonconsecutive_protection_success_authority", lambda **_: {"status": "resolved", "protection_success_authority": {"schema_version": "branch-protection-success-v1", "owner": opponent_owner, "previous_successful_protection_count": 0, "provenance": "explicit_branch_nonconsecutive_protection"}})
+    monkeypatch.setattr(bridge_subject, "materialize_detached_opponent_response_profile", lambda **kwargs: captured.append(kwargs["response_authority_bundles"]) or {"status": "evaluable"})
+
+    projected = bridge_subject._project_live_opponent_response_profiles(strategy_d0=d0, runtime_snapshot={}, selection=selection, canonical_move_metadata_authorities={"protect": {"status": "resolved"}})
+
+    assert projected["attack:tackle"]["status"] == "evaluable"
+    payload = captured[0]["opponent_attack:protect"]["ordinary_pair_authorities"]
+    assert set(payload) == {"opponent_protection_success_authority"}

@@ -17,6 +17,8 @@ from llm.advisor_runtime_d0_quick_claw_action_order_authority import freeze_runt
 from llm.advisor_runtime_d0_focus_sash_survival_authority import freeze_runtime_d0_focus_sash_survival_authority
 from llm.advisor_runtime_d0_sturdy_survival_authority import freeze_runtime_d0_sturdy_survival_authority
 from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtime_d0_direct_heal_execution_authority
+from llm.advisor_runtime_d0_nonconsecutive_protection_success_authority import freeze_runtime_d0_nonconsecutive_protection_success_authority
+from llm.advisor_hypothetical_protection_effects import canonical_protection_metadata
 from llm.advisor_live_secondary_manifest_authority import freeze_live_secondary_manifest_authority
 from llm.advisor_runtime_manual_switch_entry_authority import freeze_runtime_d0_manual_switch_entry_authority
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
@@ -252,6 +254,12 @@ def _project_live_opponent_response_profiles(
                             action=response, actor=active_owners["opponent"],
                         ),
                     }
+                if canonical_protection_metadata(response_metadata.get("move_id") if isinstance(response_metadata, Mapping) else None) is not None:
+                    protection = freeze_runtime_d0_nonconsecutive_protection_success_authority(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                        protection_owner=active_owners["opponent"], protection_action=response,
+                    )
+                    authorities["opponent_protection_success_authority"] = protection.get("protection_success_authority", protection)
                 response_authority_bundles[response_id] = {
                     "status": "resolved", "schema_version": "live-opponent-response-authority-bundle-v1",
                     "session_id": strategy_d0["session_id"],
