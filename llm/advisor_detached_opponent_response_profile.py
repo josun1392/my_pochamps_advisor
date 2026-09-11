@@ -36,6 +36,7 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
     "quick_guard_priority_applicability_authority",
     "mat_block_direct_damage_applicability_authority",
 }
+_ORDINARY_PAIR_CONTEXT_KEYS = {"reactive_shield_common_block_context"}
 
 
 def materialize_detached_opponent_response_profile(
@@ -156,13 +157,13 @@ def _bundle_kwargs(*, bundle: Any, base: Mapping[str, Any], opponent_action: Map
     if bundle.get("status") != "resolved":
         return {"status": _status(bundle), "reason": bundle.get("reason", "live_response_authority_bundle_unavailable")}
     values = bundle.get("ordinary_pair_authorities")
-    if not isinstance(values, Mapping) or set(values) - _ORDINARY_PAIR_BUNDLE_KEYS or not all(isinstance(value, Mapping) for value in values.values()):
+    if not isinstance(values, Mapping) or set(values) - (_ORDINARY_PAIR_BUNDLE_KEYS | _ORDINARY_PAIR_CONTEXT_KEYS) or not all(isinstance(value, Mapping) for value in values.values()):
         return {"status": "rejected", "reason": "live_response_authority_bundle_payload_invalid"}
     # The specialized gate owns its own extension composition.  Passing even
     # unrelated authority maps would turn a valid status-gated pair incomplete.
     if not ordinary_pair or _status_or_confusion_gate(runtime_snapshot, base):
         return {}
-    return deepcopy(dict(values))
+    return {key: deepcopy(dict(value)) for key, value in values.items() if key in _ORDINARY_PAIR_BUNDLE_KEYS}
 
 
 def _status_or_confusion_gate(snapshot: Mapping[str, Any], base: Mapping[str, Any]) -> bool:

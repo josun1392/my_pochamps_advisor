@@ -24,6 +24,11 @@ from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import 
 from advisor.canonical_mat_block_protection import canonical_mat_block_protection_metadata
 from llm.advisor_runtime_d0_mat_block_active_entry_eligibility_authority import freeze_runtime_d0_mat_block_active_entry_eligibility_authority
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import freeze_runtime_d0_mat_block_direct_damage_applicability_authority, freeze_runtime_d0_mat_block_incoming_bypass_authority
+from llm.advisor_runtime_d0_reactive_shield_common_block_context import freeze_runtime_d0_reactive_shield_common_block_context
+from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata
+from advisor.canonical_spiky_shield_reactive_damage import canonical_spiky_shield_reactive_damage_metadata
+from advisor.canonical_baneful_bunker_reactive_poison import canonical_baneful_bunker_reactive_poison_metadata
+from advisor.canonical_burning_bulwark_reactive_burn import canonical_burning_bulwark_reactive_burn_metadata
 from llm.advisor_live_secondary_manifest_authority import freeze_live_secondary_manifest_authority
 from llm.advisor_runtime_manual_switch_entry_authority import freeze_runtime_d0_manual_switch_entry_authority
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
@@ -294,6 +299,17 @@ def _project_live_opponent_response_profiles(
                         eligibility_authority=eligibility, bypass_authority=bypass, incoming_action=incoming,
                         protected_recipients=(deepcopy(dict(active_owners["opponent"])),),
                     )
+                if _is_canonical_reactive_shield(response_metadata.get("move_id") if isinstance(response_metadata, Mapping) else None):
+                    common = freeze_runtime_d0_reactive_shield_common_block_context(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                        shield_owner=active_owners["opponent"], shield_action=response,
+                        blocked_attacker=active_owners["self"], blocked_action=own,
+                        frozen_move_metadata=own_metadata.get("metadata") if isinstance(own_metadata.get("metadata"), Mapping) else {},
+                    )
+                    authorities["reactive_shield_common_block_context"] = common
+                    success = common.get("protection_success_authority") if isinstance(common, Mapping) else None
+                    if isinstance(success, Mapping):
+                        authorities["opponent_protection_success_authority"] = success
                 response_authority_bundles[response_id] = {
                     "status": "resolved", "schema_version": "live-opponent-response-authority-bundle-v1",
                     "session_id": strategy_d0["session_id"],
@@ -320,6 +336,14 @@ def _is_damaging_metadata(metadata: Any) -> bool:
 
 def _is_direct_heal_metadata(metadata: Any) -> bool:
     return isinstance(metadata, Mapping) and metadata.get("move_id") in {"recover", "slack-off", "soft-boiled"} and metadata.get("category") == "status" and metadata.get("target") == "self"
+
+
+def _is_canonical_reactive_shield(move_id: Any) -> bool:
+    return any(resolver(move_id) is not None for resolver in (
+        canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata,
+        canonical_spiky_shield_reactive_damage_metadata, canonical_baneful_bunker_reactive_poison_metadata,
+        canonical_burning_bulwark_reactive_burn_metadata,
+    ))
 
 
 def _capture(manager: Any, session_id: str) -> Mapping[str, Any] | None:

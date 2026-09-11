@@ -4,7 +4,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 
-from llm.advisor_hypothetical_protection_effects import canonical_protection_metadata
+from llm.advisor_hypothetical_protection_effects import canonical_protection_success_chain_metadata
 from llm.advisor_runtime_d0_last_executed_move_authority import (
     SCHEMA_VERSION as LAST_MOVE_SCHEMA,
     freeze_runtime_d0_last_executed_move_authority,
@@ -39,10 +39,10 @@ def freeze_runtime_d0_nonconsecutive_protection_success_authority(
     if not isinstance(previous_move_id, str) or not previous_move_id:
         return _result("rejected", "last_executed_move_identity_invalid", base,
                        last_executed_move_authority=history)
-    # This maintained ordinary-protection catalog is the chain-family owner.
+    # This maintained protection-success catalog is the shared chain-family owner.
     # A member proves that the current chain cannot be reset to zero here.
-    if canonical_protection_metadata(previous_move_id) is not None:
-        return _result("incomplete", "previous_ordinary_protection_chain_state_unproven", base,
+    if canonical_protection_success_chain_metadata(previous_move_id) is not None:
+        return _result("incomplete", "previous_protection_success_chain_state_unproven", base,
                        last_executed_move_authority=history)
     success = {
         "schema_version": "branch-protection-success-v1",
@@ -63,7 +63,7 @@ def _base(d0: Any, owner: Any, action: Any) -> dict[str, Any] | None:
         return None
     metadata = action.get("metadata_authority", {}).get("metadata") if isinstance(action.get("metadata_authority"), Mapping) else None
     move_id = metadata.get("move_id") if isinstance(metadata, Mapping) else None
-    if action.get("action_type") != "attack" or not isinstance(action.get("action_id"), str) or action.get("move_id", action.get("identity")) != move_id or canonical_protection_metadata(move_id) is None:
+    if action.get("action_type") != "attack" or not isinstance(action.get("action_id"), str) or action.get("move_id", action.get("identity")) != move_id or canonical_protection_success_chain_metadata(move_id) is None:
         return None
     if any(not isinstance(d0.get(key), str) or not d0[key] for key in ("session_id", "source_runtime_fingerprint", "strategy_preview_fingerprint")):
         return None

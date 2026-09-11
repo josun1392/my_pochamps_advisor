@@ -22,6 +22,27 @@ def canonical_protection_metadata(move_id: Any) -> dict[str, Any] | None:
     return {"move_id": move_id, **deepcopy(dict(row))}
 
 
+def canonical_protection_success_chain_metadata(move_id: Any) -> dict[str, Any] | None:
+    """Classify maintained moves that share the strict success-chain contract."""
+    ordinary = canonical_protection_metadata(move_id)
+    if ordinary is not None:
+        return {"move_id": move_id, "family": "ordinary", "metadata": ordinary}
+    from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata
+    from advisor.canonical_spiky_shield_reactive_damage import canonical_spiky_shield_reactive_damage_metadata
+    from advisor.canonical_baneful_bunker_reactive_poison import canonical_baneful_bunker_reactive_poison_metadata
+    from advisor.canonical_burning_bulwark_reactive_burn import canonical_burning_bulwark_reactive_burn_metadata
+    for family, resolver in (
+        ("silk_trap", canonical_silk_trap_metadata), ("kings_shield", canonical_kings_shield_metadata),
+        ("obstruct", canonical_obstruct_metadata), ("spiky_shield", canonical_spiky_shield_reactive_damage_metadata),
+        ("baneful_bunker", canonical_baneful_bunker_reactive_poison_metadata),
+        ("burning_bulwark", canonical_burning_bulwark_reactive_burn_metadata),
+    ):
+        metadata = resolver(move_id)
+        if metadata is not None:
+            return {"move_id": move_id, "family": family, "metadata": metadata}
+    return None
+
+
 def project_self_protection(*, branch_state: Mapping[str, Any], action: Mapping[str, Any], expected_owner: Mapping[str, Any], success_authority: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(branch_state, Mapping) or branch_state.get("schema_version") != "deterministic-transition-preview-v1":
         return _result("rejected", "invalid_branch_state")

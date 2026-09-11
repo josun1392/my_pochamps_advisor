@@ -31,8 +31,8 @@ def _freeze(state, move_id="protect"):
     return snapshot, d0, action
 
 
-def test_known_non_protection_history_proves_zero_count_for_protect_and_detect():
-    for move_id in ("protect", "detect"):
+def test_known_non_protection_history_proves_zero_count_for_ordinary_and_reactive_shields():
+    for move_id in ("protect", "detect", "silk-trap", "kings-shield", "obstruct", "spiky-shield", "baneful-bunker", "burning-bulwark"):
         state = _record(_state(f"nonconsecutive-{move_id}"), "tackle")
         snapshot, d0, action = _freeze(state, move_id)
         result = freeze_runtime_d0_nonconsecutive_protection_success_authority(
@@ -52,14 +52,14 @@ def test_missing_or_chain_history_never_infers_nonconsecutive_success():
         strategy_d0=d0, runtime_snapshot=snapshot, protection_owner=_owner(state, "opponent"), protection_action=action,
     )
     assert missing["status"] == "incomplete"
-    for prior in ("protect", "detect"):
+    for prior in ("protect", "detect", "kings-shield"):
         chained = _record(_state(f"prior-{prior}"), prior)
         snapshot, d0, action = _freeze(chained)
         result = freeze_runtime_d0_nonconsecutive_protection_success_authority(
             strategy_d0=d0, runtime_snapshot=snapshot, protection_owner=_owner(chained, "opponent"), protection_action=action,
         )
         assert result["status"] == "incomplete"
-        assert result["reason"] == "previous_ordinary_protection_chain_state_unproven"
+        assert result["reason"] == "previous_protection_success_chain_state_unproven"
 
 
 def test_foreign_owner_or_unsupported_response_rejects():
@@ -72,4 +72,4 @@ def test_foreign_owner_or_unsupported_response_rejects():
     unsupported = freeze_runtime_d0_nonconsecutive_protection_success_authority(
         strategy_d0=d0, runtime_snapshot=snapshot, protection_owner=_owner(state, "opponent"), protection_action={**action, "move_id": "kings-shield", "metadata_authority": {"metadata": {"move_id": "kings-shield", "category": "status", "target": "user", "accuracy": None}}},
     )
-    assert unsupported["status"] == "rejected"
+    assert unsupported["status"] == "resolved"
