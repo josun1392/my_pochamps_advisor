@@ -10,6 +10,15 @@ from llm.advisor_transition_preview import fingerprint_transition_preview_state
 _PROVENANCE = "trusted_ingrain_persistent_effect_state"
 
 
+def evaluate_ingrain_recovery(*, effect_state: str, current_hp: int, maximum_hp: int) -> dict[str, Any]:
+    """Pure exact consequence shared by detached EOT projections."""
+    if effect_state != "known_active" or not isinstance(current_hp, int) or isinstance(current_hp, bool) or not isinstance(maximum_hp, int) or isinstance(maximum_hp, bool) or maximum_hp < 1 or not 0 < current_hp <= maximum_hp:
+        return {"status": "incomplete", "reason": "ingrain_current_hp_authority"}
+    recovery = maximum_hp // 16
+    post_hp = min(maximum_hp, current_hp + recovery)
+    return {"status": "complete", "recovery": recovery, "post_hp": post_hp, "outcome": "recovered" if post_hp != current_hp else "already_full_hp"}
+
+
 def ingrain_state(state: Mapping[str, Any], side: str, owner: Mapping[str, Any]) -> str | None:
     """Read one exact owner's typed state; ``None`` is malformed or foreign."""
     context = state.get("ingrain_persistent_effect_context")

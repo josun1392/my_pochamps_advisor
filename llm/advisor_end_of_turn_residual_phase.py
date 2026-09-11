@@ -11,6 +11,11 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_sandstorm_residual_core import evaluate_sandstorm_residual
+from llm.advisor_ice_body_recovery_core import evaluate_weather_recovery
+from llm.advisor_solar_power_residual_core import evaluate_solar_power_residual
+from llm.advisor_aqua_ring_persistent_effect import evaluate_aqua_ring_recovery
+from llm.advisor_ingrain_persistent_effect import evaluate_ingrain_recovery
+from llm.advisor_black_sludge_end_of_turn import evaluate_black_sludge_residual
 
 
 PHASE_INPUT_SCHEMA = "detached-end-of-turn-phase-input-v1"
@@ -22,12 +27,25 @@ HORIZON = "end_of_turn_residual_projection"
 # residual families get an explicit class here when they are supported.
 END_OF_TURN_EVENT_ORDER = {
     "sandstorm": 50,
+    # Weather abilities are established in the legacy weather tier.
+    "ice_body": 50,
+    "rain_dish": 50,
+    "dry_skin_rain": 50,
+    "dry_skin_sun": 50,
+    "solar_power": 50,
+    "aqua_ring": 60,
+    "ingrain": 70,
     # Linked target drain plus recipient transfer is an atomic residual tier.
     "leech_seed": 80,
     "burn": 100,
     "poison": 100,
     "toxic": 100,
+    "poison_heal": 100,
+    "magic_guard_burn": 100,
+    "magic_guard_poison": 100,
+    "magic_guard_toxic": 100,
     "leftovers": 200,
+    "black_sludge": 200,
 }
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _CONDITIONS = {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}
@@ -275,7 +293,7 @@ def _terminal_leaf(ledger: Any, leaf_id: Any) -> tuple[dict[str, Any] | None, di
 
 
 def _active_state(value: Any, base: Mapping[str, Any], side: str, expected_hp: int, leaf_id: str) -> dict[str, Any] | str:
-    allowed = {"owner", "hp", "fainted", "condition", "item", "toxic_progression", "speed", "ability", "types"}
+    allowed = {"owner", "hp", "fainted", "condition", "item", "toxic_progression", "speed", "ability", "persistent_effects", "types"}
     if not isinstance(value, Mapping) or set(value) not in (allowed - {"types"}, allowed): return "end_of_turn_active_state_invalid"
     owner = value["owner"]
     expected_owner = base["own_actor"] if side == "self" else base["opponent_actor"]
@@ -295,9 +313,30 @@ def _active_state(value: Any, base: Mapping[str, Any], side: str, expected_hp: i
     if not isinstance(speed, Mapping) or speed.get("status") not in {"known", "unknown"} or not _bound_to_base(speed, base, owner) or (speed.get("status") == "known" and (not isinstance(speed.get("value"), int) or isinstance(speed["value"], bool) or speed["value"] < 0)): return "end_of_turn_speed_authority_invalid"
     ability = value["ability"]
     if not isinstance(ability, Mapping) or ability.get("status") not in {"known", "known_absent", "unknown"} or not _bound_to_base(ability, base, owner): return "end_of_turn_ability_authority_invalid"
+    persistent = _persistent_effects(value["persistent_effects"], base, owner, leaf_id)
+    if isinstance(persistent, str): return persistent
     types = value.get("types")
     if types is not None and (not isinstance(types, Mapping) or types.get("status") not in {"known", "unknown"} or not _bound_to_base(types, base, owner) or (types.get("status") == "known" and (not isinstance(types.get("value"), list) or not types["value"]))): return "end_of_turn_type_authority_invalid"
-    return {"owner": deepcopy(dict(owner)), "hp": deepcopy(dict(hp)), "fainted": deepcopy(dict(fainted)), "condition": condition, "item": deepcopy(dict(item)), "toxic_progression": deepcopy(dict(toxic)), "speed": deepcopy(dict(speed)), "ability": deepcopy(dict(ability)), **({"types": deepcopy(dict(types))} if types is not None else {})}
+    return {"owner": deepcopy(dict(owner)), "hp": deepcopy(dict(hp)), "fainted": deepcopy(dict(fainted)), "condition": condition, "item": deepcopy(dict(item)), "toxic_progression": deepcopy(dict(toxic)), "speed": deepcopy(dict(speed)), "ability": deepcopy(dict(ability)), "persistent_effects": persistent, **({"types": deepcopy(dict(types))} if types is not None else {})}
+
+
+def _persistent_effects(value: Any, base: Mapping[str, Any], owner: Mapping[str, Any], leaf_id: str) -> dict[str, dict[str, Any]] | str:
+    """Normalize the two existing persistent-EOT owner authorities.
+
+    The exact phase does not invent persistent state from absence: each owner
+    must explicitly say active, inactive, or unknown for this bound leaf.
+    """
+    if not isinstance(value, Mapping) or set(value) != {"aqua_ring", "ingrain"}:
+        return "end_of_turn_persistent_effect_authority_invalid"
+    normalized = {}
+    for kind in ("aqua_ring", "ingrain"):
+        authority = value[kind]
+        if not isinstance(authority, Mapping) or authority.get("status") not in {"known_active", "known_inactive", "unknown"} or not _bound_to_base(authority, base, owner):
+            return "end_of_turn_persistent_effect_authority_invalid"
+        if authority.get("source_terminal_leaf_id") not in {None, leaf_id}:
+            return "end_of_turn_persistent_effect_terminal_binding_mismatch"
+        normalized[kind] = deepcopy(dict(authority))
+    return normalized
 
 
 def _condition(value: Any, base: Mapping[str, Any], owner: Mapping[str, Any], leaf_id: str) -> dict[str, Any] | str:
@@ -319,21 +358,43 @@ def _condition(value: Any, base: Mapping[str, Any], owner: Mapping[str, Any], le
 def _candidate_for(row: Mapping[str, Any], phase_input: Mapping[str, Any]) -> list[dict[str, Any]] | str:
     if row["fainted"]["value"]: return []
     if row["item"]["status"] == "unknown": return "end_of_turn_item_unknown"
+    if any(authority["status"] == "unknown" for authority in row["persistent_effects"].values()):
+        return "end_of_turn_persistent_effect_unknown"
     condition = row["condition"]
-    if condition["status"] == "known_present" and row["ability"].get("status") == "known" and row["ability"].get("value") == "magic-guard": return "end_of_turn_magic_guard_residual_consumer_unimplemented"
     out: list[dict[str, Any]] = []
     if condition["status"] == "known_present":
+        if row["ability"].get("status") == "unknown": return "end_of_turn_condition_ability_unknown"
         kind = condition["condition"]
+        ability = row["ability"].get("value") if row["ability"].get("status") == "known" else None
+        if ability == "poison-heal" and kind in {"poison", "toxic"}:
+            out.append(_candidate("poison_heal", row, phase_input, lambda hp, maximum: min(maximum, hp + maximum // 8) - hp, {"condition": deepcopy(condition), "ability": deepcopy(row["ability"]), "divisor": 8, "replaces": kind}))
+        elif ability == "magic-guard" and kind in {"burn", "poison", "toxic"}:
+            out.append(_candidate(f"magic_guard_{kind}", row, phase_input, lambda _hp, _maximum: 0, {"condition": deepcopy(condition), "ability": deepcopy(row["ability"]), "prevention": "magic_guard"}))
         if kind == "toxic":
             toxic = row["toxic_progression"]
             if toxic["status"] != "known": return "end_of_turn_toxic_counter_unknown"
             stage = toxic["next_stage"]
-            out.append(_candidate("toxic", row, phase_input, lambda _hp, maximum, n=stage: -((maximum * n) // 16), {"condition": deepcopy(condition), "toxic_stage": stage, "toxic_next_stage": min(stage + 1, 15)}))
+            if ability not in {"poison-heal", "magic-guard"}:
+                out.append(_candidate("toxic", row, phase_input, lambda _hp, maximum, n=stage: -((maximum * n) // 16), {"condition": deepcopy(condition), "toxic_stage": stage, "toxic_next_stage": min(stage + 1, 15)}))
         elif kind in {"burn", "poison"}:
             divisor = 16 if kind == "burn" else 8
-            out.append(_candidate(kind, row, phase_input, lambda _hp, maximum, d=divisor: -(maximum // d), {"condition": deepcopy(condition), "divisor": divisor}))
+            if ability not in {"poison-heal", "magic-guard"}:
+                out.append(_candidate(kind, row, phase_input, lambda _hp, maximum, d=divisor: -(maximum // d), {"condition": deepcopy(condition), "divisor": divisor}))
     if row["item"].get("status") == "known" and row["item"].get("value") == "leftovers":
         out.append(_candidate("leftovers", row, phase_input, lambda hp, maximum: min(maximum, hp + maximum // 16) - hp, {"item": deepcopy(row["item"]), "divisor": 16}))
+    if row["item"].get("status") == "known" and row["item"].get("value") == "black-sludge":
+        types = row.get("types")
+        if not isinstance(types, Mapping) or types.get("status") != "known": return "end_of_turn_black_sludge_type_unknown"
+        resolved = evaluate_black_sludge_residual(item="black-sludge", current_types=types["value"], current_hp=row["hp"]["current_hp"], maximum_hp=row["hp"]["maximum_hp"])
+        if resolved.get("status") != "complete": return "end_of_turn_black_sludge_authority_unavailable"
+        direction = resolved["kind"]
+        out.append(_candidate("black_sludge", row, phase_input, (lambda current, maximum, amount=resolved["amount"]: min(maximum, current + amount) - current) if direction == "recovery" else (lambda _current, _maximum, amount=resolved["amount"]: -amount), {"item": deepcopy(row["item"]), "types": deepcopy(types), "black_sludge_result": deepcopy(resolved)}))
+    for effect, kind in (("aqua_ring", "aqua_ring"), ("ingrain", "ingrain")):
+        authority = row["persistent_effects"][effect]
+        if authority["status"] == "known_active":
+            resolved = (evaluate_aqua_ring_recovery if effect == "aqua_ring" else evaluate_ingrain_recovery)(effect_state="known_active", current_hp=row["hp"]["current_hp"], maximum_hp=row["hp"]["maximum_hp"])
+            if resolved.get("status") != "complete": return f"end_of_turn_{effect}_authority_unavailable"
+            out.append(_candidate(kind, row, phase_input, lambda current, maximum, amount=resolved["recovery"]: min(maximum, current + amount) - current, {"persistent_effect": effect, "persistent_effect_authority": deepcopy(authority), "persistent_effect_result": deepcopy(resolved)}))
     return out
 
 
@@ -350,14 +411,54 @@ def _weather_authority(value: Any, base: Mapping[str, Any], leaf_id: str) -> dic
 
 def _weather_candidates(phase_input: Mapping[str, Any]) -> list[dict[str, Any]] | str:
     weather = phase_input.get("weather_authority", {"status": "unknown"})
-    if weather.get("status") == "unknown": return []
-    if weather.get("weather") != "sandstorm": return []
+    if weather.get("status") == "unknown":
+        weather_abilities = {"ice-body", "rain-dish", "dry-skin", "solar-power"}
+        if any(row["ability"].get("status") == "unknown" or row["ability"].get("value") in weather_abilities for row in phase_input["active_states"].values()):
+            return "end_of_turn_weather_unknown"
+        return []
     abilities = {}
     for side in ("self", "opponent"):
         ability = phase_input["active_states"][side]["ability"]
-        if ability.get("status") != "known": return "end_of_turn_weather_ability_unknown"
-        abilities[side] = ability.get("value")
+        if ability.get("status") == "unknown": return "end_of_turn_weather_ability_unknown"
+        abilities[side] = ability.get("value") if ability.get("status") == "known" else "__known_ability_absent__"
+    current_weather = weather.get("weather")
     out = []
+    if current_weather in {"snow", "rain", "sun"}:
+        weather_specs = {
+            ("snow", "ice-body"): ("ice_body", "ice-body", "recovery"),
+            ("rain", "rain-dish"): ("rain_dish", "rain-dish", "recovery"),
+            ("rain", "dry-skin"): ("dry_skin_rain", "dry-skin", "recovery"),
+            ("sun", "dry-skin"): ("dry_skin_sun", "dry-skin", "damage"),
+            ("sun", "solar-power"): ("solar_power", "solar-power", "damage"),
+        }
+        for side in ("self", "opponent"):
+            row = phase_input["active_states"][side]
+            if row["fainted"]["value"]: continue
+            spec = weather_specs.get((current_weather, abilities[side]))
+            if spec is None: continue
+            kind, required_ability, direction = spec
+            hp, maximum = row["hp"]["current_hp"], row["hp"]["maximum_hp"]
+            if kind == "solar_power":
+                resolved = evaluate_solar_power_residual(active_abilities=abilities, target_side=side, current_hp=hp, maximum_hp=maximum)
+            elif kind == "dry_skin_sun":
+                blockers = set(abilities.values())
+                if "neutralizing-gas" in blockers:
+                    resolved = {"status": "complete", "outcome": "suppressed_by_neutralizing_gas"}
+                elif blockers & {"cloud-nine", "air-lock"}:
+                    resolved = {"status": "complete", "outcome": "suppressed_by_weather_ability"}
+                else:
+                    resolved = {"status": "complete", "damage": maximum // 8, "post_hp": max(0, hp - maximum // 8), "outcome": "damaged"}
+            else:
+                resolved = evaluate_weather_recovery(active_abilities=abilities, target_side=side, required_ability=required_ability, current_hp=hp, maximum_hp=maximum)
+            if resolved.get("status") != "complete": return "end_of_turn_weather_residual_unavailable"
+            if resolved.get("outcome", "").startswith("suppressed"):
+                continue
+            if direction == "recovery":
+                out.append(_candidate(kind, row, phase_input, lambda current, maximum, r=resolved.get("recovery", 0): min(maximum, current + r) - current, {"weather": deepcopy(weather), "ability": deepcopy(row["ability"]), "legacy_weather_owner": kind, "weather_result": deepcopy(resolved)}))
+            else:
+                out.append(_candidate(kind, row, phase_input, lambda _current, _maximum, d=resolved.get("damage", 0): -d, {"weather": deepcopy(weather), "ability": deepcopy(row["ability"]), "legacy_weather_owner": kind, "weather_result": deepcopy(resolved)}))
+        return out
+    if current_weather != "sandstorm": return []
     for side in ("self", "opponent"):
         row = phase_input["active_states"][side]
         if row["fainted"]["value"]: continue
@@ -402,7 +503,7 @@ def _ordering_authority(candidate: Mapping[str, Any], row: Mapping[str, Any]) ->
 
 def _post_toxic(row: Mapping[str, Any], events: list[Mapping[str, Any]], side: str) -> dict[str, Any]:
     toxic = deepcopy(row["toxic_progression"])
-    event = next((x for x in events if x["affected_owner"]["side"] == side and x["event_kind"] == "toxic"), None)
+    event = next((x for x in events if x["affected_owner"]["side"] == side and x["event_kind"] in {"toxic", "poison_heal", "magic_guard_toxic"}), None)
     if event is not None and toxic.get("status") == "known": toxic["next_stage"] = min(toxic["next_stage"] + 1, 15); toxic["source_event_id"] = event["event_id"]
     return toxic
 

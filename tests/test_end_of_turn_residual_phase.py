@@ -33,8 +33,9 @@ def _ledger(*, self_hp=50, opponent_hp=50):
     }
 
 
-def _row(side, pid, hp, *, maximum=100, condition=None, item=None, toxic=None, speed=100, ability=None):
+def _row(side, pid, hp, *, maximum=100, condition=None, item=None, toxic=None, speed=100, ability=None, persistent=None):
     binding = {"session_id": "s", "source_runtime_fingerprint": "runtime", "source_branch_fingerprint": "branch", "owner": _owner(side, pid)}
+    persistent = persistent or {"aqua_ring": "known_inactive", "ingrain": "known_inactive"}
     return {
         "owner": _owner(side, pid), "hp": {"status": "known", "current_hp": hp, "maximum_hp": maximum, "source_terminal_leaf_id": "leaf"},
         "fainted": {"status": "known", "value": hp == 0, "source_terminal_leaf_id": "leaf"},
@@ -43,6 +44,7 @@ def _row(side, pid, hp, *, maximum=100, condition=None, item=None, toxic=None, s
         "toxic_progression": {"status": "unknown", "source_binding": binding} if toxic is None else {"status": "known", "next_stage": toxic, "source_binding": binding},
         "speed": {"status": "known", "value": speed, "source_binding": binding},
         "ability": {"status": "known_absent", "source_binding": binding} if ability is None else {"status": "known", "value": ability, "source_binding": binding},
+        "persistent_effects": {kind: {"status": state, "source_binding": binding} for kind, state in persistent.items()},
     }
 
 
@@ -204,12 +206,64 @@ def test_order_is_catalog_driven_speed_ordered_and_ledger_rejects_forgery():
     assert validate_end_of_turn_residual_phase_ledger(ledger=forged)["status"] == "rejected"
 
 
-def test_residual_ko_defers_replacement_and_magic_guard_fails_closed():
+def test_residual_ko_defers_replacement_and_magic_guard_prevents_supported_status_residual():
     ko = materialize_end_of_turn_residual_phase(phase_input=_input(self_hp=6, self_row=_row("self", "a", 6, condition="burn", item="leftovers")))
     assert len(ko["events"]) == 1 and ko["events"][0]["post_hp"] == 0
     assert ko["post_end_of_turn_active_states"]["self"]["replacement_after_end_of_turn_faint"] == "deferred"
     guarded = materialize_end_of_turn_residual_phase(phase_input=_input(self_row=_row("self", "a", 50, condition="burn", ability="magic-guard")))
-    assert guarded["reason"] == "end_of_turn_magic_guard_residual_consumer_unimplemented"
+    assert guarded["events"][0]["event_kind"] == "magic_guard_burn" and guarded["events"][0]["hp_delta"] == 0
+
+
+def test_legacy_weather_ability_families_use_existing_exact_owners():
+    for weather, ability, kind, expected in (
+        ("snow", "ice-body", "ice_body", 6),
+        ("rain", "rain-dish", "rain_dish", 6),
+        ("rain", "dry-skin", "dry_skin_rain", 12),
+        ("sun", "dry-skin", "dry_skin_sun", -12),
+        ("sun", "solar-power", "solar_power", -12),
+    ):
+        result = materialize_end_of_turn_residual_phase(phase_input=_input(
+            self_row=_row("self", "a", 50, ability=ability),
+            opponent_row=_row("opponent", "b", 50, ability="pressure"), weather_authority=_weather(weather),
+        ))
+        assert [(event["event_kind"], event["hp_delta"]) for event in result["events"]] == [(kind, expected)]
+
+
+def test_poison_heal_replaces_poison_and_toxic_and_persistent_recoveries_are_exact():
+    poison = materialize_end_of_turn_residual_phase(phase_input=_input(
+        self_hp=50, self_row=_row("self", "a", 50, condition="poison", ability="poison-heal"),
+    ))
+    assert [(event["event_kind"], event["hp_delta"]) for event in poison["events"]] == [("poison_heal", 12)]
+    toxic = materialize_end_of_turn_residual_phase(phase_input=_input(
+        self_hp=50, self_row=_row("self", "a", 50, condition="toxic", toxic=3, ability="poison-heal"),
+    ))
+    assert toxic["events"][0]["event_kind"] == "poison_heal" and toxic["post_end_of_turn_active_states"]["self"]["toxic_progression"]["next_stage"] == 4
+    persistent = materialize_end_of_turn_residual_phase(phase_input=_input(
+        self_row=_row("self", "a", 50, persistent={"aqua_ring": "known_active", "ingrain": "known_active"}),
+    ))
+    assert [(event["event_kind"], event["hp_delta"]) for event in persistent["events"]] == [("aqua_ring", 6), ("ingrain", 6)]
+
+
+def test_black_sludge_type_authority_and_unknown_persistent_authority_fail_closed():
+    poison = _weather_row("self", "a", 50, types=["poison"], item="black-sludge")
+    result = materialize_end_of_turn_residual_phase(phase_input=_input(self_row=poison))
+    assert result["events"][0]["event_kind"] == "black_sludge" and result["events"][0]["hp_delta"] == 6
+    normal = _weather_row("self", "a", 50, types=["normal"], item="black-sludge")
+    assert materialize_end_of_turn_residual_phase(phase_input=_input(self_row=normal))["events"][0]["hp_delta"] == -12
+    missing_type = _row("self", "a", 50, item="black-sludge")
+    assert materialize_end_of_turn_residual_phase(phase_input=_input(self_row=missing_type))["reason"] == "end_of_turn_black_sludge_type_unknown"
+    unknown = _row("self", "a", 50, persistent={"aqua_ring": "unknown", "ingrain": "known_inactive"})
+    assert materialize_end_of_turn_residual_phase(phase_input=_input(self_row=unknown))["reason"] == "end_of_turn_persistent_effect_unknown"
+
+
+def test_new_catalog_forgery_and_earlier_ko_block_later_recovery():
+    result = materialize_end_of_turn_residual_phase(phase_input=_input(
+        self_hp=6, self_row=_row("self", "a", 6, ability="solar-power", item="leftovers"),
+        opponent_row=_row("opponent", "b", 50, ability="pressure"), weather_authority=_weather("sun"),
+    ))
+    assert [event["event_kind"] for event in result["events"]] == ["solar_power"]
+    forged = deepcopy(result); forged["events"] = tuple({**forged["events"][0], "event_kind": "leftovers"} for _ in forged["events"])
+    assert validate_end_of_turn_residual_phase_ledger(ledger=forged)["status"] == "rejected"
 
 
 def test_two_actives_receive_events_and_missing_cross_residual_speed_fails_closed():

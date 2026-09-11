@@ -11,6 +11,15 @@ _KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _PROVENANCE = "trusted_aqua_ring_persistent_effect_state"
 
 
+def evaluate_aqua_ring_recovery(*, effect_state: str, current_hp: int, maximum_hp: int) -> dict[str, Any]:
+    """Pure exact consequence shared by detached EOT projections."""
+    if effect_state != "known_active" or not isinstance(current_hp, int) or isinstance(current_hp, bool) or not isinstance(maximum_hp, int) or isinstance(maximum_hp, bool) or maximum_hp < 1 or not 0 < current_hp <= maximum_hp:
+        return {"status": "incomplete", "reason": "aqua_ring_current_hp_authority"}
+    recovery = maximum_hp // 16
+    post_hp = min(maximum_hp, current_hp + recovery)
+    return {"status": "complete", "recovery": recovery, "post_hp": post_hp, "outcome": "recovered" if post_hp != current_hp else "already_full_hp"}
+
+
 def aqua_ring_state(state: Mapping[str, Any], side: str, owner: Mapping[str, Any]) -> str | None:
     """Read one exact owner's typed state; ``None`` is malformed/foreign."""
     context = state.get("aqua_ring_persistent_effect_context")

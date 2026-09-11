@@ -9,6 +9,16 @@ from llm.advisor_sandstorm_end_of_turn import _UNKNOWN, _item, _types
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 
 
+def evaluate_black_sludge_residual(*, item: str, current_types: list[str], current_hp: int, maximum_hp: int) -> dict[str, Any]:
+    """Pure Black Sludge consequence for exact detached EOT consumers."""
+    if item != "black-sludge" or not isinstance(current_types, list) or not current_types or not all(isinstance(value, str) and value for value in current_types) or not isinstance(current_hp, int) or isinstance(current_hp, bool) or not isinstance(maximum_hp, int) or isinstance(maximum_hp, bool) or maximum_hp < 1 or not 0 < current_hp <= maximum_hp:
+        return {"status": "incomplete", "reason": "black_sludge_current_authority"}
+    poison_type = "poison" in current_types
+    amount = maximum_hp // (16 if poison_type else 8)
+    post_hp = min(maximum_hp, current_hp + amount) if poison_type else max(0, current_hp - amount)
+    return {"status": "complete", "kind": "recovery" if poison_type else "damage", "amount": amount, "post_hp": post_hp, "outcome": "recovered" if poison_type and post_hp != current_hp else "already_full_hp" if poison_type else "damaged"}
+
+
 def apply_owner_black_sludge_end_of_turn(*, state: dict[str, Any], side: str, owner: Mapping[str, Any], source_branch_fingerprint: str) -> dict[str, Any]:
     """Apply exact Black Sludge recovery or damage to one exact living owner."""
     owners = _owners(state)
