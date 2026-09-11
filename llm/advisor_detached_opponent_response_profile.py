@@ -33,6 +33,7 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
     "first_action_sturdy_survival_authorities_by_order",
     "direct_heal_execution_authorities",
     "opponent_protection_success_authority",
+    "quick_guard_priority_applicability_authority",
 }
 
 

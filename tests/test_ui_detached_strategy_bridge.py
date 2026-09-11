@@ -430,3 +430,26 @@ def test_response_profile_live_projection_builds_protect_only_success_authority(
     assert projected["attack:tackle"]["status"] == "evaluable"
     payload = captured[0]["opponent_attack:protect"]["ordinary_pair_authorities"]
     assert set(payload) == {"opponent_protection_success_authority"}
+
+
+def test_response_profile_live_projection_builds_quick_guard_only_applicability(monkeypatch) -> None:
+    self_owner = {"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "self"}
+    opponent_owner = {"session_id": "s", "side": "opponent", "slot_index": 0, "pokemon_id": "opponent"}
+    d0 = {"session_id": "s", "source_runtime_fingerprint": "runtime", "strategy_preview_fingerprint": "preview", "decision_owner": self_owner, "active_owners": {"self": self_owner, "opponent": opponent_owner}}
+    selection = {"actions": ({"action_id": "attack:quick-attack", "action_type": "attack", "identity": "quick-attack", "selection": "selectable"},)}
+    response = {"action_id": "opponent_attack:quick-guard", "response_kind": "move", "action_type": "attack", "move_id": "quick-guard", "metadata_authority": {"metadata": {"move_id": "quick-guard", "category": "status", "target": "self"}}}
+    captured = []
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_opponent_known_move_action_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_complete_opponent_response_set_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_opponent_switch_response_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_combined_opponent_response_universe_authority", lambda **_: {"status": "resolved", "selectable_response_action_ids": (response["action_id"],), "actions": (response,)})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_action_order_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_quick_claw_action_order_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "resolve_runtime_d0_selectable_move_metadata_authority", lambda **_: {"metadata": {"move_id": "quick-attack", "category": "physical", "target": "selected-pokemon", "priority": 1, "protection_bypass": False}})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_focus_sash_survival_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr(bridge_subject, "freeze_runtime_d0_quick_guard_priority_applicability_authority", lambda **_: {"status": "resolved", "outcome": "applies"})
+    monkeypatch.setattr(bridge_subject, "materialize_detached_opponent_response_profile", lambda **kwargs: captured.append(kwargs["response_authority_bundles"]) or {"status": "evaluable"})
+
+    bridge_subject._project_live_opponent_response_profiles(strategy_d0=d0, runtime_snapshot={}, selection=selection, canonical_move_metadata_authorities={"quick-guard": {"status": "resolved"}})
+    payload = captured[0]["opponent_attack:quick-guard"]["ordinary_pair_authorities"]
+    assert set(payload) == {"quick_guard_priority_applicability_authority"}

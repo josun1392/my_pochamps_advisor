@@ -19,6 +19,8 @@ from llm.advisor_runtime_d0_sturdy_survival_authority import freeze_runtime_d0_s
 from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtime_d0_direct_heal_execution_authority
 from llm.advisor_runtime_d0_nonconsecutive_protection_success_authority import freeze_runtime_d0_nonconsecutive_protection_success_authority
 from llm.advisor_hypothetical_protection_effects import canonical_protection_metadata
+from advisor.canonical_quick_guard_protection import canonical_quick_guard_protection_metadata
+from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import build_quick_guard_protection_context, freeze_runtime_d0_quick_guard_priority_applicability_authority
 from llm.advisor_live_secondary_manifest_authority import freeze_live_secondary_manifest_authority
 from llm.advisor_runtime_manual_switch_entry_authority import freeze_runtime_d0_manual_switch_entry_authority
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
@@ -260,6 +262,20 @@ def _project_live_opponent_response_profiles(
                         protection_owner=active_owners["opponent"], protection_action=response,
                     )
                     authorities["opponent_protection_success_authority"] = protection.get("protection_success_authority", protection)
+                if canonical_quick_guard_protection_metadata(response_metadata.get("move_id") if isinstance(response_metadata, Mapping) else None) is not None:
+                    bypass = own_metadata.get("metadata", {}).get("protection_bypass") if isinstance(own_metadata.get("metadata"), Mapping) else None
+                    try:
+                        context = build_quick_guard_protection_context(
+                            session_id=strategy_d0["session_id"], guard_user=active_owners["opponent"], guard_action_id=response_id,
+                            incoming_actor=active_owners["self"], incoming_action_id=own["action_id"], incoming_move_id=own["identity"],
+                            selected_target=active_owners["opponent"], protection_authority={"status": "resolved", "owner": deepcopy(dict(active_owners["opponent"])), "metadata": {"move_id": "quick-guard"}}, protection_bypass=bypass,
+                        )
+                    except (TypeError, ValueError):
+                        context = None
+                    authorities["quick_guard_priority_applicability_authority"] = freeze_runtime_d0_quick_guard_priority_applicability_authority(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, guard_user=active_owners["opponent"], guard_action_id=response_id,
+                        incoming_actor=active_owners["self"], incoming_action=own, selected_target=active_owners["opponent"], protection_context=context,
+                    )
                 response_authority_bundles[response_id] = {
                     "status": "resolved", "schema_version": "live-opponent-response-authority-bundle-v1",
                     "session_id": strategy_d0["session_id"],

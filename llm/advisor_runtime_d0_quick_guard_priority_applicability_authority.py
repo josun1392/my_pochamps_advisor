@@ -12,11 +12,14 @@ SCHEMA_VERSION = "runtime-d0-quick-guard-priority-applicability-authority-v1"
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 
 
-def build_quick_guard_protection_context(*, session_id: str, guard_user: Mapping[str, Any], guard_action_id: str, incoming_actor: Mapping[str, Any], incoming_action_id: str, incoming_move_id: str, selected_target: Mapping[str, Any], protection_authority: Mapping[str, Any], action_blocked: bool, protection_bypass: bool) -> dict[str, Any]:
+def build_quick_guard_protection_context(*, session_id: str, guard_user: Mapping[str, Any], guard_action_id: str, incoming_actor: Mapping[str, Any], incoming_action_id: str, incoming_move_id: str, selected_target: Mapping[str, Any], protection_authority: Mapping[str, Any], action_blocked: bool | None = None, protection_bypass: bool | None = None) -> dict[str, Any]:
     guard, incoming, target = _owner(guard_user), _owner(incoming_actor), _owner(selected_target)
-    if not isinstance(session_id, str) or not session_id or guard["side"] == incoming["side"] or target != guard or not all(isinstance(value, str) and value for value in (guard_action_id, incoming_action_id, incoming_move_id)) or not isinstance(action_blocked, bool) or not isinstance(protection_bypass, bool) or not _protection(protection_authority, guard):
+    if not isinstance(session_id, str) or not session_id or guard["side"] == incoming["side"] or target != guard or not all(isinstance(value, str) and value for value in (guard_action_id, incoming_action_id, incoming_move_id)) or not isinstance(protection_bypass, bool) or (action_blocked is not None and not isinstance(action_blocked, bool)) or not _protection(protection_authority, guard):
         raise ValueError("invalid_quick_guard_protection_context")
-    return {"schema_version": "quick-guard-protection-context-v1", "session_id": session_id, "guard_user": guard, "guard_action_id": guard_action_id, "guard_move_id": "quick-guard", "incoming_actor": incoming, "incoming_action_id": incoming_action_id, "incoming_move_id": incoming_move_id, "selected_target": target, "protection_authority": deepcopy(dict(protection_authority)), "action_blocked": action_blocked, "protection_bypass": protection_bypass, "provenance": "explicit_existing_quick_guard_protection_context_v1"}
+    base = {"session_id": session_id, "guard_user": guard, "guard_action_id": guard_action_id, "guard_move_id": "quick-guard", "incoming_actor": incoming, "incoming_action_id": incoming_action_id, "incoming_move_id": incoming_move_id, "selected_target": target, "protection_authority": deepcopy(dict(protection_authority)), "protection_bypass": protection_bypass}
+    if action_blocked is None:
+        return {"schema_version": "quick-guard-protection-context-v2", **base, "provenance": "strict_quick_guard_input_facts_v2"}
+    return {"schema_version": "quick-guard-protection-context-v1", **base, "action_blocked": action_blocked, "provenance": "explicit_existing_quick_guard_protection_context_v1"}
 
 
 def freeze_runtime_d0_quick_guard_priority_applicability_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], guard_user: Mapping[str, Any], guard_action_id: str, incoming_actor: Mapping[str, Any], incoming_action: Mapping[str, Any], selected_target: Mapping[str, Any], protection_context: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -24,9 +27,11 @@ def freeze_runtime_d0_quick_guard_priority_applicability_authority(*, strategy_d
     if base is None: return _result("rejected", "invalid_runtime_d0_or_quick_guard_request", {})
     freshness = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
     if freshness.get("status") != "current": return _result("rejected", freshness.get("reason", "stale_runtime_d0"), base)
+    if protection_context is None:
+        return _result("incomplete", "quick_guard_protection_context_missing", base)
     context = _context(protection_context, base)
     if context is None: return _result("rejected", "quick_guard_protection_context_binding_mismatch", base)
-    if not context["action_blocked"] or context["protection_bypass"]: return _no(base, context, "protection_failed_or_bypassed")
+    if context.get("action_blocked") is False or context["protection_bypass"]: return _no(base, context, "protection_failed_or_bypassed")
     metadata = incoming_action.get("move_metadata_authority", {}).get("metadata") if isinstance(incoming_action, Mapping) and isinstance(incoming_action.get("move_metadata_authority"), Mapping) else None
     if not isinstance(metadata, Mapping) or metadata.get("move_id") != base["incoming_move_id"]: return _result("incomplete", "quick_guard_incoming_move_metadata_missing", base)
     if metadata.get("category") not in {"physical", "special"} or metadata.get("target") not in {"selected-pokemon", "normal"}: return _result("incomplete", "quick_guard_action_applicability_unknown", base)
@@ -61,7 +66,7 @@ def _base(d0: Any, guard: Any, guard_action: Any, incoming: Any, action: Any, ta
 
 def _context(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | None:
     if not isinstance(value, Mapping): return None
-    try: expected = build_quick_guard_protection_context(session_id=base["session_id"], guard_user=base["guard_user"], guard_action_id=base["guard_action_id"], incoming_actor=base["incoming_actor"], incoming_action_id=base["incoming_action_id"], incoming_move_id=base["incoming_move_id"], selected_target=base["selected_target"], protection_authority=value.get("protection_authority"), action_blocked=value.get("action_blocked"), protection_bypass=value.get("protection_bypass"))
+    try: expected = build_quick_guard_protection_context(session_id=base["session_id"], guard_user=base["guard_user"], guard_action_id=base["guard_action_id"], incoming_actor=base["incoming_actor"], incoming_action_id=base["incoming_action_id"], incoming_move_id=base["incoming_move_id"], selected_target=base["selected_target"], protection_authority=value.get("protection_authority"), action_blocked=value.get("action_blocked") if value.get("schema_version") == "quick-guard-protection-context-v1" else None, protection_bypass=value.get("protection_bypass"))
     except (TypeError, ValueError): return None
     return expected if value == expected else None
 

@@ -42,6 +42,21 @@ def test_quick_guard_exact_positive_base_priority_applies_and_zero_priority_does
     assert no_effect["status"] == "resolved" and no_effect["outcome"] == "not_applicable"
 
 
+def test_quick_guard_v2_context_derives_blocking_without_a_synthetic_action_blocked_fact():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs()
+    action = _own_action(d0, "tackle")
+    action["move_metadata_authority"]["metadata"].update(priority=1, target="selected-pokemon", protection_bypass=False)
+    protection = {"status": "resolved", "owner": deepcopy(d0["active_owners"]["opponent"]), "metadata": {"move_id": "quick-guard"}}
+    context = build_quick_guard_protection_context(
+        session_id=d0["session_id"], guard_user=d0["active_owners"]["opponent"], guard_action_id="opponent_attack:quick-guard",
+        incoming_actor=d0["active_owners"]["self"], incoming_action_id=action["action_id"], incoming_move_id=action["identity"],
+        selected_target=d0["active_owners"]["opponent"], protection_authority=protection, protection_bypass=False,
+    )
+    assert "action_blocked" not in context
+    result = _freeze(d0, snapshot, action, context=context)
+    assert result["status"] == "resolved" and result["outcome"] == "applies"
+
+
 def test_quick_guard_uses_exact_gale_wings_calculation_not_action_order_output():
     state, snapshot, d0, _unused, _responses, _orders = _inputs()
     row = state["self_side"]["pokemon"][0]
@@ -72,6 +87,7 @@ def test_quick_guard_unknown_unsupported_and_binding_fail_closed():
     assert _freeze(d0, snapshot, action, target=d0["active_owners"]["self"])["status"] == "rejected"
     foreign = deepcopy(_context(d0, action)); foreign["incoming_action_id"] = "foreign"
     assert _freeze(d0, snapshot, action, context=foreign)["status"] == "rejected"
+    assert _freeze(d0, snapshot, action, context=None)["status"] == "incomplete"
     assert _freeze(d0, snapshot, action, context=_context(d0, action, blocked=False))["outcome"] == "not_applicable"
     assert _freeze(d0, snapshot, action, context=_context(d0, action, bypass=True))["outcome"] == "not_applicable"
     stale = deepcopy(snapshot); stale["state"]["self_side"]["pokemon"][0]["current_hp"] = 99; stale["state_fingerprint"] = state_fingerprint(stale["state"])
