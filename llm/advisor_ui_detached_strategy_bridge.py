@@ -21,6 +21,9 @@ from llm.advisor_runtime_d0_nonconsecutive_protection_success_authority import f
 from llm.advisor_hypothetical_protection_effects import canonical_protection_metadata
 from advisor.canonical_quick_guard_protection import canonical_quick_guard_protection_metadata
 from llm.advisor_runtime_d0_quick_guard_priority_applicability_authority import build_quick_guard_protection_context, freeze_runtime_d0_quick_guard_priority_applicability_authority
+from advisor.canonical_mat_block_protection import canonical_mat_block_protection_metadata
+from llm.advisor_runtime_d0_mat_block_active_entry_eligibility_authority import freeze_runtime_d0_mat_block_active_entry_eligibility_authority
+from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import freeze_runtime_d0_mat_block_direct_damage_applicability_authority, freeze_runtime_d0_mat_block_incoming_bypass_authority
 from llm.advisor_live_secondary_manifest_authority import freeze_live_secondary_manifest_authority
 from llm.advisor_runtime_manual_switch_entry_authority import freeze_runtime_d0_manual_switch_entry_authority
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
@@ -275,6 +278,21 @@ def _project_live_opponent_response_profiles(
                     authorities["quick_guard_priority_applicability_authority"] = freeze_runtime_d0_quick_guard_priority_applicability_authority(
                         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, guard_user=active_owners["opponent"], guard_action_id=response_id,
                         incoming_actor=active_owners["self"], incoming_action=own, selected_target=active_owners["opponent"], protection_context=context,
+                    )
+                if canonical_mat_block_protection_metadata(response_metadata.get("move_id") if isinstance(response_metadata, Mapping) else None) is not None:
+                    eligibility = freeze_runtime_d0_mat_block_active_entry_eligibility_authority(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                        mat_block_user=active_owners["opponent"], mat_block_action=response,
+                    )
+                    own_meta = own_metadata.get("metadata") if isinstance(own_metadata.get("metadata"), Mapping) else {}
+                    bypass = freeze_runtime_d0_mat_block_incoming_bypass_authority(
+                        strategy_d0=strategy_d0, incoming_actor=active_owners["self"], incoming_action=own,
+                        frozen_move_metadata=own_meta,
+                    )
+                    incoming = {"action_id": own["action_id"], "move_id": own["identity"], "category": own_meta.get("category")}
+                    authorities["mat_block_direct_damage_applicability_authority"] = freeze_runtime_d0_mat_block_direct_damage_applicability_authority(
+                        eligibility_authority=eligibility, bypass_authority=bypass, incoming_action=incoming,
+                        protected_recipients=(deepcopy(dict(active_owners["opponent"])),),
                     )
                 response_authority_bundles[response_id] = {
                     "status": "resolved", "schema_version": "live-opponent-response-authority-bundle-v1",

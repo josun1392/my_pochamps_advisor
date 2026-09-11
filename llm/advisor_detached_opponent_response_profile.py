@@ -34,6 +34,7 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
     "direct_heal_execution_authorities",
     "opponent_protection_success_authority",
     "quick_guard_priority_applicability_authority",
+    "mat_block_direct_damage_applicability_authority",
 }
 
 
