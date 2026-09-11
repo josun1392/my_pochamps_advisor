@@ -93,7 +93,7 @@ def materialize_detached_leech_seed_transfer(*, trace: Mapping[str, Any]) -> dic
     return {"status": "resolved", "event_kind": "leech_seed", "order_class": END_OF_TURN_EVENT_ORDER["leech_seed"], "linked_transfer": deepcopy(dict(trace)), "provenance": "canonical_detached_leech_seed_transfer_adapter_v1"}
 
 
-def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, active_states: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None, leech_seed_transfers: tuple[Mapping[str, Any], ...] = ()) -> dict[str, Any]:
+def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, active_states: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None, leech_seed_transfers: tuple[Mapping[str, Any], ...] = (), switch_hazard_authorities: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Bind two exact detached active states to one normalized pair leaf.
 
     ``terminal_ledger`` is intentionally the output of the immediate-pair
@@ -120,6 +120,7 @@ def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], termin
         **base, "terminal_leaf_id": terminal_leaf_id,
         "terminal_probability_mass": deepcopy(terminal_ledger["terminal_probability_mass"]),
         "terminal_branch": deepcopy(dict(leaf)), "active_states": rows, "weather_authority": weather, "leech_seed_transfers": transfers,
+        **({"switch_hazard_authorities": deepcopy(dict(switch_hazard_authorities))} if switch_hazard_authorities is not None else {}),
         "provenance": "strict_detached_immediate_terminal_to_end_of_turn_phase_input_v1",
     }
 
@@ -517,7 +518,20 @@ def _valid_input(value: Any) -> str | None:
     if base is None or not isinstance(value.get("active_states"), Mapping): return "end_of_turn_phase_input_invalid"
     for side, hp in (("self", leaf["final_consequences"]["own_final_hp"]), ("opponent", leaf["final_consequences"]["opponent_final_hp"])):
         if isinstance(_active_state(value["active_states"].get(side), base, side, hp, value["terminal_leaf_id"]), str): return "end_of_turn_phase_input_invalid"
+    hazards = value.get("switch_hazard_authorities")
+    if hazards is not None and not _valid_switch_hazard_authorities(hazards, base, value["terminal_leaf_id"]): return "end_of_turn_phase_input_invalid"
     return None
+
+
+def _valid_switch_hazard_authorities(value: Any, base: Mapping[str, Any], leaf_id: str) -> bool:
+    if not isinstance(value, Mapping) or set(value) != {"self", "opponent"}: return False
+    for side, row in value.items():
+        expected = {"session_id": base["session_id"], "pair_id": base["pair_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": deepcopy(base["decision_owner"]), "terminal_leaf_id": leaf_id, "affected_side": side}
+        if not isinstance(row, Mapping) or row.get("schema_version") != "detached-exact-pair-terminal-switch-hazard-authority-v1" or row.get("source_binding") != expected or row.get("status") not in {"resolved", "unknown"}: return False
+        if row["status"] == "unknown": continue
+        hazards = row.get("hazards")
+        if row.get("path_outcome") not in {"no_hazard_change", "path_local_hazard_result"} or not isinstance(hazards, Mapping) or set(hazards) != {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web"} or hazards.get("schema_version") != "switch-hazard-context-v2" or hazards.get("session_id") != base["session_id"] or hazards.get("affected_side") != side or hazards.get("stealth_rock") not in {"present", "absent"} or hazards.get("sticky_web") not in {"present", "absent"} or hazards.get("spikes_layers") not in {0, 1, 2, 3} or isinstance(hazards.get("spikes_layers"), bool) or hazards.get("toxic_spikes_layers") not in {0, 1, 2} or isinstance(hazards.get("toxic_spikes_layers"), bool): return False
+    return True
 
 
 def _base_from_input(value: Mapping[str, Any]) -> dict[str, Any]: return {key: deepcopy(value[key]) for key in ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_actor", "opponent_actor") if key in value}

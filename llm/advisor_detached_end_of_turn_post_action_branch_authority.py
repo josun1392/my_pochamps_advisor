@@ -74,6 +74,7 @@ def _post_action_state(ledger: Mapping[str, Any]) -> dict[str, Any]:
 
     weather = phase.get("weather_authority")
     field = _field(weather, ledger)
+    hazards = _switch_hazard_authorities(phase, ledger)
     return {
         "schema_version": "deterministic-transition-preview-v1",
         "active": active,
@@ -88,7 +89,36 @@ def _post_action_state(ledger: Mapping[str, Any]) -> dict[str, Any]:
         "post_eot_active_condition_authorities": conditions,
         "post_eot_active_item_authorities": items,
         "post_eot_toxic_progression": toxic,
+        **({"post_eot_hazard_authorities": hazards} if hazards is not None else {}),
     }
+
+
+def _switch_hazard_authorities(phase: Mapping[str, Any], ledger: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Project canonical hazard contexts only from validated exact phase input."""
+    values = phase.get("switch_hazard_authorities")
+    if values is None:
+        return None
+    if not isinstance(values, Mapping) or set(values) != set(_SIDES):
+        raise _Rejected("end_of_turn_post_action_switch_hazard_authority_invalid")
+    result: dict[str, Any] = {}
+    for side in _SIDES:
+        row = values[side]
+        if not isinstance(row, Mapping) or row.get("status") == "unknown":
+            raise _Incomplete("end_of_turn_post_action_switch_hazard_unknown")
+        if row.get("status") != "resolved" or row.get("path_outcome") not in {"no_hazard_change", "path_local_hazard_result"}:
+            raise _Rejected("end_of_turn_post_action_switch_hazard_authority_invalid")
+        expected = {"session_id": ledger.get("session_id"), "pair_id": ledger.get("pair_id"), "source_runtime_fingerprint": ledger.get("source_runtime_fingerprint"), "source_branch_fingerprint": ledger.get("source_branch_fingerprint"), "decision_owner": ledger.get("decision_owner"), "terminal_leaf_id": ledger.get("terminal_leaf_id"), "affected_side": side}
+        if row.get("source_binding") != expected:
+            raise _Rejected("end_of_turn_post_action_switch_hazard_binding_invalid")
+        hazards = row.get("hazards")
+        if not _canonical_hazards(hazards, session=ledger.get("session_id"), side=side):
+            raise _Rejected("end_of_turn_post_action_switch_hazard_context_invalid")
+        result[side] = deepcopy(dict(hazards))
+    return result
+
+
+def _canonical_hazards(value: Any, *, session: Any, side: str) -> bool:
+    return isinstance(value, Mapping) and set(value) == {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web"} and value.get("schema_version") == "switch-hazard-context-v2" and value.get("session_id") == session and value.get("affected_side") == side and value.get("stealth_rock") in {"present", "absent"} and value.get("sticky_web") in {"present", "absent"} and value.get("spikes_layers") in {0, 1, 2, 3} and not isinstance(value.get("spikes_layers"), bool) and value.get("toxic_spikes_layers") in {0, 1, 2} and not isinstance(value.get("toxic_spikes_layers"), bool)
 
 
 def _active_row(source: Any, resolved: Any, *, session: str, side: str) -> dict[str, Any]:

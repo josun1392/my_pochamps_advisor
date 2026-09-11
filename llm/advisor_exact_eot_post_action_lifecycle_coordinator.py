@@ -11,9 +11,9 @@ from llm.advisor_transition_preview import fingerprint_transition_preview_state
 
 SCHEMA_VERSION = "exact-eot-post-action-lifecycle-coordinator-v1"
 
-def coordinate_exact_eot_post_action_lifecycle(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, terminal_active_authorities: Mapping[str, Any], team_authorities: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None, leech_seed_transfers: tuple[Mapping[str, Any], ...] = ()) -> dict[str, Any]:
+def coordinate_exact_eot_post_action_lifecycle(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, terminal_active_authorities: Mapping[str, Any], team_authorities: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None, leech_seed_transfers: tuple[Mapping[str, Any], ...] = (), switch_hazard_authorities: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Advance one exact pair leaf to the existing post-EOT decision boundary."""
-    phase = materialize_exact_immediate_pair_to_eot_phase_input(terminal_ledger=terminal_ledger, terminal_leaf_id=terminal_leaf_id, terminal_active_authorities=terminal_active_authorities, weather_authority=weather_authority, leech_seed_transfers=leech_seed_transfers)
+    phase = materialize_exact_immediate_pair_to_eot_phase_input(terminal_ledger=terminal_ledger, terminal_leaf_id=terminal_leaf_id, terminal_active_authorities=terminal_active_authorities, weather_authority=weather_authority, leech_seed_transfers=leech_seed_transfers, switch_hazard_authorities=switch_hazard_authorities)
     if phase.get("status") != "resolved": return _result(phase.get("status", "rejected"), phase.get("reason", "exact_eot_phase_input_unavailable"), phase_input=phase)
     eot = materialize_end_of_turn_residual_phase(phase_input=phase)
     if eot.get("status") != "evaluable": return _result(eot.get("status", "rejected"), eot.get("reason", "exact_eot_unavailable"), phase_input=phase, eot_ledger=eot)

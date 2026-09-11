@@ -8,6 +8,7 @@ from llm.advisor_end_of_turn_residual_phase import freeze_end_of_turn_phase_inpu
 
 
 SCHEMA_VERSION = "detached-immediate-pair-terminal-eot-active-authority-v1"
+SWITCH_HAZARD_SCHEMA_VERSION = "detached-exact-pair-terminal-switch-hazard-authority-v1"
 _SIDES = ("self", "opponent")
 _BASE = ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
@@ -18,6 +19,7 @@ def materialize_exact_immediate_pair_to_eot_phase_input(
     terminal_active_authorities: Mapping[str, Any],
     weather_authority: Mapping[str, Any] | None = None,
     leech_seed_transfers: tuple[Mapping[str, Any], ...] = (),
+    switch_hazard_authorities: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Bind one evaluated pair leaf to the existing exact EOT input contract.
 
@@ -43,14 +45,64 @@ def materialize_exact_immediate_pair_to_eot_phase_input(
         if isinstance(condition, str):
             return _result("incomplete", condition, base)
         rows[side] = {**row, "item": item if item is not None else row["item"], "condition": condition if condition is not None else row["condition"]}
+    hazards = _switch_hazard_authorities(switch_hazard_authorities, base, leaf)
+    if isinstance(hazards, str):
+        return _result("incomplete" if hazards.endswith("_unknown") or hazards.endswith("_unrepresented") else "rejected", hazards, base)
     frozen = freeze_end_of_turn_phase_input(
         terminal_ledger=terminal_ledger, terminal_leaf_id=terminal_leaf_id,
         active_states=rows, weather_authority=weather_authority,
         leech_seed_transfers=leech_seed_transfers,
+        switch_hazard_authorities=hazards,
     )
     if frozen.get("status") != "resolved":
         return deepcopy(dict(frozen))
     return {**deepcopy(dict(frozen)), "provenance": "strict_exact_immediate_pair_terminal_to_eot_phase_input_adapter_v1"}
+
+
+def _switch_hazard_authorities(value: Any, base: Mapping[str, Any], leaf: Mapping[str, Any]) -> Mapping[str, Any] | str | None:
+    """Carry only terminal-bound canonical side-hazard facts.
+
+    A missing value remains outside this additive transport seam for legacy
+    EOT-only consumers.  A supplied unknown or malformed value never becomes
+    an empty field: the post-EOT branch will remain incomplete instead.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, Mapping) or set(value) != set(_SIDES):
+        return "exact_eot_switch_hazard_authorities_invalid"
+    rows: dict[str, Any] = {}
+    for side in _SIDES:
+        row = value[side]
+        expected = {**{key: base[key] for key in _BASE}, "terminal_leaf_id": leaf["pair_leaf_id"], "affected_side": side}
+        if not isinstance(row, Mapping) or row.get("schema_version") != SWITCH_HAZARD_SCHEMA_VERSION or row.get("source_binding") != expected:
+            return "exact_eot_switch_hazard_authority_binding_invalid"
+        if row.get("status") == "unknown":
+            rows[side] = deepcopy(dict(row)); continue
+        if row.get("status") != "resolved" or row.get("path_outcome") not in {"no_hazard_change", "path_local_hazard_result"}:
+            return "exact_eot_switch_hazard_authority_invalid"
+        hazards = row.get("hazards")
+        if not _canonical_hazards(hazards, session=base["session_id"], side=side):
+            return "exact_eot_switch_hazard_context_invalid"
+        rows[side] = deepcopy(dict(row))
+    if _represented_hazard_mutation(leaf) and any(row.get("path_outcome") != "path_local_hazard_result" for row in rows.values() if row.get("status") == "resolved"):
+        return "exact_eot_terminal_hazard_mutation_unrepresented"
+    return rows
+
+
+def _represented_hazard_mutation(value: Any) -> bool:
+    """A declared terminal hazard mutation needs an exact path-local result."""
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            if key in {"switch_hazard_transition", "switch_hazard_mutation", "switch_hazard_removal"} and isinstance(item, Mapping) and item.get("status") in {"resolved", "applied"}:
+                return True
+            if _represented_hazard_mutation(item): return True
+    elif isinstance(value, (tuple, list)):
+        return any(_represented_hazard_mutation(item) for item in value)
+    return False
+
+
+def _canonical_hazards(value: Any, *, session: str, side: str) -> bool:
+    return isinstance(value, Mapping) and set(value) == {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web"} and value.get("schema_version") == "switch-hazard-context-v2" and value.get("session_id") == session and value.get("affected_side") == side and value.get("stealth_rock") in {"present", "absent"} and value.get("sticky_web") in {"present", "absent"} and value.get("spikes_layers") in {0, 1, 2, 3} and not isinstance(value.get("spikes_layers"), bool) and value.get("toxic_spikes_layers") in {0, 1, 2} and not isinstance(value.get("toxic_spikes_layers"), bool)
 
 
 def _source(ledger: Any, leaf_id: Any) -> tuple[dict[str, Any] | None, Mapping[str, Any] | None]:
