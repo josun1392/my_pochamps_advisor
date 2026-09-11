@@ -33,6 +33,10 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
     "first_action_sturdy_survival_authorities_by_order",
     "direct_heal_execution_authorities",
     "opponent_protection_success_authority",
+    "incoming_contact_authority",
+    "silk_trap_reactive_interaction_authority",
+    "kings_shield_reactive_interaction_authority",
+    "obstruct_reactive_interaction_authority",
     "quick_guard_priority_applicability_authority",
     "mat_block_direct_damage_applicability_authority",
 }

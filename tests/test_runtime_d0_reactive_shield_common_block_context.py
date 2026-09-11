@@ -95,11 +95,11 @@ def test_stale_runtime_and_unknown_contact_fail_closed(monkeypatch):
     assert unknown_contact["status"] == "incomplete"
 
 
-def test_common_context_stays_in_live_bundle_and_is_not_passed_to_specialized_pair_kwargs():
+def test_common_context_stays_in_live_bundle_and_only_supported_stage_inputs_reach_ordinary_pair_kwargs():
     d0 = _d0()
-    bundle = {"status": "resolved", "schema_version": "live-opponent-response-authority-bundle-v1", "session_id": "s", "source_runtime_fingerprint": "runtime", "source_branch_fingerprint": "branch", "decision_owner": d0["decision_owner"], "own_action_id": "attack:tackle", "opponent_response_action_id": "opponent_attack:silk-trap", "ordinary_pair_authorities": {"reactive_shield_common_block_context": {"status": "resolved"}, "opponent_protection_success_authority": {"schema_version": "branch-protection-success-v1"}}}
+    bundle = {"status": "resolved", "schema_version": "live-opponent-response-authority-bundle-v1", "session_id": "s", "source_runtime_fingerprint": "runtime", "source_branch_fingerprint": "branch", "decision_owner": d0["decision_owner"], "own_action_id": "attack:tackle", "opponent_response_action_id": "opponent_attack:silk-trap", "ordinary_pair_authorities": {"reactive_shield_common_block_context": {"status": "resolved"}, "opponent_protection_success_authority": {"schema_version": "branch-protection-success-v1"}, "incoming_contact_authority": {"status": "resolved"}, "silk_trap_reactive_interaction_authority": {"schema_version": "silk-trap-speed-drop-interaction-resolution-v1"}}}
     base = {"session_id": "s", "source_runtime_fingerprint": "runtime", "source_branch_fingerprint": "branch", "decision_owner": d0["decision_owner"], "own_action_id": "attack:tackle", "target_owner": d0["decision_owner"], "opponent_actor": _owner("opponent", "shield")}
     snapshot = {"state": {"self_side": {"pokemon": {0: {"condition": "none", "current_confusion": None}}}, "opponent_side": {"pokemon": {0: {"condition": "none", "current_confusion": None}}}}}
     kwargs = _bundle_kwargs(bundle=bundle, base=base, opponent_action={"action_id": "opponent_attack:silk-trap"}, runtime_snapshot=snapshot, ordinary_pair=True)
-    assert set(kwargs) == {"opponent_protection_success_authority"}
+    assert set(kwargs) == {"opponent_protection_success_authority", "incoming_contact_authority", "silk_trap_reactive_interaction_authority"}
     assert _bundle_kwargs(bundle=bundle, base=base, opponent_action={"action_id": "opponent_attack:silk-trap"}, runtime_snapshot=snapshot, ordinary_pair=False) == {}
