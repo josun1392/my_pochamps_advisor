@@ -16,6 +16,7 @@ from llm.advisor_runtime_d0_action_order_authority import freeze_runtime_d0_acti
 from llm.advisor_runtime_d0_quick_claw_action_order_authority import freeze_runtime_d0_quick_claw_action_order_authority
 from llm.advisor_runtime_d0_focus_sash_survival_authority import freeze_runtime_d0_focus_sash_survival_authority
 from llm.advisor_runtime_d0_sturdy_survival_authority import freeze_runtime_d0_sturdy_survival_authority
+from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtime_d0_direct_heal_execution_authority
 from llm.advisor_live_secondary_manifest_authority import freeze_live_secondary_manifest_authority
 from llm.advisor_runtime_manual_switch_entry_authority import freeze_runtime_d0_manual_switch_entry_authority
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
@@ -206,6 +207,7 @@ def _project_live_opponent_response_profiles(
         }
         active_owners = strategy_d0.get("active_owners")
         focus_sash_authorities = None
+        response_authority_bundles = None
         if isinstance(active_owners, Mapping) and isinstance(active_owners.get("self"), Mapping) and isinstance(active_owners.get("opponent"), Mapping):
             own_metadata = resolve_runtime_d0_selectable_move_metadata_authority(
                 strategy_d0=strategy_d0, action=own,
@@ -225,13 +227,57 @@ def _project_live_opponent_response_profiles(
                 }
                 for response_id in orders
             }
+            response_authority_bundles = {}
+            for response_id in orders:
+                response = by_id[response_id]
+                response_metadata = response.get("metadata_authority", {}).get("metadata", {})
+                authorities: dict[str, Any] = {}
+                if _is_damaging_metadata(own_metadata.get("metadata")) and _is_damaging_metadata(response_metadata):
+                    authorities["first_action_sturdy_survival_authorities_by_order"] = {
+                        "own_first": freeze_runtime_d0_sturdy_survival_authority(
+                            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                            defender=active_owners["opponent"], attacker=active_owners["self"],
+                            action=own, move_metadata=own_metadata.get("metadata", {}),
+                        ),
+                        "opponent_first": freeze_runtime_d0_sturdy_survival_authority(
+                            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                            defender=active_owners["self"], attacker=active_owners["opponent"],
+                            action=response, move_metadata=response_metadata,
+                        ),
+                    }
+                if _is_direct_heal_metadata(response_metadata):
+                    authorities["direct_heal_execution_authorities"] = {
+                        response_id: freeze_runtime_d0_direct_heal_execution_authority(
+                            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                            action=response, actor=active_owners["opponent"],
+                        ),
+                    }
+                response_authority_bundles[response_id] = {
+                    "status": "resolved", "schema_version": "live-opponent-response-authority-bundle-v1",
+                    "session_id": strategy_d0["session_id"],
+                    "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+                    "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+                    "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+                    "own_action_id": own["action_id"], "opponent_response_action_id": response_id,
+                    "ordinary_pair_authorities": authorities,
+                    "provenance": "runtime_d0_live_opponent_response_sparse_authority_bundle_v1",
+                }
         result[action_id] = materialize_detached_opponent_response_profile(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own,
             response_set_authority=response_set, action_order_authorities=orders,
             quick_claw_action_order_authorities=quick_claw_orders,
             **({"first_action_focus_sash_survival_authorities": focus_sash_authorities} if focus_sash_authorities is not None else {}),
+            **({"response_authority_bundles": response_authority_bundles} if response_authority_bundles is not None else {}),
         )
     return result
+
+
+def _is_damaging_metadata(metadata: Any) -> bool:
+    return isinstance(metadata, Mapping) and metadata.get("category") in {"physical", "special"}
+
+
+def _is_direct_heal_metadata(metadata: Any) -> bool:
+    return isinstance(metadata, Mapping) and metadata.get("move_id") in {"recover", "slack-off", "soft-boiled"} and metadata.get("category") == "status" and metadata.get("target") == "self"
 
 
 def _capture(manager: Any, session_id: str) -> Mapping[str, Any] | None:

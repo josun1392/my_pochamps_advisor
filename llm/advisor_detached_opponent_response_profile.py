@@ -28,6 +28,11 @@ RESPONSE_SET_SCHEMAS = {
     "runtime-d0-combined-opponent-response-universe-authority-v1",
 }
 HORIZON = "immediate_action_pair"
+LIVE_RESPONSE_BUNDLE_SCHEMA = "live-opponent-response-authority-bundle-v1"
+_ORDINARY_PAIR_BUNDLE_KEYS = {
+    "first_action_sturdy_survival_authorities_by_order",
+    "direct_heal_execution_authorities",
+}
 
 
 def materialize_detached_opponent_response_profile(
@@ -36,6 +41,7 @@ def materialize_detached_opponent_response_profile(
     action_order_authorities: Mapping[str, Mapping[str, Any]],
     quick_claw_action_order_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     first_action_focus_sash_survival_authorities: Mapping[str, Mapping[str, Mapping[str, Any]]] | None = None,
+    response_authority_bundles: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build every required pair, ledger, and metric without response policy."""
     base = _base(strategy_d0, own_action, response_set_authority)
@@ -66,6 +72,8 @@ def materialize_detached_opponent_response_profile(
         return _result("rejected", "response_profile_quick_claw_order_set_mismatch", base)
     if first_action_focus_sash_survival_authorities is not None and set(first_action_focus_sash_survival_authorities) != set(move_ids):
         return _result("rejected", "response_profile_focus_sash_authority_set_mismatch", base)
+    if response_authority_bundles is not None and set(response_authority_bundles) != set(move_ids):
+        return _result("rejected", "response_profile_authority_bundle_set_mismatch", base)
     entries = []
     profile_status = "evaluable"
     for action_id in expected:
@@ -77,10 +85,20 @@ def materialize_detached_opponent_response_profile(
             if action.get("usability", {}).get("status") != "known_usable":
                 return _result("rejected", "selectable_move_response_usability_invalid", base)
             pair_builder = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair if own_action.get("identity") in {"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"} else materialize_immediate_move_vs_move_action_pair
+            bundle_kwargs: dict[str, Any] = {}
+            if response_authority_bundles is not None:
+                bundle_kwargs = _bundle_kwargs(
+                    bundle=response_authority_bundles.get(action_id), base=base,
+                    opponent_action=action, runtime_snapshot=runtime_snapshot,
+                    ordinary_pair=pair_builder is materialize_immediate_move_vs_move_action_pair,
+                )
+                if "status" in bundle_kwargs:
+                    return _result(bundle_kwargs["status"], bundle_kwargs["reason"], base)
             pair = pair_builder(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own_action,
                                 opponent_action=action, action_order_authority=action_order_authorities[action_id],
                                 **({"quick_claw_action_order_authority": quick_claw_action_order_authorities[action_id]} if quick_claw_action_order_authorities is not None else {}),
-                                **({"first_action_focus_sash_survival_authorities_by_order": first_action_focus_sash_survival_authorities[action_id]} if first_action_focus_sash_survival_authorities is not None else {}))
+                                **({"first_action_focus_sash_survival_authorities_by_order": first_action_focus_sash_survival_authorities[action_id]} if first_action_focus_sash_survival_authorities is not None else {}),
+                                **bundle_kwargs)
         else:
             switch_authority = response_set_authority.get("source_switch_response_authority")
             if not isinstance(switch_authority, Mapping):
@@ -122,6 +140,41 @@ def _base(d0: Any, own: Any, response_set: Any) -> dict[str, Any] | None:
     if any(response_set.get(key) != value for key, value in expected.items()):
         return None
     return {"own_action_id": own["action_id"], **{key: deepcopy(value) if isinstance(value, Mapping) else value for key, value in expected.items()}}
+
+
+def _bundle_kwargs(*, bundle: Any, base: Mapping[str, Any], opponent_action: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], ordinary_pair: bool) -> dict[str, Any]:
+    if not isinstance(bundle, Mapping) or bundle.get("schema_version") != LIVE_RESPONSE_BUNDLE_SCHEMA:
+        return {"status": "rejected", "reason": "live_response_authority_bundle_invalid"}
+    required = ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_action_id")
+    if any(bundle.get(key) != base.get(key) for key in required):
+        return {"status": "rejected", "reason": "live_response_authority_bundle_binding_mismatch"}
+    if bundle.get("opponent_response_action_id") != opponent_action.get("action_id"):
+        return {"status": "rejected", "reason": "live_response_authority_bundle_response_binding_mismatch"}
+    if bundle.get("status") != "resolved":
+        return {"status": _status(bundle), "reason": bundle.get("reason", "live_response_authority_bundle_unavailable")}
+    values = bundle.get("ordinary_pair_authorities")
+    if not isinstance(values, Mapping) or set(values) - _ORDINARY_PAIR_BUNDLE_KEYS or not all(isinstance(value, Mapping) for value in values.values()):
+        return {"status": "rejected", "reason": "live_response_authority_bundle_payload_invalid"}
+    # The specialized gate owns its own extension composition.  Passing even
+    # unrelated authority maps would turn a valid status-gated pair incomplete.
+    if not ordinary_pair or _status_or_confusion_gate(runtime_snapshot, base):
+        return {}
+    return deepcopy(dict(values))
+
+
+def _status_or_confusion_gate(snapshot: Mapping[str, Any], base: Mapping[str, Any]) -> bool:
+    state = snapshot.get("state") if isinstance(snapshot, Mapping) else None
+    if not isinstance(state, Mapping):
+        return True
+    for owner in (base.get("target_owner"), base.get("opponent_actor")):
+        if not isinstance(owner, Mapping):
+            return True
+        row = state.get(f"{owner.get('side')}_side", {}).get("pokemon", {}).get(owner.get("slot_index"))
+        if not isinstance(row, Mapping):
+            return True
+        if row.get("condition") in {"sleep", "freeze"} or row.get("current_confusion") == "confused":
+            return True
+    return False
 
 
 def _entry_status(*items: Mapping[str, Any]) -> str:

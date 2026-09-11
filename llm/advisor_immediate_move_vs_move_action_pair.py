@@ -25,6 +25,9 @@ from llm.advisor_detached_predictive_intermediate_state import (
 from llm.advisor_runtime_d0_focus_sash_survival_authority import (
     bind_focus_sash_survival_authority_through_actor_neutral_root,
 )
+from llm.advisor_runtime_d0_sturdy_survival_authority import (
+    bind_sturdy_survival_authority_through_actor_neutral_root,
+)
 from llm.advisor_detached_strategy_orchestration import _normal_formula_facts
 from llm.advisor_detached_deterministic_fixed_damage_attack_leaf import (
     materialize_detached_deterministic_fixed_damage_attack_leaf,
@@ -162,6 +165,7 @@ def materialize_immediate_move_vs_move_action_pair(
     action_order_authority: Mapping[str, Any],
     quick_claw_action_order_authority: Mapping[str, Any] | None = None,
     first_action_sturdy_survival_authority: Mapping[str, Any] | None = None,
+    first_action_sturdy_survival_authorities_by_order: Mapping[str, Mapping[str, Any]] | None = None,
     first_action_focus_sash_survival_authority: Mapping[str, Any] | None = None,
     first_action_focus_sash_survival_authorities_by_order: Mapping[str, Mapping[str, Any]] | None = None,
     opponent_protection_success_authority: Mapping[str, Any] | None = None,
@@ -196,6 +200,11 @@ def materialize_immediate_move_vs_move_action_pair(
         first_action_focus_sash_survival_authorities_by_order,
     )
     if isinstance(focus_by_order, tuple): return _result(*focus_by_order, base)
+    sturdy_by_order = _sturdy_authorities_by_order(
+        first_action_sturdy_survival_authority,
+        first_action_sturdy_survival_authorities_by_order,
+    )
+    if isinstance(sturdy_by_order, tuple): return _result(*sturdy_by_order, base)
     opponent_meta = _opponent_metadata(opponent_action, base)
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
@@ -208,7 +217,7 @@ def materialize_immediate_move_vs_move_action_pair(
         from llm.advisor_champions_confusion_gated_pair import materialize_champions_confusion_gated_pair
         return materialize_champions_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority)
     if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and (not pending_status_execution_authorities or any(member.get("champions_status_progression") for member in status_members)):
-        extensions = (first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority, first_action_focus_sash_survival_authorities_by_order,
+        extensions = (first_action_sturdy_survival_authority, first_action_sturdy_survival_authorities_by_order, first_action_focus_sash_survival_authority, first_action_focus_sash_survival_authorities_by_order,
             opponent_protection_success_authority, incoming_contact_authority, silk_trap_reactive_interaction_authority,
             kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority,
             spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority,
@@ -287,7 +296,7 @@ def materialize_immediate_move_vs_move_action_pair(
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta,
             opponent_meta=opponent_meta, order_plan=order_plan,
             action_order_authority=action_order_authority,
-            first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
+            first_action_sturdy_survival_authority=sturdy_by_order.get(order_plan["order"], first_action_sturdy_survival_authority),
             first_action_focus_sash_survival_authority=focus_by_order.get(order_plan["order"], first_action_focus_sash_survival_authority),
             pending_status_execution_authorities=pending_status_execution_authorities,
             pivot_replacement_authorities=pivot_replacement_authorities,
@@ -1115,6 +1124,14 @@ def _materialize_order(
             )
             if first_action_focus_sash_survival_authority.get("status") in {"incomplete", "rejected", "unsupported"}:
                 return _result(_status(first_action_focus_sash_survival_authority), first_action_focus_sash_survival_authority.get("reason", "focus_sash_actor_neutral_root_binding_unavailable"), base)
+        if isinstance(first_action_sturdy_survival_authority, Mapping):
+            first_action_sturdy_survival_authority = bind_sturdy_survival_authority_through_actor_neutral_root(
+                strategy_d0=strategy_d0,
+                root_predictive_authority=root,
+                sturdy_survival_authority=first_action_sturdy_survival_authority,
+            )
+            if first_action_sturdy_survival_authority.get("status") in {"incomplete", "rejected", "unsupported"}:
+                return _result(_status(first_action_sturdy_survival_authority), first_action_sturdy_survival_authority.get("reason", "sturdy_actor_neutral_root_binding_unavailable"), base)
     first_action = own_action if order == "own_first" else opponent_action
     first_analytic = _analytic_order_authority(
         strategy_d0=first_d0, actor=first_actor, target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"],
@@ -1938,6 +1955,21 @@ def _focus_sash_authorities_by_order(
         return ("rejected", "focus_sash_authority_order_set_invalid")
     if not all(isinstance(value, Mapping) for value in by_order.values()):
         return ("rejected", "focus_sash_authority_order_value_invalid")
+    return by_order
+
+
+def _sturdy_authorities_by_order(
+    singular: Mapping[str, Any] | None,
+    by_order: Mapping[str, Mapping[str, Any]] | None,
+) -> Mapping[str, Mapping[str, Any]] | tuple[str, str]:
+    if by_order is None:
+        return {}
+    if singular is not None:
+        return ("rejected", "sturdy_authority_binding_ambiguous")
+    if not isinstance(by_order, Mapping) or set(by_order) != {"own_first", "opponent_first"}:
+        return ("rejected", "sturdy_authority_order_set_invalid")
+    if not all(isinstance(value, Mapping) for value in by_order.values()):
+        return ("rejected", "sturdy_authority_order_value_invalid")
     return by_order
 
 

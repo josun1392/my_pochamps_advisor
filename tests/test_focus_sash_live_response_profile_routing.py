@@ -1,11 +1,15 @@
 from copy import deepcopy
 
+from llm.advisor_ability_interaction_authority import build_ability_applicability_context
 from llm.advisor_detached_opponent_response_profile import materialize_detached_opponent_response_profile
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import (
     freeze_runtime_d0_complete_opponent_response_set_authority,
 )
 from llm.advisor_runtime_d0_focus_sash_survival_authority import (
     freeze_runtime_d0_focus_sash_survival_authority,
+)
+from llm.advisor_runtime_d0_sturdy_survival_authority import (
+    freeze_runtime_d0_sturdy_survival_authority,
 )
 from llm.advisor_runtime_d0_opponent_action_authority import (
     freeze_runtime_d0_opponent_known_move_action_authority,
@@ -14,16 +18,22 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import MOVES, _complete_state, _metadata, _owner, _snapshot, _state
 
 
-def _inputs(*, sash_side: str, own_first: bool, item_status: str = "known", holder_hp: int = 1, holder_max_hp: int = 1):
+def _inputs(*, sash_side: str, own_first: bool, item_status: str = "known", holder_hp: int = 1, holder_max_hp: int = 1, holder_ability: str = "pressure", sturdy_applicability: str | None = None):
     state = _complete_state(_state())
     holder = state[f"{sash_side}_side"]["pokemon"][0]
-    holder.update(current_hp=holder_hp, max_hp=holder_max_hp, known_item="focus-sash")
+    holder.update(current_hp=holder_hp, max_hp=holder_max_hp, known_item="focus-sash", current_ability=holder_ability)
     holder["known_item_provenance"] = {
         "event_kind": "current_item_observed",
         "trust": "user_confirmed_observation",
         "turn_number": 1,
         "status": item_status,
     }
+    if sturdy_applicability is not None:
+        state["ability_applicability_context"] = build_ability_applicability_context(
+            session_id=state["session_id"],
+            source={"side": sash_side, "slot_index": 0, "pokemon_id": holder["pokemon_id"]},
+            ability_id="sturdy", status=sturdy_applicability,
+        )
     if not own_first:
         state["opponent_side"]["pokemon"][0]["current_final_stats"]["speed"]["value"] = 110
     snapshot = _snapshot(state)
@@ -203,3 +213,93 @@ def test_response_profile_rejects_missing_order_bound_focus_sash_authority() -> 
     )
     assert profile["status"] == "rejected"
     assert profile["reason"] == "response_profile_focus_sash_authority_set_mismatch"
+
+
+def test_sparse_live_response_bundle_routes_order_bound_sturdy_and_rejects_foreign_response() -> None:
+    snapshot, d0, own_action, response_set, orders, _ = _inputs(sash_side="opponent", own_first=True)
+    bundles = {}
+    for action in response_set["actions"]:
+        action_id = action["action_id"]
+        if action_id not in orders:
+            continue
+        bundles[action_id] = {
+            "status": "resolved",
+            "schema_version": "live-opponent-response-authority-bundle-v1",
+            "session_id": d0["session_id"],
+            "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+            "source_branch_fingerprint": d0["strategy_preview_fingerprint"],
+            "decision_owner": d0["decision_owner"],
+            "own_action_id": own_action["action_id"],
+            "opponent_response_action_id": action_id,
+            "ordinary_pair_authorities": {
+                "first_action_sturdy_survival_authorities_by_order": {
+                    "own_first": freeze_runtime_d0_sturdy_survival_authority(
+                        strategy_d0=d0, runtime_snapshot=snapshot,
+                        defender=d0["active_owners"]["opponent"], attacker=d0["active_owners"]["self"],
+                        action=own_action, move_metadata=own_action["move_metadata_authority"]["metadata"],
+                    ),
+                    "opponent_first": freeze_runtime_d0_sturdy_survival_authority(
+                        strategy_d0=d0, runtime_snapshot=snapshot,
+                        defender=d0["active_owners"]["self"], attacker=d0["active_owners"]["opponent"],
+                        action=action, move_metadata=action["metadata_authority"]["metadata"],
+                    ),
+                },
+            },
+        }
+    profile = materialize_detached_opponent_response_profile(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        response_set_authority=response_set, action_order_authorities=orders,
+        response_authority_bundles=bundles,
+    )
+    assert profile["status"] == "evaluable", profile.get("reason")
+
+    forged = deepcopy(bundles)
+    forged[next(iter(forged))]["opponent_response_action_id"] = "foreign-response"
+    rejected = materialize_detached_opponent_response_profile(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        response_set_authority=response_set, action_order_authorities=orders,
+        response_authority_bundles=forged,
+    )
+    assert rejected["status"] == "rejected"
+    assert rejected["reason"] == "live_response_authority_bundle_response_binding_mismatch"
+
+
+def test_sparse_live_response_bundle_binds_opponent_first_sturdy_through_the_actor_neutral_root() -> None:
+    snapshot, d0, own_action, response_set, orders, _ = _inputs(
+        sash_side="self", own_first=False, holder_ability="sturdy", sturdy_applicability="applicable",
+    )
+    bundles = {}
+    for action in response_set["actions"]:
+        action_id = action["action_id"]
+        if action_id not in orders:
+            continue
+        bundles[action_id] = {
+            "status": "resolved", "schema_version": "live-opponent-response-authority-bundle-v1",
+            "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+            "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+            "own_action_id": own_action["action_id"], "opponent_response_action_id": action_id,
+            "ordinary_pair_authorities": {"first_action_sturdy_survival_authorities_by_order": {
+                "own_first": freeze_runtime_d0_sturdy_survival_authority(
+                    strategy_d0=d0, runtime_snapshot=snapshot, defender=d0["active_owners"]["opponent"],
+                    attacker=d0["active_owners"]["self"], action=own_action,
+                    move_metadata=own_action["move_metadata_authority"]["metadata"],
+                ),
+                "opponent_first": freeze_runtime_d0_sturdy_survival_authority(
+                    strategy_d0=d0, runtime_snapshot=snapshot, defender=d0["active_owners"]["self"],
+                    attacker=d0["active_owners"]["opponent"], action=action,
+                    move_metadata=action["metadata_authority"]["metadata"],
+                ),
+            }},
+        }
+    profile = materialize_detached_opponent_response_profile(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        response_set_authority=response_set, action_order_authorities=orders,
+        response_authority_bundles=bundles,
+    )
+    assert profile["status"] == "evaluable", profile.get("reason")
+    # These catalog moves are nonlethal here; evaluability proves the
+    # opponent-first map was accepted and rebound through the neutral root.
+    assert all(
+        entry["pair"]["terminal_branches"][0]["first_action_leaf"]["consequences"]["sturdy_survival"]["outcome"] == "not_applicable"
+        for entry in profile["response_entries"]
+    )

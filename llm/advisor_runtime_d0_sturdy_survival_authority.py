@@ -13,6 +13,43 @@ SCHEMA_VERSION = "runtime-d0-sturdy-survival-authority-v1"
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 
 
+def bind_sturdy_survival_authority_through_actor_neutral_root(
+    *, strategy_d0: Mapping[str, Any], root_predictive_authority: Mapping[str, Any],
+    sturdy_survival_authority: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project one D0-bound Sturdy fact into the opponent-first root.
+
+    The root owns its synthetic predictive D0.  This narrow adapter changes
+    only the branch binding after proving that the original action, attacker,
+    and defender are identical.  It never derives Sturdy from an actor side.
+    """
+    base = _root_binding(strategy_d0, root_predictive_authority)
+    if isinstance(base, str):
+        return {"status": "rejected", "reason": base}
+    source = _source_binding(sturdy_survival_authority, base)
+    if isinstance(source, str):
+        return {"status": "rejected", "reason": source}
+    if sturdy_survival_authority.get("status") != "ready":
+        return deepcopy(dict(sturdy_survival_authority))
+    predictive = base["predictive"]
+    derived = deepcopy(dict(sturdy_survival_authority))
+    derived.update({
+        "source_branch_fingerprint": predictive["strategy_preview_fingerprint"],
+        "decision_owner": deepcopy(dict(predictive["decision_owner"])),
+        "source_sturdy_survival_authority": deepcopy(dict(sturdy_survival_authority)),
+        "actor_neutral_root_predictive_binding": {
+            "schema_version": root_predictive_authority["schema_version"],
+            "root_action_id": root_predictive_authority["root_action_id"],
+            "root_actor": deepcopy(dict(root_predictive_authority["root_actor"])),
+            "root_target": deepcopy(dict(root_predictive_authority["root_target"])),
+            "source_branch_fingerprint": root_predictive_authority["source_branch_fingerprint"],
+            "predictive_source_branch_fingerprint": predictive["strategy_preview_fingerprint"],
+        },
+        "provenance": "runtime_d0_sturdy_survival_authority_through_actor_neutral_root_v1",
+    })
+    return derived
+
+
 def freeze_runtime_d0_sturdy_survival_authority(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     defender: Mapping[str, Any], attacker: Mapping[str, Any], action: Mapping[str, Any],
@@ -73,6 +110,40 @@ def _base(d0: Any, defender: Any, attacker: Any, action: Any, metadata: Any) -> 
         "action_id": action["action_id"], "move_id": move_id,
         "provenance": "runtime_d0_current_sturdy_survival_authority_v1",
     }
+
+
+def _root_binding(d0: Any, root: Any) -> dict[str, Any] | str:
+    if not isinstance(d0, Mapping) or d0.get("status") != "resolved":
+        return "sturdy_root_source_d0_invalid"
+    if not isinstance(root, Mapping) or root.get("status") != "resolved" or root.get("schema_version") != "detached-actor-neutral-root-predictive-authority-v1" or root.get("hypothetical") is not True:
+        return "sturdy_actor_neutral_root_invalid"
+    original = {
+        "session_id": d0.get("session_id"),
+        "source_runtime_fingerprint": d0.get("source_runtime_fingerprint"),
+        "source_branch_fingerprint": d0.get("strategy_preview_fingerprint"),
+        "decision_owner": d0.get("decision_owner"),
+    }
+    if any(root.get(key) != value for key, value in original.items()):
+        return "sturdy_actor_neutral_root_source_binding_mismatch"
+    actor, target, predictive = root.get("root_actor"), root.get("root_target"), root.get("predictive_strategy_d0")
+    if not _owner(actor) or not _owner(target) or actor["side"] == target["side"] or not isinstance(root.get("root_action_id"), str) or not isinstance(root.get("move_id"), str) or not root["move_id"]:
+        return "sturdy_actor_neutral_root_identity_invalid"
+    if not isinstance(predictive, Mapping) or predictive.get("status") != "resolved" or predictive.get("session_id") != root.get("session_id") or predictive.get("source_runtime_fingerprint") != root.get("source_runtime_fingerprint") or predictive.get("decision_owner") != actor or predictive.get("active_owners", {}).get(actor["side"]) != dict(actor) or predictive.get("active_owners", {}).get(target["side"]) != dict(target) or not isinstance(predictive.get("strategy_preview_fingerprint"), str):
+        return "sturdy_actor_neutral_root_predictive_binding_invalid"
+    return {"predictive": predictive, "actor": actor, "target": target, "action_id": root["root_action_id"], "move_id": root["move_id"], "original": original}
+
+
+def _source_binding(authority: Any, root: Mapping[str, Any]) -> None | str:
+    if not isinstance(authority, Mapping) or authority.get("schema_version") != SCHEMA_VERSION:
+        return "sturdy_survival_authority_invalid"
+    required = ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "defender", "attacker", "action_id", "move_id", "status")
+    if any(key not in authority for key in required):
+        return "sturdy_survival_authority_incomplete"
+    if any(authority.get(key) != value for key, value in root["original"].items()):
+        return "sturdy_actor_neutral_root_source_authority_binding_mismatch"
+    if authority.get("defender") != root["target"] or authority.get("attacker") != root["actor"] or authority.get("action_id") != root["action_id"] or authority.get("move_id") != root["move_id"]:
+        return "sturdy_actor_neutral_root_actor_recipient_binding_mismatch"
+    return None
 
 
 def _pokemon(state: Any, owner: Mapping[str, Any]) -> Mapping[str, Any] | None:
