@@ -19,6 +19,8 @@ from llm.advisor_runtime_d0_sturdy_survival_authority import freeze_runtime_d0_s
 from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtime_d0_direct_heal_execution_authority
 from llm.advisor_runtime_d0_atomic_item_swap_status_execution_authority import freeze_runtime_d0_atomic_item_swap_status_execution_authority
 from llm.advisor_runtime_d0_status_special_application_authority import freeze_runtime_d0_status_special_application_authority
+from llm.advisor_runtime_d0_pivot_replacement_authority import freeze_runtime_d0_pivot_replacement_authority
+from advisor.damage_pivot_moves import canonical_damage_pivot_metadata, is_canonical_damage_pivot
 from llm.advisor_runtime_d0_nonconsecutive_protection_success_authority import freeze_runtime_d0_nonconsecutive_protection_success_authority
 from llm.advisor_hypothetical_protection_effects import canonical_protection_metadata
 from advisor.canonical_quick_guard_protection import canonical_quick_guard_protection_metadata
@@ -288,6 +290,16 @@ def _project_live_opponent_response_profiles(
                             execution_applicability_authority=applicability,
                         )
                     }
+                pivot_metadata = canonical_damage_pivot_metadata(response_metadata) if isinstance(response_metadata, Mapping) else None
+                if is_canonical_damage_pivot(pivot_metadata):
+                    pivot_replacement = freeze_runtime_d0_pivot_replacement_authority(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                        pivot_actor=active_owners["opponent"], pivot_action=response,
+                        move_metadata=response_metadata,
+                    )
+                    authorities["pivot_replacement_authorities"] = {response_id: pivot_replacement}
+                    if pivot_replacement.get("status") == "resolved" and isinstance(pivot_replacement.get("entry_authority"), Mapping):
+                        authorities["pivot_entry_authorities"] = {response_id: pivot_replacement["entry_authority"]}
                 if response_metadata.get("move_id") in {"taunt", "encore", "disable"}:
                     application = freeze_runtime_d0_status_special_application_authority(
                         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=response,

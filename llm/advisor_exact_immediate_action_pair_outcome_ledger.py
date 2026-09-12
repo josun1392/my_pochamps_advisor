@@ -938,15 +938,18 @@ def _pivot_second_action_target_binding(branch: Mapping[str, Any], base: Mapping
     authority = pivot.get("pivot_authority") if isinstance(pivot, Mapping) else None
     incoming = pivot.get("resulting_active_owner") if isinstance(pivot, Mapping) else None
     provenance = second.get("provenance") if isinstance(second, Mapping) else None
+    pivoting_side = authority.get("attacker", {}).get("side") if isinstance(authority, Mapping) else None
+    expected_first_actor = base["own_actor"] if pivoting_side == "self" else base["opponent_actor"]
+    expected_second_actor = base["opponent_actor"] if pivoting_side == "self" else base["own_actor"]
     if (
-        branch.get("action_order") != "own_first"
+        branch.get("action_order") != ("own_first" if pivoting_side == "self" else "opponent_first")
         or not isinstance(authority, Mapping) or authority.get("status") != "applies"
         or not isinstance(incoming, Mapping) or not isinstance(provenance, Mapping)
-        or first.get("provenance", {}).get("attacker") != base["own_actor"]
-        or provenance.get("attacker") != base["opponent_actor"]
+        or first.get("provenance", {}).get("attacker") != expected_first_actor
+        or provenance.get("attacker") != expected_second_actor
         or not _same_owner_identity(authority.get("selected_replacement_owner"), incoming)
         or not _same_owner_identity(provenance.get("target"), incoming)
-        or _same_owner_identity(incoming, base["own_actor"])
+        or _same_owner_identity(incoming, expected_second_actor)
     ):
         return "pivot_second_action_target_binding_invalid"
     return None

@@ -11,7 +11,7 @@ SCHEMA_VERSION = "damage-pivot-continuation-authority-v1"
 
 
 def freeze_damage_pivot_continuation_authority(*, strategy_d0: Mapping[str, Any], action: Mapping[str, Any], move_metadata: Mapping[str, Any], attack_terminal_leaf: Mapping[str, Any], replacement_authority: Mapping[str, Any] | None) -> dict[str, Any]:
-    """Bind one terminal attack leaf to its exact optional self-switch continuation.
+    """Bind one terminal attack leaf to its exact optional same-side switch.
 
     This owner does not choose a replacement, execute a switch, or alter attack
     probabilities.  It only states whether a caller-provided exact replacement
@@ -43,10 +43,17 @@ def freeze_damage_pivot_continuation_authority(*, strategy_d0: Mapping[str, Any]
 
 def _base(d0: Any, action: Any, move: Any, leaf: Any) -> dict[str, Any] | None:
     if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or not isinstance(action, Mapping) or not isinstance(move, Mapping) or not isinstance(leaf, Mapping): return None
-    attacker, target, provenance = d0.get("decision_owner"), d0.get("active_owners", {}).get("opponent"), leaf.get("provenance")
-    if not isinstance(attacker, Mapping) or not isinstance(target, Mapping) or action.get("action_id") != f"attack:{move.get('move_id')}" or leaf.get("candidate_id") != action.get("action_id") or not isinstance(provenance, Mapping): return None
-    expected = {"session_id": d0.get("session_id"), "source_runtime_fingerprint": d0.get("source_runtime_fingerprint"), "source_branch_fingerprint": d0.get("strategy_preview_fingerprint"), "decision_owner": attacker, "attacker": attacker, "target": target, "move_id": move.get("move_id")}
-    if any(provenance.get(key) != value for key, value in expected.items()) or not isinstance(move.get("move_id"), str): return None
+    provenance = leaf.get("provenance")
+    active = d0.get("active_owners") if isinstance(d0.get("active_owners"), Mapping) else {}
+    attacker, target = provenance.get("attacker") if isinstance(provenance, Mapping) else None, provenance.get("target") if isinstance(provenance, Mapping) else None
+    if not isinstance(attacker, Mapping) or not isinstance(target, Mapping) or attacker not in (active.get("self"), active.get("opponent")) or target not in (active.get("self"), active.get("opponent")) or attacker.get("side") == target.get("side") or leaf.get("candidate_id") != action.get("action_id") or not isinstance(provenance, Mapping): return None
+    move_id = move.get("move_id")
+    if not isinstance(move_id, str) or action.get("action_id") not in {f"attack:{move_id}", f"opponent_attack:{move_id}"}: return None
+    # The synthetic opponent root owns its predictive D0.  A normal D0 owns
+    # the self action.  Either way the leaf must name that exact actor.
+    if d0.get("decision_owner") != attacker: return None
+    expected = {"session_id": d0.get("session_id"), "source_runtime_fingerprint": d0.get("source_runtime_fingerprint"), "source_branch_fingerprint": d0.get("strategy_preview_fingerprint"), "decision_owner": attacker, "attacker": attacker, "target": target, "move_id": move_id}
+    if any(provenance.get(key) != value for key, value in expected.items()): return None
     return {**deepcopy(expected), "action_id": action["action_id"], "attack_leaf_id": leaf.get("leaf_id")}
 
 
@@ -66,15 +73,21 @@ def _replacement(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | None |
             or value.get("source_runtime_fingerprint") != base.get("source_runtime_fingerprint")
             or value.get("source_branch_fingerprint") != base.get("source_branch_fingerprint")
             or value.get("decision_owner") != base.get("decision_owner")
-            or owner.get("side") != "self"
+            or owner.get("side") != base.get("attacker", {}).get("side")
             or owner == base.get("attacker")
         ):
             return "pivot_replacement_authority_invalid"
         return {"status": "resolved", **{key: deepcopy(base[key]) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")}, "owner": deepcopy(dict(owner)), "provenance": "pending_action_intent_rebinding_authority"}
-    if value.get("status") == "known_none": return None
-    owner = value.get("owner")
     expected = {key: base.get(key) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")}
-    if value.get("status") != "resolved" or any(value.get(key) != item for key, item in expected.items()) or not isinstance(owner, Mapping) or owner.get("side") != "self" or owner == base.get("attacker"):
+    if value.get("status") == "known_none":
+        if any(value.get(key) != item for key, item in expected.items()): return "pivot_replacement_authority_invalid"
+        if value.get("schema_version") == "runtime-d0-pivot-replacement-authority-v1" and (value.get("pivot_actor") != base.get("attacker") or value.get("pivot_action_id") != base.get("action_id") or value.get("move_id") != base.get("move_id")):
+            return "pivot_replacement_authority_invalid"
+        return None
+    owner = value.get("owner")
+    if value.get("status") != "resolved" or any(value.get(key) != item for key, item in expected.items()) or not isinstance(owner, Mapping) or owner.get("side") != base.get("attacker", {}).get("side") or owner == base.get("attacker"):
+        return "pivot_replacement_authority_invalid"
+    if value.get("schema_version") == "runtime-d0-pivot-replacement-authority-v1" and (value.get("pivot_actor") != base.get("attacker") or value.get("pivot_action_id") != base.get("action_id") or value.get("move_id") != base.get("move_id")):
         return "pivot_replacement_authority_invalid"
     return deepcopy(dict(value))
 

@@ -161,3 +161,41 @@ def test_opponent_first_faint_cancels_pending_pivot_before_rebinding(monkeypatch
     pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot={"state": {}}, own_action=own_action, opponent_action=opponent_action, action_order_authority=order)
     assert pair["status"] == "evaluable", pair.get("reason")
     assert pair["terminal_branches"][0]["second_action"]["state"] == "cancelled_due_to_faint"
+
+
+def test_opponent_pivot_continuation_is_bound_to_its_own_side():
+    d0 = _d0()
+    own, foe = d0["active_owners"]["self"], d0["active_owners"]["opponent"]
+    root = {**d0, "decision_owner": foe}
+    action = {"action_id": "opponent_attack:volt-switch"}
+    leaf = _leaf(d0) | {
+        "leaf_id": "opponent:volt-switch:hit", "candidate_id": action["action_id"],
+        "provenance": {**_leaf(d0)["provenance"], "decision_owner": foe, "attacker": foe, "target": own, "move_id": "volt-switch"},
+    }
+    replacement = {"status": "resolved", "session_id": "pivot", "source_runtime_fingerprint": "runtime", "source_branch_fingerprint": "branch", "decision_owner": foe, "owner": {"session_id": "pivot", "side": "opponent", "slot_index": 1, "pokemon_id": "foe-bench"}}
+    result = freeze_damage_pivot_continuation_authority(strategy_d0=root, action=action, move_metadata={"move_id": "volt-switch"}, attack_terminal_leaf=leaf, replacement_authority=replacement)
+    assert result["status"] == "applies"
+    assert result["selected_replacement_owner"]["side"] == "opponent"
+    foreign = {**replacement, "owner": {**replacement["owner"], "side": "self"}}
+    assert freeze_damage_pivot_continuation_authority(strategy_d0=root, action=action, move_metadata={"move_id": "volt-switch"}, attack_terminal_leaf=leaf, replacement_authority=foreign)["status"] == "incomplete"
+
+
+def test_opponent_pivot_first_retargets_own_pending_action(monkeypatch):
+    d0, own, foe, own_meta, own_action, opponent_action, order = _opponent_first_pair_inputs()
+    opponent_action = {**opponent_action, "action_id": "opponent_attack:u-turn", "move_id": "u-turn", "metadata_authority": {"status": "resolved", "metadata": {"move_id": "u-turn", "category": "physical", "power": 70, "type": "bug", "accuracy": 100, "priority": 0}}}
+    order = {**order, "opponent_action_id": opponent_action["action_id"]}
+    incoming = {"session_id": "pivot", "side": "opponent", "slot_index": 1, "pokemon_id": "foe-bench"}
+    first = _leaf(d0) | {"leaf_id": "opponent:u-turn:hit", "candidate_id": opponent_action["action_id"], "action_type": "attack", "branch_path": ("hit",), "probability": {"numerator": 1, "denominator": 1}, "provenance": {**_leaf(d0)["provenance"], "decision_owner": foe, "attacker": foe, "target": own, "move_id": "u-turn"}}
+    second = _leaf(d0) | {"leaf_id": "tackle:hit", "candidate_id": own_action["action_id"], "action_type": "attack", "branch_path": ("hit",), "probability": {"numerator": 1, "denominator": 1}, "provenance": {**_leaf(d0)["provenance"], "attacker": own, "target": incoming, "move_id": own_action["identity"]}}
+    intermediate = {"status": "resolved", "active": {"self": {"hypothetical_fainted": {"value": False}}, "opponent": {"hypothetical_fainted": {"value": False}}}}
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair.resolve_runtime_d0_selectable_move_metadata_authority", lambda **_: own_meta)
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair.freeze_detached_actor_neutral_root_predictive_authority", lambda **_: {"status": "resolved", "predictive_strategy_d0": {**d0, "decision_owner": foe}, "predictive_runtime_snapshot": {"state": {}}})
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair.materialize_detached_predictive_intermediate_state", lambda **_: intermediate)
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair.freeze_damage_pivot_continuation_authority", lambda **_: {"status": "applies"})
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair.freeze_detached_intermediate_predictive_authority", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair.materialize_detached_damage_pivot_switch", lambda **_: {"status": "resolved", "resulting_active_owner": incoming, "runtime_snapshot": {"status": "runtime_snapshot_ready", "state": {}}})
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair.freeze_runtime_strategy_d0", lambda **_: {"status": "resolved"})
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair._attack_ledger", lambda *, actor, **_: {"status": "evaluable", "terminal_leaves": (first if actor == foe else second,)})
+    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot={"state": {}}, own_action=own_action, opponent_action=opponent_action, action_order_authority=order, pivot_replacement_authorities={opponent_action["action_id"]: {"status": "resolved"}}, pivot_entry_authorities={opponent_action["action_id"]: {}})
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert pair["terminal_branches"][0]["second_action"]["leaf"]["provenance"]["target"] == incoming

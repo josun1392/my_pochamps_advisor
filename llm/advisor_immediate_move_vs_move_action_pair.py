@@ -1241,23 +1241,22 @@ def _materialize_order(
         leaf = sitrus["leaf"]
         intermediate = materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=leaf, root_predictive_authority=root)
         if intermediate.get("status") != "resolved": return _result(_status(intermediate), intermediate.get("reason", "intermediate_state_unavailable"), base)
-        # A self-switching damaging move changes the defensive owner for the
-        # already-selected opposing action.  This belongs after the complete
-        # terminal leaf (including recoil/contact consequences), before the
-        # ordinary second-action actor/target handoff.
-        if order == "own_first":
+        # A successful pivot changes the defensive owner for the already
+        # selected second action.  The owner is the first action's actor, so
+        # this is intentionally symmetric for self and opponent roots.
+        if first_meta["metadata"].get("move_id") in {"u-turn", "volt-switch", "flip-turn"}:
             pivot = freeze_damage_pivot_continuation_authority(
-                strategy_d0=strategy_d0, action=own_action,
-                move_metadata=own_meta["metadata"], attack_terminal_leaf=leaf,
-                replacement_authority=(pivot_replacement_authorities or {}).get(leaf["leaf_id"]),
+                strategy_d0=first_d0, action=first_action,
+                move_metadata=first_meta["metadata"], attack_terminal_leaf=leaf,
+                replacement_authority=_pivot_replacement_authority(pivot_replacement_authorities, leaf, first_action),
             )
             if pivot.get("status") == "applies":
-                entry = (pivot_entry_authorities or {}).get(leaf["leaf_id"])
+                entry = _pivot_entry_authority(pivot_entry_authorities, leaf, first_action)
                 if not isinstance(entry, Mapping): return _result("incomplete", "pivot_switch_entry_authority_missing", base, first_leaf_id=leaf["leaf_id"])
                 precursor = freeze_detached_intermediate_predictive_authority(
-                    strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                    strategy_d0=first_d0, runtime_snapshot=first_snapshot,
                     intermediate_state=intermediate, actor=first_actor, target=second_actor,
-                    move_metadata_authority=own_meta,
+                    move_metadata_authority=first_meta,
                 )
                 if precursor.get("status") != "resolved": return _result(_status(precursor), precursor.get("reason", "pivot_post_attack_authority_unavailable"), base, first_leaf_id=leaf["leaf_id"])
                 switched = materialize_detached_damage_pivot_switch(intermediate_authority=precursor, pivot_authority=pivot, entry_authority=entry)
@@ -1270,12 +1269,12 @@ def _materialize_order(
                 post_d0 = freeze_runtime_strategy_d0(runtime_snapshot=post_snapshot, decision_owner=second_actor)
                 if post_d0.get("status") != "resolved": return _result(_status(post_d0), post_d0.get("reason", "pivot_post_switch_d0_unavailable"), base, first_leaf_id=leaf["leaf_id"])
                 second = _attack_ledger(strategy_d0=post_d0, runtime_snapshot=post_snapshot, actor=second_actor, target=_owner_identity(incoming),
-                    metadata_authority=opponent_meta, action=opponent_action)
+                    metadata_authority=second_meta, action=opponent_action if second_actor == base["opponent_actor"] else own_action)
                 if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
                 for second_leaf in second["terminal_leaves"]:
                     branches.append(_branch(base, order, leaf, intermediate, second_leaf, second_actor, order_plan, pivot_transition=switched))
                 continue
-            if pivot.get("status") in {"incomplete", "rejected"} and own_meta["metadata"].get("move_id") in {"u-turn", "volt-switch", "flip-turn"}:
+            if pivot.get("status") in {"incomplete", "rejected"}:
                 return _result(_status(pivot), pivot.get("reason", "pivot_continuation_unavailable"), base, first_leaf_id=leaf["leaf_id"])
         if _fainted(intermediate, second_actor):
             branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan)); continue
@@ -2150,13 +2149,18 @@ def _bind_sucker_punch_execution_ledger(ledger: Mapping[str, Any], applicability
         if not isinstance(leaf, Mapping): return _result("rejected", "sucker_punch_attack_leaf_invalid", {})
         row = deepcopy(dict(leaf)); row["consequences"] = {**deepcopy(dict(row.get("consequences", {}))), "sucker_punch_execution": deepcopy(dict(applicability))}; row["provenance"] = {**deepcopy(dict(row.get("provenance", {}))), "sucker_punch_execution_applicability": deepcopy(dict(applicability))}; bound.append(row)
     result = deepcopy(dict(ledger)); result["terminal_leaves"] = tuple(bound); return result
-def _pending_pivot_replacement_authority(authorities: Mapping[str, Mapping[str, Any]] | None, action: Mapping[str, Any]) -> Mapping[str, Any] | None:
+def _pivot_replacement_authority(authorities: Mapping[str, Mapping[str, Any]] | None, leaf: Mapping[str, Any], action: Mapping[str, Any]) -> Mapping[str, Any] | None:
     if not isinstance(authorities, Mapping): return None
-    direct = authorities.get(action.get("action_id"))
-    if isinstance(direct, Mapping): return direct
-    candidates = [value for value in authorities.values() if isinstance(value, Mapping) and value.get("status") in {"resolved", "known_none"}]
-    if len(candidates) == 1: return candidates[0]
-    return None
+    value = authorities.get(leaf.get("leaf_id"))
+    if isinstance(value, Mapping): return value
+    value = authorities.get(action.get("action_id"))
+    return value if isinstance(value, Mapping) else None
+
+
+def _pending_pivot_replacement_authority(authorities: Mapping[str, Mapping[str, Any]] | None, action: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    # A pending self pivot has no terminal leaf until it executes.  Only an
+    # action-bound authority may seed that later exact rebinding.
+    return _pivot_replacement_authority(authorities, {}, action)
 def _pivot_entry_authority(authorities: Mapping[str, Mapping[str, Any]] | None, leaf: Mapping[str, Any], action: Mapping[str, Any]) -> Mapping[str, Any] | None:
     if not isinstance(authorities, Mapping): return None
     value = authorities.get(leaf.get("leaf_id"))

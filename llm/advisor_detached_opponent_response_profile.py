@@ -46,6 +46,8 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
     "burning_bulwark_reactive_burn_authority",
     "quick_guard_priority_applicability_authority",
     "mat_block_direct_damage_applicability_authority",
+    "pivot_replacement_authorities",
+    "pivot_entry_authorities",
 }
 _ORDINARY_PAIR_CONTEXT_KEYS = {"reactive_shield_common_block_context"}
 

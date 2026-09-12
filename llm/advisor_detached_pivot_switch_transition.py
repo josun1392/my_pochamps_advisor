@@ -47,17 +47,23 @@ def materialize_detached_damage_pivot_switch(*, intermediate_authority: Mapping[
         materialized = {**materialized, "next_state": entered["next_state"], "resulting_branch_fingerprint": entered["resulting_branch_fingerprint"], "materialization_trace": entered.get("consequence_trace", materialized.get("materialization_trace", []))}
     state = materialized["next_state"]
     runtime_state = deepcopy(dict(snapshot["state"]))
-    runtime_state["self_side"]["active_slot_index"] = incoming_owner["slot_index"]
+    pivot_side = incoming_owner.get("side")
+    side_key = f"{pivot_side}_side"
+    if pivot_side not in {"self", "opponent"} or not isinstance(runtime_state.get(side_key), Mapping):
+        return _result("rejected", "pivot_incoming_side_invalid")
+    runtime_state[side_key]["active_slot_index"] = incoming_owner["slot_index"]
     # A manual-switch permission is identity-bound to the outgoing active.
     # Keeping it after the forced post-damage replacement would both leak a
     # stale authority and make the runtime-shaped handoff invalid.
-    runtime_state["self_side"].pop("switch_permission_context", None)
-    raw_incoming = runtime_state["self_side"]["pokemon"][incoming_owner["slot_index"]]
-    raw_incoming["current_hp"] = state["active"]["self"]["current_hp"]
-    raw_incoming["max_hp"] = state["active"]["self"]["max_hp"]
-    raw_incoming["fainted"] = state["active"]["self"]["fainted"]
+    runtime_state[side_key].pop("switch_permission_context", None)
+    raw_incoming = runtime_state[side_key]["pokemon"][incoming_owner["slot_index"]]
+    active = state.get("active", {}).get(pivot_side)
+    if not isinstance(active, Mapping): return _result("rejected", "pivot_resulting_active_missing")
+    raw_incoming["current_hp"] = active["current_hp"]
+    raw_incoming["max_hp"] = active["max_hp"]
+    raw_incoming["fainted"] = active["fainted"]
     runtime_snapshot = {"status": "runtime_snapshot_ready", "session_id": d0["session_id"], "state": runtime_state, "state_fingerprint": state_fingerprint(runtime_state)}
-    return {"status": "resolved", "schema_version": SCHEMA_VERSION, "source_first_action_leaf_id": intermediate_authority.get("source_first_action_leaf_id"), "pivot_authority": deepcopy(dict(pivot_authority)), "incoming_authority": deepcopy(dict(incoming)), "resulting_active_owner": deepcopy(dict(state["active"]["self"])), "next_state": deepcopy(state), "runtime_snapshot": runtime_snapshot, "resulting_branch_fingerprint": materialized["resulting_branch_fingerprint"], "materialization_trace": deepcopy(materialized["materialization_trace"]), "provenance": "exact_post_attack_intermediate_to_pivot_incoming_active_v1"}
+    return {"status": "resolved", "schema_version": SCHEMA_VERSION, "source_first_action_leaf_id": intermediate_authority.get("source_first_action_leaf_id"), "pivot_authority": deepcopy(dict(pivot_authority)), "incoming_authority": deepcopy(dict(incoming)), "resulting_active_owner": deepcopy(dict(active)), "next_state": deepcopy(state), "runtime_snapshot": runtime_snapshot, "resulting_branch_fingerprint": materialized["resulting_branch_fingerprint"], "materialization_trace": deepcopy(materialized["materialization_trace"]), "provenance": "exact_post_attack_intermediate_to_pivot_incoming_active_v1"}
 
 
 def _result(status: str, reason: str) -> dict[str, Any]: return {"status": status, "schema_version": SCHEMA_VERSION, "reason": reason}
