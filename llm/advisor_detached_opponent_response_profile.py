@@ -37,6 +37,9 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
     "silk_trap_reactive_interaction_authority",
     "kings_shield_reactive_interaction_authority",
     "obstruct_reactive_interaction_authority",
+    "spiky_shield_reactive_damage_authority",
+    "baneful_bunker_reactive_poison_authority",
+    "burning_bulwark_reactive_burn_authority",
     "quick_guard_priority_applicability_authority",
     "mat_block_direct_damage_applicability_authority",
 }

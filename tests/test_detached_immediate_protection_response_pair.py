@@ -344,6 +344,31 @@ def test_spiky_shield_consumes_reactive_damage_into_pair_ledger_and_metrics():
     assert metrics["status"] == "resolved" and metrics["own"]["final_hp_distribution"]["outcomes"][0]["final_hp"] == 70
 
 
+def test_reactive_shield_non_contact_and_explicit_bypass_do_not_require_a_damage_status_authority():
+    _state, snapshot, d0, _unused, _responses, _orders = _inputs()
+    shield = _protect_action(d0, "spiky-shield")
+    non_contact = _own_action(d0, "shadow-ball")
+    protected = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=non_contact, opponent_action=shield,
+        action_order_authority=_order(d0, non_contact, shield, "opponent_first"),
+        opponent_protection_success_authority=_success(d0["active_owners"]["opponent"]),
+        incoming_contact_authority={"status": "resolved", "contact_state": "non_contact"},
+    )
+    assert protected["status"] == "evaluable", protected.get("reason")
+    assert protected["terminal_branches"][0]["second_action"]["state"] == "prevented_by_protection"
+    assert protected["terminal_branches"][0]["first_action_leaf"]["consequences"]["spiky_shield_reactive_damage"]["outcome"] == "not_applicable"
+
+    bypass = _own_action(d0, "tackle")
+    bypass["move_metadata_authority"]["metadata"]["protection_bypass"] = True
+    unprotected = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=bypass, opponent_action=shield,
+        action_order_authority=_order(d0, bypass, shield, "opponent_first"),
+    )
+    assert unprotected["status"] == "evaluable", unprotected.get("reason")
+    assert unprotected["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert unprotected["terminal_branches"][0]["second_action"]["state"] == "executed_bypassing_protection"
+
+
 def test_spiky_shield_reactive_ko_and_non_contact_or_missing_authority_remain_exact():
     snapshot, d0, own, shield, damage, contact = _spiky_pair_inputs(own_hp=5)
     ko = materialize_immediate_move_vs_move_action_pair(

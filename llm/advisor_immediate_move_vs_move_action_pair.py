@@ -773,6 +773,16 @@ def _materialize_protection_response_pair(
                     base, plan, leaf, "cancelled_due_to_faint" if leaf["consequences"].get("target_ko") is True else "executed_protection",
                 ))
             continue
+        if own_meta["metadata"].get("protection_bypass") is True:
+            first = _attack_ledger(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                actor=base["own_actor"], target=base["opponent_actor"], metadata_authority=own_meta,
+            )
+            if first.get("status") != "evaluable":
+                return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base)
+            for leaf in first["terminal_leaves"]:
+                branches.append(_protection_branch(base, plan, leaf, "executed_bypassing_protection"))
+            continue
         protection = _resolved_protection(
             strategy_d0=strategy_d0, opponent=base["opponent_actor"], own=base["own_actor"],
             metadata=opponent_meta["metadata"], success_authority=opponent_protection_success_authority,
@@ -826,26 +836,35 @@ def _materialize_protection_response_pair(
             reactive = resolve_obstruct_defense_effect(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, blocked_action={"action_id":base["own_action_id"],"identity":own_meta["metadata"].get("move_id")}, blocked_attacker=base["own_actor"], shield_owner=base["opponent_actor"], contact_authority=incoming_contact_authority, reactive_interaction_authority=interaction)
             if reactive.get("status") != "resolved": return _result(_status(reactive), reactive.get("reason", "obstruct_reactive_authority_unavailable"), base)
         elif canonical_spiky_shield_reactive_damage_metadata(opponent_meta["metadata"].get("move_id")) is not None:
-            spiky_damage = _spiky_shield_reactive_damage(
-                base=base, contact_authority=incoming_contact_authority,
-                authority=spiky_shield_reactive_damage_authority,
-            )
-            if spiky_damage.get("status") != "resolved":
-                return _result(_status(spiky_damage), spiky_damage.get("reason", "spiky_shield_reactive_damage_authority_unavailable"), base)
+            if isinstance(incoming_contact_authority, Mapping) and incoming_contact_authority.get("status") == "resolved" and incoming_contact_authority.get("contact_state") == "non_contact":
+                spiky_damage = {"status": "resolved", "outcome": "not_applicable", "reason": "blocked_action_known_non_contact"}
+            else:
+                spiky_damage = _spiky_shield_reactive_damage(
+                    base=base, contact_authority=incoming_contact_authority,
+                    authority=spiky_shield_reactive_damage_authority,
+                )
+                if spiky_damage.get("status") != "resolved":
+                    return _result(_status(spiky_damage), spiky_damage.get("reason", "spiky_shield_reactive_damage_authority_unavailable"), base)
         elif canonical_baneful_bunker_reactive_poison_metadata(opponent_meta["metadata"].get("move_id")) is not None:
-            baneful_poison = _baneful_bunker_reactive_poison(
-                base=base, contact_authority=incoming_contact_authority,
-                authority=baneful_bunker_reactive_poison_authority,
-            )
-            if baneful_poison.get("status") != "resolved":
-                return _result(_status(baneful_poison), baneful_poison.get("reason", "baneful_bunker_reactive_poison_authority_unavailable"), base)
+            if isinstance(incoming_contact_authority, Mapping) and incoming_contact_authority.get("status") == "resolved" and incoming_contact_authority.get("contact_state") == "non_contact":
+                baneful_poison = {"status": "resolved", "outcome": "not_applicable", "reason": "blocked_action_known_non_contact"}
+            else:
+                baneful_poison = _baneful_bunker_reactive_poison(
+                    base=base, contact_authority=incoming_contact_authority,
+                    authority=baneful_bunker_reactive_poison_authority,
+                )
+                if baneful_poison.get("status") != "resolved":
+                    return _result(_status(baneful_poison), baneful_poison.get("reason", "baneful_bunker_reactive_poison_authority_unavailable"), base)
         elif canonical_burning_bulwark_reactive_burn_metadata(opponent_meta["metadata"].get("move_id")) is not None:
-            burning_burn = _burning_bulwark_reactive_burn(
-                base=base, contact_authority=incoming_contact_authority,
-                authority=burning_bulwark_reactive_burn_authority,
-            )
-            if burning_burn.get("status") != "resolved":
-                return _result(_status(burning_burn), burning_burn.get("reason", "burning_bulwark_reactive_burn_authority_unavailable"), base)
+            if isinstance(incoming_contact_authority, Mapping) and incoming_contact_authority.get("status") == "resolved" and incoming_contact_authority.get("contact_state") == "non_contact":
+                burning_burn = {"status": "resolved", "outcome": "not_applicable", "reason": "blocked_action_known_non_contact"}
+            else:
+                burning_burn = _burning_bulwark_reactive_burn(
+                    base=base, contact_authority=incoming_contact_authority,
+                    authority=burning_bulwark_reactive_burn_authority,
+                )
+                if burning_burn.get("status") != "resolved":
+                    return _result(_status(burning_burn), burning_burn.get("reason", "burning_bulwark_reactive_burn_authority_unavailable"), base)
         leaf = _protection_leaf(base, strategy_d0, opponent_meta["metadata"], reactive, spiky_damage, baneful_poison, burning_burn)
         if leaf is None:
             return _result("incomplete", "exact_protection_hp_authority_missing", base)

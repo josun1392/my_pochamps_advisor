@@ -25,6 +25,10 @@ from advisor.canonical_mat_block_protection import canonical_mat_block_protectio
 from llm.advisor_runtime_d0_mat_block_active_entry_eligibility_authority import freeze_runtime_d0_mat_block_active_entry_eligibility_authority
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import freeze_runtime_d0_mat_block_direct_damage_applicability_authority, freeze_runtime_d0_mat_block_incoming_bypass_authority
 from llm.advisor_runtime_d0_reactive_shield_common_block_context import freeze_runtime_d0_reactive_shield_common_block_context
+from llm.advisor_runtime_d0_reactive_shield_damage_status_applicability_resolution import freeze_runtime_d0_reactive_shield_damage_status_applicability_resolution
+from llm.advisor_runtime_d0_spiky_shield_reactive_damage_authority import freeze_runtime_d0_spiky_shield_reactive_damage_authority
+from llm.advisor_runtime_d0_baneful_bunker_reactive_poison_authority import freeze_runtime_d0_baneful_bunker_reactive_poison_authority
+from llm.advisor_runtime_d0_burning_bulwark_reactive_burn_authority import freeze_runtime_d0_burning_bulwark_reactive_burn_authority
 from llm.advisor_runtime_d0_reactive_shield_stage_interaction_resolution import freeze_runtime_d0_reactive_shield_stage_interaction_resolution
 from llm.advisor_runtime_d0_silk_trap_speed_drop_interaction_authority import (
     freeze_runtime_d0_silk_trap_speed_drop_interaction_authority,
@@ -337,6 +341,24 @@ def _project_live_opponent_response_profiles(
                         )
                         if isinstance(lower, Mapping) and lower.get("status") == "resolved" and isinstance(interaction_resolution, Mapping):
                             authorities[stage_field[0]] = interaction_resolution
+                    damage_status_field = _damage_status_reactive_shield_field(response_metadata.get("move_id") if isinstance(response_metadata, Mapping) else None)
+                    if damage_status_field is not None and isinstance(common, Mapping) and common.get("outcome") == "protection_applies_contact":
+                        adapter = freeze_runtime_d0_reactive_shield_damage_status_applicability_resolution(
+                            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, common_block_context=common,
+                        )
+                        block = adapter.get("protection_block_context") if isinstance(adapter, Mapping) else None
+                        applicability = adapter.get("applicability_resolution") if isinstance(adapter, Mapping) else None
+                        if isinstance(block, Mapping) and isinstance(contact, Mapping):
+                            lower = damage_status_field[1](
+                                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                                shield_owner=active_owners["opponent"], shield_action_id=response_id,
+                                blocked_attacker=active_owners["self"],
+                                blocked_action={"action_id": own["action_id"], "identity": own["identity"]},
+                                contact_authority=contact, protection_block_context=block,
+                                applicability_resolution=applicability if isinstance(applicability, Mapping) else None,
+                            )
+                            if isinstance(lower, Mapping) and lower.get("status") == "resolved":
+                                authorities[damage_status_field[0]] = lower
                 response_authority_bundles[response_id] = {
                     "status": "resolved", "schema_version": "live-opponent-response-authority-bundle-v1",
                     "session_id": strategy_d0["session_id"],
@@ -381,6 +403,17 @@ def _stage_reactive_shield_field(move_id: Any) -> tuple[str, Callable[..., Mappi
         return ("kings_shield_reactive_interaction_authority", freeze_runtime_d0_kings_shield_attack_drop_interaction_authority)
     if canonical_obstruct_metadata(move_id) is not None:
         return ("obstruct_reactive_interaction_authority", freeze_runtime_d0_obstruct_defense_drop_interaction_authority)
+    return None
+
+
+def _damage_status_reactive_shield_field(move_id: Any) -> tuple[str, Callable[..., Mapping[str, Any]]] | None:
+    """Return one lower damage/status consequence owner for a canonical reactive shield."""
+    if canonical_spiky_shield_reactive_damage_metadata(move_id) is not None:
+        return ("spiky_shield_reactive_damage_authority", freeze_runtime_d0_spiky_shield_reactive_damage_authority)
+    if canonical_baneful_bunker_reactive_poison_metadata(move_id) is not None:
+        return ("baneful_bunker_reactive_poison_authority", freeze_runtime_d0_baneful_bunker_reactive_poison_authority)
+    if canonical_burning_bulwark_reactive_burn_metadata(move_id) is not None:
+        return ("burning_bulwark_reactive_burn_authority", freeze_runtime_d0_burning_bulwark_reactive_burn_authority)
     return None
 
 
